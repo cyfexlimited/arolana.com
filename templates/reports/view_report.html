@@ -1,0 +1,40 @@
+{% extends 'base/base.html' %}
+
+{% block content %}
+<div class="bg-white rounded-lg shadow-lg p-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold">📈 Login Report</h1>
+        <a href="{% url 'reports:export_csv' report.id %}" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+            <i class="fas fa-download"></i> Export CSV
+        </a>
+    </div>
+    
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-blue-50 rounded-lg p-3 text-center">
+            <p class="text-2xl font-bold text-blue-600">{{ report.total_logins }}</p>
+            <p class="text-sm text-gray-600">Total Logins</p>
+        </div>
+        <div class="bg-green-50 rounded-lg p-3 text-center">
+            <p class="text-2xl font-bold text-green-600">{{ report.successful_logins }}</p>
+            <p class="text-sm text-gray-600">Successful</p>
+        </div>
+        <div class="bg-red-50 rounded-lg p-3 text-center">
+            <p class="text-2xl font-bold text-red-600">{{ report.failed_logins }}</p>
+            <p class="text-sm text-gray-600">Failed</p>
+        </div>
+        <div class="bg-purple-50 rounded-lg p-3 text-center">
+            <p class="text-2xl font-bold text-purple-600">
+                {% widthratio report.successful_logins report.total_logins 100 %}%
+            </p>
+            <p class="text-sm text-gray-600">Success Rate</p>
+        </div>
+    </div>
+    
+    <div class="border-t pt-4">
+        <p><strong>Report Period:</strong> {{ report.start_date }} to {{ report.end_date }}</p>
+        <p><strong>Unique Users:</strong> {{ report.unique_users }}</p>
+        <p><strong>Unique IPs:</strong> {{ report.unique_ips }}</p>
+        <p><strong>Generated:</strong> {{ report.generated_at }}</p>
+    </div>
+</div>
+{% endblock %}

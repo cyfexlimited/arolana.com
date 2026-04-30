@@ -1,0 +1,21 @@
+{% extends 'base/base.html' %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto py-8">
+    <h1 class="text-3xl font-bold mb-8">Color Test Page</h1>
+    
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-bold mb-4">All Color Variants</h2>
+        <div class="flex flex-wrap gap-3">
+            {% for variant in color_variants %}
+            <div class="text-center">
+                <div class="w-16 h-16 rounded-full border-2 shadow-sm" style="background-color: 
+                    {% if variant.value == 'Red' %}#FF0000{% elif variant.value == 'Blue' %}#0000FF{% elif variant.value == 'Green' %}#00FF00{% elif variant.value == 'Black' %}#000000{% elif variant.value == 'White' %}#FFFFFF{% elif variant.value == 'Yellow' %}#FFFF00{% elif variant.value == 'Purple' %}#800080{% elif variant.value == 'Orange' %}#FFA500{% elif variant.value == 'Pink' %}#FFC0CB{% elif variant.value == 'Brown' %}#A52A2A{% elif variant.value == 'Gray' %}#808080{% elif variant.value == 'Navy' %}#000080{% elif variant.value == 'Cyan' %}#00FFFF{% elif variant.value == 'Magenta' %}#FF00FF{% elif variant.value == 'Lime' %}#32CD32{% elif variant.value == 'Olive' %}#808000{% elif variant.value == 'Maroon' %}#800000{% elif variant.value == 'Teal' %}#008080{% elif variant.value == 'Gold' %}#FFD700{% elif variant.value == 'Silver' %}#C0C0C0{% else %}#CCCCCC{% endif %}">
+                </div>
+                <p class="text-xs mt-1">{{ variant.value }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

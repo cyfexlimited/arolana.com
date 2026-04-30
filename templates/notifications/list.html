@@ -1,0 +1,109 @@
+{% extends 'base/base.html' %}
+
+{% block content %}
+<div class="bg-white rounded-lg shadow-md p-6">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold">
+                <i class="fas fa-bell mr-2"></i> Notifications
+            </h1>
+            <p class="text-gray-600 text-sm mt-1">Stay updated with your latest activities</p>
+        </div>
+        <div class="flex gap-3">
+            {% if unread_count > 0 %}
+            <form method="POST" action="{% url 'notifications:mark_all_read' %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                    <i class="fas fa-check-double mr-1"></i> Mark all as read
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+    
+    {% if notifications %}
+        <div class="space-y-3">
+            {% for notification in notifications %}
+            <div class="{% if not notification.is_read %}bg-blue-50 border-l-4 border-blue-500{% else %}bg-gray-50{% endif %} rounded-lg p-4 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-2">
+                            {% if notification.notification_type == 'login' %}
+                                <i class="fas fa-sign-in-alt text-green-500"></i>
+                            {% elif notification.notification_type == 'logout' %}
+                                <i class="fas fa-sign-out-alt text-red-500"></i>
+                            {% elif notification.notification_type == 'signup' %}
+                                <i class="fas fa-user-plus text-blue-500"></i>
+                            elif notification.notification_type == 'order'
+                                <i class="fas fa-shopping-cart text-yellow-500"></i>
+                            {% elif notification.notification_type == 'message' %}
+                                <i class="fas fa-envelope text-purple-500"></i>
+                            {% else %}
+                                <i class="fas fa-bell text-gray-500"></i>
+                            {% endif %}
+                            <h3 class="font-semibold text-gray-900">{{ notification.title }}</h3>
+                            {% if not notification.is_read %}
+                                <span class="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full animate-pulse">New</span>
+                            {% endif %}
+                        </div>
+                        <p class="text-gray-600 text-sm mb-3">{{ notification.message }}</p>
+                        <div class="flex items-center gap-4 text-xs text-gray-400">
+                            <span><i class="far fa-clock mr-1"></i> {{ notification.created_at|timesince }} ago</span>
+                            {% if notification.link %}
+                                <a href="{{ notification.link }}" class="text-blue-600 hover:underline">View Details →</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="flex gap-2 ml-4">
+                        {% if not notification.is_read %}
+                            <form method="POST" action="{% url 'notifications:mark_read' notification.id %}" class="inline">
+                                {% csrf_token %}
+                                <button type="submit" class="text-gray-400 hover:text-blue-500 transition-colors" title="Mark as read">
+                                    <i class="fas fa-check-circle"></i>
+                                </button>
+                            </form>
+                        {% endif %}
+                        <form method="POST" action="{% url 'notifications:delete' notification.id %}" class="inline">
+                            {% csrf_token %}
+                            <button type="submit" class="text-gray-400 hover:text-red-500 transition-colors" title="Delete">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Pagination -->
+        {% if notifications.has_other_pages %}
+        <div class="flex justify-center mt-6">
+            <div class="flex gap-2">
+                {% if notifications.has_previous %}
+                    <a href="?page={{ notifications.previous_page_number }}" class="px-3 py-1 border rounded-lg hover:bg-gray-50">Previous</a>
+                {% endif %}
+                <span class="px-3 py-1 bg-blue-600 text-white rounded-lg">{{ notifications.number }}</span>
+                {% if notifications.has_next %}
+                    <a href="?page={{ notifications.next_page_number }}" class="px-3 py-1 border rounded-lg hover:bg-gray-50">Next</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    {% else %}
+        <div class="text-center py-16">
+            <div class="bg-gray-50 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-bell-slash text-5xl text-gray-400"></i>
+            </div>
+            <h3 class="text-xl font-semibold text-gray-700 mb-2">No notifications yet</h3>
+            <p class="text-gray-500">When you receive notifications, they'll appear here</p>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+// Auto-refresh notifications every 30 seconds
+setInterval(function() {
+    window.location.reload();
+}, 30000);
+</script>
+{% endblock %}

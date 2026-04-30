@@ -1,0 +1,53 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Vendor Messages | Arolana{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold">Customer Messages</h1>
+        {% if total_unread > 0 %}
+        <span class="bg-red-500 text-white px-3 py-1 rounded-full text-sm">
+            {{ total_unread }} unread
+        </span>
+        {% endif %}
+    </div>
+    
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        {% if chat_rooms %}
+            {% for room in chat_rooms %}
+            <a href="{% url 'chat:vendor_room' room.id %}" class="block hover:bg-gray-50 transition border-b">
+                <div class="p-4 flex items-center gap-4">
+                    <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-user text-green-600 text-xl"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h3 class="font-semibold">{{ room.customer.get_full_name|default:room.customer.username }}</h3>
+                                {% if room.product %}
+                                <p class="text-xs text-gray-500">Regarding: {{ room.product.name|truncatechars:30 }}</p>
+                                {% endif %}
+                            </div>
+                            <span class="text-xs text-gray-400">{{ room.last_message_time|timesince }} ago</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-1">{{ room.get_last_message_preview }}</p>
+                    </div>
+                    {% if room.vendor_unread > 0 %}
+                    <div class="bg-blue-600 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center">
+                        {{ room.vendor_unread }}
+                    </div>
+                    {% endif %}
+                </div>
+            </a>
+            {% endfor %}
+        {% else %}
+            <div class="p-12 text-center">
+                <i class="fas fa-comments text-6xl text-gray-300 mb-4"></i>
+                <p class="text-gray-500">No customer messages yet.</p>
+                <p class="text-sm text-gray-400 mt-2">When customers message you, they'll appear here.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

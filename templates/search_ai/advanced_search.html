@@ -1,0 +1,138 @@
+{% extends 'base/base.html' %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <h1 class="text-3xl font-bold mb-8">Advanced Search</h1>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <!-- Filters Sidebar -->
+        <div class="lg:col-span-1">
+            <div class="bg-white rounded-lg shadow-md p-6 sticky top-24">
+                <h2 class="text-xl font-bold mb-4">Filters</h2>
+                
+                <form method="GET" action="{% url 'search_ai:advanced_search' %}">
+                    <input type="hidden" name="q" value="{{ query }}">
+                    
+                    <!-- Category Filter -->
+                    <div class="mb-4">
+                        <label class="block font-semibold mb-2">Category</label>
+                        <select name="category" class="w-full px-3 py-2 border rounded-lg">
+                            <option value="">All Categories</option>
+                            {% for cat in categories %}
+                                <option value="{{ cat.slug }}" {% if selected_category == cat.slug %}selected{% endif %}>
+                                    {{ cat.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Price Range -->
+                    <div class="mb-4">
+                        <label class="block font-semibold mb-2">Price Range</label>
+                        <div class="flex gap-2">
+                            <input type="number" name="min_price" placeholder="Min" value="{{ min_price }}" class="w-1/2 px-3 py-2 border rounded-lg">
+                            <input type="number" name="max_price" placeholder="Max" value="{{ max_price }}" class="w-1/2 px-3 py-2 border rounded-lg">
+                        </div>
+                    </div>
+                    
+                    <!-- Rating Filter -->
+                    <div class="mb-4">
+                        <label class="block font-semibold mb-2">Minimum Rating</label>
+                        <select name="rating" class="w-full px-3 py-2 border rounded-lg">
+                            <option value="">Any Rating</option>
+                            <option value="4" {% if selected_rating == "4" %}selected{% endif %}>4★ & above</option>
+                            <option value="3" {% if selected_rating == "3" %}selected{% endif %}>3★ & above</option>
+                            <option value="2" {% if selected_rating == "2" %}selected{% endif %}>2★ & above</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Sort -->
+                    <div class="mb-4">
+                        <label class="block font-semibold mb-2">Sort By</label>
+                        <select name="sort" class="w-full px-3 py-2 border rounded-lg">
+                            <option value="-created_at" {% if sort == "-created_at" %}selected{% endif %}>Newest</option>
+                            <option value="-price" {% if sort == "-price" %}selected{% endif %}>Price: High to Low</option>
+                            <option value="price" {% if sort == "price" %}selected{% endif %}>Price: Low to High</option>
+                            <option value="-sales_count" {% if sort == "-sales_count" %}selected{% endif %}>Best Selling</option>
+                            <option value="-rating_avg" {% if sort == "-rating_avg" %}selected{% endif %}>Top Rated</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
+                        Apply Filters
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Results -->
+        <div class="lg:col-span-3">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold">Search Results</h2>
+                    <p class="text-gray-600">{{ products.count }} products found</p>
+                </div>
+                
+                {% if products %}
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {% for product in products %}
+                        <div class="product-card bg-white border rounded-lg overflow-hidden hover:shadow-lg transition">
+                            <a href="{{ product.get_absolute_url }}">
+                                {% if product.main_image %}
+                                    <img src="{{ product.main_image.url }}" alt="{{ product.name }}" class="w-full h-48 object-cover">
+                                {% else %}
+                                    <div class="w-full h-48 bg-gray-100 flex items-center justify-center">
+                                        <i class="fas fa-image text-4xl text-gray-400"></i>
+                                    </div>
+                                {% endif %}
+                            </a>
+                            <div class="p-4">
+                                <a href="{{ product.get_absolute_url }}" class="font-semibold hover:text-blue-600 line-clamp-2">
+                                    {{ product.name }}
+                                </a>
+                                <div class="flex items-center gap-2 mt-2">
+                                    <div class="flex text-yellow-400 text-sm">
+                                        {% for i in "12345"|make_list %}
+                                            {% if forloop.counter <= product.rating_avg|add:"0" %}
+                                                <i class="fas fa-star"></i>
+                                            {% elif forloop.counter <= product.rating_avg|add:"0.5" %}
+                                                <i class="fas fa-star-half-alt"></i>
+                                            {% else %}
+                                                <i class="far fa-star"></i>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                    <span class="text-sm text-gray-500">({{ product.rating_count }})</span>
+                                </div>
+                                <div class="mt-2">
+                                    <span class="text-xl font-bold text-blue-600">${{ product.price }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-12">
+                        <i class="fas fa-search text-6xl text-gray-400 mb-4"></i>
+                        <p class="text-gray-500 text-lg">No products found matching your criteria.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Popular Searches -->
+    {% if popular_searches %}
+    <div class="mt-8 bg-white rounded-lg shadow-md p-6">
+        <h3 class="text-lg font-bold mb-3">Popular Searches</h3>
+        <div class="flex flex-wrap gap-2">
+            {% for search in popular_searches %}
+                <a href="{% url 'search_ai:advanced_search' %}?q={{ search.query }}" class="px-3 py-1 bg-gray-100 rounded-full hover:bg-gray-200 text-sm">
+                    {{ search.query }}
+                </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

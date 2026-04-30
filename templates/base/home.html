@@ -1,0 +1,26 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load homepage_tags %}
+
+{% block content %}
+<!-- Dynamic Categories -->
+{% homepage_categories %}
+
+<!-- Dynamic Banner Carousel -->
+{% homepage_banner %}
+
+<!-- Video Section -->
+{% video_section %}
+
+<!-- Dynamic Sections (Featured Products, New Arrivals, etc.) -->
+{% homepage_sections %}
+
+<!-- Manufacturers Section -->
+{% manufacturers_section %}
+
+<!-- Dynamic Vendor Carousel -->
+{% vendor_carousel %}
+
+<!-- Dynamic Newsletter Section -->
+{% newsletter_section %}
+{% endblock %}

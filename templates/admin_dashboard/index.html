@@ -1,0 +1,827 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Arolana Admin Panel{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+    * { font-family: 'Inter', sans-serif; }
+    
+    .admin-container {
+        display: flex;
+        min-height: calc(100vh - 200px);
+        gap: 1.5rem;
+    }
+    
+    .admin-sidebar {
+        width: 280px;
+        background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        position: sticky;
+        top: 100px;
+        height: fit-content;
+    }
+    
+    .sidebar-header {
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        padding-bottom: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .nav-section {
+        margin-bottom: 1.5rem;
+    }
+    
+    .nav-section-title {
+        color: #64748b;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 0.75rem;
+        padding-left: 0.75rem;
+    }
+    
+    .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.625rem 0.75rem;
+        color: #cbd5e1;
+        border-radius: 0.5rem;
+        transition: all 0.2s;
+        margin-bottom: 0.25rem;
+        cursor: pointer;
+        text-decoration: none;
+    }
+    
+    .nav-item:hover {
+        background: rgba(59, 130, 246, 0.15);
+        color: white;
+    }
+    
+    .nav-item.active {
+        background: #3b82f6;
+        color: white;
+    }
+    
+    .nav-item i {
+        width: 20px;
+        font-size: 1rem;
+    }
+    
+    .admin-content {
+        flex: 1;
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 1rem;
+        padding: 1.25rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+    }
+    
+    .module-card {
+        background: white;
+        border-radius: 1rem;
+        overflow: hidden;
+        transition: all 0.2s;
+        border: 1px solid #e2e8f0;
+    }
+    
+    .module-card:hover {
+        border-color: #3b82f6;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    }
+    
+    .module-header {
+        background: #f8fafc;
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .module-body {
+        padding: 1.25rem;
+    }
+    
+    .model-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.625rem 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    
+    .model-item:last-child {
+        border-bottom: none;
+    }
+    
+    .model-name {
+        font-weight: 500;
+        color: #1e293b;
+    }
+    
+    .model-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .btn-sm {
+        padding: 0.25rem 0.75rem;
+        font-size: 0.75rem;
+        border-radius: 0.375rem;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .btn-add {
+        background: #10b981;
+        color: white;
+    }
+    
+    .btn-add:hover {
+        background: #059669;
+    }
+    
+    .btn-change {
+        background: #3b82f6;
+        color: white;
+    }
+    
+    .btn-change:hover {
+        background: #2563eb;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .modules-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    /* Search Box Styles */
+    .search-container {
+        margin-bottom: 1rem;
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .search-input {
+        flex: 1;
+        padding: 0.5rem 1rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .search-input:focus {
+        outline: none;
+        border-color: #3b82f6;
+        ring: 2px solid #3b82f6;
+    }
+    
+    .module-search {
+        margin-bottom: 0.75rem;
+    }
+    
+    .module-search input {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+        font-size: 0.75rem;
+    }
+    
+    .model-list-container {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    
+    .no-results {
+        text-align: center;
+        padding: 1rem;
+        color: #64748b;
+        font-size: 0.875rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <!-- Sidebar Navigation -->
+    <div class="admin-sidebar">
+        <div class="sidebar-header">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-crown text-white text-xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-white font-bold text-lg">Arolana Admin</h2>
+                    <p class="text-gray-400 text-xs">v2.0.0</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="nav-section">
+            <div class="nav-section-title">MAIN</div>
+            <a href="/dashboard/admin-dashboard/" class="nav-item active">
+                <i class="fas fa-tachometer-alt"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="/admin/" class="nav-item">
+                <i class="fas fa-database"></i>
+                <span>Database Admin</span>
+            </a>
+        </div>
+        
+        <div class="nav-section">
+            <div class="nav-section-title">MANAGEMENT</div>
+            <a href="/admin/products/product/" class="nav-item">
+                <i class="fas fa-box"></i>
+                <span>Products</span>
+            </a>
+            <a href="/admin/orders/order/" class="nav-item">
+                <i class="fas fa-shopping-cart"></i>
+                <span>Orders</span>
+            </a>
+            <a href="/admin/accounts/user/" class="nav-item">
+                <i class="fas fa-users"></i>
+                <span>Users</span>
+            </a>
+            <a href="/admin/vendors/vendorprofile/" class="nav-item">
+                <i class="fas fa-store"></i>
+                <span>Vendors</span>
+            </a>
+        </div>
+        
+        <div class="nav-section">
+            <div class="nav-section-title">CONTENT</div>
+            <a href="/admin/pages/page/" class="nav-item">
+                <i class="fas fa-file-alt"></i>
+                <span>Pages</span>
+            </a>
+            <a href="/admin/blog/blogpost/" class="nav-item">
+                <i class="fas fa-newspaper"></i>
+                <span>Blog</span>
+            </a>
+            <a href="/admin/ads/adbanner/" class="nav-item">
+                <i class="fas fa-ad"></i>
+                <span>Ad Banners</span>
+            </a>
+            <a href="/admin/hero_banners/herobanner/" class="nav-item">
+                <i class="fas fa-image"></i>
+                <span>Hero Banners</span>
+            </a>
+        </div>
+        
+        <div class="nav-section">
+            <div class="nav-section-title">SUPPORT</div>
+            <a href="/admin/pages/supporttopic/" class="nav-item">
+                <i class="fas fa-headset"></i>
+                <span>Support Topics</span>
+            </a>
+            <a href="/admin/pages/faq/" class="nav-item">
+                <i class="fas fa-question-circle"></i>
+                <span>FAQs</span>
+            </a>
+            <a href="/admin/chat/chatroom/" class="nav-item">
+                <i class="fas fa-comments"></i>
+                <span>Chat</span>
+            </a>
+        </div>
+        
+        <div class="nav-section">
+            <div class="nav-section-title">SETTINGS</div>
+            <a href="/admin/core/sitesettings/1/change/" class="nav-item">
+                <i class="fas fa-cog"></i>
+                <span>Site Settings</span>
+            </a>
+            <a href="/admin/footer_menu/footermenucategory/" class="nav-item">
+                <i class="fas fa-link"></i>
+                <span>Footer Menu</span>
+            </a>
+        </div>
+    </div>
+    
+    <!-- Main Content Area -->
+    <div class="admin-content">
+        <!-- Header Stats -->
+        <div class="stats-grid">
+            <div class="stat-card" onclick="window.location.href='/admin/orders/order/'">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-gray-500 text-sm">Total Revenue</p>
+                        <p class="text-2xl font-bold text-green-600">${{ total_revenue|floatformat:2 }}</p>
+                    </div>
+                    <i class="fas fa-dollar-sign text-2xl text-green-400"></i>
+                </div>
+            </div>
+            <div class="stat-card" onclick="window.location.href='/admin/orders/order/'">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-gray-500 text-sm">Total Orders</p>
+                        <p class="text-2xl font-bold text-blue-600">{{ total_orders }}</p>
+                    </div>
+                    <i class="fas fa-shopping-cart text-2xl text-blue-400"></i>
+                </div>
+            </div>
+            <div class="stat-card" onclick="window.location.href='/admin/accounts/user/'">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-gray-500 text-sm">Total Users</p>
+                        <p class="text-2xl font-bold text-purple-600">{{ total_users }}</p>
+                    </div>
+                    <i class="fas fa-users text-2xl text-purple-400"></i>
+                </div>
+            </div>
+            <div class="stat-card" onclick="window.location.href='/admin/products/product/'">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-gray-500 text-sm">Products</p>
+                        <p class="text-2xl font-bold text-orange-600">{{ total_products }}</p>
+                    </div>
+                    <i class="fas fa-box text-2xl text-orange-400"></i>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Management Modules with Search -->
+        <div class="modules-grid">
+            <!-- Products Module -->
+            <div class="module-card">
+                <div class="module-header">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-box text-blue-500"></i>
+                            <h3 class="font-bold text-gray-800">Products Management</h3>
+                        </div>
+                        <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">{{ total_products }} items</span>
+                    </div>
+                </div>
+                <div class="module-body">
+                    <div class="module-search">
+                        <input type="text" id="searchProducts" placeholder="🔍 Search products..." class="search-input" onkeyup="filterModuleItems('products', this.value)">
+                    </div>
+                    <div id="productsList" class="model-list-container">
+                        <div class="model-item">
+                            <span class="model-name">All Products</span>
+                            <div class="model-actions">
+                                <a href="/admin/products/product/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/products/product/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                        <div class="model-item" data-name="categories">
+                            <span class="model-name">Categories</span>
+                            <div class="model-actions">
+                                <a href="/admin/products/category/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/products/category/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                        <div class="model-item" data-name="brands">
+                            <span class="model-name">Brands</span>
+                            <div class="model-actions">
+                                <a href="/admin/products/brand/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/products/brand/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                        <div class="model-item" data-name="variants">
+                            <span class="model-name">Product Variants</span>
+                            <div class="model-actions">
+                                <a href="/admin/products/productvariant/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/products/productvariant/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                        <div class="model-item" data-name="reviews">
+                            <span class="model-name">Product Reviews</span>
+                            <div class="model-actions">
+                                <a href="/admin/products/productreview/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/products/productreview/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Orders Module -->
+            <div class="module-card">
+                <div class="module-header">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-shopping-cart text-green-500"></i>
+                            <h3 class="font-bold text-gray-800">Orders Management</h3>
+                        </div>
+                        <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">{{ total_orders }} orders</span>
+                    </div>
+                </div>
+                <div class="module-body">
+                    <div class="module-search">
+                        <input type="text" id="searchOrders" placeholder="🔍 Search orders..." class="search-input" onkeyup="filterModuleItems('orders', this.value)">
+                    </div>
+                    <div id="ordersList" class="model-list-container">
+                        <div class="model-item">
+                            <span class="model-name">All Orders</span>
+                            <div class="model-actions">
+                                <a href="/admin/orders/order/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/orders/order/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                        <div class="model-item" data-name="carts">
+                            <span class="model-name">Carts</span>
+                            <div class="model-actions">
+                                <a href="/admin/orders/cart/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/orders/cart/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                        <div class="model-item" data-name="cart items">
+                            <span class="model-name">Cart Items</span>
+                            <div class="model-actions">
+                                <a href="/admin/orders/cartitem/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/orders/cartitem/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Users Module -->
+            <div class="module-card">
+                <div class="module-header">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-users text-purple-500"></i>
+                            <h3 class="font-bold text-gray-800">Users Management</h3>
+                        </div>
+                        <span class="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">{{ total_users }} users</span>
+                    </div>
+                </div>
+                <div class="module-body">
+                    <div class="module-search">
+                        <input type="text" id="searchUsers" placeholder="🔍 Search users..." class="search-input" onkeyup="filterModuleItems('users', this.value)">
+                    </div>
+                    <div id="usersList" class="model-list-container">
+                        <div class="model-item">
+                            <span class="model-name">All Users</span>
+                            <div class="model-actions">
+                                <a href="/admin/accounts/user/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/accounts/user/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                        <div class="model-item" data-name="profiles">
+                            <span class="model-name">User Profiles</span>
+                            <div class="model-actions">
+                                <a href="/admin/accounts/userprofile/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/accounts/userprofile/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                        <div class="model-item" data-name="addresses">
+                            <span class="model-name">Addresses</span>
+                            <div class="model-actions">
+                                <a href="/admin/accounts/address/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/accounts/address/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                        <div class="model-item" data-name="groups">
+                            <span class="model-name">Groups</span>
+                            <div class="model-actions">
+                                <a href="/admin/auth/group/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/auth/group/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Vendors Module -->
+            <div class="module-card">
+                <div class="module-header">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-store text-orange-500"></i>
+                            <h3 class="font-bold text-gray-800">Vendors Management</h3>
+                        </div>
+                        <span class="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">{{ vendors_count }} vendors</span>
+                    </div>
+                </div>
+                <div class="module-body">
+                    <div class="module-search">
+                        <input type="text" id="searchVendors" placeholder="🔍 Search vendors..." class="search-input" onkeyup="filterModuleItems('vendors', this.value)">
+                    </div>
+                    <div id="vendorsList" class="model-list-container">
+                        <div class="model-item">
+                            <span class="model-name">Vendor Profiles</span>
+                            <div class="model-actions">
+                                <a href="/admin/vendors/vendorprofile/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/vendors/vendorprofile/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                        <div class="model-item" data-name="subscriptions">
+                            <span class="model-name">Vendor Subscriptions</span>
+                            <div class="model-actions">
+                                <a href="/admin/vendors/vendorsubscription/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/vendors/vendorsubscription/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Content Module -->
+            <div class="module-card">
+                <div class="module-header">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-newspaper text-teal-500"></i>
+                        <h3 class="font-bold text-gray-800">Content Management</h3>
+                    </div>
+                </div>
+                <div class="module-body">
+                    <div class="module-search">
+                        <input type="text" id="searchContent" placeholder="🔍 Search content..." class="search-input" onkeyup="filterModuleItems('content', this.value)">
+                    </div>
+                    <div id="contentList" class="model-list-container">
+                        <div class="model-item" data-name="pages">
+                            <span class="model-name">Pages</span>
+                            <div class="model-actions">
+                                <a href="/admin/pages/page/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/pages/page/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                        <div class="model-item" data-name="blog posts">
+                            <span class="model-name">Blog Posts</span>
+                            <div class="model-actions">
+                                <a href="/admin/blog/blogpost/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/blog/blogpost/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                        <div class="model-item" data-name="blog categories">
+                            <span class="model-name">Blog Categories</span>
+                            <div class="model-actions">
+                                <a href="/admin/blog/blogcategory/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/blog/blogcategory/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                        <div class="model-item" data-name="blog comments">
+                            <span class="model-name">Blog Comments</span>
+                            <div class="model-actions">
+                                <a href="/admin/blog/blogcomment/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/blog/blogcomment/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Ads Module -->
+            <div class="module-card">
+                <div class="module-header">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-ad text-pink-500"></i>
+                        <h3 class="font-bold text-gray-800">Advertising</h3>
+                    </div>
+                </div>
+                <div class="module-body">
+                    <div class="module-search">
+                        <input type="text" id="searchAds" placeholder="🔍 Search ads..." class="search-input" onkeyup="filterModuleItems('ads', this.value)">
+                    </div>
+                    <div id="adsList" class="model-list-container">
+                        <div class="model-item" data-name="banners">
+                            <span class="model-name">Ad Banners</span>
+                            <div class="model-actions">
+                                <a href="/admin/ads/adbanner/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/ads/adbanner/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                        <div class="model-item" data-name="campaigns">
+                            <span class="model-name">Ad Campaigns</span>
+                            <div class="model-actions">
+                                <a href="/admin/ads/adcampaign/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/ads/adcampaign/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                        <div class="model-item" data-name="placements">
+                            <span class="model-name">Ad Placements</span>
+                            <div class="model-actions">
+                                <a href="/admin/ads/adplacement/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/ads/adplacement/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                        <div class="model-item" data-name="hero banners">
+                            <span class="model-name">Hero Banners</span>
+                            <div class="model-actions">
+                                <a href="/admin/hero_banners/herobanner/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/hero_banners/herobanner/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Support Module -->
+            <div class="module-card">
+                <div class="module-header">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-headset text-indigo-500"></i>
+                        <h3 class="font-bold text-gray-800">Support Center</h3>
+                    </div>
+                </div>
+                <div class="module-body">
+                    <div class="module-search">
+                        <input type="text" id="searchSupport" placeholder="🔍 Search support..." class="search-input" onkeyup="filterModuleItems('support', this.value)">
+                    </div>
+                    <div id="supportList" class="model-list-container">
+                        <div class="model-item" data-name="topics">
+                            <span class="model-name">Support Topics</span>
+                            <div class="model-actions">
+                                <a href="/admin/pages/supporttopic/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/pages/supporttopic/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                        <div class="model-item" data-name="faqs">
+                            <span class="model-name">FAQs</span>
+                            <div class="model-actions">
+                                <a href="/admin/pages/faq/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/pages/faq/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                        <div class="model-item" data-name="articles">
+                            <span class="model-name">Support Articles</span>
+                            <div class="model-actions">
+                                <a href="/admin/pages/supportarticle/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/pages/supportarticle/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                        <div class="model-item" data-name="chat rooms">
+                            <span class="model-name">Chat Rooms</span>
+                            <div class="model-actions">
+                                <a href="/admin/chat/chatroom/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/chat/chatroom/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Settings Module -->
+            <div class="module-card">
+                <div class="module-header">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-cog text-gray-500"></i>
+                        <h3 class="font-bold text-gray-800">System Settings</h3>
+                    </div>
+                </div>
+                <div class="module-body">
+                    <div class="module-search">
+                        <input type="text" id="searchSettings" placeholder="🔍 Search settings..." class="search-input" onkeyup="filterModuleItems('settings', this.value)">
+                    </div>
+                    <div id="settingsList" class="model-list-container">
+                        <div class="model-item" data-name="site settings">
+                            <span class="model-name">Site Settings</span>
+                            <div class="model-actions">
+                                <a href="/admin/core/sitesettings/1/change/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                        <div class="model-item" data-name="footer categories">
+                            <span class="model-name">Footer Menu Categories</span>
+                            <div class="model-actions">
+                                <a href="/admin/footer_menu/footermenucategory/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/footer_menu/footermenucategory/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                        <div class="model-item" data-name="footer items">
+                            <span class="model-name">Footer Menu Items</span>
+                            <div class="model-actions">
+                                <a href="/admin/footer_menu/footermenuitem/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/footer_menu/footermenuitem/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                        <div class="model-item" data-name="subscription plans">
+                            <span class="model-name">Subscription Plans</span>
+                            <div class="model-actions">
+                                <a href="/admin/subscriptions/subscriptionplan/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/subscriptions/subscriptionplan/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Careers Module -->
+            <div class="module-card">
+                <div class="module-header">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-briefcase text-cyan-500"></i>
+                        <h3 class="font-bold text-gray-800">Careers</h3>
+                    </div>
+                </div>
+                <div class="module-body">
+                    <div class="module-search">
+                        <input type="text" id="searchCareers" placeholder="🔍 Search careers..." class="search-input" onkeyup="filterModuleItems('careers', this.value)">
+                    </div>
+                    <div id="careersList" class="model-list-container">
+                        <div class="model-item" data-name="categories">
+                            <span class="model-name">Career Categories</span>
+                            <div class="model-actions">
+                                <a href="/admin/pages/careercategory/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/pages/careercategory/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                        <div class="model-item" data-name="jobs">
+                            <span class="model-name">Job Positions</span>
+                            <div class="model-actions">
+                                <a href="/admin/pages/jobposition/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/pages/jobposition/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                        <div class="model-item" data-name="applications">
+                            <span class="model-name">Job Applications</span>
+                            <div class="model-actions">
+                                <a href="/admin/pages/jobapplication/add/" class="btn-sm btn-add" target="_blank">+ Add</a>
+                                <a href="/admin/pages/jobapplication/" class="btn-sm btn-change" target="_blank">Change</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Activity -->
+        <div class="bg-white rounded-xl shadow-sm p-6 mt-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-lg">Recent Activity</h3>
+                <div>
+                    <input type="text" id="searchActivity" placeholder="🔍 Search activity..." class="search-input" style="width: 200px;" onkeyup="filterActivity(this.value)">
+                </div>
+            </div>
+            <div id="activityList" class="space-y-3">
+                {% for activity in recent_activity|slice:":10" %}
+                <div class="flex items-center gap-3 pb-3 border-b activity-item" data-name="{{ activity.admin.username }} {{ activity.action_type }} {{ activity.model_name }}">
+                    <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                        <i class="fas fa-user text-xs"></i>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm">
+                            <span class="font-semibold">{{ activity.admin.username }}</span>
+                            <span class="text-gray-600">{{ activity.action_type }}d</span>
+                            <span class="text-gray-500">{{ activity.model_name }}</span>
+                        </p>
+                        <p class="text-xs text-gray-400">{{ activity.created_at|timesince }} ago</p>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-center py-8 text-gray-500">No recent activity</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function filterModuleItems(module, searchText) {
+    const listId = module + 'List';
+    const container = document.getElementById(listId);
+    if (!container) return;
+    
+    const items = container.querySelectorAll('.model-item');
+    const searchLower = searchText.toLowerCase();
+    
+    items.forEach(item => {
+        const name = item.getAttribute('data-name') || item.innerText.toLowerCase();
+        if (name.includes(searchLower)) {
+            item.style.display = 'flex';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
+function filterActivity(searchText) {
+    const items = document.querySelectorAll('.activity-item');
+    const searchLower = searchText.toLowerCase();
+    
+    items.forEach(item => {
+        const text = item.getAttribute('data-name') || item.innerText.toLowerCase();
+        if (text.includes(searchLower)) {
+            item.style.display = 'flex';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+</script>
+{% endblock %}

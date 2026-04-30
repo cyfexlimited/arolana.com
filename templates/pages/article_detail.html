@@ -1,0 +1,79 @@
+{% extends 'base/base.html' %}
+
+{% block title %}{{ article.title }} | Arolana Help Center{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Breadcrumb -->
+    <nav class="text-sm mb-6">
+        <ol class="flex items-center space-x-2">
+            <li><a href="/" class="text-gray-500 hover:text-blue-600">Home</a></li>
+            <li><i class="fas fa-chevron-right text-xs text-gray-400"></i></li>
+            <li><a href="{% url 'pages:help_center' %}" class="text-gray-500 hover:text-blue-600">Help Center</a></li>
+            <li><i class="fas fa-chevron-right text-xs text-gray-400"></i></li>
+            <li class="text-gray-900 font-semibold">{{ article.title }}</li>
+        </ol>
+    </nav>
+    
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        {% if article.image %}
+            <img src="{{ article.image.url }}" alt="{{ article.title }}" class="w-full h-64 object-cover">
+        {% endif %}
+        
+        <div class="p-8">
+            <div class="flex items-center gap-2 text-sm text-gray-500 mb-4">
+                <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded">{{ article.category.title }}</span>
+                <span><i class="far fa-eye"></i> {{ article.views }} views</span>
+                <span><i class="far fa-calendar"></i> {{ article.created_at|date:"M d, Y" }}</span>
+            </div>
+            
+            <h1 class="text-3xl font-bold mb-6">{{ article.title }}</h1>
+            
+            <div class="prose max-w-none">
+                {{ article.content|safe }}
+            </div>
+            
+            <!-- Helpful Section -->
+            <div class="mt-8 pt-6 border-t">
+                <div class="flex items-center justify-between flex-wrap gap-4">
+                    <div class="flex items-center gap-4">
+                        <span class="text-gray-600">Was this article helpful?</span>
+                        <form method="POST" action="{% url 'pages:article_helpful' article.id %}" class="inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="helpful" value="true">
+                            <button type="submit" class="bg-green-100 text-green-700 px-4 py-2 rounded-lg hover:bg-green-200 transition">
+                                <i class="fas fa-thumbs-up"></i> Yes
+                            </button>
+                        </form>
+                        <form method="POST" action="{% url 'pages:article_helpful' article.id %}" class="inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="helpful" value="false">
+                            <button type="submit" class="bg-red-100 text-red-700 px-4 py-2 rounded-lg hover:bg-red-200 transition">
+                                <i class="fas fa-thumbs-down"></i> No
+                            </button>
+                        </form>
+                    </div>
+                    <a href="{% url 'pages:help_center' %}" class="text-blue-600 hover:underline">
+                        ← Back to Help Center
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Related Articles -->
+    {% if related_articles %}
+    <div class="mt-8">
+        <h2 class="text-2xl font-bold mb-6">Related Articles</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% for related in related_articles %}
+            <a href="{% url 'pages:article_detail' related.slug %}" class="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition">
+                <h3 class="font-semibold text-lg mb-2">{{ related.title }}</h3>
+                <p class="text-gray-600 text-sm">{{ related.content|striptags|truncatewords:20 }}</p>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,86 @@
+{% if show_section %}
+<section class="mb-12">
+    <div class="text-center mb-8">
+        <h2 class="text-3xl font-bold">{{ settings.title }}</h2>
+        {% if settings.subtitle %}
+        <p class="text-gray-600 mt-2">{{ settings.subtitle }}</p>
+        {% endif %}
+    </div>
+    
+    <!-- Category Row -->
+    {% if categories %}
+    <div class="flex flex-wrap justify-center gap-3 mb-8">
+        {% for category in categories %}
+        <a href="{% url 'manufacturers:list' %}?category={{ category.slug }}" 
+           class="px-4 py-2 bg-gray-100 rounded-full text-gray-700 hover:bg-blue-600 hover:text-white transition text-sm">
+            <i class="{{ category.icon }} mr-2"></i>{{ category.name }}
+        </a>
+        {% endfor %}
+        <a href="{% url 'manufacturers:list' %}" class="px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition text-sm">
+            View All <i class="fas fa-arrow-right ml-2"></i>
+        </a>
+    </div>
+    {% endif %}
+    
+    <!-- Manufacturers Grid -->
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {% for manufacturer in manufacturers %}
+        <a href="{% url 'manufacturers:detail' manufacturer.slug %}" 
+           class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition group">
+            <div class="h-32 bg-gradient-to-r from-blue-600 to-purple-600 relative">
+                {% if manufacturer.banner %}
+                <img src="{{ manufacturer.banner.url }}" class="w-full h-32 object-cover">
+                {% endif %}
+                <div class="absolute -bottom-8 left-1/2 transform -translate-x-1/2">
+                    {% if manufacturer.logo %}
+                    <img src="{{ manufacturer.logo.url }}" 
+                         class="w-16 h-16 rounded-full border-4 border-white object-cover bg-white shadow-lg group-hover:scale-110 transition">
+                    {% else %}
+                    <div class="w-16 h-16 rounded-full bg-white border-4 border-white flex items-center justify-center shadow-lg group-hover:scale-110 transition">
+                        <i class="fas fa-industry text-2xl text-blue-600"></i>
+                    </div>
+                    {% endif %}
+                </div>
+                {% if manufacturer.is_featured %}
+                <span class="absolute top-2 right-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded-full">
+                    <i class="fas fa-star"></i> Featured
+                </span>
+                {% endif %}
+            </div>
+            <div class="p-4 pt-10 text-center">
+                <h3 class="font-bold text-lg group-hover:text-blue-600">{{ manufacturer.name }}</h3>
+                <div class="flex items-center justify-center gap-2 mt-1">
+                    <div class="flex text-yellow-400 text-sm">
+                        {% for i in "12345"|make_list %}
+                            {% if forloop.counter <= manufacturer.rating_avg|add:"0" %}
+                                <i class="fas fa-star"></i>
+                            {% else %}
+                                <i class="far fa-star"></i>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    <span class="text-xs text-gray-500">{{ manufacturer.rating_avg }} ★</span>
+                </div>
+                <p class="text-gray-500 text-xs mt-1">{{ manufacturer.total_products }} products</p>
+            </div>
+        </a>
+        {% empty %}
+        <div class="col-span-full text-center py-12">
+            <i class="fas fa-industry text-6xl text-gray-400 mb-4"></i>
+            <p class="text-gray-500">No manufacturers added yet.</p>
+            <a href="/admin/manufacturers/manufacturer/add/" class="inline-block mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+                Add Manufacturers
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+    
+    {% if manufacturers %}
+    <div class="text-center mt-6">
+        <a href="{% url 'manufacturers:list' %}" class="text-blue-600 hover:underline inline-flex items-center gap-1">
+            View All Manufacturers <i class="fas fa-arrow-right text-sm"></i>
+        </a>
+    </div>
+    {% endif %}
+</section>
+{% endif %}

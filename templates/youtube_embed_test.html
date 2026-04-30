@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>YouTube Embed Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        .video-container { margin: 20px 0; }
+        iframe { width: 100%; height: 450px; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { background: #e0f2fe; padding: 15px; border-radius: 8px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>YouTube Embed Test</h1>
+    
+    <div class="info">
+        <strong>Test Video:</strong> Gangnam Style (allows embedding)<br>
+        <strong>YouTube ID:</strong> 9bZkp7q19f0<br>
+        <strong>Status:</strong> <span id="status" class="success">Testing...</span>
+    </div>
+    
+    <div class="video-container">
+        <iframe 
+            src="https://www.youtube.com/embed/9bZkp7q19f0?autoplay=0&rel=0&modestbranding=1"
+            frameborder="0" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+            allowfullscreen>
+        </iframe>
+    </div>
+    
+    <script>
+        // Check if iframe loaded
+        const iframe = document.querySelector('iframe');
+        iframe.addEventListener('load', function() {
+            document.getElementById('status').innerHTML = '✅ YouTube Embed Working!';
+            document.getElementById('status').className = 'success';
+        });
+        
+        iframe.addEventListener('error', function() {
+            document.getElementById('status').innerHTML = '❌ YouTube Embed Failed - Check internet connection';
+            document.getElementById('status').className = 'error';
+        });
+        
+        // Timeout check
+        setTimeout(function() {
+            if (document.getElementById('status').innerHTML === 'Testing...') {
+                document.getElementById('status').innerHTML = '⚠️ Slow connection - still loading...';
+            }
+        }, 3000);
+    </script>
+    
+    <div class="info" style="margin-top: 20px;">
+        <strong>Troubleshooting:</strong>
+        <ul>
+            <li>Make sure you have an internet connection</li>
+            <li>Check if YouTube is accessible in your browser</li>
+            <li>Some networks block YouTube</li>
+            <li>Try opening https://www.youtube.com directly</li>
+        </ul>
+    </div>
+    
+    <p><a href="/">← Back to Homepage</a></p>
+</body>
+</html>

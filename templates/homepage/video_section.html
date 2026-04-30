@@ -1,0 +1,79 @@
+{% load static %}
+
+{% if video_section and video_section.is_active %}
+<section class="homepage-video-section mb-12" 
+         style="background-color: {{ video_section.background_color }};">
+    
+    <div class="container mx-auto px-4 py-12">
+        <div class="max-w-6xl mx-auto">
+            
+            <!-- Header -->
+            <div class="mb-8 text-center">
+                <h2 class="text-3xl md:text-4xl font-bold" style="color: {{ video_section.text_color }};">
+                    {{ video_section.title }}
+                </h2>
+                {% if video_section.subtitle %}
+                <p class="mt-2 text-gray-600 text-lg">
+                    {{ video_section.subtitle }}
+                </p>
+                {% endif %}
+            </div>
+            
+            <!-- Video Container -->
+            <div class="flex justify-center">
+                <div class="video-container" style="width: 100%; max-width: {% if '%' in video_section.video_width %}{{ video_section.video_width }}{% else %}{{ video_section.video_width }}px{% endif %};">
+                    
+                    <!-- Video Wrapper -->
+                    <div class="relative rounded-lg shadow-xl overflow-hidden" style="padding-bottom: 56.25%; height: 0;">
+                        
+                        {% if video_section.video_source == 'youtube' and video_section.youtube_id %}
+                            <!-- YouTube Video -->
+                            <iframe 
+                                class="absolute top-0 left-0 w-full h-full"
+                                src="https://www.youtube.com/embed/{{ video_section.youtube_id }}?autoplay=0&rel=0&modestbranding=1&playsinline=1"
+                                frameborder="0" 
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                allowfullscreen>
+                            </iframe>
+                            
+                        {% elif video_section.video_source == 'local' and video_section.local_video %}
+                            <!-- Local MP4 Video -->
+                            <video 
+                                class="absolute top-0 left-0 w-full h-full"
+                                {% if video_section.autoplay %}autoplay{% endif %}
+                                {% if video_section.loop %}loop{% endif %}
+                                {% if video_section.show_controls %}controls{% endif %}
+                                poster="{% if video_section.poster_image %}{{ video_section.poster_image.url }}{% endif %}"
+                                style="object-fit: contain; background: #000;">
+                                <source src="{{ video_section.local_video.url }}" type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                        {% else %}
+                            <!-- Fallback message -->
+                            <div class="absolute top-0 left-0 w-full h-full flex items-center justify-center bg-gray-100">
+                                <div class="text-center">
+                                    <i class="fas fa-video-slash text-4xl text-gray-400 mb-2"></i>
+                                    <p class="text-gray-500">No video configured. Please add a video in admin panel.</p>
+                                    <a href="/admin/homepage/homepagevideosection/" class="text-blue-600 hover:underline mt-2 inline-block">Configure Video →</a>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Call to Action Button -->
+                    {% if video_section.button_text and video_section.button_url %}
+                    <div class="mt-6 text-center">
+                        <a href="{{ video_section.button_url }}" 
+                           class="inline-block px-8 py-3 rounded-lg text-white font-semibold hover:opacity-90 transition-all duration-300"
+                           style="background-color: {{ video_section.button_color }};">
+                            {{ video_section.button_text }}
+                            <i class="fas fa-arrow-right ml-2"></i>
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endif %}

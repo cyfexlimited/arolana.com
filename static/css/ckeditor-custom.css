@@ -1,0 +1,38 @@
+/* CKEditor 5 Admin Custom Styling */
+.django-ckeditor-5 {
+    background-color: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+}
+
+.ck-editor__editable {
+    min-height: 300px !important;
+    background-color: #ffffff !important;
+    border-radius: 8px !important;
+}
+
+.ck-editor__editable_inline {
+    padding: 16px !important;
+}
+
+/* Dark mode support for better visibility */
+@media (prefers-color-scheme: dark) {
+    .ck-editor__editable {
+        background-color: #1e293b !important;
+        color: #f1f5f9 !important;
+    }
+}
+
+/* Improve toolbar styling */
+.ck-toolbar {
+    border-radius: 8px 8px 0 0 !important;
+    background: linear-gradient(to bottom, #ffffff, #f8fafc) !important;
+    border: 1px solid #e2e8f0 !important;
+    border-bottom: none !important;
+}
+
+/* Focus state */
+.ck-editor__editable:focus {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1) !important;
+}

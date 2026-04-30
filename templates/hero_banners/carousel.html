@@ -1,0 +1,235 @@
+{% load static %}
+
+{% if banners %}
+<div class="hero-carousel-container" style="position: relative; width: 100%; height: 600px; overflow: hidden;">
+    
+    {% for banner in banners %}
+    <div class="hero-slide {% if forloop.first %}active{% endif %}" 
+         data-slide-index="{{ forloop.counter0 }}"
+         style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: {% if forloop.first %}1{% else %}0{% endif %}; transition: opacity 0.8s ease-in-out; z-index: {% if forloop.first %}10{% else %}1{% endif %};">
+        
+        <!-- Background Image -->
+        <div class="hero-background" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
+            {% if banner.image_desktop and banner.image_desktop.url %}
+                <img src="{{ banner.image_desktop.url }}" 
+                     alt="{{ banner.title }}" 
+                     style="width: 100%; height: 100%; object-fit: cover;">
+            {% else %}
+                <div style="width: 100%; height: 100%; background: linear-gradient(135deg, #1e3a8a, #7e22ce);"></div>
+            {% endif %}
+        </div>
+        
+        <!-- Dark Overlay -->
+        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: {{ banner.overlay_color|default:'#000000' }}; opacity: {{ banner.overlay_opacity|default:0.4 }}; z-index: 2;"></div>
+        
+        <!-- Content -->
+        <div class="hero-content" style="position: relative; height: 100%; display: flex; align-items: {{ banner.content_position|default:'center' }}; justify-content: {{ banner.text_alignment|default:'center' }}; z-index: 15; color: {{ banner.text_color|default:'#ffffff' }};">
+            <div style="max-width: 800px; padding: 20px; text-align: {{ banner.text_alignment|default:'center' }};">
+                <h1 style="font-size: 3rem; font-weight: bold; margin-bottom: 1rem;">{{ banner.title }}</h1>
+                
+                {% if banner.subtitle %}
+                <p style="font-size: 1.5rem; margin-bottom: 1rem;">{{ banner.subtitle }}</p>
+                {% endif %}
+                
+                {% if banner.description %}
+                <p style="font-size: 1.2rem; margin-bottom: 2rem;">{{ banner.description }}</p>
+                {% endif %}
+                
+                <div style="display: flex; gap: 1rem; justify-content: {{ banner.text_alignment|default:'center' }};">
+                    {% if banner.button1_text %}
+                    <a href="{{ banner.button1_url }}" class="hero-btn hero-btn-primary" 
+                       data-banner-id="{{ banner.id }}"
+                       style="background: #2563eb; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; transition: all 0.3s;">
+                        {{ banner.button1_text }}
+                    </a>
+                    {% endif %}
+                    
+                    {% if banner.button2_text %}
+                    <a href="{{ banner.button2_url }}" class="hero-btn hero-btn-secondary"
+                       data-banner-id="{{ banner.id }}"
+                       style="background: transparent; border: 2px solid white; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; transition: all 0.3s;">
+                        {{ banner.button2_text }}
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    
+    <!-- Navigation Arrows -->
+    <button class="hero-prev" style="position: absolute; left: 20px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); color: white; border: none; width: 45px; height: 45px; border-radius: 50%; cursor: pointer; z-index: 20;">
+        ❮
+    </button>
+    <button class="hero-next" style="position: absolute; right: 20px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.5); color: white; border: none; width: 45px; height: 45px; border-radius: 50%; cursor: pointer; z-index: 20;">
+        ❯
+    </button>
+    
+    <!-- Dots -->
+    <div class="hero-dots" style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; z-index: 20;">
+        {% for banner in banners %}
+        <button class="hero-dot" data-slide="{{ forloop.counter0 }}" 
+                style="width: {% if forloop.first %}32px{% else %}10px{% endif %}; height: 10px; border-radius: 5px; border: none; cursor: pointer; background: {% if forloop.first %}white{% else %}rgba(255,255,255,0.5){% endif %};"></button>
+        {% endfor %}
+    </div>
+    
+    <!-- Progress Bar -->
+    <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 3px; background: rgba(255,255,255,0.2); z-index: 20;">
+        <div class="hero-progress-bar" style="height: 100%; background: white; width: 0%; transition: width linear;"></div>
+    </div>
+</div>
+
+<script>
+    let currentSlide = 0;
+    const totalSlides = {{ banners|length }};
+    let autoSlideInterval;
+    let isHovering = false;
+    
+    function showSlide(index) {
+        const slides = document.querySelectorAll('.hero-slide');
+        const dots = document.querySelectorAll('.hero-dot');
+        
+        slides.forEach((slide, i) => {
+            slide.style.opacity = i === index ? '1' : '0';
+            slide.style.zIndex = i === index ? '10' : '1';
+        });
+        
+        dots.forEach((dot, i) => {
+            if (i === index) {
+                dot.style.width = '32px';
+                dot.style.background = 'white';
+            } else {
+                dot.style.width = '10px';
+                dot.style.background = 'rgba(255,255,255,0.5)';
+            }
+        });
+        
+        currentSlide = index;
+        resetProgress();
+        trackView(index);
+    }
+    
+    function trackView(index) {
+        const slide = document.querySelector(`.hero-slide[data-slide-index="${index}"]`);
+        const btn = slide?.querySelector('.hero-btn');
+        const bannerId = btn?.dataset.bannerId;
+        
+        if (bannerId) {
+            fetch('/hero-banners/track-view/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({ banner_id: bannerId })
+            }).catch(err => console.error('Track error:', err));
+        }
+    }
+    
+    function trackClick(bannerId) {
+        fetch('/hero-banners/track-click/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ banner_id: bannerId })
+        }).catch(err => console.error('Click track error:', err));
+    }
+    
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    function nextSlide() {
+        let next = (currentSlide + 1) % totalSlides;
+        showSlide(next);
+    }
+    
+    function prevSlide() {
+        let prev = (currentSlide - 1 + totalSlides) % totalSlides;
+        showSlide(prev);
+    }
+    
+    function startAutoSlide() {
+        autoSlideInterval = setInterval(() => {
+            if (!isHovering) {
+                nextSlide();
+            }
+        }, 5000);
+        
+        startProgress();
+    }
+    
+    function startProgress() {
+        const progressBar = document.querySelector('.hero-progress-bar');
+        if (progressBar) {
+            progressBar.style.transition = 'width 5s linear';
+            progressBar.style.width = '100%';
+            setTimeout(() => {
+                if (progressBar) {
+                    progressBar.style.transition = '';
+                    progressBar.style.width = '0%';
+                }
+            }, 5000);
+        }
+    }
+    
+    function resetProgress() {
+        const progressBar = document.querySelector('.hero-progress-bar');
+        if (progressBar) {
+            progressBar.style.transition = '';
+            progressBar.style.width = '0%';
+        }
+        clearInterval(autoSlideInterval);
+        startAutoSlide();
+    }
+    
+    // Event Listeners
+    document.querySelectorAll('.hero-prev').forEach(btn => {
+        btn.addEventListener('click', prevSlide);
+    });
+    document.querySelectorAll('.hero-next').forEach(btn => {
+        btn.addEventListener('click', nextSlide);
+    });
+    document.querySelectorAll('.hero-dot').forEach(dot => {
+        dot.addEventListener('click', () => {
+            const slideIndex = parseInt(dot.dataset.slide);
+            showSlide(slideIndex);
+        });
+    });
+    document.querySelectorAll('.hero-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const bannerId = btn.dataset.bannerId;
+            if (bannerId) trackClick(bannerId);
+        });
+    });
+    
+    const container = document.querySelector('.hero-carousel-container');
+    if (container) {
+        container.addEventListener('mouseenter', () => { isHovering = true; });
+        container.addEventListener('mouseleave', () => { isHovering = false; });
+    }
+    
+    startAutoSlide();
+</script>
+{% else %}
+<div style="position: relative; width: 100%; height: 500px; background: linear-gradient(135deg, #1e3a8a, #7e22ce); display: flex; align-items: center; justify-content: center; text-align: center; color: white;">
+    <div>
+        <h1 style="font-size: 3rem; font-weight: bold; margin-bottom: 1rem;">Welcome to Arolana</h1>
+        <p style="font-size: 1.2rem; margin-bottom: 2rem;">Premium Multi-Vendor Marketplace</p>
+        <a href="/products/" style="background: white; color: #2563eb; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">Shop Now</a>
+    </div>
+</div>
+{% endif %}

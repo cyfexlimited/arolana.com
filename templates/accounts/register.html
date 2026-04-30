@@ -1,0 +1,268 @@
+{% extends 'base/base.html' %}
+
+{% block content %}
+<div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-8">
+    <h2 class="text-2xl font-bold mb-2">Create Account</h2>
+    <p class="text-gray-600 mb-6">Join Arolana.com for exclusive deals and offers</p>
+    
+    <!-- Display messages/notifications -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="mb-4 p-3 rounded-lg {% if message.tags == 'success' %}bg-green-100 text-green-700 border border-green-200{% elif message.tags == 'error' %}bg-red-100 text-red-700 border border-red-200{% elif message.tags == 'warning' %}bg-yellow-100 text-yellow-700 border border-yellow-200{% else %}bg-blue-100 text-blue-700 border border-blue-200{% endif %}">
+                <div class="flex items-center gap-2">
+                    {% if message.tags == 'success' %}
+                        <i class="fas fa-check-circle"></i>
+                    {% elif message.tags == 'error' %}
+                        <i class="fas fa-exclamation-circle"></i>
+                    {% elif message.tags == 'warning' %}
+                        <i class="fas fa-exclamation-triangle"></i>
+                    {% else %}
+                        <i class="fas fa-info-circle"></i>
+                    {% endif %}
+                    {{ message }}
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+    
+    <form method="POST" id="register-form">
+        {% csrf_token %}
+        
+        <div class="mb-4">
+            <label class="block text-gray-700 mb-2 font-semibold">Username *</label>
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i class="fas fa-user text-gray-400"></i>
+                </div>
+                <input type="text" name="username" required 
+                       class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       placeholder="Choose a username">
+            </div>
+            <p class="text-xs text-gray-500 mt-1">This will be your public display name</p>
+        </div>
+        
+        <div class="mb-4">
+            <label class="block text-gray-700 mb-2 font-semibold">Email Address *</label>
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i class="fas fa-envelope text-gray-400"></i>
+                </div>
+                <input type="email" name="email" required 
+                       class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       placeholder="your@email.com">
+            </div>
+            <p class="text-xs text-gray-500 mt-1">We'll send order updates and promotions here</p>
+        </div>
+        
+        <div class="mb-4">
+            <label class="block text-gray-700 mb-2 font-semibold">Phone Number (Optional)</label>
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i class="fas fa-phone text-gray-400"></i>
+                </div>
+                <input type="tel" name="phone_number" 
+                       class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       placeholder="+1 234 567 8900">
+            </div>
+            <p class="text-xs text-gray-500 mt-1">For account recovery and order updates</p>
+        </div>
+        
+        <div class="mb-4">
+            <label class="block text-gray-700 mb-2 font-semibold">Password *</label>
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i class="fas fa-lock text-gray-400"></i>
+                </div>
+                <input type="password" name="password" id="password" required 
+                       class="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       placeholder="Create a strong password">
+                <button type="button" onclick="togglePassword('password')" class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                    <i class="fas fa-eye text-gray-400 hover:text-gray-600"></i>
+                </button>
+            </div>
+            <div class="text-xs text-gray-500 mt-1">
+                <span id="password-strength" class="font-semibold"></span>
+                <div id="strength-bar" class="h-1 mt-1 rounded-full bg-gray-200 overflow-hidden">
+                    <div id="strength-meter" class="h-full w-0 transition-all duration-300"></div>
+                </div>
+                <p class="mt-1">Password must have at least 8 characters</p>
+            </div>
+        </div>
+        
+        <div class="mb-6">
+            <label class="block text-gray-700 mb-2 font-semibold">Confirm Password *</label>
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i class="fas fa-lock text-gray-400"></i>
+                </div>
+                <input type="password" name="confirm_password" id="confirm_password" required 
+                       class="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       placeholder="Confirm your password">
+                <button type="button" onclick="togglePassword('confirm_password')" class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                    <i class="fas fa-eye text-gray-400 hover:text-gray-600"></i>
+                </button>
+            </div>
+            <div id="password-match" class="text-xs mt-1 hidden">
+                <i class="fas fa-check-circle text-green-500"></i> <span class="text-green-600">Passwords match!</span>
+            </div>
+            <div id="password-mismatch" class="text-xs mt-1 hidden">
+                <i class="fas fa-times-circle text-red-500"></i> <span class="text-red-600">Passwords do not match</span>
+            </div>
+        </div>
+        
+        <div class="mb-4 flex items-start">
+            <input type="checkbox" name="newsletter" id="newsletter" class="mt-1 mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+            <label for="newsletter" class="text-sm text-gray-600">
+                Subscribe to newsletter for exclusive deals and updates
+            </label>
+        </div>
+        
+        <div class="mb-6 flex items-start">
+            <input type="checkbox" name="terms" id="terms" required class="mt-1 mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+            <label for="terms" class="text-sm text-gray-600">
+                I agree to the <a href="/terms/" class="text-blue-600 hover:underline">Terms of Service</a> and 
+                <a href="/privacy/" class="text-blue-600 hover:underline">Privacy Policy</a>
+            </label>
+        </div>
+        
+        <button type="submit" id="submit-btn" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition duration-200 font-semibold">
+            Create Account
+        </button>
+    </form>
+    
+    <div class="relative my-6">
+        <div class="absolute inset-0 flex items-center">
+            <div class="w-full border-t border-gray-300"></div>
+        </div>
+        <div class="relative flex justify-center text-sm">
+            <span class="px-2 bg-white text-gray-500">Or continue with</span>
+        </div>
+    </div>
+    
+    <button onclick="socialSignup('google')" class="w-full bg-white border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition flex items-center justify-center gap-2 mb-3">
+        <i class="fab fa-google text-red-500"></i>
+        Sign up with Google
+    </button>
+    
+    <button onclick="socialSignup('facebook')" class="w-full bg-white border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition flex items-center justify-center gap-2">
+        <i class="fab fa-facebook text-blue-600"></i>
+        Sign up with Facebook
+    </button>
+    
+    <p class="mt-6 text-center text-gray-600">
+        Already have an account? 
+        <a href="{% url 'accounts:login' %}" class="text-blue-600 hover:underline font-semibold">Sign In</a>
+    </p>
+    
+    <p class="text-xs text-gray-500 text-center mt-4">
+        By creating an account, you agree to receive transactional emails and 
+        <a href="#" class="text-blue-500 hover:underline">marketing communications</a> (you can opt out anytime).
+    </p>
+</div>
+
+<script>
+// Password strength meter
+const passwordInput = document.getElementById('password');
+const confirmInput = document.getElementById('confirm_password');
+const submitBtn = document.getElementById('submit-btn');
+const matchDiv = document.getElementById('password-match');
+const mismatchDiv = document.getElementById('password-mismatch');
+
+passwordInput.addEventListener('input', function() {
+    const password = this.value;
+    const strengthBar = document.getElementById('strength-meter');
+    const strengthText = document.getElementById('password-strength');
+    
+    let strength = 0;
+    if (password.length >= 8) strength += 25;
+    if (password.match(/[a-z]+/)) strength += 25;
+    if (password.match(/[A-Z]+/)) strength += 25;
+    if (password.match(/[0-9]+/) || password.match(/[!@#$%^&*(),.?":{}|<>]+/)) strength += 25;
+    
+    strengthBar.style.width = strength + '%';
+    
+    if (strength < 25) {
+        strengthBar.style.backgroundColor = '#EF4444';
+        strengthText.innerHTML = 'Weak';
+        strengthText.style.color = '#EF4444';
+    } else if (strength < 50) {
+        strengthBar.style.backgroundColor = '#F59E0B';
+        strengthText.innerHTML = 'Fair';
+        strengthText.style.color = '#F59E0B';
+    } else if (strength < 75) {
+        strengthBar.style.backgroundColor = '#3B82F6';
+        strengthText.innerHTML = 'Good';
+        strengthText.style.color = '#3B82F6';
+    } else {
+        strengthBar.style.backgroundColor = '#10B981';
+        strengthText.innerHTML = 'Strong';
+        strengthText.style.color = '#10B981';
+    }
+    
+    validatePasswordMatch();
+});
+
+// Password match validation
+function validatePasswordMatch() {
+    const password = passwordInput.value;
+    const confirm = confirmInput.value;
+    
+    if (confirm.length > 0) {
+        if (password === confirm) {
+            matchDiv.classList.remove('hidden');
+            mismatchDiv.classList.add('hidden');
+            submitBtn.disabled = false;
+        } else {
+            matchDiv.classList.add('hidden');
+            mismatchDiv.classList.remove('hidden');
+            submitBtn.disabled = true;
+        }
+    } else {
+        matchDiv.classList.add('hidden');
+        mismatchDiv.classList.add('hidden');
+        submitBtn.disabled = false;
+    }
+}
+
+confirmInput.addEventListener('input', validatePasswordMatch);
+
+// Toggle password visibility
+function togglePassword(fieldId) {
+    const field = document.getElementById(fieldId);
+    const icon = field.parentElement.querySelector('button i');
+    
+    if (field.type === 'password') {
+        field.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        field.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
+// Social signup simulation
+function socialSignup(provider) {
+    alert(`Signing up with ${provider}... This feature is coming soon!`);
+}
+
+// Request notification permission on form submission
+document.getElementById('register-form').addEventListener('submit', function(e) {
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+});
+</script>
+
+<style>
+/* Smooth transitions */
+#strength-meter {
+    transition: width 0.3s ease, background-color 0.3s ease;
+}
+input:focus {
+    border-color: #3B82F6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+</style>
+{% endblock %}

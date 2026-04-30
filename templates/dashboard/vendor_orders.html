@@ -1,0 +1,85 @@
+{% extends 'base/base.html' %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <h1 class="text-3xl font-bold mb-8">Orders Management</h1>
+    
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-sm font-semibold">Order #</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold">Date</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold">Customer</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold">Total</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold">Status</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr class="border-t hover:bg-gray-50">
+                        <td class="px-6 py-4">#{{ order.order_number }}</td>
+                        <td class="px-6 py-4">{{ order.created_at|date:"M d, Y H:i" }}</td>
+                        <td class="px-6 py-4">{{ order.user.email }}</td>
+                        <td class="px-6 py-4 font-semibold">${{ order.total }}</td>
+                        <td class="px-6 py-4">
+                            <select onchange="updateOrderStatus({{ order.id }}, this.value)" 
+                                    class="px-2 py-1 rounded text-sm border">
+                                <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>Pending</option>
+                                <option value="processing" {% if order.status == 'processing' %}selected{% endif %}>Processing</option>
+                                <option value="shipped" {% if order.status == 'shipped' %}selected{% endif %}>Shipped</option>
+                                <option value="delivered" {% if order.status == 'delivered' %}selected{% endif %}>Delivered</option>
+                                <option value="cancelled" {% if order.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                            </select>
+                        </td>
+                        <td class="px-6 py-4">
+                            <a href="/dashboard/vendor/order/{{ order.id }}/" class="text-blue-600 hover:underline">View Details</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-8 text-gray-500">No orders found</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Pagination -->
+    {% if orders.has_other_pages %}
+    <div class="flex justify-center mt-8 gap-2">
+        {% if orders.has_previous %}
+            <a href="?page={{ orders.previous_page_number }}" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Previous</a>
+        {% endif %}
+        
+        <span class="px-4 py-2 bg-blue-600 text-white rounded">Page {{ orders.number }} of {{ orders.paginator.num_pages }}</span>
+        
+        {% if orders.has_next %}
+            <a href="?page={{ orders.next_page_number }}" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Next</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function updateOrderStatus(orderId, status) {
+    fetch(`/dashboard/vendor/order/${orderId}/update/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({status: status})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        }
+    });
+}
+</script>
+{% endblock %}

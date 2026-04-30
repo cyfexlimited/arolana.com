@@ -1,0 +1,86 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Blog | Arolana.com{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="text-center mb-12">
+        <h1 class="text-4xl font-bold mb-4">Our Blog</h1>
+        <p class="text-gray-600 text-lg">Latest news, updates, and articles from Arolana</p>
+    </div>
+    
+    <!-- Featured Posts -->
+    {% if featured_posts %}
+    <div class="mb-12">
+        <h2 class="text-2xl font-bold mb-6">Featured Posts</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {% for post in featured_posts %}
+            <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition">
+                {% if post.featured_image %}
+                    <img src="{{ post.featured_image.url }}" class="w-full h-48 object-cover">
+                {% else %}
+                    <div class="w-full h-48 bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
+                        <i class="fas fa-newspaper text-5xl text-white opacity-50"></i>
+                    </div>
+                {% endif %}
+                <div class="p-4">
+                    <div class="flex items-center gap-2 text-sm text-gray-500 mb-2">
+                        {% if post.category %}<span class="bg-blue-100 text-blue-700 px-2 py-1 rounded">{{ post.category.name }}</span>{% endif %}
+                        <span><i class="far fa-calendar"></i> {{ post.published_at|date:"M d, Y" }}</span>
+                        <span><i class="far fa-eye"></i> {{ post.views }} views</span>
+                    </div>
+                    <a href="{% url 'blog:detail' post.slug %}" class="font-bold text-xl hover:text-blue-600 transition line-clamp-2">{{ post.title }}</a>
+                    <p class="text-gray-600 mt-2 line-clamp-3">{{ post.excerpt }}</p>
+                    <a href="{% url 'blog:detail' post.slug %}" class="inline-block mt-4 text-blue-600 hover:underline">Read More →</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- All Posts Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for post in posts %}
+        <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition">
+            {% if post.featured_image %}
+                <img src="{{ post.featured_image.url }}" class="w-full h-48 object-cover">
+            {% else %}
+                <div class="w-full h-48 bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
+                    <i class="fas fa-newspaper text-5xl text-white opacity-50"></i>
+                </div>
+            {% endif %}
+            <div class="p-4">
+                <div class="flex items-center gap-2 text-sm text-gray-500 mb-2">
+                    {% if post.category %}<span class="bg-blue-100 text-blue-700 px-2 py-1 rounded">{{ post.category.name }}</span>{% endif %}
+                    <span><i class="far fa-calendar"></i> {{ post.published_at|date:"M d, Y" }}</span>
+                    <span><i class="far fa-eye"></i> {{ post.views }} views</span>
+                </div>
+                <a href="{% url 'blog:detail' post.slug %}" class="font-bold text-xl hover:text-blue-600 transition line-clamp-2">{{ post.title }}</a>
+                <p class="text-gray-600 mt-2 line-clamp-3">{{ post.excerpt|truncatewords:20 }}</p>
+                <a href="{% url 'blog:detail' post.slug %}" class="inline-block mt-4 text-blue-600 hover:underline">Read More →</a>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-span-full text-center py-12">
+            <i class="fas fa-newspaper text-6xl text-gray-400 mb-4"></i>
+            <p class="text-gray-500 text-lg">No blog posts yet.</p>
+            <a href="/admin/blog/blogpost/add/" class="inline-block mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg">Create First Post</a>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Pagination -->
+    {% if posts.has_other_pages %}
+    <div class="flex justify-center gap-2 mt-8">
+        {% if posts.has_previous %}
+            <a href="?page={{ posts.previous_page_number }}" class="px-4 py-2 bg-white border rounded-lg hover:bg-gray-50">Previous</a>
+        {% endif %}
+        <span class="px-4 py-2 bg-blue-600 text-white rounded-lg">{{ posts.number }}</span>
+        {% if posts.has_next %}
+            <a href="?page={{ posts.next_page_number }}" class="px-4 py-2 bg-white border rounded-lg hover:bg-gray-50">Next</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

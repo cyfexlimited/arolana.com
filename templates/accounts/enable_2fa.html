@@ -1,0 +1,316 @@
+{% extends 'base/base.html' %}
+
+{% block content %}
+<div class="max-w-md mx-auto bg-white rounded-xl shadow-lg p-8">
+    <div class="text-center mb-8">
+        <div class="relative inline-block">
+            <i class="fas fa-shield-alt text-6xl text-blue-600 mb-4"></i>
+            <div class="absolute -top-2 -right-2">
+                <span class="flex h-3 w-3">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                </span>
+            </div>
+        </div>
+        <h2 class="text-3xl font-bold text-gray-900">Enable Two-Factor Authentication</h2>
+        <p class="text-gray-600 mt-2">Secure your account with 2FA</p>
+        <p class="text-sm text-gray-500 mt-1">We've sent a verification code to <strong>{{ user.email }}</strong></p>
+    </div>
+    
+    <!-- Display messages -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="mb-4 p-3 rounded-lg {% if message.tags == 'success' %}bg-green-100 text-green-700 border border-green-200{% elif message.tags == 'error' %}bg-red-100 text-red-700 border border-red-200{% elif message.tags == 'warning' %}bg-yellow-100 text-yellow-700 border border-yellow-200{% else %}bg-blue-100 text-blue-700 border border-blue-200{% endif %}">
+                <div class="flex items-center gap-2">
+                    {% if message.tags == 'success' %}
+                        <i class="fas fa-check-circle"></i>
+                    {% elif message.tags == 'error' %}
+                        <i class="fas fa-exclamation-circle"></i>
+                    {% else %}
+                        <i class="fas fa-info-circle"></i>
+                    {% endif %}
+                    {{ message }}
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+    
+    <div class="bg-blue-50 rounded-lg p-4 mb-6 border border-blue-200">
+        <div class="flex items-start gap-3">
+            <i class="fas fa-info-circle text-blue-600 mt-1"></i>
+            <div class="text-sm text-blue-800">
+                <p class="font-semibold">What is 2FA?</p>
+                <p>Two-factor authentication adds an extra layer of security to your account. After enabling, you'll need to enter a verification code from your email in addition to your password when logging in.</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-yellow-50 rounded-lg p-4 mb-6 border border-yellow-200">
+        <div class="flex items-start gap-3">
+            <i class="fas fa-exclamation-triangle text-yellow-600 mt-1"></i>
+            <div class="text-sm text-yellow-800">
+                <p class="font-semibold">Important</p>
+                <ul class="list-disc list-inside mt-1 space-y-1">
+                    <li>Keep your email account secure</li>
+                    <li>You'll need access to your email to log in</li>
+                    <li>Save backup codes if provided</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <form method="POST" class="space-y-4" id="enable-2fa-form">
+        {% csrf_token %}
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Verification Code</label>
+            <div class="relative">
+                <input type="text" name="otp_code" id="otp-input" required pattern="[0-9]{6}" maxlength="6"
+                       class="w-full px-4 py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center text-3xl tracking-[0.5em] font-mono"
+                       placeholder="000000"
+                       autocomplete="off"
+                       autofocus>
+                <div class="absolute inset-y-0 right-4 flex items-center">
+                    <span class="text-xs text-gray-400 bg-white px-2">6-digit</span>
+                </div>
+            </div>
+            <p class="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                <i class="fas fa-clock"></i> 
+                <span id="timer">Code expires in <span id="countdown" class="font-semibold text-blue-600">10:00</span></span>
+            </p>
+        </div>
+        
+        <button type="submit" id="submit-btn" class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+            <i class="fas fa-shield-alt mr-2"></i> Enable 2FA
+        </button>
+    </form>
+    
+    <div class="mt-6 text-center space-y-3">
+        <p class="text-sm text-gray-600">
+            Didn't receive the code? 
+            <button onclick="resendCode()" id="resend-btn" class="text-blue-600 hover:text-blue-500 font-medium">
+                Resend Code
+            </button>
+        </p>
+        <p class="text-xs text-gray-500">
+            <i class="fas fa-envelope"></i> Check your spam folder if you don't see the email
+        </p>
+        <div class="pt-4 border-t">
+            <a href="{% url 'accounts:profile' %}" class="text-sm text-gray-500 hover:text-gray-700">
+                <i class="fas fa-arrow-left mr-1"></i> Cancel and go back
+            </a>
+        </div>
+    </div>
+    
+    <!-- Backup Codes Section (after enabling) -->
+    <div id="backup-codes-section" class="hidden mt-6 pt-4 border-t">
+        <div class="bg-green-50 rounded-lg p-4 border border-green-200">
+            <div class="flex items-center gap-2 mb-3">
+                <i class="fas fa-save text-green-600"></i>
+                <p class="font-semibold text-green-800">Save Your Backup Codes</p>
+            </div>
+            <p class="text-sm text-green-700 mb-3">These codes can be used to access your account if you lose access to your email.</p>
+            <div id="backup-codes-list" class="grid grid-cols-2 gap-2 mb-3 font-mono text-sm"></div>
+            <button onclick="copyBackupCodes()" class="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition text-sm">
+                <i class="fas fa-copy mr-2"></i> Copy Backup Codes
+            </button>
+        </div>
+        <a href="{% url 'accounts:security_settings' %}" class="mt-4 block text-center text-blue-600 hover:underline text-sm">
+            Continue to Security Settings →
+        </a>
+    </div>
+</div>
+
+<script>
+// Auto-format OTP input
+const otpInput = document.getElementById('otp-input');
+const submitBtn = document.getElementById('submit-btn');
+const countdownSpan = document.getElementById('countdown');
+let timerInterval;
+let timeLeft = 600; // 10 minutes in seconds
+
+// Format OTP input
+otpInput.addEventListener('input', function(e) {
+    // Remove non-digits
+    this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
+    
+    // Auto-submit when 6 digits entered
+    if (this.value.length === 6) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+        document.getElementById('enable-2fa-form').submit();
+    }
+});
+
+// Countdown timer
+function startTimer() {
+    timerInterval = setInterval(() => {
+        if (timeLeft <= 0) {
+            clearInterval(timerInterval);
+            countdownSpan.textContent = 'Expired';
+            document.getElementById('resend-btn').classList.remove('opacity-50', 'cursor-not-allowed');
+            document.getElementById('resend-btn').disabled = false;
+            return;
+        }
+        
+        timeLeft--;
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        countdownSpan.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }, 1000);
+}
+
+// Resend code function
+function resendCode() {
+    const btn = document.getElementById('resend-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+    
+    fetch('/accounts/resend-2fa-setup-otp/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('New verification code sent! Check your email.', 'success');
+            // Reset timer
+            clearInterval(timerInterval);
+            timeLeft = 600;
+            startTimer();
+            // Reset OTP input
+            otpInput.value = '';
+            otpInput.focus();
+            
+            let countdown = 60;
+            btn.innerHTML = `Resend Code (${countdown}s)`;
+            const timer = setInterval(() => {
+                countdown--;
+                if (countdown <= 0) {
+                    clearInterval(timer);
+                    btn.innerHTML = 'Resend Code';
+                    btn.disabled = false;
+                } else {
+                    btn.innerHTML = `Resend Code (${countdown}s)`;
+                }
+            }, 1000);
+            
+            // Show browser notification
+            if (Notification.permission === 'granted') {
+                new Notification('2FA Setup Code Sent', {
+                    body: 'A new verification code has been sent to your email.',
+                    icon: '/static/images/arolana-icon.png'
+                });
+            }
+        } else {
+            showToast(data.error || 'Failed to resend code', 'error');
+            btn.innerHTML = 'Resend Code';
+            btn.disabled = false;
+        }
+    })
+    .catch(error => {
+        showToast('Network error. Please try again.', 'error');
+        btn.innerHTML = 'Resend Code';
+        btn.disabled = false;
+    });
+}
+
+// Show toast notification
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    
+    const toast = document.createElement('div');
+    toast.className = `toast-notification bg-white rounded-lg shadow-xl p-4 mb-3 border-l-4 ${
+        type === 'success' ? 'border-green-500' : 'border-red-500'
+    }`;
+    toast.innerHTML = `
+        <div class="flex items-center gap-3">
+            <div class="${type === 'success' ? 'text-green-500' : 'text-red-500'}">
+                <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'} text-xl"></i>
+            </div>
+            <div class="flex-1">
+                <p class="text-gray-800 text-sm">${message}</p>
+            </div>
+            <button onclick="this.parentElement.parentElement.remove()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 5000);
+}
+
+// Show backup codes after successful 2FA enable
+function showBackupCodes(codes) {
+    const backupSection = document.getElementById('backup-codes-section');
+    const codesList = document.getElementById('backup-codes-list');
+    
+    codesList.innerHTML = '';
+    codes.forEach(code => {
+        const div = document.createElement('div');
+        div.className = 'bg-gray-100 rounded p-2 text-center font-mono text-sm';
+        div.textContent = code;
+        codesList.appendChild(div);
+    });
+    
+    backupSection.classList.remove('hidden');
+    setTimeout(() => {
+        backupSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 500);
+}
+
+// Copy backup codes
+function copyBackupCodes() {
+    const codes = Array.from(document.querySelectorAll('#backup-codes-list div')).map(div => div.textContent);
+    const codesText = codes.join('\n');
+    
+    navigator.clipboard.writeText(codesText).then(() => {
+        showToast('Backup codes copied to clipboard!', 'success');
+    }).catch(() => {
+        showToast('Failed to copy codes', 'error');
+    });
+}
+
+// Start timer on page load
+startTimer();
+
+// Focus on input field
+otpInput.focus();
+
+// Add paste support
+otpInput.addEventListener('paste', function(e) {
+    e.preventDefault();
+    const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+    const numbers = pastedText.replace(/[^0-9]/g, '').slice(0, 6);
+    this.value = numbers;
+    if (numbers.length === 6) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+        document.getElementById('enable-2fa-form').submit();
+    }
+});
+
+// Prevent form double submission
+document.getElementById('enable-2fa-form').addEventListener('submit', function() {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enabling 2FA...';
+});
+
+// Request notification permission
+if (Notification.permission === 'default') {
+    setTimeout(() => {
+        Notification.requestPermission();
+    }, 1000);
+}
+
+// Check if form submission was successful with backup codes
+{% if backup_codes %}
+document.addEventListener('DOMContentLoaded', function() {
+    showBackupCodes({{ backup_codes|safe }});
+});
+{% endif %}
+</script>
+{% endblock %}

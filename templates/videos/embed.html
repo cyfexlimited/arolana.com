@@ -1,0 +1,42 @@
+{% if video %}
+<div class="relative w-full h-full bg-black">
+    {% if video.video_type == 'youtube' and video.youtube_id %}
+        <iframe 
+            class="w-full h-full"
+            src="https://www.youtube.com/embed/{{ video.youtube_id }}?autoplay=1&rel=0&modestbranding=1&playsinline=1"
+            title="{{ video.title }}"
+            frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen>
+        </iframe>
+    {% elif video.video_type == 'vimeo' and video.vimeo_id %}
+        <iframe 
+            class="w-full h-full"
+            src="https://player.vimeo.com/video/{{ video.vimeo_id }}?autoplay=1"
+            title="{{ video.title }}"
+            frameborder="0"
+            allow="autoplay; fullscreen; picture-in-picture"
+            allowfullscreen>
+        </iframe>
+    {% elif video.video_file %}
+        <video controls autoplay class="w-full h-full">
+            <source src="{{ video.video_file.url }}" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+    {% else %}
+        <div class="flex items-center justify-center h-full text-white">
+            <div class="text-center">
+                <i class="fas fa-video-slash text-6xl mb-3 opacity-50"></i>
+                <p>Video not available</p>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% else %}
+<div class="flex items-center justify-center h-full bg-black text-white">
+    <div class="text-center">
+        <i class="fas fa-video-slash text-6xl mb-3 opacity-50"></i>
+        <p>Video not found</p>
+    </div>
+</div>
+{% endif %}

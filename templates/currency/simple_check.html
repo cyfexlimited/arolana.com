@@ -1,0 +1,38 @@
+{% load currency_filters %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Currency Check</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .info { background: #e0f2fe; padding: 15px; margin: 10px 0; border-radius: 8px; }
+        .success { color: green; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Currency System Check</h1>
+    
+    <div class="info">
+        <h2>Session Info:</h2>
+        <p>Session Currency: <strong>{{ request.session.user_currency|default:"NOT SET" }}</strong></p>
+        <p>Request User Currency: <strong>{{ request.user_currency.code|default:"None" }}</strong></p>
+    </div>
+    
+    <div class="info">
+        <h2>Test Conversions:</h2>
+        <p>100 USD = <strong>{{ 100|currency:request }}</strong></p>
+        <p>260.80 USD = <strong>{{ 260.80|currency:request }}</strong></p>
+        <p>349.00 USD = <strong>{{ 349|currency:request }}</strong></p>
+    </div>
+    
+    <div class="info">
+        <h2>Actions:</h2>
+        <p>
+            <a href="/currency/switch/?code=USD&next={{ request.path }}">Set USD</a> | 
+            <a href="/currency/switch/?code=NGN&next={{ request.path }}">Set NGN</a> | 
+            <a href="/currency/switch/?code=EUR&next={{ request.path }}">Set EUR</a>
+        </p>
+        <p><a href="/products/">Go to Products Page →</a></p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,148 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Help Center | Arolana.com{% endblock %}
+
+{% block extra_css %}
+<style>
+    .hero-section {
+        background-size: cover;
+        background-position: center;
+        position: relative;
+    }
+    .topic-card {
+        transition: all 0.3s ease;
+    }
+    .topic-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+    .faq-item {
+        transition: all 0.2s ease;
+    }
+    .faq-item:hover {
+        background-color: #f9fafb;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+{% if hero %}
+<div class="hero-section rounded-2xl overflow-hidden mb-12" 
+     style="background-image: {% if hero.background_image %}url('{{ hero.background_image.url }}'){% else %}linear-gradient(135deg, #667eea 0%, #764ba2 100%){% endif %};">
+    <div class="bg-black bg-opacity-50 py-16 px-8 text-center text-white">
+        <h1 class="text-4xl md:text-5xl font-bold mb-4">{{ hero.title }}</h1>
+        <p class="text-xl md:text-2xl opacity-90">{{ hero.subtitle }}</p>
+    </div>
+</div>
+{% else %}
+<div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl py-16 px-8 text-center text-white mb-12">
+    <h1 class="text-4xl md:text-5xl font-bold mb-4">How Can We Help You?</h1>
+    <p class="text-xl md:text-2xl opacity-90">Find answers, request support, or get in touch with our team</p>
+</div>
+{% endif %}
+
+<!-- Support Topics Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+    {% for topic in topics %}
+    <a href="{{ topic.button_url }}" class="topic-card bg-white rounded-xl shadow-md p-6 text-center hover:shadow-xl transition group">
+        <div class="w-20 h-20 mx-auto mb-4 flex items-center justify-center">
+            {% if topic.image %}
+                <img src="{{ topic.image.url }}" alt="{{ topic.title }}" class="w-full h-full object-contain">
+            {% elif topic.icon %}
+                <i class="{{ topic.icon }} text-4xl text-blue-600 group-hover:scale-110 transition"></i>
+            {% else %}
+                <i class="fas fa-question-circle text-4xl text-blue-600 group-hover:scale-110 transition"></i>
+            {% endif %}
+        </div>
+        <h3 class="font-bold text-xl mb-2">{{ topic.title }}</h3>
+        <p class="text-gray-600 text-sm mb-3">{{ topic.description }}</p>
+        <span class="text-blue-600 group-hover:underline inline-flex items-center gap-1">
+            {{ topic.button_text }} <i class="fas fa-arrow-right text-xs"></i>
+        </span>
+    </a>
+    {% empty %}
+    <div class="col-span-full text-center py-8">
+        <p class="text-gray-500">No support topics added yet.</p>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Featured FAQs -->
+<div class="bg-white rounded-xl shadow-md p-8 mb-12">
+    <h2 class="text-2xl font-bold mb-6">Frequently Asked Questions</h2>
+    {% if featured_faqs %}
+        <div class="space-y-4">
+            {% for faq in featured_faqs %}
+            <div class="faq-item border-b pb-4 cursor-pointer" x-data="{ open: false }">
+                <div @click="open = !open" class="flex items-start gap-3">
+                    {% if faq.image %}
+                        <img src="{{ faq.image.url }}" alt="{{ faq.question }}" class="w-8 h-8 object-contain mt-1">
+                    {% else %}
+                        <i class="fas fa-question-circle text-blue-500 mt-1"></i>
+                    {% endif %}
+                    <div class="flex-1">
+                        <h3 class="font-semibold text-lg">{{ faq.question }}</h3>
+                        <div x-show="open" x-collapse class="text-gray-600 mt-2">
+                            {{ faq.answer|safe }}
+                        </div>
+                    </div>
+                    <i class="fas fa-chevron-down text-gray-400 transition-transform" :class="{'rotate-180': open}"></i>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="text-center mt-6">
+            <a href="{% url 'pages:faq' %}" class="text-blue-600 hover:underline">View All FAQs →</a>
+        </div>
+    {% else %}
+        <p class="text-gray-500 text-center py-4">No FAQs added yet.</p>
+    {% endif %}
+</div>
+
+<!-- Contact Section -->
+<div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white text-center">
+    <i class="fas fa-headset text-5xl mb-4"></i>
+    <h2 class="text-2xl font-bold mb-2">Still Need Help?</h2>
+    <p class="mb-6">Contact our support team and we'll get back to you within 24 hours</p>
+    <div class="flex gap-4 justify-center flex-wrap">
+        <a href="/contact/" class="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition">
+            <i class="fas fa-envelope mr-2"></i>Email Support
+        </a>
+        <a href="#" class="bg-transparent border-2 border-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition">
+            <i class="fas fa-comments mr-2"></i>Live Chat
+        </a>
+    </div>
+</div>
+{% endblock %}
+<!-- Add this section to show articles under each topic -->
+{% for topic in topics %}
+<div class="mb-8">
+    <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold">{{ topic.name }}</h2>
+        <a href="#" class="text-blue-600 text-sm hover:underline">View All →</a>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {% for article in topic.articles.all|slice:":4" %}
+        <a href="{% url 'pages:article_detail' article.slug %}" class="block p-4 bg-white rounded-lg shadow hover:shadow-md transition">
+            <div class="flex items-start gap-3">
+                {% if article.image %}
+                    <img src="{{ article.image.url }}" class="w-12 h-12 rounded-lg object-cover">
+                {% else %}
+                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-file-alt text-blue-600"></i>
+                    </div>
+                {% endif %}
+                <div class="flex-1">
+                    <h3 class="font-semibold hover:text-blue-600">{{ article.title }}</h3>
+                    <p class="text-sm text-gray-500">{{ article.created_at|date:"M d, Y" }}</p>
+                </div>
+            </div>
+        </a>
+        {% empty %}
+        <p class="text-gray-500 col-span-2">No articles yet in this category.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endfor %}

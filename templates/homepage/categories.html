@@ -1,0 +1,21 @@
+{% load static %}
+{% if categories %}
+<section class="mb-12" data-aos="fade-up">
+    <div class="flex justify-between items-center mb-6">
+        <h2 class="text-3xl font-bold">Shop by Category</h2>
+        <a href="/products/" class="text-blue-600 hover:underline">View All →</a>
+    </div>
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        {% for hp_category in categories %}
+        <a href="{% url 'products:category' hp_category.category.slug %}" 
+           class="bg-white rounded-lg shadow-md p-4 text-center hover:shadow-xl transition group">
+            <div class="w-16 h-16 mx-auto bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition">
+                <i class="{{ hp_category.icon|default:'fas fa-folder-open' }} text-3xl text-blue-600"></i>
+            </div>
+            <h3 class="font-semibold text-gray-800">{{ hp_category.category.name }}</h3>
+            <p class="text-xs text-gray-500 mt-1">{{ hp_category.category.product_count|default:0 }} products</p>
+        </a>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}

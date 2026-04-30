@@ -1,0 +1,38 @@
+<div>
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold">Users</h1>
+        <a href="/admin/accounts/user/add/" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700" target="_blank">
+            <i class="fas fa-plus"></i> Add User
+        </a>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead>
+                <tr class="border-b">
+                    <th class="text-left py-3">Username</th>
+                    <th class="text-left py-3">Email</th>
+                    <th class="text-left py-3">User Type</th>
+                    <th class="text-left py-3">Joined</th>
+                    <th class="text-left py-3">Active</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="py-3">{{ user.username }}</td>
+                    <td class="py-3">{{ user.email }}</td>
+                    <td class="py-3">{{ user.user_type|title }}</td>
+                    <td class="py-3">{{ user.date_joined|date:"Y-m-d" }}</td>
+                    <td class="py-3">
+                        {% if user.is_active %}
+                            <span class="text-green-600"><i class="fas fa-check-circle"></i> Yes</span>
+                        {% else %}
+                            <span class="text-red-600"><i class="fas fa-times-circle"></i> No</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>

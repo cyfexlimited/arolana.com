@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>{% block title %}{{ site_settings.site_name }} - {{ site_settings.site_tagline }}{% endblock %}</title>
+    <meta name="description" content="{{ site_settings.site_description }}">
+    <meta name="keywords" content="{{ site_settings.site_keywords }}">
+    <meta name="author" content="{{ site_settings.meta_author }}">
+    <meta name="robots" content="{{ site_settings.meta_robots }}">
+    
+    <!-- Favicon -->
+    {% if site_settings.site_favicon %}
+        <link rel="icon" type="image/x-icon" href="{{ site_settings.site_favicon.url }}">
+    {% endif %}
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <!-- Swiper for carousels -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+    <!-- AOS Animation Library -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        
+        /* Mega Menu Styles */
+        .group { position: relative; }
+        .mega-menu-dropdown {
+            display: none;
+            position: absolute;
+            left: 0;
+            top: 100%;
+            background: white;
+            color: #1f2937;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+            border-radius: 0 0 0.5rem 0.5rem;
+            width: 48rem;
+            padding: 1.5rem;
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: opacity 0.2s, transform 0.2s;
+        }
+        .group:hover .mega-menu-dropdown { 
+            display: block !important;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .mega-menu-dropdown a { color: #4b5563; display: block; padding: 4px 0; font-size: 0.875rem; }
+        .mega-menu-dropdown a:hover { color: #3b82f6; }
+        .mega-menu-dropdown h3 { color: #111827; margin-bottom: 8px; font-size: 0.9rem; font-weight: 600; }
+        
+        /* Smooth scroll behavior */
+        html { scroll-behavior: smooth; }
+        
+        .sticky-nav { position: sticky; top: 0; z-index: 999; backdrop-filter: blur(10px); background: rgba(255,255,255,0.95); }
+        .product-card:hover { transform: translateY(-5px); transition: all 0.3s ease; }
+        [x-cloak] { display: none !important; }
+        
+        /* Ad Container */
+        .ad-container { display: block !important; min-height: 250px; width: 100%; }
+        .ad-container img { max-width: 100%; height: auto; display: block; border-radius: 0.5rem; }
+        
+        /* Dynamic Colors */
+        .btn-primary { background-color: {{ site_settings.primary_color }}; }
+        .btn-primary:hover { background-color: {{ site_settings.primary_color }}dd; transform: translateY(-2px); }
+        .text-primary { color: {{ site_settings.primary_color }}; }
+        .border-primary { border-color: {{ site_settings.primary_color }}; }
+        .bg-primary { background-color: {{ site_settings.primary_color }}; }
+        
+        /* Logo */
+        .site-logo { max-height: 60px; width: auto; object-fit: contain; }
+        
+        /* Animations */
+        .search-dropdown { animation: fadeInDown 0.2s ease-out; }
+        .toast-notification { position: fixed; bottom: 20px; right: 20px; z-index: 9999; animation: slideInRight 0.3s ease-out; }
+        
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .pulse-animation { animation: pulse 2s infinite; }
+        
+        /* Lazy loading */
+        img.lazy { opacity: 0; transition: opacity 0.3s; }
+        img.lazy.loaded { opacity: 1; }
+        
+        /* Mobile menu */
+        @media (max-width: 1024px) {
+            .mega-menu-dropdown { position: fixed; left: 0; right: 0; width: 100%; top: auto; max-height: 80vh; overflow-y: auto; }
+            .site-logo { max-height: 40px; }
+        }
+        
+        /* Loading spinner */
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.6s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* Video section styles */
+        .homepage-video-section {
+            animation: fadeIn 0.8s ease-out;
+        }
+        .video-wrapper {
+            position: relative;
+            padding-bottom: 56.25%;
+            height: 0;
+            overflow: hidden;
+            border-radius: 0.5rem;
+            background: #f3f4f6;
+        }
+        .video-wrapper iframe,
+        .video-wrapper video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Cookie consent banner */
+        .cookie-consent {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1f2937;
+            color: white;
+            padding: 1rem;
+            z-index: 9998;
+            transform: translateY(100%);
+            transition: transform 0.3s;
+        }
+        .cookie-consent.show { transform: translateY(0); }
+        
+        /* Video section positioning */
+        .video-section-left .video-container { margin-right: auto; }
+        .video-section-center .video-container { margin-left: auto; margin-right: auto; }
+        .video-section-right .video-container { margin-left: auto; }
+        .video-container, .video-container *, iframe, .homepage-video-section iframe { background: transparent !important; }
+        .homepage-video-section .rounded-lg { border: 1px solid #e5e7eb; }
+        .homepage-video-section .video-container:hover { transform: scale(1.02); transition: transform 0.3s ease; }
+        .homepage-video-section video { outline: none; background: #000; }
+        .homepage-video-section .cta-button { transition: all 0.3s ease; }
+        .homepage-video-section .cta-button:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+
+        /* Admin Dashboard Icon Styles */
+        .admin-icon {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .admin-icon:hover {
+            transform: scale(1.1);
+            filter: drop-shadow(0 0 5px rgba(59,130,246,0.5));
+        }
+        @keyframes adminPulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.7; transform: scale(1.2); }
+    }
+    
+    /* Make sure admin badge uses the correct animation */
+    .admin-badge {
+        position: relative;
+    }
+    .admin-badge::after {
+        content: '';
+        position: absolute;
+        top: -2px;
+        right: -2px;
+        width: 8px;
+        height: 8px;
+        background-color: #ef4444;
+        border-radius: 50%;
+        animation: adminPulse 2s infinite;
+    }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-gray-50" x-data="{ mobileMenuOpen: false, cartOpen: false, searchOpen: false }" x-init="AOS.init(); initCookieConsent();">
+    
+    <!-- Top Bar -->
+    <div class="bg-gray-900 text-white text-sm py-2">
+        <div class="container mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-2">
+            <div class="flex space-x-6">
+                {% if site_settings.shipping_note %}
+                    <span class="inline-flex items-center gap-1"><i class="fas fa-truck"></i> {{ site_settings.shipping_note }}</span>
+                {% endif %}
+                {% if site_settings.contact_phone %}
+                    <span class="inline-flex items-center gap-1"><i class="fas fa-phone"></i> {{ site_settings.contact_phone }}</span>
+                {% endif %}
+                {% if site_settings.return_policy %}
+                    <span class="inline-flex items-center gap-1"><i class="fas fa-undo-alt"></i> {{ site_settings.return_policy }}</span>
+                {% endif %}
+            </div>
+            <div class="flex space-x-4">
+                <!-- Currency Switcher - POST method for persistence -->
+                <form method="POST" action="{% url 'currency:switch' %}" class="inline" id="currency-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.path }}">
+                    <select name="code" onchange="this.form.submit()" class="bg-gray-800 text-white text-sm border border-gray-700 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                        <option value="USD" {% if request.session.user_currency == 'USD' %}selected{% endif %}>USD $</option>
+                        <option value="EUR" {% if request.session.user_currency == 'EUR' %}selected{% endif %}>EUR €</option>
+                        <option value="GBP" {% if request.session.user_currency == 'GBP' %}selected{% endif %}>GBP £</option>
+                        <option value="NGN" {% if request.session.user_currency == 'NGN' %}selected{% endif %}>NGN ₦</option>
+                        <option value="CAD" {% if request.session.user_currency == 'CAD' %}selected{% endif %}>CAD C$</option>
+                        <option value="AUD" {% if request.session.user_currency == 'AUD' %}selected{% endif %}>AUD A$</option>
+                    </select>
+                </form>
+                
+<!-- Add notification bell to top bar, next to chat icon -->
+<a href="{% url 'notifications:list' %}" class="relative hover:text-blue-400">
+    <i class="fas fa-bell text-lg"></i>
+    <span id="notification-badge" class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center hidden">0</span>
+</a>
+
+<!-- Add JavaScript for notification count -->
+<script>
+function updateNotificationCount() {
+    fetch('/notifications/unread-count/')
+        .then(response => response.json())
+        .then(data => {
+            const badge = document.getElementById('notification-badge');
+            if (badge && data.unread_count > 0) {
+                badge.textContent = data.unread_count > 9 ? '9+' : data.unread_count;
+                badge.classList.remove('hidden');
+            } else if (badge) {
+                badge.classList.add('hidden');
+            }
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+// Update notification count
+updateNotificationCount();
+setInterval(updateNotificationCount, 30000);
+</script>
+                
+                <!-- Chat Icon -->
+                <a href="{% url 'chat:list' %}" class="relative hover:text-blue-400">
+                    <i class="fas fa-comment-dots text-lg"></i>
+                    <span id="chat-unread-badge" class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center hidden">0</span>
+                </a>
+                
+                <!-- Admin Dashboard Icon - For staff/superusers only -->
+                {% if user.is_staff or user.is_superuser %}
+                <a href="{% url 'dashboard:admin_home' %}" class="relative hover:text-blue-400 transition admin-icon" title="Admin Dashboard">
+                    <i class="fas fa-chalkboard-user text-lg"></i>
+                    <span class="admin-badge"></span>
+                </a>
+                {% endif %}
+                
+                {% if user.is_authenticated %}
+                    <div class="relative" x-data="{ dropdownOpen: false }">
+                        <button @click="dropdownOpen = !dropdownOpen" class="hover:text-blue-400 inline-flex items-center gap-1">
+                            <i class="fas fa-user"></i> {{ user.username }} <i class="fas fa-chevron-down text-xs"></i>
+                        </button>
+                        <div x-show="dropdownOpen" @click.away="dropdownOpen = false" x-cloak class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl py-2 z-50">
+                            <a href="{% url 'accounts:profile' %}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100"><i class="fas fa-user-circle w-5"></i> My Profile</a>
+                            <a href="/orders/" class="block px-4 py-2 text-gray-700 hover:bg-gray-100"><i class="fas fa-box w-5"></i> My Orders</a>
+                            <a href="{% url 'accounts:wishlist' %}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100"><i class="fas fa-heart w-5"></i> Wishlist</a>
+                            {% if user.is_staff or user.is_superuser %}
+                            <hr class="my-1">
+                            <a href="{% url 'dashboard:admin_home' %}" class="block px-4 py-2 text-purple-600 hover:bg-gray-100">
+                                <i class="fas fa-chalkboard-user w-5"></i> Admin Dashboard
+                            </a>
+                            <a href="/admin/" class="block px-4 py-2 text-red-600 hover:bg-gray-100">
+                                <i class="fas fa-crown w-5"></i> Django Admin
+                            </a>
+                            {% endif %}
+                            <hr class="my-1">
+                            <a href="{% url 'accounts:logout' %}" class="block px-4 py-2 text-red-600 hover:bg-gray-100"><i class="fas fa-sign-out-alt w-5"></i> Logout</a>
+                        </div>
+                    </div>
+                    {% if user.user_type == 'vendor' %}
+                        <a href="{% url 'dashboard:vendor_home' %}" class="hover:text-green-400"><i class="fas fa-store"></i> Vendor Dashboard</a>
+                    {% else %}
+                        <a href="{% url 'vendors:become' %}" class="hover:text-yellow-400"><i class="fas fa-gem"></i> Become a Vendor</a>
+                    {% endif %}
+                {% else %}
+                    <a href="{% url 'accounts:login' %}" class="hover:text-blue-400"><i class="fas fa-sign-in-alt"></i> Sign In</a>
+                    <a href="{% url 'accounts:register' %}" class="hover:text-blue-400"><i class="fas fa-user-plus"></i> Register</a>
+                {% endif %}
+                
+                {% if user.is_staff or user.is_superuser %}
+                    <a href="/admin/" class="hover:text-red-400"><i class="fas fa-crown"></i> Admin</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Header -->
+    <header class="bg-white shadow-md sticky-nav">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <!-- Logo -->
+                <a href="/" class="shrink-0">
+                    {% if site_settings.site_logo %}
+                        <img src="{{ site_settings.site_logo.url }}" alt="{{ site_settings.site_name }}" class="site-logo" style="max-height: 60px; width: auto;">
+                    {% else %}
+                        <span class="text-3xl font-bold" style="color: {{ site_settings.primary_color }}">
+                            {{ site_settings.site_name }}<span style="color: {{ site_settings.secondary_color }}">.com</span>
+                        </span>
+                    {% endif %}
+                </a>
+                
+                <!-- Mobile Menu Button -->
+                <button @click="mobileMenuOpen = !mobileMenuOpen" class="lg:hidden text-gray-700 text-2xl">
+                    <i class="fas" :class="mobileMenuOpen ? 'fa-times' : 'fa-bars'"></i>
+                </button>
+                
+                <!-- AI Search Bar -->
+                <div class="flex-1 max-w-2xl relative order-last lg:order-none w-full lg:w-auto" x-data="{ query: '', results: [], showDropdown: false, isLoading: false }"
+                     @keyup.debounce.300ms="if(query.length>2){ isLoading=true; fetch('/search/ai/?q='+query).then(r=>r.json()).then(d=>{results=d.results; isLoading=false; showDropdown=true;}) }"
+                     @click.away="showDropdown=false">
+                    <div class="flex">
+                        <input type="text" x-model="query" placeholder="Search products, brands, or categories..." 
+                               class="w-full px-4 py-3 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <button class="text-white px-6 rounded-r-lg hover:opacity-90 transition" style="background-color: {{ site_settings.primary_color }}">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                    <!-- Loading Indicator -->
+                    <div x-show="isLoading" class="absolute right-20 top-3">
+                        <div class="loading-spinner"></div>
+                    </div>
+                    <!-- Search Results -->
+                    <div x-show="showDropdown && results.length > 0" x-cloak class="absolute top-full left-0 right-0 bg-white shadow-xl rounded-b-lg mt-1 z-50 max-h-96 overflow-y-auto">
+                        <template x-for="item in results">
+                            <a :href="item.url" class="flex items-center gap-3 p-3 hover:bg-gray-50 border-b">
+                                <img :src="item.image" class="w-12 h-12 object-cover rounded" loading="lazy">
+                                <div class="flex-1">
+                                    <div x-text="item.name" class="font-medium"></div>
+                                    <div class="text-sm text-gray-500" x-text="item.category"></div>
+                                    <div class="text-blue-600 font-bold" x-text="'$'+item.price"></div>
+                                </div>
+                            </a>
+                        </template>
+                    </div>
+                </div>
+                
+                <!-- Cart & Wishlist -->
+                <div class="flex items-center gap-4 shrink-0">
+                    <a href="{% url 'accounts:wishlist' %}" class="relative">
+                        <i class="fas fa-heart text-2xl text-gray-700 hover:text-red-500 transition"></i>
+                        <span id="wishlist-count" class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">0</span>
+                    </a>
+                    <a href="{% url 'products:cart' %}" class="relative">
+                        <i class="fas fa-shopping-cart text-2xl text-gray-700 hover:text-blue-600 transition"></i>
+                        <span id="cart-count" class="absolute -top-2 -right-2 bg-blue-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">{{ request.session.cart_count|default:0 }}</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Mega Menu Navigation -->
+        <nav class="bg-gray-800 text-white" :class="mobileMenuOpen ? 'block' : 'hidden lg:block'">
+            <div class="container mx-auto px-4">
+                <ul class="flex flex-col lg:flex-row lg:space-x-1">
+                    <!-- Product Categories -->
+                    {% for category in main_categories %}
+                    <li class="group relative border-b lg:border-b-0">
+                        <a href="{% url 'products:category' category.slug %}" class="block px-4 py-3 hover:bg-blue-600 transition flex items-center gap-2">
+                            {% if category.image %}
+                                <img src="{{ category.image.url }}" alt="{{ category.name }}" class="w-5 h-5 rounded-full object-cover" loading="lazy">
+                            {% elif category.icon %}
+                                <i class="fas fa-{{ category.icon }}"></i>
+                            {% else %}
+                                <i class="fas fa-folder"></i>
+                            {% endif %}
+                            {{ category.name }}
+                            <i class="fas fa-chevron-down text-xs lg:hidden ml-auto"></i>
+                        </a>
+                        {% if category.children.exists %}
+                        <div class="mega-menu-dropdown">
+                            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                                {% for child in category.children.all|slice:":8" %}
+                                <div>
+                                    <a href="{% url 'products:category' child.slug %}" class="font-bold text-gray-900 hover:text-blue-600 block mb-2 text-sm">
+                                        {{ child.name }}
+                                    </a>
+                                    {% if child.children.exists %}
+                                    <ul class="space-y-1 text-xs">
+                                        {% for grandchild in child.children.all|slice:":6" %}
+                                        <li>
+                                            <a href="{% url 'products:category' grandchild.slug %}" class="hover:text-blue-600 block text-gray-600 py-1">
+                                                {{ grandchild.name }}
+                                            </a>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                    
+                    <!-- Manufacturers Dropdown -->
+                    <li class="group relative border-b lg:border-b-0">
+                        <a href="{% url 'manufacturers:list' %}" class="block px-4 py-3 hover:bg-blue-600 transition flex items-center gap-2">
+                            <i class="fas fa-industry"></i> Manufacturers
+                        </a>
+                        <div class="mega-menu-dropdown w-80">
+                            <div class="grid grid-cols-1 gap-2">
+                                {% for cat in manufacturer_categories %}
+                                <div>
+                                    <a href="{% url 'manufacturers:list' %}?category={{ cat.slug }}" 
+                                       class="block py-2 px-3 hover:bg-gray-100 rounded-lg transition">
+                                        <i class="{{ cat.icon|default:'fas fa-industry' }} w-6 text-blue-600"></i>
+                                        <span class="ml-2">{{ cat.name }}</span>
+                                    </a>
+                                </div>
+                                {% endfor %}
+                                <div class="border-t pt-2 mt-2">
+                                    <a href="{% url 'manufacturers:list' %}" class="block py-2 px-3 text-blue-600 hover:bg-gray-100 rounded-lg transition font-semibold">
+                                        <i class="fas fa-arrow-right"></i> View All Manufacturers
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                    
+                    <!-- Vendors Dropdown -->
+                    <li class="group relative border-b lg:border-b-0">
+                        <a href="{% url 'vendors:list' %}" class="block px-4 py-3 hover:bg-blue-600 transition flex items-center gap-2">
+                            <i class="fas fa-store"></i> Vendors
+                        </a>
+                        <div class="mega-menu-dropdown w-96">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <h3 class="font-bold text-gray-900 mb-2"><i class="fas fa-trophy text-yellow-500"></i> Top Rated</h3>
+                                    <ul class="space-y-1">
+                                        {% for vendor in top_vendors|slice:":5" %}
+                                        <li>
+                                            <a href="{% url 'vendors:detail' vendor.store_slug %}" class="flex items-center gap-2 py-1 hover:text-blue-600">
+                                                {% if vendor.store_logo %}
+                                                    <img src="{{ vendor.store_logo.url }}" class="w-6 h-6 rounded-full object-cover">
+                                                {% else %}
+                                                    <i class="fas fa-store w-5"></i>
+                                                {% endif %}
+                                                <span>{{ vendor.store_name }}</span>
+                                                <span class="text-xs text-yellow-500"><i class="fas fa-star"></i> {{ vendor.rating_avg }}</span>
+                                            </a>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-gray-900 mb-2"><i class="fas fa-fire text-orange-500"></i> Trending</h3>
+                                    <ul class="space-y-1">
+                                        {% for vendor in trending_vendors|slice:":5" %}
+                                        <li>
+                                            <a href="{% url 'vendors:detail' vendor.store_slug %}" class="flex items-center gap-2 py-1 hover:text-blue-600">
+                                                {% if vendor.store_logo %}
+                                                    <img src="{{ vendor.store_logo.url }}" class="w-6 h-6 rounded-full object-cover">
+                                                {% else %}
+                                                    <i class="fas fa-store w-5"></i>
+                                                {% endif %}
+                                                <span>{{ vendor.store_name }}</span>
+                                                <span class="text-xs text-orange-500"><i class="fas fa-chart-line"></i> {{ vendor.total_sales }} sold</span>
+                                            </a>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="border-t pt-3 mt-3 text-center">
+                                <a href="{% url 'vendors:list' %}" class="text-blue-600 hover:underline text-sm">View All Vendors →</a>
+                            </div>
+                        </div>
+                    </li>
+                    
+                    <!-- Deals Dropdown -->
+                    <li class="group relative border-b lg:border-b-0">
+                        <a href="/products/?deals=true" class="block px-4 py-3 hover:bg-blue-600 transition flex items-center gap-2">
+                            <i class="fas fa-tags"></i> Deals
+                        </a>
+                        <div class="mega-menu-dropdown w-80">
+                            <div class="space-y-3">
+                                <div>
+                                    <h3 class="font-bold text-gray-900 mb-2"><i class="fas fa-fire text-red-500"></i> Hot Deals</h3>
+                                    <ul class="space-y-1">
+                                        <li><a href="/products/?deals=true&discount=50" class="flex items-center gap-2"><i class="fas fa-percent text-green-500 w-5"></i> Up to 50% Off</a></li>
+                                        <li><a href="/products/?deals=true&type=bogo" class="flex items-center gap-2"><i class="fas fa-gift text-purple-500 w-5"></i> Buy One Get One</a></li>
+                                        <li><a href="/products/?deals=true&type=clearance" class="flex items-center gap-2"><i class="fas fa-tag text-blue-500 w-5"></i> Clearance Sale</a></li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-gray-900 mb-2">Featured Categories</h3>
+                                    <ul class="grid grid-cols-2 gap-1">
+                                        <li><a href="/products/?category=electronics&deals=true" class="hover:text-blue-600">Electronics</a></li>
+                                        <li><a href="/products/?category=fashion&deals=true" class="hover:text-blue-600">Fashion</a></li>
+                                        <li><a href="/products/?category=home&deals=true" class="hover:text-blue-600">Home</a></li>
+                                        <li><a href="/products/?category=beauty&deals=true" class="hover:text-blue-600">Beauty</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                    
+                    <!-- Support Dropdown -->
+                    <li class="group relative border-b lg:border-b-0">
+                        <a href="{% url 'pages:help_center' %}" class="block px-4 py-3 hover:bg-blue-600 transition flex items-center gap-2">
+                            <i class="fas fa-headset"></i> Support
+                        </a>
+                        <div class="mega-menu-dropdown w-80">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <h3 class="font-bold text-gray-900 mb-2"><i class="fas fa-question-circle text-blue-500"></i> Help & Support</h3>
+                                    <ul class="space-y-1">
+                                        <li><a href="{% url 'pages:help_center' %}" class="flex items-center gap-2"><i class="fas fa-life-ring w-5"></i> Help Center</a></li>
+                                        <li><a href="/faq/" class="flex items-center gap-2"><i class="fas fa-question w-5"></i> FAQs</a></li>
+                                        <li><a href="/orders/track/" class="flex items-center gap-2"><i class="fas fa-truck w-5"></i> Track Order</a></li>
+                                        <li><a href="/returns/" class="flex items-center gap-2"><i class="fas fa-undo-alt w-5"></i> Returns</a></li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-gray-900 mb-2"><i class="fas fa-envelope text-green-500"></i> Contact</h3>
+                                    <ul class="space-y-1">
+                                        <li><a href="/contact/" class="flex items-center gap-2"><i class="fas fa-envelope w-5"></i> Email Us</a></li>
+                                        <li><a href="{% url 'chat:list' %}" class="flex items-center gap-2"><i class="fas fa-comments w-5"></i> Live Chat</a></li>
+                                        <li><a href="/support/" class="flex items-center gap-2"><i class="fas fa-phone w-5"></i> Call Support</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+    </header>
+    
+    <!-- Hero Banner - Only on homepage -->
+    {% if request.path == '/' or request.path == '' %}
+        {% load hero_banners_tags %}
+        {% hero_carousel %}
+    {% endif %}
+    
+    <!-- Main Content with Sidebar Layout -->
+    <div class="container mx-auto px-4 py-8">
+        <div class="flex flex-col lg:flex-row gap-8">
+            <div class="flex-1">
+                {% block content %}
+                <div class="bg-white rounded-lg shadow-md p-6" data-aos="fade-up">
+                    <h1 class="text-3xl font-bold mb-4">Welcome to {{ site_settings.site_name }}</h1>
+                    <p class="text-gray-600">Your premium multi-vendor marketplace.</p>
+                </div>
+                {% endblock %}
+            </div>
+            
+            <!-- Sidebar - Hide on cart and checkout pages -->
+            {% if request.path != '/products/cart/' and request.path != '/products/checkout/' %}
+            <div class="lg:w-80 space-y-6">
+                {% load ad_tags %}
+                <!-- Ad Banner -->
+                <div class="bg-white rounded-lg shadow-md p-4 sticky top-24">
+                    <h3 class="text-lg font-semibold mb-3 text-gray-700 border-b pb-2">Advertisement</h3>
+                    <div class="ad-container">
+                        {% render_ad 'sidebar' %}
+                    </div>
+                </div>
+                
+                <!-- Quick Links -->
+                <div class="bg-white rounded-lg shadow-md p-4">
+                    <h3 class="text-lg font-semibold mb-3 text-gray-700 border-b pb-2">Quick Links</h3>
+                    <ul class="space-y-2">
+                        <li><a href="/about/" class="text-gray-600 hover:text-blue-600 transition flex items-center gap-2"><i class="fas fa-info-circle text-blue-500 w-5"></i> About Us</a></li>
+                        <li><a href="/contact/" class="text-gray-600 hover:text-blue-600 transition flex items-center gap-2"><i class="fas fa-envelope text-blue-500 w-5"></i> Contact</a></li>
+                        <li><a href="/faq/" class="text-gray-600 hover:text-blue-600 transition flex items-center gap-2"><i class="fas fa-question-circle text-blue-500 w-5"></i> FAQ</a></li>
+                        <li><a href="/returns/" class="text-gray-600 hover:text-blue-600 transition flex items-center gap-2"><i class="fas fa-undo-alt text-blue-500 w-5"></i> Returns Policy</a></li>
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Newsletter Section -->
+    <div class="container mx-auto px-4">
+        <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-8 text-center max-w-7xl mx-auto mb-8" data-aos="fade-up">
+            <div class="max-w-2xl mx-auto">
+                <i class="fas fa-envelope-open-text text-4xl text-blue-600 mb-3"></i>
+                <h3 class="text-2xl font-bold text-gray-800 mb-2">Subscribe to Our Newsletter</h3>
+                <p class="text-gray-600 mb-4">Get exclusive deals, new arrivals, and special offers directly to your inbox</p>
+                
+                <form id="newsletter-form" class="flex flex-col sm:flex-row gap-3 max-w-md mx-auto" method="POST" action="{% url 'newsletter:subscribe' %}">
+                    {% csrf_token %}
+                    <input type="email" name="email" id="newsletter-email" placeholder="Enter your email address" 
+                           class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                    <button type="submit" class="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-all duration-300 transform hover:scale-105">
+                        Subscribe <i class="fas fa-arrow-right ml-2"></i>
+                    </button>
+                </form>
+                
+                <p class="text-xs text-gray-500 mt-4">
+                    <i class="fas fa-lock mr-1"></i> We respect your privacy. No spam, ever.
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-gray-300 mt-16">
+        <div class="container mx-auto px-4 py-12">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div>
+                    {% if site_settings.footer_logo %}
+                        <img src="{{ site_settings.footer_logo.url }}" alt="{{ site_settings.site_name }}" class="h-12 mb-4" loading="lazy">
+                    {% else %}
+                        <h3 class="text-xl font-bold text-white mb-4">{{ site_settings.site_name }}</h3>
+                    {% endif %}
+                    <p class="text-sm">{{ site_settings.site_description|truncatewords:20 }}</p>
+                    <div class="flex space-x-4 mt-4">
+                        {% if site_settings.facebook_url %}
+                            <a href="{{ site_settings.facebook_url }}" class="text-2xl hover:text-blue-400 transition" target="_blank"><i class="fab fa-facebook"></i></a>
+                        {% endif %}
+                        {% if site_settings.twitter_url %}
+                            <a href="{{ site_settings.twitter_url }}" class="text-2xl hover:text-blue-400 transition" target="_blank"><i class="fab fa-twitter"></i></a>
+                        {% endif %}
+                        {% if site_settings.instagram_url %}
+                            <a href="{{ site_settings.instagram_url }}" class="text-2xl hover:text-pink-500 transition" target="_blank"><i class="fab fa-instagram"></i></a>
+                        {% endif %}
+                        {% if site_settings.youtube_url %}
+                            <a href="{{ site_settings.youtube_url }}" class="text-2xl hover:text-red-600 transition" target="_blank"><i class="fab fa-youtube"></i></a>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% load footer_menu_tags %}
+                {% get_footer_menus as footer_menus %}
+                {% for menu in footer_menus %}
+                <div>
+                    <h4 class="font-semibold text-white mb-4">{{ menu.name }}</h4>
+                    <ul class="space-y-2 text-sm">
+                        {% for item in menu.items %}
+                        <li><a href="{{ item.url }}" class="hover:text-white transition" {% if item.open_in_new_tab %}target="_blank"{% endif %}>{{ item.title }}</a></li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endfor %}
+                
+                <div>
+                    <h4 class="font-semibold text-white mb-4">Contact Info</h4>
+                    {% if site_settings.contact_email %}
+                        <p class="text-sm mb-2"><i class="fas fa-envelope w-5"></i> {{ site_settings.contact_email }}</p>
+                    {% endif %}
+                    {% if site_settings.contact_phone %}
+                        <p class="text-sm mb-2"><i class="fas fa-phone w-5"></i> {{ site_settings.contact_phone }}</p>
+                    {% endif %}
+                    {% if site_settings.address %}
+                        <p class="text-sm"><i class="fas fa-map-marker-alt w-5"></i> {{ site_settings.address }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="border-t border-gray-800 mt-8 pt-8 text-center text-sm">
+                <p>{{ site_settings.footer_copyright }}</p>
+                <p class="mt-2">
+                    <a href="/privacy/" class="hover:text-white">Privacy Policy</a> | 
+                    <a href="/terms/" class="hover:text-white">Terms of Service</a>
+                </p>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50"></div>
+    
+    <!-- Cookie Consent Banner -->
+    <div id="cookie-consent" class="cookie-consent">
+        <div class="container mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <p class="text-sm">🍪 We use cookies to enhance your experience. By continuing to visit this site you agree to our use of cookies.</p>
+            <div class="flex gap-3">
+                <button onclick="acceptCookies()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition">Accept</button>
+                <button onclick="declineCookies()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm transition">Decline</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Initialize AOS
+        AOS.init({
+            duration: 800,
+            once: true,
+            offset: 100
+        });
+        
+        // Cookie Consent
+        function initCookieConsent() {
+            if (!localStorage.getItem('cookieConsent')) {
+                setTimeout(() => {
+                    document.getElementById('cookie-consent').classList.add('show');
+                }, 1000);
+            }
+        }
+        
+        function acceptCookies() {
+            localStorage.setItem('cookieConsent', 'accepted');
+            document.getElementById('cookie-consent').classList.remove('show');
+            showToast('Cookies accepted!', 'success');
+        }
+        
+        function declineCookies() {
+            localStorage.setItem('cookieConsent', 'declined');
+            document.getElementById('cookie-consent').classList.remove('show');
+        }
+        
+        // Toast Notification
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast-notification bg-white rounded-lg shadow-xl p-4 mb-3 border-l-4 ${type === 'success' ? 'border-green-500' : 'border-red-500'}`;
+            toast.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <div class="${type === 'success' ? 'text-green-500' : 'text-red-500'}">
+                        <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'} text-xl"></i>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-gray-800 text-sm">${message}</p>
+                    </div>
+                    <button onclick="this.parentElement.parentElement.remove()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 5000);
+        }
+        
+        // Newsletter Subscription
+        document.getElementById('newsletter-form')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('newsletter-email').value;
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            
+            submitBtn.innerHTML = '<div class="loading-spinner"></div> Subscribing...';
+            submitBtn.disabled = true;
+            
+            try {
+                const response = await fetch('/newsletter/api/subscribe/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    },
+                    body: JSON.stringify({ email: email, source: 'homepage' })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    document.getElementById('newsletter-email').value = '';
+                } else {
+                    showToast(data.error || 'Subscription failed. Please try again.', 'error');
+                }
+            } catch (error) {
+                showToast('Network error. Please try again.', 'error');
+            } finally {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        });
+        
+        // Update Chat Unread Count
+        function updateUnreadCount() {
+            fetch('/chat/unread-count/')
+                .then(response => response.json())
+                .then(data => {
+                    const badge = document.getElementById('chat-unread-badge');
+                    if (badge) {
+                        if (data.unread_count > 0) {
+                            badge.textContent = data.unread_count > 9 ? '9+' : data.unread_count;
+                            badge.classList.remove('hidden');
+                        } else {
+                            badge.classList.add('hidden');
+                        }
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+        
+        // Update Cart Count
+        function updateCartCount() {
+            fetch('/products/cart/count/')
+                .then(response => response.json())
+                .then(data => {
+                    const cartCountEl = document.getElementById('cart-count');
+                    if (cartCountEl) cartCountEl.innerText = data.count || 0;
+                })
+                .catch(error => console.error('Error:', error));
+        }
+        
+        // Update Wishlist Count
+        function updateWishlistCount() {
+            fetch('/accounts/wishlist/count/')
+                .then(response => response.json())
+                .then(data => {
+                    const wishlistCountEl = document.getElementById('wishlist-count');
+                    if (wishlistCountEl) wishlistCountEl.innerText = data.count || 0;
+                })
+                .catch(error => console.error('Error:', error));
+        }
+        
+        // Lazy loading images
+        const lazyImages = document.querySelectorAll('img[loading="lazy"]');
+        if ('IntersectionObserver' in window) {
+            const imageObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const img = entry.target;
+                        img.classList.add('loaded');
+                        imageObserver.unobserve(img);
+                    }
+                });
+            });
+            lazyImages.forEach(img => imageObserver.observe(img));
+        }
+        
+        // Update counts on page load
+        updateUnreadCount();
+        updateCartCount();
+        updateWishlistCount();
+        
+        // Refresh counts every 30 seconds
+        setInterval(() => {
+            updateUnreadCount();
+            updateCartCount();
+            updateWishlistCount();
+        }, 30000);
+    </script>
+    
+<!-- Auto-detect currency based on browser language (fallback) -->
+<script>
+function setCurrencyFromBrowser() {
+    // Check if currency already set
+    if (document.cookie.includes('user_currency=')) {
+        return;
+    }
+    
+    const browserLang = navigator.language || navigator.userLanguage;
+    const currencyMap = {
+        'en-US': 'USD', 'en-GB': 'GBP', 'en-CA': 'CAD', 'en-AU': 'AUD',
+        'en-NG': 'NGN', 'fr': 'EUR', 'fr-FR': 'EUR', 'de': 'EUR', 'de-DE': 'EUR',
+        'es': 'EUR', 'it': 'EUR', 'pt': 'EUR', 'nl': 'EUR',
+        'ja': 'JPY', 'zh': 'CNY', 'zh-CN': 'CNY', 'ko': 'KRW',
+        'ru': 'RUB', 'ar': 'AED', 'hi': 'INR', 'tr': 'TRY',
+        'pl': 'PLN', 'sv': 'SEK', 'no': 'NOK', 'da': 'DKK',
+        'he': 'ILS', 'th': 'THB', 'vi': 'VND'
+    };
+    
+    let suggestedCurrency = 'USD';
+    for (let [lang, curr] of Object.entries(currencyMap)) {
+        if (browserLang.startsWith(lang.split('-')[0])) {
+            suggestedCurrency = curr;
+            break;
+        }
+    }
+    
+    // Set the detected currency
+    fetch('/currency/switch/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: 'code=' + suggestedCurrency + '&next=' + window.location.pathname
+    }).then(() => window.location.reload());
+}
+
+// Run auto-detection after page loads
+setTimeout(() => {
+    if (!document.cookie.includes('user_currency=')) {
+        setCurrencyFromBrowser();
+    }
+}, 500);
+</script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

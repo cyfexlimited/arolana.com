@@ -1,0 +1,41 @@
+{% extends 'base/base.html' %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto text-center py-12">
+    <i class="fas fa-shield-alt text-6xl text-blue-500 mb-4"></i>
+    <h1 class="text-3xl font-bold mb-4">KYC Status</h1>
+    
+    <div class="bg-white rounded-lg shadow-md p-8">
+        <div class="mb-6">
+            {% if kyc_record.kyc_status == 'verified' %}
+                <div class="text-green-600">
+                    <i class="fas fa-check-circle text-5xl mb-3"></i>
+                    <h2 class="text-2xl font-bold">Verified</h2>
+                    <p>Your KYC has been approved!</p>
+                </div>
+            {% elif kyc_record.kyc_status == 'pending' %}
+                <div class="text-yellow-600">
+                    <i class="fas fa-clock text-5xl mb-3"></i>
+                    <h2 class="text-2xl font-bold">Pending Review</h2>
+                    <p>Your documents are being reviewed.</p>
+                </div>
+            {% elif kyc_record.kyc_status == 'rejected' %}
+                <div class="text-red-600">
+                    <i class="fas fa-times-circle text-5xl mb-3"></i>
+                    <h2 class="text-2xl font-bold">Rejected</h2>
+                    <p>{{ kyc_record.rejection_reason }}</p>
+                </div>
+            {% else %}
+                <div class="text-gray-600">
+                    <i class="fas fa-exclamation-circle text-5xl mb-3"></i>
+                    <h2 class="text-2xl font-bold">Not Started</h2>
+                    <p>Please complete your KYC verification.</p>
+                    <a href="{% url 'kyc:submit' %}" class="inline-block mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg">Start KYC</a>
+                </div>
+            {% endif %}
+        </div>
+        
+        <a href="{% url 'kyc:dashboard' %}" class="text-blue-600 hover:underline">Back to Dashboard</a>
+    </div>
+</div>
+{% endblock %}

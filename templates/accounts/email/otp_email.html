@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #3B82F6, #8B5CF6); color: white; padding: 30px; text-align: center; }
+        .otp-code { font-size: 32px; font-weight: bold; color: #3B82F6; background: #F3F4F6; padding: 15px; text-align: center; letter-spacing: 5px; margin: 20px 0; }
+        .footer { text-align: center; padding: 20px; font-size: 12px; color: #999; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>{{ otp_type|title }} OTP Verification</h1>
+        </div>
+        <p>Hello {{ user.get_full_name|default:user.email }},</p>
+        <p>Your {{ otp_type }} verification code is:</p>
+        <div class="otp-code">{{ otp_code }}</div>
+        <p>This code will expire in {{ validity_minutes }} minutes.</p>
+        <p>If you didn't request this, please ignore this email.</p>
+        <div class="footer">
+            <p>&copy; 2024 Arolana.com. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

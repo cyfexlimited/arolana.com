@@ -1,0 +1,77 @@
+{% if ad and ad.is_active %}
+<div class="ad-banner relative bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300"
+     style="max-width: {{ placement.width|default:300 }}px; margin: 0 auto;">
+
+    <a href="{% url 'ads:ad_click' ad.id %}"
+       target="_blank"
+       rel="sponsored noopener"
+       class="block group">
+
+        {% if ad.image %}
+        <!-- Image -->
+        <div class="relative overflow-hidden bg-gray-100">
+            <img src="{{ ad.image.url }}"
+                 alt="{{ ad.title|default:'Advertisement' }}"
+                 loading="lazy"
+                 class="w-full object-cover group-hover:scale-110 transition-transform duration-500"
+                 style="height: {{ placement.height|default:250 }}px;"
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+
+            <!-- Image fallback if broken -->
+            <div class="hidden absolute inset-0 items-center justify-center bg-gray-200 text-gray-500 text-sm">
+                Image unavailable
+            </div>
+        </div>
+        {% else %}
+        <!-- No image fallback -->
+        <div class="bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center"
+             style="height: {{ placement.height|default:250 }}px;">
+            <div class="text-center text-white p-6">
+                <i class="fas fa-ad text-5xl mb-3 opacity-50"></i>
+                <h3 class="font-bold text-lg">{{ ad.title }}</h3>
+                {% if ad.description %}
+                <p class="text-sm mt-2">{{ ad.description|truncatewords:10 }}</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Content -->
+        <div class="p-4 text-center bg-white">
+            <h4 class="font-semibold text-gray-800 text-sm">
+                {{ ad.title }}
+            </h4>
+
+            {% if ad.description %}
+            <p class="text-xs text-gray-500 mt-1">
+                {{ ad.description|truncatewords:8 }}
+            </p>
+            {% endif %}
+
+            <div class="mt-3">
+                <span class="inline-block bg-blue-600 text-white text-xs px-4 py-2 rounded-full font-medium group-hover:bg-blue-700 transition">
+                    {{ ad.button_text|default:"Learn More" }} →
+                </span>
+            </div>
+        </div>
+
+    </a>
+</div>
+
+{% else %}
+
+<!-- Fallback Ad -->
+<div class="ad-banner relative bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-md overflow-hidden"
+     style="max-width: 300px; margin: 0 auto;">
+    <div class="p-6 text-center text-white" style="min-height: 250px;">
+        <i class="fas fa-ad text-4xl mb-3"></i>
+        <h4 class="font-semibold text-lg">Advertisement</h4>
+        <p class="text-sm mt-1 opacity-90">Your ad could be here!</p>
+        <a href="/admin/ads/adbanner/add/"
+           class="inline-block mt-3 bg-white text-blue-600 text-xs px-4 py-2 rounded-full font-medium hover:bg-gray-100 transition">
+            Add Banner →
+        </a>
+    </div>
+</div>
+
+{% endif %}

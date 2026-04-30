@@ -1,0 +1,38 @@
+<div>
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold">Vendors</h1>
+        <a href="/admin/vendors/vendorprofile/add/" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700" target="_blank">
+            <i class="fas fa-plus"></i> Add Vendor
+        </a>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead>
+                <tr class="border-b">
+                    <th class="text-left py-3">Store Name</th>
+                    <th class="text-left py-3">Owner</th>
+                    <th class="text-left py-3">Rating</th>
+                    <th class="text-left py-3">Sales</th>
+                    <th class="text-left py-3">Verified</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for vendor in vendors %}
+                <tr class="border-b hover:bg-gray-50">
+                    <td class="py-3">{{ vendor.store_name }}</td>
+                    <td class="py-3">{{ vendor.user.email }}</td>
+                    <td class="py-3">{{ vendor.rating_avg }} ★</td>
+                    <td class="py-3">{{ vendor.total_sales }}</td>
+                    <td class="py-3">
+                        {% if vendor.is_verified %}
+                            <span class="text-green-600"><i class="fas fa-check-circle"></i> Yes</span>
+                        {% else %}
+                            <span class="text-red-600"><i class="fas fa-times-circle"></i> No</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>

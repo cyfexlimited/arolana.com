@@ -1,0 +1,133 @@
+{% extends 'base/base.html' %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <h1 class="text-3xl font-bold mb-8">KYC Dashboard</h1>
+    
+    <!-- Status Card -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h2 class="text-xl font-bold mb-2">Verification Status</h2>
+                <p class="text-gray-600">Your KYC verification status</p>
+            </div>
+            <div class="text-right">
+                {% if kyc_record.kyc_status == 'verified' %}
+                    <span class="bg-green-100 text-green-700 px-4 py-2 rounded-full font-semibold">
+                        <i class="fas fa-check-circle"></i> Verified
+                    </span>
+                {% elif kyc_record.kyc_status == 'pending' %}
+                    <span class="bg-yellow-100 text-yellow-700 px-4 py-2 rounded-full font-semibold">
+                        <i class="fas fa-clock"></i> Pending Review
+                    </span>
+                {% elif kyc_record.kyc_status == 'rejected' %}
+                    <span class="bg-red-100 text-red-700 px-4 py-2 rounded-full font-semibold">
+                        <i class="fas fa-times-circle"></i> Rejected
+                    </span>
+                {% else %}
+                    <span class="bg-gray-100 text-gray-700 px-4 py-2 rounded-full font-semibold">
+                        <i class="fas fa-exclamation-circle"></i> Not Started
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+        
+        {% if kyc_record.kyc_status == 'verified' %}
+            <div class="mt-4 p-4 bg-green-50 rounded-lg">
+                <i class="fas fa-check-circle text-green-600"></i>
+                <span class="text-green-700">Your KYC has been verified! You can now sell products on the platform.</span>
+            </div>
+        {% elif kyc_record.kyc_status == 'rejected' %}
+            <div class="mt-4 p-4 bg-red-50 rounded-lg">
+                <i class="fas fa-times-circle text-red-600"></i>
+                <span class="text-red-700">Reason: {{ kyc_record.rejection_reason }}</span>
+            </div>
+        {% endif %}
+    </div>
+    
+    <!-- Progress Steps -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <h2 class="text-xl font-bold mb-6">Verification Progress</h2>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="text-center">
+                <div class="w-12 h-12 mx-auto rounded-full flex items-center justify-center mb-2 
+                    {% if kyc_record.is_complete %}bg-green-500 text-white{% else %}bg-gray-300{% endif %}">
+                    <i class="fas fa-check"></i>
+                </div>
+                <p class="font-semibold">Business Info</p>
+                <p class="text-sm text-gray-500">{% if kyc_record.is_complete %}Complete{% else %}Pending{% endif %}</p>
+            </div>
+            <div class="text-center">
+                <div class="w-12 h-12 mx-auto rounded-full flex items-center justify-center mb-2 
+                    {% if documents %}bg-green-500 text-white{% else %}bg-gray-300{% endif %}">
+                    <i class="fas fa-file"></i>
+                </div>
+                <p class="font-semibold">Documents</p>
+                <p class="text-sm text-gray-500">{{ documents.count }} uploaded</p>
+            </div>
+            <div class="text-center">
+                <div class="w-12 h-12 mx-auto rounded-full flex items-center justify-center mb-2 
+                    {% if kyc_record.kyc_status == 'pending' %}bg-yellow-500 text-white{% elif kyc_record.kyc_status == 'verified' %}bg-green-500 text-white{% else %}bg-gray-300{% endif %}">
+                    <i class="fas fa-search"></i>
+                </div>
+                <p class="font-semibold">Review</p>
+                <p class="text-sm text-gray-500">
+                    {% if kyc_record.kyc_status == 'verified' %}Approved{% elif kyc_record.kyc_status == 'pending' %}In Review{% else %}Pending{% endif %}
+                </p>
+            </div>
+            <div class="text-center">
+                <div class="w-12 h-12 mx-auto rounded-full flex items-center justify-center mb-2 
+                    {% if kyc_record.kyc_status == 'verified' %}bg-green-500 text-white{% else %}bg-gray-300{% endif %}">
+                    <i class="fas fa-rocket"></i>
+                </div>
+                <p class="font-semibold">Active</p>
+                <p class="text-sm text-gray-500">{% if kyc_record.kyc_status == 'verified' %}Ready to Sell{% else %}Locked{% endif %}</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Action Buttons -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <a href="{% url 'kyc:submit' %}" class="bg-blue-600 text-white p-6 rounded-lg shadow-md hover:bg-blue-700 transition text-center">
+            <i class="fas fa-edit text-3xl mb-2"></i>
+            <h3 class="font-bold text-lg">Submit KYC Information</h3>
+            <p class="text-sm opacity-90">Fill out your business details</p>
+        </a>
+        
+        <a href="{% url 'kyc:upload_document' %}" class="bg-green-600 text-white p-6 rounded-lg shadow-md hover:bg-green-700 transition text-center">
+            <i class="fas fa-upload text-3xl mb-2"></i>
+            <h3 class="font-bold text-lg">Upload Documents</h3>
+            <p class="text-sm opacity-90">Upload verification documents</p>
+        </a>
+    </div>
+    
+    <!-- Documents List -->
+    {% if documents %}
+    <div class="bg-white rounded-lg shadow-md p-6 mt-8">
+        <h2 class="text-xl font-bold mb-4">Uploaded Documents</h2>
+        <div class="space-y-3">
+            {% for doc in documents %}
+            <div class="flex justify-between items-center p-3 border rounded-lg">
+                <div>
+                    <p class="font-semibold">{{ doc.get_document_type_display }}</p>
+                    <p class="text-sm text-gray-500">Uploaded: {{ doc.uploaded_at|date }}</p>
+                </div>
+                <div>
+                    {% if doc.verification_status == 'verified' %}
+                        <span class="text-green-600"><i class="fas fa-check-circle"></i> Verified</span>
+                    {% elif doc.verification_status == 'rejected' %}
+                        <span class="text-red-600"><i class="fas fa-times-circle"></i> Rejected</span>
+                    {% else %}
+                        <span class="text-yellow-600"><i class="fas fa-clock"></i> Pending</span>
+                    {% endif %}
+                    <a href="{{ doc.document_file.url }}" class="ml-3 text-blue-600 hover:underline" target="_blank">
+                        <i class="fas fa-download"></i> View
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

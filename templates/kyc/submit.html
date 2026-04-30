@@ -1,0 +1,106 @@
+{% extends 'base/base.html' %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="bg-white rounded-lg shadow-md p-8">
+        <h1 class="text-3xl font-bold mb-6">KYC Information</h1>
+        <p class="text-gray-600 mb-8">Please provide your business information for verification.</p>
+        
+        <form method="POST">
+            {% csrf_token %}
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block font-semibold mb-2">Legal Business Name *</label>
+                    <input type="text" name="legal_business_name" value="{{ kyc_record.legal_business_name }}" required class="w-full px-4 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-2">Registration Number</label>
+                    <input type="text" name="registration_number" value="{{ kyc_record.registration_number }}" class="w-full px-4 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-2">Tax ID</label>
+                    <input type="text" name="tax_id" value="{{ kyc_record.tax_id }}" class="w-full px-4 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-2">VAT Number</label>
+                    <input type="text" name="vat_number" value="{{ kyc_record.vat_number }}" class="w-full px-4 py-2 border rounded-lg">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block font-semibold mb-2">Business Address *</label>
+                    <textarea name="business_address" rows="3" required class="w-full px-4 py-2 border rounded-lg">{{ kyc_record.business_address }}</textarea>
+                </div>
+                <div>
+                    <label class="block font-semibold mb-2">City *</label>
+                    <input type="text" name="city" value="{{ kyc_record.city }}" required class="w-full px-4 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-2">State *</label>
+                    <input type="text" name="state" value="{{ kyc_record.state }}" required class="w-full px-4 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-2">Country *</label>
+                    <input type="text" name="country" value="{{ kyc_record.country }}" required class="w-full px-4 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-2">Postal Code *</label>
+                    <input type="text" name="postal_code" value="{{ kyc_record.postal_code }}" required class="w-full px-4 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-2">Business Phone *</label>
+                    <input type="tel" name="business_phone" value="{{ kyc_record.business_phone }}" required class="w-full px-4 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-2">Business Email *</label>
+                    <input type="email" name="business_email" value="{{ kyc_record.business_email }}" required class="w-full px-4 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-2">Website</label>
+                    <input type="url" name="website" value="{{ kyc_record.website }}" class="w-full px-4 py-2 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-2">Business Type *</label>
+                    <select name="business_type" required class="w-full px-4 py-2 border rounded-lg">
+                        <option value="sole_proprietorship" {% if kyc_record.business_type == 'sole_proprietorship' %}selected{% endif %}>Sole Proprietorship</option>
+                        <option value="partnership" {% if kyc_record.business_type == 'partnership' %}selected{% endif %}>Partnership</option>
+                        <option value="llc" {% if kyc_record.business_type == 'llc' %}selected{% endif %}>LLC</option>
+                        <option value="corporation" {% if kyc_record.business_type == 'corporation' %}selected{% endif %}>Corporation</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold mb-2">Year Established</label>
+                    <input type="number" name="year_established" value="{{ kyc_record.year_established }}" class="w-full px-4 py-2 border rounded-lg">
+                </div>
+            </div>
+            
+            <div class="mt-8">
+                <h2 class="text-xl font-bold mb-4">Authorized Person</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block font-semibold mb-2">Full Name *</label>
+                        <input type="text" name="authorized_person_name" value="{{ kyc_record.authorized_person_name }}" required class="w-full px-4 py-2 border rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-2">Title *</label>
+                        <input type="text" name="authorized_person_title" value="{{ kyc_record.authorized_person_title }}" required class="w-full px-4 py-2 border rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-2">Email *</label>
+                        <input type="email" name="authorized_person_email" value="{{ kyc_record.authorized_person_email }}" required class="w-full px-4 py-2 border rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-2">Phone *</label>
+                        <input type="tel" name="authorized_person_phone" value="{{ kyc_record.authorized_person_phone }}" required class="w-full px-4 py-2 border rounded-lg">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-8">
+                <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
+                    Submit KYC Information
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

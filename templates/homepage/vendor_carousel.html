@@ -1,0 +1,180 @@
+{% load static %}
+
+{% if vendors and settings %}
+<section class="mb-12">
+    <div class="text-center mb-8">
+        <h2 class="text-3xl font-bold">{{ settings.title }}</h2>
+        {% if settings.subtitle %}
+        <p class="text-gray-500 mt-2">{{ settings.subtitle }}</p>
+        {% endif %}
+    </div>
+    
+    <div class="vendor-carousel relative" x-data="vendorCarousel()" x-init="init()">
+        <div class="overflow-hidden">
+            <div class="flex transition-transform duration-500 ease-out" id="vendor-carousel-track">
+                {% for vendor in vendors %}
+                <div class="w-full md:w-1/2 lg:w-1/3 xl:w-1/4 flex-shrink-0 px-3">
+                    <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition">
+                        <div class="relative h-28 bg-gradient-to-r from-blue-600 to-purple-600">
+                            <div class="absolute -bottom-8 left-4">
+                                {% if vendor.store_logo %}
+                                    <img src="{{ vendor.store_logo.url }}" class="w-14 h-14 rounded-full border-4 border-white object-cover bg-white">
+                                {% else %}
+                                    <div class="w-14 h-14 rounded-full bg-white border-4 border-white flex items-center justify-center shadow-lg">
+                                        <i class="fas fa-store text-2xl text-blue-600"></i>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="p-4 pt-10">
+                            <h3 class="font-bold text-lg">{{ vendor.store_name }}</h3>
+                            <div class="flex items-center gap-2 mt-1">
+                                <div class="flex text-yellow-400 text-sm">
+                                    {% for i in "12345"|make_list %}
+                                        {% if forloop.counter <= vendor.rating_avg|add:"0" %}
+                                            <i class="fas fa-star"></i>
+                                        {% else %}
+                                            <i class="far fa-star"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                                <span class="text-xs text-gray-500">{{ vendor.rating_avg }} ★</span>
+                            </div>
+                            <p class="text-gray-600 text-xs mt-2 line-clamp-2">{{ vendor.description|truncatewords:15 }}</p>
+                            <div class="mt-3 flex gap-2">
+                                <a href="{% url 'vendors:detail' vendor.store_slug %}" class="flex-1 bg-blue-600 text-white text-center py-2 rounded-lg hover:bg-blue-700 transition text-sm">
+                                    View Store
+                                </a>
+                                <button onclick="startVendorChat({{ vendor.user.id }})" class="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 transition">
+                                    <i class="fas fa-comment"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <button @click="prev()" class="absolute left-0 top-1/2 -translate-y-1/2 bg-white rounded-full shadow-lg p-2 hover:bg-gray-100 transition">
+            <i class="fas fa-chevron-left text-gray-600"></i>
+        </button>
+        <button @click="next()" class="absolute right-0 top-1/2 -translate-y-1/2 bg-white rounded-full shadow-lg p-2 hover:bg-gray-100 transition">
+            <i class="fas fa-chevron-right text-gray-600"></i>
+        </button>
+    </div>
+    
+    <div class="flex justify-center gap-2 mt-4" id="vendor-carousel-dots"></div>
+</section>
+
+<script>
+function vendorCarousel() {
+    return {
+        currentIndex: 0,
+        slidesPerView: 4,
+        totalSlides: {{ vendors|length }},
+        track: null,
+        autoSlideInterval: null,
+        
+        init() {
+            this.updateSlidesPerView();
+            this.track = document.getElementById('vendor-carousel-track');
+            this.createDots();
+            this.startAutoSlide();
+            
+            window.addEventListener('resize', () => {
+                this.updateSlidesPerView();
+                this.updateCarousel();
+            });
+        },
+        
+        updateSlidesPerView() {
+            if (window.innerWidth >= 1280) {
+                this.slidesPerView = 4;
+            } else if (window.innerWidth >= 1024) {
+                this.slidesPerView = 3;
+            } else if (window.innerWidth >= 768) {
+                this.slidesPerView = 2;
+            } else {
+                this.slidesPerView = 1;
+            }
+        },
+        
+        updateCarousel() {
+            const cardWidth = this.track.children[0]?.offsetWidth || 0;
+            const gap = 24;
+            const scrollAmount = this.currentIndex * (cardWidth + gap);
+            this.track.style.transform = `translateX(-${scrollAmount}px)`;
+            this.updateDots();
+        },
+        
+        next() {
+            const maxIndex = Math.ceil(this.totalSlides / this.slidesPerView) - 1;
+            if (this.currentIndex < maxIndex) {
+                this.currentIndex++;
+                this.updateCarousel();
+            }
+        },
+        
+        prev() {
+            if (this.currentIndex > 0) {
+                this.currentIndex--;
+                this.updateCarousel();
+            }
+        },
+        
+        goToSlide(index) {
+            this.currentIndex = index;
+            this.updateCarousel();
+        },
+        
+        createDots() {
+            const dotsContainer = document.getElementById('vendor-carousel-dots');
+            if (!dotsContainer) return;
+            
+            const totalDots = Math.ceil(this.totalSlides / this.slidesPerView);
+            dotsContainer.innerHTML = '';
+            for (let i = 0; i < totalDots; i++) {
+                const dot = document.createElement('button');
+                dot.className = 'w-2 h-2 rounded-full bg-gray-300 transition-all';
+                dot.onclick = () => this.goToSlide(i);
+                dotsContainer.appendChild(dot);
+            }
+            this.updateDots();
+        },
+        
+        updateDots() {
+            const dots = document.querySelectorAll('#vendor-carousel-dots button');
+            const currentDot = Math.floor(this.currentIndex);
+            dots.forEach((dot, i) => {
+                if (i === currentDot) {
+                    dot.classList.add('bg-blue-600', 'w-4');
+                    dot.classList.remove('bg-gray-300', 'w-2');
+                } else {
+                    dot.classList.remove('bg-blue-600', 'w-4');
+                    dot.classList.add('bg-gray-300', 'w-2');
+                }
+            });
+        },
+        
+        startAutoSlide() {
+            if ({{ settings.autoplay_speed }} > 0) {
+                this.autoSlideInterval = setInterval(() => {
+                    const maxIndex = Math.ceil(this.totalSlides / this.slidesPerView) - 1;
+                    if (this.currentIndex >= maxIndex) {
+                        this.currentIndex = 0;
+                    } else {
+                        this.currentIndex++;
+                    }
+                    this.updateCarousel();
+                }, {{ settings.autoplay_speed }});
+            }
+        }
+    }
+}
+
+function startVendorChat(vendorId) {
+    window.location.href = `/chat/start/${vendorId}/`;
+}
+</script>
+{% endif %}

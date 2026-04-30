@@ -1,0 +1,45 @@
+{% extends 'base/base.html' %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-8">
+    <h1 class="text-3xl font-bold mb-8">Footer Menu Preview</h1>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        {% for category in categories %}
+        <div>
+            <h2 class="font-bold text-lg mb-3 flex items-center gap-2">
+                {% if category.icon %}
+                <i class="{{ category.icon }}"></i>
+                {% endif %}
+                {{ category.name }}
+            </h2>
+            {% if category.description %}
+            <div class="text-sm text-gray-600 mb-3">
+                {{ category.description|safe }}
+            </div>
+            {% endif %}
+            <ul class="space-y-2">
+                {% for item in category.active_items %}
+                <li>
+                    <a href="{{ item.get_full_url }}" 
+                       {% if item.open_in_new_tab %}target="_blank"{% endif %}
+                       class="text-gray-600 hover:text-blue-600 transition text-sm">
+                        {{ item.title }}
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% empty %}
+        <p class="text-gray-500">No footer menu categories found. <a href="{% url 'footer_menu:manage' %}" class="text-blue-600">Create one now</a></p>
+        {% endfor %}
+    </div>
+    
+    <div class="mt-8 p-4 bg-yellow-50 border-l-4 border-yellow-400">
+        <p class="text-sm">
+            <strong>Note:</strong> This is a preview page. The footer menu appears automatically on all pages.
+            <a href="{% url 'footer_menu:manage' %}" class="text-blue-600 hover:underline">Manage Footer Menu →</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

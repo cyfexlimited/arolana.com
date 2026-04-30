@@ -1,0 +1,149 @@
+{% extends 'base/base.html' %}
+{% load currency_filters %}
+
+{% block content %}
+<div class="bg-white rounded-lg shadow-md p-8">
+    <h1 class="text-3xl font-bold mb-6">💰 Currency Detection Test</h1>
+    
+    <div class="grid md:grid-cols-2 gap-8">
+        <div class="bg-blue-50 rounded-lg p-6">
+            <h2 class="text-xl font-bold mb-4">📍 Your Detection Info</h2>
+            <div class="space-y-2" id="detection-info">
+                <p><strong>Detected IP:</strong> <span id="detected-ip" class="font-mono">Loading...</span></p>
+                <p><strong>X-Forwarded-For:</strong> <span id="x-forwarded-for">Loading...</span></p>
+                <p><strong>Country Code:</strong> <span id="country-code">Loading...</span></p>
+                <p><strong>Country Name:</strong> <span id="country-name">Loading...</span></p>
+                <p><strong>City:</strong> <span id="city">Loading...</span></p>
+                <p><strong>Suggested Currency:</strong> <span id="suggested-currency">Loading...</span></p>
+                <p><strong>Current Currency:</strong> <span id="current-currency">{{ user_currency }}</span></p>
+                <p><strong>Currency Symbol:</strong> <span id="currency-symbol">{{ currency_symbol }}</span></p>
+                <p><strong>Manual Override:</strong> <span id="manual-override">No</span></p>
+            </div>
+        </div>
+        
+        <div class="bg-green-50 rounded-lg p-6">
+            <h2 class="text-xl font-bold mb-4">🎯 Force Currency Test</h2>
+            <div class="space-y-3">
+                <p>Click a button to force-set a currency:</p>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="forceCurrency('JPY')" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">JPY (Japan) ¥</button>
+                    <button onclick="forceCurrency('NGN')" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">NGN (Nigeria) ₦</button>
+                    <button onclick="forceCurrency('GBP')" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">GBP (UK) £</button>
+                    <button onclick="forceCurrency('EUR')" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">EUR (Europe) €</button>
+                    <button onclick="forceCurrency('USD')" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">USD (USA) $</button>
+                    <button onclick="forceCurrency('AUD')" class="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700">AUD (Australia) A$</button>
+                    <button onclick="forceCurrency('CAD')" class="bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700">CAD (Canada) C$</button>
+                </div>
+                <button onclick="clearAndReload()" class="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700 mt-4 w-full">
+                    🗑️ Clear All Cookies & Reload
+                </button>
+                <button onclick="autoDetect()" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 mt-2 w-full">
+                    🌍 Auto-Detect My Location
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-8 bg-gray-100 rounded-lg p-6">
+        <h2 class="text-xl font-bold mb-4">📊 Test Prices</h2>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div class="text-center">
+                <p class="text-gray-600">$100 USD</p>
+                <p class="text-xl font-bold text-blue-600" id="test-price-100">---</p>
+            </div>
+            <div class="text-center">
+                <p class="text-gray-600">$50 USD</p>
+                <p class="text-xl font-bold text-blue-600" id="test-price-50">---</p>
+            </div>
+            <div class="text-center">
+                <p class="text-gray-600">$25.99 USD</p>
+                <p class="text-xl font-bold text-blue-600" id="test-price-25">---</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Diagnostic fetch
+fetch('/currency/diagnose/')
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('detected-ip').textContent = data.detected_ip;
+        document.getElementById('x-forwarded-for').textContent = data.x_forwarded_for || 'Not set';
+        document.getElementById('country-code').textContent = data.geo_location?.countryCode || data.suggested_currency || 'Unknown';
+        document.getElementById('country-name').textContent = data.geo_location?.country || 'Unknown';
+        document.getElementById('city').textContent = data.geo_location?.city || 'Unknown';
+        document.getElementById('suggested-currency').textContent = data.geo_location?.countryCode || 'USD';
+        document.getElementById('manual-override').textContent = data.manual_override ? 'Yes (Manual selection)' : 'No (Auto-detect)';
+        
+        console.log('Diagnostic data:', data);
+    });
+
+// Get detection info
+fetch('/currency/detect/')
+    .then(r => r.json())
+    .then(data => {
+        if (!document.getElementById('suggested-currency').innerText.includes('Loading')) {
+            // Don't override if already set
+        }
+    });
+
+// Update test prices
+function updatePrices() {
+    fetch('/currency/current/')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('test-price-100').textContent = data.symbol + '100.00';
+                document.getElementById('test-price-50').textContent = data.symbol + '50.00';
+                document.getElementById('test-price-25').textContent = data.symbol + '25.99';
+                document.getElementById('currency-symbol').textContent = data.symbol;
+                document.getElementById('current-currency').textContent = data.code;
+            }
+        });
+}
+
+function forceCurrency(code) {
+    fetch('/currency/switch/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: 'code=' + code + '&next=' + window.location.pathname
+    }).then(() => window.location.reload());
+}
+
+function autoDetect() {
+    fetch('/currency/detect/')
+        .then(r => r.json())
+        .then(data => {
+            if (data.suggested_currency && data.suggested_currency !== 'USD') {
+                forceCurrency(data.suggested_currency);
+            } else {
+                alert('Could not auto-detect. Please select manually.');
+            }
+        });
+}
+
+function clearAndReload() {
+    document.cookie.split(";").forEach(function(c) {
+        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+    });
+    localStorage.clear();
+    sessionStorage.clear();
+    
+    fetch('/currency/switch/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: 'code=USD&next=' + window.location.pathname
+    }).then(() => window.location.reload());
+}
+
+updatePrices();
+setInterval(updatePrices, 1000);
+</script>
+{% endblock %}

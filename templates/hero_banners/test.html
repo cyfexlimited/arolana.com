@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hero Banner Diagnostic Tool</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .banner-card { background: white; border-radius: 12px; margin-bottom: 30px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .banner-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 20px; }
+        .banner-body { padding: 20px; }
+        .image-section { margin: 15px 0; padding: 15px; background: #f9fafb; border-radius: 8px; }
+        .image-preview { margin-top: 10px; }
+        .image-preview img { max-width: 100%; max-height: 300px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .status-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+        .status-success { background: #d1fae5; color: #065f46; }
+        .status-error { background: #fee2e2; color: #991b1b; }
+        .status-warning { background: #fed7aa; color: #92400e; }
+        .info-box { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; margin: 20px 0; border-radius: 8px; }
+        button { background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
+        button:hover { background: #2563eb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="text-align: center; margin-bottom: 30px;">🎯 Hero Banner Diagnostic Tool</h1>
+        
+        <div class="info-box">
+            <strong>📊 Statistics:</strong> Found {{ banners|length }} active banner(s)
+        </div>
+        
+        {% for banner in banners %}
+        <div class="banner-card">
+            <div class="banner-header">
+                <h2 style="margin: 0;">{{ banner.title }}</h2>
+                <p style="margin: 5px 0 0; opacity: 0.9;">ID: {{ banner.id }} | Order: {{ banner.display_order }}</p>
+            </div>
+            <div class="banner-body">
+                <div class="image-section">
+                    <h3>🖼️ Images</h3>
+                    
+                    {% if banner.image_desktop %}
+                    <div class="image-preview">
+                        <p><span class="status-badge status-success">✅ Desktop Image</span></p>
+                        <p><strong>URL:</strong> <code>{{ banner.image_desktop.url }}</code></p>
+                        <img src="{{ banner.image_desktop.url }}" alt="Desktop">
+                    </div>
+                    {% else %}
+                    <p><span class="status-badge status-error">❌ No Desktop Image Uploaded</span></p>
+                    {% endif %}
+                    
+                    {% if banner.image_tablet %}
+                    <div class="image-preview">
+                        <p><span class="status-badge status-success">✅ Tablet Image</span></p>
+                        <img src="{{ banner.image_tablet.url }}" alt="Tablet" style="max-width: 768px;">
+                    </div>
+                    {% else %}
+                    <p><span class="status-badge status-warning">⚠️ No Tablet Image (optional)</span></p>
+                    {% endif %}
+                    
+                    {% if banner.image_mobile %}
+                    <div class="image-preview">
+                        <p><span class="status-badge status-success">✅ Mobile Image</span></p>
+                        <img src="{{ banner.image_mobile.url }}" alt="Mobile" style="max-width: 375px;">
+                    </div>
+                    {% else %}
+                    <p><span class="status-badge status-warning">⚠️ No Mobile Image (optional)</span></p>
+                    {% endif %}
+                </div>
+                
+                <div class="image-section">
+                    <h3>🔘 Buttons</h3>
+                    <p><strong>Button 1:</strong> {{ banner.button1_text }} → {{ banner.button1_url }}</p>
+                    <p><strong>Button 2:</strong> {{ banner.button2_text }} → {{ banner.button2_url }}</p>
+                    {% if banner.button3_text %}
+                    <p><strong>Button 3:</strong> {{ banner.button3_text }} → {{ banner.button3_url }}</p>
+                    {% endif %}
+                </div>
+                
+                <div class="image-section">
+                    <h3>⚙️ Settings</h3>
+                    <p><strong>Animation Effect:</strong> {{ banner.animation_effect }}</p>
+                    <p><strong>Autoplay Delay:</strong> {{ banner.autoplay_delay }}ms</p>
+                    <p><strong>Status:</strong> {% if banner.is_active %}✅ Active{% else %}❌ Inactive{% endif %}</p>
+                </div>
+                
+                {% if not banner.image_desktop %}
+                <div class="info-box">
+                    <strong>⚠️ Action Required:</strong>
+                    <p>This banner has no desktop image. Please upload one:</p>
+                    <a href="/admin/hero_banners/herobanner/{{ banner.id }}/change/" target="_blank">
+                        <button>📤 Upload Image Now</button>
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="info-box" style="background: #fff3cd; border-left-color: #ffc107;">
+            <h3>⚠️ No Banners Found!</h3>
+            <p>You need to create hero banners in the admin panel.</p>
+            <a href="/admin/hero_banners/herobanner/add/" target="_blank">
+                <button>➕ Create First Banner</button>
+            </a>
+        </div>
+        {% endfor %}
+        
+        <div class="info-box">
+            <h3>📝 How to Fix Image Display Issues:</h3>
+            <ol>
+                <li>Go to <a href="/admin/hero_banners/herobanner/" target="_blank">Admin Panel → Hero Banners</a></li>
+                <li>Click on a banner to edit it</li>
+                <li>Scroll to the "Media" section</li>
+                <li>Click "Choose File" next to "Image desktop"</li>
+                <li>Upload an image (recommended size: 1920x1080px)</li>
+                <li>Click "Save" at the bottom</li>
+                <li>Refresh this page to verify the image appears above</li>
+            </ol>
+        </div>
+        
+        <div style="text-align: center; margin-top: 30px;">
+            <a href="/" style="color: #3b82f6; text-decoration: none;">← Back to Homepage</a>
+            &nbsp;|&nbsp;
+            <a href="/admin/hero_banners/herobanner/" style="color: #3b82f6; text-decoration: none;">Go to Admin →</a>
+        </div>
+    </div>
+</body>
+</html>

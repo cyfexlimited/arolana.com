@@ -1,0 +1,143 @@
+{% extends 'base/base.html' %}
+{% load currency_filters %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold mb-8">Shopping Cart</h1>
+    
+    {% if cart.items.exists %}
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-600">Product</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-600">Price</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-600">Quantity</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-600">Total</th>
+                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-600"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y">
+                        {% for item in cart.items.all %}
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-6 py-4">
+                                <div class="flex items-center gap-4">
+                                    {% if item.product.main_image %}
+                                        <img src="{{ item.product.main_image.url }}" class="w-16 h-16 object-cover rounded">
+                                    {% else %}
+                                        <div class="w-16 h-16 bg-gray-100 rounded flex items-center justify-center">
+                                            <i class="fas fa-image text-gray-400"></i>
+                                        </div>
+                                    {% endif %}
+                                    <div>
+                                        <a href="{{ item.product.get_absolute_url }}" class="font-semibold hover:text-blue-600">
+                                            {{ item.product.name }}
+                                        </a>
+                                        <p class="text-sm text-gray-500">SKU: {{ item.product.sku }}</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="font-semibold text-blue-600">{{ item.price_at_add|currency:request }}</span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex items-center gap-2">
+                                    <button onclick="updateQuantity({{ item.id }}, {{ item.quantity|add:'-1' }})" 
+                                            class="w-8 h-8 border rounded-lg hover:bg-gray-100 transition">
+                                        -
+                                    </button>
+                                    <span id="qty-{{ item.id }}" class="w-12 text-center font-semibold">{{ item.quantity }}</span>
+                                    <button onclick="updateQuantity({{ item.id }}, {{ item.quantity|add:'1' }})" 
+                                            class="w-8 h-8 border rounded-lg hover:bg-gray-100 transition">
+                                        +
+                                    </button>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="font-semibold text-green-600">{{ item.subtotal|currency:request }}</span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <button onclick="removeItem({{ item.id }})" class="text-red-500 hover:text-red-700 transition">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="bg-gray-50 border-t">
+                        <tr>
+                            <td colspan="3" class="px-6 py-4 text-right font-semibold">Subtotal:</td>
+                            <td class="px-6 py-4 font-bold text-xl text-blue-600">
+                                {{ cart.subtotal|currency:request }}
+                            </td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td colspan="3" class="px-6 py-4 text-right font-semibold">Shipping:</td>
+                            <td class="px-6 py-4 text-green-600">Free</td>
+                            <td></td>
+                        </tr>
+                        <tr class="border-t">
+                            <td colspan="3" class="px-6 py-4 text-right font-semibold text-lg">Total:</td>
+                            <td class="px-6 py-4 font-bold text-2xl text-green-600">
+                                {{ cart.subtotal|currency:request }}
+                            </td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            
+            <div class="p-6 bg-gray-50 border-t flex justify-between items-center">
+                <a href="/products/" class="text-blue-600 hover:underline flex items-center gap-2">
+                    <i class="fas fa-arrow-left"></i> Continue Shopping
+                </a>
+                <a href="{% url 'products:checkout' %}" class="bg-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-700 transition">
+                    Proceed to Checkout <i class="fas fa-arrow-right ml-2"></i>
+                </a>
+            </div>
+        </div>
+    {% else %}
+        <div class="bg-white rounded-xl shadow-lg p-12 text-center">
+            <i class="fas fa-shopping-cart text-6xl text-gray-400 mb-4"></i>
+            <p class="text-gray-500 text-lg mb-4">Your cart is empty</p>
+            <a href="/products/" class="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
+                Start Shopping
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+function updateQuantity(itemId, newQuantity) {
+    if (newQuantity < 1) return;
+    
+    fetch('/products/cart/update/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `item_id=${itemId}&quantity=${newQuantity}`
+    }).then(response => response.json()).then(data => {
+        if (data.success) {
+            location.reload();
+        }
+    });
+}
+
+function removeItem(itemId) {
+    if (confirm('Remove this item from cart?')) {
+        fetch(`/products/cart/remove/${itemId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+        }).then(() => {
+            location.reload();
+        });
+    }
+}
+</script>
+{% endblock %}

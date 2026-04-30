@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your Email - Arolana</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .code {
+            background: #f0f0f0;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px;
+            margin: 25px 0;
+        }
+        .otp-code {
+            font-size: 36px;
+            font-weight: bold;
+            letter-spacing: 5px;
+            color: #667eea;
+            font-family: monospace;
+        }
+        .button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        .footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            border-top: 1px solid #eee;
+        }
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        @media (max-width: 480px) {
+            .container {
+                margin: 10px;
+            }
+            .content {
+                padding: 20px;
+            }
+            .otp-code {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Arolana.com</h1>
+            <p style="margin: 10px 0 0;">Premium Multi-Vendor Marketplace</p>
+        </div>
+        
+        <div class="content">
+            <h2>Verify Your Email Address</h2>
+            <p>Hello <strong>{{ user.username }}</strong>,</p>
+            <p>Thank you for joining Arolana! To complete your registration and secure your account, please verify your email address using the code below:</p>
+            
+            <div class="code">
+                <div class="otp-code">{{ otp_code }}</div>
+                <p style="margin: 10px 0 0; font-size: 14px;">This code expires in <strong>10 minutes</strong></p>
+            </div>
+            
+            <div class="warning">
+                <strong>⚠️ Security Tip:</strong> Never share this code with anyone. Arolana will never ask for this code outside of the verification process.
+            </div>
+            
+            <p style="text-align: center;">
+                <a href="{{ verification_url }}" class="button">Verify Email Address</a>
+            </p>
+            
+            <p>If the button doesn't work, copy and paste this link into your browser:</p>
+            <p style="word-break: break-all; font-size: 12px; color: #666;">{{ verification_url }}</p>
+            
+            <p style="margin-top: 30px;">
+                <strong>Why verify your email?</strong>
+            </p>
+            <ul>
+                <li>✅ Secure your account</li>
+                <li>✅ Receive order updates</li>
+                <li>✅ Reset password when needed</li>
+                <li>✅ Get special offers and deals</li>
+            </ul>
+            
+            <p>If you didn't create an account with Arolana, please ignore this email.</p>
+            
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+            
+            <p style="font-size: 14px; color: #666;">
+                Need help? Contact our support team at <a href="mailto:support@arolana.com">support@arolana.com</a>
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p>&copy; 2024 Arolana.com. All rights reserved.</p>
+            <p>This is an automated message, please do not reply.</p>
+            <p>
+                <a href="#" style="color: #667eea;">Privacy Policy</a> | 
+                <a href="#" style="color: #667eea;">Terms of Service</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

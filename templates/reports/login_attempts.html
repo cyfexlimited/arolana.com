@@ -1,0 +1,68 @@
+{% extends 'base/base.html' %}
+
+{% block content %}
+<div class="bg-white rounded-lg shadow-lg p-6">
+    <h1 class="text-2xl font-bold mb-6">🔐 Failed Login Attempts</h1>
+    
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-blue-50 rounded-lg p-3 text-center">
+            <p class="text-2xl font-bold text-blue-600">{{ total_attempts }}</p>
+            <p class="text-sm text-gray-600">Total Attempts</p>
+        </div>
+        <div class="bg-red-50 rounded-lg p-3 text-center">
+            <p class="text-2xl font-bold text-red-600">{{ locked_accounts }}</p>
+            <p class="text-sm text-gray-600">Locked Accounts</p>
+        </div>
+    </div>
+    
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead class="bg-gray-100">
+                <tr>
+                    <th class="px-4 py-2 text-left">Email</th>
+                    <th class="px-4 py-2 text-left">IP Address</th>
+                    <th class="px-4 py-2 text-left">Attempts</th>
+                    <th class="px-4 py-2 text-left">Status</th>
+                    <th class="px-4 py-2 text-left">Last Attempt</th>
+                    <th class="px-4 py-2 text-left">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for attempt in attempts %}
+                <tr class="border-b">
+                    <td class="px-4 py-2">{{ attempt.email }}</td>
+                    <td class="px-4 py-2">{{ attempt.ip_address }}</td>
+                    <td class="px-4 py-2">{{ attempt.attempt_count }}</td>
+                    <td class="px-4 py-2">
+                        {% if attempt.is_locked %}
+                            <span class="text-red-600 font-semibold">Locked</span>
+                        {% else %}
+                            <span class="text-green-600">Active</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-2">{{ attempt.last_attempt|date:"Y-m-d H:i:s" }}</td>
+                    <td class="px-4 py-2">
+                        {% if attempt.is_locked %}
+                            <button onclick="unlockAccount({{ attempt.id }})" class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700">
+                                Unlock
+                            </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center py-8 text-gray-500">No failed login attempts recorded</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+function unlockAccount(attemptId) {
+    fetch(`/reports/unlock/${attemptId}/`, {
+        method: 'POST',
+        headers: {'X-CSRFToken': '{{ csrf_token }}'}
+    }).then(() => location.reload());
+}
+</script>
+{% endblock %}

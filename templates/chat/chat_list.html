@@ -1,0 +1,57 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Messages | Arolana.com{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <h1 class="text-3xl font-bold mb-6">Messages</h1>
+    
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="divide-y">
+            {% for item in room_data %}
+            <a href="{% url 'chat:room' item.room.id %}" class="block hover:bg-gray-50 transition">
+                <div class="p-4 flex items-center gap-4">
+                    <!-- Avatar -->
+                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-user text-blue-600 text-xl"></i>
+                    </div>
+                    
+                    <!-- Message Info -->
+                    <div class="flex-1">
+                        <div class="flex justify-between items-start">
+                            <h3 class="font-semibold">{{ item.room.name|default:"Chat" }}</h3>
+                            {% if item.last_message %}
+                            <span class="text-xs text-gray-400">{{ item.last_message.created_at|timesince }} ago</span>
+                            {% endif %}
+                        </div>
+                        <p class="text-sm text-gray-600 truncate">
+                            {% if item.last_message %}
+                                {{ item.last_message.sender.username }}: {{ item.last_message.message|truncatewords:10 }}
+                            {% else %}
+                                No messages yet
+                            {% endif %}
+                        </p>
+                    </div>
+                    
+                    <!-- Unread Badge -->
+                    {% if item.unread_count > 0 %}
+                    <div class="bg-blue-600 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center">
+                        {{ item.unread_count }}
+                    </div>
+                    {% endif %}
+                </div>
+            </a>
+            {% empty %}
+            <div class="p-12 text-center">
+                <i class="fas fa-comments text-6xl text-gray-300 mb-4"></i>
+                <p class="text-gray-500">No conversations yet.</p>
+                <a href="/products/" class="inline-block mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+                    Start Shopping
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

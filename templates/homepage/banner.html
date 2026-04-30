@@ -1,0 +1,34 @@
+{% load static %}
+{% if banners %}
+<div class="relative overflow-hidden rounded-2xl mb-12" data-aos="fade-up" style="background: linear-gradient(135deg, {{ banners.0.background_color_start }}, {{ banners.0.background_color_end }});">
+    <div class="container mx-auto px-4 py-12 relative z-10">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
+            <!-- Left Image -->
+            {% if banners.0.left_image %}
+            <div class="flex justify-center" data-aos="{{ banners.0.left_animation }}">
+                <img src="{{ banners.0.left_image }}" alt="Left banner" class="max-h-48 w-auto">
+            </div>
+            {% endif %}
+            
+            <!-- Center Content -->
+            <div class="text-center" data-aos="{{ banners.0.center_animation }}">
+                <h2 class="text-4xl md:text-5xl font-bold text-white mb-4">{{ banners.0.title }}</h2>
+                {% if banners.0.subtitle %}
+                <p class="text-xl text-white/90 mb-6">{{ banners.0.subtitle }}</p>
+                {% endif %}
+                <a href="{{ banners.0.button_url }}" 
+                   class="inline-block bg-white text-gray-900 px-8 py-3 rounded-lg font-semibold hover:shadow-lg transition transform hover:scale-105">
+                    {{ banners.0.button_text }} <i class="fas fa-arrow-right ml-2"></i>
+                </a>
+            </div>
+            
+            <!-- Right Image -->
+            {% if banners.0.right_image %}
+            <div class="flex justify-center" data-aos="{{ banners.0.right_animation }}">
+                <img src="{{ banners.0.right_image }}" alt="Right banner" class="max-h-48 w-auto">
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}

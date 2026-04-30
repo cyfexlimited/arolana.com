@@ -1,0 +1,144 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Shipping Information | Arolana.com{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="bg-gradient-to-r from-blue-600 to-purple-600 p-8 text-white">
+            <h1 class="text-3xl font-bold mb-2">Shipping Information</h1>
+            <p class="opacity-90">Fast, reliable delivery to your doorstep</p>
+        </div>
+        
+        <div class="p-8">
+            <!-- Shipping Methods -->
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold mb-4">Shipping Methods</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="border rounded-lg p-4">
+                        <i class="fas fa-truck text-3xl text-blue-600 mb-3"></i>
+                        <h3 class="font-bold text-lg mb-2">Standard Shipping</h3>
+                        <p class="text-gray-600 text-sm">3-5 business days</p>
+                        <p class="text-gray-600 text-sm">Free on orders over $50</p>
+                        <p class="text-gray-600 text-sm">$5.99 for orders under $50</p>
+                    </div>
+                    <div class="border rounded-lg p-4">
+                        <i class="fas fa-rocket text-3xl text-blue-600 mb-3"></i>
+                        <h3 class="font-bold text-lg mb-2">Express Shipping</h3>
+                        <p class="text-gray-600 text-sm">1-2 business days</p>
+                        <p class="text-gray-600 text-sm">$15.99 flat rate</p>
+                        <p class="text-gray-600 text-sm">Available nationwide</p>
+                    </div>
+                    <div class="border rounded-lg p-4">
+                        <i class="fas fa-globe text-3xl text-blue-600 mb-3"></i>
+                        <h3 class="font-bold text-lg mb-2">International Shipping</h3>
+                        <p class="text-gray-600 text-sm">7-14 business days</p>
+                        <p class="text-gray-600 text-sm">Calculated at checkout</p>
+                        <p class="text-gray-600 text-sm">Rates vary by location</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Delivery Timeframes -->
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold mb-4">Delivery Timeframes</h2>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center border-b pb-2">
+                        <span class="font-semibold">Lagos, Abuja, Port Harcourt</span>
+                        <span class="text-green-600">1-2 days (Express) / 3-4 days (Standard)</span>
+                    </div>
+                    <div class="flex justify-between items-center border-b pb-2">
+                        <span class="font-semibold">Major Cities (Ibadan, Kano, Enugu)</span>
+                        <span class="text-green-600">2-3 days (Express) / 4-5 days (Standard)</span>
+                    </div>
+                    <div class="flex justify-between items-center border-b pb-2">
+                        <span class="font-semibold">Other Urban Areas</span>
+                        <span class="text-green-600">3-4 days (Express) / 5-6 days (Standard)</span>
+                    </div>
+                    <div class="flex justify-between items-center border-b pb-2">
+                        <span class="font-semibold">Rural Areas</span>
+                        <span class="text-green-600">4-5 days (Express) / 6-8 days (Standard)</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Free Shipping Threshold -->
+            <div class="bg-green-50 rounded-lg p-6 mb-8">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-gift text-3xl text-green-600"></i>
+                    <div>
+                        <h3 class="font-bold text-lg text-green-800">Free Shipping on Orders $50+</h3>
+                        <p class="text-green-700">Enjoy free standard shipping when you spend $50 or more</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Order Tracking -->
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold mb-4">Track Your Order</h2>
+                <p class="text-gray-600 mb-4">Once your order ships, you'll receive a tracking number via email.</p>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="flex gap-3">
+                        <input type="text" placeholder="Enter tracking number" class="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <button class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">Track Order</button>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-500 mt-2">Or track from your <a href="/orders/track/" class="text-blue-600 hover:underline">Order History</a></p>
+            </div>
+            
+            <!-- Shipping Restrictions -->
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold mb-4">Shipping Restrictions</h2>
+                <ul class="list-disc list-inside space-y-2 text-gray-600">
+                    <li>We currently ship within Nigeria and select international locations</li>
+                    <li>PO Box addresses are not accepted for express shipping</li>
+                    <li>Some oversized items may have additional shipping fees</li>
+                    <li>International customers are responsible for customs duties and taxes</li>
+                </ul>
+            </div>
+            
+            <!-- FAQs -->
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold mb-4">Frequently Asked Questions</h2>
+                <div class="space-y-4" x-data="{ open: null }">
+                    <div class="border rounded-lg">
+                        <button @click="open = open === 1 ? null : 1" class="w-full text-left px-4 py-3 font-semibold hover:bg-gray-50 flex justify-between items-center">
+                            <span>When will my order ship?</span>
+                            <i class="fas fa-chevron-down transition-transform" :class="{'rotate-180': open === 1}"></i>
+                        </button>
+                        <div x-show="open === 1" x-collapse class="px-4 pb-3 text-gray-600">
+                            Orders placed before 2 PM (Monday-Friday) ship the same day. Orders placed after 2 PM ship the next business day.
+                        </div>
+                    </div>
+                    <div class="border rounded-lg">
+                        <button @click="open = open === 2 ? null : 2" class="w-full text-left px-4 py-3 font-semibold hover:bg-gray-50 flex justify-between items-center">
+                            <span>Do you offer international shipping?</span>
+                            <i class="fas fa-chevron-down transition-transform" :class="{'rotate-180': open === 2}"></i>
+                        </button>
+                        <div x-show="open === 2" x-collapse class="px-4 pb-3 text-gray-600">
+                            Yes, we ship to select countries worldwide. Shipping rates and delivery times vary by location.
+                        </div>
+                    </div>
+                    <div class="border rounded-lg">
+                        <button @click="open = open === 3 ? null : 3" class="w-full text-left px-4 py-3 font-semibold hover:bg-gray-50 flex justify-between items-center">
+                            <span>How can I change my shipping address?</span>
+                            <i class="fas fa-chevron-down transition-transform" :class="{'rotate-180': open === 3}"></i>
+                        </button>
+                        <div x-show="open === 3" x-collapse class="px-4 pb-3 text-gray-600">
+                            Contact our support team immediately after placing your order. We cannot change addresses once the order has shipped.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Contact Support -->
+            <div class="bg-blue-50 rounded-lg p-6 text-center">
+                <i class="fas fa-headset text-3xl text-blue-600 mb-3"></i>
+                <h3 class="font-bold text-lg mb-2">Need Help?</h3>
+                <p class="text-gray-600 mb-4">Our support team is here to help with shipping questions</p>
+                <a href="/contact/" class="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">Contact Support</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

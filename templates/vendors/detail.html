@@ -1,0 +1,260 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <!-- Vendor Header -->
+    <div class="bg-white rounded-lg shadow-md overflow-hidden mb-8">
+        <!-- Banner -->
+        {% if vendor.store_banner %}
+            <div class="h-48 bg-cover bg-center" style="background-image: url('{{ vendor.store_banner.url }}')"></div>
+        {% else %}
+            <div class="h-48 bg-gradient-to-r from-blue-600 to-purple-600"></div>
+        {% endif %}
+        
+        <div class="p-6">
+            <div class="flex flex-col md:flex-row items-start md:items-center gap-6">
+                <!-- Logo -->
+                <div class="relative">
+                    {% if vendor.store_logo %}
+                        <img src="{{ vendor.store_logo.url }}" alt="{{ vendor.store_name }}" class="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg -mt-12">
+                    {% else %}
+                        <div class="w-24 h-24 rounded-full bg-blue-100 flex items-center justify-center border-4 border-white shadow-lg -mt-12">
+                            <i class="fas fa-store text-4xl text-blue-600"></i>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="flex-1">
+                    <div class="flex flex-wrap items-center gap-3 mb-2">
+                        <h1 class="text-3xl font-bold">{{ vendor.store_name }}</h1>
+                        {% if vendor.is_verified %}
+                            <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-sm">
+                                <i class="fas fa-check-circle"></i> Verified Vendor
+                            </span>
+                        {% endif %}
+                        {% if vendor.is_top_rated %}
+                            <span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-sm">
+                                <i class="fas fa-trophy"></i> Top Rated
+                            </span>
+                        {% endif %}
+                        {% if vendor.is_best_seller %}
+                            <span class="bg-orange-100 text-orange-700 px-2 py-1 rounded text-sm">
+                                <i class="fas fa-crown"></i> Best Seller
+                            </span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="flex flex-wrap items-center gap-4 text-sm">
+                        <div class="flex items-center gap-1">
+                            <i class="fas fa-star text-yellow-400"></i>
+                            <span class="font-semibold">{{ vendor.rating_avg|floatformat:1 }}</span>
+                            <span class="text-gray-500">({{ vendor.total_reviews }} reviews)</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <i class="fas fa-chart-line text-blue-500"></i>
+                            <span>{{ vendor.total_sales }} sales</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <i class="fas fa-users text-green-500"></i>
+                            <span>{{ vendor.followers_count }} followers</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <i class="fas fa-clock text-purple-500"></i>
+                            <span>Response: {{ vendor.response_time }}</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <i class="fas fa-percent text-indigo-500"></i>
+                            <span>Fulfillment: {{ vendor.fulfillment_rate }}%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex gap-3">
+                    <button onclick="followVendor({{ vendor.id }})" 
+                            class="{% if is_following %}bg-gray-600{% else %}bg-blue-600{% endif %} text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
+                            id="followBtn">
+                        <i class="fas {% if is_following %}fa-bell-slash{% else %}fa-bell{% endif %}"></i>
+                        {% if is_following %}Unfollow{% else %}Follow{% endif %} Store
+                    </button>
+                    <a href="/contact/?vendor={{ vendor.id }}" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition">
+                        <i class="fas fa-envelope"></i> Contact
+                    </a>
+                </div>
+            </div>
+            
+            <div class="mt-6">
+                <h3 class="font-semibold mb-2">About {{ vendor.store_name }}</h3>
+                <p class="text-gray-600">{{ vendor.description }}</p>
+            </div>
+            
+            <!-- Vendor Score -->
+            <div class="mt-6 bg-blue-50 rounded-lg p-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p class="text-sm text-blue-600">Vendor Score</p>
+                        <p class="text-3xl font-bold text-blue-600">{{ vendor_score|default:"0" }}</p>
+                    </div>
+                    <div class="w-2/3">
+                        <div class="flex justify-between text-sm mb-1">
+                            <span>Rating</span>
+                            <span>{{ vendor.rating_avg|floatformat:1 }} / 5</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-yellow-400 rounded-full h-2" style="width: {% widthratio vendor.rating_avg 5 100 %}%"></div>
+                        </div>
+                        <div class="flex justify-between text-sm mt-2 mb-1">
+                            <span>Fulfillment</span>
+                            <span>{{ vendor.fulfillment_rate }}%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-green-500 rounded-full h-2" style="width: {{ vendor.fulfillment_rate }}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Products Section -->
+    <div class="mb-8">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold">Products from {{ vendor.store_name }}</h2>
+            <div class="flex gap-2">
+                <select id="sortProducts" onchange="sortProducts(this.value)" class="border rounded-lg px-3 py-1">
+                    <option value="newest">Newest First</option>
+                    <option value="price_low">Price: Low to High</option>
+                    <option value="price_high">Price: High to Low</option>
+                </select>
+            </div>
+        </div>
+        
+        {% if products %}
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6" id="productsGrid">
+                {% for product in products %}
+                <div class="product-card bg-white rounded-xl shadow-md overflow-hidden hover:shadow-2xl transition-all duration-300" data-price="{{ product.price }}">
+                    <a href="{{ product.get_absolute_url }}" class="block bg-gray-50 p-4">
+                        {% if product.main_image and product.main_image.url %}
+                            <img src="{{ product.main_image.url }}" alt="{{ product.name }}" class="w-full h-48 object-contain hover:scale-105 transition duration-300">
+                        {% else %}
+                            <div class="w-full h-48 bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+                                <i class="fas fa-image text-5xl text-gray-400"></i>
+                            </div>
+                        {% endif %}
+                    </a>
+                    <div class="p-4">
+                        <a href="{{ product.get_absolute_url }}" class="font-semibold text-lg hover:text-blue-600 line-clamp-2">{{ product.name }}</a>
+                        
+                        <div class="flex items-center gap-2 mt-2">
+                            <div class="flex text-yellow-400 text-sm">
+                                {% for i in "12345"|make_list %}
+                                    {% if forloop.counter <= product.rating_avg|add:"0" %}
+                                        <i class="fas fa-star"></i>
+                                    {% elif forloop.counter <= product.rating_avg|add:"0.5" %}
+                                        <i class="fas fa-star-half-alt"></i>
+                                    {% else %}
+                                        <i class="far fa-star"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            <span class="text-sm text-gray-500">({{ product.rating_count }})</span>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <span class="text-2xl font-bold text-blue-600">${{ product.price }}</span>
+                            {% if product.compare_price %}
+                                <span class="text-gray-400 line-through ml-2 text-sm">${{ product.compare_price }}</span>
+                                <span class="text-green-600 text-sm ml-2">-{{ product.discount_percent }}%</span>
+                            {% endif %}
+                        </div>
+                        
+                        <form method="POST" action="{% url 'products:add_to_cart' product.slug %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="quantity" value="1">
+                            <button type="submit" class="mt-3 w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">
+                                <i class="fas fa-cart-plus"></i> Add to Cart
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="bg-white rounded-lg shadow-md p-12 text-center">
+                <i class="fas fa-box-open text-6xl text-gray-400 mb-4"></i>
+                <p class="text-gray-500 text-lg">No products available from this vendor yet.</p>
+            </div>
+        {% endif %}
+    </div>
+    
+    <!-- Similar Vendors Section -->
+    {% if similar_vendors %}
+    <div class="mt-12">
+        <h2 class="text-2xl font-bold mb-6">Similar Vendors You Might Like</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {% for similar in similar_vendors %}
+            <a href="{% url 'vendors:detail' similar.store_slug %}" class="bg-white rounded-lg shadow p-4 text-center hover:shadow-xl transition group">
+                {% if similar.store_logo %}
+                    <img src="{{ similar.store_logo.url }}" class="w-16 h-16 mx-auto mb-2 rounded-full object-cover">
+                {% else %}
+                    <div class="w-16 h-16 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition">
+                        <i class="fas fa-store text-2xl text-blue-600"></i>
+                    </div>
+                {% endif %}
+                <h3 class="font-semibold">{{ similar.store_name }}</h3>
+                <p class="text-sm text-gray-500">{{ similar.rating_avg|floatformat:1 }} ★ ({{ similar.total_sales }} sales)</p>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function followVendor(vendorId) {
+    fetch(`/vendors/follow/${vendorId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.followed) {
+            document.getElementById('followBtn').innerHTML = '<i class="fas fa-bell-slash"></i> Unfollow Store';
+            document.getElementById('followBtn').classList.remove('bg-blue-600');
+            document.getElementById('followBtn').classList.add('bg-gray-600');
+        } else {
+            document.getElementById('followBtn').innerHTML = '<i class="fas fa-bell"></i> Follow Store';
+            document.getElementById('followBtn').classList.remove('bg-gray-600');
+            document.getElementById('followBtn').classList.add('bg-blue-600');
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+function sortProducts(sortBy) {
+    const grid = document.getElementById('productsGrid');
+    if (!grid) return;
+    
+    const products = Array.from(grid.children);
+    
+    products.sort((a, b) => {
+        if (sortBy === 'price_low') {
+            const priceA = parseFloat(a.dataset.price || 0);
+            const priceB = parseFloat(b.dataset.price || 0);
+            return priceA - priceB;
+        }
+        if (sortBy === 'price_high') {
+            const priceA = parseFloat(a.dataset.price || 0);
+            const priceB = parseFloat(b.dataset.price || 0);
+            return priceB - priceA;
+        }
+        return 0;
+    });
+    
+    products.forEach(product => grid.appendChild(product));
+}
+</script>
+{% endblock %}

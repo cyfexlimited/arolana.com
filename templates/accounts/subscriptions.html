@@ -1,0 +1,319 @@
+{% extends 'base/base.html' %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold">Email Subscriptions</h1>
+        <p class="text-gray-600 mt-1">Manage your email preferences and notifications</p>
+    </div>
+    
+    <!-- Display messages -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="mb-4 p-3 rounded-lg {% if message.tags == 'success' %}bg-green-100 text-green-700 border border-green-200{% elif message.tags == 'error' %}bg-red-100 text-red-700 border border-red-200{% else %}bg-blue-100 text-blue-700 border border-blue-200{% endif %}">
+                <div class="flex items-center gap-2">
+                    {% if message.tags == 'success' %}
+                        <i class="fas fa-check-circle"></i>
+                    {% elif message.tags == 'error' %}
+                        <i class="fas fa-exclamation-circle"></i>
+                    {% else %}
+                        <i class="fas fa-info-circle"></i>
+                    {% endif %}
+                    {{ message }}
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+    
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+            <div class="flex items-center gap-3">
+                <i class="fas fa-envelope text-white text-2xl"></i>
+                <div>
+                    <h2 class="text-xl font-semibold text-white">Email Preferences</h2>
+                    <p class="text-blue-100 text-sm">Choose what emails you'd like to receive</p>
+                </div>
+            </div>
+        </div>
+        
+        <form method="POST" id="subscription-form" class="p-6">
+            {% csrf_token %}
+            
+            <!-- Email Display -->
+            <div class="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-envelope text-gray-400"></i>
+                    <div>
+                        <p class="text-sm text-gray-600">Sending emails to:</p>
+                        <p class="font-semibold text-gray-800">{{ user.email }}</p>
+                    </div>
+                    <a href="{% url 'accounts:profile' %}" class="ml-auto text-sm text-blue-600 hover:underline">
+                        Update Email →
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Newsletter Subscription -->
+            <div class="mb-6 p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-newspaper text-blue-600"></i>
+                            </div>
+                            <div>
+                                <label class="font-semibold text-gray-800 cursor-pointer" for="newsletter">
+                                    Weekly Newsletter
+                                </label>
+                                <p class="text-sm text-gray-500">Get the latest products, trends, and updates</p>
+                            </div>
+                        </div>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" name="newsletter" id="newsletter" 
+                               {% if user.profile.newsletter_subscription %}checked{% endif %}
+                               class="sr-only peer subscription-toggle">
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+                <div class="mt-3 ml-13 text-xs text-gray-500">
+                    <i class="fas fa-clock mr-1"></i> Sent every Tuesday
+                </div>
+            </div>
+            
+            <!-- Promotional Emails -->
+            <div class="mb-6 p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-tag text-orange-600"></i>
+                            </div>
+                            <div>
+                                <label class="font-semibold text-gray-800 cursor-pointer" for="promo_emails">
+                                    Promotional Offers
+                                </label>
+                                <p class="text-sm text-gray-500">Exclusive deals, discounts, and flash sales</p>
+                            </div>
+                        </div>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" name="promo_emails" id="promo_emails" 
+                               {% if user.profile.promo_emails %}checked{% endif %}
+                               class="sr-only peer subscription-toggle">
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                    </label>
+                </div>
+                <div class="mt-3 ml-13 text-xs text-gray-500">
+                    <i class="fas fa-gem mr-1"></i> Limited time offers and exclusive savings
+                </div>
+            </div>
+            
+            <!-- Order Updates -->
+            <div class="mb-6 p-4 border border-gray-200 rounded-lg hover:border-green-300 transition">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-box text-green-600"></i>
+                            </div>
+                            <div>
+                                <label class="font-semibold text-gray-800 cursor-pointer" for="order_updates">
+                                    Order Updates
+                                </label>
+                                <p class="text-sm text-gray-500">Order confirmations, shipping updates, and delivery notices</p>
+                            </div>
+                        </div>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" name="order_updates" id="order_updates" 
+                               {% if user.profile.order_updates|default:True %}checked{% endif %}
+                               class="sr-only peer">
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                    </label>
+                </div>
+                <div class="mt-3 ml-13 text-xs text-gray-500">
+                    <i class="fas fa-truck mr-1"></i> Essential for tracking your purchases
+                </div>
+            </div>
+            
+            <!-- Marketing Emails -->
+            <div class="mb-6 p-4 border border-gray-200 rounded-lg hover:border-purple-300 transition">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-chart-line text-purple-600"></i>
+                            </div>
+                            <div>
+                                <label class="font-semibold text-gray-800 cursor-pointer" for="marketing_emails">
+                                    Marketing Insights
+                                </label>
+                                <p class="text-sm text-gray-500">Market trends, product launches, and company news</p>
+                            </div>
+                        </div>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" name="marketing_emails" id="marketing_emails" 
+                               {% if user.profile.marketing_emails %}checked{% endif %}
+                               class="sr-only peer">
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-500"></div>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Save Button -->
+            <div class="flex gap-3 pt-4 border-t">
+                <button type="submit" id="save-btn" class="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition font-semibold">
+                    <i class="fas fa-save mr-2"></i> Save Preferences
+                </button>
+                <button type="button" onclick="resetToDefault()" class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">
+                    Reset to Default
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Unsubscribe Section -->
+    <div class="mt-6 bg-red-50 rounded-lg p-4 border border-red-200">
+        <div class="flex items-start gap-3">
+            <i class="fas fa-envelope-open-text text-red-600 mt-1"></i>
+            <div class="flex-1">
+                <p class="font-semibold text-red-800">Want to unsubscribe from all emails?</p>
+                <p class="text-sm text-red-700">You can unsubscribe from all marketing emails while still receiving important order updates.</p>
+                <button onclick="unsubscribeAll()" class="mt-3 text-sm text-red-600 hover:text-red-700 underline">
+                    Unsubscribe from all marketing emails →
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Email Preview Section -->
+    <div class="mt-6 bg-gray-50 rounded-lg p-4 border border-gray-200">
+        <details>
+            <summary class="cursor-pointer text-gray-600 hover:text-gray-800">
+                <i class="fas fa-eye mr-2"></i> Preview email types
+            </summary>
+            <div class="mt-4 space-y-3">
+                <div class="p-3 bg-white rounded border">
+                    <i class="fas fa-newspaper text-blue-600 mr-2"></i>
+                    <span class="font-semibold">Newsletter Example:</span>
+                    <p class="text-sm text-gray-600 mt-1">"Discover this week's top picks: New arrivals, trending products, and expert tips."</p>
+                </div>
+                <div class="p-3 bg-white rounded border">
+                    <i class="fas fa-tag text-orange-600 mr-2"></i>
+                    <span class="font-semibold">Promotional Example:</span>
+                    <p class="text-sm text-gray-600 mt-1">"🎉 Flash Sale! Get 20% off on all electronics. Offer ends soon!"</p>
+                </div>
+                <div class="p-3 bg-white rounded border">
+                    <i class="fas fa-box text-green-600 mr-2"></i>
+                    <span class="font-semibold">Order Update Example:</span>
+                    <p class="text-sm text-gray-600 mt-1">"Your order #ARO-123456 has been shipped and is on its way!"</p>
+                </div>
+            </div>
+        </details>
+    </div>
+</div>
+
+<script>
+// Show loading state on form submit
+document.getElementById('subscription-form').addEventListener('submit', function() {
+    const btn = document.getElementById('save-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+});
+
+// Toggle feedback for checkboxes
+document.querySelectorAll('.subscription-toggle').forEach(toggle => {
+    toggle.addEventListener('change', function() {
+        const type = this.id;
+        const isChecked = this.checked;
+        const message = isChecked ? `You will now receive ${type.replace('_', ' ')} emails.` : `You will no longer receive ${type.replace('_', ' ')} emails.`;
+        showToast(message, 'info');
+    });
+});
+
+// Reset to default preferences
+function resetToDefault() {
+    if (confirm('Reset all email preferences to default?')) {
+        document.getElementById('newsletter').checked = true;
+        document.getElementById('promo_emails').checked = true;
+        document.getElementById('order_updates').checked = true;
+        document.getElementById('marketing_emails').checked = false;
+        showToast('Preferences reset to default', 'success');
+        
+        // Auto-save after reset
+        document.getElementById('subscription-form').submit();
+    }
+}
+
+// Unsubscribe from all marketing
+function unsubscribeAll() {
+    if (confirm('Unsubscribe from all marketing emails? You will still receive order updates.')) {
+        document.getElementById('newsletter').checked = false;
+        document.getElementById('promo_emails').checked = false;
+        document.getElementById('marketing_emails').checked = false;
+        showToast('Unsubscribed from marketing emails', 'success');
+        
+        // Auto-save after unsubscribe
+        document.getElementById('subscription-form').submit();
+    }
+}
+
+// Show toast notification
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    
+    const toast = document.createElement('div');
+    toast.className = `toast-notification bg-white rounded-lg shadow-xl p-4 mb-3 border-l-4 ${
+        type === 'success' ? 'border-green-500' : type === 'error' ? 'border-red-500' : 'border-blue-500'
+    }`;
+    toast.innerHTML = `
+        <div class="flex items-center gap-3">
+            <div class="${type === 'success' ? 'text-green-500' : type === 'error' ? 'text-red-500' : 'text-blue-500'}">
+                <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'} text-xl"></i>
+            </div>
+            <div class="flex-1">
+                <p class="text-gray-800 text-sm">${message}</p>
+            </div>
+            <button onclick="this.parentElement.parentElement.remove()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 5000);
+}
+
+// Add animation to checkboxes
+document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+        const card = this.closest('.border');
+        if (card) {
+            card.classList.add('ring-2', 'ring-blue-200');
+            setTimeout(() => {
+                card.classList.remove('ring-2', 'ring-blue-200');
+            }, 300);
+        }
+    });
+});
+</script>
+
+<style>
+/* Custom checkbox styling */
+input[type="checkbox"]:focus {
+    outline: none;
+}
+
+.peer:checked ~ .peer-checked\:bg-blue-600 {
+    background-color: #2563eb;
+}
+
+/* Animation for cards */
+.border {
+    transition: all 0.3s ease;
+}
+</style>
+{% endblock %}

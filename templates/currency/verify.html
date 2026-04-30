@@ -1,0 +1,35 @@
+{% extends 'base/base.html' %}
+{% load currency_filters %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto py-8">
+    <div class="bg-white rounded-xl shadow-lg p-8">
+        <h1 class="text-3xl font-bold mb-6">Currency System Verification</h1>
+        
+        <div class="space-y-4">
+            <div class="bg-blue-50 p-4 rounded-lg">
+                <p><strong>Current Session Currency:</strong> {{ request.session.user_currency|default:"Not set" }}</p>
+                <p><strong>User Currency Code:</strong> {{ request.user_currency.code|default:"None" }}</p>
+            </div>
+            
+            <div class="bg-gray-50 p-4 rounded-lg">
+                <h2 class="font-bold mb-2">Test Conversions:</h2>
+                <p>$100 USD = <strong class="text-xl text-green-600">{{ 100|currency:request }}</strong></p>
+                <p>$260.80 USD = <strong class="text-xl text-green-600">{{ 260.80|currency:request }}</strong></p>
+                <p>$349.00 USD = <strong class="text-xl text-green-600">{{ 349|currency:request }}</strong></p>
+            </div>
+            
+            <div class="flex gap-4">
+                <a href="/currency/switch/?code=USD&next={{ request.path }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Set USD</a>
+                <a href="/currency/switch/?code=NGN&next={{ request.path }}" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">Set NGN</a>
+                <a href="/currency/switch/?code=EUR&next={{ request.path }}" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">Set EUR</a>
+                <a href="/currency/switch/?code=GBP&next={{ request.path }}" class="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700">Set GBP</a>
+            </div>
+            
+            <div class="mt-6 pt-4 border-t">
+                <p><a href="/products/" class="text-blue-600 hover:underline">→ Go to Products Page</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

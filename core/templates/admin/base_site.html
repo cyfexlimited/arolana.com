@@ -1,0 +1,56 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ title }} | Arolana Admin{% endblock %}
+
+{% block branding %}
+<h1 id="site-name"><a href="{% url 'admin:index' %}">Arolana Administration</a></h1>
+{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    :root {
+        --primary: #3b82f6;
+        --secondary: #10b981;
+        --accent: #8b5cf6;
+    }
+    
+    #header {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    }
+    
+    .module h2, .module caption {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    }
+    
+    .button, input[type=submit], input[type=button], .submit-row input, a.button {
+        background: #3b82f6;
+    }
+    
+    .button:hover, input[type=submit]:hover, input[type=button]:hover {
+        background: #2563eb;
+    }
+    
+    /* CKEditor styling */
+    .django-ckeditor-5 {
+        background-color: #f8fafc !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 8px !important;
+    }
+    
+    .ck-editor__editable {
+        min-height: 300px !important;
+        background-color: #ffffff !important;
+        border-radius: 8px !important;
+    }
+    
+    .ck-editor__editable_inline {
+        padding: 16px !important;
+    }
+    
+    .ck-toolbar {
+        border-radius: 8px 8px 0 0 !important;
+        background: linear-gradient(to bottom, #ffffff, #f8fafc) !important;
+    }
+</style>
+{% endblock %}

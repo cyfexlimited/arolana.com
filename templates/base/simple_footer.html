@@ -1,0 +1,44 @@
+<!-- Simple Footer that always works -->
+<footer class="bg-gray-900 text-gray-300 mt-16">
+    <div class="container mx-auto px-4 py-12">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <!-- Brand Column -->
+            <div>
+                <h3 class="text-xl font-bold text-white mb-4">{{ site_settings.site_name }}</h3>
+                <p class="text-sm">{{ site_settings.site_description|truncatewords:20 }}</p>
+            </div>
+            
+            <!-- Shop Column -->
+            <div>
+                <h4 class="font-semibold text-white mb-4">Shop</h4>
+                <ul class="space-y-2 text-sm">
+                    <li><a href="/products/" class="hover:text-white">All Products</a></li>
+                    <li><a href="/products/?sort=-created_at" class="hover:text-white">New Arrivals</a></li>
+                    <li><a href="/products/?sort=-sales_count" class="hover:text-white">Bestsellers</a></li>
+                    <li><a href="/products/?deals=true" class="hover:text-white">Deals</a></li>
+                </ul>
+            </div>
+            
+            <!-- Support Column -->
+            <div>
+                <h4 class="font-semibold text-white mb-4">Support</h4>
+                <ul class="space-y-2 text-sm">
+                    <li><a href="#" class="hover:text-white">Help Center</a></li>
+                    <li><a href="#" class="hover:text-white">Track Order</a></li>
+                    <li><a href="#" class="hover:text-white">Returns</a></li>
+                    <li><a href="#" class="hover:text-white">Contact Us</a></li>
+                </ul>
+            </div>
+            
+            <!-- Contact Column -->
+            <div>
+                <h4 class="font-semibold text-white mb-4">Contact</h4>
+                <p class="text-sm mb-2"><i class="fas fa-envelope"></i> {{ site_settings.contact_email }}</p>
+                <p class="text-sm mb-2"><i class="fas fa-phone"></i> {{ site_settings.contact_phone }}</p>
+            </div>
+        </div>
+        <div class="border-t border-gray-800 mt-8 pt-8 text-center text-sm">
+            <p>{{ site_settings.footer_copyright }}</p>
+        </div>
+    </div>
+</footer>

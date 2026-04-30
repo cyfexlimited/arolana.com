@@ -1,0 +1,54 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block extra_css %}
+{{ form.media }}
+{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold mb-8">Create Newsletter Campaign</h1>
+    
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <form method="POST">
+            {% csrf_token %}
+            
+            <div class="mb-4">
+                <label class="block font-semibold mb-2">Campaign Name</label>
+                <input type="text" name="name" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            
+            <div class="mb-4">
+                <label class="block font-semibold mb-2">Email Subject</label>
+                <input type="text" name="subject" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            
+            <div class="mb-4">
+                <label class="block font-semibold mb-2">Plain Text Content</label>
+                <textarea name="content" rows="10" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"></textarea>
+                <p class="text-sm text-gray-500 mt-1">Text version for email clients that don't support HTML</p>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block font-semibold mb-2">HTML Content</label>
+                <textarea name="html_content" rows="15" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"></textarea>
+                <p class="text-sm text-gray-500 mt-1">HTML version of your newsletter</p>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block font-semibold mb-2">Schedule (Optional)</label>
+                <input type="datetime-local" name="scheduled_at" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            
+            <div class="flex gap-4">
+                <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+                    Save Campaign
+                </button>
+                <a href="{% url 'newsletter:campaign_list' %}" class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

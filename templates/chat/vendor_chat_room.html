@@ -1,0 +1,90 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Chat with {{ customer.username }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="bg-gray-800 text-white px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-user-circle text-2xl"></i>
+                    <div>
+                        <h2 class="font-semibold">{{ customer.get_full_name|default:customer.username }}</h2>
+                        {% if product %}
+                        <p class="text-xs text-gray-300">Product: {{ product.name|truncatechars:40 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                <a href="{% url 'chat:vendor_list' %}" class="text-gray-300 hover:text-white">
+                    <i class="fas fa-arrow-left"></i> Back
+                </a>
+            </div>
+        </div>
+        
+        <div id="chat-messages" class="h-96 overflow-y-auto p-4 space-y-3 bg-gray-50">
+            {% for message in messages %}
+            <div class="flex {% if message.sender == request.user %}justify-end{% else %}justify-start{% endif %}">
+                <div class="max-w-[70%] p-3 rounded-lg {% if message.sender == request.user %}bg-blue-600 text-white{% else %}bg-gray-200 text-gray-800{% endif %}">
+                    <div class="text-sm">{{ message.message }}</div>
+                    <div class="text-xs mt-1 opacity-75">{{ message.created_at|time:"H:i" }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <form id="chat-form" class="border-t p-4 bg-white flex gap-2">
+            {% csrf_token %}
+            <input type="text" id="message-input" placeholder="Type your reply..." 
+                   class="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+                <i class="fas fa-paper-plane"></i> Send
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+const roomId = {{ room.id }};
+const csrfToken = '{{ csrf_token }}';
+
+function loadMessages() {
+    fetch(window.location.href)
+        .then(response => response.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const newMessages = doc.getElementById('chat-messages');
+            const currentMessages = document.getElementById('chat-messages');
+            if (newMessages && currentMessages.innerHTML !== newMessages.innerHTML) {
+                currentMessages.innerHTML = newMessages.innerHTML;
+                currentMessages.scrollTop = currentMessages.scrollHeight;
+            }
+        });
+}
+
+document.getElementById('chat-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const input = document.getElementById('message-input');
+    const message = input.value.trim();
+    
+    if (message) {
+        fetch(`/chat/vendor/send/${roomId}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': csrfToken
+            },
+            body: `message=${encodeURIComponent(message)}`
+        }).then(() => {
+            input.value = '';
+            loadMessages();
+        });
+    }
+});
+
+// Auto-refresh every 3 seconds
+setInterval(loadMessages, 3000);
+loadMessages();
+</script>
+{% endblock %}

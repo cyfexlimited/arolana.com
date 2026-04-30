@@ -1,0 +1,360 @@
+{% extends 'base/base.html' %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <h1 class="text-3xl font-bold mb-8">Add New Address</h1>
+    
+    <!-- Display messages -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="mb-4 p-3 rounded-lg {% if message.tags == 'success' %}bg-green-100 text-green-700 border border-green-200{% elif message.tags == 'error' %}bg-red-100 text-red-700 border border-red-200{% elif message.tags == 'warning' %}bg-yellow-100 text-yellow-700 border border-yellow-200{% else %}bg-blue-100 text-blue-700 border border-blue-200{% endif %}">
+                <div class="flex items-center gap-2">
+                    {% if message.tags == 'success' %}
+                        <i class="fas fa-check-circle"></i>
+                    {% elif message.tags == 'error' %}
+                        <i class="fas fa-exclamation-circle"></i>
+                    {% elif message.tags == 'warning' %}
+                        <i class="fas fa-exclamation-triangle"></i>
+                    {% else %}
+                        <i class="fas fa-info-circle"></i>
+                    {% endif %}
+                    {{ message }}
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+    
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <form method="POST" id="address-form">
+            {% csrf_token %}
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 mb-2 font-semibold">Address Line 1 <span class="text-red-500">*</span></label>
+                <div class="relative">
+                    <i class="fas fa-location-dot absolute left-3 top-3 text-gray-400"></i>
+                    <input type="text" name="address_line1" id="address_line1" required 
+                           class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                           placeholder="Street address, P.O. Box, company name">
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Enter your street address, P.O. box, or company name</p>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-700 mb-2 font-semibold">Address Line 2 <span class="text-gray-400">(Optional)</span></label>
+                <div class="relative">
+                    <i class="fas fa-building absolute left-3 top-3 text-gray-400"></i>
+                    <input type="text" name="address_line2" id="address_line2" 
+                           class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                           placeholder="Apartment, suite, unit, building, floor">
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Apartment, suite, unit, building, floor, etc.</p>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-gray-700 mb-2 font-semibold">City <span class="text-red-500">*</span></label>
+                    <div class="relative">
+                        <i class="fas fa-city absolute left-3 top-3 text-gray-400"></i>
+                        <input type="text" name="city" id="city" required 
+                               class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="Enter city">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-gray-700 mb-2 font-semibold">State/Province <span class="text-red-500">*</span></label>
+                    <div class="relative">
+                        <i class="fas fa-map-pin absolute left-3 top-3 text-gray-400"></i>
+                        <input type="text" name="state" id="state" required 
+                               class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="Enter state">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-gray-700 mb-2 font-semibold">Postal/ZIP Code <span class="text-red-500">*</span></label>
+                    <div class="relative">
+                        <i class="fas fa-mail-bulk absolute left-3 top-3 text-gray-400"></i>
+                        <input type="text" name="postal_code" id="postal_code" required 
+                               class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                               placeholder="Enter postal code">
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1" id="postal-hint"></p>
+                </div>
+                <div>
+                    <label class="block text-gray-700 mb-2 font-semibold">Country <span class="text-red-500">*</span></label>
+                    <div class="relative">
+                        <i class="fas fa-globe absolute left-3 top-3 text-gray-400"></i>
+                        <select name="country" id="country" required 
+                                class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none">
+                            <option value="">Select Country</option>
+                            <option value="USA">🇺🇸 United States</option>
+                            <option value="UK">🇬🇧 United Kingdom</option>
+                            <option value="Canada">🇨🇦 Canada</option>
+                            <option value="Australia">🇦🇺 Australia</option>
+                            <option value="Germany">🇩🇪 Germany</option>
+                            <option value="France">🇫🇷 France</option>
+                            <option value="Japan">🇯🇵 Japan</option>
+                            <option value="Nigeria">🇳🇬 Nigeria</option>
+                            <option value="India">🇮🇳 India</option>
+                            <option value="Brazil">🇧🇷 Brazil</option>
+                            <option value="South Africa">🇿🇦 South Africa</option>
+                            <option value="Other">🌍 Other</option>
+                        </select>
+                        <i class="fas fa-chevron-down absolute right-3 top-3 text-gray-400 pointer-events-none"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Address Type Selection -->
+            <div class="mb-4">
+                <label class="block text-gray-700 mb-2 font-semibold">Address Type</label>
+                <div class="flex gap-4 flex-wrap">
+                    <label class="flex items-center cursor-pointer">
+                        <input type="radio" name="address_type" value="home" class="hidden address-type-radio" checked>
+                        <div class="w-5 h-5 border-2 border-gray-300 rounded-full mr-2 flex items-center justify-center radio-custom">
+                            <div class="w-2.5 h-2.5 bg-blue-600 rounded-full hidden radio-dot"></div>
+                        </div>
+                        <i class="fas fa-home text-blue-600 mr-1"></i> Home
+                    </label>
+                    <label class="flex items-center cursor-pointer">
+                        <input type="radio" name="address_type" value="work" class="hidden address-type-radio">
+                        <div class="w-5 h-5 border-2 border-gray-300 rounded-full mr-2 flex items-center justify-center radio-custom">
+                            <div class="w-2.5 h-2.5 bg-blue-600 rounded-full hidden radio-dot"></div>
+                        </div>
+                        <i class="fas fa-briefcase text-green-600 mr-1"></i> Work
+                    </label>
+                    <label class="flex items-center cursor-pointer">
+                        <input type="radio" name="address_type" value="other" class="hidden address-type-radio">
+                        <div class="w-5 h-5 border-2 border-gray-300 rounded-full mr-2 flex items-center justify-center radio-custom">
+                            <div class="w-2.5 h-2.5 bg-blue-600 rounded-full hidden radio-dot"></div>
+                        </div>
+                        <i class="fas fa-map-marker-alt text-purple-600 mr-1"></i> Other
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Default Address Checkbox -->
+            <div class="mb-6">
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" name="is_default" class="hidden checkbox-toggle">
+                    <div class="w-5 h-5 border-2 border-gray-300 rounded mr-3 flex items-center justify-center checkbox-custom">
+                        <i class="fas fa-check text-white text-xs hidden"></i>
+                    </div>
+                    <span class="text-gray-700">Set as default address</span>
+                </label>
+                <p class="text-xs text-gray-500 mt-1 ml-8">Your default address will be pre-selected during checkout</p>
+            </div>
+            
+            <!-- Map Preview (Optional) -->
+            <div id="map-preview" class="mb-6 hidden">
+                <div class="bg-gray-100 rounded-lg p-4 text-center">
+                    <i class="fas fa-map-marked-alt text-3xl text-gray-400 mb-2"></i>
+                    <p class="text-sm text-gray-600">Address preview</p>
+                </div>
+            </div>
+            
+            <div class="flex gap-3">
+                <button type="submit" id="submit-btn" class="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition font-semibold">
+                    <i class="fas fa-save mr-2"></i> Save Address
+                </button>
+                <a href="{% url 'accounts:addresses' %}" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition font-semibold text-center">
+                    <i class="fas fa-times mr-2"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Address Tips -->
+    <div class="mt-6 bg-blue-50 rounded-lg p-4 border border-blue-200">
+        <div class="flex items-start gap-3">
+            <i class="fas fa-lightbulb text-blue-600 mt-1"></i>
+            <div class="text-sm text-blue-800">
+                <p class="font-semibold">💡 Tips for accurate delivery:</p>
+                <ul class="list-disc list-inside mt-2 space-y-1 text-xs">
+                    <li>Double-check your address for typos</li>
+                    <li>Include apartment/suite numbers if applicable</li>
+                    <li>Use the correct postal/zip code</li>
+                    <li>Set your frequently used address as default</li>
+                    <li>Save multiple addresses for different shipping needs</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Custom radio button styling
+document.querySelectorAll('.address-type-radio').forEach(radio => {
+    radio.addEventListener('change', function() {
+        // Remove all selections
+        document.querySelectorAll('.radio-custom').forEach(rc => {
+            rc.classList.remove('border-blue-600');
+            rc.querySelector('.radio-dot')?.classList.add('hidden');
+        });
+        
+        if (this.checked) {
+            const radioCustom = this.nextElementSibling;
+            radioCustom.classList.add('border-blue-600');
+            radioCustom.querySelector('.radio-dot')?.classList.remove('hidden');
+        }
+    });
+    
+    // Trigger initial state for checked radio
+    if (radio.checked) {
+        const radioCustom = radio.nextElementSibling;
+        radioCustom.classList.add('border-blue-600');
+        radioCustom.querySelector('.radio-dot')?.classList.remove('hidden');
+    }
+});
+
+// Custom checkbox styling
+document.querySelectorAll('.checkbox-toggle').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+        const customCheckbox = this.nextElementSibling;
+        const checkIcon = customCheckbox.querySelector('i');
+        if (this.checked) {
+            customCheckbox.classList.add('bg-blue-600', 'border-blue-600');
+            checkIcon.classList.remove('hidden');
+        } else {
+            customCheckbox.classList.remove('bg-blue-600', 'border-blue-600');
+            customCheckbox.classList.add('border-gray-300');
+            checkIcon.classList.add('hidden');
+        }
+    });
+});
+
+// Form validation
+const form = document.getElementById('address-form');
+const submitBtn = document.getElementById('submit-btn');
+
+form.addEventListener('submit', function(e) {
+    // Validate required fields
+    const requiredFields = ['address_line1', 'city', 'state', 'postal_code', 'country'];
+    let isValid = true;
+    
+    for (const fieldName of requiredFields) {
+        const field = document.querySelector(`[name="${fieldName}"]`);
+        if (field && !field.value.trim()) {
+            field.classList.add('border-red-500');
+            field.focus();
+            isValid = false;
+            showToast(`Please fill in ${fieldName.replace('_', ' ')}`, 'error');
+            e.preventDefault();
+            return;
+        } else if (field) {
+            field.classList.remove('border-red-500');
+        }
+    }
+    
+    if (isValid) {
+        // Show loading state
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving Address...';
+    }
+});
+
+// Real-time postal code formatting and hints
+const countrySelect = document.getElementById('country');
+const postalCodeField = document.getElementById('postal_code');
+const postalHint = document.getElementById('postal-hint');
+
+const postalFormats = {
+    'USA': 'Format: 12345 or 12345-6789',
+    'UK': 'Format: SW1A 1AA (Letters and numbers)',
+    'Canada': 'Format: K1A 0B1 (Letter Number Letter Space Number Letter Number)',
+    'Australia': 'Format: 2000 (4 digits)',
+    'Germany': 'Format: 10115 (5 digits)',
+    'France': 'Format: 75001 (5 digits)',
+    'Japan': 'Format: 100-0001 (3 digits-4 digits)',
+    'Nigeria': 'Format: 100001 (6 digits)',
+    'India': 'Format: 110001 (6 digits)',
+    'Brazil': 'Format: 01000-000 (5 digits-3 digits)',
+    'South Africa': 'Format: 0001 (4 digits)'
+};
+
+if (countrySelect) {
+    countrySelect.addEventListener('change', function() {
+        const hint = postalFormats[this.value];
+        if (hint && postalHint) {
+            postalHint.textContent = hint;
+            postalHint.classList.add('text-blue-600');
+        } else if (postalHint) {
+            postalHint.textContent = '';
+        }
+        
+        // Auto-format based on country
+        if (postalCodeField) {
+            postalCodeField.value = '';
+            postalCodeField.focus();
+        }
+    });
+}
+
+if (postalCodeField) {
+    postalCodeField.addEventListener('input', function() {
+        this.value = this.value.toUpperCase();
+        
+        // Auto-format for specific countries
+        const country = countrySelect?.value;
+        if (country === 'USA' && this.value.length === 5) {
+            // Could add auto-format logic here
+        }
+    });
+}
+
+// Address line autocomplete suggestion
+const addressLine1 = document.getElementById('address_line1');
+if (addressLine1) {
+    addressLine1.addEventListener('blur', function() {
+        if (this.value.trim()) {
+            // You can integrate with Google Places API here
+            console.log('Address validation could be added here');
+        }
+    });
+}
+
+// Clear field error on focus
+document.querySelectorAll('input, select').forEach(field => {
+    field.addEventListener('focus', function() {
+        this.classList.remove('border-red-500');
+    });
+});
+
+// Show toast notification
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    
+    const toast = document.createElement('div');
+    toast.className = `toast-notification bg-white rounded-lg shadow-xl p-4 mb-3 border-l-4 ${
+        type === 'success' ? 'border-green-500' : type === 'error' ? 'border-red-500' : 'border-blue-500'
+    }`;
+    toast.innerHTML = `
+        <div class="flex items-center gap-3">
+            <div class="${type === 'success' ? 'text-green-500' : type === 'error' ? 'text-red-500' : 'text-blue-500'}">
+                <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'} text-xl"></i>
+            </div>
+            <div class="flex-1">
+                <p class="text-gray-800 text-sm">${message}</p>
+            </div>
+            <button onclick="this.parentElement.parentElement.remove()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 5000);
+}
+</script>
+
+<style>
+.checkbox-custom, .radio-custom {
+    transition: all 0.2s ease;
+}
+.checkbox-custom:hover, .radio-custom:hover {
+    border-color: #3B82F6;
+}
+</style>
+{% endblock %}
