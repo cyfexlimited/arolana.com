@@ -1,0 +1,31 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block content %}
+<div style="padding: 40px; text-align: center;">
+    <h1>Logo Debug Page</h1>
+    
+    <div style="margin: 30px 0; padding: 20px; background: #f5f5f5; border-radius: 10px;">
+        <h3>Logo from static tag:</h3>
+        <img src="{% static 'admin/images/arolana-logo.png' %}" alt="Logo" style="border: 2px solid #ccc; padding: 10px; max-width: 100%;">
+        <p class="mt-3"><code>{% static 'admin/images/arolana-logo.png' %}</code></p>
+    </div>
+    
+    <div style="margin: 30px 0; padding: 20px; background: #f5f5f5; border-radius: 10px;">
+        <h3>Logo from direct URL:</h3>
+        <img src="/static/admin/images/arolana-logo.png" alt="Logo" style="border: 2px solid #ccc; padding: 10px; max-width: 100%;">
+        <p class="mt-3"><code>/static/admin/images/arolana-logo.png</code></p>
+    </div>
+    
+    <div style="margin: 30px 0; padding: 20px; background: #f5f5f5; border-radius: 10px;">
+        <h3>Jazzmin Settings:</h3>
+        <ul style="text-align: left; display: inline-block;">
+            <li><strong>site_logo:</strong> {{ jazzmin_settings.site_logo|default:"Not set" }}</li>
+            <li><strong>site_header:</strong> {{ jazzmin_settings.site_header|default:"Not set" }}</li>
+            <li><strong>site_brand:</strong> {{ jazzmin_settings.site_brand|default:"Not set" }}</li>
+        </ul>
+    </div>
+    
+    <a href="/admin/" class="button">Back to Admin</a>
+</div>
+{% endblock %}

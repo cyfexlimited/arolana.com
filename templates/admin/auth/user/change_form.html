@@ -1,0 +1,30 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block after_field_sets %}
+{{ block.super }}
+{% if original %}
+<div class="module">
+    <h2>Profile Picture</h2>
+    <div class="form-row">
+        <div style="padding: 12px;">
+            {% if original.profile.avatar %}
+                <img src="{{ original.profile.avatar.url }}" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; margin-bottom: 15px;">
+                <br>
+                <a href="{% url 'admin:avatar_delete' original.id %}" class="button" style="background: #dc2626;">Delete Avatar</a>
+            {% else %}
+                <div style="width: 100px; height: 100px; background: #0066b3; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 40px; margin-bottom: 15px;">
+                    {{ original.username|make_list|first|upper }}
+                </div>
+            {% endif %}
+            
+            <form method="POST" action="{% url 'admin:avatar_upload' original.id %}" enctype="multipart/form-data" style="margin-top: 15px;">
+                {% csrf_token %}
+                <input type="file" name="avatar" accept="image/*" required>
+                <button type="submit" class="button" style="margin-top: 10px;">Upload Avatar</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

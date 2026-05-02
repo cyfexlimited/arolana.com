@@ -77,6 +77,7 @@ class User(AbstractUser, BaseModel):
 
 class UserProfile(BaseModel):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    avatar = models.ImageField(upload_to='avatars/', null=True, blank=True, default='avatars/default.png')
     bio = models.TextField(max_length=500, blank=True)
     birth_date = models.DateField(null=True, blank=True)
     newsletter_subscription = models.BooleanField(default=True)
@@ -90,6 +91,11 @@ class UserProfile(BaseModel):
     company = models.CharField(max_length=100, blank=True)
     social_links = models.JSONField(default=dict, blank=True)
     
+    def get_avatar_url(self):
+        if self.avatar and self.avatar.url:
+            return self.avatar.url
+        return f'https://ui-avatars.com/api/?name={self.user.username}&background=0066b3&color=fff&size=32'
+    
     def __str__(self):
         return f"{self.user.email}'s profile"
 
@@ -99,7 +105,7 @@ class Address(BaseModel):
     address_line2 = models.CharField(max_length=255, blank=True)
     city = models.CharField(max_length=100)
     state = models.CharField(max_length=100)
-    postal_code = models.CharField(max_length=20)
+    postal_code = models.CharField(max_length=100)
     country = CountryField()
     is_default = models.BooleanField(default=False)
     is_billing = models.BooleanField(default=False)
@@ -118,11 +124,6 @@ class Address(BaseModel):
     
     def __str__(self):
         return f"{self.address_line1}, {self.city}"
-    
-    def get_address_type_display(self):
-        """Return display name for address type"""
-        types = {'home': 'Home', 'work': 'Work', 'other': 'Other'}
-        return types.get(self.address_type, 'Home')
 
 class NewsletterSubscriber(BaseModel):
     """Store newsletter subscribers"""
@@ -138,7 +139,7 @@ class NewsletterSubscriber(BaseModel):
     def __str__(self):
         return self.email
 
-class UserOTP(models.Model):
+class UserOTP(BaseModel):
     """OTP for email and phone verification"""
     OTP_TYPES = (
         ('email', 'Email Verification'),

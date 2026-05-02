@@ -7,6 +7,8 @@ from django.shortcuts import render
 from pages.views import page_detail, help_center, faq_page, article_detail, careers_page
 from products import views as products_views
 import currency.views as currency_views
+import core.views as core_views
+from core import admin_views as core_admin_views  # This is the correct import
 
 def home_view(request):
     """Custom home view that ensures request is in template context"""
@@ -18,11 +20,12 @@ def returns_redirect(request, path=None):
     return redirect('returns')
 
 urlpatterns = [
+    path('admin/logo-check/', TemplateView.as_view(template_name='admin/logo_check.html'), name='logo_check'),
     path('', home_view, name='home'),
     path('admin/', admin.site.urls),
     path('newsletter/', include('newsletter.urls')),
     path('accounts/', include('accounts.urls')),
-    path('accounts/', include('allauth.urls')),  # Add allauth URLs for Google OAuth
+    path('accounts/', include('allauth.urls')),
     path('vendors/', include('vendors.urls')),
     path('products/', include('products.urls')),
     path('orders/', include('orders.urls')),
@@ -41,7 +44,7 @@ urlpatterns = [
     path('currency/diagnose/', currency_views.diagnose_currency, name='diagnose_currency'),
     path('reports/', include('reports.urls')),
     path('notifications/', include('notifications.urls')),
-    
+
     # Support Pages
     path('support/', TemplateView.as_view(template_name='support/contact.html'), name='support'),
     path('contact/', TemplateView.as_view(template_name='support/contact.html'), name='contact'),
@@ -60,6 +63,10 @@ urlpatterns = [
     path('help/', help_center, name='help_center'),
     path('faq/', faq_page, name='faq_page'),
     path('article/<slug:slug>/', article_detail, name='article_detail'),
+    path('admin/live-stats/', core_views.live_stats, name='live_stats'),
+    path('admin/upload-logo/', core_admin_views.upload_logo, name='upload_logo'),
+    path('admin/avatar-upload/<int:user_id>/', core_admin_views.upload_user_avatar, name='avatar_upload'),
+    path('admin/avatar-delete/<int:user_id>/', core_admin_views.delete_user_avatar, name='avatar_delete'),
 ]
 
 # CKEditor 5 URLs

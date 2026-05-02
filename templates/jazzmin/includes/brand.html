@@ -1,0 +1,11 @@
+{% load static %}
+{% load jazzmin %}
+{% get_jazzmin_settings as jazzmin_settings %}
+
+<div class="brand-link">
+    <img src="{% static 'admin/images/arolana-logo.png' %}" 
+         alt="{{ jazzmin_settings.site_header }}"
+         class="brand-image img-circle elevation-3"
+         style="opacity: .8; max-height: 33px; width: auto;">
+    <span class="brand-text font-weight-light">{{ jazzmin_settings.site_header }}</span>
+</div>

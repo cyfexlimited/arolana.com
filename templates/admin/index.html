@@ -1,0 +1,797 @@
+{% extends "admin/index.html" %}
+{% load i18n static jazzmin %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    /* Custom header with logo */
+    #header {
+        background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%) !important;
+        padding: 10px 20px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+    }
+    
+    #branding {
+        display: flex !important;
+        align-items: center !important;
+        gap: 15px !important;
+    }
+    
+    #branding img {
+        height: 40px !important;
+        width: auto !important;
+        display: inline-block !important;
+    }
+    
+    #site-name {
+        margin: 0 !important;
+    }
+    
+    #site-name a {
+        color: white !important;
+        font-size: 20px !important;
+        font-weight: 600 !important;
+        text-decoration: none !important;
+    }
+    
+    /* B&H Style Admin Dashboard */
+    .bh-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .bh-stat-card {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .bh-stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+    }
+    
+    .bh-stat-icon {
+        position: absolute;
+        right: 20px;
+        top: 20px;
+        font-size: 48px;
+        opacity: 0.15;
+        transition: all 0.3s ease;
+    }
+    
+    .bh-stat-card:hover .bh-stat-icon {
+        opacity: 0.25;
+        transform: scale(1.1);
+    }
+    
+    .bh-stat-label {
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 600;
+        color: #6b7280;
+        margin-bottom: 8px;
+    }
+    
+    .bh-stat-number {
+        font-size: 36px;
+        font-weight: 800;
+        color: #1f2937;
+        margin-bottom: 4px;
+    }
+    
+    .bh-stat-trend {
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    
+    .trend-up { color: #10b981; }
+    .trend-down { color: #ef4444; }
+    
+    /* Live Indicator */
+    .live-indicator {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        background: #ef4444;
+        border-radius: 50%;
+        animation: pulse 1.5s infinite;
+        margin-left: 8px;
+    }
+    
+    @keyframes pulse {
+        0% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(1.2); }
+        100% { opacity: 1; transform: scale(1); }
+    }
+    
+    /* Quick Actions Grid */
+    .bh-actions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 30px;
+    }
+    
+    .bh-action-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        padding: 20px;
+        color: white;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .bh-action-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        transition: left 0.5s;
+    }
+    
+    .bh-action-card:hover::before {
+        left: 100%;
+    }
+    
+    .bh-action-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);
+    }
+    
+    .bh-action-icon {
+        font-size: 32px;
+        margin-bottom: 12px;
+    }
+    
+    .bh-action-title {
+        font-size: 18px;
+        font-weight: 700;
+        margin-bottom: 4px;
+    }
+    
+    .bh-action-desc {
+        font-size: 12px;
+        opacity: 0.9;
+    }
+    
+    /* App Cards */
+    .bh-app-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 24px;
+        margin-top: 20px;
+    }
+    
+    .bh-app-card {
+        background: white;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        border: 1px solid #e5e7eb;
+    }
+    
+    .bh-app-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 20px -8px rgba(0,0,0,0.15);
+    }
+    
+    .bh-app-header {
+        background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+        padding: 16px 20px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .bh-app-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: #374151;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .bh-app-title i {
+        color: #3b82f6;
+        font-size: 20px;
+    }
+    
+    .bh-app-count {
+        background: #3b82f6;
+        color: white;
+        border-radius: 20px;
+        padding: 2px 8px;
+        font-size: 11px;
+        margin-left: 8px;
+    }
+    
+    .bh-app-body {
+        padding: 8px 0;
+    }
+    
+    .bh-model-item {
+        padding: 12px 20px;
+        border-bottom: 1px solid #f3f4f6;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: background 0.2s;
+    }
+    
+    .bh-model-item:hover {
+        background: #f9fafb;
+    }
+    
+    .bh-model-name {
+        font-weight: 500;
+        color: #4b5563;
+    }
+    
+    .bh-model-name i {
+        width: 24px;
+        color: #9ca3af;
+        margin-right: 8px;
+    }
+    
+    .bh-model-actions {
+        display: flex;
+        gap: 8px;
+    }
+    
+    .bh-model-actions a {
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 12px;
+        transition: all 0.2s;
+    }
+    
+    .bh-model-actions .bh-add {
+        background: #10b981;
+        color: white;
+    }
+    
+    .bh-model-actions .bh-add:hover {
+        background: #059669;
+    }
+    
+    .bh-model-actions .bh-edit {
+        background: #3b82f6;
+        color: white;
+    }
+    
+    .bh-model-actions .bh-edit:hover {
+        background: #2563eb;
+    }
+    
+    /* Section Header */
+    .bh-section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 30px 0 20px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #e5e7eb;
+    }
+    
+    .bh-section-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: #1f2937;
+    }
+    
+    .bh-section-link {
+        color: #3b82f6;
+        font-size: 14px;
+        text-decoration: none;
+    }
+    
+    .bh-section-link:hover {
+        text-decoration: underline;
+    }
+    
+    /* Recent Activity */
+    .bh-activity-list {
+        background: white;
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
+        overflow: hidden;
+    }
+    
+    .bh-activity-item {
+        padding: 16px 20px;
+        border-bottom: 1px solid #f3f4f6;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        transition: background 0.2s;
+    }
+    
+    .bh-activity-item:hover {
+        background: #f9fafb;
+    }
+    
+    .bh-activity-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+    }
+    
+    .bh-activity-content {
+        flex: 1;
+    }
+    
+    .bh-activity-title {
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 4px;
+    }
+    
+    .bh-activity-time {
+        font-size: 12px;
+        color: #9ca3af;
+    }
+    
+    /* Welcome Banner */
+    .bh-welcome {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 16px;
+        padding: 30px;
+        color: white;
+        margin-bottom: 30px;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .bh-welcome h2 {
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+    
+    .bh-welcome p {
+        opacity: 0.9;
+        margin-bottom: 0;
+    }
+    
+    .bh-welcome-icon {
+        position: absolute;
+        right: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 80px;
+        opacity: 0.15;
+    }
+    
+    /* Refreshing Animation */
+    @keyframes refreshPulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.7; background: #e0f2fe; }
+        100% { opacity: 1; }
+    }
+    
+    .refreshing {
+        animation: refreshPulse 0.5s ease-out;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .bh-stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .bh-app-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .bh-actions-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block branding %}
+<div id="branding">
+    <img src="{% static 'admin/images/arolana-logo.png' %}" alt="Arolana Logo">
+    <h1 id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:_('Arolana Administration') }}</a></h1>
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <!-- Live Statistics Badge -->
+    <div style="text-align: right; margin-bottom: 15px;">
+        <span style="background: #1f2937; color: white; padding: 6px 12px; border-radius: 20px; font-size: 12px;">
+            <span class="live-indicator"></span> LIVE STATISTICS • Auto-refreshes every 30 seconds
+        </span>
+    </div>
+    
+    <!-- B&H Style Welcome Banner -->
+    <div class="bh-welcome">
+        <h2>Welcome back, {{ request.user.get_full_name|default:request.user.username }}!</h2>
+        <p>Here's what's happening with your store today.</p>
+        <div class="bh-welcome-icon">
+            <i class="fas fa-chart-line"></i>
+        </div>
+    </div>
+    
+    <!-- Stats Cards -->
+    <div class="bh-stats-grid" id="stats-container">
+        <div class="bh-stat-card">
+            <div class="bh-stat-icon"><i class="fas fa-users"></i></div>
+            <div class="bh-stat-label">Total Users</div>
+            <div class="bh-stat-number" id="stat-total-users">{{ admin_stats.total_users|default:"0" }}</div>
+            <div class="bh-stat-trend trend-up" id="trend-users">
+                <i class="fas fa-arrow-up"></i> <span id="trend-users-percent">0</span>% this month
+            </div>
+        </div>
+        
+        <div class="bh-stat-card">
+            <div class="bh-stat-icon"><i class="fas fa-box"></i></div>
+            <div class="bh-stat-label">Total Products</div>
+            <div class="bh-stat-number" id="stat-total-products">{{ admin_stats.total_products|default:"0" }}</div>
+            <div class="bh-stat-trend trend-up" id="trend-products">
+                <i class="fas fa-arrow-up"></i> <span id="trend-products-percent">0</span>% this month
+            </div>
+        </div>
+        
+        <div class="bh-stat-card">
+            <div class="bh-stat-icon"><i class="fas fa-shopping-cart"></i></div>
+            <div class="bh-stat-label">Total Orders</div>
+            <div class="bh-stat-number" id="stat-total-orders">{{ admin_stats.total_orders|default:"0" }}</div>
+            <div class="bh-stat-trend trend-up" id="trend-orders">
+                <i class="fas fa-arrow-up"></i> <span id="trend-orders-percent">0</span>% this month
+            </div>
+        </div>
+        
+        <div class="bh-stat-card">
+            <div class="bh-stat-icon"><i class="fas fa-clock"></i></div>
+            <div class="bh-stat-label">Pending Orders</div>
+            <div class="bh-stat-number" id="stat-pending-orders">{{ admin_stats.pending_orders|default:"0" }}</div>
+            <div class="bh-stat-trend trend-down" id="trend-pending">
+                <i class="fas fa-arrow-down"></i> <span id="trend-pending-percent">0</span>% this month
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Actions Grid -->
+    <div class="bh-actions-grid">
+        <div class="bh-action-card" onclick="window.location.href='/admin/products/product/add/'">
+            <div class="bh-action-icon"><i class="fas fa-plus-circle"></i></div>
+            <div class="bh-action-title">Add Product</div>
+            <div class="bh-action-desc">Create a new product listing</div>
+        </div>
+        
+        <div class="bh-action-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);" onclick="window.location.href='/admin/orders/order/add/'">
+            <div class="bh-action-icon"><i class="fas fa-shopping-cart"></i></div>
+            <div class="bh-action-title">New Order</div>
+            <div class="bh-action-desc">Create a manual order</div>
+        </div>
+        
+        <div class="bh-action-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);" onclick="window.location.href='/admin/accounts/user/add/'">
+            <div class="bh-action-icon"><i class="fas fa-user-plus"></i></div>
+            <div class="bh-action-title">Add User</div>
+            <div class="bh-action-desc">Create a new user account</div>
+        </div>
+        
+        <div class="bh-action-card" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);" onclick="window.location.href='/admin/vendors/vendorprofile/add/'">
+            <div class="bh-action-icon"><i class="fas fa-store"></i></div>
+            <div class="bh-action-title">Add Vendor</div>
+            <div class="bh-action-desc">Register a new vendor</div>
+        </div>
+    </div>
+    
+    <!-- Main Dashboard Content -->
+    <div class="row">
+        <!-- Left Column - Applications -->
+        <div class="col-md-8">
+            <div class="bh-section-header">
+                <h3 class="bh-section-title">Applications</h3>
+                <a href="#" class="bh-section-link">View All →</a>
+            </div>
+            
+            <div class="bh-app-grid">
+                {% for app in app_list %}
+                    {% if app.name in "Accounts,Products,Orders,Vendors,Blog,Chat,Notifications,Homepage" %}
+                    <div class="bh-app-card">
+                        <div class="bh-app-header">
+                            <div class="bh-app-title">
+                                <i class="fas {% if app.name == 'Accounts' %}fa-users{% elif app.name == 'Products' %}fa-box{% elif app.name == 'Orders' %}fa-shopping-cart{% elif app.name == 'Vendors' %}fa-store{% else %}fa-folder{% endif %}"></i>
+                                {{ app.name }}
+                                <span class="bh-app-count">{{ app.models|length }}</span>
+                            </div>
+                        </div>
+                        <div class="bh-app-body">
+                            {% for model in app.models %}
+                            <div class="bh-model-item">
+                                <div class="bh-model-name">
+                                    <i class="fas fa-{{ model.object_name|lower }}"></i>
+                                    {{ model.name }}
+                                </div>
+                                <div class="bh-model-actions">
+                                    <a href="{{ model.admin_url }}" class="bh-edit">Edit</a>
+                                    <a href="{{ model.add_url }}" class="bh-add">Add</a>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Right Column - Recent Activity & Stats -->
+        <div class="col-md-4">
+            <!-- Live Revenue Chart -->
+            <div class="bh-section-header">
+                <h3 class="bh-section-title">Revenue Overview (30 Days)</h3>
+                <span class="live-indicator"></span>
+            </div>
+            <div class="bh-activity-list" style="padding: 20px;">
+                <canvas id="revenue-chart" height="200"></canvas>
+            </div>
+            
+            <!-- Recent Orders -->
+            <div class="bh-section-header">
+                <h3 class="bh-section-title">Recent Orders</h3>
+                <a href="/admin/orders/order/" class="bh-section-link">View All →</a>
+            </div>
+            
+            <div class="bh-activity-list" id="recent-orders-list">
+                {% for order in latest_orders %}
+                <div class="bh-activity-item">
+                    <div class="bh-activity-icon" style="background: #e0f2fe; color: #0284c7;">
+                        <i class="fas fa-shopping-cart"></i>
+                    </div>
+                    <div class="bh-activity-content">
+                        <div class="bh-activity-title">Order #{{ order.id }}</div>
+                        <div class="bh-activity-time">{{ order.created_at|timesince }} ago • {{ order.status|title }}</div>
+                    </div>
+                    <div style="font-weight: 600;">${{ order.total }}</div>
+                </div>
+                {% empty %}
+                <div class="bh-activity-item">
+                    <div class="bh-activity-content">No recent orders</div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Recent Users -->
+            <div class="bh-section-header">
+                <h3 class="bh-section-title">New Users</h3>
+                <a href="/admin/accounts/user/" class="bh-section-link">View All →</a>
+            </div>
+            
+            <div class="bh-activity-list" id="recent-users-list">
+                {% for user in latest_users %}
+                <div class="bh-activity-item">
+                    <div class="bh-activity-icon" style="background: #dcfce7; color: #16a34a;">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="bh-activity-content">
+                        <div class="bh-activity-title">{{ user.username }}</div>
+                        <div class="bh-activity-time">Joined {{ user.date_joined|timesince }} ago</div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="bh-activity-item">
+                    <div class="bh-activity-content">No new users</div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Recent Products -->
+            <div class="bh-section-header">
+                <h3 class="bh-section-title">Recent Products</h3>
+                <a href="/admin/products/product/" class="bh-section-link">View All →</a>
+            </div>
+            
+            <div class="bh-activity-list" id="recent-products-list">
+                {% for product in latest_products %}
+                <div class="bh-activity-item">
+                    <div class="bh-activity-icon" style="background: #fef3c7; color: #d97706;">
+                        <i class="fas fa-box"></i>
+                    </div>
+                    <div class="bh-activity-content">
+                        <div class="bh-activity-title">{{ product.name|truncatechars:30 }}</div>
+                        <div class="bh-activity-time">Added {{ product.created_at|timesince }} ago</div>
+                    </div>
+                    <div style="font-weight: 600;">${{ product.price }}</div>
+                </div>
+                {% empty %}
+                <div class="bh-activity-item">
+                    <div class="bh-activity-content">No recent products</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let revenueChart = null;
+
+// Initialize chart
+function initChart(labels, data) {
+    const ctx = document.getElementById('revenue-chart').getContext('2d');
+    revenueChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Daily Revenue ($)',
+                data: data,
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59,130,246,0.1)',
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: '#3b82f6',
+                pointBorderColor: 'white',
+                pointBorderWidth: 2,
+                pointRadius: 3,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return '$' + context.raw.toFixed(2);
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Calculate trend percentage
+function calculateTrend(current, previous) {
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return ((current - previous) / previous * 100).toFixed(1);
+}
+
+// Update live statistics
+async function updateLiveStats() {
+    try {
+        const response = await fetch('/admin/live-stats/');
+        const data = await response.json();
+        
+        // Animate number changes
+        animateNumber('stat-total-users', data.total_users);
+        animateNumber('stat-total-products', data.total_products);
+        animateNumber('stat-total-orders', data.total_orders);
+        animateNumber('stat-pending-orders', data.pending_orders);
+        
+        // Update trend percentages
+        document.getElementById('trend-users-percent').textContent = calculateTrend(data.total_users, data.prev_total_users);
+        document.getElementById('trend-products-percent').textContent = calculateTrend(data.total_products, data.prev_total_products);
+        document.getElementById('trend-orders-percent').textContent = calculateTrend(data.total_orders, data.prev_total_orders);
+        document.getElementById('trend-pending-percent').textContent = calculateTrend(data.pending_orders, data.prev_pending_orders);
+        
+        // Update recent lists
+        updateRecentList('recent-orders-list', data.recent_orders, 'order');
+        updateRecentList('recent-users-list', data.recent_users, 'user');
+        updateRecentList('recent-products-list', data.recent_products, 'product');
+        
+        // Update chart
+        if (revenueChart) {
+            revenueChart.data.labels = data.chart_labels;
+            revenueChart.data.datasets[0].data = data.chart_data;
+            revenueChart.update();
+        }
+        
+        // Add refresh animation
+        document.querySelectorAll('.bh-stat-card').forEach(card => {
+            card.classList.add('refreshing');
+            setTimeout(() => card.classList.remove('refreshing'), 500);
+        });
+    } catch (error) {
+        console.error('Error updating live stats:', error);
+    }
+}
+
+function animateNumber(elementId, newValue) {
+    const element = document.getElementById(elementId);
+    const currentValue = parseInt(element.textContent) || 0;
+    const diff = newValue - currentValue;
+    const duration = 500;
+    const startTime = performance.now();
+    
+    function update(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const value = Math.floor(currentValue + diff * progress);
+        element.textContent = value;
+        
+        if (progress < 1) {
+            requestAnimationFrame(update);
+        }
+    }
+    
+    requestAnimationFrame(update);
+}
+
+function updateRecentList(containerId, items, type) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    if (items.length === 0) {
+        container.innerHTML = '<div class="bh-activity-item"><div class="bh-activity-content">No recent items</div></div>';
+        return;
+    }
+    
+    const icons = {
+        order: { bg: '#e0f2fe', color: '#0284c7', icon: 'fa-shopping-cart' },
+        user: { bg: '#dcfce7', color: '#16a34a', icon: 'fa-user' },
+        product: { bg: '#fef3c7', color: '#d97706', icon: 'fa-box' }
+    };
+    
+    const iconStyle = icons[type];
+    
+    container.innerHTML = items.map(item => `
+        <div class="bh-activity-item">
+            <div class="bh-activity-icon" style="background: ${iconStyle.bg}; color: ${iconStyle.color};">
+                <i class="fas ${iconStyle.icon}"></i>
+            </div>
+            <div class="bh-activity-content">
+                <div class="bh-activity-title">${item.title}</div>
+                <div class="bh-activity-time">${item.time_ago}</div>
+            </div>
+            ${item.amount ? `<div style="font-weight: 600;">$${item.amount}</div>` : ''}
+        </div>
+    `).join('');
+}
+
+// Initialize chart with data
+document.addEventListener('DOMContentLoaded', function() {
+    {% if chart_labels and chart_data %}
+    initChart({{ chart_labels|safe }}, {{ chart_data|safe }});
+    {% else %}
+    initChart([], []);
+    {% endif %}
+    
+    // Start live updates
+    updateLiveStats();
+    setInterval(updateLiveStats, 30000);
+});
+</script>
+{% endblock %}

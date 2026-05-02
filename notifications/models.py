@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from core.models import BaseModel
 
 User = get_user_model()
@@ -14,6 +15,7 @@ class Notification(BaseModel):
         ('message', 'New Message'),
         ('review', 'New Review'),
         ('follow', 'New Follower'),
+        ('vendor', 'Vendor Update'),
         ('system', 'System Alert'),
     ]
     
@@ -49,6 +51,11 @@ class UserNotificationSettings(BaseModel):
     login_alerts = models.BooleanField(default=True)
     order_updates = models.BooleanField(default=True)
     marketing_emails = models.BooleanField(default=False)
+    vendor_alerts = models.BooleanField(default=True)
+    
+    class Meta:
+        verbose_name = 'User Notification Setting'
+        verbose_name_plural = 'User Notification Settings'
     
     def __str__(self):
         return f"Settings for {self.user.username}"

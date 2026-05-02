@@ -1,0 +1,98 @@
+{% extends 'base/base.html' %}
+
+{% block content %}
+<div class="bg-white rounded-lg shadow-md p-6">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold">
+                <i class="fas fa-cog mr-2"></i> Notification Settings
+            </h1>
+            <p class="text-gray-600 text-sm mt-1">Manage how you receive notifications</p>
+        </div>
+        <a href="{% url 'notifications:list' %}" class="text-blue-600 hover:text-blue-700">
+            <i class="fas fa-arrow-left mr-1"></i> Back to Notifications
+        </a>
+    </div>
+    
+    <form method="POST">
+        {% csrf_token %}
+        
+        <div class="space-y-4">
+            <div class="flex items-center justify-between py-3 border-b">
+                <div>
+                    <h3 class="font-semibold">Email Notifications</h3>
+                    <p class="text-sm text-gray-500">Receive notifications via email</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" name="email_notifications" class="sr-only peer" {% if settings.email_notifications %}checked{% endif %}>
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+            
+            <div class="flex items-center justify-between py-3 border-b">
+                <div>
+                    <h3 class="font-semibold">Push Notifications</h3>
+                    <p class="text-sm text-gray-500">Receive browser push notifications</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" name="push_notifications" class="sr-only peer" {% if settings.push_notifications %}checked{% endif %}>
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+            
+            <div class="flex items-center justify-between py-3 border-b">
+                <div>
+                    <h3 class="font-semibold">Login Alerts</h3>
+                    <p class="text-sm text-gray-500">Get notified when you log in from a new device</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" name="login_alerts" class="sr-only peer" {% if settings.login_alerts %}checked{% endif %}>
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+            
+            <div class="flex items-center justify-between py-3 border-b">
+                <div>
+                    <h3 class="font-semibold">Order Updates</h3>
+                    <p class="text-sm text-gray-500">Get updates about your orders</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" name="order_updates" class="sr-only peer" {% if settings.order_updates %}checked{% endif %}>
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+            
+            <div class="flex items-center justify-between py-3 border-b">
+                <div>
+                    <h3 class="font-semibold">Vendor Alerts</h3>
+                    <p class="text-sm text-gray-500">Receive alerts about vendor activities</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" name="vendor_alerts" class="sr-only peer" {% if settings.vendor_alerts %}checked{% endif %}>
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+            
+            <div class="flex items-center justify-between py-3 border-b">
+                <div>
+                    <h3 class="font-semibold">Marketing Emails</h3>
+                    <p class="text-sm text-gray-500">Receive promotional offers and updates</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" name="marketing_emails" class="sr-only peer" {% if settings.marketing_emails %}checked{% endif %}>
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+        </div>
+        
+        <div class="mt-8 flex gap-3">
+            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
+                Save Settings
+            </button>
+            <a href="{% url 'notifications:list' %}" class="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

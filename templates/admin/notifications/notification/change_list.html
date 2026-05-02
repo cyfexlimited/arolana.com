@@ -1,0 +1,16 @@
+{% extends "admin/change_list.html" %}
+
+{% block object-tools %}
+    <ul class="object-tools">
+        {% block object-tools-items %}
+            <li>
+                <a href="{% url 'notifications:list' %}" 
+                   class="addlink" 
+                   style="background: #3b82f6; padding: 8px 16px; border-radius: 4px; color: white; text-decoration: none;">
+                    🔔 View All Notifications
+                </a>
+            </li>
+            {{ block.super }}
+        {% endblock %}
+    </ul>
+{% endblock %}

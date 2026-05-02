@@ -3,6 +3,7 @@ from products.models import Category, Product
 from vendors.models import VendorProfile
 from manufacturers.models import Manufacturer, ManufacturerCategory
 import random
+from notifications.models import Notification
 
 def global_context(request):
     # Get or create site settings
@@ -43,3 +44,13 @@ def global_context(request):
         'manufacturer_categories': manufacturer_categories,
         'featured_manufacturers': featured_manufacturers,
     }
+
+def admin_notifications(request):
+    """Context processor for admin notifications"""
+    if request.user.is_authenticated and request.user.is_staff:
+        notifications = Notification.objects.filter(user=request.user)[:10]
+        return {
+            'recent_notifications': notifications,
+            'admin_notification_count': Notification.objects.filter(user=request.user, is_read=False).count(),
+        }
+    return {}

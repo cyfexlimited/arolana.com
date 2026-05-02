@@ -1,6 +1,464 @@
 {% extends "admin/base.html" %}
+{% load i18n static jazzmin %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Arolana Admin') }}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    /* B&H Style Admin Header */
+    :root {
+        --bh-primary: #0066b3;
+        --bh-secondary: #1a1a1a;
+        --bh-accent: #ff6b00;
+        --bh-gray: #f5f5f5;
+    }
+    
+    /* Header Styling */
+    #header {
+        background: linear-gradient(135deg, var(--bh-secondary) 0%, #2d2d2d 100%);
+        padding: 0;
+        height: 70px;
+        border-bottom: 3px solid var(--bh-primary);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    #branding h1 {
+        margin: 0;
+        padding: 0;
+        line-height: 70px;
+    }
+    
+    /* Image Logo Styling */
+    .image-logo {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-decoration: none;
+        height: 100%;
+    }
+    
+    .image-logo-img {
+        height: 45px;
+        width: auto;
+        max-height: 45px;
+        display: block;
+    }
+    
+    /* User Tools */
+    #user-tools {
+        position: absolute;
+        top: 0;
+        right: 0;
+        padding: 0 20px;
+        height: 70px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        color: #e0e0e0;
+        font-size: 13px;
+    }
+    
+    #user-tools a {
+        color: white;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 12px;
+        border-radius: 6px;
+        background: rgba(255,255,255,0.1);
+    }
+    
+    #user-tools a:hover {
+        background: var(--bh-primary);
+        transform: translateY(-2px);
+    }
+    
+    /* Welcome Text Styling */
+    .welcome-text {
+        color: var(--bh-primary);
+        font-weight: 600;
+    }
+    
+    /* Sidebar Styling */
+    #nav-sidebar {
+        background: linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%);
+        border-right: 1px solid #e5e7eb;
+    }
+    
+    .module caption {
+        background: linear-gradient(135deg, var(--bh-primary) 0%, #004d99 100%);
+        color: white;
+        padding: 10px 15px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+    
+    /* Module Styling */
+    .module {
+        border: none;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    
+    .module table {
+        border-radius: 12px;
+    }
+    
+    /* Buttons */
+    .button, input[type=submit], input[type=button], .submit-row input {
+        background: var(--bh-primary);
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    
+    .button:hover, input[type=submit]:hover {
+        background: var(--bh-accent);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    /* Search Bar */
+    #searchbar {
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 8px 12px;
+        transition: all 0.3s ease;
+    }
+    
+    #searchbar:focus {
+        border-color: var(--bh-primary);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(0,102,179,0.1);
+    }
+    
+    /* Dashboard Widgets */
+    .dashboard .module table th {
+        background: #f8f9fa;
+        font-weight: 600;
+    }
+    
+    .dashboard .module table td {
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    /* Breadcrumbs */
+    div.breadcrumbs {
+        background: linear-gradient(90deg, #f8f9fa 0%, #ffffff 100%);
+        border-bottom: 1px solid #e5e7eb;
+        padding: 12px 20px;
+        color: #4b5563;
+    }
+    
+    div.breadcrumbs a {
+        color: var(--bh-primary);
+    }
+    
+    /* Footer */
+    #footer {
+        background: #1a1a1a;
+        color: #9ca3af;
+        padding: 20px;
+        text-align: center;
+        margin-top: 40px;
+    }
+    
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+        background: var(--bh-primary);
+        border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--bh-accent);
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .image-logo-img {
+            height: 35px;
+        }
+        #user-tools {
+            position: static;
+            justify-content: flex-end;
+            height: auto;
+            padding: 10px;
+        }
+        #header {
+            height: auto;
+            flex-direction: column;
+        }
+    }
+    
+    /* Animations */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .module {
+        animation: fadeIn 0.3s ease-out;
+    }
+    
+    /* B&H Style Badges */
+    .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+    
+    .badge-success {
+        background: #10b981;
+        color: white;
+    }
+    
+    .badge-warning {
+        background: #f59e0b;
+        color: white;
+    }
+    
+    .badge-danger {
+        background: #ef4444;
+        color: white;
+    }
+    
+    /* Table Actions */
+    .object-tools a {
+        background: var(--bh-primary) !important;
+        border-radius: 6px !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .object-tools a:hover {
+        background: var(--bh-accent) !important;
+        transform: translateY(-1px);
+    }
+    
+    /* Submit Row */
+    .submit-row {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 12px;
+    }
+    
+    /* Alert Messages */
+    .messagelist li {
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 10px;
+    }
+    
+    .success {
+        background: #d1fae5;
+        color: #065f46;
+        border-left: 4px solid #10b981;
+    }
+    
+    .error {
+        background: #fee2e2;
+        color: #991b1b;
+        border-left: 4px solid #ef4444;
+    }
+    
+    /* Loading Spinner */
+    .loading-spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(0,102,179,0.3);
+        border-radius: 50%;
+        border-top-color: var(--bh-primary);
+        animation: spin 0.6s linear infinite;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    
+    /* Custom User Avatar Styles */
+    .user-avatar-container {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .user-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid #0066b3;
+    }
+    .user-info {
+        display: flex;
+        flex-direction: column;
+    }
+    .user-name {
+        font-weight: 600;
+        color: white;
+    }
+    .user-role {
+        font-size: 11px;
+        color: #9ca3af;
+    }
+</style>
+<link rel="icon" type="image/x-icon" href="{% static 'admin/images/favicon.ico' %}">
+{% endblock %}
+
+{% block branding %}
+<div id="branding" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <h1 id="site-name">
+        <a href="{% url 'admin:index' %}" class="image-logo">
+            <img src="{% static 'admin/images/arolana-logo.png' %}" alt="Arolana Logo" class="image-logo-img">
+        </a>
+    </h1>
+    
+    <!-- Quick Stats Widget -->
+    <div style="display: flex; gap: 15px; align-items: center;">
+        <div style="display: flex; gap: 8px;">
+            <span style="font-size: 12px; color: #9ca3af;">Today:</span>
+            <span style="font-weight: 600; color: white;">{{ today_orders|default:"0" }} orders</span>
+        </div>
+        <div style="width: 1px; height: 30px; background: #374151;"></div>
+        <div style="display: flex; gap: 8px;">
+            <i class="fas fa-chart-line" style="color: var(--bh-primary);"></i>
+            <span style="font-weight: 600; color: white;">{{ total_revenue|default:"$0" }}</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block nav-global %}
+<!-- Rest of your existing nav-global block remains the same -->
+<div style="background: #f8f9fa; border-bottom: 1px solid #e5e7eb; padding: 0 20px;">
+    <div style="max-width: 1200px; margin: 0 auto; display: flex; gap: 30px;">
+        <a href="/admin/" style="padding: 12px 0; color: #4b5563; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.3s;">
+            <i class="fas fa-tachometer-alt"></i> Dashboard
+        </a>
+        <a href="/admin/orders/order/" style="padding: 12px 0; color: #4b5563; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.3s;">
+            <i class="fas fa-shopping-cart"></i> Orders
+        </a>
+        <a href="/admin/products/product/" style="padding: 12px 0; color: #4b5563; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.3s;">
+            <i class="fas fa-box"></i> Products
+        </a>
+        <a href="/admin/accounts/user/" style="padding: 12px 0; color: #4b5563; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.3s;">
+            <i class="fas fa-users"></i> Customers
+        </a>
+        <a href="/admin/vendors/vendorprofile/" style="padding: 12px 0; color: #4b5563; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.3s;">
+            <i class="fas fa-store"></i> Vendors
+        </a>
+        <a href="/admin/blog/blogpost/" style="padding: 12px 0; color: #4b5563; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.3s;">
+            <i class="fas fa-blog"></i> Blog
+        </a>
+    </div>
+</div>
+{% endblock %}
 
 {% block userlinks %}
-    <a href="/admin/blog/newslettersubscriber/" style="margin-right: 15px;">📧 Newsletter Subscribers</a>
-    {{ block.super }}
+<div class="user-avatar-container">
+    {% if request.user.profile.avatar %}
+        <img src="{{ request.user.profile.avatar.url }}" class="user-avatar" alt="{{ request.user.username }}">
+    {% else %}
+        <img src="https://ui-avatars.com/api/?name={{ request.user.username }}&background=0066b3&color=fff&size=36" class="user-avatar" alt="{{ request.user.username }}">
+    {% endif %}
+    <div class="user-info">
+        <span class="user-name">{{ request.user.get_full_name|default:request.user.username }}</span>
+        <span class="user-role">Administrator</span>
+    </div>
+</div>
+
+<!-- Notification Bell -->
+<div style="position: relative;">
+    <a href="/notifications/" style="background: none; padding: 0;">
+        <i class="fas fa-bell" style="font-size: 18px;"></i>
+        <span id="notification-badge" style="position: absolute; top: -5px; right: -10px; background: #ef4444; color: white; border-radius: 50%; width: 16px; height: 16px; font-size: 10px; display: flex; align-items: center; justify-content: center;"></span>
+    </a>
+</div>
+
+<!-- User Links -->
+<div style="display: flex; gap: 8px;">
+    {% if site_url %}
+        <a href="{{ site_url }}" style="background: rgba(255,255,255,0.1);">
+            <i class="fas fa-external-link-alt"></i> View Site
+        </a>
+    {% endif %}
+    {% if user.has_usable_password %}
+        <a href="{% url 'admin:password_change' %}">
+            <i class="fas fa-key"></i> Change Password
+        </a>
+    {% endif %}
+    <a href="{% url 'admin:logout' %}">
+        <i class="fas fa-sign-out-alt"></i> Log Out
+    </a>
+</div>
+
+<script>
+// Update notification badge
+function updateNotificationCount() {
+    fetch('/notifications/unread-count/')
+        .then(r => r.json())
+        .then(data => {
+            const badge = document.getElementById('notification-badge');
+            if (badge && data.unread_count > 0) {
+                badge.textContent = data.unread_count > 9 ? '9+' : data.unread_count;
+                badge.style.display = 'flex';
+            } else if (badge) {
+                badge.style.display = 'none';
+            }
+        })
+        .catch(() => {});
+}
+
+// Update every 30 seconds
+setInterval(updateNotificationCount, 30000);
+updateNotificationCount();
+</script>
+{% endblock %}
+
+{% block footer %}
+<div id="footer">
+    <div style="max-width: 1200px; margin: 0 auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+            <div>
+                <i class="fas fa-copyright"></i> 2018 Arolana.com - All rights reserved.
+            </div>
+            <div style="display: flex; gap: 20px;">
+                <a href="https://facebook.com/arolana" target="_blank" rel="noopener noreferrer" style="color: #9ca3af; text-decoration: none; transition: color 0.3s;" onmouseover="this.style.color='#1877f2'" onmouseout="this.style.color='#9ca3af'">
+                    <i class="fab fa-facebook-f"></i>
+                </a>
+                <a href="https://twitter.com/arolana" target="_blank" rel="noopener noreferrer" style="color: #9ca3af; text-decoration: none; transition: color 0.3s;" onmouseover="this.style.color='#1da1f2'" onmouseout="this.style.color='#9ca3af'">
+                    <i class="fab fa-twitter"></i>
+                </a>
+                <a href="https://instagram.com/arolana" target="_blank" rel="noopener noreferrer" style="color: #9ca3af; text-decoration: none; transition: color 0.3s;" onmouseover="this.style.color='#e4405f'" onmouseout="this.style.color='#9ca3af'">
+                    <i class="fab fa-instagram"></i>
+                </a>
+                <a href="https://linkedin.com/company/arolana" target="_blank" rel="noopener noreferrer" style="color: #9ca3af; text-decoration: none; transition: color 0.3s;" onmouseover="this.style.color='#0077b5'" onmouseout="this.style.color='#9ca3af'">
+                    <i class="fab fa-linkedin-in"></i>
+                </a>
+                <a href="https://youtube.com/arolana" target="_blank" rel="noopener noreferrer" style="color: #9ca3af; text-decoration: none; transition: color 0.3s;" onmouseover="this.style.color='#ff0000'" onmouseout="this.style.color='#9ca3af'">
+                    <i class="fab fa-youtube"></i>
+                </a>
+            </div>
+            <div>
+                <span style="color: #6b7280;">Arolana Admin Interface</span>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
