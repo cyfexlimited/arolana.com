@@ -44,6 +44,7 @@ urlpatterns = [
     path('currency/diagnose/', currency_views.diagnose_currency, name='diagnose_currency'),
     path('reports/', include('reports.urls')),
     path('notifications/', include('notifications.urls')),
+    
 
     # Support Pages
     path('support/', TemplateView.as_view(template_name='support/contact.html'), name='support'),
