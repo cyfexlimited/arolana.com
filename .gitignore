@@ -9,17 +9,6 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-*.egg-info/
-*.egg
-dist/
-build/
-eggs/
-.eggs/
-parts/
-sdist/
-var/
-wheels/
-*.whl
 
 # Django
 *.log
@@ -30,16 +19,12 @@ db.sqlite3
 db.sqlite3-journal
 media/
 staticfiles/
-static/CACHE/
-static/admin/
-arolana_config/settings_local.py
+static/
 
 # Environment variables
 .env
 .env.local
-.env.production
-.env.development
-*.env
+.env.*.local
 
 # IDE
 .vscode/
@@ -48,99 +33,9 @@ arolana_config/settings_local.py
 *.swo
 *~
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
 
-# Testing
-.coverage
-htmlcov/
-.tox/
-.pytest_cache/
-.cache/
-coverage.xml
-*.cover
-.hypothesis/
-
-# Logs
-logs/
-*.log
-error_logs/
-
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
-# Media files
-media/
-uploads/
-*.jpg
-*.jpeg
-*.png
-*.gif
-*.mp4
-*.mp3
-*.webm
-
-# Cache
-celerybeat-schedule
-celerybeat.pid
-*.pid
-*.pid3
-*.pid4
-
-# Virtual Environment
-venv/
-env/
-ENV/
-env.bak/
-venv.bak/
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# pytype static type analyzer
-.pytype/
-
-# Cython debug symbols
-cython_debug/
-
-# Django migrations (optional - uncomment if you want to exclude)
-# */migrations/0*.py
-# */migrations/00*.py
-# */migrations/__pycache__/
-
-# Secret files
-*.pem
+# Security
 *.key
+*.pem
 *.crt
-secret_key.txt
-
-# Backup files
-*.backup
-*.bak
-*.old
-*.orig
-
-# OS files
-Thumbs.db
-Desktop.ini
-.DS_Store
-*.DS_Store
-
-# Project specific
-email_log.txt
-test*.py
-temp/
-tmp/
-sent_emails/
-arolana/static/
-arolana/media/
+secrets/

@@ -1,0 +1,123 @@
+{% load static %}
+{% load currency_filters %}
+
+<div class="quick-view-content">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Product Image -->
+        <div class="flex items-center justify-center bg-gray-100 rounded-lg p-4">
+            {% if product.main_image %}
+                <img src="{{ product.main_image.url }}" alt="{{ product.name }}" class="max-h-96 object-cover rounded-lg">
+            {% else %}
+                <div class="text-gray-500 text-center py-12">
+                    <i class="fas fa-image text-4xl mb-2"></i>
+                    <p>No image available</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Product Info -->
+        <div class="p-4">
+            <!-- Brand/Category -->
+            <div class="text-xs text-gray-500 mb-1">
+                {{ product.brand.name|default:product.category.name }}
+            </div>
+            
+            <!-- Product Name -->
+            <h2 class="text-2xl font-bold mb-2">{{ product.name }}</h2>
+            <div class="text-sm text-gray-500 mb-4">SKU: {{ product.sku }}</div>
+            
+            <!-- Rating -->
+            <div class="flex items-center gap-2 mb-4">
+                <div class="flex text-yellow-400">
+                    {% for i in "12345"|make_list %}
+                        {% if forloop.counter <= product.rating_avg|add:"0" %}
+                            <i class="fas fa-star"></i>
+                        {% elif forloop.counter <= product.rating_avg|add:"0.5" %}
+                            <i class="fas fa-star-half-alt"></i>
+                        {% else %}
+                            <i class="far fa-star"></i>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                <span class="text-sm text-gray-500">({{ product.rating_count }} reviews)</span>
+            </div>
+
+            <!-- Price -->
+            <div class="mb-4">
+                <span class="text-3xl font-bold text-blue-600">{{ product.price|currency:request }}</span>
+                {% if product.compare_price and product.compare_price > product.price %}
+                    <span class="text-gray-400 line-through ml-2">{{ product.compare_price|currency:request }}</span>
+                    <span class="text-green-600 text-sm ml-2">-{{ product.discount_percent }}%</span>
+                {% endif %}
+            </div>
+
+            <!-- Description -->
+            <div class="text-sm text-gray-600 mb-4">
+                {{ product.description|striptags|truncatewords:30 }}
+            </div>
+
+            <!-- Stock Status -->
+            <div class="mb-4">
+                {% if product.is_in_stock %}
+                    <span class="text-green-600 font-semibold"><i class="fas fa-check-circle"></i> In Stock ({{ product.stock_quantity }} available)</span>
+                {% else %}
+                    <span class="text-red-600 font-semibold"><i class="fas fa-times-circle"></i> Out of Stock</span>
+                {% endif %}
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-3">
+                <a href="{{ product.get_absolute_url }}" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-center">
+                    <i class="fas fa-eye"></i> View Details
+                </a>
+                <button onclick="addToCartFromQuickView({{ product.id }})" class="flex-1 border border-blue-600 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50 transition">
+                    <i class="fas fa-cart-plus"></i> Add to Cart
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .quick-view-content {
+        max-width: 800px;
+    }
+    .quick-view-content img {
+        max-height: 300px;
+        width: auto;
+    }
+</style>
+
+<script>
+function addToCartFromQuickView(productId) {
+    fetch(`/products/${productId}/add-to-cart/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: 'quantity=1'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update cart count
+            const cartCount = document.getElementById('cart-count');
+            if (cartCount && data.cart_count) {
+                cartCount.innerText = data.cart_count;
+            }
+            // Show success message
+            alert('Product added to cart!');
+            // Close modal if exists
+            const modal = document.querySelector('[x-show="quickViewOpen"]');
+            if (modal && typeof closeQuickView === 'function') {
+                closeQuickView();
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to add to cart');
+    });
+}
+</script>

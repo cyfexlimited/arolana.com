@@ -1,36 +1,291 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
-from .models import Notification, UserNotificationSettings
+from django.utils import timezone
+from django.db.models import Count, Q
+from .models import Notification, NotificationPreference
 
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
-    list_display = ['user', 'title', 'notification_type', 'is_read', 'created_at', 'view_link']
-    list_filter = ['notification_type', 'is_read', 'created_at']
-    search_fields = ['title', 'message', 'user__username']
-    readonly_fields = ['created_at', 'updated_at']
-    list_editable = ['is_read']
+    # Add the actual field to list_display so it can be editable
+    list_display = ['user_badge', 'title_preview', 'notification_type_badge', 'priority_badge', 
+                    'is_read', 'time_ago', 'action_buttons']
+    list_filter = ['notification_type', 'is_read', 'priority', 'created_at']
+    search_fields = ['title', 'message', 'user__username', 'user__email']
+    readonly_fields = ['created_at', 'updated_at', 'read_at', 'metadata_display']
+    list_editable = ['is_read']  # This is an actual field and is in list_display
+    list_per_page = 25
+    date_hierarchy = 'created_at'
     
-    def view_link(self, obj):
-        """Create a clickable view link"""
-        url = reverse('admin:notifications_notification_change', args=[obj.id])
-        return format_html('<a href="{}" target="_blank">👁️ View</a>', url)
-    view_link.short_description = 'Link'
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('user', 'notification_type', 'priority', 'title', 'message')
+        }),
+        ('Status', {
+            'fields': ('is_read', 'read_at', 'is_archived', 'archived_at'),
+            'classes': ('collapse',)
+        }),
+        ('Delivery', {
+            'fields': ('email_sent', 'email_sent_at', 'push_sent', 'push_sent_at'),
+            'classes': ('collapse',)
+        }),
+        ('Metadata', {
+            'fields': ('link', 'metadata_display'),
+            'classes': ('collapse',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
     
-    actions = ['mark_as_read', 'mark_as_unread', 'delete_selected']
+    def user_badge(self, obj):
+        """Display user with avatar and link"""
+        avatar_url = obj.user.avatar.url if hasattr(obj.user, 'avatar') and obj.user.avatar else None
+        if avatar_url:
+            return format_html(
+                '<div class="flex items-center gap-2"><img src="{}" class="w-8 h-8 rounded-full object-cover">'
+                '<a href="{}" target="_blank">{}</a></div>',
+                avatar_url, reverse('admin:accounts_user_change', args=[obj.user.id]), obj.user.username
+            )
+        return format_html(
+            '<a href="{}" target="_blank">{}</a>',
+            reverse('admin:accounts_user_change', args=[obj.user.id]), obj.user.username
+        )
+    user_badge.short_description = 'User'
+    user_badge.admin_order_field = 'user__username'
+    
+    def title_preview(self, obj):
+        """Truncate long titles"""
+        return obj.title[:60] + '...' if len(obj.title) > 60 else obj.title
+    title_preview.short_description = 'Title'
+    title_preview.admin_order_field = 'title'
+    
+    def notification_type_badge(self, obj):
+        """Display type with colored badge"""
+        colors = {
+            'cart': 'blue',
+            'order': 'green',
+            'payment': 'purple',
+            'message': 'yellow',
+            'review': 'orange',
+            'vendor': 'indigo',
+            'product': 'teal',
+            'promotion': 'pink',
+            'shipping': 'cyan',
+            'system': 'gray',
+            'security': 'red',
+            'wishlist': 'red',
+            'follow': 'green',
+            'achievement': 'yellow',
+            'reminder': 'blue',
+            'newsletter': 'purple',
+            'success': 'green',
+            'error': 'red',
+            'warning': 'yellow',
+            'info': 'blue',
+        }
+        color = colors.get(obj.notification_type, 'gray')
+        return format_html(
+            '<span class="px-2 py-1 rounded-full text-xs font-semibold bg-{}-100 text-{}-800">{}</span>',
+            color, color, obj.get_notification_type_display().split()[0] if obj.get_notification_type_display() else obj.notification_type
+        )
+    notification_type_badge.short_description = 'Type'
+    notification_type_badge.admin_order_field = 'notification_type'
+    
+    def priority_badge(self, obj):
+        """Display priority with color-coded badge"""
+        colors = {1: 'gray', 2: 'blue', 3: 'orange', 4: 'red'}
+        color = colors.get(obj.priority, 'gray')
+        return format_html(
+            '<span class="px-2 py-1 rounded-full text-xs font-semibold bg-{}-100 text-{}-800">P{}</span>',
+            color, color, obj.priority
+        )
+    priority_badge.short_description = 'Priority'
+    priority_badge.admin_order_field = 'priority'
+    
+    def time_ago(self, obj):
+        """Display time ago with tooltip"""
+        return format_html(
+            '<span title="{}">{}</span>',
+            obj.created_at.strftime('%Y-%m-%d %H:%M:%S') if obj.created_at else '',
+            obj.time_ago
+        )
+    time_ago.short_description = 'Created'
+    time_ago.admin_order_field = 'created_at'
+    
+    def metadata_display(self, obj):
+        """Display metadata as formatted JSON"""
+        if obj.metadata:
+            import json
+            return format_html(
+                '<pre class="bg-gray-100 p-2 rounded text-xs overflow-auto max-h-40">{}</pre>',
+                json.dumps(obj.metadata, indent=2)
+            )
+        return '-'
+    metadata_display.short_description = 'Metadata'
+    
+    def action_buttons(self, obj):
+        """Display action buttons"""
+        return format_html(
+            '<div class="flex gap-2">'
+            '<a href="{}" class="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600" target="_blank">'
+            '<i class="fas fa-eye"></i> View</a>'
+            '<a href="{}" class="px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600">'
+            '<i class="fas fa-edit"></i> Edit</a>'
+            '</div>',
+            reverse('admin:notifications_notification_change', args=[obj.id]),
+            reverse('admin:notifications_notification_change', args=[obj.id]),
+        )
+    action_buttons.short_description = 'Actions'
+    
+    actions = ['mark_as_read', 'mark_as_unread', 'archive_selected', 'delete_old_notifications']
     
     def mark_as_read(self, request, queryset):
-        queryset.update(is_read=True)
-        self.message_user(request, f"{queryset.count()} notifications marked as read.")
-    mark_as_read.short_description = "Mark selected as read"
+        count = queryset.update(is_read=True, read_at=timezone.now())
+        self.message_user(request, f"✅ {count} notifications marked as read.")
+    mark_as_read.short_description = "📖 Mark selected as read"
     
     def mark_as_unread(self, request, queryset):
-        queryset.update(is_read=False)
-        self.message_user(request, f"{queryset.count()} notifications marked as unread.")
-    mark_as_unread.short_description = "Mark selected as unread"
+        count = queryset.update(is_read=False, read_at=None)
+        self.message_user(request, f"📭 {count} notifications marked as unread.")
+    mark_as_unread.short_description = "📭 Mark selected as unread"
+    
+    def archive_selected(self, request, queryset):
+        count = queryset.update(is_archived=True, archived_at=timezone.now())
+        self.message_user(request, f"📦 {count} notifications archived.")
+    archive_selected.short_description = "📦 Archive selected"
+    
+    def delete_old_notifications(self, request, queryset):
+        days = 30
+        cutoff = timezone.now() - timezone.timedelta(days=days)
+        count = queryset.filter(created_at__lt=cutoff).count()
+        queryset.filter(created_at__lt=cutoff).delete()
+        self.message_user(request, f"🗑️ Deleted {count} notifications older than {days} days.")
+    delete_old_notifications.short_description = "🗑️ Delete notifications older than 30 days"
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('user')
+    
+    class Media:
+        css = {
+            'all': ('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css',)
+        }
 
-@admin.register(UserNotificationSettings)
-class UserNotificationSettingsAdmin(admin.ModelAdmin):
-    list_display = ['user', 'email_notifications', 'push_notifications', 'login_alerts', 'order_updates']
-    list_editable = ['email_notifications', 'push_notifications', 'login_alerts', 'order_updates']
+
+@admin.register(NotificationPreference)
+class NotificationPreferenceAdmin(admin.ModelAdmin):
+    # Use the correct model name: NotificationPreference
+    list_display = ['user_link', 'email_notifications', 'push_notifications', 
+                    'cart_updates', 'order_updates', 'promotions_display',
+                    'vendor_alerts_display', 'quiet_hours_display', 'dnd_status']
+    list_editable = ['email_notifications', 'push_notifications', 'cart_updates', 'order_updates']
     search_fields = ['user__username', 'user__email']
+    list_filter = ['email_notifications', 'push_notifications', 'quiet_hours_enabled', 'do_not_disturb']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    fieldsets = (
+        ('User Information', {
+            'fields': ('user',)
+        }),
+        ('Notification Channels', {
+            'fields': ('email_notifications', 'push_notifications', 'sound_enabled', 'desktop_notifications'),
+            'description': 'Choose how you want to receive notifications'
+        }),
+        ('Notification Types', {
+            'fields': ('cart_updates', 'order_updates', 'promotions', 'vendor_alerts', 
+                      'security_alerts', 'product_updates', 'review_alerts', 'message_alerts'),
+            'description': 'Select which types of notifications you want to receive'
+        }),
+        ('Quiet Hours & Do Not Disturb', {
+            'fields': ('quiet_hours_enabled', 'quiet_hours_start', 'quiet_hours_end', 
+                      'do_not_disturb', 'dnd_until'),
+            'classes': ('collapse',),
+            'description': 'Configure quiet hours and do not disturb mode'
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',),
+        }),
+    )
+    
+    def user_link(self, obj):
+        return format_html(
+            '<a href="{}" target="_blank">{}</a>',
+            reverse('admin:accounts_user_change', args=[obj.user.id]), obj.user.username
+        )
+    user_link.short_description = 'User'
+    user_link.admin_order_field = 'user__username'
+    
+    def promotions_display(self, obj):
+        """Display promotions with colored badge (read-only)"""
+        icon = '✅' if obj.promotions else '❌'
+        color = 'green' if obj.promotions else 'red'
+        return format_html(
+            '<span class="px-2 py-1 rounded-full text-xs font-semibold bg-{}-100 text-{}-800">{} Promos</span>',
+            color, color, icon
+        )
+    promotions_display.short_description = 'Promotions'
+    
+    def vendor_alerts_display(self, obj):
+        """Display vendor alerts with colored badge (read-only)"""
+        icon = '✅' if obj.vendor_alerts else '❌'
+        color = 'green' if obj.vendor_alerts else 'red'
+        return format_html(
+            '<span class="px-2 py-1 rounded-full text-xs font-semibold bg-{}-100 text-{}-800">{} Vendor</span>',
+            color, color, icon
+        )
+    vendor_alerts_display.short_description = 'Vendor Alerts'
+    
+    def quiet_hours_display(self, obj):
+        if obj.quiet_hours_enabled:
+            return format_html(
+                '<span class="text-blue-600">🔕 {} - {}</span>',
+                obj.quiet_hours_start.strftime('%I:%M %p') if obj.quiet_hours_start else '--:--',
+                obj.quiet_hours_end.strftime('%I:%M %p') if obj.quiet_hours_end else '--:--'
+            )
+        return format_html('<span class="text-gray-400">Disabled</span>')
+    quiet_hours_display.short_description = 'Quiet Hours'
+    
+    def dnd_status(self, obj):
+        if obj.do_not_disturb:
+            if obj.dnd_until and obj.dnd_until > timezone.now():
+                return format_html(
+                    '<span class="text-orange-600">🔇 Until {}</span>',
+                    obj.dnd_until.strftime('%Y-%m-%d %H:%M')
+                )
+            return format_html('<span class="text-orange-600">🔇 Enabled</span>')
+        return format_html('<span class="text-gray-400">Off</span>')
+    dnd_status.short_description = 'DND'
+    
+    actions = ['enable_email_for_all', 'disable_email_for_all', 'reset_to_defaults']
+    
+    def enable_email_for_all(self, request, queryset):
+        count = queryset.update(email_notifications=True)
+        self.message_user(request, f"✅ Email notifications enabled for {count} users.")
+    enable_email_for_all.short_description = "📧 Enable email for selected"
+    
+    def disable_email_for_all(self, request, queryset):
+        count = queryset.update(email_notifications=False)
+        self.message_user(request, f"❌ Email notifications disabled for {count} users.")
+    disable_email_for_all.short_description = "📧 Disable email for selected"
+    
+    def reset_to_defaults(self, request, queryset):
+        for settings in queryset:
+            settings.email_notifications = True
+            settings.push_notifications = True
+            settings.cart_updates = True
+            settings.order_updates = True
+            settings.promotions = False
+            settings.vendor_alerts = True
+            settings.save()
+        self.message_user(request, f"🔄 Reset settings to defaults for {queryset.count()} users.")
+    reset_to_defaults.short_description = "🔄 Reset to default settings"
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('user')
+    
+    class Media:
+        css = {
+            'all': ('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css',)
+        }

@@ -1,138 +1,235 @@
 {% extends 'base/base.html' %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto">
-    <h1 class="text-3xl font-bold mb-8">Advanced Search</h1>
-    
-    <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        <!-- Filters Sidebar -->
-        <div class="lg:col-span-1">
-            <div class="bg-white rounded-lg shadow-md p-6 sticky top-24">
-                <h2 class="text-xl font-bold mb-4">Filters</h2>
-                
-                <form method="GET" action="{% url 'search_ai:advanced_search' %}">
-                    <input type="hidden" name="q" value="{{ query }}">
-                    
-                    <!-- Category Filter -->
-                    <div class="mb-4">
-                        <label class="block font-semibold mb-2">Category</label>
-                        <select name="category" class="w-full px-3 py-2 border rounded-lg">
-                            <option value="">All Categories</option>
-                            {% for cat in categories %}
-                                <option value="{{ cat.slug }}" {% if selected_category == cat.slug %}selected{% endif %}>
-                                    {{ cat.name }}
-                                </option>
-                            {% endfor %}
-                        </select>
+<div class="bg-gradient-to-b from-slate-50 to-white min-h-screen">
+    <!-- Header Section -->
+    <div class="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-12">
+        <div class="max-w-7xl mx-auto px-4">
+            <h1 class="text-4xl md:text-5xl font-bold mb-2">Advanced Search</h1>
+            <p class="text-blue-100 text-lg">Discover exactly what you're looking for</p>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 py-12">
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <!-- Filters Sidebar -->
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-2xl shadow-lg p-8 sticky top-24 border border-gray-100">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-2xl font-bold text-gray-900">Filters</h2>
+                        <a href="{% url 'search_ai:advanced_search' %}?q={{ query }}" class="text-sm text-blue-600 hover:text-blue-800 font-semibold">
+                            Reset
+                        </a>
                     </div>
                     
-                    <!-- Price Range -->
-                    <div class="mb-4">
-                        <label class="block font-semibold mb-2">Price Range</label>
-                        <div class="flex gap-2">
-                            <input type="number" name="min_price" placeholder="Min" value="{{ min_price }}" class="w-1/2 px-3 py-2 border rounded-lg">
-                            <input type="number" name="max_price" placeholder="Max" value="{{ max_price }}" class="w-1/2 px-3 py-2 border rounded-lg">
+                    <form method="GET" action="{% url 'search_ai:advanced_search' %}" class="space-y-6">
+                        <input type="hidden" name="q" value="{{ query }}">
+                        
+                        <!-- Category Filter -->
+                        <div class="border-b pb-6">
+                            <label class="block font-bold text-gray-900 mb-3 flex items-center gap-2">
+                                <i class="fas fa-list text-blue-600"></i>
+                                Category
+                            </label>
+                            <select name="category" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition text-gray-700 font-medium">
+                                <option value="">All Categories</option>
+                                {% for cat in categories %}
+                                    <option value="{{ cat.slug }}" {% if selected_category == cat.slug %}selected{% endif %}>
+                                        {{ cat.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <!-- Price Range -->
+                        <div class="border-b pb-6">
+                            <label class="block font-bold text-gray-900 mb-3 flex items-center gap-2">
+                                <i class="fas fa-dollar-sign text-green-600"></i>
+                                Price Range
+                            </label>
+                            <div class="space-y-3">
+                                <input type="number" name="min_price" placeholder="Min Price" value="{{ min_price }}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition">
+                                <input type="number" name="max_price" placeholder="Max Price" value="{{ max_price }}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition">
+                            </div>
+                        </div>
+                        
+                        <!-- Rating Filter -->
+                        <div class="border-b pb-6">
+                            <label class="block font-bold text-gray-900 mb-3 flex items-center gap-2">
+                                <i class="fas fa-star text-yellow-400"></i>
+                                Minimum Rating
+                            </label>
+                            <select name="rating" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition text-gray-700 font-medium">
+                                <option value="">Any Rating</option>
+                                <option value="4" {% if selected_rating == "4" %}selected{% endif %}>⭐⭐⭐⭐ & above</option>
+                                <option value="3" {% if selected_rating == "3" %}selected{% endif %}>⭐⭐⭐ & above</option>
+                                <option value="2" {% if selected_rating == "2" %}selected{% endif %}>⭐⭐ & above</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Sort -->
+                        <div class="pb-6">
+                            <label class="block font-bold text-gray-900 mb-3 flex items-center gap-2">
+                                <i class="fas fa-arrow-down-up text-purple-600"></i>
+                                Sort By
+                            </label>
+                            <select name="sort" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition text-gray-700 font-medium">
+                                <option value="-created_at" {% if sort == "-created_at" %}selected{% endif %}>✨ Newest First</option>
+                                <option value="-price" {% if sort == "-price" %}selected{% endif %}>💎 Price: High to Low</option>
+                                <option value="price" {% if sort == "price" %}selected{% endif %}>💰 Price: Low to High</option>
+                                <option value="-sales_count" {% if sort == "-sales_count" %}selected{% endif %}>🔥 Best Selling</option>
+                                <option value="-rating_avg" {% if sort == "-rating_avg" %}selected{% endif %}>⭐ Top Rated</option>
+                            </select>
+                        </div>
+                        
+                        <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-xl hover:from-blue-700 hover:to-blue-800 font-bold transition transform hover:scale-105 shadow-lg flex items-center justify-center gap-2">
+                            <i class="fas fa-filter"></i>
+                            Apply Filters
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Results -->
+            <div class="lg:col-span-3">
+                <div class="bg-white rounded-2xl shadow-lg p-8 border border-gray-100">
+                    <!-- Results Header -->
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 pb-6 border-b-2">
+                        <div>
+                            <h2 class="text-3xl font-bold text-gray-900 mb-2">Search Results</h2>
+                            <p class="text-gray-500">
+                                {% if products %}
+                                    Showing <span class="font-bold text-blue-600">{{ products.count }}</span> amazing products
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="mt-4 md:mt-0 text-right">
+                            <div class="inline-block bg-blue-50 rounded-lg px-4 py-2 border border-blue-200">
+                                <p class="text-sm text-gray-600">Total Results</p>
+                                <p class="text-3xl font-bold text-blue-600">{{ products.count }}</p>
+                            </div>
                         </div>
                     </div>
                     
-                    <!-- Rating Filter -->
-                    <div class="mb-4">
-                        <label class="block font-semibold mb-2">Minimum Rating</label>
-                        <select name="rating" class="w-full px-3 py-2 border rounded-lg">
-                            <option value="">Any Rating</option>
-                            <option value="4" {% if selected_rating == "4" %}selected{% endif %}>4★ & above</option>
-                            <option value="3" {% if selected_rating == "3" %}selected{% endif %}>3★ & above</option>
-                            <option value="2" {% if selected_rating == "2" %}selected{% endif %}>2★ & above</option>
-                        </select>
-                    </div>
-                    
-                    <!-- Sort -->
-                    <div class="mb-4">
-                        <label class="block font-semibold mb-2">Sort By</label>
-                        <select name="sort" class="w-full px-3 py-2 border rounded-lg">
-                            <option value="-created_at" {% if sort == "-created_at" %}selected{% endif %}>Newest</option>
-                            <option value="-price" {% if sort == "-price" %}selected{% endif %}>Price: High to Low</option>
-                            <option value="price" {% if sort == "price" %}selected{% endif %}>Price: Low to High</option>
-                            <option value="-sales_count" {% if sort == "-sales_count" %}selected{% endif %}>Best Selling</option>
-                            <option value="-rating_avg" {% if sort == "-rating_avg" %}selected{% endif %}>Top Rated</option>
-                        </select>
-                    </div>
-                    
-                    <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
-                        Apply Filters
-                    </button>
-                </form>
+                    {% if products %}
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                            {% for product in products %}
+                            <div class="group product-card bg-white border-2 border-gray-100 rounded-2xl overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+                                <!-- Product Image -->
+                                <div class="relative overflow-hidden bg-gray-100 h-56">
+                                    <a href="{{ product.get_absolute_url }}" class="block h-full">
+                                        {% if product.main_image %}
+                                            <img src="{{ product.main_image.url }}" alt="{{ product.name }}" class="w-full h-full object-cover group-hover:scale-110 transition duration-300">
+                                        {% else %}
+                                            <div class="w-full h-full flex items-center justify-center">
+                                                <i class="fas fa-image text-5xl text-gray-300"></i>
+                                            </div>
+                                        {% endif %}
+                                    </a>
+                                    <!-- Badge -->
+                                    <div class="absolute top-3 right-3 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold">
+                                        Sale
+                                    </div>
+                                </div>
+
+                                <!-- Product Info -->
+                                <div class="p-5">
+                                    <!-- Title -->
+                                    <a href="{{ product.get_absolute_url }}" class="font-bold text-gray-900 text-lg group-hover:text-blue-600 transition line-clamp-2 block mb-3">
+                                        {{ product.name }}
+                                    </a>
+                                    
+                                    <!-- Rating -->
+                                    <div class="flex items-center gap-2 mb-4">
+                                        <div class="flex text-yellow-400 gap-1">
+                                            {% for i in "12345"|make_list %}
+                                                {% if forloop.counter <= product.rating_avg|add:"0" %}
+                                                    <i class="fas fa-star"></i>
+                                                {% elif forloop.counter <= product.rating_avg|add:"0.5" %}
+                                                    <i class="fas fa-star-half-alt"></i>
+                                                {% else %}
+                                                    <i class="far fa-star"></i>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                        <span class="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded-lg">
+                                            ({{ product.rating_count }})
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- Price -->
+                                    <div class="flex items-baseline gap-2 mb-4">
+                                        <span class="text-2xl font-bold text-blue-600">${{ product.price }}</span>
+                                        <span class="text-sm text-gray-400 line-through">${{ product.original_price|default:product.price }}</span>
+                                    </div>
+                                    
+                                    <!-- CTA Button -->
+                                    <a href="{{ product.get_absolute_url }}" class="w-full block text-center bg-gradient-to-r from-blue-600 to-blue-700 text-white py-2 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition">
+                                        View Details
+                                    </a>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-16">
+                            <div class="mb-6">
+                                <i class="fas fa-search text-8xl text-gray-200"></i>
+                            </div>
+                            <p class="text-2xl font-bold text-gray-900 mb-2">No products found</p>
+                            <p class="text-gray-500 text-lg mb-6">Try adjusting your filters or search terms</p>
+                            <a href="{% url 'shop:product_list' %}" class="inline-block bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-blue-700 transition">
+                                <i class="fas fa-shopping-bag mr-2"></i>
+                                Browse All Products
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
         
-        <!-- Results -->
-        <div class="lg:col-span-3">
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-xl font-bold">Search Results</h2>
-                    <p class="text-gray-600">{{ products.count }} products found</p>
-                </div>
-                
-                {% if products %}
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {% for product in products %}
-                        <div class="product-card bg-white border rounded-lg overflow-hidden hover:shadow-lg transition">
-                            <a href="{{ product.get_absolute_url }}">
-                                {% if product.main_image %}
-                                    <img src="{{ product.main_image.url }}" alt="{{ product.name }}" class="w-full h-48 object-cover">
-                                {% else %}
-                                    <div class="w-full h-48 bg-gray-100 flex items-center justify-center">
-                                        <i class="fas fa-image text-4xl text-gray-400"></i>
-                                    </div>
-                                {% endif %}
-                            </a>
-                            <div class="p-4">
-                                <a href="{{ product.get_absolute_url }}" class="font-semibold hover:text-blue-600 line-clamp-2">
-                                    {{ product.name }}
-                                </a>
-                                <div class="flex items-center gap-2 mt-2">
-                                    <div class="flex text-yellow-400 text-sm">
-                                        {% for i in "12345"|make_list %}
-                                            {% if forloop.counter <= product.rating_avg|add:"0" %}
-                                                <i class="fas fa-star"></i>
-                                            {% elif forloop.counter <= product.rating_avg|add:"0.5" %}
-                                                <i class="fas fa-star-half-alt"></i>
-                                            {% else %}
-                                                <i class="far fa-star"></i>
-                                            {% endif %}
-                                        {% endfor %}
-                                    </div>
-                                    <span class="text-sm text-gray-500">({{ product.rating_count }})</span>
-                                </div>
-                                <div class="mt-2">
-                                    <span class="text-xl font-bold text-blue-600">${{ product.price }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="text-center py-12">
-                        <i class="fas fa-search text-6xl text-gray-400 mb-4"></i>
-                        <p class="text-gray-500 text-lg">No products found matching your criteria.</p>
-                    </div>
-                {% endif %}
+        <!-- Popular Searches -->
+        {% if popular_searches %}
+        <div class="mt-12 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200 p-8">
+            <h3 class="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                <i class="fas fa-fire text-orange-500"></i>
+                Popular Searches
+            </h3>
+            <div class="flex flex-wrap gap-3">
+                {% for search in popular_searches %}
+                    <a href="{% url 'search_ai:advanced_search' %}?q={{ search.query }}" class="px-4 py-2 bg-white rounded-full hover:bg-blue-600 hover:text-white text-gray-700 font-semibold transition duration-300 border-2 border-gray-200 hover:border-blue-600 shadow-sm hover:shadow-md">
+                        <i class="fas fa-search text-sm mr-2"></i>
+                        {{ search.query }}
+                    </a>
+                {% endfor %}
             </div>
         </div>
+        {% endif %}
     </div>
-    
-    <!-- Popular Searches -->
-    {% if popular_searches %}
-    <div class="mt-8 bg-white rounded-lg shadow-md p-6">
-        <h3 class="text-lg font-bold mb-3">Popular Searches</h3>
-        <div class="flex flex-wrap gap-2">
-            {% for search in popular_searches %}
-                <a href="{% url 'search_ai:advanced_search' %}?q={{ search.query }}" class="px-3 py-1 bg-gray-100 rounded-full hover:bg-gray-200 text-sm">
-                    {{ search.query }}
-                </a>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
 </div>
+
+<style>
+    /* Smooth transitions */
+    * {
+        transition: all 0.3s ease;
+    }
+    
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+        background: #f1f5f9;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+        background: #3b82f6;
+        border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+        background: #1e40af;
+    }
+</style>
 {% endblock %}

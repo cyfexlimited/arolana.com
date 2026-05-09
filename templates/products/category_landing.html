@@ -1,0 +1,373 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load currency_filters %}
+{% load products_extras %}
+
+{% block title %}{{ category.hero_title|default:category.name }} | Arolana.com{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Hero Section with Background Image */
+    .category-hero {
+        position: relative;
+        min-height: 400px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        color: white;
+        overflow: hidden;
+        background-size: cover;
+        background-position: center;
+    }
+    
+    .category-hero::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.4) 100%);
+        z-index: 1;
+    }
+    
+    .category-hero-bg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        z-index: 0;
+    }
+    
+    .category-hero-content {
+        position: relative;
+        z-index: 2;
+        max-width: 800px;
+        padding: 3rem 2rem;
+        animation: fadeInUp 0.8s ease-out;
+    }
+    
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .category-hero h1 {
+        font-size: 3.5rem;
+        font-weight: 800;
+        margin-bottom: 1rem;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .category-hero p {
+        font-size: 1.2rem;
+        margin-bottom: 1.5rem;
+        opacity: 0.95;
+    }
+    
+    .category-stats {
+        display: flex;
+        gap: 1.5rem;
+        justify-content: center;
+        margin-top: 1.5rem;
+        flex-wrap: wrap;
+    }
+    
+    .stat-item {
+        background: rgba(255,255,255,0.2);
+        backdrop-filter: blur(10px);
+        padding: 0.5rem 1.2rem;
+        border-radius: 2rem;
+        font-size: 0.9rem;
+        border: 1px solid rgba(255,255,255,0.3);
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 1rem 0;
+        margin-bottom: 1rem;
+    }
+    
+    .breadcrumb a {
+        color: #6b7280;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+    
+    .breadcrumb a:hover {
+        color: #3b82f6;
+    }
+    
+    /* Subcategories Grid */
+    .subcategories-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 3rem;
+    }
+    
+    .subcategory-card {
+        background: white;
+        border-radius: 1rem;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        text-align: center;
+        padding: 1.2rem;
+    }
+    
+    .subcategory-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    }
+    
+    .subcategory-image {
+        width: 100%;
+        height: 120px;
+        object-fit: cover;
+        border-radius: 0.5rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    /* Filter Bar */
+    .filter-bar {
+        background: white;
+        border-radius: 1rem;
+        padding: 1rem 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .category-hero h1 {
+            font-size: 2rem;
+        }
+        
+        .category-hero p {
+            font-size: 1rem;
+        }
+        
+        .category-hero-content {
+            padding: 2rem 1rem;
+        }
+        
+        .subcategories-grid {
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb -->
+<div class="container mx-auto px-4">
+    <nav class="breadcrumb">
+        <ol class="flex items-center space-x-2 text-sm flex-wrap">
+            <li><a href="/">Home</a></li>
+            <li><i class="fas fa-chevron-right text-xs text-gray-400"></i></li>
+            {% for cat in breadcrumbs %}
+                {% if forloop.last %}
+                    <li class="text-gray-900 font-semibold">{{ cat.name }}</li>
+                {% else %}
+                    <li><a href="{% url 'products:category' cat.slug %}">{{ cat.name }}</a></li>
+                    <li><i class="fas fa-chevron-right text-xs text-gray-400"></i></li>
+                {% endif %}
+            {% endfor %}
+        </ol>
+    </nav>
+</div>
+
+<!-- Hero Section with Category Background -->
+<div class="category-hero" {% if category.background_image %}style="background-image: url('{{ category.background_image.url }}'); background-size: cover; background-position: center;"{% endif %}>
+    {% if not category.background_image %}
+        <img src="https://images.unsplash.com/photo-1498049794561-7780e7231661?w=1920&h=400&fit=crop" alt="{{ category.name }}" class="category-hero-bg">
+    {% endif %}
+    
+    <div class="category-hero-content">
+        <h1>{{ category.hero_title|default:category.name }}</h1>
+        <p>{{ category.hero_subtitle|default:category.description|default:"Discover our curated collection of high-quality products" }}</p>
+        
+        <div class="category-stats">
+            <div class="stat-item">
+                <i class="fas fa-box-open"></i> {{ products.paginator.count }} Products
+            </div>
+            <div class="stat-item">
+                <i class="fas fa-store"></i> {{ vendors_count }} Vendors
+            </div>
+            {% if subcategories %}
+            <div class="stat-item">
+                <i class="fas fa-folder"></i> {{ subcategories|length }} Subcategories
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="container mx-auto px-4 py-8">
+    <!-- Subcategories Section -->
+    {% if subcategories %}
+    <div class="mb-12">
+        <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+            <i class="fas fa-folder-open text-blue-600"></i> Shop by Subcategory
+        </h2>
+        <div class="subcategories-grid">
+            {% for subcat in subcategories %}
+            <a href="{% url 'products:category' subcat.slug %}" class="subcategory-card group">
+                {% if subcat.image %}
+                    <img src="{{ subcat.image.url }}" alt="{{ subcat.name }}" class="subcategory-image">
+                {% else %}
+                    <div class="subcategory-image bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+                        <i class="fas fa-{{ subcat.icon|default:'folder-open' }} text-4xl text-blue-500"></i>
+                    </div>
+                {% endif %}
+                <h3 class="font-semibold text-gray-800 group-hover:text-blue-600 transition">{{ subcat.name }}</h3>
+                <p class="text-sm text-gray-500 mt-1">{{ subcat.product_count }} products</p>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+        <div class="flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center gap-2">
+                <i class="fas fa-sort-amount-down text-gray-400"></i>
+                <span class="text-sm text-gray-600">Sort by:</span>
+                <select id="sort-select" class="border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="featured" {% if current_sort == 'featured' %}selected{% endif %}>Featured</option>
+                    <option value="newest" {% if current_sort == 'newest' %}selected{% endif %}>Newest</option>
+                    <option value="bestsellers" {% if current_sort == 'bestsellers' %}selected{% endif %}>Best Sellers</option>
+                    <option value="price_low" {% if current_sort == 'price_low' %}selected{% endif %}>Price: Low to High</option>
+                    <option value="price_high" {% if current_sort == 'price_high' %}selected{% endif %}>Price: High to Low</option>
+                    <option value="rating" {% if current_sort == 'rating' %}selected{% endif %}>Highest Rated</option>
+                </select>
+            </div>
+            
+            <div class="text-sm text-gray-500">
+                Showing {{ products.start_index }} - {{ products.end_index }} of {{ products.paginator.count }} products
+            </div>
+        </div>
+    </div>
+    
+    <!-- Products Grid -->
+    {% if products %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {% for product in products %}
+        <div class="product-card bg-white rounded-xl shadow-md overflow-hidden hover:shadow-2xl transition-all duration-300 group">
+            <a href="{{ product.get_absolute_url }}" class="block bg-gray-50 relative overflow-hidden">
+                <div class="relative h-48">
+                    {% if product.main_image %}
+                        <img src="{{ product.main_image.url }}" alt="{{ product.name }}" 
+                             class="w-full h-full object-contain p-4 transition-transform duration-500 group-hover:scale-110"
+                             loading="lazy">
+                    {% else %}
+                        <div class="w-full h-full flex items-center justify-center">
+                            <i class="fas fa-image text-5xl text-gray-300"></i>
+                        </div>
+                    {% endif %}
+                    
+                    {% if product.discount_percent > 0 %}
+                    <div class="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                        -{{ product.discount_percent }}%
+                    </div>
+                    {% endif %}
+                    
+                    {% if product.is_new %}
+                    <div class="absolute top-3 left-3 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                        NEW
+                    </div>
+                    {% endif %}
+                </div>
+            </a>
+            <div class="p-4">
+                <div class="text-xs text-gray-500 mb-1">{{ product.brand.name|default:product.category.name }}</div>
+                <a href="{{ product.get_absolute_url }}" class="font-semibold text-gray-800 hover:text-blue-600 line-clamp-2 min-h-[48px] text-sm">
+                    {{ product.name }}
+                </a>
+                
+                <div class="flex items-center gap-2 mt-2">
+                    <div class="flex text-yellow-400 text-xs">
+                        {% with rating=product.rating_avg|floatformat:"0" %}
+                            {% for i in "12345"|make_list %}
+                                {% if forloop.counter <= rating|add:"0" %}
+                                    <i class="fas fa-star"></i>
+                                {% elif forloop.counter <= rating|add:"0.5" %}
+                                    <i class="fas fa-star-half-alt"></i>
+                                {% else %}
+                                    <i class="far fa-star"></i>
+                                {% endif %}
+                            {% endfor %}
+                        {% endwith %}
+                    </div>
+                    <span class="text-xs text-gray-500">({{ product.rating_count }})</span>
+                </div>
+                
+                <div class="mt-3">
+                    <span class="text-lg font-bold text-blue-600">{{ product.price|currency:request }}</span>
+                    {% if product.compare_price %}
+                        <span class="text-gray-400 line-through text-xs ml-2">{{ product.compare_price|currency:request }}</span>
+                    {% endif %}
+                </div>
+                
+                <form method="POST" action="{% url 'products:add_to_cart' product.slug %}" class="mt-3">
+                    {% csrf_token %}
+                    <input type="hidden" name="quantity" value="1">
+                    <button type="submit" class="w-full bg-gray-100 text-gray-700 py-2 rounded-lg font-medium text-sm hover:bg-blue-600 hover:text-white transition-all duration-300">
+                        <i class="fas fa-cart-plus mr-2"></i> Add to Cart
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Pagination -->
+    {% if products.has_other_pages %}
+    <div class="flex justify-center mt-8">
+        <div class="flex gap-2">
+            {% if products.has_previous %}
+                <a href="?page={{ products.previous_page_number }}{% if current_sort %}&sort={{ current_sort }}{% endif %}" 
+                   class="px-4 py-2 border rounded-lg hover:bg-gray-50 transition">&laquo; Previous</a>
+            {% endif %}
+            
+            <span class="px-4 py-2 bg-blue-600 text-white rounded-lg">{{ products.number }}</span>
+            
+            {% if products.has_next %}
+                <a href="?page={{ products.next_page_number }}{% if current_sort %}&sort={{ current_sort }}{% endif %}" 
+                   class="px-4 py-2 border rounded-lg hover:bg-gray-50 transition">Next &raquo;</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% else %}
+    <div class="text-center py-12">
+        <i class="fas fa-box-open text-6xl text-gray-300 mb-4"></i>
+        <h3 class="text-xl font-semibold text-gray-700 mb-2">No products found</h3>
+        <p class="text-gray-500">Check back soon for new arrivals in this category.</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+document.getElementById('sort-select')?.addEventListener('change', function() {
+    const url = new URL(window.location.href);
+    url.searchParams.set('sort', this.value);
+    url.searchParams.delete('page');
+    window.location.href = url.toString();
+});
+</script>
+{% endblock %}

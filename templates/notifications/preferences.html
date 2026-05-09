@@ -1,0 +1,131 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Notification Preferences | Arolana{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <div class="bg-white rounded-lg shadow-md">
+        <div class="border-b p-6">
+            <h1 class="text-2xl font-bold">Notification Preferences</h1>
+            <p class="text-gray-600 mt-1">Manage how you receive notifications</p>
+        </div>
+        
+        <form method="POST" class="p-6">
+            {% csrf_token %}
+            
+            <!-- Email & Push Notifications -->
+            <div class="mb-8">
+                <h2 class="text-lg font-semibold mb-4">Notification Channels</h2>
+                <div class="space-y-3">
+                    <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer">
+                        <div>
+                            <span class="font-medium">Email Notifications</span>
+                            <p class="text-sm text-gray-500">Receive notifications via email</p>
+                        </div>
+                        <input type="checkbox" name="email_notifications" {% if settings.email_notifications %}checked{% endif %} class="w-5 h-5 text-blue-600">
+                    </label>
+                    <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer">
+                        <div>
+                            <span class="font-medium">Push Notifications</span>
+                            <p class="text-sm text-gray-500">Receive browser push notifications</p>
+                        </div>
+                        <input type="checkbox" name="push_notifications" {% if settings.push_notifications %}checked{% endif %} class="w-5 h-5 text-blue-600">
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Notification Types -->
+            <div class="mb-8">
+                <h2 class="text-lg font-semibold mb-4">Notification Types</h2>
+                <div class="grid gap-3">
+                    <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer">
+                        <div>
+                            <span class="font-medium">🛒 Cart Updates</span>
+                            <p class="text-sm text-gray-500">Get notified when items are added or removed from your cart</p>
+                        </div>
+                        <input type="checkbox" name="cart_updates" {% if settings.cart_updates %}checked{% endif %} class="w-5 h-5 text-blue-600">
+                    </label>
+                    <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer">
+                        <div>
+                            <span class="font-medium">📦 Order Updates</span>
+                            <p class="text-sm text-gray-500">Get notified about your order status changes</p>
+                        </div>
+                        <input type="checkbox" name="order_updates" {% if settings.order_updates %}checked{% endif %} class="w-5 h-5 text-blue-600">
+                    </label>
+                    <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer">
+                        <div>
+                            <span class="font-medium">🎉 Promotions</span>
+                            <p class="text-sm text-gray-500">Receive special offers and discounts</p>
+                        </div>
+                        <input type="checkbox" name="promotions" {% if settings.promotions %}checked{% endif %} class="w-5 h-5 text-blue-600">
+                    </label>
+                    <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer">
+                        <div>
+                            <span class="font-medium">🏪 Vendor Alerts</span>
+                            <p class="text-sm text-gray-500">Get updates from your favorite vendors</p>
+                        </div>
+                        <input type="checkbox" name="vendor_alerts" {% if settings.vendor_alerts %}checked{% endif %} class="w-5 h-5 text-blue-600">
+                    </label>
+                    <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer">
+                        <div>
+                            <span class="font-medium">🔒 Security Alerts</span>
+                            <p class="text-sm text-gray-500">Important security notifications</p>
+                        </div>
+                        <input type="checkbox" name="security_alerts" {% if settings.security_alerts %}checked{% endif %} class="w-5 h-5 text-blue-600">
+                    </label>
+                    <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer">
+                        <div>
+                            <span class="font-medium">⭐ Review Alerts</span>
+                            <p class="text-sm text-gray-500">Get notified when someone reviews your products</p>
+                        </div>
+                        <input type="checkbox" name="review_alerts" {% if settings.review_alerts %}checked{% endif %} class="w-5 h-5 text-blue-600">
+                    </label>
+                    <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer">
+                        <div>
+                            <span class="font-medium">💬 Message Alerts</span>
+                            <p class="text-sm text-gray-500">Get notified when you receive messages</p>
+                        </div>
+                        <input type="checkbox" name="message_alerts" {% if settings.message_alerts %}checked{% endif %} class="w-5 h-5 text-blue-600">
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Quiet Hours -->
+            <div class="mb-8">
+                <h2 class="text-lg font-semibold mb-4">Quiet Hours</h2>
+                <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer mb-3">
+                    <div>
+                        <span class="font-medium">🔕 Enable Quiet Hours</span>
+                        <p class="text-sm text-gray-500">Mute notifications during specific hours</p>
+                    </div>
+                    <input type="checkbox" name="quiet_hours_enabled" id="quiet_hours_enabled" {% if settings.quiet_hours_enabled %}checked{% endif %} class="w-5 h-5 text-blue-600">
+                </label>
+                <div id="quiet_hours_settings" class="grid grid-cols-2 gap-4 mt-3" style="{% if not settings.quiet_hours_enabled %}display: none;{% endif %}">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Start Time</label>
+                        <input type="time" name="quiet_hours_start" value="{{ settings.quiet_hours_start|default:'22:00' }}" class="w-full border rounded-lg px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">End Time</label>
+                        <input type="time" name="quiet_hours_end" value="{{ settings.quiet_hours_end|default:'08:00' }}" class="w-full border rounded-lg px-3 py-2">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="border-t pt-6">
+                <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
+                    Save Preferences
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.getElementById('quiet_hours_enabled').addEventListener('change', function() {
+        const settings = document.getElementById('quiet_hours_settings');
+        settings.style.display = this.checked ? 'grid' : 'none';
+    });
+</script>
+{% endblock %}

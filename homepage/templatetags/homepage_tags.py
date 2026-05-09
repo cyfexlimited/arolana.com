@@ -18,6 +18,43 @@ register = template.Library()
 def homepage_categories(context):
     request = context.get('request')
     categories = HomepageCategory.objects.filter(is_active=True).select_related('category').order_by('display_order')
+    
+    # Enhance each category with image URL and product count
+    for hp_category in categories:
+        # Get image from the main category if available
+        if hp_category.category.image:
+            hp_category.image_url = hp_category.category.image.url
+        else:
+            # Fallback to default category images
+            default_images = {
+                'accessories': '/media/categories/defaults/accessories.jpg',
+                'audio': '/media/categories/defaults/audio.jpg',
+                'cameras': '/media/categories/defaults/cameras.jpg',
+                'electronics': '/media/categories/defaults/electronics.jpg',
+                'gaming': '/media/categories/defaults/gaming.jpg',
+                'laptops': '/media/categories/defaults/laptops.jpg',
+                'smart-home': '/media/categories/defaults/smart-home.jpg',
+                'smartphones': '/media/categories/defaults/phones.jpg',
+            }
+            hp_category.image_url = default_images.get(hp_category.category.slug, None)
+        
+        # Get product count
+        hp_category.product_count = hp_category.category.product_count if hasattr(hp_category.category, 'product_count') else 0
+        
+        # Ensure icon exists for fallback
+        if not hp_category.icon:
+            default_icons = {
+                'accessories': 'keyboard',
+                'audio': 'headphones',
+                'cameras': 'camera',
+                'electronics': 'microchip',
+                'gaming': 'gamepad',
+                'laptops': 'laptop',
+                'smart-home': 'home',
+                'smartphones': 'mobile-alt',
+            }
+            hp_category.icon = default_icons.get(hp_category.category.slug, 'folder-open')
+    
     return {'categories': categories, 'request': request}
 
 @register.inclusion_tag('homepage/banner.html', takes_context=True)

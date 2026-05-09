@@ -1,5 +1,8 @@
 from django.utils.deprecation import MiddlewareMixin
 from currency.models import Currency
+import logging
+
+logger = logging.getLogger(__name__)
 
 class CurrencyMiddleware(MiddlewareMixin):
     """Middleware to auto-detect and set user's currency based on location"""
@@ -38,9 +41,8 @@ class CurrencyMiddleware(MiddlewareMixin):
                     pass
             return
         
-        # Auto-detect from browser language
+        # Auto-detect from browser language (no print statements)
         detected_currency = self.detect_from_browser(request)
-        print(f"🌍 Auto-detected currency: {detected_currency} from browser language")
         
         # Set the currency automatically
         try:
@@ -57,7 +59,6 @@ class CurrencyMiddleware(MiddlewareMixin):
             # Store the callback for later
             request.currency_callback = set_cookie
             
-            print(f"✅ Auto-set currency to: {currency.code} ({currency.symbol})")
         except Currency.DoesNotExist:
             request.user_currency = 'USD'
             request.currency_symbol = '$'

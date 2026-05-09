@@ -145,14 +145,17 @@ def mark_read(request, room_id):
         return JsonResponse({'success': True})
     return JsonResponse({'success': False})
 
-@login_required
 def get_unread_count(request):
-    """Get unread message count for the user"""
-    unread_count = ChatMessage.objects.filter(
-        room__participants=request.user,
-        is_read=False
-    ).exclude(sender=request.user).count()
-    return JsonResponse({'unread_count': unread_count})
+    """Get unread chat count for current user"""
+    if not request.user.is_authenticated:
+        return JsonResponse({'unread_count': 0})
+    
+    from .models import ChatRoom, ChatMessage
+    rooms = ChatRoom.objects.filter(participants=request.user, is_active=True)
+    unread = 0
+    for room in rooms:
+        unread += room.get_unread_count(request.user)
+    return JsonResponse({'unread_count': unread})
 
 @login_required
 def vendor_chat_list(request):

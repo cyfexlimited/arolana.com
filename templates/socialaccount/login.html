@@ -1,0 +1,202 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load socialaccount %}
+
+{% block title %}Sign In to Arolana | Secure Access{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+    <!-- Animated background elements -->
+    <div class="absolute inset-0 overflow-hidden">
+        <div class="absolute -top-40 -right-40 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
+        <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
+        <div class="absolute top-1/2 left-1/2 w-80 h-80 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
+    </div>
+
+    <div class="max-w-md mx-auto relative z-10">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <a href="/" class="inline-block mb-6 hover:scale-105 transition-transform duration-300">
+                <div class="flex items-center justify-center gap-2">
+                    <div class="w-10 h-10 bg-gradient-to-br from-blue-400 to-cyan-400 rounded-lg flex items-center justify-center">
+                        <span class="text-white font-bold text-lg">A</span>
+                    </div>
+                    <span class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">Arolana</span>
+                </div>
+            </a>
+            <h1 class="text-4xl font-bold text-white mb-2">Welcome Back</h1>
+            <p class="text-slate-300 text-sm">Sign in to your account to continue shopping</p>
+        </div>
+
+        <!-- Main Card -->
+        <div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl overflow-hidden border border-white/20">
+            <div class="px-6 py-8 sm:p-10">
+                
+                <!-- Error Messages -->
+                {% if form.errors %}
+                    <div class="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg">
+                        <div class="flex items-start gap-3">
+                            <svg class="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                            </svg>
+                            <div>
+                                <h3 class="font-semibold text-red-800 mb-2">Sign In Failed</h3>
+                                {% for field, errors in form.errors.items %}
+                                    <p class="text-red-700 text-sm">{{ errors|join:", " }}</p>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Sign In Form -->
+                <form method="post" class="space-y-5" novalidate>
+                    {% csrf_token %}
+                    
+                    {% for field in form %}
+                        {% if field.label %}
+                            <div>
+                                <label for="{{ field.id_for_label }}" class="block text-sm font-semibold text-slate-700 mb-2">
+                                    {{ field.label }}
+                                </label>
+                                {{ field }}
+                                {% if field.help_text %}
+                                    <p class="mt-1 text-xs text-slate-500">{{ field.help_text|safe }}</p>
+                                {% endif %}
+                                {% if field.errors %}
+                                    <p class="mt-1 text-xs text-red-600">{{ field.errors|join:", " }}</p>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+
+                    <style>
+                        form input[type="text"],
+                        form input[type="email"],
+                        form input[type="password"],
+                        form select,
+                        form textarea {
+                            @apply w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-300 font-medium;
+                        }
+
+                        form input[type="checkbox"],
+                        form input[type="radio"] {
+                            @apply w-4 h-4 accent-blue-600 rounded cursor-pointer;
+                        }
+                    </style>
+                    
+                    <!-- Remember Me -->
+                    {% if form.remember %}
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                {{ form.remember }}
+                                <label for="{{ form.remember.id_for_label }}" class="text-sm text-slate-600 cursor-pointer hover:text-slate-900">
+                                    Remember me
+                                </label>
+                            </div>
+                            <a href="{% url 'accounts:forgot_password' %}" class="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors">
+                                Forgot password?
+                            </a>
+                        </div>
+                    {% endif %}
+                    
+                    <!-- Sign In Button -->
+                    <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-3 rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95 flex items-center justify-center gap-2 group">
+                        <span>Sign In</span>
+                        <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                        </svg>
+                    </button>
+                </form>
+
+                <!-- Divider -->
+                <div class="relative my-8">
+                    <div class="absolute inset-0 flex items-center">
+                        <div class="w-full border-t border-slate-200"></div>
+                    </div>
+                    <div class="relative flex justify-center text-sm">
+                        <span class="px-3 bg-white text-slate-500 font-medium">Or continue with</span>
+                    </div>
+                </div>
+
+                <!-- Social Login Buttons -->
+                <div class="space-y-3">
+                    <!-- Google Button -->
+                    <a href="{% provider_login_url 'google' %}" 
+                       class="w-full flex items-center justify-center gap-3 bg-white border-2 border-slate-200 text-slate-700 py-3 px-4 rounded-lg hover:border-blue-500 hover:bg-blue-50 hover:shadow-lg transition-all duration-300 transform hover:scale-105 active:scale-95 group font-medium">
+                        <svg class="w-5 h-5 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
+                            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                        </svg>
+                        <span>Google</span>
+                    </a>
+
+                    <!-- Additional Social Providers (optional) -->
+                    {% if 'allauth.socialaccount.providers.facebook' in INSTALLED_APPS %}
+                    <a href="{% provider_login_url 'facebook' %}" 
+                       class="w-full flex items-center justify-center gap-3 bg-white border-2 border-slate-200 text-slate-700 py-3 px-4 rounded-lg hover:border-blue-900 hover:bg-blue-50 hover:shadow-lg transition-all duration-300 transform hover:scale-105 active:scale-95 group font-medium">
+                        <svg class="w-5 h-5 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="#1877F2">
+                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                        </svg>
+                        <span>Facebook</span>
+                    </a>
+                    {% endif %}
+                </div>
+
+                <!-- Footer Links -->
+                <div class="mt-8 pt-6 border-t border-slate-200">
+                    <p class="text-center text-slate-600 text-sm">
+                        Don't have an account?
+                        <a href="{% url 'accounts:register' %}" class="text-blue-600 font-semibold hover:text-blue-700 hover:underline transition-colors">
+                            Create one now
+                        </a>
+                    </p>
+                </div>
+
+                <!-- Security Info -->
+                <div class="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
+                    <div class="flex items-start gap-2">
+                        <svg class="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
+                        </svg>
+                        <p class="text-xs text-blue-700">
+                            <span class="font-semibold">🔒 Secure:</span> Your data is encrypted and protected with industry-standard security.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Help Text -->
+        <div class="mt-6 text-center">
+            <p class="text-slate-300 text-xs">
+                Having trouble? 
+                <a href="#" class="text-blue-400 hover:text-blue-300 underline transition-colors">Contact support</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- Animations -->
+    <style>
+        @keyframes blob {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(30px, -50px) scale(1.1); }
+            66% { transform: translate(-20px, 20px) scale(0.9); }
+        }
+
+        .animate-blob {
+            animation: blob 7s infinite;
+        }
+
+        .animation-delay-2000 {
+            animation-delay: 2s;
+        }
+
+        .animation-delay-4000 {
+            animation-delay: 4s;
+        }
+    </style>
+</div>
+{% endblock %}

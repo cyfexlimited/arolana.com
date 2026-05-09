@@ -2,10 +2,12 @@ from core.models import SiteSettings
 from products.models import Category, Product
 from vendors.models import VendorProfile
 from manufacturers.models import Manufacturer, ManufacturerCategory
+from django.db.models import Q
 import random
-from notifications.models import Notification
+from django.conf import settings
 
 def global_context(request):
+    """Global context for all templates"""
     # Get or create site settings
     site_settings = SiteSettings.objects.first()
     if not site_settings:
@@ -43,14 +45,42 @@ def global_context(request):
         'trending_vendors': trending_vendors,
         'manufacturer_categories': manufacturer_categories,
         'featured_manufacturers': featured_manufacturers,
+        'DEBUG': settings.DEBUG,
+        'SITE_URL': getattr(settings, 'SITE_URL', 'http://localhost:8000'),
     }
 
 def admin_notifications(request):
-    """Context processor for admin notifications"""
+    """Admin notifications context processor - single definition"""
+    from orders.models import Order
+    from vendors.models import VendorProfile
+    from notifications.models import Notification
+    
     if request.user.is_authenticated and request.user.is_staff:
-        notifications = Notification.objects.filter(user=request.user)[:10]
+        # Pending counts
+        pending_orders = Order.objects.filter(status='pending').count()
+        pending_vendors = VendorProfile.objects.filter(is_verified=False).count()
+        
+        # Notifications
+        notifications = Notification.objects.filter(user=request.user).order_by('-created_at')[:10]
+        unread_count = Notification.objects.filter(user=request.user, is_read=False).count()
+        
         return {
+            'admin_notifications': {
+                'pending_orders': pending_orders,
+                'pending_vendors': pending_vendors,
+                'total_pending': pending_orders + pending_vendors,
+            },
             'recent_notifications': notifications,
-            'admin_notification_count': Notification.objects.filter(user=request.user, is_read=False).count(),
+            'admin_notification_count': unread_count,
+            'has_unread_notifications': unread_count > 0,
         }
-    return {}
+    return {
+        'admin_notifications': {
+            'pending_orders': 0,
+            'pending_vendors': 0,
+            'total_pending': 0,
+        },
+        'recent_notifications': [],
+        'admin_notification_count': 0,
+        'has_unread_notifications': False,
+    }

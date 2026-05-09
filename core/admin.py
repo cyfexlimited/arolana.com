@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.db.models import Sum
@@ -72,7 +73,7 @@ class SiteSettingsAdmin(admin.ModelAdmin):
                 '<img src="{}" style="width:50px;height:50px;border-radius:8px;object-fit:cover;" />',
                 obj.site_logo.url
             )
-        return format_html('<span style="color:#999;">No Logo</span>')
+        return mark_safe('<span style="color:#999;">No Logo</span>')
 
     logo_preview.short_description = "Logo"
 

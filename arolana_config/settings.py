@@ -1,12 +1,34 @@
 import os
 from pathlib import Path
+from decouple import config
+from datetime import timedelta
+import warnings
 
+# Build paths
 BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = 'django-insecure-arolana-super-secret-key'
-DEBUG = True
-ALLOWED_HOSTS = ['*']
 
-# Jazzmin must be first in INSTALLED_APPS
+# ============ SECURITY & ENVIRONMENT ============
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-arolana-super-secret-key')
+DEBUG = config('DEBUG', default=True, cast=bool)
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
+
+# ============ CSRF TRUSTED ORIGINS ============
+if DEBUG:
+    CSRF_TRUSTED_ORIGINS = [
+        'http://localhost:8000',
+        'http://127.0.0.1:8000',
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+    ]
+else:
+    CSRF_TRUSTED_ORIGINS = []
+    for host in ALLOWED_HOSTS:
+        if host and host not in ['localhost', '127.0.0.1']:
+            CSRF_TRUSTED_ORIGINS.append(f'https://{host}')
+            CSRF_TRUSTED_ORIGINS.append(f'https://www.{host}')
+    CSRF_TRUSTED_ORIGINS.extend(['http://localhost:8000', 'http://127.0.0.1:8000'])
+
+# ============ INSTALLED APPS ============
 INSTALLED_APPS = [
     'jazzmin',
     'django.contrib.admin',
@@ -17,7 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.humanize',
     'django.contrib.sites',
-    
+    'taggit',
     # Third party apps
     'rest_framework',
     'corsheaders',
@@ -29,6 +51,7 @@ INSTALLED_APPS = [
     'allauth.account',
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
+    'allauth.socialaccount.providers.facebook',
     
     # Local apps
     'core',
@@ -57,6 +80,7 @@ INSTALLED_APPS = [
     'channels',
 ]
 
+# ============ MIDDLEWARE ============
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
@@ -74,7 +98,30 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'arolana_config.urls'
+WSGI_APPLICATION = 'arolana_config.wsgi.application'
+ASGI_APPLICATION = 'arolana_config.asgi.application'
 
+# ============ DATABASE ============
+if DEBUG:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': config('DB_NAME', default='arolana_db'),
+            'USER': config('DB_USER', default='arolana_user'),
+            'PASSWORD': config('DB_PASSWORD', default=''),
+            'HOST': config('DB_HOST', default='localhost'),
+            'PORT': config('DB_PORT', default='5432'),
+        }
+    }
+
+# ============ TEMPLATES ============
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -84,8 +131,6 @@ TEMPLATES = [
             'context_processors': [
                 'core.context_processors.global_context',
                 'footer_menu.context_processors.footer_menus',
-                'core.admin_context.admin_context',
-                'core.context_processors.admin_notifications',
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
@@ -95,66 +140,84 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'arolana_config.wsgi.application'
-ASGI_APPLICATION = 'arolana_config.asgi.application'
-
-# Database
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
-
-# Password validation
-AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
-]
-
-# Custom user model
+# ============ AUTHENTICATION ============
 AUTH_USER_MODEL = 'accounts.User'
 
-# Internationalization
-LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
-USE_I18N = True
-USE_TZ = True
+AUTH_PASSWORD_VALIDATORS = [
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 8}},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+]
 
-# Static files
-STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.Argon2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+]
 
-# Media files
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+# ============ ALLAUTH CONFIGURATION ============
+SITE_ID = 1
 
-# Default primary key field type
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
 
-# Crispy forms
-CRISPY_ALLOWED_TEMPLATE_PACKS = "tailwind"
-CRISPY_TEMPLATE_PACK = "tailwind"
-
-# Authentication URLs
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
-# Channels/WebSocket
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+ACCOUNT_EMAIL_VERIFICATION = 'optional'
+ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
+ACCOUNT_LOGOUT_ON_GET = True
+ACCOUNT_SESSION_REMEMBER = True
+
+# AllAuth settings for Django 6.0
+# ✅ CORRECT
+ACCOUNT_LOGIN_METHODS = {'email'}
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
+ACCOUNT_UNIQUE_EMAIL = True
+ACCOUNT_EMAIL_VERIFICATION = 'optional'
+ACCOUNT_PASSWORD_MIN_LENGTH = 8
+
+# ✅ FIXED: Use timedelta for token expiry (3 days)
+ACCOUNT_PASSWORD_RESET_TOKEN_EXPIRY = timedelta(days=3)
+
+# ✅ FIXED: Proper rate limits format
+ACCOUNT_RATE_LIMITS = {
+    'login_failed': '5/5m',      # 5 attempts per 5 minutes
+    'reset_password': '3/1h',    # 3 attempts per hour
+    'change_password': '5/1h',   # 5 attempts per hour
+    'signup': '5/1h',            # 5 signups per hour
+}
+
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': ['profile', 'email'],
+        'AUTH_PARAMS': {'access_type': 'online'},
+        'OAUTH_PKCE_ENABLED': True,
+    },
+    'facebook': {
+        'METHOD': 'oauth2',
+        'SCOPE': ['email', 'public_profile'],
+        'AUTH_PARAMS': {'auth_type': 'reauthenticate'},
+        'FIELDS': ['id', 'email', 'name', 'first_name', 'last_name'],
+        'EXCHANGE_TOKEN': True,
+        'VERSION': 'v13.0',
     }
 }
 
-# Currency settings
-CURRENCY_DEFAULT = 'USD'
-CURRENCY_SESSION_KEY = 'user_currency'
+# ============ STATIC & MEDIA FILES ============
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# ============ CKEDITOR 5 CONFIGURATION ============
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# ============ CKEDITOR 5 ============
 CKEDITOR_5_CONFIGS = {
     'default': {
         'toolbar': [
@@ -166,180 +229,239 @@ CKEDITOR_5_CONFIGS = {
         ],
         'heading': {
             'options': [
-                {'model': 'paragraph', 'title': 'Paragraph', 'class': 'ck-heading_paragraph'},
-                {'model': 'heading1', 'view': 'h1', 'title': 'Heading 1', 'class': 'ck-heading_heading1'},
-                {'model': 'heading2', 'view': 'h2', 'title': 'Heading 2', 'class': 'ck-heading_heading2'},
-                {'model': 'heading3', 'view': 'h3', 'title': 'Heading 3', 'class': 'ck-heading_heading3'},
-                {'model': 'heading4', 'view': 'h4', 'title': 'Heading 4', 'class': 'ck-heading_heading4'},
+                {'model': 'paragraph', 'title': 'Paragraph'},
+                {'model': 'heading1', 'view': 'h1', 'title': 'Heading 1'},
+                {'model': 'heading2', 'view': 'h2', 'title': 'Heading 2'},
             ]
         },
-        'image': {
-            'toolbar': ['imageTextAlternative', 'imageStyle:full', 'imageStyle:side'],
-            'styles': ['full', 'side']
-        },
-        'table': {
-            'contentToolbar': ['tableColumn', 'tableRow', 'mergeTableCells']
-        },
-        'fontSize': {
-            'options': [9, 11, 13, 'default', 17, 19, 21, 27, 35],
-            'supportAllValues': True
-        },
-        'fontFamily': {
-            'options': [
-                'default',
-                'Arial, Helvetica, sans-serif',
-                'Courier New, Courier, monospace',
-                'Georgia, serif',
-                'Times New Roman, Times, serif',
-                'Verdana, Geneva, sans-serif'
-            ],
-            'supportAllValues': True
-        },
-        'alignment': {
-            'options': ['left', 'center', 'right', 'justify']
-        },
-        'uiColor': '#F8FAFC',
-        'skin': 'moono-lisa',
+        'image': {'toolbar': ['imageTextAlternative', 'imageStyle:full', 'imageStyle:side']},
+        'table': {'contentToolbar': ['tableColumn', 'tableRow', 'mergeTableCells']},
+        'fontSize': {'options': [9, 11, 13, 'default', 17, 19, 21, 27, 35], 'supportAllValues': True},
+        'fontFamily': {'options': ['default', 'Arial', 'Courier New', 'Georgia', 'Times New Roman', 'Verdana']},
+        'alignment': {'options': ['left', 'center', 'right', 'justify']},
     },
-    'minimal': {
-        'toolbar': ['bold', 'italic', 'underline', '|', 'bulletedList', 'numberedList'],
-    }
 }
-
+CKEDITOR_5_UPLOAD_PATH = 'uploads/ckeditor5/'
 CKEDITOR_5_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
-CKEDITOR_5_UPLOAD_PATH = "uploads/ckeditor5/"
-CKEDITOR_5_CUSTOM_CSS = '/static/css/ckeditor-custom.css'
 
-# ============ AUTHENTICATION SETTINGS ============
-AUTHENTICATION_BACKENDS = [
-    'django.contrib.auth.backends.ModelBackend',
-    'allauth.account.auth_backends.AuthenticationBackend',
-]
-
-SITE_ID = 1
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_USERNAME_REQUIRED = False
-ACCOUNT_AUTHENTICATION_METHOD = 'email'
-ACCOUNT_EMAIL_VERIFICATION = 'optional'
-ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
-ACCOUNT_LOGOUT_ON_GET = True
-ACCOUNT_UNIQUE_EMAIL = True
-ACCOUNT_USER_MODEL_USERNAME_FIELD = None
-ACCOUNT_LOGIN_METHODS = {'email'}
-ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
-
-# Google OAuth Settings
-SOCIALACCOUNT_PROVIDERS = {
-    'google': {
-        'SCOPE': ['profile', 'email'],
-        'AUTH_PARAMS': {'access_type': 'online'},
-        'OAUTH_PKCE_ENABLED': True,
+# ============ CHANNELS / WEBSOCKET ============
+if DEBUG:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        }
     }
-}
+else:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {"hosts": [config('REDIS_URL', default='redis://localhost:6379')]},
+        },
+    }
 
-# OTP Settings
-OTP_VALIDITY_MINUTES = 10
-OTP_LENGTH = 6
-MAX_OTP_ATTEMPTS = 3
+# ============ CURRENCY ============
+CURRENCY_DEFAULT = 'USD'
+CURRENCY_SESSION_KEY = 'user_currency'
 
-# ============ EMAIL CONFIGURATION ============
+# ============ CRISPY FORMS ============
+CRISPY_ALLOWED_TEMPLATE_PACKS = "tailwind"
+CRISPY_TEMPLATE_PACK = "tailwind"
+
+# ============ EMAIL ============
 if DEBUG:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-    DEFAULT_FROM_EMAIL = 'webmaster@localhost'
 else:
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-    EMAIL_HOST = 'smtp.gmail.com'
-    EMAIL_PORT = 587
-    EMAIL_USE_TLS = True
-    EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
-    EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
-    DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@arolana.com')
-    EMAIL_TIMEOUT = 30
+    EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+    EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+    EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+    EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+    EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 
-# Site URL
-SITE_URL = 'http://localhost:8000' if DEBUG else 'https://arolana.com'
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@arolana.com')
 
-# ============ JAZZMIN ADMIN DASHBOARD ============
+# ============ SECURITY HEADERS (DEVELOPMENT vs PRODUCTION) ============
+if DEBUG:
+    # Development: Disable SSL-related security for HTTP access
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+    SECURE_HSTS_SECONDS = 0
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+    SECURE_HSTS_PRELOAD = False
+    CSRF_COOKIE_SAMESITE = 'Lax'
+    SESSION_COOKIE_SAMESITE = 'Lax'
+else:
+    # Production: Enable SSL-related security
+    SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=True, cast=bool)
+    SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', default=True, cast=bool)
+    CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', default=True, cast=bool)
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    CSRF_COOKIE_SAMESITE = 'Strict'
+    SESSION_COOKIE_SAMESITE = 'Strict'
+
+# Common security headers
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+SESSION_COOKIE_AGE = 86400
+SESSION_COOKIE_HTTPONLY = True
+
+# ============ JAZZMIN ADMIN THEME ============
+os.makedirs(os.path.join(BASE_DIR, 'static', 'admin', 'css'), exist_ok=True)
+
 JAZZMIN_SETTINGS = {
     "site_title": "Arolana Admin",
     "site_header": "Arolana",
     "site_brand": "Arolana",
-    "site_logo": "/static/admin/images/arolana-logo.png",  # Full static path
+    "site_logo": "/static/admin/images/arolana-logo.png",
     "site_logo_classes": "img-circle elevation-3",
-    "site_icon": "/static/admin/images/favicon.ico",
-    "welcome_sign": "Welcome to Arolana Admin",
+    "welcome_sign": "Welcome to Arolana Admin Dashboard",
     "copyright": "Arolana.com",
     "search_model": ["accounts.User", "products.Product", "orders.Order"],
-    "show_ui_builder": False,
-    "changeform_format": "horizontal_tabs",
-    "theme": "darkly",
-    "dark_mode_theme": "darkly",
     "show_sidebar": True,
     "navigation_expanded": False,
     "sidebar_fixed": True,
+    "theme": "darkly",
+    "dark_mode_theme": "darkly",
+    "changeform_format": "horizontal_tabs",
+    "show_ui_builder": False,
 }
-
-# Custom CSS for Jazzmin (create file without using settings variable here)
-import os
-from pathlib import Path
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-css_dir = os.path.join(BASE_DIR, 'static', 'admin', 'css')
-os.makedirs(css_dir, exist_ok=True)
-
-css_file = os.path.join(css_dir, 'jazzmin-custom.css')
-if not os.path.exists(css_file):
-    with open(css_file, 'w') as f:
-        f.write("""
-/* Fix logo display */
-.brand-link .brand-image {
-    float: left;
-    margin-right: 10px;
-    max-height: 33px;
-    width: auto;
-}
-.brand-link .brand-text {
-    display: inline-block;
-    vertical-align: middle;
-}
-/* Ensure logo shows in sidebar */
-.main-sidebar .brand-link img {
-    max-height: 33px;
-    width: auto;
-}
-""")
-
-JAZZMIN_SETTINGS["custom_css"] = "/static/admin/css/jazzmin-custom.css"
 
 JAZZMIN_UI_TWEAKS = {
     "navbar_small_text": False,
-    "footer_small_text": False,
-    "body_small_text": False,
     "brand_small_text": False,
     "brand_colour": "navbar-primary",
     "accent": "accent-primary",
     "navbar": "navbar-dark navbar-primary",
     "no_navbar_border": False,
     "navbar_fixed": True,
-    "layout_boxed": False,
-    "footer_fixed": False,
     "sidebar_fixed": True,
     "sidebar": "sidebar-dark-primary",
     "sidebar_nav_small_text": False,
     "sidebar_disable_expand": False,
-    "sidebar_nav_child_indent": True,
-    "sidebar_nav_compact_style": False,
-    "sidebar_nav_legacy_style": False,
-    "sidebar_nav_flat_style": False,
     "theme": "darkly",
     "dark_mode_theme": "darkly",
 }
 
-# Twilio Settings
-TWILIO_ACCOUNT_SID = ''
-TWILIO_AUTH_TOKEN = ''
-TWILIO_PHONE_NUMBER = ''
+# ============ LOGGING ============
+os.makedirs(BASE_DIR / 'logs', exist_ok=True)
 
-# Account adapter
-ACCOUNT_ADAPTER = 'accounts.adapters.CustomAccountAdapter'
-SOCIALACCOUNT_ADAPTER = 'accounts.adapters.CustomSocialAccountAdapter'
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {'format': '{levelname} {asctime} {module} {message}', 'style': '{'},
+        'simple': {'format': '{levelname} {message}', 'style': '{'},
+    },
+    'handlers': {
+        'console': {'class': 'logging.StreamHandler', 'formatter': 'simple'},
+        'file': {'class': 'logging.FileHandler', 'filename': BASE_DIR / 'logs/arolana.log', 'formatter': 'verbose'},
+    },
+    'loggers': {
+        'django': {'handlers': ['console'], 'level': 'INFO'},
+        'django.security': {'handlers': ['file'], 'level': 'WARNING', 'propagate': True},
+    },
+}
+
+# ============ INTERNATIONALIZATION ============
+LANGUAGE_CODE = 'en-us'
+TIME_ZONE = 'UTC'
+USE_I18N = True
+USE_TZ = True
+
+# ============ DEFAULT ============
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+SITE_URL = config('SITE_URL', default='http://localhost:8000')
+
+print(f"🚀 Arolana running in {"DEVELOPMENT" if DEBUG else "PRODUCTION"} mode")
+
+# ============ CACHING ============
+if DEBUG:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        }
+    }
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': config('REDIS_URL', default='redis://localhost:6379/1'),
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'PARSER_CLASS': 'redis.connection.HiredisParser',
+                'CONNECTION_POOL_CLASS': 'redis.BlockingConnectionPool',
+                'CONNECTION_POOL_CLASS_KWARGS': {
+                    'max_connections': 50,
+                    'timeout': 20,
+                },
+                'MAX_CONNECTIONS': 1000,
+                'PICKLE_VERSION': -1,
+            },
+            'KEY_PREFIX': 'arolana',
+            'TIMEOUT': 300,
+        }
+    }
+
+# ============ REST FRAMEWORK ============
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/day',
+        'user': '1000/day'
+    }
+}
+
+# ============ CORS ============
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+    'https://arolana.com',
+    'https://www.arolana.com',
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+# ============ SILENCE DEPRECATION WARNINGS ============
+warnings.filterwarnings('ignore', category=DeprecationWarning, module='allauth')
+warnings.filterwarnings('ignore', category=DeprecationWarning, module='django_ckeditor_5')
+warnings.filterwarnings('ignore', category=RuntimeWarning, module='products.models')
+
+# ============ LOGGING CONFIGURATION ============
+if DEBUG:
+    import logging
+    logging.getLogger('django.request').setLevel(logging.ERROR)
+    logging.getLogger('django.server').setLevel(logging.ERROR)
+    logging.getLogger('currency.middleware').setLevel(logging.WARNING)
+    
+    # Suppress specific warnings
+    import warnings
+    warnings.filterwarnings('ignore', message='.*development server.*')
+    warnings.filterwarnings('ignore', module='currency.middleware')
+
+# Suppress 404 warnings for favicon and wishlist
+import logging
+class Suppress404Filter(logging.Filter):
+    def filter(self, record):
+        msg = record.getMessage()
+        return not ('favicon.ico' in msg or 'wishlist/count' in msg)
+
+logging.getLogger('django.request').addFilter(Suppress404Filter())
+
+print(f"🎨 Arolana Admin Interface: {'Development' if DEBUG else 'Production'} Mode")
+print(f"📍 Site URL: {SITE_URL}")

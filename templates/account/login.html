@@ -1,0 +1,331 @@
+{% extends 'base/base.html' %}
+{% load socialaccount %}
+{% load account %}
+
+{% block title %}Sign In | Arolana{% endblock %}
+
+{% block extra_css %}
+<style>
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-10px); }
+        75% { transform: translateX(10px); }
+    }
+    
+    .animate-slide-down { animation: slideDown 0.5s ease-out; }
+    
+    .loading-spinner {
+        width: 20px;
+        height: 20px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top-color: white;
+        animation: spin 0.6s linear infinite;
+    }
+    
+    .shaking { animation: shake 0.5s ease-in-out; }
+    
+    .input-focus-effect { transition: all 0.3s ease; }
+    .input-focus-effect:focus {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+    }
+    
+    .btn-hover-effect { transition: all 0.3s ease; }
+    .btn-hover-effect:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+    }
+    
+    .social-btn-hover { transition: all 0.3s ease; }
+    .social-btn-hover:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Additional enhancements */
+    .password-toggle {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: #9ca3af;
+        transition: color 0.3s;
+    }
+    .password-toggle:hover { color: #3b82f6; }
+    .relative { position: relative; }
+    
+    /* Remember me checkbox styling */
+    input[type="checkbox"] {
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    input[type="checkbox"]:checked {
+        background-color: #3b82f6;
+        border-color: #3b82f6;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8">
+        <!-- Logo/Brand -->
+        <div class="text-center">
+            <div class="flex justify-center">
+                <div class="w-20 h-20 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg transform hover:scale-105 transition duration-300">
+                    <i class="fas fa-store text-3xl text-white"></i>
+                </div>
+            </div>
+            <h2 class="mt-6 text-3xl font-extrabold text-gray-900">Welcome to Arolana</h2>
+            <p class="mt-2 text-sm text-gray-600">Your premium multi-vendor marketplace</p>
+        </div>
+        
+        <!-- Messages -->
+        {% if messages %}
+            {% for message in messages %}
+                <div class="mb-4 p-4 rounded-lg transform transition-all duration-500 animate-slide-down 
+                    {% if message.tags == 'success' %}bg-green-100 text-green-700 border border-green-200
+                    {% elif message.tags == 'error' %}bg-red-100 text-red-700 border border-red-200
+                    {% elif message.tags == 'warning' %}bg-yellow-100 text-yellow-700 border border-yellow-200
+                    {% else %}bg-blue-100 text-blue-700 border border-blue-200{% endif %}">
+                    <div class="flex items-center gap-3">
+                        <div class="flex-shrink-0">
+                            {% if message.tags == 'success' %}
+                                <i class="fas fa-check-circle text-xl"></i>
+                            {% elif message.tags == 'error' %}
+                                <i class="fas fa-exclamation-circle text-xl"></i>
+                            {% elif message.tags == 'warning' %}
+                                <i class="fas fa-exclamation-triangle text-xl"></i>
+                            {% else %}
+                                <i class="fas fa-info-circle text-xl"></i>
+                            {% endif %}
+                        </div>
+                        <div class="flex-1"><p class="text-sm font-medium">{{ message }}</p></div>
+                        <button onclick="this.parentElement.parentElement.remove()" class="text-gray-500 hover:text-gray-700"><i class="fas fa-times"></i></button>
+                    </div>
+                </div>
+            {% endfor %}
+        {% endif %}
+        
+        <!-- Login Form -->
+        <form class="mt-8 space-y-6" method="POST" action="{% url 'account_login' %}" id="login-form">
+            {% csrf_token %}
+            {% if redirect_field_value %}
+                <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}" />
+            {% endif %}
+            
+            <div class="rounded-md shadow-sm -space-y-px">
+                <div>
+                    <label for="id_login" class="sr-only">Email address</label>
+                    <input type="email" name="login" id="id_login" required 
+                           class="appearance-none rounded-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm input-focus-effect"
+                           placeholder="Email address">
+                </div>
+                <div class="relative">
+                    <label for="id_password" class="sr-only">Password</label>
+                    <input type="password" name="password" id="id_password" required 
+                           class="appearance-none rounded-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm input-focus-effect"
+                           placeholder="Password">
+                    <button type="button" onclick="togglePassword()" class="password-toggle">
+                        <i class="fas fa-eye" id="togglePasswordIcon"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <input type="checkbox" name="remember" id="id_remember" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                    <label for="id_remember" class="ml-2 block text-sm text-gray-900">Remember me</label>
+                </div>
+                <div class="text-sm">
+                    <a href="{% url 'account_reset_password' %}" class="font-medium text-blue-600 hover:text-blue-500 transition-colors">Forgot password?</a>
+                </div>
+            </div>
+            
+            <div>
+                <button type="submit" id="login-submit" 
+                        class="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300 btn-hover-effect">
+                    <span class="absolute left-0 inset-y-0 flex items-center pl-3">
+                        <i class="fas fa-lock text-blue-400 group-hover:text-blue-300"></i>
+                    </span>
+                    <span class="btn-text">Sign In</span>
+                    <div class="btn-loader hidden absolute inset-0 flex items-center justify-center bg-gradient-to-r from-blue-600 to-blue-700 rounded-md">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </button>
+            </div>
+        </form>
+        
+        <!-- Social Login Section -->
+        {% get_providers as socialaccount_providers %}
+        {% if socialaccount_providers %}
+            <div class="mt-6">
+                <div class="relative">
+                    <div class="absolute inset-0 flex items-center">
+                        <div class="w-full border-t border-gray-300"></div>
+                    </div>
+                    <div class="relative flex justify-center text-sm">
+                        <span class="px-2 bg-white text-gray-500">Or continue with</span>
+                    </div>
+                </div>
+                
+                <div class="mt-6 space-y-3">
+                    {% for provider in socialaccount_providers %}
+                        {% if provider.id == "google" %}
+                            <a href="{% provider_login_url provider.id process='login' %}" 
+                               class="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition-all duration-300 social-btn-hover">
+                                <svg class="w-5 h-5" viewBox="0 0 24 24">
+                                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                                </svg>
+                                <span>Sign in with Google</span>
+                            </a>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+        
+        <!-- Sign up link -->
+        <p class="text-center text-sm text-gray-600">
+            Don't have an account? 
+            <a href="{% url 'account_signup' %}" class="font-medium text-blue-600 hover:text-blue-500 transition-colors">Sign up now</a>
+        </p>
+        
+        <!-- Trust badges -->
+        <div class="mt-8 flex justify-center gap-6 text-xs text-gray-500">
+            <span><i class="fas fa-lock mr-1"></i> Secure Login</span>
+            <span><i class="fas fa-shield-alt mr-1"></i> SSL Encrypted</span>
+            <span><i class="fas fa-credit-card mr-1"></i> Safe Payments</span>
+            <span><i class="fas fa-headset mr-1"></i> 24/7 Support</span>
+        </div>
+    </div>
+</div>
+
+<script>
+// Password visibility toggle
+function togglePassword() {
+    const passwordInput = document.getElementById('id_password');
+    const icon = document.getElementById('togglePasswordIcon');
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        passwordInput.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
+// Form submission with loading state
+document.getElementById('login-form').addEventListener('submit', function(e) {
+    const submitBtn = document.getElementById('login-submit');
+    const btnText = submitBtn.querySelector('.btn-text');
+    const btnLoader = submitBtn.querySelector('.btn-loader');
+    const email = document.getElementById('id_login').value;
+    const password = document.getElementById('id_password').value;
+    
+    if (!email || !password) {
+        e.preventDefault();
+        showNotification('Please fill in all fields', 'error');
+        shakeForm();
+        return;
+    }
+    
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        e.preventDefault();
+        showNotification('Please enter a valid email address', 'error');
+        shakeForm();
+        return;
+    }
+    
+    btnText.classList.add('opacity-0');
+    btnLoader.classList.remove('hidden');
+    submitBtn.disabled = true;
+});
+
+// Show notification
+function showNotification(message, type = 'info') {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'fixed bottom-4 right-4 z-50';
+        document.body.appendChild(container);
+    }
+    
+    const toast = document.createElement('div');
+    toast.className = `transform transition-all duration-300 translate-x-0 mb-3 bg-white rounded-lg shadow-xl p-4 border-l-4 ${
+        type === 'success' ? 'border-green-500' : type === 'error' ? 'border-red-500' : 'border-blue-500'
+    } animate-slide-down`;
+    toast.innerHTML = `
+        <div class="flex items-center gap-3">
+            <div class="${type === 'success' ? 'text-green-500' : type === 'error' ? 'text-red-500' : 'text-blue-500'}">
+                <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'} text-xl"></i>
+            </div>
+            <div class="flex-1"><p class="text-gray-800 text-sm">${message}</p></div>
+            <button onclick="this.parentElement.parentElement.remove()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+        </div>
+    `;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 5000);
+}
+
+function shakeForm() {
+    const form = document.querySelector('form');
+    form.classList.add('shaking');
+    setTimeout(() => form.classList.remove('shaking'), 500);
+}
+
+// Check for errors on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const errorMessages = document.querySelectorAll('.bg-red-100');
+    if (errorMessages.length > 0) {
+        showNotification(errorMessages[0]?.innerText?.trim() || 'Login failed. Please try again.', 'error');
+        shakeForm();
+    }
+    
+    // Add Enter key support
+    const inputs = document.querySelectorAll('#login-form input');
+    inputs.forEach(input => {
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('login-form').dispatchEvent(new Event('submit'));
+            }
+        });
+    });
+});
+
+// Social login status check (optional)
+async function checkSocialLoginStatus() {
+    try {
+        const response = await fetch('/social-apps-status/');
+        const data = await response.json();
+        if (!data.google) {
+            console.log('Google login not configured, but email login works');
+        }
+    } catch (error) {
+        console.log('Social login status check failed');
+    }
+}
+checkSocialLoginStatus();
+</script>
+{% endblock %}

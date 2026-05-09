@@ -1,0 +1,176 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Notifications | Arolana{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="bg-white rounded-lg shadow-md">
+        <!-- Header -->
+        <div class="border-b p-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold">Notifications</h1>
+                    <p class="text-gray-600 mt-1">Stay updated with your activity</p>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="markAllRead()" class="text-blue-600 hover:text-blue-700 text-sm">
+                        <i class="fas fa-check-double mr-1"></i> Mark all as read
+                    </button>
+                    <a href="{% url 'notifications:preferences' %}" class="text-gray-600 hover:text-gray-700 text-sm">
+                        <i class="fas fa-cog mr-1"></i> Preferences
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Filter tabs -->
+            <div class="flex gap-2 mt-4 border-b overflow-x-auto">
+                <a href="?{% if not current_type %}" class="px-4 py-2 text-blue-600 border-b-2 border-blue-600 font-semibold">All</a>
+                {% for type_code, type_name in types %}
+                <a href="?type={{ type_code }}" class="px-4 py-2 whitespace-nowrap {% if current_type == type_code %}text-blue-600 border-b-2 border-blue-600 font-semibold{% else %}text-gray-600 hover:text-gray-800{% endif %}">
+                    {{ type_name }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Notifications list -->
+        <div class="divide-y" id="notifications-list">
+            {% for notification in notifications %}
+            <div class="p-6 {% if not notification.is_read %}bg-blue-50{% else %}hover:bg-gray-50{% endif %}" id="notification-{{ notification.id }}">
+                <div class="flex items-start gap-4">
+                    <!-- Icon based on type -->
+                    <div class="flex-shrink-0">
+                        <div class="w-12 h-12 rounded-full flex items-center justify-center
+                            {% if notification.notification_type == 'cart' %}bg-blue-100 text-blue-600
+                            {% elif notification.notification_type == 'success' %}bg-green-100 text-green-600
+                            {% elif notification.notification_type == 'warning' %}bg-yellow-100 text-yellow-600
+                            {% elif notification.notification_type == 'error' %}bg-red-100 text-red-600
+                            {% elif notification.notification_type == 'order' %}bg-purple-100 text-purple-600
+                            {% elif notification.notification_type == 'shipping' %}bg-indigo-100 text-indigo-600
+                            {% elif notification.notification_type == 'message' %}bg-pink-100 text-pink-600
+                            {% elif notification.notification_type == 'vendor' %}bg-orange-100 text-orange-600
+                            {% elif notification.notification_type == 'product' %}bg-teal-100 text-teal-600
+                            {% else %}bg-gray-100 text-gray-600{% endif %}">
+                            <i class="fas text-xl 
+                                {% if notification.notification_type == 'cart' %}fa-shopping-cart
+                                {% elif notification.notification_type == 'success' %}fa-check-circle
+                                {% elif notification.notification_type == 'warning' %}fa-exclamation-triangle
+                                {% elif notification.notification_type == 'error' %}fa-times-circle
+                                {% elif notification.notification_type == 'order' %}fa-truck
+                                {% elif notification.notification_type == 'shipping' %}fa-box
+                                {% elif notification.notification_type == 'message' %}fa-envelope
+                                {% elif notification.notification_type == 'vendor' %}fa-store
+                                {% elif notification.notification_type == 'product' %}fa-tag
+                                {% else %}fa-bell{% endif %}"></i>
+                        </div>
+                    </div>
+                    
+                    <!-- Content -->
+                    <div class="flex-1">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h3 class="font-semibold text-gray-900">
+                                    {{ notification.title }}
+                                </h3>
+                                <p class="text-gray-700 mt-1">{{ notification.message }}</p>
+                                <div class="flex gap-3 mt-2">
+                                    <p class="text-xs text-gray-400">
+                                        <i class="far fa-clock mr-1"></i> {{ notification.created_at|timesince }} ago
+                                    </p>
+                                    {% if notification.notification_type == 'cart' %}
+                                    <p class="text-xs text-blue-600">
+                                        <i class="fas fa-shopping-cart mr-1"></i> Cart Update
+                                    </p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                {% if not notification.is_read %}
+                                <button onclick="markAsRead({{ notification.id }})" class="text-blue-600 hover:text-blue-700" title="Mark as read">
+                                    <i class="fas fa-check-circle"></i>
+                                </button>
+                                {% endif %}
+                                <button onclick="deleteNotification({{ notification.id }})" class="text-red-600 hover:text-red-700" title="Delete">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Action button based on notification type -->
+                        {% if notification.link and notification.link != '#' %}
+                        <div class="mt-3">
+                            <a href="{{ notification.link }}" class="inline-flex items-center text-blue-600 text-sm hover:underline" onclick="markAsRead({{ notification.id }})">
+                                View Details 
+                                <i class="fas fa-arrow-right ml-1"></i>
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center py-12">
+                <i class="fas fa-bell-slash text-6xl text-gray-300 mb-4"></i>
+                <p class="text-gray-500">No notifications yet</p>
+                <p class="text-sm text-gray-400 mt-2">When you have notifications, they'll appear here</p>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Pagination -->
+        {% if notifications.has_other_pages %}
+        <div class="border-t p-6">
+            <div class="flex justify-center gap-2">
+                {% if notifications.has_previous %}
+                <a href="?page={{ notifications.previous_page_number }}{% if current_type %}&type={{ current_type }}{% endif %}" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Previous</a>
+                {% endif %}
+                
+                {% for num in notifications.paginator.page_range %}
+                    {% if notifications.number == num %}
+                    <span class="px-4 py-2 bg-blue-600 text-white rounded-lg">{{ num }}</span>
+                    {% elif num > notifications.number|add:-3 and num < notifications.number|add:3 %}
+                    <a href="?page={{ num }}{% if current_type %}&type={{ current_type }}{% endif %}" class="px-4 py-2 border rounded-lg hover:bg-gray-50">{{ num }}</a>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if notifications.has_next %}
+                <a href="?page={{ notifications.next_page_number }}{% if current_type %}&type={{ current_type }}{% endif %}" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Next</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function markAsRead(notificationId) {
+    fetch(`/notifications/mark/${notificationId}/`, {
+        method: 'POST',
+        headers: {'X-CSRFToken': '{{ csrf_token }}'}
+    }).then(() => {
+        location.reload();
+    });
+}
+
+function markAllRead() {
+    fetch('{% url "notifications:mark_all" %}', {
+        method: 'POST',
+        headers: {'X-CSRFToken': '{{ csrf_token }}'}
+    }).then(() => {
+        location.reload();
+    });
+}
+
+function deleteNotification(notificationId) {
+    if (confirm('Delete this notification?')) {
+        fetch(`/notifications/delete/${notificationId}/`, {
+            method: 'POST',
+            headers: {'X-CSRFToken': '{{ csrf_token }}'}
+        }).then(() => {
+            document.getElementById(`notification-${notificationId}`).remove();
+        });
+    }
+}
+</script>
+{% endblock %}
