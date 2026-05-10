@@ -85,8 +85,8 @@ INSTALLED_APPS = [
     'products',
     'orders',
     'blog',
-    'chat',
-    'notifications',
+    #'chat',
+    #'notifications',
     'hero_banners',
     'footer_menu',
     'ads',
@@ -99,7 +99,7 @@ INSTALLED_APPS = [
     'subscriptions',
     'kyc',
     'reports',
-    'currency',
+    #'currency',
     'dashboard',
 ]
 
