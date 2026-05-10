@@ -297,7 +297,7 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 STORAGES = {
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
     },
 }
 # =========================================================
@@ -305,10 +305,6 @@ STORAGES = {
 # =========================================================
 
 # 🔥 This fixes: bootstrap.bundle.min.js.map MissingFileError
-WHITENOISE_IGNORE_EXTENSIONS = (
-    'map',
-)
-
 # Optional extra safety (recommended)
 WHITENOISE_SKIP_COMPRESS_EXTENSIONS = (
     'map',
@@ -316,6 +312,7 @@ WHITENOISE_SKIP_COMPRESS_EXTENSIONS = (
 
 WHITENOISE_IGNORE_EXTENSIONS = ('map',)
 WHITENOISE_MANIFEST_STRICT = False
+WHITENOISE_AUTOREFRESH = True
 # =========================================================
 # MEDIA FILES
 # =========================================================
