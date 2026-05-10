@@ -313,6 +313,9 @@ WHITENOISE_IGNORE_EXTENSIONS = (
 WHITENOISE_SKIP_COMPRESS_EXTENSIONS = (
     'map',
 )
+
+WHITENOISE_IGNORE_EXTENSIONS = ('map',)
+WHITENOISE_MANIFEST_STRICT = False
 # =========================================================
 # MEDIA FILES
 # =========================================================
