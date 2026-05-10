@@ -187,9 +187,9 @@ ACCOUNT_PASSWORD_RESET_TOKEN_EXPIRY = timedelta(days=3)
 # ✅ FIXED: Proper rate limits format
 ACCOUNT_RATE_LIMITS = {
     'login_failed': '5/5m',      # 5 attempts per 5 minutes
-    'reset_password': '3/1h',    # 3 attempts per hour
-    'change_password': '5/1h',   # 5 attempts per hour
-    'signup': '5/1h',            # 5 signups per hour
+    'reset_password': '3/h',     # 3 attempts per hour
+    'change_password': '5/h',    # 5 attempts per hour
+    'signup': '5/h',             # 5 signups per hour
 }
 
 SOCIALACCOUNT_PROVIDERS = {

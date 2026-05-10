@@ -12,6 +12,18 @@ from django.core.files.base import ContentFile
 from django.core.files import File
 import requests
 from io import BytesIO
+import json
+
+# Function to format specifications dict as HTML
+def format_specs_as_html(specs_dict):
+    if not specs_dict:
+        return ""
+    
+    html = "<ul>"
+    for key, value in specs_dict.items():
+        html += f"<li><strong>{key}:</strong> {value}</li>"
+    html += "</ul>"
+    return html
 
 # Product data - 100 products across categories
 products_data = []
@@ -137,7 +149,7 @@ for category_name, products in all_categories:
                 'name': prod_data['name'],
                 'slug': f"{prod_data['name'].lower().replace(' ', '-')}-{idx}",
                 'description': prod_data['description'],
-                'specifications': prod_data.get('specs', {}),
+                'specifications': format_specs_as_html(prod_data.get('specs', {})),
                 'price': Decimal(prod_data['price']),
                 'compare_price': Decimal(prod_data['compare_price']) if prod_data.get('compare_price') else None,
                 'stock_quantity': random.randint(10, 100),
