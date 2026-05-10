@@ -99,7 +99,7 @@ INSTALLED_APPS = [
     'subscriptions',
     'kyc',
     'reports',
-    #'currency',
+    'currency',
     'dashboard',
 ]
 
