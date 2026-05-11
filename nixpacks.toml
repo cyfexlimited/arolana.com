@@ -10,8 +10,7 @@ nixPkgs = [
   "libjpeg",
   "zlib",
   "openssl",
-  "pkg-config",
-  "redis"
+  "pkg-config"
 ]
 
 [phases.install]
@@ -32,7 +31,6 @@ cmd = "/opt/venv/bin/gunicorn arolana_config.wsgi:application --bind 0.0.0.0:$PO
 [env]
 DISABLE_COLLECTSTATIC = "0"
 PYTHON_VERSION = "3.11.9"
-NIXPACKS_PATH = "/app"
 PYTHONUNBUFFERED = "1"
 DJANGO_SETTINGS_MODULE = "arolana_config.settings"
 ALLOWED_HOSTS = "*"
