@@ -1,23 +1,17 @@
-# Nixpacks configuration for Arolana.com
-
 [phases.setup]
 nixPkgs = [
   "python311",
   "python311Packages.pip",
   "python311Packages.virtualenv",
   "gcc",
-  "postgresql",
-  "libjpeg",
-  "zlib",
-  "openssl",
-  "pkg-config"
+  "postgresql"
 ]
 
 [phases.install]
 cmds = [
   "python -m venv /opt/venv",
-  "/opt/venv/bin/pip install --upgrade pip setuptools wheel",
-  "/opt/venv/bin/pip install --no-cache-dir -r requirements.txt"
+  "/opt/venv/bin/pip install --upgrade pip",
+  "/opt/venv/bin/pip install -r requirements.txt"
 ]
 
 [phases.build]
@@ -27,11 +21,3 @@ cmds = [
 
 [phases.start]
 cmd = "/opt/venv/bin/gunicorn arolana_config.wsgi:application --bind 0.0.0.0:$PORT"
-
-[env]
-DISABLE_COLLECTSTATIC = "0"
-PYTHON_VERSION = "3.11.9"
-PYTHONUNBUFFERED = "1"
-DJANGO_SETTINGS_MODULE = "arolana_config.settings"
-ALLOWED_HOSTS = "*"
-DEBUG = "0"
