@@ -22,6 +22,7 @@ try:
     from chat.routing import websocket_urlpatterns
 except ImportError:
     websocket_urlpatterns = []
+    print("Warning: chat.routing not available")
 
 # Configure the ASGI application
 application = ProtocolTypeRouter({
