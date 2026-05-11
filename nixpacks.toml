@@ -14,3 +14,4 @@ cmd = "daphne -b 0.0.0.0 -p $PORT arolana_config.asgi:application"
 
 [env]
 DISABLE_COLLECTSTATIC = "0"
+PYTHON_VERSION = "3.11.9"
