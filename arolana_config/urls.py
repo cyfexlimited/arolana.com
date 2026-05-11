@@ -3,9 +3,9 @@ from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic import TemplateView
+from django.views.static import serve
 from django.shortcuts import render
-from django.views.decorators.csrf import csrf_exempt
-from core.views import debug_home, live_stats
+
 # Import views
 from pages.views import page_detail, help_center, faq_page, article_detail, careers_page
 from products import views as products_views
@@ -15,7 +15,6 @@ from core import admin_views as core_admin_views
 from accounts import views as accounts_views
 from django.contrib.sitemaps.views import sitemap
 from .sitemaps import StaticViewSitemap, ProductSitemap, CategorySitemap, VendorSitemap, BlogSitemap
-from django.shortcuts import render
 from products.models import Product, Category
 from vendors.models import VendorProfile
 
@@ -49,7 +48,7 @@ def home_view(request):
         'video_section': video_section,
     }
     return render(request, 'base/home.html', context)
-    
+
 def returns_redirect(request, path=None):
     """Redirect any /returns/* to the main returns page"""
     from django.shortcuts import redirect
@@ -74,7 +73,6 @@ except ImportError:
     ]
     print("⚠️ Using custom CKEditor views")
 
-# Main URL patterns
 urlpatterns = [
     # Admin & Core
     path('admin/', admin.site.urls),
@@ -91,10 +89,8 @@ urlpatterns = [
     path('sitemap/', sitemap_page, name='sitemap'),
     path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
     
-    # Authentication - Allauth handles core auth (login, logout, signup, password reset, social)
+    # Authentication - Allauth
     path('accounts/', include('allauth.urls')),
-    
-    # Custom account URLs
     path('accounts/', include('accounts.urls')),
     
     # App URLs

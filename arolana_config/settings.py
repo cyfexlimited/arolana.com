@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from decouple import config
 from datetime import timedelta
+import os
 import warnings
 
 # Build paths
@@ -61,7 +62,6 @@ SIDEBAR_CAROUSEL_BOTTOM_COUNT = 1
 SIDEBAR_CAROUSEL_BOTTOM_INTERVAL = 6000
 SIDEBAR_CAROUSEL_STICKY_COUNT = 1
 SIDEBAR_CAROUSEL_STICKY_INTERVAL = 8000
-
 # ============ INSTALLED APPS ============
 INSTALLED_APPS = [
     'jazzmin',
@@ -208,19 +208,23 @@ ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
 ACCOUNT_LOGOUT_ON_GET = True
 ACCOUNT_SESSION_REMEMBER = True
 
+# AllAuth settings for Django 6.0
+# ✅ CORRECT
 ACCOUNT_LOGIN_METHODS = {'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
 ACCOUNT_UNIQUE_EMAIL = True
 ACCOUNT_EMAIL_VERIFICATION = 'optional'
 ACCOUNT_PASSWORD_MIN_LENGTH = 8
 
+# ✅ FIXED: Use timedelta for token expiry (3 days)
 ACCOUNT_PASSWORD_RESET_TOKEN_EXPIRY = timedelta(days=3)
 
+# ✅ FIXED: Proper rate limits format
 ACCOUNT_RATE_LIMITS = {
-    'login_failed': '5/5m',
-    'reset_password': '3/1h',
-    'change_password': '5/1h',
-    'signup': '5/1h',
+    'login_failed': '5/5m',      # 5 attempts per 5 minutes
+    'reset_password': '3/1h',    # 3 attempts per hour
+    'change_password': '5/1h',   # 5 attempts per hour
+    'signup': '5/1h',            # 5 signups per hour
 }
 
 SOCIALACCOUNT_PROVIDERS = {
@@ -311,8 +315,9 @@ else:
 
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@arolana.com')
 
-# ============ SECURITY HEADERS ============
+# ============ SECURITY HEADERS (DEVELOPMENT vs PRODUCTION) ============
 if DEBUG:
+    # Development: Disable SSL-related security for HTTP access
     SECURE_SSL_REDIRECT = False
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
@@ -322,6 +327,7 @@ if DEBUG:
     CSRF_COOKIE_SAMESITE = 'Lax'
     SESSION_COOKIE_SAMESITE = 'Lax'
 else:
+    # Production: Enable SSL-related security
     SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=True, cast=bool)
     SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', default=True, cast=bool)
     CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', default=True, cast=bool)
@@ -331,6 +337,7 @@ else:
     CSRF_COOKIE_SAMESITE = 'Strict'
     SESSION_COOKIE_SAMESITE = 'Strict'
 
+# Common security headers
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
@@ -477,10 +484,12 @@ if DEBUG:
     logging.getLogger('django.server').setLevel(logging.ERROR)
     logging.getLogger('currency.middleware').setLevel(logging.WARNING)
     
+    # Suppress specific warnings
     import warnings
     warnings.filterwarnings('ignore', message='.*development server.*')
     warnings.filterwarnings('ignore', module='currency.middleware')
 
+# Suppress 404 warnings for favicon and wishlist
 import logging
 class Suppress404Filter(logging.Filter):
     def filter(self, record):
