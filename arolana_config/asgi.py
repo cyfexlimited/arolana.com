@@ -1,10 +1,8 @@
 import os
 from django.core.asgi import get_asgi_application
 
-# Set the Django settings module
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'arolana_config.settings')
 
-# Initialize Django ASGI application early
 django_asgi_app = get_asgi_application()
 
 # Try to configure WebSocket support
@@ -19,7 +17,6 @@ try:
         websocket_urlpatterns = []
         print("Warning: chat.routing not available")
     
-    # Configure the ASGI application with WebSocket support
     application = ProtocolTypeRouter({
         "http": django_asgi_app,
         "websocket": AuthMiddlewareStack(
@@ -28,6 +25,5 @@ try:
     })
     
 except ImportError:
-    # Fallback to just ASGI if channels not available
     application = django_asgi_app
     print("Warning: channels not available, WebSocket disabled")
