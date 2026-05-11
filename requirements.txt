@@ -41,6 +41,7 @@ django-redis==6.0.0
 django-taggit==6.1.0
 djangorestframework==3.17.1
 djangorestframework_simplejwt==5.5.1
+daphne>=4.1,<5
 dparse==0.6.4
 filelock==3.29.0
 frozenlist==1.8.0
@@ -100,3 +101,5 @@ urllib3==2.6.3
 wheel==0.47.0
 whitenoise==6.12.0
 yarl==1.23.0
+
+daphne>=4.1,<5
