@@ -9,7 +9,10 @@ User = get_user_model()
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
+    """Generic chat consumer for multi-participant chat rooms"""
+
     async def connect(self):
+        """Handle WebSocket connection"""
         self.room_id = self.scope['url_route']['kwargs'].get('room_id')
         self.room_group_name = f'chat_{self.room_id}'
         self.user = self.scope['user']
@@ -37,13 +40,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.accept()
 
     async def disconnect(self, close_code):
-        # Leave room group
+        """Handle WebSocket disconnection"""
         await self.channel_layer.group_discard(
             self.room_group_name,
             self.channel_name
         )
 
     async def receive(self, text_data):
+        """Handle incoming WebSocket messages"""
         try:
             data = json.loads(text_data)
             message_type = data.get('type', 'message')
@@ -61,6 +65,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }))
 
     async def handle_message(self, data):
+        """Handle chat message"""
         message = data.get('message', '').strip()
         if not message:
             return
@@ -81,6 +86,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             )
 
     async def handle_typing(self, data):
+        """Handle typing indicator"""
         is_typing = data.get('is_typing', False)
 
         await self.channel_layer.group_send(
@@ -94,7 +100,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     async def handle_read_receipt(self, data):
+        """Handle read receipt for messages"""
         message_id = data.get('message_id')
+
         if message_id:
             await self.mark_message_read(message_id, self.user)
 
@@ -109,6 +117,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             )
 
     async def chat_message(self, event):
+        """Send chat message to WebSocket"""
         await self.send(text_data=json.dumps({
             'type': 'message',
             'message': event['message'],
@@ -119,6 +128,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         }))
 
     async def typing_indicator(self, event):
+        """Send typing indicator to WebSocket"""
         await self.send(text_data=json.dumps({
             'type': 'typing',
             'username': event['username'],
@@ -127,6 +137,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         }))
 
     async def read_receipt(self, event):
+        """Send read receipt to WebSocket"""
         await self.send(text_data=json.dumps({
             'type': 'read',
             'message_id': event['message_id'],
@@ -136,6 +147,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def get_room(self, room_id):
+        """Get chat room by ID"""
         try:
             return ChatRoom.objects.get(id=room_id, is_active=True)
         except ChatRoom.DoesNotExist:
@@ -143,10 +155,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def get_room_participants(self, room):
+        """Get all participants in a chat room"""
         return list(room.participants.all())
 
     @database_sync_to_async
     def save_message(self, room_id, user, message):
+        """Save message to database"""
         try:
             room = ChatRoom.objects.get(id=room_id)
             msg = ChatMessage.objects.create(
@@ -161,6 +175,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def mark_message_read(self, message_id, user):
+        """Mark message as read"""
         try:
             msg = ChatMessage.objects.get(id=message_id)
             if not msg.is_read and msg.sender != user:
@@ -175,6 +190,7 @@ class VendorChatConsumer(AsyncWebsocketConsumer):
     """Specialized consumer for vendor-customer chats"""
 
     async def connect(self):
+        """Handle WebSocket connection"""
         self.room_id = self.scope['url_route']['kwargs'].get('vendor_room_id')
         self.room_group_name = f'vendor_chat_{self.room_id}'
         self.user = self.scope['user']
@@ -188,7 +204,6 @@ class VendorChatConsumer(AsyncWebsocketConsumer):
             await self.close()
             return
 
-        # Check if user is vendor or customer
         if self.user != room.vendor and self.user != room.customer:
             await self.close()
             return
@@ -200,12 +215,14 @@ class VendorChatConsumer(AsyncWebsocketConsumer):
         await self.accept()
 
     async def disconnect(self, close_code):
+        """Handle WebSocket disconnection"""
         await self.channel_layer.group_discard(
             self.room_group_name,
             self.channel_name
         )
 
     async def receive(self, text_data):
+        """Handle incoming WebSocket messages"""
         try:
             data = json.loads(text_data)
             message = data.get('message', '').strip()
@@ -235,6 +252,7 @@ class VendorChatConsumer(AsyncWebsocketConsumer):
             }))
 
     async def vendor_message(self, event):
+        """Send vendor message to WebSocket"""
         await self.send(text_data=json.dumps({
             'type': 'message',
             'message': event['message'],
@@ -245,6 +263,7 @@ class VendorChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def get_room(self, room_id):
+        """Get vendor chat room by ID"""
         try:
             return VendorChatRoom.objects.get(id=room_id, is_active=True)
         except VendorChatRoom.DoesNotExist:
@@ -252,6 +271,7 @@ class VendorChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def save_message(self, room_id, user, message):
+        """Save vendor message to database"""
         try:
             room = VendorChatRoom.objects.get(id=room_id)
             msg = VendorChatMessage.objects.create(
@@ -274,6 +294,7 @@ class VendorChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def update_unread_count(self, room_id, user):
+        """Update unread message count for vendor chat"""
         try:
             room = VendorChatRoom.objects.get(id=room_id)
             if user == room.vendor:
@@ -289,6 +310,7 @@ class SupportConsumer(AsyncWebsocketConsumer):
     """Consumer for customer support chats"""
 
     async def connect(self):
+        """Handle WebSocket connection"""
         self.user = self.scope['user']
 
         if not self.user.is_authenticated or not self.user.is_staff:
@@ -303,12 +325,14 @@ class SupportConsumer(AsyncWebsocketConsumer):
         await self.accept()
 
     async def disconnect(self, close_code):
+        """Handle WebSocket disconnection"""
         await self.channel_layer.group_discard(
             self.room_group_name,
             self.channel_name
         )
 
     async def receive(self, text_data):
+        """Handle incoming WebSocket messages"""
         try:
             data = json.loads(text_data)
             message = data.get('message', '').strip()
@@ -332,6 +356,7 @@ class SupportConsumer(AsyncWebsocketConsumer):
             }))
 
     async def support_message(self, event):
+        """Send support message to WebSocket"""
         await self.send(text_data=json.dumps({
             'type': 'message',
             'message': event['message'],
