@@ -88,9 +88,11 @@ urlpatterns = [
     path('admin/avatar-upload/<int:user_id>/', core_admin_views.upload_user_avatar, name='avatar_upload'),
     path('admin/avatar-delete/<int:user_id>/', core_admin_views.delete_user_avatar, name='avatar_delete'),
     
+    # Health check for Railway
+    path('health/', health_check, name='health'),
+    
     # Homepage
     path('', home_view, name='home'),
-    path('health/', health_check, name='health'),
     
     # Sitemap
     path('sitemap/', sitemap_page, name='sitemap'),
