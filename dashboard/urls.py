@@ -38,14 +38,31 @@ urlpatterns = [
     path('admin/', views.admin_dashboard_index, name='admin_home'),
     path('admin/dismiss-alert/<int:alert_id>/', views.dismiss_alert, name='dismiss_alert'),
     path('admin/chart-data/', views.get_chart_data, name='chart_data'),
-    
-    # Vendor dashboard
+    path('admin/product-approvals/', views.admin_product_approvals, name='admin_product_approvals'),
+    path('admin/product-approval/<int:product_id>/', views.admin_product_approval_detail, name='admin_product_approval_detail'),
+    path('admin/search-vendors/', views.admin_search_vendors, name='admin_search_vendors'),
+    path('admin/messages/', views.admin_messages, name='admin_messages'),
+    path('admin/messages/<int:vendor_id>/', views.admin_message_conversation, name='admin_message_conversation'),
+    path('admin/broadcast/', views.admin_send_broadcast, name='admin_broadcast'),
+
+        # Vendor dashboard
     path('vendor/', views.vendor_dashboard, name='vendor_home'),
     path('vendor/orders/', views.vendor_orders, name='vendor_orders'),
     path('vendor/order/<int:order_id>/', views.vendor_order_detail, name='vendor_order_detail'),
     path('vendor/order/<int:order_id>/update-status/', views.vendor_update_order_status, name='update_order_status'),
     path('vendor/products/', views.vendor_products, name='vendor_products'),
     path('vendor/product/<int:product_id>/', views.vendor_product_detail, name='vendor_product_detail'),
+    path('vendor/product/add/', views.vendor_add_product, name='vendor_add_product'),
     path('vendor/notifications/api/', views.vendor_notifications_api, name='notifications_api'),
+    path('vendor/analytics/', views.vendor_analytics, name='vendor_analytics'),  # ADD THIS
     path('vendor/analytics/api/', views.vendor_analytics_api, name='analytics_api'),
+    path('vendor/product/resubmit/<int:product_id>/', views.vendor_resubmit_product, name='vendor_resubmit_product'),
+    path('vendor/messages/', views.vendor_messages, name='vendor_messages'),
+    path('vendor/messages/<int:admin_id>/', views.vendor_message_conversation, name='vendor_message_conversation'),
+    path('vendor/messages/', views.vendor_messages, name='vendor_messages'),
+    path('vendor/messages/start/', views.vendor_start_conversation, name='vendor_start_conversation'),
+    path('vendor/messages/<int:admin_id>/', views.vendor_message_conversation, name='vendor_message_conversation'),
+    path('vendor/messages/notifications/api/', views.vendor_notifications_api, name='vendor_notifications_api'),
+    path('vendor/notifications/delete/<int:notification_id>/', views.delete_notification, name='delete_notification'),
+    path('vendor/notifications/delete-all/', views.delete_all_notifications, name='delete_all_notifications'),
 ]

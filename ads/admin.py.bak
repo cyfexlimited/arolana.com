@@ -1,0 +1,150 @@
+from django.contrib import admin
+from django.utils.html import format_html
+from .models import (
+    AdPlacement, AdCampaign, AdBanner, AdImpression, 
+    AdClick, AdAnalytics, Advertisement
+)
+
+class AdBannerInline(admin.TabularInline):
+    model = AdBanner
+    extra = 1
+    fields = ['title', 'placement', 'image', 'cta_text', 'cta_url', 'priority', 'is_active']
+    
+    def preview_image(self, obj):
+        if obj.image:
+            return format_html('<img src="{}" width="80" height="60" style="object-fit: cover;" />', obj.image.url)
+        return "No Image"
+    preview_image.short_description = 'Preview'
+
+@admin.register(AdPlacement)
+class AdPlacementAdmin(admin.ModelAdmin):
+    list_display = ['name', 'slug', 'width', 'height', 'is_active']
+    prepopulated_fields = {'slug': ['name']}
+    list_editable = ['is_active']
+    search_fields = ['name']
+
+@admin.register(AdCampaign)
+class AdCampaignAdmin(admin.ModelAdmin):
+    list_display = ['name', 'campaign_id', 'campaign_type', 'status', 'approved', 'budget', 'spent', 'impressions', 'clicks']
+    list_filter = ['status', 'approved', 'campaign_type', 'targeting']
+    search_fields = ['name', 'campaign_id', 'sponsor_name']
+    readonly_fields = ['campaign_id', 'spent', 'daily_spent', 'impressions', 'clicks', 'ctr', 'conversions', 'conversion_rate']
+    inlines = [AdBannerInline]
+    
+    fieldsets = (
+        ('Campaign Information', {
+            'fields': ('name', 'campaign_id', 'campaign_type', 'status', 'approved', 'priority')
+        }),
+        ('Budget & Pricing', {
+            'fields': ('budget', 'spent', 'daily_budget', 'daily_spent', 'cost_per_click', 'cost_per_impression')
+        }),
+        ('Schedule', {
+            'fields': ('start_date', 'end_date', 'time_targeting_start', 'time_targeting_end')
+        }),
+        ('Targeting', {
+            'fields': ('targeting', 'devices', 'geo_targeting', 'frequency_cap')
+        }),
+        ('Sponsor Information', {
+            'fields': ('sponsor_name', 'sponsor_logo', 'sponsor_website')
+        }),
+        ('Performance', {
+            'fields': ('impressions', 'clicks', 'ctr', 'conversions', 'conversion_rate'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def ctr_display(self, obj):
+        return f"{obj.ctr:.2f}%" if obj.ctr > 0 else "0%"
+    ctr_display.short_description = 'CTR'
+    
+    actions = ['approve_campaigns', 'pause_campaigns', 'activate_campaigns']
+    
+    def approve_campaigns(self, request, queryset):
+        queryset.update(approved=True, status='active')
+    approve_campaigns.short_description = "Approve selected campaigns"
+    
+    def pause_campaigns(self, request, queryset):
+        queryset.update(status='paused')
+    pause_campaigns.short_description = "Pause selected campaigns"
+    
+    def activate_campaigns(self, request, queryset):
+        queryset.update(status='active')
+    activate_campaigns.short_description = "Activate selected campaigns"
+
+@admin.register(AdBanner)
+class AdBannerAdmin(admin.ModelAdmin):
+    list_display = ['title', 'campaign', 'placement', 'priority', 'ab_variant', 'preview_image', 'impressions', 'clicks', 'is_active']
+    list_filter = ['campaign__campaign_type', 'placement', 'is_active']
+    search_fields = ['title', 'campaign__name']
+    list_editable = ['priority', 'ab_variant', 'is_active']
+    readonly_fields = ['impressions', 'clicks', 'ctr']
+    
+    def preview_image(self, obj):
+        if obj.image:
+            return format_html('<img src="{}" width="100" height="60" style="object-fit: cover; border-radius: 4px;" />', obj.image.url)
+        return "No Image"
+    preview_image.short_description = 'Preview'
+
+@admin.register(Advertisement)
+class AdvertisementAdmin(admin.ModelAdmin):
+    list_display = ['title', 'placement', 'views', 'clicks', 'ctr_display', 'is_featured', 'is_active']
+    list_filter = ['placement', 'is_featured', 'is_active']
+    search_fields = ['title', 'description']
+    list_editable = ['is_featured', 'is_active']
+    readonly_fields = ['views', 'clicks']
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('title', 'description', 'placement', 'is_featured', 'is_active')
+        }),
+        ('Media & Links', {
+            'fields': ('image', 'url', 'button_text')
+        }),
+        ('Pricing', {
+            'fields': ('price', 'old_price', 'discount'),
+            'classes': ('collapse',)
+        }),
+        ('Schedule', {
+            'fields': ('start_date', 'end_date'),
+            'classes': ('collapse',)
+        }),
+        ('Statistics', {
+            'fields': ('views', 'clicks'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def ctr_display(self, obj):
+        return f"{obj.click_through_rate():.2f}%"
+    ctr_display.short_description = 'CTR'
+
+@admin.register(AdAnalytics)
+class AdAnalyticsAdmin(admin.ModelAdmin):
+    list_display = ['campaign', 'date', 'impressions', 'clicks', 'spent', 'ctr_display']
+    list_filter = ['campaign', 'date']
+    readonly_fields = ['campaign', 'date', 'impressions', 'clicks', 'spent']
+    
+    def ctr_display(self, obj):
+        return f"{obj.ctr:.2f}%"
+    ctr_display.short_description = 'CTR'
+    
+    def has_add_permission(self, request):
+        return False
+
+@admin.register(AdImpression)
+class AdImpressionAdmin(admin.ModelAdmin):
+    list_display = ['banner', 'campaign', 'device_type', 'timestamp', 'ip_address']
+    list_filter = ['timestamp', 'device_type', 'campaign']
+    readonly_fields = ['banner', 'campaign', 'user', 'session_id', 'ip_address', 'user_agent', 'referrer', 'device_type', 'timestamp']
+    
+    def has_add_permission(self, request):
+        return False
+
+@admin.register(AdClick)
+class AdClickAdmin(admin.ModelAdmin):
+    list_display = ['banner', 'campaign', 'device_type', 'converted', 'timestamp', 'ip_address']
+    list_filter = ['converted', 'timestamp', 'device_type', 'campaign']
+    readonly_fields = ['banner', 'campaign', 'user', 'session_id', 'ip_address', 'user_agent', 'referrer', 'device_type', 'timestamp', 'converted', 'conversion_value', 'conversion_timestamp']
+    
+    def has_add_permission(self, request):
+        return False

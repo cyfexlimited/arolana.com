@@ -1,0 +1,49 @@
+{% extends 'dashboard/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Broadcast Message - Admin Dashboard{% endblock %}
+
+{% block dashboard_content %}
+<div class="bg-white rounded-xl shadow-lg p-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold">Broadcast to All Vendors</h1>
+        <a href="{% url 'dashboard:admin_messages' %}" class="text-gray-600 hover:text-gray-800">
+            <i class="fas fa-arrow-left"></i> Back to Messages
+        </a>
+    </div>
+    
+    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+        <p class="text-sm text-yellow-700">
+            <i class="fas fa-info-circle"></i> This message will be sent to all registered vendors.
+        </p>
+    </div>
+    
+    <form method="POST" class="space-y-4">
+        {% csrf_token %}
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Message Type</label>
+            <select name="message_type" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                <option value="announcement">Announcement</option>
+                <option value="general">General</option>
+                <option value="product_update">Product Update</option>
+                <option value="payment">Payment</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Subject</label>
+            <input type="text" name="subject" required placeholder="Enter subject" 
+                   class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Message</label>
+            <textarea name="message" rows="6" required placeholder="Type your broadcast message here..." 
+                      class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"></textarea>
+        </div>
+        <div class="flex justify-end">
+            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+                <i class="fas fa-paper-plane"></i> Send Broadcast
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

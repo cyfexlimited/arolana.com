@@ -1,0 +1,66 @@
+{% for ad in ads %}
+    <div class="ad-item mb-4">
+        {% if ad.image %}
+            <a href="{{ ad.url }}" target="_blank" rel="noopener noreferrer" 
+               onclick="trackAdClick({{ ad.id }})">
+                <img src="{{ ad.image.url }}" alt="{{ ad.title }}" 
+                     class="w-full rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
+                <div class="mt-2 text-center">
+                    <span class="text-sm font-semibold text-gray-800">{{ ad.title }}</span>
+                </div>
+            </a>
+        {% else %}
+            <div class="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-xl p-5 shadow-md hover:shadow-lg transition-all duration-300 border border-gray-100">
+                <!-- Ad Title -->
+                <h4 class="font-bold text-lg text-gray-800 mb-2">{{ ad.title }}</h4>
+                
+                <!-- Ad Description -->
+                {% if ad.description %}
+                    <p class="text-sm text-gray-600 mb-3 leading-relaxed">{{ ad.description }}</p>
+                {% endif %}
+                
+                <!-- Call to Action Button -->
+                <a href="{{ ad.url }}" target="_blank" rel="noopener noreferrer"
+                   class="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-md hover:shadow-lg"
+                   onclick="trackAdClick({{ ad.id }})">
+                    {{ ad.button_text }}
+                    <i class="fas fa-arrow-right text-xs"></i>
+                </a>
+            </div>
+        {% endif %}
+    </div>
+{% empty %}
+    <div class="text-center text-gray-500 py-8 px-4 bg-gray-50 rounded-xl">
+        <i class="fas fa-ad text-3xl mb-2 text-gray-300"></i>
+        <p class="text-sm">Advertisement Space</p>
+        <p class="text-xs mt-1 text-gray-400">Your ad could be here</p>
+    </div>
+{% endfor %}
+
+<script>
+function trackAdClick(adId) {
+    fetch('/ads/track-click/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({ad_id: adId})
+    }).catch(error => console.error('Error tracking ad click:', error));
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>

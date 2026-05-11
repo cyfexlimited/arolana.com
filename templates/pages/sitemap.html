@@ -1,0 +1,85 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Sitemap | {{ site_settings.site_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-12">
+    <h1 class="text-4xl font-bold mb-8">Sitemap</h1>
+    
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <!-- Main Pages -->
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <h2 class="text-xl font-bold mb-4 text-blue-600">Main Pages</h2>
+            <ul class="space-y-2">
+                <li><a href="/" class="text-gray-600 hover:text-blue-600 transition">Home</a></li>
+                <li><a href="/about/" class="text-gray-600 hover:text-blue-600 transition">About Us</a></li>
+                <li><a href="/contact/" class="text-gray-600 hover:text-blue-600 transition">Contact</a></li>
+                <li><a href="/privacy/" class="text-gray-600 hover:text-blue-600 transition">Privacy Policy</a></li>
+                <li><a href="/terms/" class="text-gray-600 hover:text-blue-600 transition">Terms & Conditions</a></li>
+                <li><a href="/returns/" class="text-gray-600 hover:text-blue-600 transition">Returns Policy</a></li>
+                <li><a href="/faq/" class="text-gray-600 hover:text-blue-600 transition">FAQ</a></li>
+            </ul>
+        </div>
+        
+        <!-- Shop Categories -->
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <h2 class="text-xl font-bold mb-4 text-blue-600">Shop by Category</h2>
+            <ul class="space-y-2">
+                {% for category in categories %}
+                <li><a href="{% url 'products:category' category.slug %}" class="text-gray-600 hover:text-blue-600 transition">{{ category.name }}</a></li>
+                {% endfor %}
+                <li><a href="/products/" class="text-blue-600 hover:underline font-semibold">View All Categories →</a></li>
+            </ul>
+        </div>
+        
+        <!-- Products -->
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <h2 class="text-xl font-bold mb-4 text-blue-600">Products</h2>
+            <ul class="space-y-2">
+                {% for product in products|slice:":30" %}
+                <li><a href="{{ product.get_absolute_url }}" class="text-gray-600 hover:text-blue-600 transition">{{ product.name }}</a></li>
+                {% endfor %}
+                <li><a href="/products/" class="text-blue-600 hover:underline font-semibold">View All Products →</a></li>
+            </ul>
+        </div>
+        
+        <!-- Vendors -->
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <h2 class="text-xl font-bold mb-4 text-blue-600">Vendors</h2>
+            <ul class="space-y-2">
+                {% for vendor in vendors|slice:":20" %}
+                <li><a href="{% url 'vendors:detail' vendor.store_slug %}" class="text-gray-600 hover:text-blue-600 transition">{{ vendor.store_name }}</a></li>
+                {% endfor %}
+                <li><a href="/vendors/" class="text-blue-600 hover:underline font-semibold">View All Vendors →</a></li>
+            </ul>
+        </div>
+        
+        <!-- Quick Links -->
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <h2 class="text-xl font-bold mb-4 text-blue-600">Quick Links</h2>
+            <ul class="space-y-2">
+                <li><a href="/help/" class="text-gray-600 hover:text-blue-600 transition">Help Center</a></li>
+                <li><a href="/track/" class="text-gray-600 hover:text-blue-600 transition">Track Order</a></li>
+                <li><a href="/shipping/" class="text-gray-600 hover:text-blue-600 transition">Shipping Info</a></li>
+                <li><a href="/careers/" class="text-gray-600 hover:text-blue-600 transition">Careers</a></li>
+            </ul>
+        </div>
+        
+        <!-- Account -->
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <h2 class="text-xl font-bold mb-4 text-blue-600">Account</h2>
+            <ul class="space-y-2">
+                {% if user.is_authenticated %}
+                <li><a href="{% url 'accounts:profile' %}" class="text-gray-600 hover:text-blue-600 transition">My Profile</a></li>
+                <li><a href="/orders/" class="text-gray-600 hover:text-blue-600 transition">My Orders</a></li>
+                <li><a href="/wishlist/" class="text-gray-600 hover:text-blue-600 transition">My Wishlist</a></li>
+                <li><a href="{% url 'accounts:logout' %}" class="text-gray-600 hover:text-blue-600 transition">Logout</a></li>
+                {% else %}
+                <li><a href="{% url 'accounts:login' %}" class="text-gray-600 hover:text-blue-600 transition">Sign In</a></li>
+                <li><a href="{% url 'accounts:register' %}" class="text-gray-600 hover:text-blue-600 transition">Register</a></li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

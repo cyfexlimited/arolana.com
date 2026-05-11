@@ -1,0 +1,141 @@
+{% if ad %}
+    <div class="single-ad" data-ad-id="{{ ad.id }}">
+        
+        {% if style == 'warning' %}
+        <!-- Warning/Sale Style Ad -->
+        <div class="bg-gradient-to-r from-orange-500 to-red-500 rounded-xl p-4 text-white shadow-lg hover:shadow-xl transition-all">
+            <div class="flex items-center gap-3">
+                <div class="flex-shrink-0">
+                    <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                        <i class="fas fa-tag text-2xl"></i>
+                    </div>
+                </div>
+                <div class="flex-1">
+                    <div class="text-xs font-semibold uppercase tracking-wider opacity-80">Limited Time</div>
+                    <h4 class="font-bold text-base">{{ ad.title|truncatechars:25 }}</h4>
+                    <p class="text-xs opacity-90 mt-1">{{ ad.description|truncatechars:40 }}</p>
+                    <a href="{% if ad_type == 'creative' %}{{ ad.clickthrough_url }}{% elif ad_type == 'banner' %}{{ ad.cta_url }}{% else %}{{ ad.url }}{% endif %}" 
+                       target="_blank" rel="noopener noreferrer"
+                       class="inline-flex items-center gap-1 mt-2 text-xs font-semibold hover:underline"
+                       onclick="trackAdClick({{ ad.id }}, '{{ ad_type }}')">
+                        {{ ad.cta_text|default:ad.button_text|default:'Learn More' }} →
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        {% elif style == 'sponsored' %}
+        <!-- Sponsored Style Ad -->
+        <div class="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl p-4 text-white shadow-lg hover:shadow-xl transition-all">
+            <div class="flex items-start gap-3">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-crown text-2xl text-yellow-400"></i>
+                </div>
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="text-xs font-semibold bg-white/20 px-2 py-0.5 rounded">Sponsored</span>
+                        <span class="text-xs opacity-75">Featured</span>
+                    </div>
+                    <h4 class="font-bold text-sm">{{ ad.title|truncatechars:30 }}</h4>
+                    <a href="{% if ad_type == 'creative' %}{{ ad.clickthrough_url }}{% elif ad_type == 'banner' %}{{ ad.cta_url }}{% else %}{{ ad.url }}{% endif %}" 
+                       target="_blank" rel="noopener noreferrer"
+                       class="inline-flex items-center gap-1 mt-2 text-xs font-semibold hover:underline"
+                       onclick="trackAdClick({{ ad.id }}, '{{ ad_type }}')">
+                        {{ ad.cta_text|default:ad.button_text|default:'Learn More' }}
+                        <i class="fas fa-arrow-right text-xs"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        {% elif style == 'newsletter' %}
+        <!-- Newsletter Style Ad -->
+        <div class="bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl p-4 text-white shadow-lg hover:shadow-xl transition-all">
+            <div class="text-center">
+                <i class="fas fa-envelope text-3xl mb-2 opacity-80"></i>
+                <h4 class="font-bold text-base">{{ ad.title|truncatechars:25 }}</h4>
+                <p class="text-xs opacity-90 mt-1 mb-3">{{ ad.description|truncatechars:50 }}</p>
+                <a href="{% if ad_type == 'creative' %}{{ ad.clickthrough_url }}{% elif ad_type == 'banner' %}{{ ad.cta_url }}{% else %}{{ ad.url }}{% endif %}" 
+                   target="_blank" rel="noopener noreferrer"
+                   class="inline-flex items-center gap-2 bg-white text-pink-600 px-4 py-1.5 rounded-lg text-xs font-semibold hover:bg-gray-100 transition"
+                   onclick="trackAdClick({{ ad.id }}, '{{ ad_type }}')">
+                    {{ ad.cta_text|default:ad.button_text|default:'Subscribe' }}
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+        
+        {% else %}
+        <!-- Default Style Ad -->
+        <div class="bg-gradient-to-r from-blue-600 to-cyan-600 rounded-xl p-4 text-white shadow-lg hover:shadow-xl transition-all">
+            <div class="flex items-center gap-3">
+                {% if ad.image %}
+                <img src="{{ ad.image.url }}" alt="{{ ad.title }}" class="w-16 h-16 rounded-lg object-cover">
+                {% else %}
+                <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                    <i class="fas fa-ad text-xl"></i>
+                </div>
+                {% endif %}
+                <div class="flex-1">
+                    <h4 class="font-bold text-sm">{{ ad.title|truncatechars:30 }}</h4>
+                    <p class="text-xs opacity-90 mt-1">{{ ad.description|truncatechars:40 }}</p>
+                    <a href="{% if ad_type == 'creative' %}{{ ad.clickthrough_url }}{% elif ad_type == 'banner' %}{{ ad.cta_url }}{% else %}{{ ad.url }}{% endif %}" 
+                       target="_blank" rel="noopener noreferrer"
+                       class="inline-flex items-center gap-1 mt-2 text-xs font-semibold hover:underline"
+                       onclick="trackAdClick({{ ad.id }}, '{{ ad_type }}')">
+                        {{ ad.cta_text|default:ad.button_text|default:'Learn More' }} →
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Admin Metrics -->
+        {% if user.is_staff %}
+        <div class="text-xs text-gray-400 mt-2 text-center">
+            {% if ad_type == 'creative' %}
+            <i class="fas fa-palette"></i> Creative | Views: {{ ad.impressions|default:0 }} | CTR: {{ ad.ctr|floatformat:1 }}%
+            {% elif ad_type == 'banner' %}
+            <i class="fas fa-image"></i> Banner | Views: {{ ad.impressions|default:0 }} | CTR: {{ ad.ctr|floatformat:1 }}%
+            {% else %}
+            <i class="fas fa-ad"></i> Ad | Views: {{ ad.views|default:0 }} | CTR: {{ ad.ctr|floatformat:1 }}%
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+{% else %}
+    <div class="text-center text-gray-400 text-xs py-3 bg-gray-50 rounded-lg">
+        <i class="fas fa-ad mr-1"></i> Advertisement Space
+    </div>
+{% endif %}
+
+<script>
+function trackAdClick(adId, adType) {
+    fetch('/ads/track-click/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            ad_id: adId,
+            ad_type: adType
+        })
+    }).catch(error => console.error('Error tracking ad click:', error));
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>

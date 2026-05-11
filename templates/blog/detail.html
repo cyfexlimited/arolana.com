@@ -1,5 +1,6 @@
 {% extends 'base/base.html' %}
 {% load static %}
+{% load ad_tags %}
 
 {% block title %}{{ post.title }} | Arolana Blog{% endblock %}
 
@@ -98,6 +99,15 @@
     html {
         scroll-behavior: smooth;
     }
+    
+    /* Ad section styling */
+    .ad-section {
+        transition: all 0.3s ease;
+    }
+    .ad-section:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 20px 25px -12px rgba(0,0,0,0.1);
+    }
 </style>
 {% endblock %}
 
@@ -145,6 +155,17 @@
     <div class="flex flex-col lg:flex-row gap-8">
         <!-- Main Content -->
         <div class="lg:w-2/3">
+            
+            <!-- ===== AD SECTION: TOP BANNER ===== -->
+            {% if display_ad_top %}
+            <div class="ad-section mb-8">
+                <div class="text-center text-xs text-gray-400 mb-2">ADVERTISEMENT</div>
+                <div class="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl p-4 border border-gray-200">
+                    {% render_ad_carousel 'article_top' count=1 interval=8000 %}
+                </div>
+            </div>
+            {% endif %}
+            
             <!-- Featured Image -->
             {% if post.featured_image %}
             <div class="mb-8">
@@ -176,6 +197,22 @@
             <div class="article-content prose max-w-none mb-8">
                 {{ post.content|safe }}
             </div>
+            
+            <!-- ===== AD SECTION: NATIVE AD (Mid Content) ===== -->
+            {% if display_ad_native %}
+            <div class="ad-section my-8 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl p-6 text-white">
+                <div class="flex flex-col md:flex-row items-center gap-6">
+                    <div class="flex-1 text-center md:text-left">
+                        <div class="text-xs opacity-80 mb-2">Sponsored</div>
+                        <h4 class="text-xl font-bold mb-2">Limited Time Offer</h4>
+                        <p class="text-sm opacity-90">Exclusive deal for our readers</p>
+                    </div>
+                    <div class="flex-1">
+                        {% render_ad_carousel 'article_native' count=1 interval=5000 %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
             
             <!-- Tags -->
             {% if post.tags.all %}
@@ -221,6 +258,19 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- ===== AD SECTION: AFTER AUTHOR ===== -->
+            {% if display_ad_after_author %}
+            <div class="ad-section my-8">
+                <div class="bg-amber-50 rounded-xl p-4 border border-amber-200">
+                    <div class="flex items-center gap-3 mb-3">
+                        <i class="fas fa-bullhorn text-amber-500"></i>
+                        <span class="text-xs font-semibold text-amber-600">Recommended</span>
+                    </div>
+                    {% render_ad_carousel 'article_after_author' count=2 interval=6000 %}
+                </div>
+            </div>
+            {% endif %}
             
             <!-- Comments Section -->
             <div class="bg-white rounded-xl shadow-lg p-6">
@@ -288,12 +338,26 @@
                     {% endif %}
                 </div>
             </div>
+            
+            <!-- ===== AD SECTION: FOOTER ===== -->
+            {% if display_ad_footer %}
+            <div class="ad-section mt-8">
+                <div class="bg-gradient-to-r from-pink-50 to-rose-50 rounded-xl p-6 text-center">
+                    <span class="text-xs text-gray-400">Advertisement</span>
+                    <div class="mt-2">
+                        {% render_ad_carousel 'article_footer' count=1 interval=8000 %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
         </div>
         
         <!-- Sidebar -->
-        <div class="lg:w-1/3">
+        <div class="lg:w-1/3 space-y-6">
+            
             <!-- Search -->
-            <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+            {% if display_sidebar_search %}
+            <div class="bg-white rounded-xl shadow-lg p-6">
                 <h3 class="font-bold text-lg mb-4">Search Articles</h3>
                 <form method="GET" action="{% url 'blog:list' %}">
                     <div class="flex">
@@ -305,10 +369,22 @@
                     </div>
                 </form>
             </div>
+            {% endif %}
+            
+            <!-- ===== AD SECTION: SIDEBAR TOP ===== -->
+            {% if display_sidebar_ad_top %}
+            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl shadow-lg p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-gray-800">Sponsored</h3>
+                    <span class="text-xs text-gray-400">Ad</span>
+                </div>
+                {% render_ad_carousel 'sidebar_top' count=2 interval=5000 %}
+            </div>
+            {% endif %}
             
             <!-- Popular Posts -->
             {% if popular_posts %}
-            <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+            <div class="bg-white rounded-xl shadow-lg p-6">
                 <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
                     <i class="fas fa-fire text-orange-500"></i>
                     Popular Posts
@@ -333,9 +409,20 @@
             </div>
             {% endif %}
             
+            <!-- ===== AD SECTION: SIDEBAR MID ===== -->
+            {% if display_sidebar_ad_mid %}
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <div class="flex items-center gap-2 mb-4">
+                    <i class="fas fa-fire text-orange-500"></i>
+                    <h3 class="font-bold text-gray-800">Hot Deals</h3>
+                </div>
+                {% render_ad_carousel 'sidebar_mid' count=2 interval=4000 %}
+            </div>
+            {% endif %}
+            
             <!-- Categories -->
             {% if categories %}
-            <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+            <div class="bg-white rounded-xl shadow-lg p-6">
                 <h3 class="font-bold text-lg mb-4">Categories</h3>
                 <div class="space-y-2">
                     {% for category in categories %}
@@ -349,8 +436,19 @@
             </div>
             {% endif %}
             
+            <!-- ===== AD SECTION: SIDEBAR BOTTOM ===== -->
+            {% if display_sidebar_ad_bottom %}
+            <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl shadow-lg p-6">
+                <div class="flex items-center gap-2 mb-4">
+                    <i class="fas fa-gem text-purple-500"></i>
+                    <h3 class="font-bold text-gray-800">Premium</h3>
+                </div>
+                {% render_ad_carousel 'sidebar_bottom' count=1 interval=6000 %}
+            </div>
+            {% endif %}
+            
             <!-- Newsletter Subscription -->
-            <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white sticky top-4">
+            <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white">
                 <div class="text-center mb-4">
                     <i class="fas fa-envelope text-4xl mb-2"></i>
                     <h3 class="text-xl font-bold mb-2">Subscribe to Newsletter</h3>
@@ -370,6 +468,16 @@
                 </form>
                 <p class="text-xs text-center mt-3 opacity-75">No spam, unsubscribe anytime.</p>
             </div>
+            
+            <!-- ===== AD SECTION: SIDEBAR STICKY ===== -->
+            {% if display_sidebar_sticky %}
+            <div class="sticky top-24">
+                <div class="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl shadow-lg p-6">
+                    <div class="text-center text-xs text-gray-400 mb-2">Advertisement</div>
+                    {% render_ad_carousel 'sidebar_sticky' count=1 interval=8000 %}
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
     

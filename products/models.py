@@ -13,6 +13,7 @@ import uuid
 import random
 import string
 from phonenumber_field.modelfields import PhoneNumberField
+
 # =========================
 # 🔥 VENDOR MODEL
 # =========================
@@ -88,6 +89,7 @@ class Vendor(BaseModel):
     
     def get_absolute_url(self):
         return reverse('products:vendor', kwargs={'slug': self.shop_slug})
+
 
 # =========================
 # 🔥 CATEGORY MODEL
@@ -191,8 +193,6 @@ class Category(BaseModel):
         """Check if category has a background image"""
         return bool(self.background_image)
 
-# Rest of your models (Brand, Product, etc.) remain the same
-
 
 # =========================
 # 🔥 BRAND MODEL
@@ -224,11 +224,12 @@ class Brand(BaseModel):
     def get_absolute_url(self):
         return reverse('products:brand', kwargs={'slug': self.slug})
 
+
 # =========================
-# 🔥 PRODUCT MODEL
+# 🔥 PRODUCT MODEL WITH APPROVAL SYSTEM
 # =========================
 class Product(BaseModel):
-    """Enhanced product model with comprehensive features"""
+    """Enhanced product model with comprehensive features and approval system"""
     
     # Basic Info
     sku = models.CharField(
@@ -439,6 +440,32 @@ class Product(BaseModel):
     is_bestseller = models.BooleanField(default=False, db_index=True, help_text="Bestseller")
     is_active = models.BooleanField(default=True, db_index=True)
     
+    # ========== APPROVAL SYSTEM ==========
+    APPROVAL_STATUS_CHOICES = [
+        ('pending', 'Pending Approval'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('requires_changes', 'Requires Changes'),
+    ]
+    
+    approval_status = models.CharField(
+        max_length=20, 
+        choices=APPROVAL_STATUS_CHOICES, 
+        default='pending',
+        db_index=True
+    )
+    approval_notes = models.TextField(blank=True, help_text="Notes from admin about approval/rejection")
+    approved_by = models.ForeignKey(
+        'accounts.User', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='approved_products'
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    submitted_for_review_at = models.DateTimeField(auto_now_add=True)
+    resubmitted_at = models.DateTimeField(null=True, blank=True)
+    
     # Tags
     tags = TaggableManager(blank=True)
     
@@ -447,12 +474,13 @@ class Product(BaseModel):
         indexes = [
             models.Index(fields=['sku']),
             models.Index(fields=['slug']),
-            models.Index(fields=['category', 'is_active']),
+            models.Index(fields=['category', 'is_active', 'approval_status']),
             models.Index(fields=['-created_at']),
             models.Index(fields=['vendor', 'is_active']),
             models.Index(fields=['is_featured', '-created_at']),
             models.Index(fields=['is_bestseller', '-sales_count']),
             models.Index(fields=['rating_avg', '-rating_count']),
+            models.Index(fields=['approval_status', '-submitted_for_review_at']),
         ]
     
     def clean(self):
@@ -535,6 +563,26 @@ class Product(BaseModel):
         if self.weight:
             return f"{self.weight} {self.weight_unit}"
         return None
+    
+    # ========== APPROVAL SYSTEM METHODS ==========
+    def needs_approval(self):
+        """Check if product needs approval"""
+        return self.approval_status == 'pending'
+    
+    def is_approved(self):
+        """Check if product is approved"""
+        return self.approval_status == 'approved'
+    
+    def is_rejected(self):
+        """Check if product is rejected"""
+        return self.approval_status in ['rejected', 'requires_changes']
+    
+    def resubmit_for_approval(self):
+        """Resubmit product for approval after changes"""
+        self.approval_status = 'pending'
+        self.approval_notes = ''
+        self.resubmitted_at = now()
+        self.save()
     
     def get_video_embed_url(self):
         """Get embed URL for video"""

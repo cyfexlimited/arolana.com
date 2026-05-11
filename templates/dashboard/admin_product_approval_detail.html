@@ -1,0 +1,110 @@
+{% extends 'dashboard/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Review Product - Admin Dashboard{% endblock %}
+
+{% block dashboard_content %}
+<div class="bg-white rounded-xl shadow-lg p-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold">Review Product: {{ product.name }}</h1>
+        <a href="{% url 'dashboard:admin_product_approvals' %}" class="text-gray-600 hover:text-gray-800">
+            <i class="fas fa-arrow-left"></i> Back to Approvals
+        </a>
+    </div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Product Images -->
+        <div>
+            <h2 class="text-lg font-semibold mb-4">Product Images</h2>
+            {% if product.main_image %}
+                <img src="{{ product.main_image.url }}" class="w-full rounded-lg shadow-md">
+            {% else %}
+                <div class="w-full h-64 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-image text-4xl text-gray-400"></i>
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Product Details -->
+        <div>
+            <h2 class="text-lg font-semibold mb-4">Product Details</h2>
+            <div class="space-y-3">
+                <div>
+                    <label class="font-medium text-gray-700">Product Name</label>
+                    <p class="text-gray-900">{{ product.name }}</p>
+                </div>
+                <div>
+                    <label class="font-medium text-gray-700">Category</label>
+                    <p class="text-gray-900">{{ product.category.name|default:"N/A" }}</p>
+                </div>
+                <div>
+                    <label class="font-medium text-gray-700">Brand</label>
+                    <p class="text-gray-900">{{ product.brand.name|default:"N/A" }}</p>
+                </div>
+                <div>
+                    <label class="font-medium text-gray-700">Price</label>
+                    <p class="text-gray-900">${{ product.price }}</p>
+                </div>
+                <div>
+                    <label class="font-medium text-gray-700">Compare Price</label>
+                    <p class="text-gray-900">${{ product.compare_price|default:"N/A" }}</p>
+                </div>
+                <div>
+                    <label class="font-medium text-gray-700">Stock Quantity</label>
+                    <p class="text-gray-900">{{ product.stock_quantity }}</p>
+                </div>
+                <div>
+                    <label class="font-medium text-gray-700">SKU</label>
+                    <p class="text-gray-900">{{ product.sku }}</p>
+                </div>
+                <div>
+                    <label class="font-medium text-gray-700">Vendor</label>
+                    <p class="text-gray-900">{{ product.vendor.email }}</p>
+                </div>
+                <div>
+                    <label class="font-medium text-gray-700">Submitted</label>
+                    <p class="text-gray-900">{{ product.submitted_for_review_at|date:"M d, Y H:i" }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Description -->
+    <div class="mt-8">
+        <h2 class="text-lg font-semibold mb-4">Description</h2>
+        <div class="bg-gray-50 p-4 rounded-lg">
+            {{ product.description|linebreaks }}
+        </div>
+    </div>
+    
+    <!-- Approval Actions -->
+    <div class="mt-8 border-t pt-6">
+        <h2 class="text-lg font-semibold mb-4">Approval Actions</h2>
+        <form method="POST" action="{% url 'dashboard:admin_product_approvals' %}">
+            {% csrf_token %}
+            <input type="hidden" name="product_id" value="{{ product.id }}">
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Notes/Reason</label>
+                <textarea name="notes" rows="4" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" 
+                          placeholder="Enter notes or reason for rejection..."></textarea>
+            </div>
+            
+            <div class="flex gap-3">
+                <button type="submit" name="action" value="approve" 
+                        class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700">
+                    <i class="fas fa-check"></i> Approve Product
+                </button>
+                <button type="submit" name="action" value="requires_changes" 
+                        class="bg-yellow-600 text-white px-6 py-2 rounded-lg hover:bg-yellow-700">
+                    <i class="fas fa-edit"></i> Request Changes
+                </button>
+                <button type="submit" name="action" value="reject" 
+                        class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700">
+                    <i class="fas fa-times"></i> Reject Product
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

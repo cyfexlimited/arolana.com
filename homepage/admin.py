@@ -150,7 +150,7 @@ class HomepageManufacturerCategoryAdmin(admin.ModelAdmin):
         return super().get_queryset(request).select_related('category')
 
 
-# 🔹 VIDEO SECTION
+# 🔹 VIDEO SECTION (FIXED INDENTATION)
 @admin.register(HomepageVideoSection)
 class HomepageVideoSectionAdmin(admin.ModelAdmin):
     list_display = ['title', 'video_source', 'position', 'display_order', 'is_active', 'status']
@@ -188,8 +188,8 @@ class HomepageVideoSectionAdmin(admin.ModelAdmin):
 
     def status(self, obj):
         if obj.video_source == 'youtube' and obj.youtube_id:
-            return format_html('<span style="color:green;">YouTube Ready</span>')
+            return format_html('<span style="color:green;">{}</span>', 'YouTube Ready')
         elif obj.video_source == 'local' and obj.local_video:
-            return format_html('<span style="color:blue;">Local Ready</span>')
-        return format_html('<span style="color:orange;">Not Configured</span>')
+            return format_html('<span style="color:blue;">{}</span>', 'Local Ready')
+        return format_html('<span style="color:orange;">{}</span>', 'Not Configured')
     status.short_description = "Status"

@@ -1,0 +1,185 @@
+{% extends 'dashboard/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Admin Messages - Dashboard{% endblock %}
+
+{% block dashboard_content %}
+<div class="bg-white rounded-xl shadow-lg p-6">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div>
+            <h1 class="text-2xl font-bold">Messages with Vendors</h1>
+            {% if total_unread %}
+            <p class="text-sm text-red-500 mt-1">You have {{ total_unread }} unread message{{ total_unread|pluralize }}</p>
+            {% endif %}
+        </div>
+        <div class="flex gap-3">
+            <a href="{% url 'dashboard:admin_broadcast' %}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                <i class="fas fa-bullhorn"></i> Broadcast
+            </a>
+            <button onclick="openSearchModal()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+                <i class="fas fa-search"></i> Find Vendor
+            </button>
+        </div>
+    </div>
+    
+    <!-- Search Bar -->
+    <form method="GET" class="mb-6">
+        <div class="relative">
+            <input type="text" name="search" value="{{ search_query }}" 
+                   placeholder="Search by vendor email, name, or message content..." 
+                   class="w-full px-4 py-3 pl-10 border rounded-lg focus:ring-2 focus:ring-blue-500">
+            <i class="fas fa-search absolute left-3 top-3.5 text-gray-400"></i>
+            {% if search_query %}
+            <a href="{% url 'dashboard:admin_messages' %}" class="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </a>
+            {% endif %}
+        </div>
+    </form>
+    
+    {% if vendors %}
+    <div class="space-y-3">
+        {% for vendor_data in vendors %}
+        <a href="{% url 'dashboard:admin_message_conversation' vendor_data.vendor.id %}" 
+           class="block border rounded-lg p-4 hover:bg-gray-50 transition {% if vendor_data.unread_count %}bg-blue-50 border-blue-200{% endif %}">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-full flex items-center justify-center {% if vendor_data.unread_count %}bg-blue-500{% else %}bg-gray-200{% endif %}">
+                        <i class="fas fa-store text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h3 class="font-semibold">{{ vendor_data.vendor.email }}</h3>
+                            {% if vendor_data.unread_count %}
+                            <span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full">{{ vendor_data.unread_count }} new</span>
+                            {% endif %}
+                        </div>
+                        <p class="text-sm text-gray-500">
+                            Vendor since {{ vendor_data.vendor.date_joined|date:"M d, Y" }}
+                        </p>
+                        {% if vendor_data.last_message_preview %}
+                        <p class="text-sm text-gray-600 mt-1">
+                            <span class="text-xs text-gray-400">
+                                {% if vendor_data.last_message_sender == request.user %}You:{% else %}Vendor:{% endif %}
+                            </span>
+                            {{ vendor_data.last_message_preview|truncatechars:50 }}
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="text-xs text-gray-400">{{ vendor_data.last_message_time|timesince }} ago</p>
+                    <i class="fas fa-chevron-right text-gray-400 mt-2"></i>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    
+    <!-- Pagination -->
+    {% if vendors.has_other_pages %}
+    <div class="flex justify-center gap-2 mt-6">
+        {% if vendors.has_previous %}
+            <a href="?page={{ vendors.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}" 
+               class="px-3 py-1 bg-gray-100 rounded-lg hover:bg-gray-200">Previous</a>
+        {% endif %}
+        
+        <span class="px-3 py-1 bg-blue-600 text-white rounded-lg">{{ vendors.number }}</span>
+        
+        {% if vendors.has_next %}
+            <a href="?page={{ vendors.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}" 
+               class="px-3 py-1 bg-gray-100 rounded-lg hover:bg-gray-200">Next</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    
+    {% else %}
+    <div class="text-center py-12">
+        <i class="fas fa-comments text-5xl text-gray-300 mb-4"></i>
+        <p class="text-gray-500">No vendor conversations yet</p>
+        <button onclick="openSearchModal()" class="mt-4 text-blue-600 hover:underline">
+            <i class="fas fa-plus"></i> Start a conversation with a vendor
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Search Vendor Modal -->
+<div id="searchVendorModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold">Search Vendors</h2>
+            <button onclick="closeSearchModal()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="relative mb-4">
+            <input type="text" id="vendorSearchInput" placeholder="Type vendor email or store name..." 
+                   class="w-full px-4 py-3 pl-10 border rounded-lg focus:ring-2 focus:ring-blue-500">
+            <i class="fas fa-search absolute left-3 top-3.5 text-gray-400"></i>
+        </div>
+        <div id="searchResults" class="max-h-96 overflow-y-auto space-y-2">
+            <p class="text-gray-500 text-center py-4">Start typing to search for vendors...</p>
+        </div>
+    </div>
+</div>
+
+<script>
+let searchTimeout;
+const searchInput = document.getElementById('vendorSearchInput');
+const resultsContainer = document.getElementById('searchResults');
+
+function openSearchModal() {
+    document.getElementById('searchVendorModal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeSearchModal() {
+    document.getElementById('searchVendorModal').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+}
+
+searchInput.addEventListener('input', function() {
+    clearTimeout(searchTimeout);
+    const query = this.value;
+    
+    if (query.length < 2) {
+        resultsContainer.innerHTML = '<p class="text-gray-500 text-center py-4">Type at least 2 characters...</p>';
+        return;
+    }
+    
+    searchTimeout = setTimeout(() => {
+        fetch(`/dashboard/admin/search-vendors/?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.vendors.length === 0) {
+                    resultsContainer.innerHTML = '<p class="text-gray-500 text-center py-4">No vendors found</p>';
+                    return;
+                }
+                
+                resultsContainer.innerHTML = data.vendors.map(vendor => `
+                    <a href="/dashboard/admin/messages/${vendor.id}/" 
+                       class="block p-3 border rounded-lg hover:bg-gray-50 transition">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-store text-blue-600"></i>
+                            </div>
+                            <div>
+                                <p class="font-semibold">${vendor.email}</p>
+                                ${vendor.store_name ? `<p class="text-xs text-gray-500">${vendor.store_name}</p>` : ''}
+                            </div>
+                        </div>
+                    </a>
+                `).join('');
+            });
+    }, 300);
+});
+
+// Close modal when clicking outside
+document.getElementById('searchVendorModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeSearchModal();
+    }
+});
+</script>
+{% endblock %}

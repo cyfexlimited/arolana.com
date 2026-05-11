@@ -74,7 +74,7 @@ def blog_list(request):
     return render(request, 'blog/list.html', context)
 
 def blog_detail(request, slug):
-    """Article detail page with B&H style layout"""
+    """Article detail page with B&H style layout and integrated ads"""
     post = get_object_or_404(BlogPost, slug=slug, is_published=True)
     
     # Increment view count
@@ -93,7 +93,7 @@ def blog_detail(request, slug):
     # Get popular posts for sidebar
     popular_posts = BlogPost.objects.filter(is_published=True).order_by('-views')[:5]
     
-    # Get categories
+    # Get categories with post counts
     categories = BlogCategory.objects.filter(is_active=True).annotate(
         post_count=Count('posts', filter=Q(posts__is_published=True))
     )
@@ -124,6 +124,31 @@ def blog_detail(request, slug):
         }
     }
     
+    # ========== AD CONTROLS (can be overridden via context) ==========
+    # These control which ad sections appear on the page
+    # Set to False to hide specific ad sections
+    
+    ad_controls = {
+        # Main content ads
+        'display_ad_top': getattr(settings, 'DISPLAY_ARTICLE_TOP_AD', True),
+        'display_ad_after_header': getattr(settings, 'DISPLAY_ARTICLE_AFTER_HEADER_AD', True),
+        'display_ad_mid_1': getattr(settings, 'DISPLAY_ARTICLE_MID_AD', True),
+        'display_ad_native': getattr(settings, 'DISPLAY_ARTICLE_NATIVE_AD', True),
+        'display_ad_before_conclusion': getattr(settings, 'DISPLAY_ARTICLE_BEFORE_CONCLUSION_AD', True),
+        'display_ad_after_author': getattr(settings, 'DISPLAY_ARTICLE_AFTER_AUTHOR_AD', True),
+        'display_ad_footer': getattr(settings, 'DISPLAY_ARTICLE_FOOTER_AD', True),
+        
+        # Sidebar ads
+        'display_sidebar_search': getattr(settings, 'DISPLAY_SIDEBAR_SEARCH', True),
+        'display_sidebar_ad_top': getattr(settings, 'DISPLAY_SIDEBAR_TOP_AD', True),
+        'display_sidebar_newsletter': getattr(settings, 'DISPLAY_SIDEBAR_NEWSLETTER', True),
+        'display_sidebar_ad_mid': getattr(settings, 'DISPLAY_SIDEBAR_MID_AD', True),
+        'display_sidebar_popular': getattr(settings, 'DISPLAY_SIDEBAR_POPULAR', True),
+        'display_sidebar_ad_bottom': getattr(settings, 'DISPLAY_SIDEBAR_BOTTOM_AD', True),
+        'display_sidebar_categories': getattr(settings, 'DISPLAY_SIDEBAR_CATEGORIES', True),
+        'display_sidebar_sticky': getattr(settings, 'DISPLAY_SIDEBAR_STICKY_AD', True),
+    }
+    
     context = {
         'post': post,
         'related_posts': related_posts,
@@ -132,6 +157,10 @@ def blog_detail(request, slug):
         'categories': categories,
         'table_of_contents': toc,
         'schema': json.dumps(schema),
+        # Ad controls
+        **ad_controls,
+        # Additional context for template
+        'is_blog_detail': True,
     }
     return render(request, 'blog/detail.html', context)
 

@@ -5,7 +5,7 @@ from django.conf.urls.static import static
 from django.views.generic import TemplateView
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
-
+from core.views import debug_home, live_stats
 # Import views
 from pages.views import page_detail, help_center, faq_page, article_detail, careers_page
 from products import views as products_views
@@ -13,11 +13,43 @@ import currency.views as currency_views
 import core.views as core_views
 from core import admin_views as core_admin_views
 from accounts import views as accounts_views
+from django.contrib.sitemaps.views import sitemap
+from .sitemaps import StaticViewSitemap, ProductSitemap, CategorySitemap, VendorSitemap, BlogSitemap
+from django.shortcuts import render
+from products.models import Product, Category
+from vendors.models import VendorProfile
+
+def sitemap_page(request):
+    categories = Category.objects.filter(is_active=True, parent=None)[:20]
+    products = Product.objects.filter(is_active=True)[:50]
+    vendors = VendorProfile.objects.filter(is_verified=True, is_active=True)[:20]
+    
+    return render(request, 'pages/sitemap.html', {
+        'categories': categories,
+        'products': products,
+        'vendors': vendors,
+    })
+    
+sitemaps = {
+    'static': StaticViewSitemap,
+    'products': ProductSitemap,
+    'categories': CategorySitemap,
+    'vendors': VendorSitemap,
+    'blog': BlogSitemap,
+}
 
 def home_view(request):
-    """Custom home view that ensures request is in template context"""
-    return render(request, 'base/home.html', {})
-
+    """Custom home view with video section and proper context"""
+    from homepage.models import HomepageVideoSection
+    
+    # Get active video section from database
+    video_section = HomepageVideoSection.objects.filter(is_active=True).order_by('display_order').first()
+    
+    context = {
+        'video_section': video_section,
+    }
+    return render(request, 'base/home.html', context)
+    
 def returns_redirect(request, path=None):
     """Redirect any /returns/* to the main returns page"""
     from django.shortcuts import redirect
@@ -54,6 +86,10 @@ urlpatterns = [
     
     # Homepage
     path('', home_view, name='home'),
+    
+    # Sitemap
+    path('sitemap/', sitemap_page, name='sitemap'),
+    path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
     
     # Authentication - Allauth handles core auth (login, logout, signup, password reset, social)
     path('accounts/', include('allauth.urls')),

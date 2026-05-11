@@ -1,0 +1,58 @@
+{% extends 'dashboard/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Analytics - Vendor Dashboard{% endblock %}
+
+{% block dashboard_content %}
+<div class="bg-white rounded-xl shadow-lg p-6">
+    <h1 class="text-2xl font-bold mb-6">Sales Analytics</h1>
+    
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-blue-50 rounded-lg p-4">
+            <p class="text-gray-600">Total Products</p>
+            <p class="text-2xl font-bold">{{ total_products }}</p>
+        </div>
+        <div class="bg-green-50 rounded-lg p-4">
+            <p class="text-gray-600">Total Orders</p>
+            <p class="text-2xl font-bold">{{ total_orders }}</p>
+        </div>
+        <div class="bg-purple-50 rounded-lg p-4">
+            <p class="text-gray-600">Total Revenue</p>
+            <p class="text-2xl font-bold">${{ total_revenue|floatformat:2 }}</p>
+        </div>
+    </div>
+    
+    <div class="mt-6">
+        <h2 class="text-xl font-semibold mb-4">Last 30 Days Sales</h2>
+        <canvas id="salesChart" height="100"></canvas>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('salesChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [{% for data in sales_data %}'{{ data.date }}',{% endfor %}],
+            datasets: [{
+                label: 'Sales ($)',
+                data: [{% for data in sales_data %}{{ data.sales }},{% endfor %}],
+                borderColor: '#3B82F6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

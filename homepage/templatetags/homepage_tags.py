@@ -21,11 +21,9 @@ def homepage_categories(context):
     
     # Enhance each category with image URL and product count
     for hp_category in categories:
-        # Get image from the main category if available
         if hp_category.category.image:
             hp_category.image_url = hp_category.category.image.url
         else:
-            # Fallback to default category images
             default_images = {
                 'accessories': '/media/categories/defaults/accessories.jpg',
                 'audio': '/media/categories/defaults/audio.jpg',
@@ -38,10 +36,8 @@ def homepage_categories(context):
             }
             hp_category.image_url = default_images.get(hp_category.category.slug, None)
         
-        # Get product count
         hp_category.product_count = hp_category.category.product_count if hasattr(hp_category.category, 'product_count') else 0
         
-        # Ensure icon exists for fallback
         if not hp_category.icon:
             default_icons = {
                 'accessories': 'keyboard',
@@ -121,13 +117,11 @@ def manufacturers_section(context):
     if not settings or not settings.is_active:
         return {'show_section': False, 'request': request}
     
-    # Get manufacturers
     if settings.show_featured_only:
         manufacturers = Manufacturer.objects.filter(is_featured=True, is_active=True)[:settings.display_count]
     else:
         manufacturers = Manufacturer.objects.filter(is_active=True).order_by('-total_sales', '-rating_avg')[:settings.display_count]
     
-    # Get categories for display
     homepage_categories = HomepageManufacturerCategory.objects.filter(is_active=True).order_by('display_order')
     categories = [hc.category for hc in homepage_categories if hc.category.is_active]
     
@@ -141,12 +135,16 @@ def manufacturers_section(context):
 
 @register.inclusion_tag('homepage/video_section.html', takes_context=True)
 def video_section(context):
-    """Display video section on homepage with smooth animations"""
+    """Display video section on homepage - FIXED for local videos"""
     request = context.get('request')
     try:
+        # Get active video section - NO YOUTUBE CONDITION
         video_section = HomepageVideoSection.objects.filter(is_active=True).order_by('display_order').first()
-        if video_section and video_section.youtube_id:
+        
+        # Return video section regardless of source (local or YouTube)
+        if video_section:
             return {'video_section': video_section, 'request': request}
     except Exception as e:
         print(f"Video section error: {e}")
+    
     return {'video_section': None, 'request': request}

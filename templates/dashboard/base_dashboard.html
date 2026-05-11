@@ -1,0 +1,80 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}{% block dashboard_title %}Vendor Dashboard{% endblock %} - Arolana{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex flex-col lg:flex-row gap-8">
+        <!-- Sidebar -->
+        <div class="lg:w-64">
+            <div class="bg-white rounded-xl shadow-lg p-4 sticky top-24">
+                <div class="mb-6 pb-4 border-b">
+                    <h3 class="font-bold text-lg">Vendor Dashboard</h3>
+                    <p class="text-sm text-gray-500">{{ request.user.email }}</p>
+                </div>
+                <ul class="space-y-2">
+                    <!-- Dashboard -->
+                    <li>
+                        <a href="{% url 'dashboard:vendor_home' %}" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition">
+                            <i class="fas fa-tachometer-alt w-5"></i> Dashboard
+                        </a>
+                    </li>
+                    
+                    <!-- Products -->
+                    <li>
+                        <a href="{% url 'dashboard:vendor_products' %}" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition">
+                            <i class="fas fa-box w-5"></i> Products
+                        </a>
+                    </li>
+                    
+                    <!-- Orders -->
+                    <li>
+                        <a href="{% url 'dashboard:vendor_orders' %}" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition">
+                            <i class="fas fa-shopping-cart w-5"></i> Orders
+                        </a>
+                    </li>
+                    
+                    <!-- Analytics -->
+                    <li>
+                        <a href="{% url 'dashboard:vendor_analytics' %}" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition">
+                            <i class="fas fa-chart-line w-5"></i> Analytics
+                        </a>
+                    </li>
+                    
+                    <!-- Messages - Single link that works for both roles -->
+                    <li>
+                        <a href="{% if request.user.is_staff %}{% url 'dashboard:admin_messages' %}{% else %}{% url 'dashboard:vendor_messages' %}{% endif %}" 
+                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition">
+                            <i class="fas fa-envelope w-5"></i> Messages
+                            {% if unread_count %}
+                            <span class="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">{{ unread_count }}</span>
+                            {% endif %}
+                        </a>
+                    </li>
+                    
+                    <!-- Admin Only Links -->
+                    {% if request.user.is_staff or request.user.is_superuser %}
+                    <li class="border-t pt-2 mt-2">
+                        <a href="{% url 'dashboard:admin_product_approvals' %}" class="flex items-center gap-3 px-3 py-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition">
+                            <i class="fas fa-check-double w-5"></i> Product Approvals
+                            <span class="ml-auto text-xs bg-red-500 text-white px-2 py-1 rounded-full">Admin</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{% url 'admin:index' %}" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition">
+                            <i class="fas fa-crown w-5"></i> Django Admin
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="flex-1">
+            {% block dashboard_content %}{% endblock %}
+        </div>
+    </div>
+</div>
+{% endblock %}

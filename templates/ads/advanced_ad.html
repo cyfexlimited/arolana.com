@@ -1,0 +1,228 @@
+{% if ad %}
+    <div class="advanced-ad advanced-ad-{{ placement }} advanced-ad-{{ ad_type }}" data-ad-id="{{ ad.id }}">
+        
+        {% if ad_type == 'creative' %}
+            <!-- Creative (Most Advanced) -->
+            <div class="ad-content bg-gradient-to-br from-purple-600 to-pink-600 text-white rounded-xl p-5 shadow-lg hover:shadow-xl transition-all duration-300">
+                {% if ad.creative_type == 'image' and ad.image %}
+                    <a href="{{ ad.clickthrough_url }}" target="_blank" rel="noopener noreferrer" 
+                       onclick="trackAdClick({{ ad.id }})"
+                       class="block group">
+                        <img src="{{ ad.image.url }}" alt="{{ ad.headline }}" 
+                             class="w-full rounded-lg shadow-md group-hover:shadow-xl transition-all duration-300">
+                    </a>
+                {% endif %}
+                
+                <div class="mt-3">
+                    {% if ad.headline %}
+                        <h4 class="font-bold text-xl mb-2">{{ ad.headline }}</h4>
+                    {% endif %}
+                    {% if ad.description %}
+                        <p class="text-sm opacity-90 mb-3">{{ ad.description|truncatewords:15 }}</p>
+                    {% endif %}
+                    <a href="{{ ad.clickthrough_url }}" target="_blank" rel="noopener noreferrer"
+                       class="inline-flex items-center gap-2 bg-white text-purple-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-100 transition-colors"
+                       onclick="trackAdClick({{ ad.id }})">
+                        {{ ad.cta_text }}
+                        <i class="fas fa-arrow-right text-xs"></i>
+                    </a>
+                    <div class="text-xs opacity-75 mt-2">
+                        <i class="fas fa-star"></i> Sponsored Creative
+                    </div>
+                </div>
+            </div>
+            
+        {% elif ad_type == 'banner' %}
+            <!-- Banner Ad -->
+            <div class="ad-content bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
+                {% if ad.image %}
+                    <a href="{{ ad.cta_url }}" target="_blank" rel="noopener noreferrer" 
+                       onclick="trackAdClick({{ ad.id }})"
+                       class="block">
+                        <img src="{{ ad.image.url }}" alt="{{ ad.title }}" 
+                             class="w-full rounded-xl shadow-md hover:scale-105 transition-transform duration-300">
+                    </a>
+                {% else %}
+                    <div class="p-5">
+                        <h4 class="font-bold text-lg mb-2">{{ ad.title }}</h4>
+                        {% if ad.description %}
+                            <p class="text-sm opacity-90 mb-3">{{ ad.description|truncatewords:15 }}</p>
+                        {% endif %}
+                        <a href="{{ ad.cta_url }}" target="_blank" rel="noopener noreferrer"
+                           class="inline-flex items-center gap-2 bg-white text-blue-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-100 transition-colors"
+                           onclick="trackAdClick({{ ad.id }})">
+                            {{ ad.cta_text }}
+                            <i class="fas fa-arrow-right text-xs"></i>
+                        </a>
+                        <div class="text-xs opacity-75 mt-2">
+                            <i class="fas fa-chart-line"></i> Banner Ad
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+            
+        {% else %}
+            <!-- Simple Advertisement -->
+            <div class="ad-content bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4 shadow-md hover:shadow-lg transition-all duration-300">
+                {% if ad.image %}
+                    <a href="{{ ad.url }}" target="_blank" rel="noopener noreferrer" 
+                       onclick="trackAdClick({{ ad.id }})"
+                       class="block group">
+                        <img src="{{ ad.image.url }}" alt="{{ ad.title }}" 
+                             class="w-full rounded-lg shadow-md group-hover:shadow-xl transition-all duration-300">
+                        <div class="mt-2 text-center text-sm font-medium text-gray-700">
+                            {{ ad.title }}
+                        </div>
+                    </a>
+                {% else %}
+                    {% if ad.title %}
+                        <h4 class="font-bold text-gray-800 mb-2">{{ ad.title }}</h4>
+                    {% endif %}
+                    {% if ad.description %}
+                        <p class="text-sm text-gray-600 mb-3">{{ ad.description|truncatewords:15 }}</p>
+                    {% endif %}
+                    <a href="{{ ad.url }}" target="_blank" rel="noopener noreferrer"
+                       class="inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors"
+                       onclick="trackAdClick({{ ad.id }})">
+                        {{ ad.button_text }}
+                        <i class="fas fa-arrow-right text-xs"></i>
+                    </a>
+                {% endif %}
+            </div>
+        {% endif %}
+        
+        <!-- Performance Metrics (Admin only) -->
+        {% if user.is_staff and ad %}
+            <div class="text-xs text-gray-400 mt-2 text-center bg-gray-50 rounded p-1">
+                {% if ad_type == 'creative' %}
+                    <i class="fas fa-palette"></i> Creative ({{ ad.creative_type }}) | 
+                    Views: {{ ad.impressions|default:0 }} | 
+                    Clicks: {{ ad.clicks|default:0 }} |
+                    CTR: {{ ad.ctr|floatformat:1 }}%
+                {% elif ad_type == 'banner' %}
+                    <i class="fas fa-image"></i> Banner | 
+                    Views: {{ ad.impressions|default:0 }} | 
+                    Clicks: {{ ad.clicks|default:0 }} |
+                    CTR: {{ ad.ctr|floatformat:1 }}%
+                {% else %}
+                    <i class="fas fa-ad"></i> Ad | 
+                    Views: {{ ad.views|default:0 }} | 
+                    Clicks: {{ ad.clicks|default:0 }} |
+                    CTR: {{ ad.ctr|floatformat:1 }}%
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+{% else %}
+    <!-- Placeholder when no ads available -->
+    <div class="text-center text-gray-500 py-6 px-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+        <i class="fas fa-ad text-3xl text-gray-300 mb-2"></i>
+        <p class="text-sm font-medium">Advertisement Space</p>
+        <p class="text-xs text-gray-400 mt-1">Your ad could be here</p>
+        {% if user.is_staff %}
+            <div class="mt-3 flex gap-2 justify-center">
+                <a href="/admin/ads/adcreative/add/" class="inline-block text-xs text-purple-600 hover:text-purple-700">
+                    <i class="fas fa-plus"></i> Add Creative
+                </a>
+                <span class="text-gray-300">|</span>
+                <a href="/admin/ads/adbanner/add/" class="inline-block text-xs text-blue-600 hover:text-blue-700">
+                    <i class="fas fa-plus"></i> Add Banner
+                </a>
+                <span class="text-gray-300">|</span>
+                <a href="/admin/ads/advertisement/add/" class="inline-block text-xs text-indigo-600 hover:text-indigo-700">
+                    <i class="fas fa-plus"></i> Add Ad
+                </a>
+            </div>
+        {% endif %}
+    </div>
+{% endif %}
+
+<script>
+function trackAdClick(adId) {
+    fetch('/ads/track-click/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({ad_id: adId})
+    }).catch(error => console.error('Error tracking ad click:', error));
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Track view when ad comes into viewport
+document.addEventListener('DOMContentLoaded', function() {
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const adElement = entry.target;
+                const adId = adElement.dataset.adId;
+                
+                if (adId && !adElement.dataset.tracked) {
+                    adElement.dataset.tracked = 'true';
+                    
+                    fetch('/ads/track-view/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({
+                            ad_id: adId,
+                            view_duration: 0
+                        })
+                    }).catch(error => console.error('Error tracking view:', error));
+                }
+                
+                observer.unobserve(adElement);
+            }
+        });
+    }, { threshold: 0.5 });
+    
+    document.querySelectorAll('.advanced-ad').forEach(ad => {
+        observer.observe(ad);
+    });
+});
+</script>
+
+<style>
+.advanced-ad {
+    transition: all 0.3s ease;
+    margin-bottom: 1rem;
+}
+
+.advanced-ad-sidebar {
+    margin-bottom: 1rem;
+}
+
+.advanced-ad-banner {
+    margin: 1rem 0;
+}
+
+.advanced-ad-footer {
+    margin: 0.5rem 0;
+}
+
+.advanced-ad img {
+    max-width: 100%;
+    height: auto;
+}
+
+.advanced-ad:hover {
+    transform: translateY(-2px);
+}
+</style>

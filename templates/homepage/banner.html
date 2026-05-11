@@ -1,33 +1,259 @@
 {% load static %}
+
 {% if banners %}
-<div class="relative overflow-hidden rounded-2xl mb-12" data-aos="fade-up" style="background: linear-gradient(135deg, {{ banners.0.background_color_start }}, {{ banners.0.background_color_end }});">
-    <div class="container mx-auto px-4 py-12 relative z-10">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
-            <!-- Left Image -->
-            {% if banners.0.left_image %}
-            <div class="flex justify-center" data-aos="{{ banners.0.left_animation }}">
-                <img src="{{ banners.0.left_image }}" alt="Left banner" class="max-h-48 w-auto">
+<div class="relative overflow-hidden rounded-2xl mb-12" data-aos="fade-up">
+    <!-- Main Carousel Container -->
+    <div class="banner-carousel-container relative" data-autoplay="5000">
+        <div class="banner-carousel-track flex transition-transform duration-500 ease-out">
+            {% for banner in banners %}
+            <div class="banner-slide w-full flex-shrink-0" data-index="{{ forloop.counter0 }}">
+                <!-- Banner Slide Content -->
+                <div class="relative overflow-hidden" 
+                     style="background: linear-gradient(135deg, {{ banner.background_color_start|default:'#667eea' }}, {{ banner.background_color_end|default:'#764ba2' }});">
+                    <div class="container mx-auto px-4 py-16 md:py-24 relative z-10">
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
+                            
+                            <!-- Left Image/Video -->
+                            <div class="flex justify-center" data-aos="{{ banner.left_animation|default:'fade-right' }}">
+                                {% if banner.left_video %}
+                                    <video class="max-h-64 w-auto rounded-lg shadow-lg" autoplay muted loop playsinline>
+                                        <source src="{{ banner.left_video.url }}" type="video/mp4">
+                                    </video>
+                                {% elif banner.left_image %}
+                                    <img src="{{ banner.left_image.url }}" alt="Left banner" class="max-h-64 w-auto rounded-lg shadow-lg hover:scale-105 transition-transform duration-300">
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Center Content -->
+                            <div class="text-center" data-aos="{{ banner.center_animation|default:'fade-up' }}">
+                                {% if banner.icon %}
+                                    <i class="{{ banner.icon }} text-5xl text-white mb-4"></i>
+                                {% endif %}
+                                <h2 class="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 leading-tight">
+                                    {{ banner.title }}
+                                </h2>
+                                {% if banner.subtitle %}
+                                    <p class="text-lg md:text-xl text-white/90 mb-6 max-w-2xl mx-auto">
+                                        {{ banner.subtitle }}
+                                    </p>
+                                {% endif %}
+                                
+                                {% if banner.button_text and banner.button_url %}
+                                    <a href="{{ banner.button_url }}" 
+                                       class="inline-flex items-center gap-2 bg-white text-gray-900 px-6 md:px-8 py-3 rounded-lg font-semibold hover:shadow-lg transition transform hover:scale-105">
+                                        {{ banner.button_text }}
+                                        <i class="fas fa-arrow-right"></i>
+                                    </a>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Right Image/Video -->
+                            <div class="flex justify-center" data-aos="{{ banner.right_animation|default:'fade-left' }}">
+                                {% if banner.right_video %}
+                                    <video class="max-h-64 w-auto rounded-lg shadow-lg" autoplay muted loop playsinline>
+                                        <source src="{{ banner.right_video.url }}" type="video/mp4">
+                                    </video>
+                                {% elif banner.right_image %}
+                                    <img src="{{ banner.right_image.url }}" alt="Right banner" class="max-h-64 w-auto rounded-lg shadow-lg hover:scale-105 transition-transform duration-300">
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Decorative Elements -->
+                    <div class="absolute top-0 left-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
+                    <div class="absolute bottom-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl translate-x-1/2 translate-y-1/2"></div>
+                </div>
             </div>
-            {% endif %}
-            
-            <!-- Center Content -->
-            <div class="text-center" data-aos="{{ banners.0.center_animation }}">
-                <h2 class="text-4xl md:text-5xl font-bold text-white mb-4">{{ banners.0.title }}</h2>
-                {% if banners.0.subtitle %}
-                <p class="text-xl text-white/90 mb-6">{{ banners.0.subtitle }}</p>
-                {% endif %}
-                <a href="{{ banners.0.button_url }}" 
-                   class="inline-block bg-white text-gray-900 px-8 py-3 rounded-lg font-semibold hover:shadow-lg transition transform hover:scale-105">
-                    {{ banners.0.button_text }} <i class="fas fa-arrow-right ml-2"></i>
-                </a>
-            </div>
-            
-            <!-- Right Image -->
-            {% if banners.0.right_image %}
-            <div class="flex justify-center" data-aos="{{ banners.0.right_animation }}">
-                <img src="{{ banners.0.right_image }}" alt="Right banner" class="max-h-48 w-auto">
-            </div>
-            {% endif %}
+            {% endfor %}
+        </div>
+        
+        <!-- Carousel Navigation Dots -->
+        {% if banners|length > 1 %}
+        <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+            {% for banner in banners %}
+            <button class="banner-dot w-2 h-2 rounded-full transition-all duration-300 
+                          {% if forloop.first %}bg-white w-6{% else %}bg-white/50{% endif %}"
+                    data-index="{{ forloop.counter0 }}"></button>
+            {% endfor %}
+        </div>
+        
+        <!-- Navigation Arrows -->
+        <button class="banner-prev absolute left-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white rounded-full p-3 transition-all duration-300 z-20 backdrop-blur-sm">
+            <i class="fas fa-chevron-left text-lg"></i>
+        </button>
+        <button class="banner-next absolute right-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white rounded-full p-3 transition-all duration-300 z-20 backdrop-blur-sm">
+            <i class="fas fa-chevron-right text-lg"></i>
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const carousel = document.querySelector('.banner-carousel-container');
+    if (!carousel) return;
+    
+    const track = carousel.querySelector('.banner-carousel-track');
+    const slides = carousel.querySelectorAll('.banner-slide');
+    const dots = carousel.querySelectorAll('.banner-dot');
+    const prevBtn = carousel.querySelector('.banner-prev');
+    const nextBtn = carousel.querySelector('.banner-next');
+    const autoplayInterval = parseInt(carousel.dataset.autoplay) || 5000;
+    
+    if (slides.length <= 1) return;
+    
+    let currentIndex = 0;
+    let autoPlayInterval;
+    let isTransitioning = false;
+    
+    function updateCarousel() {
+        if (isTransitioning) return;
+        isTransitioning = true;
+        
+        const slideWidth = slides[0].clientWidth;
+        track.style.transform = `translateX(-${currentIndex * slideWidth}px)`;
+        
+        // Update dots
+        dots.forEach((dot, index) => {
+            if (index === currentIndex) {
+                dot.classList.remove('bg-white/50', 'w-2');
+                dot.classList.add('bg-white', 'w-6');
+            } else {
+                dot.classList.remove('bg-white', 'w-6');
+                dot.classList.add('bg-white/50', 'w-2');
+            }
+        });
+        
+        setTimeout(() => {
+            isTransitioning = false;
+        }, 500);
+    }
+    
+    function nextSlide() {
+        if (isTransitioning) return;
+        currentIndex = (currentIndex + 1) % slides.length;
+        updateCarousel();
+        resetAutoPlay();
+    }
+    
+    function prevSlide() {
+        if (isTransitioning) return;
+        currentIndex = (currentIndex - 1 + slides.length) % slides.length;
+        updateCarousel();
+        resetAutoPlay();
+    }
+    
+    function startAutoPlay() {
+        if (autoPlayInterval) clearInterval(autoPlayInterval);
+        autoPlayInterval = setInterval(nextSlide, autoplayInterval);
+    }
+    
+    function resetAutoPlay() {
+        clearInterval(autoPlayInterval);
+        startAutoPlay();
+    }
+    
+    // Event listeners
+    if (nextBtn) nextBtn.addEventListener('click', nextSlide);
+    if (prevBtn) prevBtn.addEventListener('click', prevSlide);
+    
+    dots.forEach(dot => {
+        dot.addEventListener('click', function() {
+            if (isTransitioning) return;
+            currentIndex = parseInt(this.dataset.index);
+            updateCarousel();
+            resetAutoPlay();
+        });
+    });
+    
+    // Pause on hover
+    carousel.addEventListener('mouseenter', () => clearInterval(autoPlayInterval));
+    carousel.addEventListener('mouseleave', startAutoPlay);
+    
+    // Handle window resize
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(updateCarousel, 100);
+    });
+    
+    // Start autoplay
+    startAutoPlay();
+    
+    // Initial update
+    setTimeout(updateCarousel, 100);
+});
+</script>
+
+<style>
+.banner-carousel-container {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+}
+
+.banner-carousel-track {
+    display: flex;
+    will-change: transform;
+}
+
+.banner-slide {
+    flex: 0 0 100%;
+    scroll-snap-align: start;
+}
+
+.banner-prev,
+.banner-next {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.banner-carousel-container:hover .banner-prev,
+.banner-carousel-container:hover .banner-next {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.banner-dot {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.banner-dot:hover {
+    transform: scale(1.2);
+    background-color: white;
+}
+
+@media (max-width: 768px) {
+    .banner-slide .grid {
+        gap: 1rem;
+    }
+    
+    .banner-slide h2 {
+        font-size: 1.5rem;
+    }
+    
+    .banner-prev,
+    .banner-next {
+        padding: 0.5rem;
+    }
+}
+</style>
+
+{% else %}
+<!-- Fallback Banner when no banners available -->
+<div class="relative overflow-hidden rounded-2xl mb-12 bg-gradient-to-r from-gray-800 to-gray-900">
+    <div class="container mx-auto px-4 py-16 md:py-24 text-center">
+        <div class="max-w-2xl mx-auto">
+            <i class="fas fa-image text-5xl text-gray-600 mb-4"></i>
+            <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">Welcome to {{ site_settings.site_name }}</h2>
+            <p class="text-lg text-gray-300 mb-8">Discover amazing products and exclusive offers</p>
+            <a href="/products/" class="inline-flex items-center gap-2 bg-white text-gray-900 px-6 py-3 rounded-lg font-semibold hover:shadow-lg transition">
+                Shop Now <i class="fas fa-arrow-right"></i>
+            </a>
         </div>
     </div>
 </div>

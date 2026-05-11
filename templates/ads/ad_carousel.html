@@ -1,0 +1,322 @@
+{% if ads %}
+<div class="ad-carousel-container relative" data-interval="{{ interval }}">
+    <!-- Carousel wrapper -->
+    <div class="ad-carousel overflow-hidden rounded-xl relative bg-gray-100" style="min-height: 350px;">
+        <div class="ad-carousel-track flex transition-transform duration-500 ease-out">
+            {% for ad in ads %}
+            <div class="ad-carousel-slide w-full flex-shrink-0" data-index="{{ forloop.counter0 }}">
+                
+                <!-- CREATIVE AD (Most Advanced) -->
+                {% if ad.type == 'creative' %}
+                <div class="bg-gradient-to-br from-purple-600 via-pink-600 to-red-600 rounded-xl p-6 text-white min-h-[350px] flex flex-col justify-center shadow-xl">
+                    <div class="text-center">
+                        <div class="inline-block px-3 py-1 bg-white/20 rounded-full text-xs font-semibold mb-4">
+                            <i class="fas fa-star text-yellow-400 mr-1"></i> Premium Creative
+                        </div>
+                        {% if ad.image %}
+                        <img src="{{ ad.image.url }}" alt="{{ ad.title }}" class="mx-auto mb-4 rounded-lg max-h-32 object-cover">
+                        {% endif %}
+                        <h3 class="text-2xl font-bold mb-3">{{ ad.title }}</h3>
+                        <p class="text-sm opacity-95 mb-6 leading-relaxed">{{ ad.description|truncatewords:25 }}</p>
+                        <a href="{{ ad.url }}" target="_blank" rel="noopener noreferrer"
+                           class="inline-flex items-center gap-2 bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition transform hover:scale-105"
+                           onclick="trackAdClick({{ ad.object.id }}, 'creative')">
+                            {{ ad.cta_text }}
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
+                        {% if user.is_staff %}
+                        <div class="mt-3 text-xs opacity-75">
+                            <i class="fas fa-chart-line"></i> {{ ad.views|default:0 }} views | {{ ad.clicks|default:0 }} clicks | {{ ad.ctr|floatformat:1 }}% CTR
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- BANNER AD -->
+                {% elif ad.type == 'banner' %}
+                <div class="bg-gradient-to-br from-blue-600 via-cyan-600 to-teal-600 rounded-xl p-6 text-white min-h-[350px] flex flex-col justify-center shadow-xl">
+                    <div class="text-center">
+                        <div class="inline-block px-3 py-1 bg-white/20 rounded-full text-xs font-semibold mb-4">
+                            <i class="fas fa-chart-line mr-1"></i> Sponsored Banner
+                        </div>
+                        {% if ad.image %}
+                        <img src="{{ ad.image.url }}" alt="{{ ad.title }}" class="mx-auto mb-4 rounded-lg max-h-32 object-cover">
+                        {% endif %}
+                        <h3 class="text-2xl font-bold mb-3">{{ ad.title }}</h3>
+                        <p class="text-sm opacity-95 mb-6 leading-relaxed">{{ ad.description|truncatewords:25 }}</p>
+                        <a href="{{ ad.url }}" target="_blank" rel="noopener noreferrer"
+                           class="inline-flex items-center gap-2 bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition transform hover:scale-105"
+                           onclick="trackAdClick({{ ad.object.id }}, 'banner')">
+                            {{ ad.cta_text }}
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
+                        {% if user.is_staff %}
+                        <div class="mt-3 text-xs opacity-75">
+                            <i class="fas fa-chart-line"></i> {{ ad.views|default:0 }} views | {{ ad.clicks|default:0 }} clicks | {{ ad.ctr|floatformat:1 }}% CTR
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- SIMPLE ADVERTISEMENT -->
+                {% else %}
+                <div class="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-xl p-6 text-white min-h-[350px] flex flex-col justify-center shadow-xl">
+                    <div class="text-center">
+                        <div class="inline-block px-3 py-1 bg-white/20 rounded-full text-xs font-semibold mb-4">
+                            <i class="fas fa-ad mr-1"></i> Special Offer
+                        </div>
+                        {% if ad.image %}
+                        <img src="{{ ad.image.url }}" alt="{{ ad.title }}" class="mx-auto mb-4 rounded-lg max-h-32 object-cover">
+                        {% endif %}
+                        <h3 class="text-2xl font-bold mb-3">{{ ad.title }}</h3>
+                        <p class="text-sm opacity-95 mb-6 leading-relaxed">{{ ad.description|truncatewords:25 }}</p>
+                        <a href="{{ ad.url }}" target="_blank" rel="noopener noreferrer"
+                           class="inline-flex items-center gap-2 bg-white text-indigo-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition transform hover:scale-105"
+                           onclick="trackAdClick({{ ad.object.id }}, 'simple')">
+                            {{ ad.cta_text }}
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
+                        {% if user.is_staff %}
+                        <div class="mt-3 text-xs opacity-75">
+                            <i class="fas fa-chart-line"></i> {{ ad.views|default:0 }} views | {{ ad.clicks|default:0 }} clicks | {{ ad.ctr|floatformat:1 }}% CTR
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Carousel Controls -->
+    {% if ads|length > 1 %}
+    <div class="flex justify-center gap-2 mt-4">
+        {% for ad in ads %}
+        <button class="carousel-dot w-2 h-2 rounded-full transition-all duration-300 
+                      {% if forloop.first %}bg-indigo-600 w-6{% else %}bg-gray-300{% endif %}"
+                data-index="{{ forloop.counter0 }}"></button>
+        {% endfor %}
+    </div>
+    
+    <button class="carousel-prev absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition w-8 h-8 flex items-center justify-center z-10">
+        <i class="fas fa-chevron-left text-sm"></i>
+    </button>
+    <button class="carousel-next absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-2 transition w-8 h-8 flex items-center justify-center z-10">
+        <i class="fas fa-chevron-right text-sm"></i>
+    </button>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const carousels = document.querySelectorAll('.ad-carousel-container');
+    
+    carousels.forEach(container => {
+        const track = container.querySelector('.ad-carousel-track');
+        const slides = container.querySelectorAll('.ad-carousel-slide');
+        const dots = container.querySelectorAll('.carousel-dot');
+        const prevBtn = container.querySelector('.carousel-prev');
+        const nextBtn = container.querySelector('.carousel-next');
+        const interval = parseInt(container.dataset.interval) || 5000;
+        
+        if (!slides.length) return;
+        
+        let currentIndex = 0;
+        let autoPlayInterval;
+        let isTransitioning = false;
+        
+        function updateCarousel() {
+            if (isTransitioning) return;
+            isTransitioning = true;
+            
+            const slideWidth = slides[0].clientWidth;
+            track.style.transform = `translateX(-${currentIndex * slideWidth}px)`;
+            
+            // Update dots
+            dots.forEach((dot, index) => {
+                if (index === currentIndex) {
+                    dot.classList.remove('bg-gray-300', 'w-2');
+                    dot.classList.add('bg-indigo-600', 'w-6');
+                } else {
+                    dot.classList.remove('bg-indigo-600', 'w-6');
+                    dot.classList.add('bg-gray-300', 'w-2');
+                }
+            });
+            
+            setTimeout(() => {
+                isTransitioning = false;
+            }, 500);
+        }
+        
+        function nextSlide() {
+            if (isTransitioning) return;
+            currentIndex = (currentIndex + 1) % slides.length;
+            updateCarousel();
+            resetAutoPlay();
+        }
+        
+        function prevSlide() {
+            if (isTransitioning) return;
+            currentIndex = (currentIndex - 1 + slides.length) % slides.length;
+            updateCarousel();
+            resetAutoPlay();
+        }
+        
+        function startAutoPlay() {
+            if (autoPlayInterval) clearInterval(autoPlayInterval);
+            autoPlayInterval = setInterval(nextSlide, interval);
+        }
+        
+        function resetAutoPlay() {
+            clearInterval(autoPlayInterval);
+            startAutoPlay();
+        }
+        
+        // Event listeners
+        if (nextBtn) nextBtn.addEventListener('click', nextSlide);
+        if (prevBtn) prevBtn.addEventListener('click', prevSlide);
+        
+        dots.forEach(dot => {
+            dot.addEventListener('click', function() {
+                if (isTransitioning) return;
+                currentIndex = parseInt(this.dataset.index);
+                updateCarousel();
+                resetAutoPlay();
+            });
+        });
+        
+        // Pause on hover
+        container.addEventListener('mouseenter', () => {
+            clearInterval(autoPlayInterval);
+        });
+        
+        container.addEventListener('mouseleave', () => {
+            startAutoPlay();
+        });
+        
+        // Handle window resize
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                updateCarousel();
+            }, 100);
+        });
+        
+        // Start auto-play
+        startAutoPlay();
+        
+        // Initial update
+        setTimeout(updateCarousel, 100);
+    });
+});
+
+function trackAdClick(adId, adType) {
+    fetch('/ads/track-click/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            ad_id: adId,
+            ad_type: adType
+        })
+    }).catch(error => console.error('Error tracking ad click:', error));
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+
+<style>
+.ad-carousel-container {
+    position: relative;
+    width: 100%;
+}
+
+.ad-carousel {
+    position: relative;
+    width: 100%;
+    background: #f3f4f6;
+    border-radius: 0.75rem;
+}
+
+.ad-carousel-track {
+    display: flex;
+    will-change: transform;
+}
+
+.ad-carousel-slide {
+    flex: 0 0 100%;
+    scroll-snap-align: start;
+}
+
+.carousel-dot {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: none;
+}
+
+.carousel-dot:hover {
+    opacity: 0.8;
+    transform: scale(1.2);
+}
+
+.carousel-prev,
+.carousel-next {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    opacity: 0.7;
+    border: none;
+}
+
+.carousel-prev:hover,
+.carousel-next:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+@media (max-width: 768px) {
+    .carousel-prev,
+    .carousel-next {
+        width: 32px;
+        height: 32px;
+    }
+}
+</style>
+{% else %}
+<div class="text-center text-gray-500 py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+    <i class="fas fa-ad text-3xl text-gray-300 mb-2"></i>
+    <p class="text-sm font-medium">No advertisements available</p>
+    <p class="text-xs text-gray-400 mt-1">Add ads to see them here</p>
+    {% if user.is_staff %}
+    <div class="mt-3 flex gap-2 justify-center flex-wrap">
+        <a href="/admin/ads/advertisement/add/" class="inline-block text-xs text-indigo-600 hover:text-indigo-700">
+            <i class="fas fa-plus"></i> Add Simple Ad
+        </a>
+        <span class="text-gray-300">|</span>
+        <a href="/admin/ads/adbanner/add/" class="inline-block text-xs text-blue-600 hover:text-blue-700">
+            <i class="fas fa-plus"></i> Add Banner
+        </a>
+        <span class="text-gray-300">|</span>
+        <a href="/admin/ads/adcreative/add/" class="inline-block text-xs text-purple-600 hover:text-purple-700">
+            <i class="fas fa-plus"></i> Add Creative
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endif %}

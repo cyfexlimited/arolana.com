@@ -1,0 +1,125 @@
+from django.db import models
+from django.utils.text import slugify
+from core.models import BaseModel
+from accounts.models import User
+
+class AdPlacement(BaseModel):
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(unique=True)
+    description = models.TextField(blank=True)
+    width = models.IntegerField(default=300)
+    height = models.IntegerField(default=250)
+    is_active = models.BooleanField(default=True)
+    
+    class Meta:
+        ordering = ['name']
+    
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f"{self.name} ({self.width}x{self.height})"
+
+class AdCampaign(BaseModel):
+    name = models.CharField(max_length=200)
+    campaign_id = models.CharField(max_length=50, unique=True, blank=True)
+    campaign_type = models.CharField(max_length=20, choices=[
+        ('sponsored', 'Sponsored Product'),
+        ('d        ('d        (nn        ('d        ('d        (nn                 ('d        ('d        (nn   ef        ('d        ('d        (del        ('d        ('d        (eci        ('d        ('d      )
+        ('d        ('d        (nn        (=1        ('d        ('d        (nn      t_        ('d        ('d        (nn        (=1 ,         ('d        ('d        (nn        (=r_        ('d        ('d        (nn        (=110        ('d        ('d        (nn        (=1   e =   de        ('d   ld(auto_now_add=True)
+    end_date = models.DateTimeField(null=True, blank=True)
+    targeting = models.CharField(max_length=20, choices=[
+                                           logged_in', 'Logged In Us                                           logged_in', 'Lll')
+    sponsor_name = models.C    sponsor_name = models.C    sponsor_nasponsor_logo = models.ImageField(upload_to='ads/sponsors/', null=True, blank=T    sponsor_name = models.C    sponsor_name = models.C    spmp    sponsor_name = models.C    sponsor_nam      sponsor_name = models.C    sponsor_name = models.C    sponsor_nasponsor_logo = models.ImageField(upload_to='ads/sponsors/', null=True, blank=T    sponsor_name = models.C    sponsor_name = models.C    spmp sed', 'Paused'),
+        ('completed', 'Completed'),
+    ], default='draft')
+    approved = models.BooleanField(default=False)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.name} - {self.status}"
+    
+    def save(self, *args, **kwargs):
+        if not self.campaign_id:
+            import random, string
+            self.campaign_id = f"AD-{''.join(random.choices(string.            self.campaign_id = f"AD-{''.join(random.choices(string.            self.campaign_id = f"AD-{''.join(randomn = models.ForeignKey(AdCampaign, on_delete=models.CASCADE, related_name='banners')
+    placement = models.ForeignKey(AdPlacement, on_delete=models.SET_NULL, null=True, related_name='banners')
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    image = models.ImageField(upload_to='ads/banners/', null=True, blank=True)
+    mobile_image = models.ImageField(upload_to='ads/banners/mobile/', null=True, blank=True)
+    video_url = models.URLField(b    video_url = models.URLField(b ha    video_url = modelsdefault='Learn More')
+    cta_url = models.URLField(  ank=True, default='    cta_url = models.URLField(  as.CharField(max_length=200, bl    cta_url = models.URLField(  ank=TerField(default=0)
+    is_active = models.BooleanField(default=True)
+    impressions = models.IntegerField(default=0)
+    clicks = models.IntegerField(default=0)
+    ctr = models.FloatField(default=0.0)
+    
+    class Meta:
+        ordering = ['-priority', '-created_at']
+    
+    def __str__(self):
+        return f"{self.title} - {self.campaign.name}"
+    
+    def increment_click(self):
+        self.clicks += 1
+        self.campaign.clicks += 1
+        self.ctr = (self.clicks / self.impressions * 100) if self.impressions > 0 else 0
+        self.campaign.ctr = (self.campaign.clicks / self.campaign.impressions * 100) if self.campaign.impressions > 0 else 0
+        self.save()
+        self.campaign.save()
+    
+    def increment_impression(self):
+                                                                                                               ressions * 100) if self.impressions > 0 else 0
+        self.campaign.ctr = (self.campaign.clicks / self.campaign.impressions * 100) if self.campaign.impressions > 0 else 0
+        self.save()
+        self.campaign.save()
+
+class Aclass Aclass Aclass Aclass Aclass Aclass AclasreignKey(AdBanner, on_delete=models.CASCADE, related_name='impression_records')
+    campaign = models.Foreign    campaign = models.Foreign    campaign =   user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    session_id = models.CharField(max_length=200, blank=True, null=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-timestamp']
+    
+    def __str__(self):
+        return f"{self.banner.title} - {self.timestamp}"
+
+class AdClick(BaseModel):
+    banner = models.ForeignKey(AdBanner, on_delete=models.CASCADE, related_name='click_records')
+    campaign = models.ForeignKey(AdCampaign, on_dele    campaign = models.ForeignKey(AdCampaign, on_dele    campaign = models.ForeignKey(AdCampaign, on_dele    campaign = modedels.CharField(max_len    campaign = models.Fol=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+    timestamp =     timestamp =     timestamp =     timestamp =     timestamp =     timestamp =     timestamp =     timestamp =     timestamp =     times f"{self.banner.title} - Click at {self.timestamp}"
+
+class AdAnalytics(BaseModel):
+    campaign = models.ForeignKey(AdCampaign, on_delete=models.CASCADE, related_name='analytics')
+    date = models.DateField    date = models.DateField    date = models.DateFieldeld(default=0)
+    clicks = models.IntegerField(default=0)
+    spent = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    class Meta:
+        verbose_name = 'Ad Analytics'
+        verbose_name_plural = 'Ad Analytics'
+        unique_together = [        unique_together = [        unique_together = [        unique_together = [        unique_together = [        unique_together = [        unique_together = [        unique_together = [        unique_together = [        uniodels.TextField(blank=True)
+    image = models.ImageField(upload_to='ad    image = models.ImageField(upload_to='ad rl = models.URLField(blank=True)
+    button_text = models.CharField(max_length=100, default='Learn More')
+    placement = models.CharField(max_length=20, choices=[
+        ('sidebar', 'Sidebar'),
+        ('ba        ('ba        ('ba  ('homepage', 'Homepage'),
+        ('footer', 'Footer'),
+    ], default='sidebar')
+    is_featured = m    is_featured = m    is_featured = m    is_featured = m    is_featured = m    is_feas = models.IntegerField(default=0)
+    end_date = models.DateTimeField(blank=True, null=True)
+    is_active = models.BooleanField(  fau    is_active       is_active = models.BooleanField(is    is_active = models.BooleanField(  fau  name = 'Advertisement'
+        verbose_name_plural = 'Advertisements'
+
+    def __str__(self):
+        return self.title

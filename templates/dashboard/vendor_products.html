@@ -1,0 +1,133 @@
+{% extends 'dashboard/base_dashboard.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}My Products - Vendor Dashboard{% endblock %}
+
+{% block dashboard_content %}
+<div class="bg-white rounded-xl shadow-lg p-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold">My Products</h1>
+        <a href="{% url 'dashboard:vendor_add_product' %}" 
+           class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+            <i class="fas fa-plus"></i> Add New Product
+        </a>
+    </div>
+    
+    {% if products %}
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Product</th>
+                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Price</th>
+                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Stock</th>
+                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Status</th>
+                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Approval</th>
+                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-600">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                {% for product in products %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3">
+                        <div class="flex items-center gap-3">
+                            {% if product.main_image %}
+                                <img src="{{ product.main_image.url }}" class="w-12 h-12 object-cover rounded-lg">
+                            {% else %}
+                                <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-image text-gray-400"></i>
+                                </div>
+                            {% endif %}
+                            <div>
+                                <p class="font-semibold">{{ product.name }}</p>
+                                <p class="text-xs text-gray-500">{{ product.category.name|default:"No Category" }}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="font-semibold text-blue-600">${{ product.price|floatformat:2 }}</span>
+                        {% if product.compare_price %}
+                        <span class="text-xs text-gray-400 line-through ml-1">${{ product.compare_price|floatformat:2 }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="{% if product.stock_quantity > 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                            {{ product.stock_quantity|default:0 }} units
+                        </span>
+                    </td>
+                    <td class="px-4 py-3">
+                        {% if product.is_active and product.approval_status == 'approved' %}
+                            <span class="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs">Active</span>
+                        {% else %}
+                            <span class="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3">
+                        {% if product.approval_status == 'approved' %}
+                            <span class="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs">✓ Approved</span>
+                        {% elif product.approval_status == 'pending' %}
+                            <span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs">⏳ Pending Review</span>
+                        {% elif product.approval_status == 'rejected' %}
+                            <span class="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs">✗ Rejected</span>
+                            {% if product.approval_notes %}
+                                <div class="text-xs text-red-600 mt-1 max-w-xs">{{ product.approval_notes|truncatechars:40 }}</div>
+                            {% endif %}
+                        {% elif product.approval_status == 'requires_changes' %}
+                            <span class="bg-orange-100 text-orange-700 px-2 py-1 rounded-full text-xs">⚠ Changes Required</span>
+                            {% if product.approval_notes %}
+                                <div class="text-xs text-orange-600 mt-1 max-w-xs">{{ product.approval_notes|truncatechars:40 }}</div>
+                            {% endif %}
+                        {% else %}
+                            <span class="bg-gray-100 text-gray-700 px-2 py-1 rounded-full text-xs">Draft</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3">
+                        <div class="flex gap-2">
+                            <a href="{% url 'dashboard:vendor_product_detail' product.id %}" 
+                               class="text-blue-600 hover:text-blue-700" title="Edit Product">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            {% if product.approval_status in 'rejected,requires_changes' %}
+                            <a href="{% url 'dashboard:vendor_resubmit_product' product.id %}" 
+                               class="text-green-600 hover:text-green-700"
+                               title="Resubmit for Approval"
+                               onclick="return confirm('Resubmit this product for admin approval?')">
+                                <i class="fas fa-paper-plane"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Pagination -->
+    {% if products.has_other_pages %}
+    <div class="flex justify-center gap-2 mt-6">
+        {% if products.has_previous %}
+            <a href="?page={{ products.previous_page_number }}" class="px-3 py-1 bg-gray-100 rounded-lg hover:bg-gray-200">Previous</a>
+        {% endif %}
+        
+        <span class="px-3 py-1 bg-blue-600 text-white rounded-lg">{{ products.number }}</span>
+        
+        {% if products.has_next %}
+            <a href="?page={{ products.next_page_number }}" class="px-3 py-1 bg-gray-100 rounded-lg hover:bg-gray-200">Next</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    
+    {% else %}
+    <div class="text-center py-12">
+        <i class="fas fa-box-open text-5xl text-gray-300 mb-4"></i>
+        <p class="text-gray-500 mb-4">You haven't added any products yet.</p>
+        <a href="{% url 'dashboard:vendor_add_product' %}" 
+           class="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
+            Add Your First Product
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

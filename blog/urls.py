@@ -14,5 +14,6 @@ urlpatterns = [
     path('<slug:slug>/comment/', views.add_comment, name='add_comment'),
     path('newsletter/admin/', views.newsletter_admin, name='newsletter_admin'),
     path('newsletter/send/', views.send_newsletter, name='send_newsletter'),
+    path('article/<slug:slug>/', views.blog_detail, name='detail'),
 ]
 

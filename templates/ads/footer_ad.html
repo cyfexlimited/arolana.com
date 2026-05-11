@@ -1,0 +1,19 @@
+
+% for ad in ads %}
+    <div class="footer-ad bg-gray-800 rounded-lg p-4 mb-4">
+        {% if ad.image %}
+            <a href="{{ ad.url }}" target="_blank" rel="noopener noreferrer">
+                <img src="{{ ad.image.url }}" alt="{{ ad.title }}" 
+                     class="max-h-32 w-auto mx-auto">
+            </a>
+        {% else %}
+            <div class="text-center">
+                <p class="text-sm text-gray-400 mb-1">Special Offer</p>
+                <p class="font-semibold">{{ ad.title }}</p>
+                <a href="{{ ad.url }}" target="_blank" class="text-blue-400 hover:underline text-sm">
+                    {{ ad.button_text }} →
+                </a>
+            </div>
+        {% endif %}
+    </div>
+{% endfor %}

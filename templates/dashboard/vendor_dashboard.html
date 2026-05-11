@@ -18,6 +18,19 @@
         50% { transform: scale(1.1); }
         100% { transform: scale(1); }
     }
+    .approval-card {
+        transition: all 0.3s ease;
+    }
+    .approval-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .notification-item {
+        transition: all 0.2s ease;
+    }
+    .notification-item:hover {
+        background-color: #f3f4f6;
+    }
 </style>
 {% endblock %}
 
@@ -33,29 +46,122 @@
             <a href="{% url 'vendors:detail' vendor_profile.store_slug %}" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200">
                 <i class="fas fa-store"></i> View Store
             </a>
-            <a href="/admin/products/product/add/" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+            <a href="{% url 'dashboard:vendor_add_product' %}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
                 <i class="fas fa-plus"></i> Add Product
             </a>
         </div>
     </div>
     
-    <!-- Notifications -->
+    <!-- Notifications Section on Dashboard -->
     {% if notifications %}
-    <div class="mb-6 space-y-2">
-        {% for notif in notifications %}
-        <div class="bg-{% if notif.type == 'warning' %}yellow{% elif notif.type == 'info' %}blue{% else %}green{% endif %}-50 border-l-4 border-{% if notif.type == 'warning' %}yellow{% elif notif.type == 'info' %}blue{% else %}green{% endif %}-500 p-4 rounded-r-lg">
-            <div class="flex items-center">
-                <i class="fas {{ notif.icon }} text-{% if notif.type == 'warning' %}yellow{% elif notif.type == 'info' %}blue{% else %}green{% endif %}-600 text-xl mr-3"></i>
-                <div class="flex-1">
-                    <h3 class="font-semibold">{{ notif.title }}</h3>
-                    <p class="text-sm text-gray-600">{{ notif.message }}</p>
-                </div>
-                <a href="{{ notif.action_url }}" class="text-sm text-blue-600 hover:underline">View →</a>
-            </div>
+    <div class="mb-6">
+        <div class="flex justify-between items-center mb-3">
+            <h2 class="text-lg font-semibold flex items-center gap-2">
+                <i class="fas fa-bell text-yellow-500"></i> Notifications
+                <span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full">{{ notifications|length }}</span>
+            </h2>
+            <button onclick="deleteAllNotifications()" class="text-red-600 hover:text-red-800 text-sm">
+                <i class="fas fa-trash-alt"></i> Clear All
+            </button>
         </div>
-        {% endfor %}
+        <div class="space-y-2" id="dashboardNotifications">
+            {% for notif in notifications|slice:":5" %}
+            <div id="notif-{{ notif.id }}" class="notification-item bg-{% if notif.notification_type == 'product_approved' %}green{% elif notif.notification_type == 'product_rejected' %}red{% elif notif.notification_type == 'product_changes' %}orange{% else %}blue{% endif %}-50 rounded-lg p-3 border-l-4 border-{% if notif.notification_type == 'product_approved' %}green{% elif notif.notification_type == 'product_rejected' %}red{% elif notif.notification_type == 'product_changes' %}orange{% else %}blue{% endif %}-500">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <h4 class="font-semibold text-sm">
+                            {% if notif.notification_type == 'product_approved' %}
+                                <i class="fas fa-check-circle text-green-600"></i>
+                            {% elif notif.notification_type == 'product_rejected' %}
+                                <i class="fas fa-times-circle text-red-600"></i>
+                            {% elif notif.notification_type == 'product_changes' %}
+                                <i class="fas fa-edit text-orange-600"></i>
+                            {% elif notif.notification_type == 'message' %}
+                                <i class="fas fa-envelope text-blue-600"></i>
+                            {% else %}
+                                <i class="fas fa-bell text-gray-600"></i>
+                            {% endif %}
+                            {{ notif.title }}
+                        </h4>
+                        <p class="text-sm text-gray-600 mt-1">{{ notif.message|truncatewords:25 }}</p>
+                        <p class="text-xs text-gray-400 mt-1">{{ notif.created_at|timesince }} ago</p>
+                        {% if notif.action_url %}
+                        <a href="{{ notif.action_url }}" class="text-xs text-blue-600 hover:underline mt-2 inline-block">
+                            View Details →
+                        </a>
+                        {% endif %}
+                    </div>
+                    <button onclick="deleteNotification({{ notif.id }})" class="text-gray-400 hover:text-red-500 ml-2">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% if notifications|length > 5 %}
+        <div class="text-center mt-2">
+            <a href="{% url 'dashboard:vendor_messages' %}" class="text-sm text-blue-600 hover:underline">
+                View all {{ notifications|length }} notifications →
+            </a>
+        </div>
+        {% endif %}
     </div>
     {% endif %}
+    
+    <!-- Approval Status Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div class="approval-card bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-yellow-600 text-sm">Pending Approval</p>
+                    <p class="text-2xl font-bold text-yellow-700">{{ pending_count|default:0 }}</p>
+                </div>
+                <div class="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-clock text-yellow-600"></i>
+                </div>
+            </div>
+            <a href="{% url 'dashboard:vendor_products' %}?status=pending" class="text-xs text-yellow-600 hover:underline mt-2 inline-block">View Pending →</a>
+        </div>
+        
+        <div class="approval-card bg-green-50 border border-green-200 rounded-lg p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-green-600 text-sm">Approved</p>
+                    <p class="text-2xl font-bold text-green-700">{{ approved_count|default:0 }}</p>
+                </div>
+                <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-check-circle text-green-600"></i>
+                </div>
+            </div>
+            <a href="{% url 'dashboard:vendor_products' %}?status=approved" class="text-xs text-green-600 hover:underline mt-2 inline-block">View Approved →</a>
+        </div>
+        
+        <div class="approval-card bg-orange-50 border border-orange-200 rounded-lg p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-orange-600 text-sm">Changes Required</p>
+                    <p class="text-2xl font-bold text-orange-700">{{ changes_required_count|default:0 }}</p>
+                </div>
+                <div class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-edit text-orange-600"></i>
+                </div>
+            </div>
+            <a href="{% url 'dashboard:vendor_products' %}?status=requires_changes" class="text-xs text-orange-600 hover:underline mt-2 inline-block">View Required →</a>
+        </div>
+        
+        <div class="approval-card bg-red-50 border border-red-200 rounded-lg p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-red-600 text-sm">Rejected</p>
+                    <p class="text-2xl font-bold text-red-700">{{ rejected_count|default:0 }}</p>
+                </div>
+                <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-times-circle text-red-600"></i>
+                </div>
+            </div>
+            <a href="{% url 'dashboard:vendor_products' %}?status=rejected" class="text-xs text-red-600 hover:underline mt-2 inline-block">View Rejected →</a>
+        </div>
+    </div>
     
     <!-- Stats Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -64,12 +170,6 @@
                 <div>
                     <p class="text-gray-500 text-sm">Total Sales</p>
                     <p class="text-3xl font-bold text-green-600">${{ total_sales|floatformat:2 }}</p>
-                    {% if sales_growth %}
-                    <p class="text-xs {% if sales_growth > 0 %}text-green-500{% else %}text-red-500{% endif %} mt-1">
-                        <i class="fas fa-arrow-{% if sales_growth > 0 %}up{% else %}down{% endif %}"></i>
-                        {{ sales_growth|floatformat:1 }}% vs last month
-                    </p>
-                    {% endif %}
                 </div>
                 <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                     <i class="fas fa-dollar-sign text-green-600 text-xl"></i>
@@ -82,12 +182,6 @@
                 <div>
                     <p class="text-gray-500 text-sm">Total Orders</p>
                     <p class="text-3xl font-bold text-blue-600">{{ total_orders }}</p>
-                    {% if orders_growth %}
-                    <p class="text-xs {% if orders_growth > 0 %}text-green-500{% else %}text-red-500{% endif %} mt-1">
-                        <i class="fas fa-arrow-{% if orders_growth > 0 %}up{% else %}down{% endif %}"></i>
-                        {{ orders_growth|floatformat:1 }}% vs last month
-                    </p>
-                    {% endif %}
                 </div>
                 <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                     <i class="fas fa-shopping-cart text-blue-600 text-xl"></i>
@@ -117,7 +211,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-gray-500 text-sm">Rating</p>
-                    <p class="text-3xl font-bold text-yellow-600">{{ avg_rating }}</p>
+                    <p class="text-3xl font-bold text-yellow-600">{{ avg_rating|floatformat:1 }}</p>
                     <p class="text-xs text-gray-500 mt-1">{{ total_reviews }} reviews</p>
                 </div>
                 <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
@@ -135,7 +229,10 @@
         </div>
         
         <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-xl font-bold mb-4">Top Products</h2>
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">Top Products</h2>
+                <a href="{% url 'dashboard:vendor_products' %}" class="text-blue-600 hover:underline text-sm">View All →</a>
+            </div>
             <div class="space-y-3">
                 {% for product in top_products %}
                 <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -154,10 +251,22 @@
                     </div>
                     <div class="text-right">
                         <p class="font-bold">{{ product.total_sold|default:0 }} sold</p>
+                        <div class="mt-1">
+                            {% if product.approval_status == 'approved' %}
+                                <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">Approved</span>
+                            {% elif product.approval_status == 'pending' %}
+                                <span class="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-xs">Pending</span>
+                            {% elif product.approval_status == 'requires_changes' %}
+                                <span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-xs">Changes Needed</span>
+                            {% elif product.approval_status == 'rejected' %}
+                                <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs">Rejected</span>
+                            {% endif %}
+                        </div>
+                        <a href="{% url 'dashboard:vendor_product_detail' product.id %}" class="text-xs text-blue-600 hover:underline">Edit</a>
                     </div>
                 </div>
                 {% empty %}
-                <p class="text-gray-500 text-center py-4">No products yet</p>
+                <p class="text-gray-500 text-center py-4">No products yet. <a href="{% url 'dashboard:vendor_add_product' %}" class="text-blue-600">Add your first product</a></p>
                 {% endfor %}
             </div>
         </div>
@@ -167,7 +276,7 @@
     <div class="bg-white rounded-lg shadow-md p-6 mb-8">
         <div class="flex justify-between items-center mb-4">
             <h2 class="text-xl font-bold">Recent Orders</h2>
-            <a href="/dashboard/vendor/orders/" class="text-blue-600 hover:underline">View All →</a>
+            <a href="{% url 'dashboard:vendor_orders' %}" class="text-blue-600 hover:underline">View All →</a>
         </div>
         
         {% if recent_orders %}
@@ -186,10 +295,10 @@
                 <tbody>
                     {% for order in recent_orders %}
                     <tr class="border-t hover:bg-gray-50">
-                        <td class="px-4 py-3">#{{ order.order_number }}</td>
+                        <td class="px-4 py-3">#{{ order.id }}</td>
                         <td class="px-4 py-3">{{ order.created_at|date:"M d, Y" }}</td>
                         <td class="px-4 py-3">{{ order.user.email }}</td>
-                        <td class="px-4 py-3 font-semibold">${{ order.total }}</td>
+                        <td class="px-4 py-3 font-semibold">${{ order.total|floatformat:2 }}</td>
                         <td class="px-4 py-3">
                             <span class="px-2 py-1 rounded text-xs font-semibold
                                 {% if order.status == 'delivered' %}bg-green-100 text-green-700
@@ -201,9 +310,9 @@
                             </span>
                         </td>
                         <td class="px-4 py-3">
-                            <button onclick="viewOrder({{ order.id }})" class="text-blue-600 hover:underline text-sm">
+                            <a href="{% url 'dashboard:vendor_order_detail' order.id %}" class="text-blue-600 hover:underline text-sm">
                                 View Details
-                            </button>
+                            </a>
                         </td>
                     </tr>
                     {% endfor %}
@@ -277,21 +386,59 @@
         }
     });
     
-    // View order details
-    function viewOrder(orderId) {
-        window.location.href = `/dashboard/vendor/order/${orderId}/`;
-    }
-    
-    // Auto-refresh notifications every 30 seconds
-    setInterval(function() {
-        fetch('/dashboard/vendor/notifications/api/')
+    function deleteNotification(notificationId) {
+        if (confirm('Delete this notification?')) {
+            fetch(`/dashboard/vendor/notifications/delete/${notificationId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                }
+            })
             .then(response => response.json())
             .then(data => {
-                if (data.total > 0) {
-                    // Show notification badge
-                    console.log('New notifications:', data.notifications);
+                if (data.success) {
+                    const el = document.getElementById(`notif-${notificationId}`);
+                    if (el) el.remove();
                 }
             });
-    }, 30000);
+        }
+    }
+    
+    function deleteAllNotifications() {
+        if (confirm('Delete all notifications?')) {
+            fetch('/dashboard/vendor/notifications/delete-all/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const container = document.getElementById('dashboardNotifications');
+                    if (container) {
+                        container.innerHTML = '<div class="text-center py-4 text-gray-500">No notifications</div>';
+                    }
+                }
+            });
+        }
+    }
+    
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
 </script>
 {% endblock %}

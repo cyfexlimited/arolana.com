@@ -89,17 +89,17 @@ class ReviewVideoInline(admin.TabularInline):
 
 
 # =================================
-# 🔥 PRODUCT ADMIN
+# 🔥 PRODUCT ADMIN WITH APPROVAL SYSTEM
 # =================================
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     form = ProductAdminForm
-    list_display = ['sku', 'name', 'price', 'stock_quantity', 'is_featured', 'is_active', 'image_preview']
-    list_filter = ['is_active', 'is_featured', 'is_new', 'is_bestseller', 'category', 'brand', 'created_at']
+    list_display = ['sku', 'name', 'price', 'stock_quantity', 'approval_status_badge', 'is_featured', 'is_active', 'image_preview']
+    list_filter = ['is_active', 'is_featured', 'is_new', 'is_bestseller', 'category', 'brand', 'approval_status', 'created_at']
     search_fields = ['sku', 'name', 'description']
     prepopulated_fields = {'slug': ['name']}
-    readonly_fields = ['views_count', 'sales_count', 'rating_avg', 'rating_count', 'created_at', 'updated_at', 'sku']
+    readonly_fields = ['views_count', 'sales_count', 'rating_avg', 'rating_count', 'created_at', 'updated_at', 'sku', 'submitted_for_review_at', 'approved_at']
     inlines = [ProductImageInline, ProductVariantInline, ProductVideoInline, AccessoryInline, ManufacturerWarrantyInline, ShippingInfoInline]
     autocomplete_fields = ['vendor', 'category', 'brand']
     list_select_related = ['category', 'brand', 'vendor']
@@ -139,6 +139,11 @@ class ProductAdmin(admin.ModelAdmin):
             'fields': ('views_count', 'sales_count', 'rating_avg', 'rating_count'),
             'classes': ('collapse',)
         }),
+        # ========== APPROVAL SYSTEM SECTION ==========
+        ('Approval System', {
+            'fields': ('approval_status', 'approval_notes', 'approved_by', 'approved_at', 'submitted_for_review_at'),
+            'description': 'Manage product approval status. Products must be approved before appearing on the frontend.',
+        }),
         ('Features', {
             'fields': ('is_featured', 'is_new', 'is_bestseller', 'is_active', 'tags')
         }),
@@ -157,6 +162,21 @@ class ProductAdmin(admin.ModelAdmin):
         return mark_safe('<span style="color: #9ca3af;">No Image</span>')
     image_preview.short_description = 'Preview'
     
+    def approval_status_badge(self, obj):
+        """Display approval status with colored badge"""
+        status_colors = {
+            'pending': ('#f59e0b', 'Pending'),
+            'approved': ('#10b981', 'Approved'),
+            'rejected': ('#ef4444', 'Rejected'),
+            'requires_changes': ('#f97316', 'Changes Required'),
+        }
+        color, text = status_colors.get(obj.approval_status, ('#6b7280', obj.approval_status))
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;">{}</span>',
+            color, text
+        )
+    approval_status_badge.short_description = 'Approval Status'
+    
     def get_search_results(self, request, queryset, search_term):
         queryset, use_distinct = super().get_search_results(request, queryset, search_term)
         
@@ -171,7 +191,7 @@ class ProductAdmin(admin.ModelAdmin):
         
         return queryset, use_distinct
     
-    actions = ['mark_as_featured', 'mark_as_unfeatured', 'activate_products', 'deactivate_products']
+    actions = ['mark_as_featured', 'mark_as_unfeatured', 'activate_products', 'deactivate_products', 'approve_products', 'reject_products']
     
     def mark_as_featured(self, request, queryset):
         queryset.update(is_featured=True)
@@ -192,6 +212,18 @@ class ProductAdmin(admin.ModelAdmin):
         queryset.update(is_active=False)
         self.message_user(request, f"❌ {queryset.count()} products deactivated.")
     deactivate_products.short_description = "❌ Deactivate selected products"
+    
+    # ========== APPROVAL ACTIONS ==========
+    def approve_products(self, request, queryset):
+        from django.utils import timezone
+        updated = queryset.update(approval_status='approved', approved_by=request.user, approved_at=timezone.now(), is_active=True)
+        self.message_user(request, f"✅ {updated} product(s) approved and are now live on the site.")
+    approve_products.short_description = "✅ Approve selected products"
+    
+    def reject_products(self, request, queryset):
+        updated = queryset.update(approval_status='rejected', is_active=False)
+        self.message_user(request, f"❌ {updated} product(s) rejected.")
+    reject_products.short_description = "❌ Reject selected products"
 
 
 # =================================

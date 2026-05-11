@@ -125,3 +125,32 @@ def debug_home(request):
     html += "</body></html>"
     
     return HttpResponse(html)
+
+def home(request):
+    """Main homepage view with all sections including video"""
+    from homepage.models import HomepageVideoSection, HomepageBanner, HomepageCategory
+    from vendors.models import VendorProfile
+    
+    # Get video section
+    video_section = HomepageVideoSection.objects.filter(is_active=True).order_by('display_order').first()
+    
+    # Get banners for carousel
+    banners = HomepageBanner.objects.filter(is_active=True).order_by('display_order')
+    
+    # Get categories
+    categories = HomepageCategory.objects.filter(is_active=True).order_by('display_order')
+    
+    # Get featured products
+    featured_products = Product.objects.filter(is_featured=True, is_active=True)[:8]
+    
+    # Get vendors
+    vendors = VendorProfile.objects.filter(is_verified=True, is_active=True)[:12]
+    
+    context = {
+        'video_section': video_section,
+        'banners': banners,
+        'categories': categories,
+        'featured_products': featured_products,
+        'vendors': vendors,
+    }
+    return render(request, 'base/home.html', context)

@@ -1,48 +1,67 @@
- {% if ads %}
-    <div class="space-y-4">
-        {% for ad in ads %}
-        <div class="ad-banner" id="ad-{{ ad.id }}">
-            <a href="{{ ad.cta_url }}" 
-               class="ad-link block relative group"
-               target="_blank"
-               rel="sponsored nofollow">
-                
-                {% if ad.image and ad.image.url %}
-                    <img src="{{ ad.image.url }}" 
-                         alt="{{ ad.alt_text|default:ad.title }}"
-                         class="w-full h-auto rounded-lg shadow-md transition transform group-hover:scale-105"
-                         style="max-width: {{ ad.placement.width }}px;">
-                {% else %}
-                    <!-- Fallback HTML ad -->
-                    <div class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg p-4 text-center text-white">
-                        <i class="fas fa-gem text-3xl mb-2"></i>
-                        <p class="font-bold">{{ ad.title }}</p>
-                        <p class="text-sm">{{ ad.description }}</p>
-                        <div class="mt-2">
-                            <span class="inline-block bg-white text-blue-600 px-3 py-1 rounded text-sm">
-                                {{ ad.cta_text }}
-                            </span>
-                        </div>
-                    </div>
-                {% endif %}
-                
-                {% if ad.campaign.sponsor_name %}
-                <div class="absolute top-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
-                    Sponsored
+{% for ad in ads %}
+    <div class="ad-banner" data-ad-id="{{ ad.id }}" data-campaign-id="{{ ad.campaign.id }}">
+        <a href="{{ ad.cta_url }}" target="_blank" rel="noopener noreferrer" 
+           class="ad-link block"
+           onclick="trackBannerClick({{ ad.id }}, {{ ad.campaign.id }})">
+            {% if ad.image %}
+                <img src="{{ ad.image.url }}" alt="{{ ad.title }}" 
+                     class="w-full h-auto rounded-lg shadow-lg">
+            {% elif ad.mobile_image %}
+                <img src="{{ ad.mobile_image.url }}" alt="{{ ad.title }}" 
+                     class="w-full h-auto rounded-lg shadow-lg block md:hidden">
+            {% else %}
+                <div class="bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg p-6 text-white">
+                    <h3 class="text-xl font-bold mb-2">{{ ad.title }}</h3>
+                    <p class="mb-4">{{ ad.description|truncatewords:20 }}</p>
+                    <span class="inline-block bg-white text-purple-600 px-4 py-2 rounded-lg font-semibold">
+                        {{ ad.cta_text }}
+                    </span>
                 </div>
-                {% endif %}
-            </a>
-        </div>
-        {% endfor %}
-    </div>
-{% else %}
-    <!-- Fallback ad when no active ads -->
-    <div class="bg-gradient-to-r from-gray-100 to-gray-200 rounded-lg p-6 text-center border-2 border-dashed border-gray-300">
-        <i class="fas fa-ad text-3xl text-gray-400 mb-2"></i>
-        <p class="text-gray-600 font-semibold">Ad Space Available</p>
-        <p class="text-xs text-gray-500">Your ad could be here!</p>
-        <a href="/contact/" class="inline-block mt-3 bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 transition">
-            Advertise →
+            {% endif %}
         </a>
     </div>
-{% endif %}
+{% endfor %}
+
+<script>
+function trackBannerClick(adId, campaignId) {
+    fetch('/ads/track-click/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            ad_id: adId,
+            campaign_id: campaignId
+        })
+    }).catch(error => console.error('Error tracking banner click:', error));
+    
+    // Track impression as well
+    fetch('/ads/track-view/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            ad_id: adId,
+            campaign_id: campaignId
+        })
+    }).catch(error => console.error('Error tracking impression:', error));
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>

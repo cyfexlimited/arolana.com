@@ -84,9 +84,8 @@ def apply_filters(queryset, request):
     """Apply all filters to queryset"""
     
     # ====== Category Filter ======
-    categories = request.GET.getlist('categories')  # Changed from get() to getlist()
+    categories = request.GET.getlist('categories')
     if categories:
-        # Handle both comma-separated and multiple params
         category_slugs = []
         for cat in categories:
             category_slugs.extend([c.strip() for c in cat.split(',') if c.strip()])
@@ -110,9 +109,8 @@ def apply_filters(queryset, request):
             pass
     
     # ====== Brand Filter ======
-    brands = request.GET.getlist('brands')  # Changed from get() to getlist()
+    brands = request.GET.getlist('brands')
     if brands:
-        # Handle both comma-separated and multiple params
         brand_slugs = []
         for b in brands:
             brand_slugs.extend([s.strip() for s in b.split(',') if s.strip()])
@@ -147,12 +145,12 @@ def get_filter_counts(queryset):
     
     category_counts = {}
     for category in categories:
-        count = queryset.filter(category=category).count()  # Use filtered queryset
+        count = queryset.filter(category=category).count()
         category_counts[category.slug] = count
     
     brand_counts = {}
     for brand in brands:
-        count = queryset.filter(brand=brand).count()  # Use filtered queryset
+        count = queryset.filter(brand=brand).count()
         brand_counts[brand.slug] = count
     
     return {
@@ -172,7 +170,7 @@ def add_to_cart(request, slug):
     if not Cart or not CartItem:
         return redirect('products:detail', slug=slug)
     
-    product = get_object_or_404(Product, slug=slug, is_active=True)
+    product = get_object_or_404(Product, slug=slug, is_active=True, approval_status='approved')
     
     # Get parameters
     quantity = int(request.POST.get('quantity', request.GET.get('quantity', 1)))
@@ -384,12 +382,12 @@ def remove_from_cart(request, item_id):
 
 
 # ================================
-# 🔥 PRODUCT VIEWS
+# 🔥 PRODUCT VIEWS (WITH APPROVAL SYSTEM)
 # ================================
 
 def product_list(request):
-    """Display paginated product list with filtering and sorting"""
-    products = Product.objects.filter(is_active=True).select_related(
+    """Display paginated product list with filtering and sorting - APPROVED ONLY"""
+    products = Product.objects.filter(is_active=True, approval_status='approved').select_related(
         'category',
         'brand'
     )
@@ -431,13 +429,13 @@ def product_list(request):
     # Category counts
     categories = Category.objects.filter(is_active=True, parent=None)
     for category in categories:
-        count = Product.objects.filter(category=category, is_active=True).count()
+        count = Product.objects.filter(category=category, is_active=True, approval_status='approved').count()
         filter_counts['categories'][category.slug] = count
     
     # Brand counts
     brands = Brand.objects.filter(is_active=True)
     for brand in brands:
-        count = Product.objects.filter(brand=brand, is_active=True).count()
+        count = Product.objects.filter(brand=brand, is_active=True, approval_status='approved').count()
         filter_counts['brands'][brand.slug] = count
     
     # ====== Currency ======
@@ -474,7 +472,7 @@ def product_list(request):
 
 
 def product_detail(request, slug):
-    """Display detailed product page with reviews, Q&A, and variants"""
+    """Display detailed product page with reviews, Q&A, and variants - APPROVED ONLY"""
     product = get_object_or_404(
         Product.objects.select_related(
             'category',
@@ -489,7 +487,8 @@ def product_detail(request, slug):
             Prefetch('questions', queryset=ProductQuestion.objects.filter(is_public=True).select_related('user', 'answered_by').order_by('-created_at'))
         ),
         slug=slug,
-        is_active=True
+        is_active=True,
+        approval_status='approved'
     )
     
     # ====== Track Views ======
@@ -584,25 +583,29 @@ def product_detail(request, slug):
             'color_code': getattr(variant, 'color_code', '#CCCCCC'),
         }
     
-    # ====== Related Products ======
+    # ====== Related Products (APPROVED ONLY) ======
     related_products = Product.objects.filter(
         category=product.category,
-        is_active=True
+        is_active=True,
+        approval_status='approved'
     ).exclude(id=product.id).select_related('brand')[:12]
     
     top_rated = Product.objects.filter(
         category=product.category,
         is_active=True,
-        rating_avg__gt=0
+        rating_avg__gt=0,
+        approval_status='approved'
     ).exclude(id=product.id).order_by('-rating_avg', '-sales_count')[:12]
     
     bestsellers = Product.objects.filter(
         category=product.category,
-        is_active=True
+        is_active=True,
+        approval_status='approved'
     ).exclude(id=product.id).order_by('-sales_count')[:12]
     
     frequently_bought_together = Product.objects.filter(
-        is_active=True
+        is_active=True,
+        approval_status='approved'
     ).exclude(id=product.id).order_by('-sales_count')[:12]
     
     # ====== Recently Viewed ======
@@ -612,9 +615,10 @@ def product_detail(request, slug):
             user=request.user
         ).exclude(product=product).select_related('product').order_by('-viewed_at')[:12]
     
-    # ====== AI Recommendations ======
+    # ====== AI Recommendations (APPROVED ONLY) ======
     ai_recommendations = Product.objects.filter(
-        is_active=True
+        is_active=True,
+        approval_status='approved'
     ).exclude(id=product.id).order_by(
         '-rating_avg',
         '-sales_count',
@@ -654,7 +658,7 @@ def product_detail(request, slug):
         'selected_variant_id': selected_variant.id if selected_variant else None,
         'default_variant': default_variant,
         'accessories': accessories,
-        'product_accessories': accessories,  # For template compatibility
+        'product_accessories': accessories,
         'videos': videos,
         'product_videos': videos,
         'related_products': related_products,
@@ -675,7 +679,7 @@ def product_detail(request, slug):
 
 
 def category_view(request, slug):
-    """Display category view with all subcategories and dynamic background"""
+    """Display category view with all subcategories and dynamic background - APPROVED ONLY"""
     category = get_object_or_404(Category, slug=slug, is_active=True)
     
     # ====== Get All Subcategories ======
@@ -688,9 +692,11 @@ def category_view(request, slug):
         for grandchild in child.children.filter(is_active=True):
             category_ids.append(grandchild.id)
     
+    # ====== Only show approved products ======
     products = Product.objects.filter(
         category_id__in=category_ids,
-        is_active=True
+        is_active=True,
+        approval_status='approved'
     ).select_related('brand')
     
     # ====== Sorting ======
@@ -746,7 +752,7 @@ def category_view(request, slug):
 @transaction.atomic
 def add_review(request, slug):
     """Add product review"""
-    product = get_object_or_404(Product, slug=slug, is_active=True)
+    product = get_object_or_404(Product, slug=slug, is_active=True, approval_status='approved')
     
     # Check if user already reviewed
     if ProductReview.objects.filter(product=product, user=request.user).exists():
@@ -798,7 +804,7 @@ def add_review(request, slug):
 @login_required
 def toggle_wishlist(request, slug):
     """Toggle product in wishlist"""
-    product = get_object_or_404(Product, slug=slug)
+    product = get_object_or_404(Product, slug=slug, is_active=True, approval_status='approved')
     
     wishlist_item = Wishlist.objects.filter(
         user=request.user,
@@ -830,7 +836,7 @@ def toggle_wishlist(request, slug):
 @require_http_methods(["POST"])
 def ask_question(request, slug):
     """Ask product question with validation and rate limiting"""
-    product = get_object_or_404(Product, slug=slug, is_active=True)
+    product = get_object_or_404(Product, slug=slug, is_active=True, approval_status='approved')
     
     question_text = request.POST.get('question', '').strip()
     
@@ -1084,7 +1090,7 @@ def get_variant_details(request, variant_id):
 
 def get_question_api(request, product_id):
     """API: Get product questions with pagination"""
-    product = get_object_or_404(Product, id=product_id, is_active=True)
+    product = get_object_or_404(Product, id=product_id, is_active=True, approval_status='approved')
     
     page = int(request.GET.get('page', 1))
     questions = product.questions.filter(
@@ -1121,7 +1127,7 @@ def get_question_api(request, product_id):
 
 def quick_view(request, slug):
     """AJAX quick view endpoint"""
-    product = get_object_or_404(Product, slug=slug, is_active=True)
+    product = get_object_or_404(Product, slug=slug, is_active=True, approval_status='approved')
     html = render_to_string('products/quick_view.html', {'product': product, 'request': request})
     return HttpResponse(html)
 
@@ -1131,7 +1137,8 @@ def quick_view_api(request, product_id):
     product = get_object_or_404(
         Product.objects.select_related('category', 'brand'),
         id=product_id,
-        is_active=True
+        is_active=True,
+        approval_status='approved'
     )
     
     # ====== Currency ======

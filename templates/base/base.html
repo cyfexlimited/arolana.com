@@ -801,13 +801,13 @@
                         <div x-show="dropdownOpen" 
                              @click.away="dropdownOpen = false" 
                              x-cloak 
-                             class="user-account-menu"
+                             class="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-800 z-50 overflow-hidden"
                              x-transition:enter="transition ease-out duration-200"
-                             x-transition:enter-start="opacity-0 transform -translate-y-2"
-                             x-transition:enter-end="opacity-100 transform translate-y-0"
+                             x-transition:enter-start="opacity-0 transform -translate-y-2 scale-95"
+                             x-transition:enter-end="opacity-100 transform translate-y-0 scale-100"
                              x-transition:leave="transition ease-in duration-150"
-                             x-transition:leave-start="opacity-100 transform translate-y-0"
-                             x-transition:leave-end="opacity-0 transform -translate-y-2">
+                             x-transition:leave-start="opacity-100 transform translate-y-0 scale-100"
+                             x-transition:leave-end="opacity-0 transform -translate-y-2 scale-95">
                             <a href="{% url 'accounts:profile' %}" @click="dropdownOpen = false" class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-{{ site_settings.primary_color }} transition flex items-center gap-2 text-sm"><i class="fas fa-user-circle w-5"></i> My Profile</a>
                             <a href="/orders/" @click="dropdownOpen = false" class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-{{ site_settings.primary_color }} transition flex items-center gap-2 text-sm"><i class="fas fa-box w-5"></i> My Orders</a>
                             <a href="{% url 'accounts:wishlist' %}" @click="dropdownOpen = false" class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-{{ site_settings.primary_color }} transition flex items-center gap-2 text-sm"><i class="fas fa-heart w-5"></i> Wishlist</a>
@@ -1095,137 +1095,298 @@
                 {% endblock %}
             </div>
             
-            <!-- Sidebar -->
-            {% if request.path != '/products/cart/' and request.path != '/products/checkout/' %}
-            <div class="lg:w-80 space-y-6">
-                <!-- Ad Banner -->
-                <div class="bg-white rounded-2xl shadow-luxury p-6 sticky top-24" data-aos="fade-left">
-                    <h3 class="text-lg font-semibold font-luxury mb-4 text-gray-800 border-b border-gray-200 pb-3">Advertisement</h3>
-                    <div class="ad-container">
-                        {% render_ad 'sidebar' %}
-                    </div>
-                </div>
-                
-                <!-- Quick Links -->
-                <div class="bg-white rounded-2xl shadow-luxury p-6 hover-lift" data-aos="fade-left" data-aos-delay="100">
-                    <h3 class="text-lg font-semibold font-luxury mb-4 text-gray-800 border-b border-gray-200 pb-3">Quick Links</h3>
-                    <ul class="space-y-3">
-                        <li><a href="/about/" class="flex items-center gap-3 text-gray-700 hover:text-{{ site_settings.primary_color }} transition font-medium"><i class="fas fa-info-circle text-{{ site_settings.primary_color }} w-5"></i> About Us</a></li>
-                        <li><a href="/contact/" class="flex items-center gap-3 text-gray-700 hover:text-{{ site_settings.primary_color }} transition font-medium"><i class="fas fa-envelope text-{{ site_settings.primary_color }} w-5"></i> Contact</a></li>
-                        <li><a href="/faq/" class="flex items-center gap-3 text-gray-700 hover:text-{{ site_settings.primary_color }} transition font-medium"><i class="fas fa-question-circle text-{{ site_settings.primary_color }} w-5"></i> FAQ</a></li>
-                        <li><a href="/returns/" class="flex items-center gap-3 text-gray-700 hover:text-{{ site_settings.primary_color }} transition font-medium"><i class="fas fa-undo-alt text-{{ site_settings.primary_color }} w-5"></i> Returns</a></li>
-                    </ul>
-                </div>
-            </div>
-            {% endif %}
+          <!-- Sidebar -->
+<!-- Sidebar -->
+{% if request.path != '/products/cart/' and request.path != '/products/checkout/' %}
+<div class="lg:w-80 space-y-6">
+    <!-- Ad Banner -->
+    <div class="bg-white rounded-2xl shadow-luxury p-6 sticky top-24" data-aos="fade-left">
+        <h3 class="text-lg font-semibold font-luxury mb-4 text-gray-800 border-b border-gray-200 pb-3">Advertisement</h3>
+        <div class="ad-container">
+    {% render_ad_carousel 'sidebar' count=5 interval=5000 %}
+</div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
         </div>
     </div>
     
-    <!-- Luxury Newsletter Section -->
-    <div class="container mx-auto px-4 py-20">
-        <div class="newsletter-luxury max-w-7xl mx-auto" data-aos="fade-up">
-            <div class="content text-center max-w-2xl mx-auto">
-                <div class="mb-6">
-                    <i class="fas fa-envelope-open-text text-6xl gradient-luxury bg-clip-text text-transparent"></i>
+   <footer class="bg-gray-900 text-gray-300 mt-20 pt-0">
+    <!-- Main Footer Content -->
+    <div class="container mx-auto px-4">
+        <!-- Top Newsletter Section -->
+        <div class="border-b border-gray-800 py-12 mb-12">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div>
+                    <h3 class="text-2xl font-bold text-white mb-2">Subscribe to Our Newsletter</h3>
+                    <p class="text-gray-400">Get exclusive deals, new arrivals, and special offers delivered to your inbox.</p>
                 </div>
-                <h3 class="newsletter-title">Exclusive Access Awaits</h3>
-                <p class="text-gray-300 mb-8 text-lg">Be the first to discover luxury deals, new collections, and VIP offers</p>
-                
-                <form id="newsletter-form" class="newsletter-form flex flex-col sm:flex-row gap-3 max-w-md mx-auto" method="POST" action="{% url 'newsletter:subscribe' %}">
+                <form id="newsletter-form" class="flex gap-2" novalidate>
                     {% csrf_token %}
-                    <input type="email" name="email" id="newsletter-email" placeholder="your@email.com" 
-                           class="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" required>
-                    <button type="submit" class="btn-luxury btn-primary-luxury">
-                        Subscribe <i class="fas fa-arrow-right ml-2"></i>
+                    <input 
+                        type="email" 
+                        id="newsletter-email" 
+                        name="email" 
+                        placeholder="Enter your email" 
+                        required
+                        class="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition"
+                    >
+                    <button 
+                        type="submit" 
+                        id="newsletter-btn"
+                        class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <span id="btn-text">Subscribe</span>
+                        <span id="btn-loader" class="hidden">
+                            <i class="fas fa-spinner fa-spin"></i>
+                        </span>
                     </button>
+                    <div id="newsletter-message" class="hidden absolute mt-12 px-4 py-2 rounded text-sm font-medium"></div>
                 </form>
-                
-                <p class="text-xs text-gray-400 mt-6">
-                    <i class="fas fa-lock mr-2"></i> Your privacy is sacred. No spam, guaranteed.
-                </p>
             </div>
         </div>
-    </div>
-    
-    <!-- Luxury Footer -->
-    <footer class="luxury-footer text-gray-300 mt-20 pt-16 pb-8">
-        <div class="container mx-auto px-4">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
-                <!-- Brand -->
+
+        <!-- Main Footer Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12 mb-12 py-12 border-b border-gray-800">
+            <!-- Brand Column -->
+            <div class="lg:col-span-1">
                 <div class="footer-section">
                     {% if site_settings.footer_logo %}
-                        <img src="{{ site_settings.footer_logo.url }}" alt="{{ site_settings.site_name }}" class="h-14 mb-6" loading="lazy">
+                        <img src="{{ site_settings.footer_logo.url }}" alt="{{ site_settings.site_name }}" class="h-16 mb-6" loading="lazy">
                     {% else %}
                         <h3 class="text-2xl font-bold font-luxury text-white mb-6">{{ site_settings.site_name }}</h3>
                     {% endif %}
-                    <p class="text-sm text-gray-400 mb-6 leading-relaxed">{{ site_settings.site_description|truncatewords:25 }}</p>
-                    <div class="flex gap-4">
+                    <p class="text-sm text-gray-400 mb-6 leading-relaxed">{{ site_settings.site_description|truncatewords:20 }}</p>
+                    
+                    <!-- Social Links -->
+                    <div class="flex gap-4 mb-8">
                         {% if site_settings.facebook_url %}
-                            <a href="{{ site_settings.facebook_url }}" class="text-gray-400 hover:text-{{ site_settings.primary_color }} transition text-xl hover-lift" target="_blank"><i class="fab fa-facebook"></i></a>
+                            <a href="{{ site_settings.facebook_url }}" target="_blank" rel="noopener" class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center text-gray-400 hover:bg-blue-600 hover:text-white transition duration-300" aria-label="Facebook">
+                                <i class="fab fa-facebook-f"></i>
+                            </a>
                         {% endif %}
                         {% if site_settings.twitter_url %}
-                            <a href="{{ site_settings.twitter_url }}" class="text-gray-400 hover:text-{{ site_settings.primary_color }} transition text-xl hover-lift" target="_blank"><i class="fab fa-twitter"></i></a>
+                            <a href="{{ site_settings.twitter_url }}" target="_blank" rel="noopener" class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center text-gray-400 hover:bg-blue-400 hover:text-white transition duration-300" aria-label="Twitter">
+                                <i class="fab fa-twitter"></i>
+                            </a>
                         {% endif %}
                         {% if site_settings.instagram_url %}
-                            <a href="{{ site_settings.instagram_url }}" class="text-gray-400 hover:text-{{ site_settings.primary_color }} transition text-xl hover-lift" target="_blank"><i class="fab fa-instagram"></i></a>
+                            <a href="{{ site_settings.instagram_url }}" target="_blank" rel="noopener" class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center text-gray-400 hover:bg-pink-600 hover:text-white transition duration-300" aria-label="Instagram">
+                                <i class="fab fa-instagram"></i>
+                            </a>
                         {% endif %}
                         {% if site_settings.youtube_url %}
-                            <a href="{{ site_settings.youtube_url }}" class="text-gray-400 hover:text-{{ site_settings.primary_color }} transition text-xl hover-lift" target="_blank"><i class="fab fa-youtube"></i></a>
+                            <a href="{{ site_settings.youtube_url }}" target="_blank" rel="noopener" class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center text-gray-400 hover:bg-red-600 hover:text-white transition duration-300" aria-label="YouTube">
+                                <i class="fab fa-youtube"></i>
+                            </a>
                         {% endif %}
                     </div>
-                </div>
-                
-                <!-- Footer Menus -->
-                {% get_footer_menus as footer_menus %}
-                {% for menu in footer_menus %}
-                <div class="footer-section">
-                    <h4 class="footer-title">{{ menu.name }}</h4>
-                    <ul class="space-y-3">
-                        {% for item in menu.items %}
-                        <li><a href="{{ item.url }}" class="footer-link" {% if item.open_in_new_tab %}target="_blank"{% endif %}>{{ item.title }}</a></li>
-                        {% endfor %}
-                    </ul>
-                </div>
-                {% endfor %}
-                
-                <!-- Contact Info -->
-                <div class="footer-section">
-                    <h4 class="footer-title">Contact Information</h4>
-                    <ul class="space-y-4 text-sm">
-                        {% if site_settings.contact_email %}
-                            <li class="flex items-start gap-3">
-                                <i class="fas fa-envelope text-{{ site_settings.primary_color }} w-5 mt-1 shrink-0"></i> 
-                                <a href="mailto:{{ site_settings.contact_email }}" class="footer-link">{{ site_settings.contact_email }}</a>
-                            </li>
-                        {% endif %}
-                        {% if site_settings.contact_phone %}
-                            <li class="flex items-start gap-3">
-                                <i class="fas fa-phone text-{{ site_settings.primary_color }} w-5 mt-1 shrink-0"></i> 
-                                <a href="tel:{{ site_settings.contact_phone }}" class="footer-link">{{ site_settings.contact_phone }}</a>
-                            </li>
-                        {% endif %}
-                        {% if site_settings.address %}
-                            <li class="flex items-start gap-3">
-                                <i class="fas fa-map-marker-alt text-{{ site_settings.primary_color }} w-5 mt-1 shrink-0"></i> 
-                                <span class="text-gray-400">{{ site_settings.address }}</span>
-                            </li>
-                        {% endif %}
-                    </ul>
+
+                    <!-- Security & Trust Badges -->
+                    <div class="border-t border-gray-800 pt-6">
+                        <p class="text-xs text-gray-500 mb-3">Safe & Secure</p>
+                        <div class="flex gap-2">
+                            <div class="text-gray-400"><i class="fas fa-lock"></i> SSL Secure</div>
+                            <div class="text-gray-400"><i class="fas fa-shield-alt"></i> Verified</div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            
-            <!-- Footer Bottom -->
-            <div class="border-t border-gray-800 pt-8 text-center text-sm text-gray-400">
-                <p class="mb-3">{{ site_settings.footer_copyright }}</p>
-                <p class="space-x-4">
-                    <a href="/privacy/" class="footer-link">Privacy Policy</a> | 
-                    <a href="/terms/" class="footer-link">Terms of Service</a> | 
-                    <a href="/sitemap/" class="footer-link">Sitemap</a>
-                </p>
-                <p class="mt-4 text-xs opacity-50">© {% now "Y" %} {{ site_settings.site_name }}. All rights reserved.</p>
+
+            <!-- Footer Menus - Dynamic Columns -->
+            {% get_footer_menus as footer_menus %}
+            {% for menu in footer_menus %}
+            <div class="footer-section">
+                <h4 class="text-white font-bold text-sm uppercase tracking-wider mb-6 pb-3 border-b border-gray-800">{{ menu.name }}</h4>
+                <ul class="space-y-3">
+                    {% for item in menu.items %}
+                    <li>
+                        <a href="{{ item.url }}" class="text-gray-400 hover:text-white text-sm transition duration-200 flex items-center gap-2" {% if item.open_in_new_tab %}target="_blank" rel="noopener"{% endif %}>
+                            <span class="w-1 h-1 bg-gray-600 rounded-full"></span>
+                            {{ item.title }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endfor %}
+
+            <!-- Contact Information -->
+            <div class="footer-section">
+                <h4 class="text-white font-bold text-sm uppercase tracking-wider mb-6 pb-3 border-b border-gray-800">Get In Touch</h4>
+                <ul class="space-y-4 text-sm">
+                    {% if site_settings.contact_email %}
+                        <li class="flex items-start gap-3 group">
+                            <i class="fas fa-envelope text-blue-500 w-5 mt-0.5 shrink-0 group-hover:text-blue-400 transition"></i> 
+                            <div>
+                                <p class="text-gray-500 text-xs mb-1">Email</p>
+                                <a href="mailto:{{ site_settings.contact_email }}" class="text-gray-300 hover:text-white transition">{{ site_settings.contact_email }}</a>
+                            </div>
+                        </li>
+                    {% endif %}
+                    {% if site_settings.contact_phone %}
+                        <li class="flex items-start gap-3 group">
+                            <i class="fas fa-phone text-blue-500 w-5 mt-0.5 shrink-0 group-hover:text-blue-400 transition"></i> 
+                            <div>
+                                <p class="text-gray-500 text-xs mb-1">Phone</p>
+                                <a href="tel:{{ site_settings.contact_phone }}" class="text-gray-300 hover:text-white transition">{{ site_settings.contact_phone }}</a>
+                            </div>
+                        </li>
+                    {% endif %}
+                    {% if site_settings.address %}
+                        <li class="flex items-start gap-3 group">
+                            <i class="fas fa-map-marker-alt text-blue-500 w-5 mt-0.5 shrink-0 group-hover:text-blue-400 transition"></i> 
+                            <div>
+                                <p class="text-gray-500 text-xs mb-1">Address</p>
+                                <span class="text-gray-300 text-sm leading-relaxed">{{ site_settings.address }}</span>
+                            </div>
+                        </li>
+                    {% endif %}
+                </ul>
+
+                <!-- Additional Info -->
+                <div class="mt-6 pt-6 border-t border-gray-800">
+                    <p class="text-xs text-gray-500 mb-3">Business Hours</p>
+                    <p class="text-sm text-gray-300">Mon - Fri: 9:00 AM - 6:00 PM EST</p>
+                    <p class="text-sm text-gray-300">Sat - Sun: 10:00 AM - 5:00 PM EST</p>
+                </div>
             </div>
         </div>
-    </footer>
+
+       
+
+        <!-- Footer Bottom -->
+        <div class="py-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 text-sm text-gray-400">
+                <!-- Legal Links -->
+                <div class="flex flex-wrap gap-4 justify-center md:justify-start">
+                    <a href="/privacy/" class="hover:text-white transition">Privacy Policy</a>
+                    <span class="text-gray-700">|</span>
+                    <a href="/terms/" class="hover:text-white transition">Terms of Service</a>
+                    <span class="text-gray-700">|</span>
+                    <a href="/sitemap/" class="hover:text-white transition">Sitemap</a>
+                </div>
+
+                <!-- Copyright -->
+               <div class="border-t border-gray-800 pt-6 text-center text-xs text-gray-500">
+    <p>© 2018 - {% now "Y" %} <span class="text-white font-semibold">{{ site_settings.site_name }}</span> - Premium Multi-Vendor Marketplace. All rights reserved.</p>
+    <p class="mt-2">Crafted with <i class="fas fa-heart text-red-500"></i> for premium shopping experience</p>
+</div>
+
+                <!-- Payment Methods -->
+                <div class="flex gap-3 justify-center md:justify-end">
+                    <div class="w-8 h-5 bg-gray-800 rounded flex items-center justify-center text-xs text-gray-500" title="Visa"><i class="fab fa-cc-visa"></i></div>
+                    <div class="w-8 h-5 bg-gray-800 rounded flex items-center justify-center text-xs text-gray-500" title="Mastercard"><i class="fab fa-cc-mastercard"></i></div>
+                    <div class="w-8 h-5 bg-gray-800 rounded flex items-center justify-center text-xs text-gray-500" title="American Express"><i class="fab fa-cc-amex"></i></div>
+                    <div class="w-8 h-5 bg-gray-800 rounded flex items-center justify-center text-xs text-gray-500" title="PayPal"><i class="fab fa-cc-paypal"></i></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('newsletter-form');
+    const emailInput = document.getElementById('newsletter-email');
+    const submitBtn = document.getElementById('newsletter-btn');
+    const btnText = document.getElementById('btn-text');
+    const btnLoader = document.getElementById('btn-loader');
+    const messageDiv = document.getElementById('newsletter-message');
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const email = emailInput.value.trim();
+
+        // Validate email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            showMessage('Please enter a valid email address', 'error');
+            return;
+        }
+
+        // Disable button and show loader
+        submitBtn.disabled = true;
+        btnText.classList.add('hidden');
+        btnLoader.classList.remove('hidden');
+
+        try {
+            const response = await fetch('/api/newsletter-subscribe/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                },
+                body: JSON.stringify({ email: email })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                showMessage('✓ Successfully subscribed! Check your email.', 'success');
+                emailInput.value = '';
+            } else {
+                showMessage(data.message || 'Failed to subscribe. Please try again.', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showMessage('An error occurred. Please try again later.', 'error');
+        } finally {
+            // Re-enable button and hide loader
+            submitBtn.disabled = false;
+            btnText.classList.remove('hidden');
+            btnLoader.classList.add('hidden');
+        }
+    });
+
+    function showMessage(message, type) {
+        messageDiv.textContent = message;
+        messageDiv.classList.remove('hidden', 'bg-red-500/20', 'bg-green-500/20', 'text-red-300', 'text-green-300');
+        
+        if (type === 'success') {
+            messageDiv.classList.add('bg-green-500/20', 'text-green-300');
+        } else {
+            messageDiv.classList.add('bg-red-500/20', 'text-red-300');
+        }
+
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+            messageDiv.classList.add('hidden');
+        }, 5000);
+    }
+});
+</script>
+
+<style>
+    .footer-section {
+        transition: all 0.3s ease;
+    }
+
+    .footer-link {
+        position: relative;
+        transition: all 0.3s ease;
+    }
+
+    .footer-link::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 0;
+        height: 2px;
+        background-color: #3b82f6;
+        transition: width 0.3s ease;
+    }
+
+    .footer-link:hover::after {
+        width: 100%;
+    }
+</style>
+
     
     <!-- Toast Container -->
     <div id="toast-container"></div>

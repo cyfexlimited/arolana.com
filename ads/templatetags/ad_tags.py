@@ -1,90 +1,348 @@
 from django import template
 from django.utils import timezone
-from ads.models import AdBanner, AdPlacement, AdImpression
+from django.db.models import Q, F
+from ads.models import Advertisement, AdBanner, AdCreative, AdPlacement, AdImpression
 import random
+import logging
 
+logger = logging.getLogger(__name__)
 register = template.Library()
 
-@register.inclusion_tag('ads/banner.html', takes_context=True)
-def render_ad(context, placement_slug, count=1):
-    """Render ads for a specific placement"""
+
+@register.inclusion_tag('ads/ad_carousel.html', takes_context=True)
+def render_ad_carousel(context, placement, count=5, interval=5000, autoplay='true'):
+    """
+    Render an ad carousel with multiple ads (creatives, banners, simple ads)
+    
+    Usage:
+        {% load ad_tags %}
+        {% render_ad_carousel 'sidebar' count=5 interval=5000 autoplay='true' %}
+    
+    Args:
+        placement (str): Placement slug (sidebar, banner, footer, homepage)
+        count (int): Number of ads to display (default: 5)
+        interval (int): Auto-play interval in milliseconds (default: 5000)
+        autoplay (str): Enable autoplay ('true' or 'false')
+    """
     request = context.get('request')
-    if not request:
-        return {'ads': []}
-    
-    try:
-        placement = AdPlacement.objects.get(slug=placement_slug, is_active=True)
-    except AdPlacement.DoesNotExist:
-        return {'ads': []}
-    
     now = timezone.now()
     
-    # Get active banners for this placement
-    banners = AdBanner.objects.filter(
-        placement=placement,
-        is_active=True,
-        campaign__status='active',
-        campaign__approved=True,
-        campaign__start_date__lte=now
-    ).exclude(
-        campaign__end_date__isnull=False,
-        campaign__end_date__lt=now
-    ).select_related('campaign', 'placement')
+    all_ads = []
     
-    if not banners.exists():
-        return {'ads': []}
-    
-    # Filter banners based on campaign settings
-    user = request.user if request.user.is_authenticated else None
-    filtered_banners = []
-    
-    for banner in banners:
-        campaign = banner.campaign
+    # 1. Get Active Creatives (highest priority)
+    try:
+        creatives = AdCreative.objects.filter(
+            is_active=True
+        ).select_related('campaign').filter(
+            campaign__status='active',
+            campaign__approved=True,
+            campaign__start_date__lte=now
+        ).filter(
+            Q(campaign__end_date__isnull=True) | Q(campaign__end_date__gte=now)
+        ).order_by('-ab_weight', '?')[:count]
         
-        # Check budget
-        if campaign.spent >= campaign.budget:
-            continue
+        for creative in creatives:
+            all_ads.append({
+                'object': creative,
+                'type': 'creative',
+                'id': f'creative-{creative.id}',
+                'title': creative.headline,
+                'description': creative.description or '',
+                'cta_text': creative.cta_text or 'Learn More',
+                'url': creative.clickthrough_url,
+                'image': creative.image,
+                'image_mobile': creative.image_mobile or creative.image,
+                'ctr': float(creative.ctr) if creative.ctr else 0,
+                'views': creative.impressions or 0,
+                'clicks': creative.clicks or 0,
+                'creative_type': creative.creative_type,
+                'ab_variant': creative.ab_variant,
+            })
+    except Exception as e:
+        logger.error(f"Error fetching creatives: {e}")
+    
+    # 2. Get Active Banners
+    try:
+        placement_obj = AdPlacement.objects.filter(
+            slug=placement, 
+            is_active=True
+        ).first()
         
-        # Check targeting
-        if campaign.targeting == 'logged_in' and not user:
-            continue
-        
-        filtered_banners.append(banner)
-    
-    if not filtered_banners:
-        return {'ads': []}
-    
-    # Select random banner for rotation
-    selected_ad = random.choice(filtered_banners)
-    
-    # Track impression asynchronously (don't wait for response)
-    if request.session.session_key:
-        try:
-            # Check if already tracked today to avoid duplicates
-            from datetime import date
-            today = date.today()
-            existing = AdImpression.objects.filter(
-                banner=selected_ad,
-                session_id=request.session.session_key,
-                timestamp__date=today
-            ).exists()
+        if placement_obj:
+            banners = AdBanner.objects.filter(
+                placement=placement_obj,
+                is_active=True,
+                start_date__lte=now
+            ).filter(
+                Q(end_date__isnull=True) | Q(end_date__gte=now)
+            ).select_related('campaign', 'creative').order_by('-priority', '?')[:count]
             
-            if not existing:
-                AdImpression.objects.create(
-                    banner=selected_ad,
-                    campaign=selected_ad.campaign,
-                    user=user,
-                    session_id=request.session.session_key,
-                    ip_address=request.META.get('REMOTE_ADDR'),
-                    user_agent=request.META.get('HTTP_USER_AGENT', '')[:500]
-                )
-                # Update counts
-                selected_ad.impressions += 1
-                selected_ad.save()
-                selected_ad.campaign.impressions += 1
-                selected_ad.campaign.save()
-        except Exception as e:
-            # Silently fail for tracking errors
-            pass
+            for banner in banners:
+                all_ads.append({
+                    'object': banner,
+                    'type': 'banner',
+                    'id': f'banner-{banner.id}',
+                    'title': banner.title,
+                    'description': banner.description or '',
+                    'cta_text': banner.cta_text or 'View More',
+                    'url': banner.cta_url,
+                    'image': banner.image,
+                    'image_mobile': banner.image_mobile or banner.image,
+                    'ctr': float(banner.ctr) if banner.ctr else 0,
+                    'views': banner.impressions or 0,
+                    'clicks': banner.clicks or 0,
+                    'animation': banner.animation or 'fade',
+                })
+    except Exception as e:
+        logger.error(f"Error fetching banners: {e}")
     
-    return {'ads': [selected_ad], 'request': request}
+    # 3. Get Simple Advertisements
+    try:
+        ads = Advertisement.objects.filter(
+            placement=placement,
+            is_active=True
+        ).filter(
+            Q(end_date__isnull=True) | Q(end_date__gte=now)
+        ).order_by('-is_featured', '-created_at')[:count]
+        
+        for ad in ads:
+            all_ads.append({
+                'object': ad,
+                'type': 'simple',
+                'id': f'ad-{ad.id}',
+                'title': ad.title,
+                'description': ad.description or '',
+                'cta_text': ad.button_text or 'Click Here',
+                'url': ad.url,
+                'image': ad.image,
+                'ctr': float(ad.ctr) if ad.ctr else 0,
+                'views': ad.views or 0,
+                'clicks': ad.clicks or 0,
+                'is_featured': ad.is_featured,
+            })
+    except Exception as e:
+        logger.error(f"Error fetching simple ads: {e}")
+    
+    # Shuffle and limit to requested count
+    random.shuffle(all_ads)
+    all_ads = all_ads[:count]
+    
+    # Track initial impressions
+    if request and request.session.session_key:
+        for ad in all_ads:
+            _track_ad_impression(request, ad['object'], ad['type'])
+    
+    return {
+        'ads': all_ads,
+        'placement': placement,
+        'interval': int(interval),
+        'autoplay': autoplay.lower() == 'true',
+        'count': len(all_ads),
+        'user': request.user if request else None,
+    }
+
+
+@register.inclusion_tag('ads/advanced_ad.html', takes_context=True)
+def render_ad(context, placement):
+    """
+    Render a single ad for a specific placement with automatic priority selection
+    
+    Usage:
+        {% load ad_tags %}
+        {% render_ad 'sidebar' %}
+    
+    Args:
+        placement (str): Placement slug (sidebar, banner, footer, homepage)
+    """
+    request = context.get('request')
+    now = timezone.now()
+    
+    selected_ad = None
+    ad_type = None
+    
+    try:
+        # Priority 1: Active Creatives
+        creatives = AdCreative.objects.filter(
+            is_active=True
+        ).select_related('campaign').filter(
+            campaign__status='active',
+            campaign__approved=True,
+            campaign__start_date__lte=now
+        ).filter(
+            Q(campaign__end_date__isnull=True) | Q(campaign__end_date__gte=now)
+        ).annotate(
+            weight=F('ab_weight')
+        ).order_by('-weight', '?')
+        
+        if creatives.exists():
+            selected_ad = creatives.first()
+            ad_type = 'creative'
+        else:
+            # Priority 2: Active Banners
+            placement_obj = AdPlacement.objects.filter(
+                slug=placement, 
+                is_active=True
+            ).first()
+            
+            if placement_obj:
+                banners = AdBanner.objects.filter(
+                    placement=placement_obj,
+                    is_active=True,
+                    start_date__lte=now
+                ).filter(
+                    Q(end_date__isnull=True) | Q(end_date__gte=now)
+                ).select_related('campaign', 'creative').order_by('-priority', '?')
+                
+                if banners.exists():
+                    selected_ad = banners.first()
+                    ad_type = 'banner'
+                else:
+                    raise AdPlacement.DoesNotExist
+            else:
+                raise AdPlacement.DoesNotExist
+                
+            # Priority 3: Simple Ads
+            if not selected_ad:
+                ads = Advertisement.objects.filter(
+                    placement=placement,
+                    is_active=True
+                ).filter(
+                    Q(end_date__isnull=True) | Q(end_date__gte=now)
+                ).order_by('-is_featured', '-created_at')
+                
+                if ads.exists():
+                    selected_ad = ads.first()
+                    ad_type = 'simple'
+    
+    except (AdPlacement.DoesNotExist, Exception) as e:
+        logger.warning(f"No ads found for placement '{placement}': {e}")
+        selected_ad = None
+        ad_type = None
+    
+    # Track impression
+    if selected_ad and request:
+        _track_ad_impression(request, selected_ad, ad_type)
+    
+    # Determine format and device
+    format_map = {
+        'sidebar': 'compact',
+        'banner': 'wide',
+        'footer': 'small',
+        'homepage': 'hero',
+    }
+    
+    device = _detect_device(request)
+    
+    return {
+        'ad': selected_ad,
+        'ad_type': ad_type,
+        'placement': placement,
+        'format': format_map.get(placement, 'standard'),
+        'device': device,
+        'user': request.user if request else None,
+    }
+
+
+@register.simple_tag(takes_context=True)
+def ad_click_url(context, ad_id, ad_type):
+    """Generate tracking URL for ad clicks"""
+    return f"/ads/track-click/?id={ad_id}&type={ad_type}"
+
+
+@register.filter
+def format_ad_number(value):
+    """Format numbers with commas for display"""
+    try:
+        return f"{int(value):,}"
+    except (ValueError, TypeError):
+        return "0"
+
+
+@register.filter
+def ad_ctr_percentage(views, clicks):
+    """Calculate and display CTR percentage"""
+    try:
+        if int(views) > 0:
+            ctr = (int(clicks) / int(views)) * 100
+            return f"{ctr:.2f}%"
+        return "0.00%"
+    except (ValueError, TypeError, ZeroDivisionError):
+        return "0.00%"
+
+
+def _track_ad_impression(request, ad_obj, ad_type):
+    """Track ad impression in database"""
+    try:
+        if not hasattr(request, 'user') or not request.user.is_authenticated:
+            session_id = request.session.session_key
+        else:
+            session_id = None
+        
+        if ad_type == 'creative':
+            AdImpression.objects.create(
+                ad_creative=ad_obj,
+                session_id=session_id,
+                ip_address=_get_client_ip(request),
+                device_type=_detect_device(request),
+                browser=request.META.get('HTTP_USER_AGENT', '')[:200],
+                country=_get_country(request),
+                was_visible=True
+            )
+        elif ad_type == 'banner':
+            # Update banner impressions
+            ad_obj.impressions = (ad_obj.impressions or 0) + 1
+            ad_obj.save(update_fields=['impressions'])
+        elif ad_type == 'simple':
+            # Update ad views
+            ad_obj.views = (ad_obj.views or 0) + 1
+            ad_obj.save(update_fields=['views'])
+    except Exception as e:
+        logger.error(f"Error tracking impression: {e}")
+
+
+def _get_client_ip(request):
+    """Extract client IP from request"""
+    if not request:
+        return None
+    
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        return x_forwarded_for.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR', '')
+
+
+def _detect_device(request):
+    """Detect device type from user agent"""
+    if not request:
+        return 'unknown'
+    
+    user_agent = request.META.get('HTTP_USER_AGENT', '').lower()
+    
+    if 'mobile' in user_agent or 'android' in user_agent or 'iphone' in user_agent:
+        return 'mobile'
+    elif 'tablet' in user_agent or 'ipad' in user_agent:
+        return 'tablet'
+    else:
+        return 'desktop'
+
+
+def _get_country(request):
+    """Get country from request (requires GeoIP setup)"""
+    try:
+        from django.contrib.gis.geoip2 import GeoIP2
+        from django.conf import settings
+        
+        if hasattr(settings, 'GEOIP_PATH'):
+            g = GeoIP2()
+            ip = _get_client_ip(request)
+            country = g.country(ip)
+            return country.get('country_code', 'XX')
+    except Exception:
+        pass
+    
+    return 'XX'
+
+
+# Register filters for template use
+register.filter('format_ad_number', format_ad_number)
+register.filter('ad_ctr_percentage', ad_ctr_percentage)

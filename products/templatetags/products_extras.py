@@ -32,6 +32,7 @@ def parse_vimeo_id(url):
     match = re.search(r'vimeo\.com/(\d+)', url)
     return match.group(1) if match else None
 
+
 # ========== VIDEO FILTERS ==========
 
 @register.filter
@@ -47,6 +48,7 @@ def extract_video_id(url):
     video_id = parse_vimeo_id(url)
     return video_id
 
+
 @register.filter
 def get_embed_url(url):
     """Convert YouTube/Vimeo URL to embed URL"""
@@ -60,6 +62,7 @@ def get_embed_url(url):
     
     return url
 
+
 @register.filter
 def get_thumbnail_url(url):
     """Get YouTube thumbnail URL"""
@@ -67,6 +70,7 @@ def get_thumbnail_url(url):
     if video_id:
         return f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
     return '/static/images/video-placeholder.png'
+
 
 @register.filter
 def get_thumbnail(video_url, size='hqdefault'):
@@ -85,6 +89,7 @@ def get_thumbnail(video_url, size='hqdefault'):
         return f'https://vumbnail.com/{video_id}.jpg'
     
     return '/static/images/video-placeholder.png'
+
 
 # ========== CURRENCY FILTERS ==========
 
@@ -159,6 +164,7 @@ def currency(value, request):
         print(f"Currency filter error: {e}")
         return f"₦{value}"
 
+
 @register.simple_tag(takes_context=True)
 def current_currency_symbol(context):
     """Get current currency symbol"""
@@ -171,6 +177,7 @@ def current_currency_symbol(context):
     symbols = {'NGN': '₦', 'USD': '$', 'EUR': '€', 'GBP': '£', 'JPY': '¥', 'INR': '₹', 'AUD': 'A$', 'CAD': 'C$'}
     return symbols.get(currency, '₦')
 
+
 @register.simple_tag(takes_context=True)
 def current_currency_code(context):
     """Get current currency code"""
@@ -178,6 +185,47 @@ def current_currency_code(context):
     if request and hasattr(request, 'session'):
         return request.session.get('user_currency', 'NGN')
     return 'NGN'
+
+
+# ========== APPROVAL STATUS FILTERS ==========
+
+@register.filter
+def approval_status_badge(status):
+    """Convert approval status to colored badge HTML"""
+    status_map = {
+        'pending': ('yellow', 'Pending Approval'),
+        'approved': ('green', 'Approved'),
+        'rejected': ('red', 'Rejected'),
+        'requires_changes': ('orange', 'Changes Required'),
+    }
+    color, text = status_map.get(status, ('gray', status))
+    
+    return f'<span class="px-2 py-1 rounded-full text-xs font-semibold bg-{color}-100 text-{color}-700">{text}</span>'
+
+
+@register.filter
+def is_approved(product):
+    """Check if product is approved"""
+    if hasattr(product, 'approval_status'):
+        return product.approval_status == 'approved'
+    return True
+
+
+@register.filter
+def is_pending(product):
+    """Check if product is pending approval"""
+    if hasattr(product, 'approval_status'):
+        return product.approval_status == 'pending'
+    return False
+
+
+@register.filter
+def is_rejected(product):
+    """Check if product is rejected"""
+    if hasattr(product, 'approval_status'):
+        return product.approval_status in ['rejected', 'requires_changes']
+    return False
+
 
 # ========== RATING FILTERS ==========
 
@@ -205,6 +253,7 @@ def rating_stars(rating):
     except Exception:
         return '<i class="fas fa-star text-gray-300"></i>' * 5
 
+
 @register.filter
 def rating_percentage(rating):
     """Convert rating to percentage (0-100)"""
@@ -212,6 +261,7 @@ def rating_percentage(rating):
         return int((float(rating) / 5) * 100)
     except (ValueError, TypeError):
         return 0
+
 
 @register.filter
 def get_review_stats(reviews):
@@ -236,6 +286,7 @@ def get_review_stats(reviews):
         'distribution': distribution,
     }
 
+
 # ========== PRICE & DISCOUNT FILTERS ==========
 
 @register.filter
@@ -248,6 +299,7 @@ def discount_price(price, compare_price):
     except (ValueError, TypeError):
         return 0
 
+
 @register.filter
 def final_price(product, variant=None):
     """Get final price including variant adjustment"""
@@ -255,6 +307,7 @@ def final_price(product, variant=None):
     if variant and hasattr(variant, 'price_adjustment'):
         return base_price + float(variant.price_adjustment)
     return base_price
+
 
 @register.filter
 def get_price_range(products):
@@ -275,6 +328,7 @@ def get_price_range(products):
         'max': max_price if max_price != float('-inf') else 0
     }
 
+
 @register.filter
 def calculate_delivery_date(days_min, days_max):
     """Calculate estimated delivery date range"""
@@ -287,6 +341,7 @@ def calculate_delivery_date(days_min, days_max):
         return start_date.strftime('%b %d')
     return f"{start_date.strftime('%b %d')} - {end_date.strftime('%b %d')}"
 
+
 # ========== VARIANT FILTERS ==========
 
 @register.filter
@@ -296,12 +351,14 @@ def get_variant_price(variant_data, variant_id):
         return None
     return variant_data.get(str(variant_id), {}).get('price')
 
+
 @register.filter
 def get_variant_stock(variant_data, variant_id):
     """Get variant stock from JSON data"""
     if not variant_data or not variant_id:
         return None
     return variant_data.get(str(variant_id), {}).get('stock')
+
 
 @register.filter
 def get_variant_sku(variant_data, variant_id):
@@ -310,12 +367,14 @@ def get_variant_sku(variant_data, variant_id):
         return None
     return variant_data.get(str(variant_id), {}).get('sku')
 
+
 @register.filter
 def get_variant_image(variant_data, variant_id):
     """Get variant image from JSON data"""
     if not variant_data or not variant_id:
         return None
     return variant_data.get(str(variant_id), {}).get('image')
+
 
 # ========== DICTIONARY & LIST FILTERS ==========
 
@@ -328,6 +387,7 @@ def get_item(dictionary, key):
         return dictionary.get(key, 0)
     return 0
 
+
 @register.filter
 def split(value, delimiter=','):
     """Split string by delimiter"""
@@ -337,10 +397,12 @@ def split(value, delimiter=','):
         return value.split(delimiter)
     return value
 
+
 @register.filter
 def extract_filename(value):
     """Extract filename from path"""
     return value.split('/')[-1] if '/' in value else value
+
 
 @register.filter
 def truncate_chars(value, max_length):
@@ -351,6 +413,7 @@ def truncate_chars(value, max_length):
         return value
     return value[:max_length - 3] + '...'
 
+
 @register.filter
 def format_number(value):
     """Format number with commas"""
@@ -359,6 +422,7 @@ def format_number(value):
     except (ValueError, TypeError):
         return value
 
+
 @register.filter
 def default(value, default_value):
     """Return default value if value is None or empty"""
@@ -366,12 +430,14 @@ def default(value, default_value):
         return default_value
     return value
 
+
 @register.filter
 def dict_lookup(dictionary, key):
     """Look up value in dictionary by key"""
     if dictionary is None:
         return None
     return dictionary.get(key)
+
 
 @register.filter
 def is_in_csv(csv_string, value):
@@ -381,6 +447,7 @@ def is_in_csv(csv_string, value):
     values = [v.strip() for v in csv_string.split(',')]
     return str(value).strip() in values
 
+
 @register.filter
 def get_range(value):
     """Create a range for loop"""
@@ -389,12 +456,14 @@ def get_range(value):
     except (ValueError, TypeError):
         return range(0)
 
+
 @register.filter
 def list_contains(lst, item):
     """Check if list contains item"""
     if not lst:
         return False
     return item in lst
+
 
 @register.filter
 def first_item(lst):
@@ -403,12 +472,14 @@ def first_item(lst):
         return None
     return lst[0]
 
+
 @register.filter
 def last_item(lst):
     """Get last item from list"""
     if not lst:
         return None
     return lst[-1]
+
 
 # ========== WISHLIST FILTERS ==========
 
@@ -420,6 +491,7 @@ def is_in_wishlist(product, user):
     from products.models import Wishlist
     return Wishlist.objects.filter(user=user, product=product).exists()
 
+
 # ========== MATH FILTERS ==========
 
 @register.filter
@@ -429,6 +501,7 @@ def mul(value, arg):
         return float(value) * float(arg)
     except (ValueError, TypeError, ZeroDivisionError):
         return 0
+
 
 @register.filter
 def div(value, arg):
@@ -440,15 +513,18 @@ def div(value, arg):
     except (ValueError, TypeError, ZeroDivisionError):
         return 0
 
+
 @register.filter
 def multiply(value, arg):
     """Alias for mul"""
     return mul(value, arg)
 
+
 @register.filter
 def divide(value, arg):
     """Alias for div"""
     return div(value, arg)
+
 
 @register.filter
 def subtract(value, arg):
@@ -458,6 +534,7 @@ def subtract(value, arg):
     except (ValueError, TypeError):
         return value
 
+
 @register.filter
 def add(value, arg):
     """Add arg to value"""
@@ -465,6 +542,7 @@ def add(value, arg):
         return float(value) + float(arg)
     except (ValueError, TypeError):
         return value
+
 
 @register.filter
 def percentage(value, total):
@@ -475,6 +553,7 @@ def percentage(value, total):
         return (float(value) / float(total)) * 100
     except (ValueError, TypeError):
         return 0
+
 
 # ========== TIME FILTERS ==========
 
@@ -506,6 +585,7 @@ def time_ago(date):
     else:
         return date.strftime('%b %d, %Y')
 
+
 # ========== QUERY TRANSFORM ==========
 
 @register.simple_tag
@@ -519,12 +599,14 @@ def query_transform(request, **kwargs):
             updated[key] = value
     return updated.urlencode()
 
+
 @register.simple_tag
 def active_category(request, slug):
     """Check if category is active in URL"""
     if request.GET.get('category') == slug:
         return 'active'
     return ''
+
 
 # ========== JSON HELPERS ==========
 

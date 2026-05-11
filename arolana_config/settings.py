@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from decouple import config
 from datetime import timedelta
+import os
 import warnings
 
 # Build paths
@@ -28,6 +29,39 @@ else:
             CSRF_TRUSTED_ORIGINS.append(f'https://www.{host}')
     CSRF_TRUSTED_ORIGINS.extend(['http://localhost:8000', 'http://127.0.0.1:8000'])
 
+DISPLAY_ARTICLE_TOP_AD = True
+DISPLAY_ARTICLE_AFTER_HEADER_AD = True
+DISPLAY_ARTICLE_MID_AD = True
+DISPLAY_ARTICLE_NATIVE_AD = True
+DISPLAY_ARTICLE_BEFORE_CONCLUSION_AD = True
+DISPLAY_ARTICLE_AFTER_AUTHOR_AD = True
+DISPLAY_ARTICLE_FOOTER_AD = True
+
+# Sidebar ads
+DISPLAY_SIDEBAR_SEARCH = True
+DISPLAY_SIDEBAR_TOP_AD = True
+DISPLAY_SIDEBAR_NEWSLETTER = True
+DISPLAY_SIDEBAR_MID_AD = True
+DISPLAY_SIDEBAR_POPULAR = True
+DISPLAY_SIDEBAR_BOTTOM_AD = True
+DISPLAY_SIDEBAR_CATEGORIES = True
+DISPLAY_SIDEBAR_STICKY_AD = True
+
+# Carousel settings
+ARTICLE_CAROUSEL_TOP_COUNT = 1
+ARTICLE_CAROUSEL_TOP_INTERVAL = 8000
+ARTICLE_CAROUSEL_NATIVE_COUNT = 1
+ARTICLE_CAROUSEL_NATIVE_INTERVAL = 5000
+ARTICLE_CAROUSEL_FOOTER_COUNT = 1
+ARTICLE_CAROUSEL_FOOTER_INTERVAL = 8000
+SIDEBAR_CAROUSEL_TOP_COUNT = 2
+SIDEBAR_CAROUSEL_TOP_INTERVAL = 5000
+SIDEBAR_CAROUSEL_MID_COUNT = 2
+SIDEBAR_CAROUSEL_MID_INTERVAL = 4000
+SIDEBAR_CAROUSEL_BOTTOM_COUNT = 1
+SIDEBAR_CAROUSEL_BOTTOM_INTERVAL = 6000
+SIDEBAR_CAROUSEL_STICKY_COUNT = 1
+SIDEBAR_CAROUSEL_STICKY_INTERVAL = 8000
 # ============ INSTALLED APPS ============
 INSTALLED_APPS = [
     'jazzmin',
@@ -135,6 +169,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'blog.context_processors.blog_settings',
             ],
         },
     },
