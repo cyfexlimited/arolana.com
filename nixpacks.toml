@@ -31,4 +31,4 @@ PYTHONUNBUFFERED = "1"
 DJANGO_SETTINGS_MODULE = "arolana_config.settings"
 ALLOWED_HOSTS = "*"
 DEBUG = "0"
-PATH = "/opt/venv/bin:$PATH"
+
