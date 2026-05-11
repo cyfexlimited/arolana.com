@@ -3,6 +3,7 @@ from pathlib import Path
 from decouple import config
 from datetime import timedelta
 import warnings
+import logging
 import dj_database_url
 
 # Build paths
@@ -10,11 +11,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ============ SECURITY & ENVIRONMENT ============
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-arolana-super-secret-key')
-DEBUG = config('DEBUG', default=False, cast=bool)  # False in production
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='arolana.com,www.arolana.com,localhost,127.0.0.1').split(',')
+DEBUG = config('DEBUG', default=True, cast=bool)
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,arolana.com,www.arolana.com').split(',')
 
 # ============ CSRF TRUSTED ORIGINS ============
-CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='https://arolana.com,https://www.arolana.com,http://localhost:8000,http://127.0.0.1:8000').split(',')
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+    'https://arolana.com',
+    'https://www.arolana.com',
+]
 
 # ============ AD SETTINGS ============
 DISPLAY_ARTICLE_TOP_AD = True
@@ -121,13 +127,22 @@ WSGI_APPLICATION = 'arolana_config.wsgi.application'
 ASGI_APPLICATION = 'arolana_config.asgi.application'
 
 # ============ DATABASE ============
-DATABASES = {
-    'default': dj_database_url.config(
-        default='sqlite:///db.sqlite3',
-        conn_max_age=600,
-        ssl_require=not DEBUG
-    )
-}
+DATABASE_URL = config('DATABASE_URL', default=None)
+if DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=not DEBUG
+        )
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 # ============ TEMPLATES ============
 TEMPLATES = [
@@ -288,8 +303,6 @@ if DEBUG:
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
     SECURE_HSTS_SECONDS = 0
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
-    SECURE_HSTS_PRELOAD = False
     CSRF_COOKIE_SAMESITE = 'Lax'
     SESSION_COOKIE_SAMESITE = 'Lax'
 else:
@@ -308,7 +321,7 @@ X_FRAME_OPTIONS = 'DENY'
 SESSION_COOKIE_AGE = 86400
 SESSION_COOKIE_HTTPONLY = True
 
-# ============ JAZZMIN ADMIN THEME ============
+# ============ JAZZMIN ============
 os.makedirs(os.path.join(BASE_DIR, 'static', 'admin', 'css'), exist_ok=True)
 
 JAZZMIN_SETTINGS = {
@@ -371,7 +384,7 @@ USE_I18N = True
 USE_TZ = True
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-SITE_URL = config('SITE_URL', default='https://arolana.com')
+SITE_URL = config('SITE_URL', default='http://localhost:8000')
 
 print(f"🚀 Arolana running in {'DEVELOPMENT' if DEBUG else 'PRODUCTION'} mode")
 print(f"📍 Site URL: {SITE_URL}")
@@ -435,19 +448,15 @@ CORS_ALLOWED_ORIGINS = [
 
 CORS_ALLOW_CREDENTIALS = True
 
-# ============ SILENCE DEPRECATION WARNINGS ============
+# ============ SILENCE WARNINGS ============
 warnings.filterwarnings('ignore', category=DeprecationWarning, module='allauth')
 warnings.filterwarnings('ignore', category=DeprecationWarning, module='django_ckeditor_5')
 warnings.filterwarnings('ignore', category=RuntimeWarning, module='products.models')
 
-# ============ LOGGING CONFIGURATION ============
 if DEBUG:
-    import logging
     logging.getLogger('django.request').setLevel(logging.ERROR)
     logging.getLogger('django.server').setLevel(logging.ERROR)
     logging.getLogger('currency.middleware').setLevel(logging.WARNING)
-    
-    import warnings
     warnings.filterwarnings('ignore', message='.*development server.*')
     warnings.filterwarnings('ignore', module='currency.middleware')
 
