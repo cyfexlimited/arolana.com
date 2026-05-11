@@ -1,10 +1,13 @@
 # Nixpacks configuration for Arolana.com
 
 [phases.setup]
-nixPkgs = ["python311", "python311Packages.pip", "python311Packages.virtualenv"]
+nixPkgs = [
+  "python311",
+  "python311Packages.pip",
+  "python311Packages.virtualenv"
+]
 
 [phases.install]
-# Create virtual environment and install dependencies
 cmds = [
   "python -m venv /opt/venv",
   "source /opt/venv/bin/activate",
@@ -12,23 +15,19 @@ cmds = [
 ]
 
 [phases.build]
-# Run collectstatic in the virtual environment
 cmds = [
   "source /opt/venv/bin/activate",
   "python manage.py collectstatic --noinput"
 ]
 
 [phases.start]
-# Use virtual environment python for gunicorn
 cmd = "/opt/venv/bin/gunicorn arolana_config.wsgi:application --bind 0.0.0.0:$PORT"
 
 [env]
 DISABLE_COLLECTSTATIC = "0"
 PYTHON_VERSION = "3.11.9"
-
-[variables]
+NIXPACKS_PATH = "/app"
 PYTHONUNBUFFERED = "1"
 DJANGO_SETTINGS_MODULE = "arolana_config.settings"
 ALLOWED_HOSTS = "*"
 DEBUG = "0"
-
