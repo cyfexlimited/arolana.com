@@ -4,20 +4,26 @@
 nixPkgs = [
   "python311",
   "python311Packages.pip",
-  "python311Packages.virtualenv"
+  "python311Packages.virtualenv",
+  "gcc",
+  "postgresql",
+  "libjpeg",
+  "zlib",
+  "openssl",
+  "pkg-config",
+  "redis"
 ]
 
 [phases.install]
 cmds = [
   "python -m venv /opt/venv",
-  "source /opt/venv/bin/activate",
+  "/opt/venv/bin/pip install --upgrade pip setuptools wheel",
   "/opt/venv/bin/pip install --no-cache-dir -r requirements.txt"
 ]
 
 [phases.build]
 cmds = [
-  "source /opt/venv/bin/activate",
-  "python manage.py collectstatic --noinput"
+  "/opt/venv/bin/python manage.py collectstatic --noinput"
 ]
 
 [phases.start]
