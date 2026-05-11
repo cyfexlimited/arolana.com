@@ -2,33 +2,55 @@ import os
 from pathlib import Path
 from decouple import config
 from datetime import timedelta
+<<<<<<< HEAD
 import os
+=======
+import dj_database_url
+>>>>>>> 02fdd334c4e232c6c016f4ea5d841012f0c6332b
 import warnings
+import logging
 
-# Build paths
+# =========================================================
+# BASE DIRECTORY
+# =========================================================
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ============ SECURITY & ENVIRONMENT ============
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-arolana-super-secret-key')
-DEBUG = config('DEBUG', default=True, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
+# =========================================================
+# SECURITY
+# =========================================================
+SECRET_KEY = config(
+    'SECRET_KEY',
+    default='django-insecure-change-this-in-production'
+)
 
-# ============ CSRF TRUSTED ORIGINS ============
+DEBUG = config('DEBUG', default=False, cast=bool)
+
+ALLOWED_HOSTS = config(
+    'ALLOWED_HOSTS',
+    default='*'
+).split(',')
+
+# =========================================================
+# CSRF TRUSTED ORIGINS
+# =========================================================
+CSRF_TRUSTED_ORIGINS = []
+
+for host in ALLOWED_HOSTS:
+    host = host.strip()
+
+    if host and host not in ['localhost', '127.0.0.1', '*']:
+        CSRF_TRUSTED_ORIGINS.append(f'https://{host}')
+        CSRF_TRUSTED_ORIGINS.append(f'https://www.{host}')
+
 if DEBUG:
-    CSRF_TRUSTED_ORIGINS = [
+    CSRF_TRUSTED_ORIGINS.extend([
         'http://localhost:8000',
         'http://127.0.0.1:8000',
         'http://localhost:3000',
         'http://127.0.0.1:3000',
-    ]
-else:
-    CSRF_TRUSTED_ORIGINS = []
-    for host in ALLOWED_HOSTS:
-        if host and host not in ['localhost', '127.0.0.1']:
-            CSRF_TRUSTED_ORIGINS.append(f'https://{host}')
-            CSRF_TRUSTED_ORIGINS.append(f'https://www.{host}')
-    CSRF_TRUSTED_ORIGINS.extend(['http://localhost:8000', 'http://127.0.0.1:8000'])
+    ])
 
+<<<<<<< HEAD
 DISPLAY_ARTICLE_TOP_AD = True
 DISPLAY_ARTICLE_AFTER_HEADER_AD = True
 DISPLAY_ARTICLE_MID_AD = True
@@ -63,8 +85,15 @@ SIDEBAR_CAROUSEL_BOTTOM_INTERVAL = 6000
 SIDEBAR_CAROUSEL_STICKY_COUNT = 1
 SIDEBAR_CAROUSEL_STICKY_INTERVAL = 8000
 # ============ INSTALLED APPS ============
+=======
+# =========================================================
+# INSTALLED APPS
+# =========================================================
+>>>>>>> 02fdd334c4e232c6c016f4ea5d841012f0c6332b
 INSTALLED_APPS = [
     'jazzmin',
+
+    # Django Apps
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -73,29 +102,32 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.humanize',
     'django.contrib.sites',
-    'taggit',
-    # Third party apps
+
+    # Third Party Apps
     'rest_framework',
     'corsheaders',
+    'django_filters',
     'django_ckeditor_5',
     'crispy_forms',
     'crispy_tailwind',
     'django_htmx',
+    'taggit',
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
     'allauth.socialaccount.providers.facebook',
-    
-    # Local apps
+    'channels',
+
+    # Local Apps
     'core',
     'accounts',
     'vendors',
     'products',
     'orders',
     'blog',
-    'chat',
-    'notifications',
+   'chat',
+   'notifications',
     'hero_banners',
     'footer_menu',
     'ads',
@@ -109,33 +141,51 @@ INSTALLED_APPS = [
     'kyc',
     'reports',
     'currency',
-    'search_ai',
     'dashboard',
-    'channels',
 ]
 
-# ============ MIDDLEWARE ============
+# =========================================================
+# MIDDLEWARE
+# =========================================================
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+
+    # WhiteNoise
     'whitenoise.middleware.WhiteNoiseMiddleware',
+
     'django.contrib.sessions.middleware.SessionMiddleware',
+
+    # CORS
     'corsheaders.middleware.CorsMiddleware',
+
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+
+    # HTMX
     'django_htmx.middleware.HtmxMiddleware',
+
+    # Custom Middleware
     'currency.middleware.CurrencyMiddleware',
     'currency.middleware.CurrencyContextMiddleware',
+
+    # AllAuth
     'allauth.account.middleware.AccountMiddleware',
 ]
 
+# =========================================================
+# URLS / ASGI / WSGI
+# =========================================================
 ROOT_URLCONF = 'arolana_config.urls'
+
 WSGI_APPLICATION = 'arolana_config.wsgi.application'
 ASGI_APPLICATION = 'arolana_config.asgi.application'
 
-# ============ DATABASE ============
+# =========================================================
+# DATABASE
+# =========================================================
 if DEBUG:
     DATABASES = {
         'default': {
@@ -145,26 +195,31 @@ if DEBUG:
     }
 else:
     DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': config('DB_NAME', default='arolana_db'),
-            'USER': config('DB_USER', default='arolana_user'),
-            'PASSWORD': config('DB_PASSWORD', default=''),
-            'HOST': config('DB_HOST', default='localhost'),
-            'PORT': config('DB_PORT', default='5432'),
-        }
+        'default': dj_database_url.config(
+            default=config('DATABASE_URL'),
+            conn_max_age=600,
+            ssl_require=True
+        )
     }
 
-# ============ TEMPLATES ============
+# =========================================================
+# TEMPLATES
+# =========================================================
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
+
+        'DIRS': [
+            BASE_DIR / 'templates'
+        ],
+
         'APP_DIRS': True,
+
         'OPTIONS': {
             'context_processors': [
                 'core.context_processors.global_context',
                 'footer_menu.context_processors.footer_menus',
+
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
@@ -175,23 +230,43 @@ TEMPLATES = [
     },
 ]
 
-# ============ AUTHENTICATION ============
+# =========================================================
+# AUTH USER MODEL
+# =========================================================
 AUTH_USER_MODEL = 'accounts.User'
 
+# =========================================================
+# PASSWORD VALIDATORS
+# =========================================================
 AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 8}},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+    {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {
+            'min_length': 8
+        }
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
 ]
 
+# =========================================================
+# PASSWORD HASHERS
+# =========================================================
 PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.Argon2PasswordHasher',
     'django.contrib.auth.hashers.PBKDF2PasswordHasher',
-    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
 ]
 
-# ============ ALLAUTH CONFIGURATION ============
+# =========================================================
+# ALLAUTH
+# =========================================================
 SITE_ID = 1
 
 AUTHENTICATION_BACKENDS = [
@@ -203,83 +278,99 @@ LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
-ACCOUNT_EMAIL_VERIFICATION = 'optional'
-ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
-ACCOUNT_LOGOUT_ON_GET = True
-ACCOUNT_SESSION_REMEMBER = True
-
-# AllAuth settings for Django 6.0
-# ✅ CORRECT
 ACCOUNT_LOGIN_METHODS = {'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
 ACCOUNT_UNIQUE_EMAIL = True
 ACCOUNT_EMAIL_VERIFICATION = 'optional'
 ACCOUNT_PASSWORD_MIN_LENGTH = 8
+ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
+ACCOUNT_LOGOUT_ON_GET = True
+ACCOUNT_SESSION_REMEMBER = True
 
-# ✅ FIXED: Use timedelta for token expiry (3 days)
 ACCOUNT_PASSWORD_RESET_TOKEN_EXPIRY = timedelta(days=3)
 
-# ✅ FIXED: Proper rate limits format
 ACCOUNT_RATE_LIMITS = {
-    'login_failed': '5/5m',      # 5 attempts per 5 minutes
-    'reset_password': '3/1h',    # 3 attempts per hour
-    'change_password': '5/1h',   # 5 attempts per hour
-    'signup': '5/1h',            # 5 signups per hour
+    'login_failed': '5/5m',
+    'reset_password': '3/h',
+    'change_password': '5/h',
+    'signup': '5/h',
 }
 
+# =========================================================
+# SOCIAL AUTH
+# =========================================================
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
         'SCOPE': ['profile', 'email'],
-        'AUTH_PARAMS': {'access_type': 'online'},
+        'AUTH_PARAMS': {
+            'access_type': 'online'
+        },
         'OAUTH_PKCE_ENABLED': True,
     },
+
     'facebook': {
         'METHOD': 'oauth2',
         'SCOPE': ['email', 'public_profile'],
-        'AUTH_PARAMS': {'auth_type': 'reauthenticate'},
-        'FIELDS': ['id', 'email', 'name', 'first_name', 'last_name'],
+        'AUTH_PARAMS': {
+            'auth_type': 'reauthenticate'
+        },
+        'FIELDS': [
+            'id',
+            'email',
+            'name',
+            'first_name',
+            'last_name'
+        ],
         'EXCHANGE_TOKEN': True,
         'VERSION': 'v13.0',
     }
 }
 
-# ============ STATIC & MEDIA FILES ============
+# =========================================================
+# STATIC FILES
+# =========================================================
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
+STATICFILES_DIRS = [
+    BASE_DIR / 'static'
+]
+
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+    },
+}
+# =========================================================
+# WHITE NOISE FIX (IMPORTANT FOR YOUR ERROR)
+# =========================================================
+
+# 🔥 This fixes: bootstrap.bundle.min.js.map MissingFileError
+# Optional extra safety (recommended)
+WHITENOISE_SKIP_COMPRESS_EXTENSIONS = (
+    'map',
+)
+
+WHITENOISE_IGNORE_EXTENSIONS = ('map',)
+WHITENOISE_MANIFEST_STRICT = False
+WHITENOISE_AUTOREFRESH = True
+# =========================================================
+# MEDIA FILES
+# =========================================================
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# ============ CKEDITOR 5 ============
-CKEDITOR_5_CONFIGS = {
-    'default': {
-        'toolbar': [
-            'heading', '|', 'bold', 'italic', 'underline', 'strikethrough',
-            '|', 'bulletedList', 'numberedList', 'todoList',
-            '|', 'link', 'imageUpload', 'blockQuote', 'codeBlock',
-            '|', 'insertTable', 'mediaEmbed', 'fontSize', 'fontFamily',
-            '|', 'alignment', 'highlight', 'sourceEditing'
-        ],
-        'heading': {
-            'options': [
-                {'model': 'paragraph', 'title': 'Paragraph'},
-                {'model': 'heading1', 'view': 'h1', 'title': 'Heading 1'},
-                {'model': 'heading2', 'view': 'h2', 'title': 'Heading 2'},
-            ]
-        },
-        'image': {'toolbar': ['imageTextAlternative', 'imageStyle:full', 'imageStyle:side']},
-        'table': {'contentToolbar': ['tableColumn', 'tableRow', 'mergeTableCells']},
-        'fontSize': {'options': [9, 11, 13, 'default', 17, 19, 21, 27, 35], 'supportAllValues': True},
-        'fontFamily': {'options': ['default', 'Arial', 'Courier New', 'Georgia', 'Times New Roman', 'Verdana']},
-        'alignment': {'options': ['left', 'center', 'right', 'justify']},
-    },
-}
+# =========================================================
+# CKEDITOR
+# =========================================================
 CKEDITOR_5_UPLOAD_PATH = 'uploads/ckeditor5/'
+
 CKEDITOR_5_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
 
-# ============ CHANNELS / WEBSOCKET ============
+# =========================================================
+# CHANNELS / REDIS
+# =========================================================
 if DEBUG:
     CHANNEL_LAYERS = {
         'default': {
@@ -290,130 +381,20 @@ else:
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels_redis.core.RedisChannelLayer',
-            'CONFIG': {"hosts": [config('REDIS_URL', default='redis://localhost:6379')]},
+            'CONFIG': {
+                "hosts": [
+                    config(
+                        'REDIS_URL',
+                        default='redis://localhost:6379'
+                    )
+                ]
+            },
         },
     }
 
-# ============ CURRENCY ============
-CURRENCY_DEFAULT = 'USD'
-CURRENCY_SESSION_KEY = 'user_currency'
-
-# ============ CRISPY FORMS ============
-CRISPY_ALLOWED_TEMPLATE_PACKS = "tailwind"
-CRISPY_TEMPLATE_PACK = "tailwind"
-
-# ============ EMAIL ============
-if DEBUG:
-    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-else:
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-    EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
-    EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
-    EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
-    EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
-    EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
-
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@arolana.com')
-
-# ============ SECURITY HEADERS (DEVELOPMENT vs PRODUCTION) ============
-if DEBUG:
-    # Development: Disable SSL-related security for HTTP access
-    SECURE_SSL_REDIRECT = False
-    SESSION_COOKIE_SECURE = False
-    CSRF_COOKIE_SECURE = False
-    SECURE_HSTS_SECONDS = 0
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
-    SECURE_HSTS_PRELOAD = False
-    CSRF_COOKIE_SAMESITE = 'Lax'
-    SESSION_COOKIE_SAMESITE = 'Lax'
-else:
-    # Production: Enable SSL-related security
-    SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=True, cast=bool)
-    SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', default=True, cast=bool)
-    CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', default=True, cast=bool)
-    SECURE_HSTS_SECONDS = 31536000
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
-    CSRF_COOKIE_SAMESITE = 'Strict'
-    SESSION_COOKIE_SAMESITE = 'Strict'
-
-# Common security headers
-SECURE_BROWSER_XSS_FILTER = True
-SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = 'DENY'
-SESSION_COOKIE_AGE = 86400
-SESSION_COOKIE_HTTPONLY = True
-
-# ============ JAZZMIN ADMIN THEME ============
-os.makedirs(os.path.join(BASE_DIR, 'static', 'admin', 'css'), exist_ok=True)
-
-JAZZMIN_SETTINGS = {
-    "site_title": "Arolana Admin",
-    "site_header": "Arolana",
-    "site_brand": "Arolana",
-    "site_logo": "/static/admin/images/arolana-logo.png",
-    "site_logo_classes": "img-circle elevation-3",
-    "welcome_sign": "Welcome to Arolana Admin Dashboard",
-    "copyright": "Arolana.com",
-    "search_model": ["accounts.User", "products.Product", "orders.Order"],
-    "show_sidebar": True,
-    "navigation_expanded": False,
-    "sidebar_fixed": True,
-    "theme": "darkly",
-    "dark_mode_theme": "darkly",
-    "changeform_format": "horizontal_tabs",
-    "show_ui_builder": False,
-}
-
-JAZZMIN_UI_TWEAKS = {
-    "navbar_small_text": False,
-    "brand_small_text": False,
-    "brand_colour": "navbar-primary",
-    "accent": "accent-primary",
-    "navbar": "navbar-dark navbar-primary",
-    "no_navbar_border": False,
-    "navbar_fixed": True,
-    "sidebar_fixed": True,
-    "sidebar": "sidebar-dark-primary",
-    "sidebar_nav_small_text": False,
-    "sidebar_disable_expand": False,
-    "theme": "darkly",
-    "dark_mode_theme": "darkly",
-}
-
-# ============ LOGGING ============
-os.makedirs(BASE_DIR / 'logs', exist_ok=True)
-
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {'format': '{levelname} {asctime} {module} {message}', 'style': '{'},
-        'simple': {'format': '{levelname} {message}', 'style': '{'},
-    },
-    'handlers': {
-        'console': {'class': 'logging.StreamHandler', 'formatter': 'simple'},
-        'file': {'class': 'logging.FileHandler', 'filename': BASE_DIR / 'logs/arolana.log', 'formatter': 'verbose'},
-    },
-    'loggers': {
-        'django': {'handlers': ['console'], 'level': 'INFO'},
-        'django.security': {'handlers': ['file'], 'level': 'WARNING', 'propagate': True},
-    },
-}
-
-# ============ INTERNATIONALIZATION ============
-LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
-USE_I18N = True
-USE_TZ = True
-
-# ============ DEFAULT ============
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-SITE_URL = config('SITE_URL', default='http://localhost:8000')
-
-print(f"🚀 Arolana running in {"DEVELOPMENT" if DEBUG else "PRODUCTION"} mode")
-
-# ============ CACHING ============
+# =========================================================
+# CACHING
+# =========================================================
 if DEBUG:
     CACHES = {
         'default': {
@@ -424,79 +405,200 @@ else:
     CACHES = {
         'default': {
             'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': config('REDIS_URL', default='redis://localhost:6379/1'),
+            'LOCATION': config(
+                'REDIS_URL',
+                default='redis://localhost:6379/1'
+            ),
             'OPTIONS': {
                 'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-                'PARSER_CLASS': 'redis.connection.HiredisParser',
-                'CONNECTION_POOL_CLASS': 'redis.BlockingConnectionPool',
-                'CONNECTION_POOL_CLASS_KWARGS': {
-                    'max_connections': 50,
-                    'timeout': 20,
-                },
-                'MAX_CONNECTIONS': 1000,
-                'PICKLE_VERSION': -1,
             },
             'KEY_PREFIX': 'arolana',
             'TIMEOUT': 300,
         }
     }
 
-# ============ REST FRAMEWORK ============
+# =========================================================
+# CRISPY FORMS
+# =========================================================
+CRISPY_ALLOWED_TEMPLATE_PACKS = "tailwind"
+CRISPY_TEMPLATE_PACK = "tailwind"
+
+# =========================================================
+# EMAIL
+# =========================================================
+if DEBUG:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+
+    EMAIL_HOST = config(
+        'EMAIL_HOST',
+        default='smtp.gmail.com'
+    )
+
+    EMAIL_PORT = config(
+        'EMAIL_PORT',
+        default=587,
+        cast=int
+    )
+
+    EMAIL_USE_TLS = config(
+        'EMAIL_USE_TLS',
+        default=True,
+        cast=bool
+    )
+
+    EMAIL_HOST_USER = config(
+        'EMAIL_HOST_USER',
+        default=''
+    )
+
+    EMAIL_HOST_PASSWORD = config(
+        'EMAIL_HOST_PASSWORD',
+        default=''
+    )
+
+DEFAULT_FROM_EMAIL = config(
+    'DEFAULT_FROM_EMAIL',
+    default='noreply@arolana.com'
+)
+
+# =========================================================
+# SECURITY SETTINGS
+# =========================================================
+if DEBUG:
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+else:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+SECURE_PROXY_SSL_HEADER = (
+    'HTTP_X_FORWARDED_PROTO',
+    'https'
+)
+USE_X_FORWARDED_HOST = True
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+
+X_FRAME_OPTIONS = 'DENY'
+
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_AGE = 86400
+
+# =========================================================
+# JAZZMIN
+# =========================================================
+JAZZMIN_SETTINGS = {
+    "site_title": "Arolana Admin",
+    "site_header": "Arolana",
+    "site_brand": "Arolana",
+    "welcome_sign": "Welcome to Arolana Admin Dashboard",
+    "copyright": "Arolana.com",
+    "show_sidebar": True,
+    "navigation_expanded": False,
+    "sidebar_fixed": True,
+    "theme": "darkly",
+    "dark_mode_theme": "darkly",
+}
+
+# =========================================================
+# LOGGING
+# =========================================================
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+}
+
+# =========================================================
+# INTERNATIONALIZATION
+# =========================================================
+LANGUAGE_CODE = 'en-us'
+
+TIME_ZONE = 'UTC'
+
+USE_I18N = True
+USE_TZ = True
+
+# =========================================================
+# DEFAULT AUTO FIELD
+# =========================================================
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# =========================================================
+# SITE URL
+# =========================================================
+SITE_URL = config(
+    'SITE_URL',
+    default='http://localhost:8000'
+)
+
+# =========================================================
+# REST FRAMEWORK
+# =========================================================
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.BasicAuthentication',
     ],
+
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticatedOrReadOnly',
     ],
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+
+    'DEFAULT_PAGINATION_CLASS':
+        'rest_framework.pagination.PageNumberPagination',
+
     'PAGE_SIZE': 20,
-    'DEFAULT_THROTTLE_CLASSES': [
-        'rest_framework.throttling.AnonRateThrottle',
-        'rest_framework.throttling.UserRateThrottle'
-    ],
-    'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/day',
-        'user': '1000/day'
-    }
 }
 
-# ============ CORS ============
+# =========================================================
+# CORS
+# =========================================================
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:8000',
     'http://127.0.0.1:8000',
+
     'https://arolana.com',
     'https://www.arolana.com',
 ]
 
 CORS_ALLOW_CREDENTIALS = True
 
-# ============ SILENCE DEPRECATION WARNINGS ============
-warnings.filterwarnings('ignore', category=DeprecationWarning, module='allauth')
-warnings.filterwarnings('ignore', category=DeprecationWarning, module='django_ckeditor_5')
-warnings.filterwarnings('ignore', category=RuntimeWarning, module='products.models')
+# =========================================================
+# WARNINGS
+# =========================================================
+warnings.filterwarnings(
+    'ignore',
+    category=DeprecationWarning,
+    module='allauth'
+)
 
-# ============ LOGGING CONFIGURATION ============
-if DEBUG:
-    import logging
-    logging.getLogger('django.request').setLevel(logging.ERROR)
-    logging.getLogger('django.server').setLevel(logging.ERROR)
-    logging.getLogger('currency.middleware').setLevel(logging.WARNING)
-    
-    # Suppress specific warnings
-    import warnings
-    warnings.filterwarnings('ignore', message='.*development server.*')
-    warnings.filterwarnings('ignore', module='currency.middleware')
+warnings.filterwarnings(
+    'ignore',
+    category=DeprecationWarning,
+    module='django_ckeditor_5'
+)
 
-# Suppress 404 warnings for favicon and wishlist
-import logging
-class Suppress404Filter(logging.Filter):
-    def filter(self, record):
-        msg = record.getMessage()
-        return not ('favicon.ico' in msg or 'wishlist/count' in msg)
+# =========================================================
+# STARTUP LOGS
+# =========================================================
+print(
+    f"🚀 Arolana running in "
+    f"{'DEVELOPMENT' if DEBUG else 'PRODUCTION'} mode"
+)
 
-logging.getLogger('django.request').addFilter(Suppress404Filter())
-
-print(f"🎨 Arolana Admin Interface: {'Development' if DEBUG else 'Production'} Mode")
 print(f"📍 Site URL: {SITE_URL}")
