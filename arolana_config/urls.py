@@ -5,6 +5,7 @@ from django.conf.urls.static import static
 from django.views.generic import TemplateView
 from django.views.static import serve
 from django.shortcuts import render
+from core.views import debug_home, live_stats
 
 # Import views
 from pages.views import page_detail, help_center, faq_page, article_detail, careers_page
@@ -89,7 +90,7 @@ urlpatterns = [
     path('sitemap/', sitemap_page, name='sitemap'),
     path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
     
-    # Authentication - Allauth
+    # Authentication
     path('accounts/', include('allauth.urls')),
     path('accounts/', include('accounts.urls')),
     
