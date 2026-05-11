@@ -20,4 +20,4 @@ cmds = [
 ]
 
 [phases.start]
-cmd = "python manage.py migrate && daphne -b 0.0.0.0 -p $PORT arolana_config.asgi:application"
+cmd = "/opt/venv/bin/python manage.py migrate && /opt/venv/bin/daphne -b 0.0.0.0 -p $PORT arolana_config.asgi:application"
