@@ -2,33 +2,21 @@ import os
 from pathlib import Path
 from decouple import config
 from datetime import timedelta
-import os
 import warnings
+import dj_database_url
 
 # Build paths
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ============ SECURITY & ENVIRONMENT ============
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-arolana-super-secret-key')
-DEBUG = config('DEBUG', default=True, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
+DEBUG = config('DEBUG', default=False, cast=bool)  # False in production
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='arolana.com,www.arolana.com,localhost,127.0.0.1').split(',')
 
 # ============ CSRF TRUSTED ORIGINS ============
-if DEBUG:
-    CSRF_TRUSTED_ORIGINS = [
-        'http://localhost:8000',
-        'http://127.0.0.1:8000',
-        'http://localhost:3000',
-        'http://127.0.0.1:3000',
-    ]
-else:
-    CSRF_TRUSTED_ORIGINS = []
-    for host in ALLOWED_HOSTS:
-        if host and host not in ['localhost', '127.0.0.1']:
-            CSRF_TRUSTED_ORIGINS.append(f'https://{host}')
-            CSRF_TRUSTED_ORIGINS.append(f'https://www.{host}')
-    CSRF_TRUSTED_ORIGINS.extend(['http://localhost:8000', 'http://127.0.0.1:8000'])
+CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='https://arolana.com,https://www.arolana.com,http://localhost:8000,http://127.0.0.1:8000').split(',')
 
+# ============ AD SETTINGS ============
 DISPLAY_ARTICLE_TOP_AD = True
 DISPLAY_ARTICLE_AFTER_HEADER_AD = True
 DISPLAY_ARTICLE_MID_AD = True
@@ -37,7 +25,6 @@ DISPLAY_ARTICLE_BEFORE_CONCLUSION_AD = True
 DISPLAY_ARTICLE_AFTER_AUTHOR_AD = True
 DISPLAY_ARTICLE_FOOTER_AD = True
 
-# Sidebar ads
 DISPLAY_SIDEBAR_SEARCH = True
 DISPLAY_SIDEBAR_TOP_AD = True
 DISPLAY_SIDEBAR_NEWSLETTER = True
@@ -62,6 +49,7 @@ SIDEBAR_CAROUSEL_BOTTOM_COUNT = 1
 SIDEBAR_CAROUSEL_BOTTOM_INTERVAL = 6000
 SIDEBAR_CAROUSEL_STICKY_COUNT = 1
 SIDEBAR_CAROUSEL_STICKY_INTERVAL = 8000
+
 # ============ INSTALLED APPS ============
 INSTALLED_APPS = [
     'jazzmin',
@@ -74,7 +62,6 @@ INSTALLED_APPS = [
     'django.contrib.humanize',
     'django.contrib.sites',
     'taggit',
-    # Third party apps
     'rest_framework',
     'corsheaders',
     'django_ckeditor_5',
@@ -86,8 +73,6 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
     'allauth.socialaccount.providers.facebook',
-    
-    # Local apps
     'core',
     'accounts',
     'vendors',
@@ -136,24 +121,13 @@ WSGI_APPLICATION = 'arolana_config.wsgi.application'
 ASGI_APPLICATION = 'arolana_config.asgi.application'
 
 # ============ DATABASE ============
-if DEBUG:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': config('DB_NAME', default='arolana_db'),
-            'USER': config('DB_USER', default='arolana_user'),
-            'PASSWORD': config('DB_PASSWORD', default=''),
-            'HOST': config('DB_HOST', default='localhost'),
-            'PORT': config('DB_PORT', default='5432'),
-        }
-    }
+DATABASES = {
+    'default': dj_database_url.config(
+        default='sqlite:///db.sqlite3',
+        conn_max_age=600,
+        ssl_require=not DEBUG
+    )
+}
 
 # ============ TEMPLATES ============
 TEMPLATES = [
@@ -208,23 +182,18 @@ ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
 ACCOUNT_LOGOUT_ON_GET = True
 ACCOUNT_SESSION_REMEMBER = True
 
-# AllAuth settings for Django 6.0
-# ✅ CORRECT
 ACCOUNT_LOGIN_METHODS = {'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
 ACCOUNT_UNIQUE_EMAIL = True
-ACCOUNT_EMAIL_VERIFICATION = 'optional'
 ACCOUNT_PASSWORD_MIN_LENGTH = 8
 
-# ✅ FIXED: Use timedelta for token expiry (3 days)
 ACCOUNT_PASSWORD_RESET_TOKEN_EXPIRY = timedelta(days=3)
 
-# ✅ FIXED: Proper rate limits format
 ACCOUNT_RATE_LIMITS = {
-    'login_failed': '5/5m',      # 5 attempts per 5 minutes
-    'reset_password': '3/1h',    # 3 attempts per hour
-    'change_password': '5/1h',   # 5 attempts per hour
-    'signup': '5/1h',            # 5 signups per hour
+    'login_failed': '5/5m',
+    'reset_password': '3/1h',
+    'change_password': '5/1h',
+    'signup': '5/1h',
 }
 
 SOCIALACCOUNT_PROVIDERS = {
@@ -294,11 +263,9 @@ else:
         },
     }
 
-# ============ CURRENCY ============
 CURRENCY_DEFAULT = 'USD'
 CURRENCY_SESSION_KEY = 'user_currency'
 
-# ============ CRISPY FORMS ============
 CRISPY_ALLOWED_TEMPLATE_PACKS = "tailwind"
 CRISPY_TEMPLATE_PACK = "tailwind"
 
@@ -315,9 +282,8 @@ else:
 
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@arolana.com')
 
-# ============ SECURITY HEADERS (DEVELOPMENT vs PRODUCTION) ============
+# ============ SECURITY HEADERS ============
 if DEBUG:
-    # Development: Disable SSL-related security for HTTP access
     SECURE_SSL_REDIRECT = False
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
@@ -327,17 +293,15 @@ if DEBUG:
     CSRF_COOKIE_SAMESITE = 'Lax'
     SESSION_COOKIE_SAMESITE = 'Lax'
 else:
-    # Production: Enable SSL-related security
-    SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=True, cast=bool)
-    SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', default=True, cast=bool)
-    CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', default=True, cast=bool)
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
     CSRF_COOKIE_SAMESITE = 'Strict'
     SESSION_COOKIE_SAMESITE = 'Strict'
 
-# Common security headers
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
@@ -401,17 +365,16 @@ LOGGING = {
     },
 }
 
-# ============ INTERNATIONALIZATION ============
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# ============ DEFAULT ============
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-SITE_URL = config('SITE_URL', default='http://localhost:8000')
+SITE_URL = config('SITE_URL', default='https://arolana.com')
 
-print(f"🚀 Arolana running in {"DEVELOPMENT" if DEBUG else "PRODUCTION"} mode")
+print(f"🚀 Arolana running in {'DEVELOPMENT' if DEBUG else 'PRODUCTION'} mode")
+print(f"📍 Site URL: {SITE_URL}")
 
 # ============ CACHING ============
 if DEBUG:
@@ -484,13 +447,10 @@ if DEBUG:
     logging.getLogger('django.server').setLevel(logging.ERROR)
     logging.getLogger('currency.middleware').setLevel(logging.WARNING)
     
-    # Suppress specific warnings
     import warnings
     warnings.filterwarnings('ignore', message='.*development server.*')
     warnings.filterwarnings('ignore', module='currency.middleware')
 
-# Suppress 404 warnings for favicon and wishlist
-import logging
 class Suppress404Filter(logging.Filter):
     def filter(self, record):
         msg = record.getMessage()
@@ -499,4 +459,3 @@ class Suppress404Filter(logging.Filter):
 logging.getLogger('django.request').addFilter(Suppress404Filter())
 
 print(f"🎨 Arolana Admin Interface: {'Development' if DEBUG else 'Production'} Mode")
-print(f"📍 Site URL: {SITE_URL}")
