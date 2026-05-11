@@ -1,0 +1,10 @@
+{
+  "build": {
+    "builder": "NIXPACKS"
+  },
+  "deploy": {
+    "startCommand": "python manage.py migrate && daphne -b 0.0.0.0 -p $PORT arolana_config.asgi:application",
+    "restartPolicyType": "ON_FAILURE",
+    "healthcheckPath": "/health/"
+  }
+}
