@@ -1,40 +1,56 @@
-Django==4.2.7
-djangorestframework==3.14.0
-django-cors-headers==4.3.1
-django-filter==23.5
-django-allauth==0.60.1
-djangorestframework-simplejwt==5.3.0
+# Django Core
+Django==6.0.4
+djangorestframework==3.15.1
+django-cors-headers==4.4.0
+django-filter==24.3
+django-allauth==64.1.0
+djangorestframework-simplejwt==5.3.1
+
+# CKEditor
 django-ckeditor-5==0.2.13
-pillow==10.1.0
-whitenoise==6.6.0
-django-crispy-forms==2.1
+Pillow==11.0.0
+
+# Static Files
+whitenoise==6.7.0
+
+# Forms
+django-crispy-forms==2.3
 crispy-tailwind==1.0.0
-django-htmx==1.17.0
-markdown==3.5.1
-django-import-export==3.3.6
+django-htmx==1.21.0
 
-psycopg2-binary==2.9.9
-dj-database-url==2.1.0
+# Markdown & Import/Export
+markdown==3.7
+django-import-export==4.3.1
 
-redis==5.0.1
-celery==5.3.4
-stripe==7.5.0
-django-celery-beat==2.5.0
+# Database
+psycopg2-binary==2.9.10
+dj-database-url==2.2.0
+
+# Redis & Celery
+redis==5.2.0
+celery==5.4.0
+stripe==11.4.0
+django-celery-beat==2.7.0
 django-redis==5.4.0
 
-channels==4.0.0
-channels-redis==4.1.0
+# Channels/Websockets
+channels==4.1.0
+channels-redis==4.2.0
+websockets==13.1
 
-websockets==12.0
-django-phonenumber-field==7.2.0
-phonenumbers==8.13.29
-django-countries==7.5.1
+# Phone & Country Fields
+django-phonenumber-field==7.3.0
+phonenumbers==8.13.46
+django-countries==7.6.1
 
-gunicorn==21.2.0
+# Server & Config
+gunicorn==22.0.0
 python-decouple==3.8
-django-taggit==5.0.1
+
+# Additional Features
+django-taggit==6.1.0
 pyotp==2.9.0
 python3-openid==3.2.0
-django-js-asset==3.1.2
+django-js-asset==2.2.0
 django-jazzmin==3.0.4
 argon2-cffi==23.1.0
