@@ -5,6 +5,7 @@ from django.conf.urls.static import static
 from django.views.generic import TemplateView
 from django.views.static import serve
 from django.shortcuts import render
+from django.http import HttpResponse
 from core.views import debug_home, live_stats
 
 # Import views
@@ -58,6 +59,10 @@ def returns_redirect(request, path=None):
 def custom_404(request, exception):
     return render(request, '404.html', status=404)
 
+def health_check(request):
+    """Health check endpoint for Railway"""
+    return HttpResponse("OK")
+
 # CKEditor 5 URLs configuration
 try:
     from django_ckeditor_5.views import upload_file, browse_files
@@ -85,6 +90,7 @@ urlpatterns = [
     
     # Homepage
     path('', home_view, name='home'),
+    path('health/', health_check, name='health'),
     
     # Sitemap
     path('sitemap/', sitemap_page, name='sitemap'),
