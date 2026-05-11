@@ -5,9 +5,8 @@ from django.conf.urls.static import static
 from django.views.generic import TemplateView
 from django.views.static import serve
 from django.shortcuts import render
-from django.http import HttpResponse
 from core.views import debug_home, live_stats
-
+from django.http import JsonResponse
 # Import views
 from pages.views import page_detail, help_center, faq_page, article_detail, careers_page
 from products import views as products_views
@@ -19,6 +18,10 @@ from django.contrib.sitemaps.views import sitemap
 from .sitemaps import StaticViewSitemap, ProductSitemap, CategorySitemap, VendorSitemap, BlogSitemap
 from products.models import Product, Category
 from vendors.models import VendorProfile
+
+
+def health_check(request):
+    return JsonResponse({"status": "ok"})
 
 def sitemap_page(request):
     categories = Category.objects.filter(is_active=True, parent=None)[:20]
@@ -57,9 +60,6 @@ def returns_redirect(request, path=None):
 def custom_404(request, exception):
     return render(request, '404.html', status=404)
 
-def health_check(request):
-    """Health check endpoint for Railway"""
-    return HttpResponse("OK")
 
 # CKEditor 5 URLs configuration
 try:
