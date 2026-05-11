@@ -22,7 +22,7 @@ crispy-tailwind==1.0.3
 cryptography==47.0.0
 diff-match-patch==20241021
 dj-database-url==3.1.2
-Django==6.0.4
+Django==5.2.14
 django-allauth==65.16.1
 django-ckeditor-5==0.2.20
 django-cors-headers==4.9.0
