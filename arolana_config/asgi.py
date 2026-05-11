@@ -1,3 +1,9 @@
+"""
+ASGI config for arolana_config project.
+
+It exposes the ASGI callable as a module-level variable named ``application``.
+"""
+
 import os
 from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
@@ -7,13 +13,14 @@ from chat import consumers
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'arolana_config.settings')
 
+django_asgi_app = get_asgi_application()
+
+# Import chat routing only after Django setup
+from chat.routing import websocket_urlpatterns
+
 application = ProtocolTypeRouter({
-    'http': get_asgi_application(),
-    'websocket': AuthMiddlewareStack(
-        URLRouter([
-            path('ws/chat/<str:room_name>/', consumers.ChatConsumer.as_asgi()),
-            path('ws/vendor/<str:vendor_id>/', consumers.VendorChatConsumer.as_asgi()),
-            path('ws/support/', consumers.SupportConsumer.as_asgi()),
-        ])
+    "http": django_asgi_app,
+    "websocket": AuthMiddlewareStack(
+        URLRouter(websocket_urlpatterns)
     ),
 })

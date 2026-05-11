@@ -43,7 +43,6 @@ def home_view(request):
     """Custom home view with video section and proper context"""
     from homepage.models import HomepageVideoSection
     
-    # Get active video section from database
     video_section = HomepageVideoSection.objects.filter(is_active=True).order_by('display_order').first()
     
     context = {
@@ -52,7 +51,6 @@ def home_view(request):
     return render(request, 'base/home.html', context)
 
 def returns_redirect(request, path=None):
-    """Redirect any /returns/* to the main returns page"""
     from django.shortcuts import redirect
     return redirect('returns')
 

@@ -1,11 +1,16 @@
 [phases.setup]
-nixPkgs = ["python311", "python311Packages.pip", "python311Packages.psycopg2"]
+nixPkgs = ["python311", "python311Packages.pip", "python311Packages.psycopg2", "python311Packages.libpqxx"]
 
 [phases.install]
 cmds = ["pip install -r requirements.txt"]
 
 [phases.build]
-cmds = ["python manage.py collectstatic --noinput"]
+cmds = [
+    "python manage.py collectstatic --noinput --no-input"
+]
 
 [start]
 cmd = "daphne -b 0.0.0.0 -p $PORT arolana_config.asgi:application"
+
+[env]
+DISABLE_COLLECTSTATIC = "0"
