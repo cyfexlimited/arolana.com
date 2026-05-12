@@ -6,21 +6,55 @@ import warnings
 import logging
 import dj_database_url
 
-# Build paths
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ============ SECURITY & ENVIRONMENT ============
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-arolana-super-secret-key')
 DEBUG = config('DEBUG', default=False, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='arolana.com,www.arolana.com,localhost,127.0.0.1').split(',')
 
-# ============ CSRF TRUSTED ORIGINS ============
+def csv_config(name, default=''):
+    return [
+        item.strip().strip('"').strip("'")
+        for item in config(name, default=default).split(',')
+        if item.strip()
+    ]
+
+ALLOWED_HOSTS = csv_config(
+    'ALLOWED_HOSTS',
+    default='arolana.com,www.arolana.com,localhost,127.0.0.1'
+)
+
+REQUIRED_ALLOWED_HOSTS = [
+    'arolana.com',
+    'www.arolana.com',
+    'localhost',
+    '127.0.0.1',
+    'agile-wonder-production-dfa7.up.railway.app',
+    '.railway.app',
+    '.up.railway.app',
+    'healthcheck.railway.app',
+]
+
+RAILWAY_PUBLIC_DOMAIN = config('RAILWAY_PUBLIC_DOMAIN', default='')
+if RAILWAY_PUBLIC_DOMAIN:
+    REQUIRED_ALLOWED_HOSTS.append(RAILWAY_PUBLIC_DOMAIN)
+
+for host in REQUIRED_ALLOWED_HOSTS:
+    if host and host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(host)
+
 CSRF_TRUSTED_ORIGINS = [
     'https://arolana.com',
     'https://www.arolana.com',
+    'https://agile-wonder-production-dfa7.up.railway.app',
+    'https://*.railway.app',
+    'https://*.up.railway.app',
     'http://localhost:8000',
     'http://127.0.0.1:8000',
 ]
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
 
 # ============ AD SETTINGS ============
 DISPLAY_ARTICLE_TOP_AD = True
@@ -108,8 +142,8 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -132,7 +166,7 @@ if DATABASE_URL:
         'default': dj_database_url.config(
             default=DATABASE_URL,
             conn_max_age=600,
-            ssl_require=not DEBUG
+            ssl_require=not DEBUG,
         )
     }
 else:
@@ -195,12 +229,10 @@ ACCOUNT_EMAIL_VERIFICATION = 'optional'
 ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
 ACCOUNT_LOGOUT_ON_GET = True
 ACCOUNT_SESSION_REMEMBER = True
-
 ACCOUNT_LOGIN_METHODS = {'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
 ACCOUNT_UNIQUE_EMAIL = True
 ACCOUNT_PASSWORD_MIN_LENGTH = 8
-
 ACCOUNT_PASSWORD_RESET_TOKEN_EXPIRY = timedelta(days=3)
 
 ACCOUNT_RATE_LIMITS = {
@@ -261,34 +293,36 @@ CKEDITOR_5_CONFIGS = {
     },
 }
 CKEDITOR_5_UPLOAD_PATH = 'uploads/ckeditor5/'
-CKEDITOR_5_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
+CKEDITOR_5_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 
 # ============ CHANNELS ============
-if DEBUG:
+REDIS_URL = config('REDIS_URL', default='')
+
+if REDIS_URL:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {'hosts': [REDIS_URL]},
+        },
+    }
+else:
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels.layers.InMemoryChannelLayer',
         }
     }
-else:
-    CHANNEL_LAYERS = {
-        'default': {
-            'BACKEND': 'channels_redis.core.RedisChannelLayer',
-            'CONFIG': {"hosts": [config('REDIS_URL', default='redis://localhost:6379')]},
-        },
-    }
 
 CURRENCY_DEFAULT = 'USD'
 CURRENCY_SESSION_KEY = 'user_currency'
 
-CRISPY_ALLOWED_TEMPLATE_PACKS = "tailwind"
-CRISPY_TEMPLATE_PACK = "tailwind"
+CRISPY_ALLOWED_TEMPLATE_PACKS = 'tailwind'
+CRISPY_TEMPLATE_PACK = 'tailwind'
 
 # ============ EMAIL ============
 if DEBUG:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 else:
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
     EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
     EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
     EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
@@ -315,7 +349,6 @@ else:
     CSRF_COOKIE_SAMESITE = 'Strict'
     SESSION_COOKIE_SAMESITE = 'Strict'
 
-
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
@@ -326,37 +359,37 @@ SESSION_COOKIE_HTTPONLY = True
 os.makedirs(os.path.join(BASE_DIR, 'static', 'admin', 'css'), exist_ok=True)
 
 JAZZMIN_SETTINGS = {
-    "site_title": "Arolana Admin",
-    "site_header": "Arolana",
-    "site_brand": "Arolana",
-    "site_logo": "/static/admin/images/arolana-logo.png",
-    "site_logo_classes": "img-circle elevation-3",
-    "welcome_sign": "Welcome to Arolana Admin Dashboard",
-    "copyright": "Arolana.com",
-    "search_model": ["accounts.User", "products.Product", "orders.Order"],
-    "show_sidebar": True,
-    "navigation_expanded": False,
-    "sidebar_fixed": True,
-    "theme": "darkly",
-    "dark_mode_theme": "darkly",
-    "changeform_format": "horizontal_tabs",
-    "show_ui_builder": False,
+    'site_title': 'Arolana Admin',
+    'site_header': 'Arolana',
+    'site_brand': 'Arolana',
+    'site_logo': '/static/admin/images/arolana-logo.png',
+    'site_logo_classes': 'img-circle elevation-3',
+    'welcome_sign': 'Welcome to Arolana Admin Dashboard',
+    'copyright': 'Arolana.com',
+    'search_model': ['accounts.User', 'products.Product', 'orders.Order'],
+    'show_sidebar': True,
+    'navigation_expanded': False,
+    'sidebar_fixed': True,
+    'theme': 'darkly',
+    'dark_mode_theme': 'darkly',
+    'changeform_format': 'horizontal_tabs',
+    'show_ui_builder': False,
 }
 
 JAZZMIN_UI_TWEAKS = {
-    "navbar_small_text": False,
-    "brand_small_text": False,
-    "brand_colour": "navbar-primary",
-    "accent": "accent-primary",
-    "navbar": "navbar-dark navbar-primary",
-    "no_navbar_border": False,
-    "navbar_fixed": True,
-    "sidebar_fixed": True,
-    "sidebar": "sidebar-dark-primary",
-    "sidebar_nav_small_text": False,
-    "sidebar_disable_expand": False,
-    "theme": "darkly",
-    "dark_mode_theme": "darkly",
+    'navbar_small_text': False,
+    'brand_small_text': False,
+    'brand_colour': 'navbar-primary',
+    'accent': 'accent-primary',
+    'navbar': 'navbar-dark navbar-primary',
+    'no_navbar_border': False,
+    'navbar_fixed': True,
+    'sidebar_fixed': True,
+    'sidebar': 'sidebar-dark-primary',
+    'sidebar_nav_small_text': False,
+    'sidebar_disable_expand': False,
+    'theme': 'darkly',
+    'dark_mode_theme': 'darkly',
 }
 
 # ============ LOGGING ============
@@ -375,7 +408,7 @@ LOGGING = {
     },
     'loggers': {
         'django': {'handlers': ['console'], 'level': 'INFO'},
-        'django.security': {'handlers': ['file'], 'level': 'WARNING', 'propagate': True},
+        'django.security': {'handlers': ['console'], 'level': 'WARNING', 'propagate': True},
     },
 }
 
@@ -387,34 +420,23 @@ USE_TZ = True
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 SITE_URL = config('SITE_URL', default='https://arolana.com')
 
-print(f"🚀 Arolana running in {'DEVELOPMENT' if DEBUG else 'PRODUCTION'} mode")
-print(f"📍 Site URL: {SITE_URL}")
-
 # ============ CACHING ============
-if DEBUG:
+if REDIS_URL:
     CACHES = {
         'default': {
-            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': REDIS_URL,
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            },
+            'KEY_PREFIX': 'arolana',
+            'TIMEOUT': 300,
         }
     }
 else:
     CACHES = {
         'default': {
-            'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': config('REDIS_URL', default='redis://localhost:6379/1'),
-            'OPTIONS': {
-                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-                'PARSER_CLASS': 'redis.connection.HiredisParser',
-                'CONNECTION_POOL_CLASS': 'redis.BlockingConnectionPool',
-                'CONNECTION_POOL_CLASS_KWARGS': {
-                    'max_connections': 50,
-                    'timeout': 20,
-                },
-                'MAX_CONNECTIONS': 1000,
-                'PICKLE_VERSION': -1,
-            },
-            'KEY_PREFIX': 'arolana',
-            'TIMEOUT': 300,
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
         }
     }
 
@@ -431,18 +453,19 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 20,
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
-        'rest_framework.throttling.UserRateThrottle'
+        'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
         'anon': '100/day',
-        'user': '1000/day'
-    }
+        'user': '1000/day',
+    },
 }
 
 # ============ CORS ============
 CORS_ALLOWED_ORIGINS = [
     'https://arolana.com',
     'https://www.arolana.com',
+    'https://agile-wonder-production-dfa7.up.railway.app',
     'http://localhost:8000',
     'http://127.0.0.1:8000',
 ]
@@ -467,5 +490,3 @@ class Suppress404Filter(logging.Filter):
         return not ('favicon.ico' in msg or 'wishlist/count' in msg)
 
 logging.getLogger('django.request').addFilter(Suppress404Filter())
-
-print(f"🎨 Arolana Admin Interface: {'Development' if DEBUG else 'Production'} Mode")
