@@ -12,12 +12,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ============ SECURITY & ENVIRONMENT ============
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-arolana-super-secret-key')
 DEBUG = config('DEBUG', default=False, cast=bool)
-ALLOWED_HOSTS = config(
-    'ALLOWED_HOSTS',
-    default='arolana.com,www.arolana.com,localhost,127.0.0.1,.railway.app,.up.railway.app'
-).split(',')
-
-
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='arolana.com,www.arolana.com,localhost,127.0.0.1').split(',')
 
 # ============ CSRF TRUSTED ORIGINS ============
 CSRF_TRUSTED_ORIGINS = [
@@ -302,7 +297,6 @@ else:
 
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@arolana.com')
 
-
 # ============ SECURITY ============
 if DEBUG:
     SECURE_SSL_REDIRECT = False
@@ -320,7 +314,6 @@ else:
     SECURE_HSTS_PRELOAD = config('SECURE_HSTS_PRELOAD', default=False, cast=bool)
     CSRF_COOKIE_SAMESITE = 'Strict'
     SESSION_COOKIE_SAMESITE = 'Strict'
-
 
 
 SECURE_BROWSER_XSS_FILTER = True
