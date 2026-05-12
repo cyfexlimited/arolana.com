@@ -25,7 +25,7 @@ class Vendor(BaseModel):
         related_name='vendor'
     )
     shop_name = models.CharField(max_length=200, unique=True, db_index=True)
-    shop_slug = models.SlugField(unique=True, db_index=True)
+    shop_slug = models.SlugField(max_length=255, unique=True, db_index=True)
     shop_logo = models.ImageField(upload_to='vendors/logos/%Y/%m/', null=True, blank=True)
     shop_banner = models.ImageField(upload_to='vendors/banners/%Y/%m/', null=True, blank=True)
     shop_description = models.TextField(blank=True)
@@ -97,7 +97,7 @@ class Vendor(BaseModel):
 class Category(BaseModel):
     """Product categories with hierarchical support"""
     name = models.CharField(max_length=100, unique=True, db_index=True)
-    slug = models.SlugField(unique=True, db_index=True)
+    slug = models.SlugField(max_length=255, unique=True, db_index=True)
     parent = models.ForeignKey(
         'self',
         on_delete=models.CASCADE,
@@ -200,7 +200,7 @@ class Category(BaseModel):
 class Brand(BaseModel):
     """Product brands/manufacturers"""
     name = models.CharField(max_length=100, unique=True, db_index=True)
-    slug = models.SlugField(unique=True, db_index=True)
+    slug = models.SlugField(max_length=255, unique=True, db_index=True)
     logo = models.ImageField(upload_to='brands/%Y/%m/', null=True, blank=True)
     description = models.TextField(blank=True)
     website = models.URLField(blank=True)
@@ -239,7 +239,7 @@ class Product(BaseModel):
         help_text="Unique product identifier"
     )
     name = models.CharField(max_length=200, db_index=True)
-    slug = models.SlugField(unique=True, db_index=True)
+    slug = models.SlugField(max_length=255, unique=True, db_index=True)
     description = CKEditor5Field()
     specifications = CKEditor5Field(
         blank=True,
@@ -633,7 +633,7 @@ class Product(BaseModel):
 class Accessory(BaseModel):
     """Standalone accessories/add-ons"""
     name = models.CharField(max_length=200, db_index=True)
-    slug = models.SlugField(unique=True, blank=True)
+    slug = models.SlugField(max_length=255, unique=True, blank=True)
     description = models.TextField(blank=True)
     price = models.DecimalField(
         max_digits=10,
