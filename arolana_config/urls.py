@@ -148,16 +148,19 @@ urlpatterns = [
     path('article/<slug:slug>/', article_detail, name='article_detail'),
     path('currency/diagnose/', currency_views.diagnose_currency, name='diagnose_currency'),
     
-    # Test Pages
+        # Test Pages
     path('ads-test/', TemplateView.as_view(template_name='ads/test.html'), name='ads_test'),
     path('image-test/', TemplateView.as_view(template_name='ads/direct_test.html'), name='image_test'),
     path('social-test/', TemplateView.as_view(template_name='socialaccount/test.html'), name='social_test'),
 ]
 
-# Static and Media files serving (development only)
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+elif getattr(settings, 'SERVE_MEDIA', False):
+    urlpatterns += [
+        re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
+    ]
 
 # Custom 404 handler
 handler404 = 'arolana_config.urls.custom_404'

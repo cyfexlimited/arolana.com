@@ -12,28 +12,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ============ SECURITY & ENVIRONMENT ============
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-arolana-super-secret-key')
 DEBUG = config('DEBUG', default=False, cast=bool)
-
-ALLOWED_HOSTS = config(
-    'ALLOWED_HOSTS',
-    default='arolana.com,www.arolana.com,localhost,127.0.0.1,.railway.app,.up.railway.app'
-).split(',')
-
-RAILWAY_PUBLIC_DOMAIN = config('RAILWAY_PUBLIC_DOMAIN', default='')
-if RAILWAY_PUBLIC_DOMAIN and RAILWAY_PUBLIC_DOMAIN not in ALLOWED_HOSTS:
-    ALLOWED_HOSTS.append(RAILWAY_PUBLIC_DOMAIN)
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='arolana.com,www.arolana.com,localhost,127.0.0.1').split(',')
 
 # ============ CSRF TRUSTED ORIGINS ============
 CSRF_TRUSTED_ORIGINS = [
     'https://arolana.com',
     'https://www.arolana.com',
-    'https://*.railway.app',
-    'https://*.up.railway.app',
     'http://localhost:8000',
     'http://127.0.0.1:8000',
 ]
-
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-USE_X_FORWARDED_HOST = True
 
 # ============ AD SETTINGS ============
 DISPLAY_ARTICLE_TOP_AD = True
@@ -247,6 +234,7 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+SERVE_MEDIA = config('SERVE_MEDIA', default=False, cast=bool)
 
 # ============ CKEDITOR 5 ============
 CKEDITOR_5_CONFIGS = {
@@ -276,20 +264,18 @@ CKEDITOR_5_UPLOAD_PATH = 'uploads/ckeditor5/'
 CKEDITOR_5_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
 
 # ============ CHANNELS ============
-REDIS_URL = config('REDIS_URL', default='')
-
-if REDIS_URL:
-    CHANNEL_LAYERS = {
-        'default': {
-            'BACKEND': 'channels_redis.core.RedisChannelLayer',
-            'CONFIG': {"hosts": [REDIS_URL]},
-        },
-    }
-else:
+if DEBUG:
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels.layers.InMemoryChannelLayer',
         }
+    }
+else:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {"hosts": [config('REDIS_URL', default='redis://localhost:6379')]},
+        },
     }
 
 CURRENCY_DEFAULT = 'USD'
@@ -313,19 +299,19 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@arolana.com')
 
 # ============ SECURITY ============
 if DEBUG:
-    SECURE_SSL_REDIRECT = False
+    SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=False, cast=bool)
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
     SECURE_HSTS_SECONDS = 0
     CSRF_COOKIE_SAMESITE = 'Lax'
     SESSION_COOKIE_SAMESITE = 'Lax'
 else:
-    SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=False, cast=bool)
+    SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', default=0, cast=int)
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
-    SECURE_HSTS_PRELOAD = False
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
     CSRF_COOKIE_SAMESITE = 'Strict'
     SESSION_COOKIE_SAMESITE = 'Strict'
 
@@ -388,7 +374,7 @@ LOGGING = {
     },
     'loggers': {
         'django': {'handlers': ['console'], 'level': 'INFO'},
-        'django.security': {'handlers': ['console'], 'level': 'WARNING', 'propagate': True},
+        'django.security': {'handlers': ['file'], 'level': 'WARNING', 'propagate': True},
     },
 }
 
@@ -404,22 +390,30 @@ print(f"🚀 Arolana running in {'DEVELOPMENT' if DEBUG else 'PRODUCTION'} mode"
 print(f"📍 Site URL: {SITE_URL}")
 
 # ============ CACHING ============
-if REDIS_URL:
+if DEBUG:
     CACHES = {
         'default': {
-            'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': REDIS_URL,
-            'OPTIONS': {
-                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            },
-            'KEY_PREFIX': 'arolana',
-            'TIMEOUT': 300,
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
         }
     }
 else:
     CACHES = {
         'default': {
-            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': config('REDIS_URL', default='redis://localhost:6379/1'),
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'PARSER_CLASS': 'redis.connection.HiredisParser',
+                'CONNECTION_POOL_CLASS': 'redis.BlockingConnectionPool',
+                'CONNECTION_POOL_CLASS_KWARGS': {
+                    'max_connections': 50,
+                    'timeout': 20,
+                },
+                'MAX_CONNECTIONS': 1000,
+                'PICKLE_VERSION': -1,
+            },
+            'KEY_PREFIX': 'arolana',
+            'TIMEOUT': 300,
         }
     }
 
@@ -448,8 +442,6 @@ REST_FRAMEWORK = {
 CORS_ALLOWED_ORIGINS = [
     'https://arolana.com',
     'https://www.arolana.com',
-    'https://*.railway.app',
-    'https://*.up.railway.app',
     'http://localhost:8000',
     'http://127.0.0.1:8000',
 ]
