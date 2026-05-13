@@ -1614,6 +1614,591 @@ document.addEventListener('DOMContentLoaded', function() {
                 Notification.requestPermission();
             }
         }, { once: true });
+        ```html
+<!-- =========================================
+     MOBILE AMAZON STYLE SIDEBAR
+========================================== -->
+
+<div
+    x-show="mobileMenuOpen"
+    x-cloak
+    class="fixed inset-0 z-[999999] lg:hidden">
+
+    <!-- OVERLAY -->
+    <div
+        class="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        @click="mobileMenuOpen = false">
+    </div>
+
+    <!-- SIDEBAR -->
+    <div
+        class="absolute top-0 left-0 h-full w-[88%] max-w-[380px] bg-white overflow-y-auto shadow-2xl"
+        x-transition:enter="transition duration-300"
+        x-transition:enter-start="-translate-x-full"
+        x-transition:enter-end="translate-x-0"
+        x-transition:leave="transition duration-300"
+        x-transition:leave-start="translate-x-0"
+        x-transition:leave-end="-translate-x-full">
+
+        <!-- HEADER -->
+        <div
+            class="sticky top-0 z-20 bg-gradient-to-r from-primary to-secondary text-white p-5">
+
+            <div class="flex items-center justify-between">
+
+                <div class="flex items-center gap-3">
+
+                    <div class="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+
+                        <i class="fas fa-user text-xl"></i>
+
+                    </div>
+
+                    <div>
+
+                        <div class="font-bold text-lg">
+
+                            {% if user.is_authenticated %}
+                                {{ user.username }}
+                            {% else %}
+                                Welcome Guest
+                            {% endif %}
+
+                        </div>
+
+                        <div class="text-xs opacity-80">
+
+                            Premium Marketplace
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <button @click="mobileMenuOpen = false">
+
+                    <i class="fas fa-times text-xl"></i>
+
+                </button>
+
+            </div>
+
+        </div>
+
+        <!-- SEARCH -->
+        <div class="p-4 border-b border-gray-100">
+
+            <div class="luxury-search flex h-[54px]">
+
+                <input
+                    type="text"
+                    placeholder="Search products..."
+                    class="w-full px-4 text-sm bg-transparent outline-none">
+
+                <button class="w-16">
+
+                    <i class="fas fa-search"></i>
+
+                </button>
+
+            </div>
+
+        </div>
+
+        <!-- QUICK LINKS -->
+        <div class="border-b border-gray-100 py-2">
+
+            <a
+                href="/"
+                class="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition">
+
+                <span class="font-semibold">
+
+                    Home
+
+                </span>
+
+                <i class="fas fa-home"></i>
+
+            </a>
+
+            <a
+                href="{% url 'products:cart' %}"
+                class="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition">
+
+                <span class="font-semibold">
+
+                    Cart
+
+                </span>
+
+                <span
+                    class="w-6 h-6 rounded-full text-white text-xs flex items-center justify-center"
+                    style="background:{{ site_settings.primary_color }}">
+
+                    {{ request.session.cart_count|default:0 }}
+
+                </span>
+
+            </a>
+
+            <a
+                href="{% url 'accounts:wishlist' %}"
+                class="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition">
+
+                <span class="font-semibold">
+
+                    Wishlist
+
+                </span>
+
+                <i class="fas fa-heart text-red-500"></i>
+
+            </a>
+
+            <a
+                href="{% url 'chat:list' %}"
+                class="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition">
+
+                <span class="font-semibold">
+
+                    Messages
+
+                </span>
+
+                <i class="fas fa-comments"></i>
+
+            </a>
+
+            <a
+                href="{% url 'notifications:list' %}"
+                class="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition">
+
+                <span class="font-semibold">
+
+                    Notifications
+
+                </span>
+
+                <i class="fas fa-bell"></i>
+
+            </a>
+
+        </div>
+
+        <!-- CATEGORIES -->
+        <div class="py-2">
+
+            <div class="px-5 py-3 text-xs uppercase tracking-widest text-gray-400 font-bold">
+
+                Shop Categories
+
+            </div>
+
+            {% for category in main_categories %}
+
+            <div
+                x-data="{ open:false }"
+                class="border-b border-gray-100">
+
+                <button
+                    @click="open=!open"
+                    class="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition">
+
+                    <div class="flex items-center gap-3">
+
+                        {% if category.icon %}
+                        <i class="fas fa-{{ category.icon }}"></i>
+                        {% else %}
+                        <i class="fas fa-folder-open"></i>
+                        {% endif %}
+
+                        <span class="font-semibold">
+
+                            {{ category.name }}
+
+                        </span>
+
+                    </div>
+
+                    <i
+                        class="fas fa-chevron-down transition duration-300"
+                        :class="open ? 'rotate-180' : ''">
+                    </i>
+
+                </button>
+
+                {% if category.children.exists %}
+
+                <div
+                    x-show="open"
+                    x-collapse
+                    class="bg-gray-50">
+
+                    {% for child in category.children.all|slice:":12" %}
+
+                    <a
+                        href="{% url 'products:category' child.slug %}"
+                        class="block px-10 py-3 text-sm hover:bg-white border-t border-gray-100 transition">
+
+                        {{ child.name }}
+
+                    </a>
+
+                    {% endfor %}
+
+                </div>
+
+                {% endif %}
+
+            </div>
+
+            {% endfor %}
+
+        </div>
+
+        <!-- MANUFACTURERS -->
+        <div class="py-2 border-t border-gray-100">
+
+            <div class="px-5 py-3 text-xs uppercase tracking-widest text-gray-400 font-bold">
+
+                Manufacturers
+
+            </div>
+
+            <a
+                href="/manufacturers/china/"
+                class="block px-5 py-3 hover:bg-gray-50 transition">
+
+                China Suppliers
+
+            </a>
+
+            <a
+                href="/manufacturers/verified/"
+                class="block px-5 py-3 hover:bg-gray-50 transition">
+
+                Verified Manufacturers
+
+            </a>
+
+            <a
+                href="/manufacturers/"
+                class="block px-5 py-3 hover:bg-gray-50 transition">
+
+                Global Manufacturers
+
+            </a>
+
+        </div>
+
+        <!-- DEALS -->
+        <div class="py-2 border-t border-gray-100">
+
+            <div class="px-5 py-3 text-xs uppercase tracking-widest text-gray-400 font-bold">
+
+                Deals & Offers
+
+            </div>
+
+            <a
+                href="/flash-sales/"
+                class="block px-5 py-3 hover:bg-gray-50 transition">
+
+                Flash Sales
+
+            </a>
+
+            <a
+                href="/clearance/"
+                class="block px-5 py-3 hover:bg-gray-50 transition">
+
+                Clearance
+
+            </a>
+
+            <a
+                href="/top-rated/"
+                class="block px-5 py-3 hover:bg-gray-50 transition">
+
+                Top Rated
+
+            </a>
+
+        </div>
+
+        <!-- SUPPORT -->
+        <div class="py-2 border-t border-gray-100">
+
+            <div class="px-5 py-3 text-xs uppercase tracking-widest text-gray-400 font-bold">
+
+                Support
+
+            </div>
+
+            <a
+                href="/support/"
+                class="block px-5 py-3 hover:bg-gray-50 transition">
+
+                Help Center
+
+            </a>
+
+            <a
+                href="/faq/"
+                class="block px-5 py-3 hover:bg-gray-50 transition">
+
+                FAQs
+
+            </a>
+
+            <a
+                href="/track-order/"
+                class="block px-5 py-3 hover:bg-gray-50 transition">
+
+                Track Order
+
+            </a>
+
+            <a
+                href="/contact/"
+                class="block px-5 py-3 hover:bg-gray-50 transition">
+
+                Contact Us
+
+            </a>
+
+        </div>
+
+        <!-- ACCOUNT -->
+        <div class="py-2 border-t border-gray-100">
+
+            {% if user.is_authenticated %}
+
+            <a
+                href="{% url 'accounts:profile' %}"
+                class="block px-5 py-4 hover:bg-gray-50 transition font-semibold">
+
+                My Account
+
+            </a>
+
+            <a
+                href="{% url 'accounts:logout' %}"
+                class="block px-5 py-4 hover:bg-gray-50 transition text-red-500 font-semibold">
+
+                Logout
+
+            </a>
+
+            {% else %}
+
+            <a
+                href="{% url 'accounts:login' %}"
+                class="block px-5 py-4 hover:bg-gray-50 transition font-semibold">
+
+                Sign In
+
+            </a>
+
+            <a
+                href="{% url 'accounts:register' %}"
+                class="block px-5 py-4 hover:bg-gray-50 transition font-semibold">
+
+                Create Account
+
+            </a>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- =========================================
+     IMPORTANT MOBILE FIXES
+========================================== -->
+
+<style>
+
+html,
+body{
+    overflow-x:hidden !important;
+    max-width:100%;
+    scroll-behavior:smooth;
+}
+
+body.menu-open{
+    overflow:hidden;
+}
+
+.container{
+    width:100%;
+    max-width:1450px;
+}
+
+img{
+    max-width:100%;
+    display:block;
+}
+
+.mega-menu-dropdown{
+    overflow:hidden;
+}
+
+/* Prevent left/right movement */
+@media(max-width:1024px){
+
+    html,
+    body{
+        overflow-x:hidden !important;
+    }
+
+    *{
+        max-width:100%;
+    }
+
+    .mega-menu-dropdown{
+        display:none !important;
+    }
+
+}
+
+/* Product Grid */
+@media(max-width:768px){
+
+    .product-grid,
+    .products-grid{
+        display:grid !important;
+        grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+        gap:12px !important;
+    }
+
+    .luxury-product-card{
+        min-width:0 !important;
+        width:100% !important;
+    }
+
+    .luxury-search{
+        border-radius:14px;
+    }
+
+    .luxury-header{
+        padding-top:10px;
+        padding-bottom:10px;
+    }
+
+}
+
+/* Smooth sidebar scroll */
+::-webkit-scrollbar{
+    width:6px;
+}
+
+::-webkit-scrollbar-thumb{
+    background:rgba(0,0,0,.2);
+    border-radius:999px;
+}
+
+</style>
+```
+<!-- =========================================
+     PRODUCTION MOBILE FIXES - FORCE 2 PRODUCTS PER ROW
+========================================== -->
+<style>
+/* Force everything to stay within screen */
+html, body {
+    overflow-x: hidden !important;
+    max-width: 100% !important;
+    position: relative;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+/* FORCE 2 PRODUCTS PER ROW ON ALL MOBILE DEVICES */
+@media (max-width: 768px) {
+    /* Target ALL possible product grid containers */
+    #productsGrid,
+    .grid[id="productsGrid"],
+    .products-grid,
+    .product-grid,
+    [class*="product-grid"],
+    [class*="products-grid"],
+    .grid.gap-6,
+    .grid.gap-4 {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 12px !important;
+    }
+    
+    /* Force product cards to be full width within grid */
+    #productsGrid > div,
+    .product-card,
+    [class*="product-card"] {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+    }
+    
+    /* Fix product images to be square */
+    .product-card img,
+    [class*="product-card"] img {
+        width: 100% !important;
+        height: auto !important;
+        aspect-ratio: 1 / 1 !important;
+        object-fit: cover !important;
+    }
+    
+    /* Fix text sizes on mobile */
+    .product-card .font-semibold,
+    [class*="product-card"] .font-semibold {
+        font-size: 13px !important;
+        line-height: 1.3 !important;
+    }
+    
+    .product-card .text-2xl,
+    [class*="product-card"] .text-2xl {
+        font-size: 16px !important;
+    }
+    
+    .product-card button,
+    [class*="product-card"] button {
+        padding: 8px 6px !important;
+        font-size: 11px !important;
+    }
+    
+    .product-card .text-sm,
+    [class*="product-card"] .text-sm {
+        font-size: 11px !important;
+    }
+}
+
+/* For very small phones (iPhone SE, etc.) */
+@media (max-width: 480px) {
+    #productsGrid,
+    .grid[id="productsGrid"] {
+        gap: 8px !important;
+    }
+    
+    .product-card .p-4 {
+        padding: 8px !important;
+    }
+    
+    .product-card .font-semibold {
+        font-size: 12px !important;
+    }
+    
+    .product-card .text-2xl {
+        font-size: 14px !important;
+    }
+}
+
     </script>
     
     {% block extra_js %}{% endblock %}
