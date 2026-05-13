@@ -17,8 +17,8 @@ def get_admin_stats():
         'total_users': User.objects.count(),
         'total_vendors': VendorProfile.objects.filter(is_verified=True).count(),
         'pending_vendors': VendorProfile.objects.filter(is_verified=False).count(),
-        'total_products': Product.objects.filter(is_active=True).count(),
-        'pending_products': Product.objects.filter(is_active=False).count(),
+        'total_products': Product.objects.filter(is_active=True, approval_status="approved").count(),
+        'pending_products': Product.objects.filter(approval_status="pending").count(),
         'total_orders': Order.objects.count(),
         'pending_orders': Order.objects.filter(status='pending').count(),
         'completed_orders': Order.objects.filter(status='delivered').count(),
@@ -54,7 +54,7 @@ def get_latest_orders(limit=5):
 @register.simple_tag
 def get_latest_products(limit=5):
     """Get latest products"""
-    return Product.objects.select_related('category', 'vendor').order_by('-created_at')[:limit]
+    return Product.objects.filter(approval_status="approved").select_related('category', 'vendor').order_by('-created_at')[:limit]
 
 @register.simple_tag
 def get_latest_users(limit=5):

@@ -19,7 +19,8 @@ def ai_search(request):
         Q(description__icontains=query) |
         Q(category__name__icontains=query) |
         Q(brand__name__icontains=query),
-        is_active=True
+        is_active=True,
+        approval_status='approved'
     )[:10]
     
     # Get popular searches (mock suggestions)
@@ -66,7 +67,7 @@ def track_click(request):
 
 def advanced_search(request):
     """Advanced search page with filters"""
-    products = Product.objects.filter(is_active=True)
+    products = Product.objects.filter(is_active=True, approval_status='approved')
     
     query = request.GET.get('q', '')
     category = request.GET.get('category')

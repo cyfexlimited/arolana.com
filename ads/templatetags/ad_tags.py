@@ -280,7 +280,7 @@ def _track_ad_impression(request, ad_obj, ad_type):
         
         if ad_type == 'creative':
             AdImpression.objects.create(
-                ad_creative=ad_obj,
+                adCreative=ad_obj,
                 session_id=session_id,
                 ip_address=_get_client_ip(request),
                 device_type=_detect_device(request),

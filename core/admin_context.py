@@ -33,8 +33,8 @@ def admin_context(request):
         'total_users': User.objects.count(),
         'total_vendors': VendorProfile.objects.filter(is_verified=True).count(),
         'pending_vendors': VendorProfile.objects.filter(is_verified=False).count(),
-        'total_products': Product.objects.filter(is_active=True).count(),
-        'pending_products': Product.objects.filter(is_active=False).count(),
+        'total_products': Product.objects.filter(is_active=True, approval_status='approved').count(),
+        'pending_products': Product.objects.filter(approval_status='pending').count(),
         'total_orders': Order.objects.count(),
         'pending_orders': Order.objects.filter(status='pending').count(),
         'completed_orders': Order.objects.filter(status='delivered').count(),
@@ -43,7 +43,7 @@ def admin_context(request):
             status='delivered',
             created_at__date__gte=month_ago
         ).aggregate(total=Sum('total'))['total'] or 0),
-        'low_stock_products': Product.objects.filter(stock_quantity__lte=5, stock_quantity__gt=0).count(),
+        'low_stock_products': Product.objects.filter(stock_quantity__lte=5, stock_quantity__gt=0, is_active=True, approval_status='approved').count(),
         'active_ads': AdCampaign.objects.filter(status='active', approved=True).count(),
     }
     
@@ -64,7 +64,7 @@ def admin_context(request):
     latest_orders = Order.objects.select_related('user').order_by('-created_at')[:10]
     
     # Top products
-    top_products = Product.objects.filter(is_active=True).order_by('-sales_count')[:5]
+    top_products = Product.objects.filter(is_active=True, approval_status='approved').order_by('-sales_count')[:5]
     
     # Recent activities (if UserActivityLog exists)
     recent_activities = []

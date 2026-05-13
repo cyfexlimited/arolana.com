@@ -25,7 +25,7 @@ def health_check(request):
 
 def sitemap_page(request):
     categories = Category.objects.filter(is_active=True, parent=None)[:20]
-    products = Product.objects.filter(is_active=True)[:50]
+    products = Product.objects.filter(is_active=True, approval_status='approved')[:50]  # ✅ Added filter
     vendors = VendorProfile.objects.filter(is_verified=True, is_active=True)[:20]
     
     return render(request, 'pages/sitemap.html', {

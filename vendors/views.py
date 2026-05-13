@@ -38,7 +38,7 @@ def vendor_list(request):
 def vendor_detail(request, slug):
     """Display individual vendor shop page"""
     vendor = get_object_or_404(VendorProfile, store_slug=slug, is_active=True)
-    products = Product.objects.filter(vendor=vendor.user, is_active=True)
+    products = Product.objects.filter(vendor=vendor.user, is_active=True, approval_status="approved")
     
     context = {
         'vendor': vendor,

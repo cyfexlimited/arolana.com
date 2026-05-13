@@ -263,7 +263,7 @@ class AdImpression(BaseModel):
     """Advanced impression tracking"""
     banner = models.ForeignKey(AdBanner, on_delete=models.CASCADE, related_name='impression_records')
     campaign = models.ForeignKey(AdCampaign, on_delete=models.CASCADE)
-    creative = models.ForeignKey(AdCreative, on_delete=models.SET_NULL, null=True)
+    adCreative = models.ForeignKey(AdCreative, on_delete=models.SET_NULL, null=True)
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     
     # Session tracking

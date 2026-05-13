@@ -75,17 +75,17 @@ class HomepageSection(BaseModel):
         return f"{self.title} ({self.get_section_type_display()})"
     
     def get_products(self):
-        """Get products based on section type"""
+        """Get products based on section type - APPROVED ONLY"""
         if self.section_type == 'featured':
-            return Product.objects.filter(is_featured=True, is_active=True)[:self.products_limit]
+            return Product.objects.filter(is_featured=True, is_active=True, approval_status='approved')[:self.products_limit]
         elif self.section_type == 'new':
-            return Product.objects.filter(is_new=True, is_active=True)[:self.products_limit]
+            return Product.objects.filter(is_new=True, is_active=True, approval_status='approved')[:self.products_limit]
         elif self.section_type == 'bestsellers':
-            return Product.objects.filter(is_bestseller=True, is_active=True)[:self.products_limit]
+            return Product.objects.filter(is_bestseller=True, is_active=True, approval_status='approved')[:self.products_limit]
         elif self.section_type == 'trending':
-            return Product.objects.filter(is_active=True).order_by('-sales_count')[:self.products_limit]
+            return Product.objects.filter(is_active=True, approval_status='approved').order_by('-sales_count')[:self.products_limit]
         else:
-            return Product.objects.filter(is_active=True)[:self.products_limit]
+            return Product.objects.filter(is_active=True, approval_status='approved')[:self.products_limit]
 
 class HomepageVendorSettings(BaseModel):
     """Settings for vendor carousel on homepage"""

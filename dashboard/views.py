@@ -44,9 +44,9 @@ def admin_dashboard_index(request):
     total_revenue = Order.objects.filter(status='delivered').aggregate(total=Sum('total'))['total'] or 0
     total_orders = Order.objects.count()
     total_users = User.objects.count()
-    total_products = Product.objects.filter(is_active=True).count()
+    total_products = Product.objects.filter(is_active=True, approval_status='approved').count()
     vendors_count = VendorProfile.objects.filter(is_verified=True).count()
-    low_stock_count = Product.objects.filter(stock_quantity__lte=5, is_active=True).count()
+    low_stock_count = Product.objects.filter(stock_quantity__lte=5, is_active=True, approval_status='approved').count()
     
     revenue_growth = Order.objects.filter(
         created_at__date__gte=week_ago, 
@@ -90,7 +90,7 @@ def vendor_dashboard(request):
             'message': 'Your vendor profile is not set up. Please contact support.'
         })
     
-    products = Product.objects.filter(vendor=request.user, is_active=True).select_related('category', 'brand').prefetch_related('variants', 'images')
+    products = Product.objects.filter(vendor=request.user, is_active=True, approval_status='approved').select_related('category', 'brand').prefetch_related('variants', 'images')
     order_items = OrderItem.objects.filter(product__vendor=request.user)
     orders = Order.objects.filter(items__in=order_items).distinct()
     
@@ -192,7 +192,7 @@ def dashboard_home(request):
 @login_required
 def vendor_products(request):
     """Vendor product management with filtering"""
-    products = Product.objects.filter(vendor=request.user, is_active=True).order_by('-created_at')
+    products = Product.objects.filter(vendor=request.user, is_active=True, approval_status="approved").order_by('-created_at')
     
     category_slug = request.GET.get('category')
     if category_slug:
@@ -631,7 +631,7 @@ def vendor_analytics(request):
     """Vendor analytics dashboard"""
     from django.db.models import Sum
     
-    products = Product.objects.filter(vendor=request.user, is_active=True)
+    products = Product.objects.filter(vendor=request.user, is_active=True, approval_status="approved")
     order_items = OrderItem.objects.filter(product__vendor=request.user)
     orders = Order.objects.filter(items__in=order_items).distinct()
     
@@ -710,7 +710,7 @@ def vendor_notifications_api(request):
         order_items = OrderItem.objects.filter(product__vendor=request.user)
         new_orders = Order.objects.filter(items__in=order_items, status='pending').count()
         new_reviews = ProductReview.objects.filter(product__vendor=request.user, is_active=True).count()
-        low_stock = Product.objects.filter(vendor=request.user, stock_quantity__lte=5, is_active=True).count()
+        low_stock = Product.objects.filter(vendor=request.user, stock_quantity__lte=5, is_active=True, approval_status="approved").count()
         
         notifications = []
         if new_orders > 0:
@@ -750,9 +750,9 @@ def admin_dashboard_stats(request):
     total_revenue = Order.objects.filter(status='delivered').aggregate(total=Sum('total'))['total'] or 0
     total_orders = Order.objects.count()
     total_users = User.objects.count()
-    total_products = Product.objects.filter(is_active=True).count()
+    total_products = Product.objects.filter(is_active=True, approval_status="approved").count()
     vendors_count = VendorProfile.objects.filter(is_verified=True).count()
-    low_stock_count = Product.objects.filter(stock_quantity__lte=5, is_active=True).count()
+    low_stock_count = Product.objects.filter(stock_quantity__lte=5, is_active=True, approval_status="approved").count()
     
     recent_orders = Order.objects.select_related('user').order_by('-created_at')[:10]
     recent_activity = AdminActivityLog.objects.select_related('admin').order_by('-created_at')[:20]
@@ -776,7 +776,7 @@ def api_dashboard(request):
     total_revenue = Order.objects.filter(status='delivered').aggregate(total=Sum('total'))['total'] or 0
     total_orders = Order.objects.count()
     total_users = User.objects.count()
-    total_products = Product.objects.filter(is_active=True).count()
+    total_products = Product.objects.filter(is_active=True, approval_status="approved").count()
     recent_orders = Order.objects.select_related('user').order_by('-created_at')[:10]
     
     html = render_to_string('admin_dashboard/partials/dashboard.html', {
@@ -790,7 +790,7 @@ def api_dashboard(request):
 
 @staff_member_required
 def api_products(request):
-    products = Product.objects.filter(is_active=True)[:20]
+    products = Product.objects.filter(is_active=True, approval_status="approved")[:20]
     html = render_to_string('admin_dashboard/partials/products.html', {'products': products})
     return JsonResponse({'html': html})
 
@@ -850,7 +850,7 @@ def get_chart_data(request):
 
 @staff_member_required
 def api_products_list(request):
-    products = Product.objects.filter(is_active=True).order_by('-created_at')
+    products = Product.objects.filter(is_active=True, approval_status="approved").order_by('-created_at')
     html = render_to_string('admin_dashboard/partials/products_list.html', {'products': products})
     return JsonResponse({'html': html})
 
@@ -1246,7 +1246,7 @@ def admin_message_conversation(request, vendor_id):
             return redirect('dashboard:admin_message_conversation', vendor_id=vendor_id)
     
     # Get products from this vendor for reference
-    vendor_products = Product.objects.filter(vendor=vendor, is_active=True)
+    vendor_products = Product.objects.filter(vendor=vendor, is_active=True, approval_status="approved")
     
     context = {
         'vendor': vendor,

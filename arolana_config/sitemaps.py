@@ -18,7 +18,7 @@ class ProductSitemap(Sitemap):
     changefreq = 'weekly'
     
     def items(self):
-        return Product.objects.filter(is_active=True)
+        return Product.objects.filter(is_active=True, approval_status='approved')
     
     def lastmod(self, obj):
         return obj.updated_at

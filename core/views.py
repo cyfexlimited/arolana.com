@@ -36,7 +36,7 @@ def live_stats(request):
     
     # Current month stats
     total_users = User.objects.count()
-    total_products = Product.objects.filter(is_active=True).count()
+    total_products = Product.objects.filter(is_active=True, approval_status="approved").count()
     total_orders = Order.objects.count()
     pending_orders = Order.objects.filter(status='pending').count()
     
@@ -80,7 +80,7 @@ def live_stats(request):
     
     # Recent products
     recent_products = []
-    for product in Product.objects.filter(is_active=True).order_by('-created_at')[:5]:
+    for product in Product.objects.filter(is_active=True, approval_status="approved").order_by('-created_at')[:5]:
         recent_products.append({
             'title': product.name[:30],
             'time_ago': time_since(product.created_at),
@@ -105,7 +105,7 @@ def live_stats(request):
 
 def debug_home(request):
     """Debug view to test currency on homepage"""
-    products = Product.objects.filter(is_active=True)[:5]
+    products = Product.objects.filter(is_active=True, approval_status="approved")[:5]
     
     html = "<html><body><h1>Currency Debug</h1>"
     html += f"<p>Session Currency: {request.session.get('user_currency', 'NOT SET')}</p>"
