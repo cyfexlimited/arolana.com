@@ -11,8 +11,10 @@ body {
     position: relative;
 }
 
+/* Force all elements to not overflow */
 * {
     box-sizing: border-box;
+    max-width: 100%;
 }
 
 /* Fix main container to prevent overflow */
@@ -59,23 +61,58 @@ nav,
     }
 }
 
-/* Force 2 columns on mobile - highest priority override */
+/* Prevent overflow from any element */
+img,
+iframe,
+video,
+embed,
+object {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Fix any hidden overflow from Tailwind */
+.overflow-hidden {
+    overflow: hidden !important;
+}
+
+.max-w-full {
+    max-width: 100% !important;
+}
+
+/* ========================================
+   FORCE 2 COLUMNS ON MOBILE
+   ======================================== */
 @media (max-width: 768px) {
     .rich-grid,
     .products-grid,
     [class*="grid"],
-    [class*="product-list"] {
+    [class*="product-list"],
+    #productsGrid {
         display: grid !important;
         grid-template-columns: repeat(2, 1fr) !important;
         gap: 12px !important;
         width: 100% !important;
+        overflow-x: hidden !important;
     }
     
     /* Fix any individual cards */
     .product-grid-card,
-    .product-card {
+    .product-card,
+    [class*="product-card"] {
         width: 100% !important;
         min-width: 0 !important;
+        overflow: hidden !important;
+    }
+    
+    /* Fix images inside cards */
+    .product-grid-card img,
+    .product-card img,
+    [class*="product-card"] img {
+        width: 100% !important;
+        height: auto !important;
+        aspect-ratio: 1 / 1 !important;
+        object-fit: cover !important;
     }
 }
 
@@ -584,12 +621,6 @@ nav,
     .advertisement-sidebar,
     .filters-sidebar {
         display: none;
-    }
-    
-    html, body {
-        width: 100%;
-        max-width: 100%;
-        overflow-x: hidden;
     }
     
     /* Horizontal scroll for categories */
