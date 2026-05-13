@@ -39,3 +39,4 @@ static/
 *.pem
 *.crt
 secrets/
+local-data.json
