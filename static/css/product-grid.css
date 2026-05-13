@@ -1,5 +1,87 @@
-/* Enhanced Product Grid Styles - Production Ready */
-/* Professional responsive grid for all devices */
+/* ========================================
+   CRITICAL FIXES: Prevent horizontal scroll & overflow
+   ======================================== */
+html,
+body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden !important;
+    margin: 0;
+    padding: 0;
+    position: relative;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+/* Fix main container to prevent overflow */
+.main-container,
+.site-wrapper,
+.container,
+.page-wrapper,
+main,
+.content-wrapper {
+    max-width: 100%;
+    overflow-x: hidden !important;
+    padding-left: 16px;
+    padding-right: 16px;
+}
+
+/* Fix header and nav bars */
+header,
+.header,
+.site-header,
+nav,
+.navbar {
+    max-width: 100%;
+    overflow-x: hidden !important;
+}
+
+/* Fix mega menu - prevent it from going off-screen */
+.mega-menu,
+.category-menu,
+.nav-menu {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Desktop mega menu should be constrained */
+@media (min-width: 1024px) {
+    .mega-menu,
+    .category-menu {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100%;
+        max-width: 1280px;
+    }
+}
+
+/* Force 2 columns on mobile - highest priority override */
+@media (max-width: 768px) {
+    .rich-grid,
+    .products-grid,
+    [class*="grid"],
+    [class*="product-list"] {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 12px !important;
+        width: 100% !important;
+    }
+    
+    /* Fix any individual cards */
+    .product-grid-card,
+    .product-card {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+}
+
+/* ========================================
+   ENHANCED PRODUCT GRID STYLES
+   ======================================== */
 
 .rich-grid {
     display: grid;
