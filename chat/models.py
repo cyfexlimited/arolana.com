@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from core.models import BaseModel
 from products.models import Product
 from orders.models import Order
+from django.conf import settings
 
 User = get_user_model()
 
