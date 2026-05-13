@@ -74,7 +74,6 @@ pyOpenSSL==26.2.0
 pyotp==2.9.0
 python-decouple==3.8
 python-magic==0.4.27
-python-magic-bin==0.4.14
 PyYAML==6.0.3
 qrcode==8.2
 redis==7.4.0
