@@ -1,6 +1,7 @@
 {
   "build": {
-    "builder": "NIXPACKS"
+    "builder": "NIXPACKS",
+    "buildCommand": "python manage.py collectstatic --noinput"
   },
   "deploy": {
     "startCommand": "python manage.py migrate && daphne -b 0.0.0.0 -p $PORT arolana_config.asgi:application",
