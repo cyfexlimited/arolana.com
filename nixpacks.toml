@@ -19,5 +19,5 @@ cmds = [
   "/opt/venv/bin/python manage.py collectstatic --noinput"
 ]
 
-[phases.start]
+[start]
 cmd = "/opt/venv/bin/python manage.py migrate && /opt/venv/bin/daphne -b 0.0.0.0 -p $PORT arolana_config.asgi:application"
