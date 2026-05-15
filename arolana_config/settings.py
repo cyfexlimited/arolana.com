@@ -322,7 +322,7 @@ AWS_S3_OBJECT_PARAMETERS = {
 OPTIMIZED_MEDIA_ENABLED = config('OPTIMIZED_MEDIA_ENABLED', default=True, cast=bool)
 
 if AWS_STORAGE_BUCKET_NAME and AWS_S3_ENDPOINT_URL:
-    MEDIA_URL = f"{AWS_S3_ENDPOINT_URL.rstrip('/')}/{AWS_STORAGE_BUCKET_NAME}/media/"
+    MEDIA_URL = f"{AWS_S3_ENDPOINT_URL.rstrip('/')}/{AWS_STORAGE_BUCKET_NAME}/"
     STORAGES['default'] = {
         'BACKEND': 'core.storages.CachedS3MediaStorage',
     }
