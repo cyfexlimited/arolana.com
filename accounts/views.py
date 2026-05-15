@@ -17,11 +17,14 @@ from django.core.validators import validate_email
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from allauth.socialaccount.adapter import get_adapter as get_socialaccount_adapter
 from django.utils.text import slugify
+from django.utils.encoding import force_str
+from django.utils.http import urlsafe_base64_decode
 
 from .models import User, UserProfile, UserOTP, UserActivityLog, NewsletterSubscriber, Address
 from products.models import RecentlyViewed, Wishlist
 from .utils.otp_utils import create_otp, verify_otp
 from .utils.messaging import send_registration_messages, sync_newsletter_subscriber
+from .tokens import account_activation_token
 
 logger = logging.getLogger(__name__)
 
@@ -804,7 +807,37 @@ def security_settings(request):
         'user': request.user,
         'recent_activities': recent_activities,
         'has_2fa': getattr(request.user, 'two_factor_enabled', False),
+        'email_verified': request.user.email_verified,
+        'phone_verified': request.user.phone_verified,
     })
+
+def verify_email_token(request, uidb64, token):
+    """Verify email from a signed email link."""
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        user = None
+
+    if user is not None and account_activation_token.check_token(user, token):
+        if not user.email_verified:
+            user.email_verified = True
+            user.save()
+            UserOTP.objects.filter(user=user, otp_type='email', is_used=False).update(is_used=True)
+            create_notification(user, 'system', 'Email Verified', 'Your email address has been successfully verified!', '/accounts/profile/')
+            messages.success(request, 'Email verified successfully!')
+        else:
+            messages.info(request, 'Your email is already verified.')
+
+        if not request.user.is_authenticated:
+            user.backend = 'django.contrib.auth.backends.ModelBackend'
+            login(request, user)
+        return redirect('accounts:security_settings')
+
+    messages.error(request, 'The email verification link is invalid or expired. Please request a new verification email.')
+    if request.user.is_authenticated:
+        return redirect('accounts:security_settings')
+    return redirect('accounts:login')
 
 @login_required
 def verify_email(request):

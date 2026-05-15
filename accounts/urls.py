@@ -28,6 +28,7 @@ path('password/reset/', RedirectView.as_view(url='/accounts/forgot-password/', p
     path('disable-2fa/', views.disable_2fa, name='disable_2fa'),
     path('verify-2fa/', views.verify_2fa, name='verify_2fa'),
     path('verify-email/', views.verify_email, name='verify_email'),
+    path('verify-email/<uidb64>/<token>/', views.verify_email_token, name='verify_email_token'),
     path('verify-phone/', views.verify_phone, name='verify_phone'),
     path('resend-verification/', views.resend_verification_email, name='resend_verification'),
     path('logout-all-devices/', views.logout_all_devices, name='logout_all_devices'),

@@ -80,9 +80,9 @@
                     {% if email_verified %}
                         <span class="text-green-600"><i class="fas fa-check-circle"></i> Verified</span>
                     {% else %}
-                        <button onclick="sendVerificationEmail()" class="bg-yellow-500 text-white px-4 py-1 rounded-lg text-sm hover:bg-yellow-600 transition">
+                        <a href="{% url 'accounts:verify_email' %}" class="inline-flex items-center gap-1 bg-yellow-500 text-white px-4 py-1 rounded-lg text-sm hover:bg-yellow-600 transition">
                             <i class="fas fa-envelope"></i> Verify Now
-                        </button>
+                        </a>
                     {% endif %}
                 </div>
             </div>
@@ -95,9 +95,9 @@
                     {% if phone_verified %}
                         <span class="text-green-600"><i class="fas fa-check-circle"></i> Verified</span>
                     {% elif user.phone_number %}
-                        <button onclick="sendPhoneVerification()" class="bg-yellow-500 text-white px-4 py-1 rounded-lg text-sm hover:bg-yellow-600 transition">
+                        <a href="{% url 'accounts:verify_phone' %}" class="inline-flex items-center gap-1 bg-yellow-500 text-white px-4 py-1 rounded-lg text-sm hover:bg-yellow-600 transition">
                             Verify Phone
-                        </button>
+                        </a>
                     {% else %}
                         <a href="{% url 'accounts:edit_profile' %}" class="text-blue-600 hover:underline">
                             Add Phone Number →

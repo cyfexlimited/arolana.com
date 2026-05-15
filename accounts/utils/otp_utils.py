@@ -9,6 +9,10 @@ from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
+from django.urls import reverse
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
+from accounts.tokens import account_activation_token
 from datetime import timedelta
 
 logger = logging.getLogger(__name__)
@@ -137,11 +141,21 @@ def send_otp_email(email, otp_code, otp_type='email', user=None):
     
     subject = subject_map.get(otp_type, "Verification Code - Arolana")
     
+    verification_url = ''
+    if user and otp_type == 'email':
+        try:
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            token = account_activation_token.make_token(user)
+            verification_url = f"{settings.SITE_URL.rstrip('/')}{reverse('accounts:verify_email_token', kwargs={'uidb64': uid, 'token': token})}"
+        except Exception as e:
+            logger.warning('Could not build email verification link for %s: %s', email, e)
+
     context = {
         'user': user,
         'otp_code': otp_code,
         'otp_type': otp_type.replace('_', ' ').title(),
         'validity_minutes': 10,
+        'verification_url': verification_url,
     }
     html_message = render_to_string('accounts/email/otp_email.html', context)
     message = strip_tags(html_message)
