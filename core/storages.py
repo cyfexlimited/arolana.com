@@ -1,4 +1,5 @@
 import time
+from urllib.parse import quote
 
 from django.conf import settings
 from storages.backends.s3boto3 import S3Boto3Storage
@@ -10,12 +11,18 @@ _LOCAL_MEDIA_URL_CACHE = {}
 class CachedS3MediaStorage(S3Boto3Storage):
     """Store media in private Tigris and serve fast signed URLs directly."""
 
-    location = "media"
+    location = ""
     default_acl = None
     querystring_auth = True
     file_overwrite = False
 
     def url(self, name, parameters=None, expire=None, http_method=None):
+        if getattr(settings, "MEDIA_PROXY_ENABLED", False) and not (
+            parameters or expire or http_method
+        ):
+            media_url = getattr(settings, "MEDIA_URL", "/media/")
+            return f"{media_url.rstrip('/')}/{quote(str(name).lstrip('/'), safe='/')}"
+
         if parameters or expire or http_method:
             return super().url(
                 name,

@@ -156,7 +156,7 @@ function resendCode() {
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
     
-    fetch('/accounts/resend-verification-email/', {
+    fetch("{% url 'accounts:resend_verification' %}", {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

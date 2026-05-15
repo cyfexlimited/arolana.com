@@ -320,9 +320,26 @@ AWS_S3_OBJECT_PARAMETERS = {
     'CacheControl': config('AWS_S3_CACHE_CONTROL', default='max-age=31536000, public'),
 }
 OPTIMIZED_MEDIA_ENABLED = config('OPTIMIZED_MEDIA_ENABLED', default=True, cast=bool)
+MEDIA_PROXY_ENABLED = config(
+    'MEDIA_PROXY_ENABLED',
+    default=bool(AWS_STORAGE_BUCKET_NAME and AWS_S3_ENDPOINT_URL),
+    cast=bool,
+)
+MEDIA_PROXY_PUBLIC_PREFIXES = tuple(csv_config(
+    'MEDIA_PROXY_PUBLIC_PREFIXES',
+    default=(
+        'settings,categories,vendors,hero_banners,products,ads,optimized,'
+        'manufacturers,homepage,videos,brands,advertisements,promo,avatars'
+    ),
+))
 
 if AWS_STORAGE_BUCKET_NAME and AWS_S3_ENDPOINT_URL:
-    MEDIA_URL = f"{AWS_S3_ENDPOINT_URL.rstrip('/')}/{AWS_STORAGE_BUCKET_NAME}/"
+    if MEDIA_PROXY_ENABLED:
+        MEDIA_URL = config('MEDIA_PROXY_URL', default='/media/')
+        if not MEDIA_URL.endswith('/'):
+            MEDIA_URL = f'{MEDIA_URL}/'
+    else:
+        MEDIA_URL = f"{AWS_S3_ENDPOINT_URL.rstrip('/')}/{AWS_STORAGE_BUCKET_NAME}/"
     STORAGES['default'] = {
         'BACKEND': 'core.storages.CachedS3MediaStorage',
     }
@@ -378,10 +395,38 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = 'tailwind'
 CRISPY_TEMPLATE_PACK = 'tailwind'
 
 # ============ EMAIL ============
+SENDGRID_API_KEY = config('SENDGRID_API_KEY', default='')
+SENDGRID_API_URL = config('SENDGRID_API_URL', default='https://api.sendgrid.com/v3/mail/send')
+SENDGRID_TIMEOUT = config('SENDGRID_TIMEOUT', default=20, cast=int)
+RESEND_API_KEY = config('RESEND_API_KEY', default='')
+RESEND_API_URL = config('RESEND_API_URL', default='https://api.resend.com/emails')
+RESEND_TIMEOUT = config('RESEND_TIMEOUT', default=20, cast=int)
+RUNNING_ON_RAILWAY = any(
+    config(name, default='')
+    for name in ('RAILWAY_ENVIRONMENT', 'RAILWAY_PROJECT_ID', 'RAILWAY_SERVICE_ID')
+)
+RAILWAY_SMTP_ENABLED = config('RAILWAY_SMTP_ENABLED', default=False, cast=bool)
+DEFAULT_EMAIL_BACKEND = (
+    'django.core.mail.backends.console.EmailBackend'
+    if DEBUG
+    else (
+        'accounts.email_backends.SendGridEmailBackend'
+        if SENDGRID_API_KEY
+        else (
+            'accounts.email_backends.ResendEmailBackend'
+            if RESEND_API_KEY
+            else 'django.core.mail.backends.smtp.EmailBackend'
+        )
+    )
+)
 EMAIL_BACKEND = config(
     'EMAIL_BACKEND',
-    default='django.core.mail.backends.console.EmailBackend' if DEBUG else 'django.core.mail.backends.smtp.EmailBackend'
+    default=DEFAULT_EMAIL_BACKEND,
 )
+if SENDGRID_API_KEY and EMAIL_BACKEND == 'django.core.mail.backends.smtp.EmailBackend':
+    EMAIL_BACKEND = 'accounts.email_backends.SendGridEmailBackend'
+elif RESEND_API_KEY and EMAIL_BACKEND == 'django.core.mail.backends.smtp.EmailBackend':
+    EMAIL_BACKEND = 'accounts.email_backends.ResendEmailBackend'
 EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
 EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
 EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
@@ -392,17 +437,25 @@ EMAIL_TIMEOUT = config('EMAIL_TIMEOUT', default=20, cast=int)
 EMAIL_ALLOW_UNAUTHENTICATED_SMTP = config('EMAIL_ALLOW_UNAUTHENTICATED_SMTP', default=False, cast=bool)
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER or 'noreply@arolana.com')
 SERVER_EMAIL = config('SERVER_EMAIL', default=DEFAULT_FROM_EMAIL)
-EMAIL_CONFIGURED = (
-    EMAIL_BACKEND != 'django.core.mail.backends.smtp.EmailBackend'
-    or (
-        bool(EMAIL_HOST)
-        and bool(EMAIL_PORT)
-        and bool(DEFAULT_FROM_EMAIL)
-        and (
-            EMAIL_ALLOW_UNAUTHENTICATED_SMTP
-            or (bool(EMAIL_HOST_USER) and bool(EMAIL_HOST_PASSWORD))
-        )
+SMTP_EMAIL_CONFIGURED = (
+    bool(EMAIL_HOST)
+    and bool(EMAIL_PORT)
+    and bool(DEFAULT_FROM_EMAIL)
+    and (not RUNNING_ON_RAILWAY or RAILWAY_SMTP_ENABLED)
+    and (
+        EMAIL_ALLOW_UNAUTHENTICATED_SMTP
+        or (bool(EMAIL_HOST_USER) and bool(EMAIL_HOST_PASSWORD))
     )
+)
+EMAIL_CONFIGURED = (
+    EMAIL_BACKEND == 'accounts.email_backends.SendGridEmailBackend' and bool(SENDGRID_API_KEY)
+    or EMAIL_BACKEND == 'accounts.email_backends.ResendEmailBackend' and bool(RESEND_API_KEY)
+    or EMAIL_BACKEND not in [
+        'django.core.mail.backends.smtp.EmailBackend',
+        'accounts.email_backends.SendGridEmailBackend',
+        'accounts.email_backends.ResendEmailBackend',
+    ]
+    or SMTP_EMAIL_CONFIGURED
 )
 
 # ============ SECURITY ============
@@ -420,8 +473,8 @@ else:
     SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', default=0, cast=int)
     SECURE_HSTS_INCLUDE_SUBDOMAINS = config('SECURE_HSTS_INCLUDE_SUBDOMAINS', default=False, cast=bool)
     SECURE_HSTS_PRELOAD = config('SECURE_HSTS_PRELOAD', default=False, cast=bool)
-    CSRF_COOKIE_SAMESITE = 'Strict'
-    SESSION_COOKIE_SAMESITE = 'Strict'
+    CSRF_COOKIE_SAMESITE = config('CSRF_COOKIE_SAMESITE', default='Lax')
+    SESSION_COOKIE_SAMESITE = config('SESSION_COOKIE_SAMESITE', default='Lax')
 
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True

@@ -123,7 +123,8 @@ def send_otp_email(email, otp_code, otp_type='email', user=None):
     if not getattr(settings, 'EMAIL_CONFIGURED', True):
         logger.error(
             'OTP email cannot be sent because production email is not configured. '
-            'Set EMAIL_HOST_USER and EMAIL_HOST_PASSWORD, or configure another SMTP backend.'
+            'Set SENDGRID_API_KEY or RESEND_API_KEY for HTTPS email delivery, '
+            'or enable SMTP only on a Railway plan that supports it.'
         )
         return False
 

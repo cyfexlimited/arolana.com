@@ -1,5 +1,11 @@
+import mimetypes
+import posixpath
+
+from django.conf import settings
+from django.core.files.storage import default_storage
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import render
-from django.http import HttpResponse, JsonResponse
+from django.views.decorators.http import require_safe
 from products.models import Product
 from currency.models import Currency
 from django.contrib.admin.views.decorators import staff_member_required
@@ -9,6 +15,40 @@ from datetime import timedelta
 from orders.models import Order
 from accounts.models import User
 from vendors.models import VendorProfile
+
+
+@require_safe
+def proxy_media(request, path):
+    """Serve public media from private storage without exposing the bucket."""
+    normalized_path = posixpath.normpath(path).lstrip('/')
+    if (
+        not normalized_path
+        or normalized_path == '.'
+        or normalized_path.startswith('../')
+        or '/..' in normalized_path
+    ):
+        raise Http404('Media not found')
+
+    allowed_prefixes = tuple(getattr(settings, 'MEDIA_PROXY_PUBLIC_PREFIXES', ()))
+    if allowed_prefixes:
+        allowed = any(
+            normalized_path == prefix.strip('/').strip()
+            or normalized_path.startswith(f"{prefix.strip('/').strip()}/")
+            for prefix in allowed_prefixes
+            if prefix.strip('/').strip()
+        )
+        if not allowed:
+            raise Http404('Media not found')
+
+    try:
+        media_file = default_storage.open(normalized_path, 'rb')
+    except Exception as exc:
+        raise Http404('Media not found') from exc
+
+    content_type = mimetypes.guess_type(normalized_path)[0] or 'application/octet-stream'
+    response = FileResponse(media_file, content_type=content_type)
+    response['Cache-Control'] = 'public, max-age=31536000, immutable'
+    return response
 
 def time_since(dt):
     """Returns a human-readable time since string"""

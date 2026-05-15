@@ -128,6 +128,14 @@ def get_vendor_profile(user):
     except ObjectDoesNotExist:
         return None
 
+def has_active_otp(user, otp_type='email'):
+    return UserOTP.objects.filter(
+        user=user,
+        otp_type=otp_type,
+        is_used=False,
+        expires_at__gt=timezone.now(),
+    ).exists()
+
 # ==================== NEWSLETTER ====================
 
 def newsletter_subscribe(request):
@@ -357,6 +365,7 @@ def register_view(request):
         
         user.backend = 'django.contrib.auth.backends.ModelBackend'
         login(request, user)
+        request.session['email_verification_send_failed'] = not bool(email_otp)
         
         if not email_otp:
             messages.error(request, 'Your account was created, but the verification email could not be sent. Please try Resend Code or contact support.')
@@ -813,11 +822,13 @@ def verify_email(request):
         else:
             messages.error(request, message)
     else:
-        otp = create_otp(request.user, request.user.email, 'email')
-        if otp:
-            messages.info(request, f"Verification code sent to {request.user.email}")
-        else:
-            messages.error(request, 'We could not send your verification email. Please try again or contact support.')
+        send_failed_on_register = request.session.pop('email_verification_send_failed', False)
+        if not send_failed_on_register and not has_active_otp(request.user, 'email'):
+            otp = create_otp(request.user, request.user.email, 'email')
+            if otp:
+                messages.info(request, f"Verification code sent to {request.user.email}")
+            else:
+                messages.error(request, 'We could not send your verification email. Please try again or contact support.')
     
     return render(request, 'accounts/verify_email.html', {'user': request.user})
 
@@ -848,6 +859,7 @@ def verify_phone(request):
     return render(request, 'accounts/verify_phone.html', {'user': request.user})
 
 @login_required
+@require_POST
 def resend_verification_email(request):
     """Resend email verification OTP"""
     otp = create_otp(request.user, request.user.email, 'email')

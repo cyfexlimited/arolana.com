@@ -11,7 +11,7 @@
         <div class="text-center mb-8">
             <a href="/" class="inline-block">
                 {% if site_settings.site_logo %}
-                    <img src="{{ site_settings.site_logo.url }}" alt="{{ site_settings.site_name }}" class="h-12 mx-auto">
+                    <img src="{{ site_settings.site_logo.url }}" alt="{{ site_settings.site_name }}" class="mx-auto block auth-logo">
                 {% else %}
                     <span class="text-3xl font-bold text-blue-600">{{ site_settings.site_name }}<span class="text-green-500">.com</span></span>
                 {% endif %}
@@ -242,8 +242,8 @@
 
                     <!-- Submit Button -->
                     <button type="submit" id="register-submit"
-                            class="w-full bg-gray-950 text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2">
-                        <span class="btn-text">Create Account</span>
+                            class="relative overflow-hidden w-full bg-gray-950 text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2">
+                        <span class="btn-text relative z-10">Create Account</span>
                         <div class="btn-loader hidden absolute inset-0 flex items-center justify-center bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg">
                             <div class="loading-spinner"></div>
                         </div>
@@ -305,6 +305,13 @@
     
     .animate-slide-down {
         animation: slideDown 0.5s ease-out;
+    }
+
+    .auth-logo {
+        height: 3rem !important;
+        width: auto !important;
+        max-width: 12rem !important;
+        object-fit: contain;
     }
     
     .loading-spinner {
