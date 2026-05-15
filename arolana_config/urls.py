@@ -159,7 +159,7 @@ if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 elif getattr(settings, 'SERVE_MEDIA', False):
     urlpatterns += [
-        re_path(r"^media/(?P<path>.*)$", private_media_proxy, name="private_media_proxy"),
+        re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
     ]
 
 # Custom 404 handler
