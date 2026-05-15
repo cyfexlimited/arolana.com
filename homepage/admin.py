@@ -153,9 +153,9 @@ class HomepageManufacturerCategoryAdmin(admin.ModelAdmin):
 # 🔹 VIDEO SECTION (FIXED INDENTATION)
 @admin.register(HomepageVideoSection)
 class HomepageVideoSectionAdmin(admin.ModelAdmin):
-    list_display = ['title', 'video_source', 'position', 'display_order', 'is_active', 'status']
-    list_editable = ['position', 'display_order', 'is_active']
-    list_filter = ['video_source', 'position', 'is_active']
+    list_display = ['title', 'video_source', 'info_position', 'position', 'display_order', 'is_active', 'status']
+    list_editable = ['info_position', 'position', 'display_order', 'is_active']
+    list_filter = ['video_source', 'info_position', 'position', 'is_active']
 
     fieldsets = (
         ('📝 Content', {
@@ -168,11 +168,16 @@ class HomepageVideoSectionAdmin(admin.ModelAdmin):
             'fields': ('youtube_url',),
             'classes': ('collapse',)
         }),
+        ('🎬 Vimeo', {
+            'fields': ('vimeo_url',),
+            'classes': ('collapse',)
+        }),
         ('💾 Local Video', {
             'fields': ('local_video', 'poster_image'),
         }),
         ('📐 Layout', {
-            'fields': ('position', 'video_width', 'video_height', 'background_color', 'text_color')
+            'fields': ('info_position', 'position', 'video_width', 'video_height', 'background_color', 'text_color'),
+            'description': 'Info position controls where title, subtitle, and CTA appear relative to the video. Position aligns the whole block inside the section.'
         }),
         ('⚙️ Behavior', {
             'fields': ('autoplay', 'loop', 'show_controls')
@@ -191,5 +196,7 @@ class HomepageVideoSectionAdmin(admin.ModelAdmin):
             return format_html('<span style="color:green;">{}</span>', 'YouTube Ready')
         elif obj.video_source == 'local' and obj.local_video:
             return format_html('<span style="color:blue;">{}</span>', 'Local Ready')
+        elif obj.video_source == 'vimeo' and obj.vimeo_id:
+            return format_html('<span style="color:purple;">{}</span>', 'Vimeo Ready')
         return format_html('<span style="color:orange;">{}</span>', 'Not Configured')
     status.short_description = "Status"

@@ -153,6 +153,12 @@ class Notification(BaseModel):
             'newsletter': 'purple',
         }
         return colors.get(self.notification_type, 'gray')
+
+    def get_icon(self):
+        return self.icon_class
+
+    def get_color(self):
+        return self.icon_color
     
     @classmethod
     def send(cls, user, notification_type, title, message, link='', metadata=None, priority=2):

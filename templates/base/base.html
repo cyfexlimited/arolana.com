@@ -1,18 +1,23 @@
-{% load static hero_banners_tags footer_menu_tags ad_tags %}
+{% load static hero_banners_tags footer_menu_tags ad_tags media_optimization %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
     <title>{% block title %}{{ site_settings.site_name }} - {{ site_settings.site_tagline }}{% endblock %}</title>
     <meta name="description" content="{{ site_settings.site_description }}">
     <meta name="keywords" content="{{ site_settings.site_keywords }}">
     <meta name="author" content="{{ site_settings.meta_author }}">
     <meta name="robots" content="{{ site_settings.meta_robots }}">
-    <meta property="og:image" content="{% if site_settings.site_logo %}{{ site_settings.site_logo.url }}{% endif %}">
+    {% if site_settings.site_logo %}
+        {% optimized_image_url site_settings.site_logo 'logo' as site_logo_url %}
+    {% endif %}
+    <meta property="og:image" content="{% if site_logo_url %}{{ site_logo_url }}{% endif %}">
 
     {% if site_settings.site_favicon %}
-        <link rel="icon" type="image/x-icon" href="{{ site_settings.site_favicon.url }}">
+        {% optimized_image_url site_settings.site_favicon 'nav_icon' as site_favicon_url %}
+        <link rel="icon" type="image/x-icon" href="{{ site_favicon_url }}">
     {% endif %}
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -309,9 +314,9 @@
 }
 
 .mega-menu-container > a {
-    gap: 0.50rem !important;
-    padding: 0.60rem 0.0rem !important;
-    font-size: 0.8rem !important;
+    gap: 0.70rem !important;
+    padding: 0.70rem 0.2rem !important;
+    font-size: 1.2rem !important;
     line-height: 1;
     white-space: nowrap;
 }
@@ -838,14 +843,53 @@
                     </select>
                 </form>
 
-                <a href="{% url 'notifications:list' %}" class="relative hover:text-brand transition notification-badge" aria-label="Notifications">
-                    <i class="fas fa-bell text-lg"></i>
-                    <span id="notification-badge" class="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center hidden">0</span>
-                </a>
+                {% if user.is_authenticated %}
+                    <div class="relative" x-data="{ notificationOpen: false }" @keydown.escape="notificationOpen = false">
+                        <button type="button" @click="notificationOpen = !notificationOpen" class="relative hover:text-brand transition notification-badge" aria-label="Notifications">
+                            <i class="fas fa-bell text-lg"></i>
+                            <span id="notification-badge" class="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] rounded-full min-w-4 h-4 px-1 flex items-center justify-center {% if not notification_unread_count %}hidden{% endif %}">{% if notification_unread_count > 9 %}9+{% else %}{{ notification_unread_count }}{% endif %}</span>
+                        </button>
+                        <div x-show="notificationOpen"
+                             @click.away="notificationOpen = false"
+                             x-cloak
+                             class="absolute right-0 top-full mt-3 w-80 max-w-[calc(100vw-2rem)] bg-white text-gray-900 rounded-lg shadow-2xl border border-gray-100 overflow-hidden z-[10003]"
+                             x-transition>
+                            <div class="px-4 py-3 border-b flex items-center justify-between">
+                                <span class="font-semibold">Notifications</span>
+                                <a href="{% url 'notifications:list' %}" class="text-xs text-blue-600 hover:underline">View all</a>
+                            </div>
+                            <div class="max-h-80 overflow-y-auto divide-y">
+                                {% for notification in recent_user_notifications %}
+                                <a href="{{ notification.link|default:'/notifications/' }}" class="block px-4 py-3 hover:bg-gray-50 {% if not notification.is_read %}bg-blue-50{% endif %}">
+                                    <div class="flex items-start gap-3">
+                                        <span class="w-9 h-9 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center shrink-0">
+                                            <i class="fas {{ notification.icon_class }}"></i>
+                                        </span>
+                                        <span class="min-w-0">
+                                            <span class="block text-sm font-semibold truncate">{{ notification.title }}</span>
+                                            <span class="block text-xs text-gray-500 line-clamp-2">{{ notification.message }}</span>
+                                            <span class="block text-[11px] text-gray-400 mt-1">{{ notification.created_at|timesince }} ago</span>
+                                        </span>
+                                    </div>
+                                </a>
+                                {% empty %}
+                                <div class="px-4 py-8 text-center text-sm text-gray-500">
+                                    <i class="fas fa-bell-slash text-2xl text-gray-300 mb-2"></i>
+                                    <p>No notifications yet</p>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <a href="{% url 'accounts:login' %}" class="relative hover:text-brand transition notification-badge" aria-label="Notifications">
+                        <i class="fas fa-bell text-lg"></i>
+                    </a>
+                {% endif %}
 
                 <a href="{% url 'chat:list' %}" class="relative hover:text-brand transition" aria-label="Messages">
                     <i class="fas fa-comment-dots text-lg"></i>
-                    <span id="chat-unread-badge" class="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center hidden">0</span>
+                    <span id="chat-unread-badge" class="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] rounded-full min-w-4 h-4 px-1 flex items-center justify-center {% if not chat_unread_count %}hidden{% endif %}">{% if chat_unread_count > 9 %}9+{% else %}{{ chat_unread_count }}{% endif %}</span>
                 </a>
 
                 {% if user.is_staff or user.is_superuser %}
@@ -903,7 +947,7 @@
             <div class="grid grid-cols-[auto_1fr_auto] items-center gap-3 lg:gap-6">
                 <a href="/" class="shrink-0 hover-lift min-w-0" aria-label="{{ site_settings.site_name }}">
                     {% if site_settings.site_logo %}
-                        <img src="{{ site_settings.site_logo.url }}" alt="{{ site_settings.site_name }}" class="luxury-logo">
+                        <img src="{{ site_logo_url }}" alt="{{ site_settings.site_name }}" class="luxury-logo">
                     {% else %}
                         <span class="block text-2xl sm:text-3xl font-bold font-luxury truncate" style="background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
                             {{ site_settings.site_name }}<span style="opacity: 0.7;">.com</span>
@@ -984,7 +1028,8 @@
                     <li class="mega-menu-container {% if forloop.counter >= 8 %}mega-align-right{% elif forloop.counter >= 5 %}mega-align-center{% endif %}">
                         <a href="{% url 'products:category' category.slug %}" class="flex items-center gap-2 px-4 py-4 hover:text-brand transition font-medium group">
                             {% if category.image %}
-                                <img src="{{ category.image.url }}" alt="{{ category.name }}" class="w-5 h-5 rounded-full object-cover group-hover:scale-110 transition">
+                                {% optimized_image_url category.image 'nav_icon' as category_image_url %}
+                                <img src="{{ category_image_url }}" alt="{{ category.name }}" class="w-5 h-5 rounded-full object-cover group-hover:scale-110 transition">
                             {% elif category.icon %}
                                 <i class="fas fa-{{ category.icon }} group-hover:scale-125 transition"></i>
                             {% else %}
@@ -992,7 +1037,7 @@
                             {% endif %}
                             <span>{{ category.name }}</span>
                         </a>
-                        {% if category.children.exists %}
+                        {% if category.active_child_count %}
                         <div class="mega-menu-dropdown">
                             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                                 {% for child in category.children.all|slice:":8" %}
@@ -1000,7 +1045,7 @@
                                     <a href="{% url 'products:category' child.slug %}" class="font-bold text-gray-900 hover:text-brand block mb-3 text-sm transition">
                                         {{ child.name }}
                                     </a>
-                                    {% if child.children.exists %}
+                                    {% if child.active_child_count %}
                                     <ul class="space-y-1 text-xs">
                                         {% for grandchild in child.children.all|slice:":6" %}
                                         <li>
@@ -1053,7 +1098,8 @@
                                         <li>
                                             <a href="{% url 'vendors:detail' vendor.store_slug %}" class="flex items-center gap-2 hover:text-brand transition font-medium">
                                                 {% if vendor.store_logo %}
-                                                    <img src="{{ vendor.store_logo.url }}" class="w-7 h-7 rounded-full object-cover" alt="{{ vendor.store_name }}">
+                                                    {% optimized_image_url vendor.store_logo 'avatar' as vendor_logo_url %}
+                                                    <img src="{{ vendor_logo_url }}" class="w-7 h-7 rounded-full object-cover" alt="{{ vendor.store_name }}">
                                                 {% else %}
                                                     <i class="fas fa-store w-5"></i>
                                                 {% endif %}
@@ -1071,7 +1117,8 @@
                                         <li>
                                             <a href="{% url 'vendors:detail' vendor.store_slug %}" class="flex items-center gap-2 hover:text-brand transition font-medium">
                                                 {% if vendor.store_logo %}
-                                                    <img src="{{ vendor.store_logo.url }}" class="w-7 h-7 rounded-full object-cover" alt="{{ vendor.store_name }}">
+                                                    {% optimized_image_url vendor.store_logo 'avatar' as vendor_logo_url %}
+                                                    <img src="{{ vendor_logo_url }}" class="w-7 h-7 rounded-full object-cover" alt="{{ vendor.store_name }}">
                                                 {% else %}
                                                     <i class="fas fa-store w-5"></i>
                                                 {% endif %}
@@ -1188,7 +1235,8 @@
                     <button type="button" @click="open = !open" class="mobile-menu-link">
                         <span class="flex items-center gap-3 min-w-0">
                             {% if category.image %}
-                                <img src="{{ category.image.url }}" alt="{{ category.name }}" class="w-6 h-6 rounded-full object-cover shrink-0">
+                                {% optimized_image_url category.image 'nav_icon' as category_image_url %}
+                                <img src="{{ category_image_url }}" alt="{{ category.name }}" class="w-6 h-6 rounded-full object-cover shrink-0">
                             {% elif category.icon %}
                                 <i class="fas fa-{{ category.icon }} w-5 shrink-0"></i>
                             {% else %}
@@ -1196,14 +1244,14 @@
                             {% endif %}
                             <span class="truncate">{{ category.name }}</span>
                         </span>
-                        {% if category.children.exists %}
+                        {% if category.active_child_count %}
                             <i class="fas fa-chevron-down text-xs transition shrink-0" :class="open ? 'rotate-180' : ''"></i>
                         {% else %}
                             <i class="fas fa-chevron-right text-xs text-gray-400 shrink-0"></i>
                         {% endif %}
                     </button>
 
-                    {% if category.children.exists %}
+                    {% if category.active_child_count %}
                     <div x-show="open" x-transition class="bg-gray-50">
                         <a href="{% url 'products:category' category.slug %}" class="mobile-sub-link font-semibold">View all {{ category.name }}</a>
                         {% for child in category.children.all|slice:":12" %}
@@ -1304,7 +1352,8 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 lg:gap-12 mb-12 py-12 border-b border-gray-800">
                 <div class="lg:col-span-1">
                     {% if site_settings.footer_logo %}
-                        <img src="{{ site_settings.footer_logo.url }}" alt="{{ site_settings.site_name }}" class="h-16 mb-6" loading="lazy">
+                        {% optimized_image_url site_settings.footer_logo 'logo' as footer_logo_url %}
+                        <img src="{{ footer_logo_url }}" alt="{{ site_settings.site_name }}" class="h-16 mb-6" loading="lazy">
                     {% else %}
                         <h3 class="text-2xl font-bold font-luxury text-white mb-6">{{ site_settings.site_name }}</h3>
                     {% endif %}

@@ -15,9 +15,16 @@ from django.template.loader import render_to_string
 from .models import (
     Product, Category, ProductReview, Wishlist, RecentlyViewed, 
     ProductVariant, ProductQuestion, Accessory, AccessoryProduct,
-    ProductImage, ProductVideo, Brand
+    ProductImage, ProductVideo, ProductVariantImage, Brand
 )
 from accounts.models import User
+from currency.templatetags.currency_filters import currency as format_currency
+
+try:
+    from subscriptions.models import user_has_paid_subscription
+except ImportError:
+    def user_has_paid_subscription(user):
+        return False
 
 # Note: Adjust import based on your actual orders app structure
 try:
@@ -420,30 +427,27 @@ def product_list(request):
     except (PageNotAnInteger, EmptyPage):
         products_page = paginator.page(1)
     
-    # ====== Get Filter Counts ======
-    filter_counts = {
-        'categories': {},
-        'brands': {},
-    }
-    
-    # Category counts
-    categories = Category.objects.filter(is_active=True, parent=None)
-    for category in categories:
-        count = Product.objects.filter(category=category, is_active=True, approval_status='approved').count()
-        filter_counts['categories'][category.slug] = count
-    
-    # Brand counts
-    brands = Brand.objects.filter(is_active=True)
-    for brand in brands:
-        count = Product.objects.filter(brand=brand, is_active=True, approval_status='approved').count()
-        filter_counts['brands'][brand.slug] = count
-    
     # ====== Currency ======
     user_currency = get_user_currency(request)
     
     # ====== Prepare categories and brands for template ======
-    categories_list = Category.objects.filter(is_active=True, parent=None).order_by('order', 'name')
-    brands_list = Brand.objects.filter(is_active=True).order_by('name')
+    product_count_filter = Q(products__is_active=True, products__approval_status='approved')
+    categories_list = (
+        Category.objects
+        .filter(is_active=True, parent=None)
+        .annotate(approved_product_count=Count('products', filter=product_count_filter))
+        .order_by('order', 'name')
+    )
+    brands_list = (
+        Brand.objects
+        .filter(is_active=True)
+        .annotate(approved_product_count=Count('products', filter=product_count_filter))
+        .order_by('name')
+    )
+    filter_counts = {
+        'categories': {category.slug: category.approved_product_count for category in categories_list},
+        'brands': {brand.slug: brand.approved_product_count for brand in brands_list},
+    }
     
     # ====== AJAX Request (return JSON for filtering) ======
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -479,8 +483,14 @@ def product_detail(request, slug):
             'brand',
             'vendor'
         ).prefetch_related(
-            'images',
-            'variants',
+            Prefetch('images', queryset=ProductImage.objects.filter(is_active=True).order_by('order')),
+            Prefetch(
+                'variants',
+                queryset=ProductVariant.objects.filter(is_active=True).prefetch_related(
+                    Prefetch('images', queryset=ProductVariantImage.objects.filter(is_active=True).order_by('order'))
+                ),
+                to_attr='active_variants'
+            ),
             Prefetch('reviews', queryset=ProductReview.objects.select_related('user').order_by('-created_at')),
             Prefetch('product_accessories__accessory', queryset=Accessory.objects.filter(is_active=True)),
             'additional_videos',
@@ -503,7 +513,7 @@ def product_detail(request, slug):
         )
     
     # ====== Get Variants with proper grouping ======
-    all_variants = product.variants.filter(is_active=True)
+    all_variants = list(getattr(product, 'active_variants', []))
     
     # Group variants by type
     variants_by_type = {}
@@ -521,9 +531,19 @@ def product_detail(request, slug):
         if variant.value not in variant_options[variant_type]:
             variant_options[variant_type].append(variant.value)
     
-    # Separate size and color variants for easy access
+    # Separate size and color variants for backwards-compatible template/context use
     size_variants = variants_by_type.get('size', [])
     color_variants = variants_by_type.get('color', [])
+
+    variant_groups = []
+    for variant_type, variant_label in ProductVariant.VARIANT_TYPES:
+        options = variants_by_type.get(variant_type, [])
+        if options:
+            variant_groups.append({
+                'type': variant_type,
+                'label': variant_label,
+                'options': options,
+            })
     
     # ====== Get selected variant from URL parameter or POST ======
     selected_variant_id = request.GET.get('variant_id') or request.POST.get('variant_id')
@@ -532,13 +552,18 @@ def product_detail(request, slug):
     
     if selected_variant_id:
         try:
-            selected_variant = all_variants.get(id=int(selected_variant_id))
+            selected_variant = next(
+                variant for variant in all_variants if variant.id == int(selected_variant_id)
+            )
             selected_variant_price = product.price + selected_variant.price_adjustment
-        except (ProductVariant.DoesNotExist, ValueError, TypeError):
+        except (ProductVariant.DoesNotExist, StopIteration, ValueError, TypeError):
             pass
     
     # ====== Get Default Variant (first active variant) ======
-    default_variant = all_variants.first() if all_variants.exists() else None
+    default_variant = all_variants[0] if all_variants else None
+    if not selected_variant and default_variant:
+        selected_variant = default_variant
+        selected_variant_price = product.price + selected_variant.price_adjustment
     
     # ====== Calculate current price based on selected variant ======
     current_price = selected_variant_price if selected_variant else product.price
@@ -560,14 +585,29 @@ def product_detail(request, slug):
     base_currency = Currency.objects.filter(is_base=True).first() if Currency else None
     
     # ====== Variant Data for JavaScript ======
+    def push_image(images, src, alt):
+        if src and src not in {image['src'] for image in images}:
+            images.append({'src': src, 'alt': alt or product.name})
+
+    gallery_images = []
+    if product.main_image:
+        push_image(gallery_images, product.main_image.url, product.name)
+    for image in product.images.all():
+        push_image(gallery_images, image.image.url, image.alt_text or product.name)
+
     variant_data = {}
     for variant in all_variants:
         variant_price = product.price + variant.price_adjustment
+        variant_compare_price = product.compare_price + variant.price_adjustment if product.compare_price else None
         converted_variant_price = convert_price(
             variant_price,
             base_currency,
             user_currency
         )
+        variant_images = []
+        push_image(variant_images, variant.image.url if variant.image else None, f"{product.name} - {variant.value}")
+        for image in variant.images.all():
+            push_image(variant_images, image.image.url, image.alt_text or f"{product.name} - {variant.value}")
         
         variant_data[str(variant.id)] = {
             'id': variant.id,
@@ -575,12 +615,17 @@ def product_detail(request, slug):
             'value': variant.value,
             'variant_type': variant.variant_type,
             'price': float(converted_variant_price),
+            'price_display': format_currency(variant_price, request),
             'price_raw': float(variant_price),
+            'compare_price_display': format_currency(variant_compare_price, request) if variant_compare_price else '',
             'sku': variant.sku or f"{product.sku}-{variant.value[:3]}",
             'stock': variant.stock_quantity,
             'price_adjustment': float(variant.price_adjustment),
+            'price_adjustment_display': format_currency(variant.price_adjustment, request),
             'image': variant.image.url if variant.image else None,
-            'color_code': getattr(variant, 'color_code', '#CCCCCC'),
+            'images': variant_images,
+            'color_code': variant.color_code or '#CCCCCC',
+            'is_available': variant.is_available,
         }
     
     # ====== Related Products (APPROVED ONLY) ======
@@ -588,25 +633,25 @@ def product_detail(request, slug):
         category=product.category,
         is_active=True,
         approval_status='approved'
-    ).exclude(id=product.id).select_related('brand')[:12]
+    ).exclude(id=product.id).select_related('brand').order_by('?')[:12]
     
     top_rated = Product.objects.filter(
         category=product.category,
         is_active=True,
         rating_avg__gt=0,
         approval_status='approved'
-    ).exclude(id=product.id).order_by('-rating_avg', '-sales_count')[:12]
+    ).exclude(id=product.id).order_by('?')[:12]
     
     bestsellers = Product.objects.filter(
         category=product.category,
         is_active=True,
         approval_status='approved'
-    ).exclude(id=product.id).order_by('-sales_count')[:12]
+    ).exclude(id=product.id).order_by('?')[:12]
     
     frequently_bought_together = Product.objects.filter(
         is_active=True,
         approval_status='approved'
-    ).exclude(id=product.id).order_by('-sales_count')[:12]
+    ).exclude(id=product.id).order_by('?')[:12]
     
     # ====== Recently Viewed ======
     recently_viewed = []
@@ -619,11 +664,7 @@ def product_detail(request, slug):
     ai_recommendations = Product.objects.filter(
         is_active=True,
         approval_status='approved'
-    ).exclude(id=product.id).order_by(
-        '-rating_avg',
-        '-sales_count',
-        '-views_count'
-    )[:12]
+    ).exclude(id=product.id).order_by('?')[:12]
     
     # ====== Calculate Rating Percentages ======
     total_reviews = product.rating_count or 1
@@ -653,10 +694,16 @@ def product_detail(request, slug):
         'all_variants': all_variants,
         'variants_by_type': variants_by_type,
         'variant_options': variant_options,
+        'variant_groups': variant_groups,
         'variant_data_json': json.dumps(variant_data),
+        'gallery_images': gallery_images,
+        'gallery_images_json': json.dumps(gallery_images),
         'selected_variant': selected_variant,
         'selected_variant_id': selected_variant.id if selected_variant else None,
         'default_variant': default_variant,
+        'current_price': current_price,
+        'current_compare_price': current_compare_price,
+        'vendor_chat_available': user_has_paid_subscription(product.vendor),
         'accessories': accessories,
         'product_accessories': accessories,
         'videos': videos,

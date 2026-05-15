@@ -124,7 +124,8 @@ def video_embed(request, video_id):
                     title="{escape(video.title)}"
                     frameborder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowfullscreen>
+                    allowfullscreen
+                    referrerpolicy="strict-origin-when-cross-origin">
                 </iframe>
             </div>
             """
@@ -141,7 +142,8 @@ def video_embed(request, video_id):
                     title="{escape(video.title)}"
                     frameborder="0"
                     allow="autoplay; fullscreen"
-                    allowfullscreen>
+                    allowfullscreen
+                    referrerpolicy="strict-origin-when-cross-origin">
                 </iframe>
             </div>
             """

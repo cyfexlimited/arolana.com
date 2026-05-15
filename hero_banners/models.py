@@ -1,7 +1,22 @@
 from django.db import models
+from django.core.validators import MaxValueValidator, MinValueValidator
 from core.models import BaseModel
 from accounts.models import User
 from django.utils import timezone
+
+def normalize_opacity(value):
+    """Accept legacy percent-like values and return a valid CSS opacity."""
+    try:
+        opacity = float(value)
+    except (TypeError, ValueError):
+        return 0.4
+
+    if opacity < 0:
+        opacity = abs(opacity)
+    if opacity > 1:
+        opacity = opacity / 100
+
+    return min(max(opacity, 0), 1)
 
 class HeroBanner(BaseModel):
     """Advanced Hero Banner with full features"""
@@ -27,17 +42,31 @@ class HeroBanner(BaseModel):
     animation_duration = models.FloatField(default=0.8, help_text="Animation duration in seconds")
     
     # Buttons & CTA
-    button1_text = models.CharField(max_length=50, default='Shop Now')
-    button1_url = models.CharField(max_length=500, default='/products/')
-    button1_style = models.CharField(max_length=20, default='primary')
+    BUTTON_STYLE_CHOICES = [
+        ('primary', 'Primary'),
+        ('secondary', 'Secondary'),
+        ('outline', 'Outline'),
+    ]
+
+    button1_text = models.CharField(max_length=50, blank=True, default='')
+    button1_url = models.CharField(max_length=500, blank=True, default='')
+    button1_style = models.CharField(max_length=20, choices=BUTTON_STYLE_CHOICES, default='primary')
     
-    button2_text = models.CharField(max_length=50, default='Learn More')
+    button2_text = models.CharField(max_length=50, blank=True, default='')
     button2_url = models.CharField(max_length=500, blank=True, default='#')
-    button2_style = models.CharField(max_length=20, default='outline')
+    button2_style = models.CharField(max_length=20, choices=BUTTON_STYLE_CHOICES, default='outline')
+
+    button3_text = models.CharField(max_length=50, blank=True, default='')
+    button3_url = models.CharField(max_length=500, blank=True, default='')
+    button3_style = models.CharField(max_length=20, choices=BUTTON_STYLE_CHOICES, default='secondary')
     
     # Advanced Styling
     overlay_color = models.CharField(max_length=20, default='#000000')
-    overlay_opacity = models.FloatField(default=0.4)
+    overlay_opacity = models.FloatField(
+        default=0.4,
+        validators=[MinValueValidator(0), MaxValueValidator(1)],
+        help_text="0 is transparent, 1 is fully dark. Example: 0.4",
+    )
     text_color = models.CharField(max_length=20, default='#FFFFFF')
     text_alignment = models.CharField(max_length=20, choices=[
         ('left', 'Left'), ('center', 'Center'), ('right', 'Right'),
@@ -64,6 +93,22 @@ class HeroBanner(BaseModel):
     
     def __str__(self):
         return self.title
+
+    @property
+    def overlay_opacity_css(self):
+        return f"{normalize_opacity(self.overlay_opacity):.2f}".rstrip('0').rstrip('.')
+
+    @property
+    def show_button1(self):
+        return bool(self.button1_text and self.button1_url and self.button1_url != '#')
+
+    @property
+    def show_button2(self):
+        return bool(self.button2_text and self.button2_url and self.button2_url != '#')
+
+    @property
+    def show_button3(self):
+        return bool(self.button3_text and self.button3_url and self.button3_url != '#')
     
     def increment_view(self):
         self.views_count += 1

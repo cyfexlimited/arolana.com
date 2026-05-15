@@ -4,11 +4,11 @@
 {% block title %}Notifications | Arolana{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto">
-    <div class="flex gap-6">
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="flex flex-col lg:flex-row gap-6">
         <!-- Sidebar -->
-        <div class="w-64 flex-shrink-0">
-            <div class="bg-white rounded-lg shadow-md sticky top-24">
+        <div class="w-full lg:w-64 flex-shrink-0">
+            <div class="bg-white rounded-lg shadow-md border border-gray-100 lg:sticky lg:top-24">
                 <div class="p-4 border-b">
                     <h2 class="font-bold text-lg">Notifications</h2>
                     <div class="mt-2 flex gap-2 text-sm">
@@ -18,7 +18,7 @@
                 </div>
                 
                 <div class="p-4">
-                    <div class="space-y-1">
+                    <div class="grid sm:grid-cols-3 lg:grid-cols-1 gap-1">
                         <a href="?filter=all" class="block px-3 py-2 rounded-lg hover:bg-gray-100 {% if filter_type == 'all' %}bg-blue-50 text-blue-600{% endif %}">
                             <i class="fas fa-inbox w-5"></i> All
                             <span class="float-right text-gray-500">{{ total_count }}</span>
@@ -35,7 +35,7 @@
                     
                     <div class="border-t my-4 pt-4">
                         <h3 class="font-semibold text-sm mb-2">Filter by Type</h3>
-                        <div class="space-y-1">
+                        <div class="grid sm:grid-cols-2 lg:grid-cols-1 gap-1 max-h-64 overflow-y-auto">
                             {% for type_code, type_name in notification_types %}
                             <a href="?type={{ type_code }}{% if filter_type %}&filter={{ filter_type }}{% endif %}" 
                                class="block px-3 py-1 text-sm rounded-lg hover:bg-gray-100 {% if current_type == type_code %}bg-blue-50 text-blue-600{% endif %}">
@@ -64,16 +64,16 @@
         
         <!-- Main Content -->
         <div class="flex-1">
-            <div class="bg-white rounded-lg shadow-md">
+            <div class="bg-white rounded-lg shadow-md border border-gray-100 overflow-hidden">
                 <!-- Header -->
                 <div class="border-b p-4">
-                    <div class="flex justify-between items-center">
+                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                         <h1 class="text-xl font-bold">Notifications</h1>
                         <div class="flex gap-2">
-                            <form method="GET" class="flex">
+                            <form method="GET" class="flex w-full sm:w-auto">
                                 <input type="text" name="search" value="{{ search_query }}" 
                                        placeholder="Search notifications..."
-                                       class="px-3 py-1 border rounded-l-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                       class="w-full sm:w-64 px-3 py-2 border rounded-l-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
                                 <button type="submit" class="px-3 py-1 bg-gray-100 border border-l-0 rounded-r-lg hover:bg-gray-200">
                                     <i class="fas fa-search text-sm"></i>
                                 </button>
@@ -105,11 +105,11 @@
                             <div class="flex-1">
                                 <div class="flex justify-between items-start">
                                     <div>
-                                        <h3 class="font-semibold text-gray-900">
+                                        <h3 class="font-semibold text-gray-900 break-words">
                                             {{ notification.title }}
                                         </h3>
-                                        <p class="text-gray-600 text-sm mt-1">{{ notification.message }}</p>
-                                        <div class="flex items-center gap-3 mt-2">
+                                        <p class="text-gray-600 text-sm mt-1 break-words">{{ notification.message }}</p>
+                                        <div class="flex flex-wrap items-center gap-3 mt-2">
                                             <span class="text-xs text-gray-400">
                                                 <i class="far fa-clock mr-1"></i> {{ notification.created_at|timesince }} ago
                                             </span>
@@ -239,7 +239,7 @@ function deleteAll() {
 }
 
 function createTestNotification() {
-    fetch('/notifications/test/create/', {
+    fetch('/notifications/test/', {
         method: 'POST',
         headers: {'X-CSRFToken': '{{ csrf_token }}'}
     }).then(() => {

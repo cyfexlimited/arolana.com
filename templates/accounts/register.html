@@ -5,8 +5,8 @@
 {% block title %}Create Account | Arolana.com{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-md mx-auto">
+<div class="min-h-screen bg-gray-50 py-10 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-3xl mx-auto">
         <!-- Logo/Branding -->
         <div class="text-center mb-8">
             <a href="/" class="inline-block">
@@ -16,9 +16,9 @@
                     <span class="text-3xl font-bold text-blue-600">{{ site_settings.site_name }}<span class="text-green-500">.com</span></span>
                 {% endif %}
             </a>
-            <h2 class="mt-6 text-3xl font-extrabold text-gray-900">Create your account</h2>
+            <h2 class="mt-6 text-3xl font-extrabold text-gray-900">Create your Arolana account</h2>
             <p class="mt-2 text-sm text-gray-600">
-                Already have an account?
+                Customers, vendors, and manufacturers use one secure login.
                 <a href="{% url 'accounts:login' %}" class="font-medium text-blue-600 hover:text-blue-500 transition-colors">
                     Sign in
                 </a>
@@ -26,7 +26,7 @@
         </div>
 
         <!-- Registration Form -->
-        <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div class="bg-white rounded-xl shadow-xl overflow-hidden border border-gray-200">
             <div class="px-6 py-8 sm:p-10">
                 <!-- Messages -->
                 {% if messages %}
@@ -55,6 +55,27 @@
 
                 <form method="POST" class="space-y-5" id="register-form">
                     {% csrf_token %}
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-3">Account type <span class="text-red-500">*</span></label>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" role="radiogroup">
+                            <label class="account-type-option cursor-pointer rounded-lg border border-gray-300 p-4 hover:border-blue-500 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50">
+                                <input type="radio" name="account_type" value="customer" class="sr-only" {% if account_type == 'customer' or not account_type %}checked{% endif %}>
+                                <span class="flex items-center gap-2 font-semibold text-gray-900"><i class="fas fa-user"></i> Customer</span>
+                                <span class="mt-1 block text-xs text-gray-500">Shop, track orders, and save favorites.</span>
+                            </label>
+                            <label class="account-type-option cursor-pointer rounded-lg border border-gray-300 p-4 hover:border-blue-500 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50">
+                                <input type="radio" name="account_type" value="vendor" class="sr-only" {% if account_type == 'vendor' %}checked{% endif %}>
+                                <span class="flex items-center gap-2 font-semibold text-gray-900"><i class="fas fa-store"></i> Vendor</span>
+                                <span class="mt-1 block text-xs text-gray-500">Sell products after KYC approval.</span>
+                            </label>
+                            <label class="account-type-option cursor-pointer rounded-lg border border-gray-300 p-4 hover:border-blue-500 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50">
+                                <input type="radio" name="account_type" value="manufacturer" class="sr-only" {% if account_type == 'manufacturer' %}checked{% endif %}>
+                                <span class="flex items-center gap-2 font-semibold text-gray-900"><i class="fas fa-industry"></i> Manufacturer</span>
+                                <span class="mt-1 block text-xs text-gray-500">Register a verified brand account.</span>
+                            </label>
+                        </div>
+                    </div>
                     
                     <!-- Name fields side by side -->
                     <div class="grid grid-cols-2 gap-4">
@@ -119,6 +140,29 @@
                         </div>
                     </div>
 
+                    <div id="business-fields" class="rounded-lg border border-yellow-200 bg-yellow-50 p-4 space-y-4 hidden">
+                        <div>
+                            <label for="business_name" class="block text-sm font-medium text-gray-700 mb-1">
+                                Business or Brand Name <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" name="business_name" id="business_name" value="{{ business_name|default:'' }}"
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                   placeholder="Arolana Store">
+                        </div>
+                        <div>
+                            <label for="business_description" class="block text-sm font-medium text-gray-700 mb-1">
+                                Business Description <span class="text-gray-400 text-xs">(Optional)</span>
+                            </label>
+                            <textarea name="business_description" id="business_description" rows="3"
+                                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                      placeholder="Tell customers what your business sells.">{{ business_description|default:'' }}</textarea>
+                        </div>
+                        <p class="text-xs text-yellow-800">
+                            <i class="fas fa-id-card mr-1"></i>
+                            Vendors and manufacturers must complete KYC before uploading products. Admin controls KYC approval and subscription limits.
+                        </p>
+                    </div>
+
                     <!-- Password -->
                     <div>
                         <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
@@ -179,7 +223,7 @@
                         <input type="checkbox" name="newsletter" id="newsletter" checked
                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
                         <label for="newsletter" class="ml-2 block text-sm text-gray-700">
-                            Subscribe to newsletter for exclusive deals and updates
+                            Subscribe to newsletter, latest promos, and marketplace updates
                         </label>
                     </div>
 
@@ -198,7 +242,7 @@
 
                     <!-- Submit Button -->
                     <button type="submit" id="register-submit"
-                            class="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-2.5 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                            class="w-full bg-gray-950 text-white py-3 rounded-lg font-semibold hover:bg-gray-800 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2">
                         <span class="btn-text">Create Account</span>
                         <div class="btn-loader hidden absolute inset-0 flex items-center justify-center bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg">
                             <div class="loading-spinner"></div>
@@ -287,9 +331,23 @@
     }
 </style>
 
-<script>
-// Toggle password visibility
-function togglePassword(fieldId) {
+	<script>
+	const accountTypeInputs = document.querySelectorAll('input[name="account_type"]');
+	const businessFields = document.getElementById('business-fields');
+	const businessNameInput = document.getElementById('business_name');
+
+	function syncAccountTypeFields() {
+	    const selected = document.querySelector('input[name="account_type"]:checked')?.value || 'customer';
+	    const isBusiness = selected === 'vendor' || selected === 'manufacturer';
+	    businessFields.classList.toggle('hidden', !isBusiness);
+	    businessNameInput.required = isBusiness;
+	}
+
+	accountTypeInputs.forEach((input) => input.addEventListener('change', syncAccountTypeFields));
+	syncAccountTypeFields();
+
+	// Toggle password visibility
+	function togglePassword(fieldId) {
     const field = document.getElementById(fieldId);
     const icon = field.nextElementSibling.querySelector('i');
     if (field.type === 'password') {
@@ -442,11 +500,18 @@ document.getElementById('register-form').addEventListener('submit', function(e) 
         return false;
     }
     
-    if (!terms) {
-        e.preventDefault();
-        showToast('You must agree to the Terms of Service', 'error');
-        return false;
-    }
+	    if (!terms) {
+	        e.preventDefault();
+	        showToast('You must agree to the Terms of Service', 'error');
+	        return false;
+	    }
+
+	    const selectedType = document.querySelector('input[name="account_type"]:checked')?.value || 'customer';
+	    if ((selectedType === 'vendor' || selectedType === 'manufacturer') && !businessNameInput.value.trim()) {
+	        e.preventDefault();
+	        showToast('Business or brand name is required for seller accounts', 'error');
+	        return false;
+	    }
     
     // Show loading state
     btnText.classList.add('opacity-0');

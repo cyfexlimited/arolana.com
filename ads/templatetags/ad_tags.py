@@ -1,5 +1,6 @@
 from django import template
 from django.utils import timezone
+from django.core.cache import cache
 from django.db.models import Q, F
 from ads.models import Advertisement, AdBanner, AdCreative, AdPlacement, AdImpression
 import random
@@ -271,31 +272,23 @@ def ad_ctr_percentage(views, clicks):
 
 
 def _track_ad_impression(request, ad_obj, ad_type):
-    """Track ad impression in database"""
+    """Track lightweight impression counters without writing rows during render."""
     try:
-        if not hasattr(request, 'user') or not request.user.is_authenticated:
-            session_id = request.session.session_key
-        else:
-            session_id = None
-        
+        session_id = getattr(request.session, 'session_key', '') or _get_client_ip(request) or 'anonymous'
+        cache_key = f'ad-impression:{ad_type}:{getattr(ad_obj, "pk", "")}:{session_id}'
+        if not cache.add(cache_key, True, 300):
+            return
+
         if ad_type == 'creative':
-            AdImpression.objects.create(
-                adCreative=ad_obj,
-                session_id=session_id,
-                ip_address=_get_client_ip(request),
-                device_type=_detect_device(request),
-                browser=request.META.get('HTTP_USER_AGENT', '')[:200],
-                country=_get_country(request),
-                was_visible=True
-            )
+            AdCreative.objects.filter(pk=ad_obj.pk).update(impressions=F('impressions') + 1)
+            if ad_obj.campaign_id:
+                ad_obj.campaign.__class__.objects.filter(pk=ad_obj.campaign_id).update(impressions=F('impressions') + 1)
         elif ad_type == 'banner':
-            # Update banner impressions
-            ad_obj.impressions = (ad_obj.impressions or 0) + 1
-            ad_obj.save(update_fields=['impressions'])
+            AdBanner.objects.filter(pk=ad_obj.pk).update(impressions=F('impressions') + 1)
+            if ad_obj.campaign_id:
+                ad_obj.campaign.__class__.objects.filter(pk=ad_obj.campaign_id).update(impressions=F('impressions') + 1)
         elif ad_type == 'simple':
-            # Update ad views
-            ad_obj.views = (ad_obj.views or 0) + 1
-            ad_obj.save(update_fields=['views'])
+            Advertisement.objects.filter(pk=ad_obj.pk).update(views=F('views') + 1)
     except Exception as e:
         logger.error(f"Error tracking impression: {e}")
 

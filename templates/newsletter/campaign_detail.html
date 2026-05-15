@@ -1,0 +1,47 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Newsletter Campaign | Arolana{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+    <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+        <div class="p-6 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <p class="text-sm text-gray-500">Newsletter Campaign</p>
+                <h1 class="text-2xl font-bold text-gray-950">{{ campaign.name }}</h1>
+                <p class="text-gray-600">{{ campaign.subject }}</p>
+            </div>
+            <span class="inline-flex w-fit items-center rounded-full bg-gray-100 px-3 py-1 text-sm font-semibold text-gray-700">{{ campaign.get_status_display }}</span>
+        </div>
+        <div class="p-6 grid sm:grid-cols-3 gap-4 border-b">
+            <div class="rounded-lg bg-gray-50 p-4">
+                <p class="text-xs uppercase tracking-wide text-gray-500">Recipients</p>
+                <p class="mt-1 font-semibold">{{ campaign.get_recipient_scope_display }}</p>
+            </div>
+            <div class="rounded-lg bg-gray-50 p-4">
+                <p class="text-xs uppercase tracking-wide text-gray-500">Frequency</p>
+                <p class="mt-1 font-semibold">{{ campaign.get_send_frequency_display }}</p>
+            </div>
+            <div class="rounded-lg bg-gray-50 p-4">
+                <p class="text-xs uppercase tracking-wide text-gray-500">Sent</p>
+                <p class="mt-1 font-semibold">{{ campaign.sent_count }}</p>
+            </div>
+        </div>
+        <div class="p-6">
+            <h2 class="font-bold text-gray-950 mb-3">Plain text content</h2>
+            <pre class="whitespace-pre-wrap rounded-lg bg-gray-50 p-4 text-sm text-gray-700">{{ campaign.content }}</pre>
+            {% if campaign.html_content %}
+            <h2 class="font-bold text-gray-950 mt-6 mb-3">HTML content</h2>
+            <div class="rounded-lg border border-gray-200 p-4 overflow-auto text-sm">{{ campaign.html_content|safe }}</div>
+            {% endif %}
+        </div>
+        <div class="p-6 border-t bg-gray-50 flex flex-col sm:flex-row gap-3 justify-end">
+            <a href="{% url 'newsletter:campaign_list' %}" class="inline-flex justify-center rounded-lg border border-gray-300 px-5 py-3 font-semibold text-gray-700 hover:bg-white">Back</a>
+            <form method="post" action="{% url 'newsletter:campaign_send' campaign.id %}">
+                {% csrf_token %}
+                <button type="submit" class="w-full sm:w-auto inline-flex justify-center rounded-lg bg-gray-950 px-5 py-3 font-semibold text-white hover:bg-gray-800">Send now</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

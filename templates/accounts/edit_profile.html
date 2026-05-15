@@ -1,0 +1,115 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Edit Profile | Arolana{% endblock %}
+
+{% block content %}
+<section class="bg-gray-50 py-10">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <p class="text-sm font-semibold text-yellow-700 uppercase tracking-wide">Profile</p>
+                <h1 class="text-3xl font-bold text-gray-950">Edit your profile</h1>
+            </div>
+            <a href="{% url 'accounts:profile' %}" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-white">
+                <i class="fas fa-arrow-left"></i>
+                Back
+            </a>
+        </div>
+
+        <form method="post" enctype="multipart/form-data" class="bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+            {% csrf_token %}
+            <div class="p-6 sm:p-8 grid lg:grid-cols-2 gap-8">
+                <div class="space-y-5">
+                    <h2 class="text-lg font-bold text-gray-950">Personal details</h2>
+                    <div class="grid sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-800 mb-2">First name</label>
+                            <input name="first_name" value="{{ request.user.first_name }}" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-800 mb-2">Last name</label>
+                            <input name="last_name" value="{{ request.user.last_name }}" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-800 mb-2">Phone number</label>
+                        <input name="phone_number" value="{{ request.user.phone_number|default:'' }}" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-800 mb-2">Avatar</label>
+                        <input type="file" name="avatar" accept="image/*" class="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-800 mb-2">Bio</label>
+                        <textarea name="bio" rows="4" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none">{{ request.user.profile.bio|default:'' }}</textarea>
+                    </div>
+                    <div class="grid sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-800 mb-2">Company</label>
+                            <input name="company" value="{{ request.user.profile.company|default:'' }}" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-800 mb-2">Location</label>
+                            <input name="location" value="{{ request.user.profile.location|default:'' }}" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-800 mb-2">Website</label>
+                        <input name="website" value="{{ request.user.profile.website|default:'' }}" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none">
+                    </div>
+                </div>
+
+                <div class="space-y-5">
+                    {% if vendor_profile %}
+                    <div class="rounded-lg border border-gray-200 p-5">
+                        <h2 class="text-lg font-bold text-gray-950">Seller profile</h2>
+                        <div class="mt-4 space-y-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-800 mb-2">Store or brand name</label>
+                                <input name="store_name" value="{{ vendor_profile.store_name }}" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-800 mb-2">Store description</label>
+                                <textarea name="store_description" rows="4" class="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none">{{ vendor_profile.description }}</textarea>
+                            </div>
+                            <div class="grid sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-800 mb-2">Logo</label>
+                                    <input type="file" name="store_logo" accept="image/*" class="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-800 mb-2">Banner</label>
+                                    <input type="file" name="store_banner" accept="image/*" class="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="rounded-lg border border-gray-200 p-5">
+                        <h2 class="text-lg font-bold text-gray-950">Email preferences</h2>
+                        <div class="mt-4 space-y-3">
+                            <label class="flex items-start gap-3 text-sm text-gray-700">
+                                <input type="checkbox" name="newsletter" class="mt-1 rounded border-gray-300 text-blue-600" {% if request.user.profile.newsletter_subscription %}checked{% endif %}>
+                                Newsletter updates
+                            </label>
+                            <label class="flex items-start gap-3 text-sm text-gray-700">
+                                <input type="checkbox" name="promo_emails" class="mt-1 rounded border-gray-300 text-blue-600" {% if request.user.profile.promo_emails %}checked{% endif %}>
+                                Promo emails and weekly campaigns
+                            </label>
+                            <label class="flex items-start gap-3 text-sm text-gray-700">
+                                <input type="checkbox" name="marketing_emails" class="mt-1 rounded border-gray-300 text-blue-600" {% if request.user.profile.marketing_emails %}checked{% endif %}>
+                                Personalized marketplace recommendations
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="px-6 sm:px-8 py-5 border-t bg-gray-50 flex justify-end gap-3">
+                <a href="{% url 'accounts:profile' %}" class="rounded-lg border border-gray-300 px-5 py-3 font-semibold text-gray-700 hover:bg-white">Cancel</a>
+                <button type="submit" class="rounded-lg bg-gray-950 px-5 py-3 font-semibold text-white hover:bg-gray-800">Save profile</button>
+            </div>
+        </form>
+    </div>
+</section>
+{% endblock %}

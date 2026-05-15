@@ -97,8 +97,8 @@ urlpatterns = [
     path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
     
     # Authentication
-    path('accounts/', include('allauth.urls')),
     path('accounts/', include('accounts.urls')),
+    path('accounts/', include('allauth.urls')),
     
     # App URLs
     path('newsletter/', include('newsletter.urls')),

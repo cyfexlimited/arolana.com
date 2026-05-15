@@ -49,31 +49,41 @@
             <i class="fas fa-arrow-left"></i> Back to Products
         </a>
     </div>
-    
+
     {% if messages %}
         {% for message in messages %}
         <div class="mb-4 p-3 rounded-lg {% if message.tags == 'success' %}bg-green-100 text-green-700{% elif message.tags == 'error' %}bg-red-100 text-red-700{% else %}bg-blue-100 text-blue-700{% endif %}">
             {{ message }}
         </div>
         {% endfor %}
-    {% endif %}
-    
-    <form method="POST" enctype="multipart/form-data" class="space-y-6" id="productForm">
+	    {% endif %}
+
+	    <div class="mb-6 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
+	        <div class="font-semibold mb-1">Your current plan limits</div>
+	        <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
+	            <span>Products: {{ current_product_count }} / {% if subscription_limits.max_products == -1 %}Unlimited{% else %}{{ subscription_limits.max_products }}{% endif %}</span>
+	            <span>Featured: {{ current_featured_count }} / {% if subscription_limits.featured_products == -1 %}Unlimited{% else %}{{ subscription_limits.featured_products }}{% endif %}</span>
+	            <span>Images/product: {{ subscription_limits.max_images_per_product }}</span>
+	            <span>Variants/product: {% if subscription_limits.max_variants_per_product == -1 %}Unlimited{% else %}{{ subscription_limits.max_variants_per_product }}{% endif %}</span>
+	        </div>
+	    </div>
+
+	    <form method="POST" enctype="multipart/form-data" class="space-y-6" id="productForm">
         {% csrf_token %}
-        
+
         <!-- Basic Information -->
         <div class="border-b border-gray-200 pb-4">
             <h2 class="text-xl font-semibold mb-4">Basic Information</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Product Name *</label>
-                    <input type="text" name="name" required 
+                    <input type="text" name="name" required
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                 </div>
-                
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Category *</label>
-                    <select name="category" required 
+                    <select name="category" required
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                         <option value="">Select Category</option>
                         {% for category in categories %}
@@ -81,10 +91,10 @@
                         {% endfor %}
                     </select>
                 </div>
-                
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Brand</label>
-                    <select name="brand" 
+                    <select name="brand"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                         <option value="">Select Brand</option>
                         {% for brand in brands %}
@@ -92,31 +102,31 @@
                         {% endfor %}
                     </select>
                 </div>
-                
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">SKU</label>
                     <input type="text" name="sku" placeholder="Leave empty for auto-generation"
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                 </div>
-                
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Price (USD) *</label>
-                    <input type="number" name="price" step="0.01" required 
+                    <input type="number" name="price" step="0.01" required
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                 </div>
-                
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Compare Price (Optional)</label>
-                    <input type="number" name="compare_price" step="0.01" 
+                    <input type="number" name="compare_price" step="0.01"
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                 </div>
-                
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Stock Quantity</label>
-                    <input type="number" name="stock_quantity" value="0" 
+                    <input type="number" name="stock_quantity" value="0"
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                 </div>
-                
+
                 <div class="flex gap-4 items-center">
                     <label class="flex items-center gap-2">
                         <input type="checkbox" name="is_featured" class="rounded border-gray-300">
@@ -129,10 +139,10 @@
                 </div>
             </div>
         </div>
-        
-        <!-- Product Images (Up to 10) -->
-        <div class="border-b border-gray-200 pb-4">
-            <h2 class="text-xl font-semibold mb-4">Product Images (Up to 10)</h2>
+
+	        <!-- Product Images -->
+	        <div class="border-b border-gray-200 pb-4">
+	            <h2 class="text-xl font-semibold mb-4">Product Images</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Main Image *</label>
@@ -140,15 +150,15 @@
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Additional Images (Select up to 9)</label>
-                    <input type="file" name="additional_images" multiple accept="image/*" 
-                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                    <p class="text-xs text-gray-500 mt-1">You can select multiple images at once. Max 9 additional images.</p>
+	                    <label class="block text-sm font-medium text-gray-700 mb-2">Additional Images</label>
+	                    <input type="file" name="additional_images" multiple accept="image/*"
+	                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+	                    <p class="text-xs text-gray-500 mt-1">You can select multiple images at once. Your plan allows {{ subscription_limits.max_images_per_product }} additional images.</p>
                 </div>
             </div>
             <div id="imagePreviewContainer" class="mt-4 flex flex-wrap gap-2"></div>
         </div>
-        
+
         <!-- Product Video -->
         <div class="border-b border-gray-200 pb-4">
             <h2 class="text-xl font-semibold mb-4">Product Video</h2>
@@ -163,53 +173,53 @@
                 </div>
                 <div id="youtubeUrlDiv" style="display: none;">
                     <label class="block text-sm font-medium text-gray-700 mb-2">YouTube URL</label>
-                    <input type="url" name="youtube_url" placeholder="https://www.youtube.com/watch?v=..." 
+                    <input type="url" name="youtube_url" placeholder="https://www.youtube.com/watch?v=..."
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg">
                 </div>
                 <div id="localVideoDiv" style="display: none;">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Local Video File (MP4)</label>
-                    <input type="file" name="local_video" accept="video/mp4" 
+                    <input type="file" name="local_video" accept="video/mp4"
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg">
                     <p class="text-xs text-gray-500 mt-1">Upload MP4 video file. Max size: 50MB</p>
                 </div>
             </div>
         </div>
-        
+
         <!-- Product Variants with Images -->
         <div class="border-b border-gray-200 pb-4">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-semibold">Product Variants (Optional)</h2>
-                <button type="button" onclick="addVariantRow()" class="bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700">
-                    <i class="fas fa-plus"></i> Add Variant
-                </button>
+	                <button type="button" onclick="addVariantRow()" class="bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700">
+	                    <i class="fas fa-plus"></i> Add Variant
+	                </button>
             </div>
             <div id="variants-container" class="space-y-3">
                 <!-- Variant rows will be added here -->
             </div>
         </div>
-        
+
         <!-- Description -->
         <div class="border-b border-gray-200 pb-4">
             <h2 class="text-xl font-semibold mb-4">Description & SEO</h2>
             <div class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                    <textarea name="description" rows="6" 
+                    <textarea name="description" rows="6"
                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"></textarea>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Meta Title</label>
-                    <input type="text" name="meta_title" 
+                    <input type="text" name="meta_title"
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Meta Description</label>
-                    <textarea name="meta_description" rows="3" 
+                    <textarea name="meta_description" rows="3"
                               class="w-full px-4 py-2 border border-gray-300 rounded-lg"></textarea>
                 </div>
             </div>
         </div>
-        
+
         <div class="flex justify-end gap-4 pt-4">
             <a href="{% url 'dashboard:vendor_products' %}" class="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition">
                 Cancel
@@ -227,7 +237,7 @@ document.querySelector('input[name="additional_images"]').addEventListener('chan
     const container = document.getElementById('imagePreviewContainer');
     container.innerHTML = '';
     const files = Array.from(e.target.files);
-    
+
     files.forEach((file, index) => {
         if (file.type.startsWith('image/')) {
             const reader = new FileReader();
@@ -249,10 +259,10 @@ document.querySelector('input[name="additional_images"]').addEventListener('chan
 document.getElementById('videoType').addEventListener('change', function() {
     const youtubeDiv = document.getElementById('youtubeUrlDiv');
     const localDiv = document.getElementById('localVideoDiv');
-    
+
     youtubeDiv.style.display = 'none';
     localDiv.style.display = 'none';
-    
+
     if (this.value === 'youtube') {
         youtubeDiv.style.display = 'block';
     } else if (this.value === 'local') {
@@ -261,19 +271,34 @@ document.getElementById('videoType').addEventListener('change', function() {
 });
 
 // Variant management
-let variantCount = 0;
+	const variantLimit = {{ subscription_limits.max_variants_per_product }};
+	let variantCount = 0;
 
-function addVariantRow() {
-    const container = document.getElementById('variants-container');
-    const row = document.createElement('div');
-    row.className = 'variant-row grid grid-cols-1 md:grid-cols-6 gap-3';
-    row.innerHTML = `
-        <input type="text" name="variant_type[]" placeholder="Type (Size, Color)" class="px-3 py-2 border rounded">
-        <input type="text" name="variant_value[]" placeholder="Value (L, Red)" class="px-3 py-2 border rounded">
-        <input type="number" name="variant_price[]" placeholder="Price Adj" step="0.01" class="px-3 py-2 border rounded">
-        <input type="number" name="variant_stock[]" placeholder="Stock" class="px-3 py-2 border rounded">
-        <div class="col-span-1">
-            <input type="file" name="variant_image[]" accept="image/*" class="px-3 py-2 border rounded w-full">
+	function addVariantRow() {
+	    if (variantLimit !== -1 && document.querySelectorAll('.variant-row').length >= variantLimit) {
+	        alert(`Your current plan allows ${variantLimit} variants per product.`);
+	        return;
+	    }
+	    const container = document.getElementById('variants-container');
+	    const row = document.createElement('div');
+	    row.className = 'variant-row grid grid-cols-1 md:grid-cols-7 gap-3';
+	    row.innerHTML = `
+	        <select name="variant_type[]" class="px-3 py-2 border rounded">
+	            <option value="size">Size</option>
+	            <option value="color">Color</option>
+	            <option value="material">Material</option>
+	            <option value="capacity">Capacity</option>
+	            <option value="style">Style</option>
+	            <option value="finish">Finish</option>
+	            <option value="pattern">Pattern</option>
+	            <option value="other">Other</option>
+	        </select>
+	        <input type="text" name="variant_value[]" placeholder="Value (L, Red)" class="px-3 py-2 border rounded">
+	        <input type="number" name="variant_price[]" placeholder="Price Adj" step="0.01" class="px-3 py-2 border rounded">
+	        <input type="number" name="variant_stock[]" placeholder="Stock" class="px-3 py-2 border rounded">
+	        <input type="text" name="variant_color_code[]" placeholder="#000000 for colors" class="px-3 py-2 border rounded">
+	        <div class="col-span-1">
+	            <input type="file" name="variant_image[]" accept="image/*" class="px-3 py-2 border rounded w-full">
         </div>
         <button type="button" onclick="this.parentElement.remove()" class="bg-red-500 text-white px-3 py-2 rounded hover:bg-red-600">
             <i class="fas fa-trash"></i> Remove

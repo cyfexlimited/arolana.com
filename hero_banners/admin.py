@@ -1,9 +1,23 @@
 from django.contrib import admin
+from django import forms
 from django.utils.html import format_html
 from .models import HeroBanner, HeroBannerAnalytics
 
+class HeroBannerAdminForm(forms.ModelForm):
+    class Meta:
+        model = HeroBanner
+        fields = '__all__'
+        widgets = {
+            'overlay_opacity': forms.NumberInput(attrs={
+                'min': '0',
+                'max': '1',
+                'step': '0.05',
+            }),
+        }
+
 @admin.register(HeroBanner)
 class HeroBannerAdmin(admin.ModelAdmin):
+    form = HeroBannerAdminForm
     list_display = ['title', 'display_order', 'is_active', 'image_preview', 'views_count', 'clicks_count']
     list_editable = ['display_order', 'is_active']
     list_filter = ['is_active']
@@ -23,10 +37,13 @@ class HeroBannerAdmin(admin.ModelAdmin):
         }),
         ('Buttons', {
             'fields': (('button1_text', 'button1_url', 'button1_style'), 
-                      ('button2_text', 'button2_url', 'button2_style'))
+                      ('button2_text', 'button2_url', 'button2_style'),
+                      ('button3_text', 'button3_url', 'button3_style')),
+            'description': 'Leave the button text or URL empty to hide that button. A # URL is treated as hidden.'
         }),
         ('Styling', {
             'fields': ('overlay_color', 'overlay_opacity', 'text_color', 'text_alignment', 'content_position'),
+            'description': 'Overlay opacity is controlled here: 0 = no overlay, 1 = fully dark.',
             'classes': ('collapse',)
         }),
         ('Scheduling', {

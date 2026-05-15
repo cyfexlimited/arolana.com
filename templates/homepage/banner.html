@@ -20,7 +20,7 @@
                                         <source src="{{ banner.left_video.url }}" type="video/mp4">
                                     </video>
                                 {% elif banner.left_image %}
-                                    <img src="{{ banner.left_image.url }}" alt="Left banner" class="max-h-64 w-auto rounded-lg shadow-lg hover:scale-105 transition-transform duration-300">
+                                    <img src="{{ banner.left_image }}" alt="Left banner" class="max-h-64 w-auto rounded-lg shadow-lg hover:scale-105 transition-transform duration-300" loading="lazy">
                                 {% endif %}
                             </div>
                             
@@ -54,7 +54,7 @@
                                         <source src="{{ banner.right_video.url }}" type="video/mp4">
                                     </video>
                                 {% elif banner.right_image %}
-                                    <img src="{{ banner.right_image.url }}" alt="Right banner" class="max-h-64 w-auto rounded-lg shadow-lg hover:scale-105 transition-transform duration-300">
+                                    <img src="{{ banner.right_image }}" alt="Right banner" class="max-h-64 w-auto rounded-lg shadow-lg hover:scale-105 transition-transform duration-300" loading="lazy">
                                 {% endif %}
                             </div>
                         </div>

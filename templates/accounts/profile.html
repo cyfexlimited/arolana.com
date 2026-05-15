@@ -1,54 +1,136 @@
 {% extends 'base/base.html' %}
 
+{% block title %}My Profile | Arolana{% endblock %}
+
 {% block content %}
-<div class="max-w-4xl mx-auto">
-    <h1 class="text-3xl font-bold mb-8">My Profile</h1>
-    
-    <div class="bg-white rounded-lg shadow-md overflow-hidden">
-        <div class="bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white">
-            <div class="flex items-center gap-6">
-                {% if user.avatar %}
-                    <img src="{{ user.avatar.url }}" class="w-24 h-24 rounded-full border-4 border-white object-cover">
-                {% else %}
-                    <div class="w-24 h-24 bg-white rounded-full flex items-center justify-center">
-                        <i class="fas fa-user text-4xl text-blue-600"></i>
+<section class="bg-gray-50 py-10">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
+            <div class="bg-gray-950 text-white p-6 sm:p-8">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+                    <div class="flex items-center gap-5 min-w-0">
+                        {% if user.avatar %}
+                            <img src="{{ user.avatar.url }}" class="w-20 h-20 rounded-full border-4 border-white object-cover" alt="{{ user.username }}">
+                        {% else %}
+                            <div class="w-20 h-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
+                                <i class="fas fa-user text-3xl text-yellow-300"></i>
+                            </div>
+                        {% endif %}
+                        <div class="min-w-0">
+                            <p class="text-sm text-yellow-300 font-semibold uppercase tracking-wide">{{ user.get_user_type_display }}</p>
+                            <h1 class="text-3xl font-bold truncate">{{ user.get_full_name|default:user.username }}</h1>
+                            <p class="text-gray-300 truncate">{{ user.email }}</p>
+                        </div>
                     </div>
-                {% endif %}
-                <div>
-                    <h2 class="text-2xl font-bold">{{ user.username }}</h2>
-                    <p>{{ user.email }}</p>
-                    <p class="text-sm opacity-90 mt-1">Member since {{ user.date_joined|date }}</p>
+                    <div class="flex flex-wrap gap-3">
+                        <a href="{% url 'accounts:edit_profile' %}" class="inline-flex items-center gap-2 rounded-lg bg-white text-gray-950 px-4 py-2 font-semibold hover:bg-gray-100">
+                            <i class="fas fa-pen"></i>
+                            Edit Profile
+                        </a>
+                        <a href="{% url 'accounts:security_settings' %}" class="inline-flex items-center gap-2 rounded-lg border border-white/30 px-4 py-2 font-semibold hover:bg-white/10">
+                            <i class="fas fa-shield-halved"></i>
+                            Security
+                        </a>
+                    </div>
                 </div>
             </div>
-        </div>
-        
-        <div class="p-6">
-            <h3 class="font-semibold text-lg mb-4">Account Information</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <p class="text-gray-500 text-sm">First Name</p>
-                    <p>{{ user.first_name|default:"Not set" }}</p>
+
+            <div class="p-6 sm:p-8 grid lg:grid-cols-[1fr_0.9fr] gap-8">
+                <div class="space-y-6">
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-950 mb-4">Account Information</h2>
+                        <div class="grid sm:grid-cols-2 gap-4">
+                            <div class="rounded-lg border border-gray-200 p-4">
+                                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">First name</p>
+                                <p class="mt-1 text-gray-950">{{ user.first_name|default:"Not set" }}</p>
+                            </div>
+                            <div class="rounded-lg border border-gray-200 p-4">
+                                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Last name</p>
+                                <p class="mt-1 text-gray-950">{{ user.last_name|default:"Not set" }}</p>
+                            </div>
+                            <div class="rounded-lg border border-gray-200 p-4">
+                                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Phone</p>
+                                <p class="mt-1 text-gray-950">{{ user.phone_number|default:"Not set" }}</p>
+                            </div>
+                            <div class="rounded-lg border border-gray-200 p-4">
+                                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Joined</p>
+                                <p class="mt-1 text-gray-950">{{ user.date_joined|date:"M d, Y" }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if vendor_profile %}
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-950 mb-4">Seller Verification</h2>
+                        <div class="rounded-lg border border-gray-200 p-5">
+                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                <div>
+                                    <p class="font-semibold text-gray-950">{{ vendor_profile.store_name }}</p>
+                                    <p class="text-sm text-gray-500">KYC status: {{ vendor_profile.get_kyc_status_display }}</p>
+                                    <p class="text-sm text-gray-500">Subscription: {{ vendor_profile.get_subscription_display.text }}</p>
+                                </div>
+                                {% if vendor_profile.has_verified_kyc %}
+                                    <span class="inline-flex items-center gap-2 rounded-full bg-green-100 text-green-700 px-3 py-1 text-sm font-semibold">
+                                        <i class="fas fa-check-circle"></i>
+                                        Verified
+                                    </span>
+                                {% else %}
+                                    <a href="{% url 'kyc:dashboard' %}" class="inline-flex items-center justify-center gap-2 rounded-lg bg-yellow-500 px-4 py-2 font-semibold text-gray-950 hover:bg-yellow-400">
+                                        <i class="fas fa-id-card"></i>
+                                        Complete KYC
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
-                <div>
-                    <p class="text-gray-500 text-sm">Last Name</p>
-                    <p>{{ user.last_name|default:"Not set" }}</p>
+
+                <div class="space-y-6">
+                    <div class="rounded-lg border border-gray-200 p-5">
+                        <h2 class="text-lg font-bold text-gray-950">Verification</h2>
+                        <div class="mt-4 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-700">Email</span>
+                                {% if user.email_verified %}
+                                    <span class="text-sm font-semibold text-green-700">Verified</span>
+                                {% else %}
+                                    <a href="{% url 'accounts:verify_email' %}" class="text-sm font-semibold text-blue-700 hover:underline">Verify now</a>
+                                {% endif %}
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-700">Phone</span>
+                                {% if user.phone_verified %}
+                                    <span class="text-sm font-semibold text-green-700">Verified</span>
+                                {% elif user.phone_number %}
+                                    <a href="{% url 'accounts:verify_phone' %}" class="text-sm font-semibold text-blue-700 hover:underline">Verify now</a>
+                                {% else %}
+                                    <a href="{% url 'accounts:edit_profile' %}" class="text-sm font-semibold text-blue-700 hover:underline">Add phone</a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-lg border border-gray-200 p-5">
+                        <h2 class="text-lg font-bold text-gray-950">Quick Links</h2>
+                        <div class="mt-4 grid gap-3">
+                            <a href="{% url 'accounts:addresses' %}" class="flex items-center justify-between rounded-lg bg-gray-50 px-4 py-3 text-gray-800 hover:bg-gray-100">
+                                Addresses <i class="fas fa-chevron-right text-gray-400"></i>
+                            </a>
+                            <a href="{% url 'accounts:subscriptions' %}" class="flex items-center justify-between rounded-lg bg-gray-50 px-4 py-3 text-gray-800 hover:bg-gray-100">
+                                Email preferences <i class="fas fa-chevron-right text-gray-400"></i>
+                            </a>
+                            <a href="{% url 'notifications:list' %}" class="flex items-center justify-between rounded-lg bg-gray-50 px-4 py-3 text-gray-800 hover:bg-gray-100">
+                                Notifications <i class="fas fa-chevron-right text-gray-400"></i>
+                            </a>
+                            <a href="{% url 'accounts:logout' %}" class="flex items-center justify-between rounded-lg bg-red-50 px-4 py-3 text-red-700 hover:bg-red-100">
+                                Logout <i class="fas fa-right-from-bracket"></i>
+                            </a>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <p class="text-gray-500 text-sm">Phone Number</p>
-                    <p>{{ user.phone_number|default:"Not set" }}</p>
-                </div>
-                <div>
-                    <p class="text-gray-500 text-sm">Account Type</p>
-                    <p class="capitalize">{{ user.user_type }}</p>
-                </div>
-            </div>
-            
-            <div class="mt-6 pt-6 border-t">
-                <a href="/accounts/logout/" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">
-                    Logout
-                </a>
             </div>
         </div>
     </div>
-</div>
+</section>
 {% endblock %}

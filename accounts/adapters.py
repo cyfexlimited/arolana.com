@@ -1,8 +1,9 @@
 from allauth.account.adapter import DefaultAccountAdapter
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
+from django import forms
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.urls import reverse
-from django.shortcuts import redirect
 
 User = get_user_model()
 
@@ -45,6 +46,25 @@ class CustomAccountAdapter(DefaultAccountAdapter):
 
 class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
     """Custom social account adapter for Arolana"""
+
+    def list_apps(self, request, provider=None, client_id=None):
+        """Prefer Railway/env Google credentials over stale database SocialApps."""
+        apps = super().list_apps(request, provider=provider, client_id=client_id)
+        google_client_id = getattr(settings, 'GOOGLE_OAUTH_CLIENT_ID', '')
+        google_secret = getattr(settings, 'GOOGLE_OAUTH_CLIENT_SECRET', '')
+        if not google_client_id or not google_secret:
+            return apps
+
+        filtered_apps = []
+        google_app_added = False
+        for app in apps:
+            if app.provider != 'google':
+                filtered_apps.append(app)
+                continue
+            if app.client_id == google_client_id and not google_app_added:
+                filtered_apps.append(app)
+                google_app_added = True
+        return filtered_apps
     
     def pre_social_login(self, request, sociallogin):
         """Handle pre-social login"""
@@ -62,6 +82,42 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
         if 'email' in data:
             user.email = data['email']
         
+        return user
+
+    def save_user(self, request, sociallogin, form=None):
+        """Create a complete Arolana customer account from Google signup."""
+        user = super().save_user(request, sociallogin, form)
+        provider = getattr(sociallogin.account, 'provider', '')
+
+        if provider == 'google':
+            user.google_id = sociallogin.account.uid
+
+        if not user.user_type:
+            user.user_type = 'customer'
+
+        verified_social_email = any(
+            address.email.lower() == user.email.lower() and address.verified
+            for address in getattr(sociallogin, 'email_addresses', [])
+            if address.email and user.email
+        )
+        if provider == 'google' or verified_social_email:
+            user.email_verified = True
+
+        user.save(update_fields=['google_id', 'user_type', 'email_verified', 'updated_at'])
+
+        from .models import UserProfile
+        from .utils.messaging import send_registration_messages, sync_newsletter_subscriber
+
+        UserProfile.objects.get_or_create(
+            user=user,
+            defaults={
+                'newsletter_subscription': True,
+                'promo_emails': True,
+                'marketing_emails': True,
+            }
+        )
+        sync_newsletter_subscriber(user, subscribe=True, source=provider or 'social')
+        send_registration_messages(user, request)
         return user
     
     def get_connect_redirect_url(self, request, socialaccount):

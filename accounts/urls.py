@@ -28,6 +28,7 @@ path('password/reset/', RedirectView.as_view(url='/accounts/forgot-password/', p
     path('disable-2fa/', views.disable_2fa, name='disable_2fa'),
     path('verify-2fa/', views.verify_2fa, name='verify_2fa'),
     path('verify-email/', views.verify_email, name='verify_email'),
+    path('verify-phone/', views.verify_phone, name='verify_phone'),
     path('resend-verification/', views.resend_verification_email, name='resend_verification'),
     path('logout-all-devices/', views.logout_all_devices, name='logout_all_devices'),
     path('session-activity/', views.session_activity, name='session_activity'),
@@ -68,4 +69,6 @@ path('password/reset/', RedirectView.as_view(url='/accounts/forgot-password/', p
     path('wishlist-count/', views.wishlist_count, name='wishlist_count'),
     path('recent-activity-api/', views.recent_activity_api, name='recent_activity_api'),
     path('social-apps-status/', views.social_apps_status, name='social_apps_status'),
+    path('check-username/', views.check_username, name='check_username'),
+    path('check-email/', views.check_email, name='check_email'),
 ]

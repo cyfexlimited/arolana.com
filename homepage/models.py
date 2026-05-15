@@ -2,6 +2,7 @@ from django.db import models
 from core.models import BaseModel
 from products.models import Category, Product
 from vendors.models import VendorProfile
+import re
 
 class HomepageCategory(BaseModel):
     """Manageable category section on homepage"""
@@ -76,16 +77,17 @@ class HomepageSection(BaseModel):
     
     def get_products(self):
         """Get products based on section type - APPROVED ONLY"""
+        queryset = Product.objects.filter(is_active=True, approval_status='approved').select_related('category', 'brand')
         if self.section_type == 'featured':
-            return Product.objects.filter(is_featured=True, is_active=True, approval_status='approved')[:self.products_limit]
+            return queryset.filter(is_featured=True)[:self.products_limit]
         elif self.section_type == 'new':
-            return Product.objects.filter(is_new=True, is_active=True, approval_status='approved')[:self.products_limit]
+            return queryset.filter(is_new=True)[:self.products_limit]
         elif self.section_type == 'bestsellers':
-            return Product.objects.filter(is_bestseller=True, is_active=True, approval_status='approved')[:self.products_limit]
+            return queryset.filter(is_bestseller=True)[:self.products_limit]
         elif self.section_type == 'trending':
-            return Product.objects.filter(is_active=True, approval_status='approved').order_by('-sales_count')[:self.products_limit]
+            return queryset.order_by('-sales_count')[:self.products_limit]
         else:
-            return Product.objects.filter(is_active=True, approval_status='approved')[:self.products_limit]
+            return queryset[:self.products_limit]
 
 class HomepageVendorSettings(BaseModel):
     """Settings for vendor carousel on homepage"""
@@ -184,6 +186,10 @@ class HomepageVideoSection(BaseModel):
     # YouTube settings
     youtube_url = models.URLField(blank=True, help_text="YouTube video URL")
     youtube_id = models.CharField(max_length=100, blank=True, help_text="YouTube video ID (auto-extracted)")
+
+    # Vimeo settings
+    vimeo_url = models.URLField(blank=True, help_text="Vimeo video URL")
+    vimeo_id = models.CharField(max_length=100, blank=True, help_text="Vimeo video ID (auto-extracted)")
     
     # Local video settings (for offline use)
     local_video = models.FileField(
@@ -208,6 +214,20 @@ class HomepageVideoSection(BaseModel):
         ('right', 'Right Aligned'),
     ]
     position = models.CharField(max_length=20, choices=POSITION_CHOICES, default='center')
+
+    INFO_POSITION_CHOICES = [
+        ('right', 'Info on Right'),
+        ('left', 'Info on Left'),
+        ('top', 'Info Above Video'),
+        ('bottom', 'Info Below Video'),
+        ('hidden', 'Hide Info'),
+    ]
+    info_position = models.CharField(
+        max_length=20,
+        choices=INFO_POSITION_CHOICES,
+        default='right',
+        help_text="Choose where title, subtitle, and button appear relative to the video.",
+    )
     
     # Display options
     video_width = models.CharField(max_length=20, default="100%", help_text="Video width (e.g., 800, 100%, 80%)")
@@ -239,13 +259,41 @@ class HomepageVideoSection(BaseModel):
         verbose_name_plural = "Homepage Video Sections"
     
     def save(self, *args, **kwargs):
-        # Extract YouTube video ID from URL
-        if self.youtube_url and 'youtube.com' in self.youtube_url:
-            if 'v=' in self.youtube_url:
-                self.youtube_id = self.youtube_url.split('v=')[1].split('&')[0]
-            elif 'youtu.be/' in self.youtube_url:
-                self.youtube_id = self.youtube_url.split('youtu.be/')[1].split('?')[0]
+        if self.youtube_url:
+            self.youtube_id = self.extract_youtube_id(self.youtube_url)
+        if self.vimeo_url:
+            self.vimeo_id = self.extract_vimeo_id(self.vimeo_url)
         super().save(*args, **kwargs)
+
+    @staticmethod
+    def extract_youtube_id(url):
+        if re.match(r'^[a-zA-Z0-9_-]{11}$', url or ''):
+            return url
+
+        patterns = [
+            r'youtube\.com/watch\?(?:.*&)?v=([\w-]+)',
+            r'youtu\.be/([\w-]+)',
+            r'youtube\.com/embed/([\w-]+)',
+            r'youtube\.com/shorts/([\w-]+)',
+            r'youtube\.com/live/([\w-]+)',
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, url or '')
+            if match:
+                return match.group(1)
+        return ''
+
+    @staticmethod
+    def extract_vimeo_id(url):
+        patterns = [
+            r'vimeo\.com/(\d+)',
+            r'player\.vimeo\.com/video/(\d+)',
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, url or '')
+            if match:
+                return match.group(1)
+        return ''
     
     def get_video_url(self):
         """Get the appropriate video URL based on source"""
@@ -253,36 +301,44 @@ class HomepageVideoSection(BaseModel):
             return self.get_embed_url()
         elif self.video_source == 'local' and self.local_video:
             return self.local_video.url
+        elif self.video_source == 'vimeo' and self.vimeo_id:
+            return self.get_embed_url()
         return None
+
+    @property
+    def video_width_css(self):
+        width = (self.video_width or '100%').strip()
+        return f"{width}px" if width.isdigit() else width
     
     def get_embed_url(self):
         """Get the embed URL with parameters - with themed player"""
-        if not self.youtube_id:
+        if self.video_source == 'youtube' and self.youtube_id:
+            params = []
+            if self.autoplay:
+                params.append('autoplay=1')
+            if self.loop:
+                params.append(f'loop=1&playlist={self.youtube_id}')
+            if not self.show_controls:
+                params.append('controls=0')
+            if self.modestbranding:
+                params.append('modestbranding=1')
+            if not self.rel:
+                params.append('rel=0')
+            params.extend(['playsinline=1', 'enablejsapi=1', 'fs=1', 'iv_load_policy=3'])
+            embed_url = f"https://www.youtube-nocookie.com/embed/{self.youtube_id}"
+        elif self.video_source == 'vimeo' and self.vimeo_id:
+            params = []
+            if self.autoplay:
+                params.append('autoplay=1')
+            if self.loop:
+                params.append('loop=1')
+            params.append('title=0')
+            params.append('byline=0')
+            params.append('portrait=0')
+            embed_url = f"https://player.vimeo.com/video/{self.vimeo_id}"
+        else:
             return None
-        
-        params = []
-        
-        # Basic parameters
-        if self.autoplay:
-            params.append('autoplay=1')
-        if self.loop:
-            params.append('loop=1')
-        if not self.show_controls:
-            params.append('controls=0')
-        if self.modestbranding:
-            params.append('modestbranding=1')
-        if not self.rel:
-            params.append('rel=0')
-        
-        # Additional parameters for better playback and theming
-        params.append('playsinline=1')
-        params.append('enablejsapi=1')
-        params.append('color=white')
-        params.append('theme=light')
-        params.append('fs=1')
-        params.append('iv_load_policy=3')
-        
-        embed_url = f"https://www.youtube-nocookie.com/embed/{self.youtube_id}"
+
         if params:
             embed_url += "?" + "&".join(params)
         return embed_url

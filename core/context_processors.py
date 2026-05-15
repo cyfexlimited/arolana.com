@@ -1,41 +1,117 @@
 from core.models import SiteSettings
+from django.db.models import Count, Prefetch, Q, Sum
 from products.models import Category, Product
 from vendors.models import VendorProfile
 from manufacturers.models import Manufacturer, ManufacturerCategory
-from django.db.models import Q
 import random
 from django.conf import settings
+from core.local_cache import local_get_or_set
+
+
+GLOBAL_CONTEXT_CACHE_TIMEOUT = 300
+
+
+def _cached(key, builder, timeout=GLOBAL_CONTEXT_CACHE_TIMEOUT):
+    return local_get_or_set(key, builder, timeout)
+
+
+def _main_categories():
+    grandchild_queryset = Category.objects.filter(is_active=True).order_by('order', 'name')
+    child_queryset = (
+        Category.objects
+        .filter(is_active=True)
+        .annotate(active_child_count=Count('children', filter=Q(children__is_active=True)))
+        .prefetch_related(Prefetch('children', queryset=grandchild_queryset))
+        .order_by('order', 'name')
+    )
+    return list(
+        Category.objects
+        .filter(parent=None, is_active=True)
+        .annotate(active_child_count=Count('children', filter=Q(children__is_active=True)))
+        .prefetch_related(Prefetch('children', queryset=child_queryset))
+        .order_by('order', 'name')
+    )
 
 def global_context(request):
     """Global context for all templates"""
-    # Get or create site settings
-    site_settings = SiteSettings.objects.first()
-    if not site_settings:
-        site_settings = SiteSettings.objects.create()
+    def build_site_settings():
+        site_settings = SiteSettings.objects.first()
+        if not site_settings:
+            site_settings = SiteSettings.objects.create()
+        return site_settings
+
+    site_settings = _cached('global_context:site_settings', build_site_settings)
     
     # Get featured products (limit to 8)
-    featured_products = Product.objects.filter(is_featured=True, is_active=True)[:8]
+    featured_products = _cached(
+        'global_context:featured_products',
+        lambda: list(
+            Product.objects
+            .filter(is_featured=True, is_active=True, approval_status='approved')
+            .select_related('category', 'brand')
+            .order_by('-created_at')[:8]
+        ),
+    )
     
     # Get verified vendors and SHUFFLE them for variety
-    vendors = list(VendorProfile.objects.filter(is_verified=True, is_active=True))
+    vendors = _cached(
+        'global_context:verified_vendors',
+        lambda: list(VendorProfile.objects.filter(is_verified=True, is_active=True)),
+    )
+    vendors = list(vendors)
     random.shuffle(vendors)
     vendors = vendors[:4]
     
     # Get ALL top-level categories for mega menu
-    main_categories = Category.objects.filter(parent=None, is_active=True).order_by('order', 'name')
+    main_categories = _cached('global_context:main_categories', _main_categories)
     
     # Top rated vendors for mega menu dropdown
-    top_vendors = VendorProfile.objects.filter(is_verified=True, is_active=True).order_by('-rating_avg')[:5]
+    top_vendors = _cached(
+        'global_context:top_vendors',
+        lambda: list(VendorProfile.objects.filter(is_verified=True, is_active=True).order_by('-rating_avg')[:5]),
+    )
     
     # Trending vendors for mega menu dropdown
-    trending_vendors = VendorProfile.objects.filter(is_verified=True, is_active=True).order_by('-total_sales')[:5]
+    trending_vendors = _cached(
+        'global_context:trending_vendors',
+        lambda: list(VendorProfile.objects.filter(is_verified=True, is_active=True).order_by('-total_sales')[:5]),
+    )
     
     # Get manufacturer categories for mega menu and homepage
-    manufacturer_categories = ManufacturerCategory.objects.filter(is_active=True).order_by('display_order', 'name')
+    manufacturer_categories = _cached(
+        'global_context:manufacturer_categories',
+        lambda: list(ManufacturerCategory.objects.filter(is_active=True).order_by('display_order', 'name')),
+    )
     
     # Get featured manufacturers
-    featured_manufacturers = Manufacturer.objects.filter(is_featured=True, is_active=True)[:4]
+    featured_manufacturers = _cached(
+        'global_context:featured_manufacturers',
+        lambda: list(Manufacturer.objects.filter(is_featured=True, is_active=True)[:4]),
+    )
     
+    notification_unread_count = 0
+    recent_user_notifications = []
+    chat_unread_count = 0
+    if request.user.is_authenticated:
+        try:
+            from notifications.models import Notification
+            user_notifications = Notification.objects.filter(user=request.user, is_archived=False)
+            notification_unread_count = user_notifications.filter(is_read=False).count()
+            recent_user_notifications = list(user_notifications.order_by('-created_at')[:5])
+        except Exception:
+            notification_unread_count = 0
+            recent_user_notifications = []
+        try:
+            from chat.models import ChatRoom, VendorChatRoom
+            direct_unread = 0
+            for room in ChatRoom.objects.filter(participants=request.user, is_active=True):
+                direct_unread += room.get_unread_count(request.user)
+            vendor_unread = VendorChatRoom.objects.filter(customer=request.user, is_active=True).aggregate(total=Sum('customer_unread'))['total'] or 0
+            seller_unread = VendorChatRoom.objects.filter(vendor=request.user, is_active=True).aggregate(total=Sum('vendor_unread'))['total'] or 0
+            chat_unread_count = direct_unread + vendor_unread + seller_unread
+        except Exception:
+            chat_unread_count = 0
+
     return {
         'site_settings': site_settings,
         'featured_products': featured_products,
@@ -47,6 +123,9 @@ def global_context(request):
         'featured_manufacturers': featured_manufacturers,
         'DEBUG': settings.DEBUG,
         'SITE_URL': getattr(settings, 'SITE_URL', 'http://localhost:8000'),
+        'notification_unread_count': notification_unread_count,
+        'recent_user_notifications': recent_user_notifications,
+        'chat_unread_count': chat_unread_count,
     }
 
 def admin_notifications(request):

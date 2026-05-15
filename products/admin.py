@@ -51,14 +51,30 @@ class ProductImageInline(admin.TabularInline):
 class ProductVariantInline(admin.TabularInline):
     model = ProductVariant
     extra = 1
-    fields = ['variant_type', 'name', 'value', 'price_adjustment', 'stock_quantity', 'is_active']
+    fields = ['variant_type', 'name', 'value', 'price_adjustment', 'stock_quantity', 'image', 'color_code', 'is_active']
     readonly_fields = ['sku']
+
+
+class ProductVariantImageInline(admin.TabularInline):
+    model = ProductVariantImage
+    extra = 1
+    fields = ['image', 'alt_text', 'is_main', 'order', 'image_preview']
+    readonly_fields = ['image_preview']
+
+    def image_preview(self, obj):
+        if obj.image:
+            return format_html(
+                '<img src="{}" width="64" height="64" style="object-fit: cover; border-radius: 4px;" />',
+                obj.image.url
+            )
+        return mark_safe('<span style="color: #9ca3af;">No Image</span>')
+    image_preview.short_description = 'Preview'
 
 
 class ProductVideoInline(admin.TabularInline):
     model = ProductVideo
     extra = 1
-    fields = ['title', 'source', 'youtube_url', 'vimeo_url', 'local_video', 'is_main', 'display_order']
+    fields = ['title', 'description', 'source', 'youtube_url', 'vimeo_url', 'local_video', 'thumbnail', 'is_main', 'display_order']
 
 
 class AccessoryInline(admin.TabularInline):
@@ -423,12 +439,13 @@ class ProductImageAdmin(admin.ModelAdmin):
 
 @admin.register(ProductVariant)
 class ProductVariantAdmin(admin.ModelAdmin):
-    list_display = ['product_name', 'variant_type', 'value', 'sku', 'price_adjustment', 'stock_quantity', 'is_active']
+    list_display = ['product_name', 'variant_type', 'value', 'sku', 'price_adjustment', 'stock_quantity', 'color_swatch', 'is_active']
     list_filter = ['variant_type', 'is_active', 'created_at']
     search_fields = ['sku', 'value', 'product__name']
     list_editable = ['price_adjustment', 'stock_quantity', 'is_active']
     readonly_fields = ['sku', 'created_at', 'updated_at']
     list_select_related = ['product']
+    inlines = [ProductVariantImageInline]
     
     def product_name(self, obj):
         return obj.product.name
@@ -445,7 +462,7 @@ class ProductVariantAdmin(admin.ModelAdmin):
             'fields': ('price_adjustment', 'stock_quantity', 'is_active')
         }),
         ('Media', {
-            'fields': ('image',),
+            'fields': ('image', 'color_code'),
             'classes': ('collapse',)
         }),
         ('Timestamps', {
@@ -453,6 +470,15 @@ class ProductVariantAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+    def color_swatch(self, obj):
+        if obj.color_code:
+            return format_html(
+                '<span style="display:inline-block;width:22px;height:22px;border-radius:999px;border:1px solid #d1d5db;background:{};"></span>',
+                obj.color_code
+            )
+        return "-"
+    color_swatch.short_description = 'Color'
 
 
 # =================================

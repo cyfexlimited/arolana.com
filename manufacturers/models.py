@@ -3,6 +3,16 @@ from core.models import BaseModel
 from accounts.models import User
 from products.models import Product, Category
 from django.utils.text import slugify
+from django.utils import timezone
+
+SUBSCRIPTION_TIERS = [
+    ('free', 'Free'),
+    ('basic', 'Basic'),
+    ('plus', 'Plus'),
+    ('pro', 'Pro'),
+    ('special', 'Special'),
+    ('enterprise', 'Enterprise'),
+]
 
 class Manufacturer(BaseModel):
     """Manufacturer/Brand model"""
@@ -33,6 +43,9 @@ class Manufacturer(BaseModel):
     is_featured = models.BooleanField(default=False, help_text="Show on homepage")
     is_active = models.BooleanField(default=True)
     display_order = models.IntegerField(default=0)
+    subscription_tier = models.CharField(max_length=20, choices=SUBSCRIPTION_TIERS, default='free')
+    subscription_expiry = models.DateTimeField(null=True, blank=True)
+    priority_score = models.IntegerField(default=0, help_text="Higher score = better placement")
     
     class Meta:
         ordering = ['display_order', 'name']
@@ -53,11 +66,39 @@ class Manufacturer(BaseModel):
     
     def update_statistics(self):
         """Update manufacturer statistics"""
-        products = Product.objects.filter(manufacturer=self, is_active=True)
+        products = Product.objects.filter(manufacturer_links__manufacturer=self, is_active=True).distinct()
         self.total_products = products.count()
         self.total_sales = products.aggregate(total=models.Sum('sales_count'))['total'] or 0
         self.rating_avg = products.aggregate(avg=models.Avg('rating_avg'))['avg'] or 0
         self.save()
+
+    def get_subscription_display(self):
+        displays = {
+            'free': {'color': 'gray', 'icon': 'fa-user', 'text': 'Free', 'badge_class': 'bg-gray-500'},
+            'basic': {'color': 'blue', 'icon': 'fa-chart-line', 'text': 'Basic', 'badge_class': 'bg-blue-500'},
+            'plus': {'color': 'cyan', 'icon': 'fa-layer-group', 'text': 'Plus', 'badge_class': 'bg-cyan-500'},
+            'pro': {'color': 'purple', 'icon': 'fa-gem', 'text': 'Pro', 'badge_class': 'bg-purple-500'},
+            'special': {'color': 'yellow', 'icon': 'fa-crown', 'text': 'Special', 'badge_class': 'bg-yellow-500'},
+            'enterprise': {'color': 'indigo', 'icon': 'fa-building', 'text': 'Enterprise', 'badge_class': 'bg-indigo-600'},
+        }
+        try:
+            from subscriptions.models import normalize_subscription_tier
+            tier = normalize_subscription_tier(self.subscription_tier)
+        except Exception:
+            tier = self.subscription_tier
+        return displays.get(tier, displays['free'])
+
+    def has_active_subscription(self):
+        try:
+            from subscriptions.models import tier_is_paid, normalize_subscription_tier
+            tier = normalize_subscription_tier(self.subscription_tier)
+            if self.subscription_expiry and self.subscription_expiry <= timezone.now():
+                return False
+            return tier_is_paid(tier)
+        except Exception:
+            if self.subscription_expiry:
+                return self.subscription_expiry > timezone.now() and self.subscription_tier != 'free'
+            return self.subscription_tier != 'free'
 
 class ManufacturerApplication(BaseModel):
     """Vendor applications to represent manufacturers"""

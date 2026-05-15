@@ -20,4 +20,4 @@ cmds = [
 ]
 
 [start]
-cmd = "/opt/venv/bin/python manage.py migrate && /opt/venv/bin/daphne -b 0.0.0.0 -p $PORT arolana_config.asgi:application"
+cmd = "/opt/venv/bin/python manage.py migrate --noinput && /opt/venv/bin/python manage.py setup_google_oauth --from-env && /opt/venv/bin/daphne -b 0.0.0.0 -p $PORT arolana_config.asgi:application"

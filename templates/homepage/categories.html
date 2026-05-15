@@ -1,4 +1,4 @@
-{% load static %}
+{% load static media_optimization %}
 
 {% if categories %}
 <section class="mb-16" data-aos="fade-up">
@@ -17,8 +17,13 @@
             <div class="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
                 <!-- Category Image -->
                 <div class="relative h-44 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
-                    {% if hp_category.image_url %}
-                        <img src="{{ hp_category.image_url }}" alt="{{ hp_category.category.name }}" 
+                    {% if hp_category.category.image or hp_category.image_url %}
+                        {% if hp_category.category.image %}
+                            {% optimized_image_url hp_category.category.image 'category_card' as hp_category_image_url %}
+                        {% else %}
+                            {% optimized_image_url hp_category.image_url 'category_card' as hp_category_image_url %}
+                        {% endif %}
+                        <img src="{{ hp_category_image_url }}" alt="{{ hp_category.category.name }}"
                              class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                              loading="lazy"
                              onerror="this.onerror=null; this.src='https://placehold.co/400x400/3b82f6/white?text={{ hp_category.category.name|urlencode }}';">

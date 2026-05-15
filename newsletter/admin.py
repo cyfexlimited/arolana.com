@@ -1,7 +1,8 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
-from .models import NewsletterSubscriber, NewsletterCampaign, NewsletterTracking
+from .models import EmailAudienceMember, NewsletterSubscriber, NewsletterCampaign, NewsletterTracking
+from .emailing import send_campaign, sync_email_audience
 
 @admin.register(NewsletterSubscriber)
 class NewsletterSubscriberAdmin(admin.ModelAdmin):
@@ -33,24 +34,59 @@ class NewsletterSubscriberAdmin(admin.ModelAdmin):
         return response
     export_subscribers.short_description = "Export selected subscribers"
 
+@admin.register(EmailAudienceMember)
+class EmailAudienceMemberAdmin(admin.ModelAdmin):
+    list_display = ['email', 'name', 'source', 'is_active', 'accepts_promos', 'last_synced_at']
+    list_filter = ['source', 'is_active', 'accepts_promos', 'last_synced_at']
+    search_fields = ['email', 'name', 'user__email', 'subscriber__email']
+    list_editable = ['is_active', 'accepts_promos']
+    actions = ['sync_all_emails', 'activate_members', 'deactivate_members', 'export_members']
+
+    def sync_all_emails(self, request, queryset):
+        count = sync_email_audience()
+        self.message_user(request, f'Synced {count} registered/newsletter email record(s) into the email audience box.')
+    sync_all_emails.short_description = 'Sync registered users and newsletter subscribers'
+
+    def activate_members(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f'{updated} email audience member(s) activated.')
+    activate_members.short_description = 'Activate selected emails'
+
+    def deactivate_members(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f'{updated} email audience member(s) deactivated.')
+    deactivate_members.short_description = 'Deactivate selected emails'
+
+    def export_members(self, request, queryset):
+        import csv
+        from django.http import HttpResponse
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="email_audience.csv"'
+        writer = csv.writer(response)
+        writer.writerow(['Email', 'Name', 'Source', 'Active', 'Accepts Promos'])
+        for member in queryset:
+            writer.writerow([member.email, member.name, member.get_source_display(), member.is_active, member.accepts_promos])
+        return response
+    export_members.short_description = 'Export selected email audience'
+
 @admin.register(NewsletterCampaign)
 class NewsletterCampaignAdmin(admin.ModelAdmin):
-    list_display = ['name', 'subject', 'status', 'sent_count', 'open_count', 'click_count', 'created_at']
-    list_filter = ['status', 'created_at']
+    list_display = ['name', 'subject', 'recipient_scope', 'send_frequency', 'status', 'sent_count', 'last_sent_at', 'created_at']
+    list_filter = ['status', 'recipient_scope', 'send_frequency', 'created_at']
     search_fields = ['name', 'subject']
-    readonly_fields = ['sent_count', 'open_count', 'click_count', 'sent_at']
-    actions = ['duplicate_campaign']
+    readonly_fields = ['sent_count', 'open_count', 'click_count', 'sent_at', 'last_sent_at']
+    actions = ['send_selected_campaigns', 'duplicate_campaign']
     
     fieldsets = (
         ('Campaign Information', {
-            'fields': ('name', 'subject', 'status')
+            'fields': ('name', 'subject', 'status', 'recipient_scope', 'send_frequency')
         }),
         ('Content', {
             'fields': ('content', 'html_content'),
             'classes': ('wide',)
         }),
         ('Schedule', {
-            'fields': ('scheduled_at',),
+            'fields': ('scheduled_at', 'last_sent_at'),
             'classes': ('collapse',)
         }),
         ('Statistics', {
@@ -71,6 +107,13 @@ class NewsletterCampaignAdmin(admin.ModelAdmin):
             campaign.save()
         self.message_user(request, f"{queryset.count()} campaign(s) duplicated.")
     duplicate_campaign.short_description = "Duplicate selected campaigns"
+
+    def send_selected_campaigns(self, request, queryset):
+        total = 0
+        for campaign in queryset:
+            total += send_campaign(campaign)
+        self.message_user(request, f'Sent {total} campaign email(s).')
+    send_selected_campaigns.short_description = 'Send selected campaigns now'
 
 @admin.register(NewsletterTracking)
 class NewsletterTrackingAdmin(admin.ModelAdmin):

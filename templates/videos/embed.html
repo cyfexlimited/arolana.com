@@ -7,7 +7,8 @@
             title="{{ video.title }}"
             frameborder="0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowfullscreen>
+            allowfullscreen
+            referrerpolicy="strict-origin-when-cross-origin">
         </iframe>
     {% elif video.video_type == 'vimeo' and video.vimeo_id %}
         <iframe 
@@ -16,7 +17,8 @@
             title="{{ video.title }}"
             frameborder="0"
             allow="autoplay; fullscreen; picture-in-picture"
-            allowfullscreen>
+            allowfullscreen
+            referrerpolicy="strict-origin-when-cross-origin">
         </iframe>
     {% elif video.video_file %}
         <video controls autoplay class="w-full h-full">

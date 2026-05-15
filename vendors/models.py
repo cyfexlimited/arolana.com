@@ -8,9 +8,10 @@ class VendorProfile(BaseModel):
     SUBSCRIPTION_TIERS = [
         ('free', 'Free'),
         ('basic', 'Basic'),
-        ('premium', 'Premium'),
+        ('plus', 'Plus'),
+        ('pro', 'Pro'),
+        ('special', 'Special'),
         ('enterprise', 'Enterprise'),
-        ('featured', 'Featured'),
     ]
     
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='vendor_profile')
@@ -60,28 +61,60 @@ class VendorProfile(BaseModel):
         displays = {
             'free': {'color': 'gray', 'icon': 'fa-user', 'text': 'Free', 'badge_class': 'bg-gray-500'},
             'basic': {'color': 'blue', 'icon': 'fa-chart-line', 'text': 'Basic', 'badge_class': 'bg-blue-500'},
-            'premium': {'color': 'purple', 'icon': 'fa-gem', 'text': 'Premium', 'badge_class': 'bg-purple-500'},
+            'plus': {'color': 'cyan', 'icon': 'fa-layer-group', 'text': 'Plus', 'badge_class': 'bg-cyan-500'},
+            'pro': {'color': 'purple', 'icon': 'fa-gem', 'text': 'Pro', 'badge_class': 'bg-purple-500'},
+            'special': {'color': 'yellow', 'icon': 'fa-crown', 'text': 'Special', 'badge_class': 'bg-yellow-500'},
             'enterprise': {'color': 'indigo', 'icon': 'fa-building', 'text': 'Enterprise', 'badge_class': 'bg-indigo-600'},
-            'featured': {'color': 'yellow', 'icon': 'fa-crown', 'text': 'Featured', 'badge_class': 'bg-yellow-500'},
         }
-        return displays.get(self.subscription_tier, displays['free'])
+        try:
+            from subscriptions.models import normalize_subscription_tier
+            tier = normalize_subscription_tier(self.subscription_tier)
+        except Exception:
+            tier = self.subscription_tier
+        return displays.get(tier, displays['free'])
     
     def get_priority_multiplier(self):
         """Get multiplier for display priority based on subscription"""
         multipliers = {
             'free': 1,
             'basic': 2,
-            'premium': 3,
-            'enterprise': 4,
-            'featured': 5,
+            'plus': 3,
+            'pro': 4,
+            'special': 5,
+            'enterprise': 6,
         }
-        return multipliers.get(self.subscription_tier, 1)
+        try:
+            from subscriptions.models import normalize_subscription_tier
+            tier = normalize_subscription_tier(self.subscription_tier)
+        except Exception:
+            tier = self.subscription_tier
+        return multipliers.get(tier, 1)
     
     def has_active_subscription(self):
         """Check if vendor has an active paid subscription"""
-        if self.subscription_expiry:
-            return self.subscription_expiry > timezone.now() and self.subscription_tier != 'free'
-        return self.subscription_tier != 'free'
+        try:
+            from subscriptions.models import user_has_paid_subscription
+            return user_has_paid_subscription(self.user)
+        except Exception:
+            if self.subscription_expiry:
+                return self.subscription_expiry > timezone.now() and self.subscription_tier != 'free'
+            return self.subscription_tier != 'free'
+
+    @property
+    def kyc_status(self):
+        try:
+            return self.kyc_record.kyc_status
+        except Exception:
+            return 'not_started'
+
+    def get_kyc_status_display(self):
+        try:
+            return self.kyc_record.get_kyc_status_display()
+        except Exception:
+            return 'Not Started'
+
+    def has_verified_kyc(self):
+        return self.is_verified and self.kyc_status == 'verified'
     
     def update_rating(self):
         """Update vendor rating based on product reviews"""
@@ -129,10 +162,12 @@ class VendorFollow(BaseModel):
 class VendorSubscriptionPlan(BaseModel):
     """Vendor subscription plans for premium features"""
     TIER_CHOICES = [
+        ('free', 'Free'),
         ('basic', 'Basic'),
-        ('premium', 'Premium'),
+        ('plus', 'Plus'),
+        ('pro', 'Pro'),
+        ('special', 'Special'),
         ('enterprise', 'Enterprise'),
-        ('featured', 'Featured'),
     ]
     
     tier = models.CharField(max_length=20, choices=TIER_CHOICES, unique=True)
@@ -217,9 +252,16 @@ class VendorSubscription(BaseModel):
     def get_priority_score(self):
         """Calculate priority score based on plan"""
         scores = {
-            'basic': 100,
-            'premium': 200,
-            'enterprise': 300,
-            'featured': 500,
+            'free': 0,
+            'basic': 20,
+            'plus': 40,
+            'pro': 65,
+            'special': 85,
+            'enterprise': 100,
         }
-        return scores.get(self.plan.tier, 0)
+        try:
+            from subscriptions.models import normalize_subscription_tier
+            tier = normalize_subscription_tier(self.plan.tier)
+        except Exception:
+            tier = self.plan.tier
+        return scores.get(tier, 0)

@@ -12,6 +12,7 @@ from accounts.models import User
 import uuid
 import random
 import string
+import re
 from phonenumber_field.modelfields import PhoneNumberField
 
 # =========================
@@ -603,24 +604,36 @@ class Product(BaseModel):
     @staticmethod
     def _extract_youtube_embed(url):
         """Extract YouTube embed URL"""
-        if 'youtu.be/' in url:
-            video_id = url.split('youtu.be/')[1].split('?')[0]
-        elif 'youtube.com/watch' in url:
-            video_id = url.split('v=')[1].split('&')[0]
-        elif 'youtube.com/embed/' in url:
-            return url
-        else:
-            return None
-        return f"https://www.youtube.com/embed/{video_id}"
+        patterns = [
+            r'youtube\.com/watch\?(?:.*&)?v=([\w-]+)',
+            r'youtu\.be/([\w-]+)',
+            r'youtube\.com/embed/([\w-]+)',
+            r'youtube\.com/shorts/([\w-]+)',
+            r'youtube\.com/live/([\w-]+)',
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, url or '')
+            if match:
+                video_id = match.group(1)
+                return f"https://www.youtube.com/embed/{video_id}?rel=0&modestbranding=1&playsinline=1"
+        if re.match(r'^[a-zA-Z0-9_-]{11}$', url or ''):
+            return f"https://www.youtube.com/embed/{url}?rel=0&modestbranding=1&playsinline=1"
+        return None
     
     @staticmethod
     def _extract_vimeo_embed(url):
         """Extract Vimeo embed URL"""
-        try:
-            video_id = url.split('vimeo.com/')[1].split('?')[0]
-            return f"https://player.vimeo.com/video/{video_id}"
-        except (IndexError, ValueError):
-            return None
+        patterns = [
+            r'vimeo\.com/(\d+)',
+            r'player\.vimeo\.com/video/(\d+)',
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, url or '')
+            if match:
+                return f"https://player.vimeo.com/video/{match.group(1)}"
+        if re.match(r'^\d+$', url or ''):
+            return f"https://player.vimeo.com/video/{url}"
+        return None
     
     def increment_views(self):
         """Increment view count"""
@@ -793,6 +806,11 @@ class ProductVariant(BaseModel):
         null=True,
         blank=True
     )
+    color_code = models.CharField(
+        max_length=20,
+        blank=True,
+        help_text="Optional color swatch value, for example #111827 or rgb(17, 24, 39)"
+    )
     is_active = models.BooleanField(default=True, db_index=True)
     
     class Meta:
@@ -924,6 +942,14 @@ class ProductVideo(BaseModel):
         elif self.source == 'local' and self.local_video:
             return self.local_video.url
         return None
+
+    @property
+    def is_local_video(self):
+        return self.source == 'local' and bool(self.local_video)
+
+    @property
+    def is_external_video(self):
+        return self.source in ['youtube', 'vimeo'] and bool(self.get_embed_url())
 
 
 # =========================

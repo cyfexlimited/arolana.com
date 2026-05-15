@@ -7,6 +7,7 @@ from django.views.decorators.http import require_http_methods
 from django.core.paginator import Paginator
 from django.utils import timezone
 from .models import NewsletterSubscriber, NewsletterCampaign, NewsletterTracking
+from .emailing import send_campaign, upsert_email_audience
 import json
 import re
 
@@ -47,6 +48,7 @@ def subscribe(request):
         
         if not created:
             if subscriber.is_active:
+                upsert_email_audience(email, name=name or subscriber.name, source='newsletter', subscriber=subscriber, accepts_promos=True)
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return JsonResponse({
                         'success': False, 
@@ -58,6 +60,7 @@ def subscribe(request):
                 subscriber.is_active = True
                 subscriber.unsubscribed_at = None
                 subscriber.save()
+                upsert_email_audience(email, name=name or subscriber.name, source='newsletter', subscriber=subscriber, accepts_promos=True)
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return JsonResponse({
                         'success': True, 
@@ -65,6 +68,7 @@ def subscribe(request):
                     })
                 messages.success(request, f'Welcome back! {email} has been re-subscribed.')
         else:
+            upsert_email_audience(email, name=name, source='newsletter', subscriber=subscriber, accepts_promos=True)
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({
                     'success': True, 
@@ -111,6 +115,7 @@ def api_subscribe(request):
         
         if not created:
             if subscriber.is_active:
+                upsert_email_audience(email, name=name or subscriber.name, source='newsletter', subscriber=subscriber, accepts_promos=True)
                 return JsonResponse({
                     'success': False, 
                     'error': 'This email is already subscribed.',
@@ -120,12 +125,13 @@ def api_subscribe(request):
                 subscriber.is_active = True
                 subscriber.unsubscribed_at = None
                 subscriber.save()
+                upsert_email_audience(email, name=name or subscriber.name, source='newsletter', subscriber=subscriber, accepts_promos=True)
                 return JsonResponse({
                     'success': True, 
                     'message': 'Welcome back! You have been re-subscribed.',
                     'already_subscribed': True
                 })
-        
+        upsert_email_audience(email, name=name, source='newsletter', subscriber=subscriber, accepts_promos=True)
         return JsonResponse({
             'success': True, 
             'message': 'Successfully subscribed to our newsletter!',
@@ -193,6 +199,9 @@ def campaign_create(request):
             subject=request.POST.get('subject'),
             content=request.POST.get('content'),
             html_content=request.POST.get('html_content', ''),
+            recipient_scope=request.POST.get('recipient_scope', 'all'),
+            send_frequency=request.POST.get('send_frequency', 'once'),
+            scheduled_at=request.POST.get('scheduled_at') or None,
             status='draft'
         )
         messages.success(request, f'Campaign "{campaign.name}" created!')
@@ -208,10 +217,8 @@ def campaign_detail(request, campaign_id):
 def campaign_send(request, campaign_id):
     campaign = get_object_or_404(NewsletterCampaign, id=campaign_id)
     if request.method == 'POST':
-        campaign.status = 'sent'
-        campaign.sent_at = timezone.now()
-        campaign.save()
-        messages.success(request, f'Campaign "{campaign.name}" sent!')
+        sent_count = send_campaign(campaign)
+        messages.success(request, f'Campaign "{campaign.name}" sent to {sent_count} email address(es)!')
         return redirect('newsletter:campaign_detail', campaign_id=campaign.id)
     return render(request, 'newsletter/campaign_send.html', {'campaign': campaign})
 

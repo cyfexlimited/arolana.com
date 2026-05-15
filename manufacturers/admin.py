@@ -10,9 +10,9 @@ class ManufacturerCategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Manufacturer)
 class ManufacturerAdmin(admin.ModelAdmin):
-    list_display = ['name', 'logo_preview', 'is_featured', 'is_active', 'display_order', 'total_products', 'rating_avg']
-    list_editable = ['is_featured', 'is_active', 'display_order']
-    list_filter = ['is_featured', 'is_active']
+    list_display = ['name', 'logo_preview', 'subscription_badge', 'is_featured', 'is_active', 'display_order', 'priority_score', 'total_products', 'rating_avg']
+    list_editable = ['is_featured', 'is_active', 'display_order', 'priority_score']
+    list_filter = ['subscription_tier', 'is_featured', 'is_active']
     search_fields = ['name', 'description']
     prepopulated_fields = {'slug': ['name']}
     readonly_fields = ['total_products', 'total_sales', 'rating_avg']
@@ -32,6 +32,9 @@ class ManufacturerAdmin(admin.ModelAdmin):
         ('Display Settings', {
             'fields': ('is_featured', 'is_active', 'display_order')
         }),
+        ('Subscription', {
+            'fields': ('subscription_tier', 'subscription_expiry', 'priority_score')
+        }),
         ('Statistics', {
             'fields': ('total_products', 'total_sales', 'rating_avg'),
             'classes': ('collapse',)
@@ -43,6 +46,15 @@ class ManufacturerAdmin(admin.ModelAdmin):
             return format_html('<img src="{}" width="50" height="50" style="border-radius: 8px; object-fit: cover;" />', obj.logo.url)
         return "-"
     logo_preview.short_description = 'Logo'
+
+    def subscription_badge(self, obj):
+        badge = obj.get_subscription_display()
+        return format_html(
+            '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:12px;"><i class="fas {}"></i>{}</span>',
+            badge['icon'],
+            badge['text']
+        )
+    subscription_badge.short_description = 'Plan'
 
 @admin.register(ManufacturerApplication)
 class ManufacturerApplicationAdmin(admin.ModelAdmin):

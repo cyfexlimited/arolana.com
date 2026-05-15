@@ -21,6 +21,8 @@ from vendors.models import VendorProfile
 from accounts.models import User
 from orders.models import Order, OrderItem
 from .models import AdminActivityLog, SystemAlert, VendorAdminMessage, VendorNotification
+from subscriptions.models import user_subscription_limits
+from django.core.exceptions import ObjectDoesNotExist
 
 # ==================== HELPER FUNCTIONS ====================
 
@@ -31,6 +33,19 @@ def get_paginated_items(queryset, page_num, per_page=20):
         return paginator.page(page_num)
     except (PageNotAnInteger, EmptyPage):
         return paginator.page(1)
+
+def seller_has_verified_kyc(user):
+    try:
+        profile = user.vendor_profile
+        return profile.has_verified_kyc()
+    except ObjectDoesNotExist:
+        return False
+
+def require_verified_kyc(request):
+    if seller_has_verified_kyc(request.user):
+        return None
+    messages.error(request, 'KYC verification must be approved before you can upload or manage products.')
+    return redirect('kyc:dashboard')
 
 # ==================== PROFESSIONAL ADMIN DASHBOARD ====================
 
@@ -258,9 +273,22 @@ def vendor_add_product(request):
     if not hasattr(request.user, 'vendor_profile') and request.user.user_type != 'vendor':
         messages.error(request, 'You are not authorized as a vendor.')
         return redirect('dashboard:vendor_home')
+
+    kyc_redirect = require_verified_kyc(request)
+    if kyc_redirect:
+        return kyc_redirect
+
+    subscription_limits = user_subscription_limits(request.user)
+    current_product_count = Product.objects.filter(vendor=request.user).exclude(approval_status='rejected').count()
+    current_featured_count = Product.objects.filter(vendor=request.user, is_featured=True).exclude(approval_status='rejected').count()
     
     if request.method == 'POST':
         try:
+            max_products = subscription_limits['max_products']
+            if max_products != -1 and current_product_count >= max_products:
+                messages.error(request, f'Your current plan allows up to {max_products} products. Upgrade to add more.')
+                return redirect('subscriptions:plans')
+
             # Get form data
             name = request.POST.get('name', '').strip()
             description = request.POST.get('description', '')
@@ -295,6 +323,11 @@ def vendor_add_product(request):
             # Generate SKU if not provided
             if not sku:
                 sku = f"VND-{request.user.id}-{''.join(random.choices(string.ascii_uppercase + string.digits, k=8))}"
+
+            max_featured = subscription_limits['featured_products']
+            if is_featured and max_featured != -1 and current_featured_count >= max_featured:
+                is_featured = False
+                messages.warning(request, 'Featured product limit reached for your current plan. The product was saved without featured placement.')
             
             # Create product
             product = Product.objects.create(
@@ -330,9 +363,10 @@ def vendor_add_product(request):
                 product.main_image = main_image
                 product.save()
             
-            # Handle additional images (up to 9)
+            # Handle additional images according to subscription limits
             additional_images = request.FILES.getlist('additional_images')
-            for img in additional_images[:9]:
+            max_images = subscription_limits['max_images_per_product']
+            for img in additional_images[:max_images]:
                 ProductImage.objects.create(product=product, image=img, is_active=True)
             
             # Handle variants with images
@@ -340,9 +374,12 @@ def vendor_add_product(request):
             variant_values = request.POST.getlist('variant_value[]')
             variant_prices = request.POST.getlist('variant_price[]')
             variant_stocks = request.POST.getlist('variant_stock[]')
+            variant_color_codes = request.POST.getlist('variant_color_code[]')
             variant_images = request.FILES.getlist('variant_image[]')
             
-            for i in range(len(variant_types)):
+            max_variants = subscription_limits['max_variants_per_product']
+            variant_limit = len(variant_types) if max_variants == -1 else max_variants
+            for i in range(min(len(variant_types), variant_limit)):
                 if variant_types[i] and variant_values[i]:
                     variant = ProductVariant.objects.create(
                         product=product,
@@ -351,6 +388,7 @@ def vendor_add_product(request):
                         value=variant_values[i],
                         price_adjustment=float(variant_prices[i]) if variant_prices[i] else 0,
                         stock_quantity=int(variant_stocks[i]) if variant_stocks[i] else 0,
+                        color_code=variant_color_codes[i] if i < len(variant_color_codes) else '',
                         is_active=True
                     )
                     if i < len(variant_images) and variant_images[i]:
@@ -370,6 +408,9 @@ def vendor_add_product(request):
     context = {
         'categories': categories,
         'brands': brands,
+        'subscription_limits': subscription_limits,
+        'current_product_count': current_product_count,
+        'current_featured_count': current_featured_count,
     }
     return render(request, 'dashboard/vendor_add_product.html', context)
 
@@ -379,6 +420,10 @@ def vendor_product_detail(request, product_id):
     product = get_object_or_404(Product, id=product_id, vendor=request.user)
     
     if request.method == 'POST':
+        kyc_redirect = require_verified_kyc(request)
+        if kyc_redirect:
+            return kyc_redirect
+
         try:
             product.name = request.POST.get('name', product.name)
             product.description = request.POST.get('description', product.description)
@@ -428,6 +473,9 @@ def vendor_product_variants(request, product_id):
     product = get_object_or_404(Product, id=product_id, vendor=request.user)
     
     if request.method == 'POST':
+        if not seller_has_verified_kyc(request.user):
+            return JsonResponse({'success': False, 'error': 'KYC verification is required before managing variants.'}, status=403)
+
         try:
             data = json.loads(request.body)
             action = data.get('action')
@@ -484,6 +532,9 @@ def vendor_product_images(request, product_id):
     product = get_object_or_404(Product, id=product_id, vendor=request.user)
     
     if request.method == 'POST':
+        if not seller_has_verified_kyc(request.user):
+            return JsonResponse({'success': False, 'error': 'KYC verification is required before uploading images.'}, status=403)
+
         try:
             images = request.FILES.getlist('images')
             for img in images:

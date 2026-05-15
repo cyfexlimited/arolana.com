@@ -11,7 +11,7 @@
     
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {% for video in videos %}
-        <div class="video-card bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition">
+        <div class="video-card group bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition">
             <a href="{% url 'videos:watch' video.id %}" class="block relative">
                 {% if video.custom_thumbnail %}
                     <img src="{{ video.custom_thumbnail.url }}" alt="{{ video.title }}" class="w-full h-48 object-cover">

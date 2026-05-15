@@ -1,10 +1,17 @@
 import random
 import string
+import logging
 from django.utils import timezone
 from django.conf import settings
 from accounts.models import UserOTP, User, UserActivityLog
 from django.core.mail import send_mail
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
 from datetime import timedelta
+
+logger = logging.getLogger(__name__)
 
 def generate_otp(length=6):
     """Generate a random OTP code"""
@@ -36,11 +43,16 @@ def create_otp(user, destination, otp_type='email'):
         attempts=0
     )
     
-    # Send OTP based on type
+    # Send OTP based on type. If delivery fails, delete the code so the UI
+    # does not claim that an unusable OTP was sent.
     if otp_type in ['email', 'login', 'password_reset', 'two_factor'] and destination:
-        send_otp_email(destination, otp_code, otp_type)
+        if not send_otp_email(destination, otp_code, otp_type, user=user):
+            otp.delete()
+            return None
     elif otp_type == 'phone' and destination:
-        send_otp_sms(destination, otp_code)
+        if not send_otp_sms(destination, otp_code):
+            otp.delete()
+            return None
     
     # Log activity
     try:
@@ -59,7 +71,9 @@ def verify_otp(identifier, otp_code, otp_type='login'):
     """Verify an OTP code for a user"""
     try:
         # Get user by email or id
-        if isinstance(identifier, int):
+        if isinstance(identifier, User):
+            user = identifier
+        elif isinstance(identifier, int):
             user = User.objects.get(id=identifier)
         else:
             user = User.objects.get(email=identifier)
@@ -98,8 +112,21 @@ def verify_otp(identifier, otp_code, otp_type='login'):
     except UserOTP.DoesNotExist:
         return False, "Invalid or expired OTP"
 
-def send_otp_email(email, otp_code, otp_type='email'):
+def send_otp_email(email, otp_code, otp_type='email', user=None):
     """Send OTP via email"""
+    try:
+        validate_email(email)
+    except ValidationError:
+        logger.warning('OTP email rejected because the destination is invalid: %s', email)
+        return False
+
+    if not getattr(settings, 'EMAIL_CONFIGURED', True):
+        logger.error(
+            'OTP email cannot be sent because production email is not configured. '
+            'Set EMAIL_HOST_USER and EMAIL_HOST_PASSWORD, or configure another SMTP backend.'
+        )
+        return False
+
     subject_map = {
         'email': "Email Verification - Arolana",
         'login': "Login Verification Code - Arolana",
@@ -109,19 +136,14 @@ def send_otp_email(email, otp_code, otp_type='email'):
     
     subject = subject_map.get(otp_type, "Verification Code - Arolana")
     
-    message = f"""
-Hello,
-
-Your verification code is: {otp_code}
-
-This code will expire in 10 minutes.
-Type: {otp_type.replace('_', ' ').title()}
-
-If you didn't request this, please ignore this email.
-
-Best regards,
-Arolana Security Team
-"""
+    context = {
+        'user': user,
+        'otp_code': otp_code,
+        'otp_type': otp_type.replace('_', ' ').title(),
+        'validity_minutes': 10,
+    }
+    html_message = render_to_string('accounts/email/otp_email.html', context)
+    message = strip_tags(html_message)
     
     try:
         send_mail(
@@ -130,10 +152,11 @@ Arolana Security Team
             settings.DEFAULT_FROM_EMAIL,
             [email],
             fail_silently=False,
+            html_message=html_message,
         )
         return True
     except Exception as e:
-        print(f"Failed to send OTP email: {e}")
+        logger.exception('Failed to send OTP email to %s: %s', email, e)
         return False
 
 def send_otp_sms(phone_number, otp_code):

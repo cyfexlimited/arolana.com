@@ -13,6 +13,7 @@ class User(AbstractUser, BaseModel):
     USER_TYPES = (
         ('customer', 'Customer'),
         ('vendor', 'Vendor'),
+        ('manufacturer', 'Manufacturer'),
         ('admin', 'Admin'),
         ('super_admin', 'Super Admin'),
     )
@@ -56,6 +57,10 @@ class User(AbstractUser, BaseModel):
     @property
     def is_customer(self):
         return self.user_type == 'customer'
+
+    @property
+    def is_manufacturer(self):
+        return self.user_type == 'manufacturer'
     
     @property
     def is_super_admin(self):
@@ -138,6 +143,47 @@ class NewsletterSubscriber(BaseModel):
     
     def __str__(self):
         return self.email
+
+class RegistrationMessageTemplate(BaseModel):
+    """Admin-editable messages sent when a user registers."""
+    ROLE_CHOICES = (
+        ('all', 'All account types'),
+        ('customer', 'Customers'),
+        ('vendor', 'Vendors'),
+        ('manufacturer', 'Manufacturers'),
+    )
+
+    CHANNEL_CHOICES = (
+        ('email', 'Email'),
+        ('notification', 'In-app notification'),
+        ('both', 'Email and in-app notification'),
+    )
+
+    name = models.CharField(max_length=120)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='all')
+    channel = models.CharField(max_length=20, choices=CHANNEL_CHOICES, default='both')
+    subject = models.CharField(max_length=200)
+    body = models.TextField(
+        help_text=(
+            "Available placeholders: {first_name}, {last_name}, {full_name}, "
+            "{username}, {email}, {account_type}, {site_name}, {login_url}, {profile_url}"
+        )
+    )
+    notification_title = models.CharField(max_length=200, blank=True)
+    notification_link = models.CharField(max_length=500, blank=True, default='/accounts/profile/')
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['role', 'name']
+
+    def __str__(self):
+        return f"{self.name} ({self.get_role_display()})"
+
+    def render_subject(self, context):
+        return self.subject.format_map(context)
+
+    def render_body(self, context):
+        return self.body.format_map(context)
 
 class UserOTP(BaseModel):
     """OTP for email and phone verification"""

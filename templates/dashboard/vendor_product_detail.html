@@ -128,7 +128,9 @@
                     <iframe class="absolute top-0 left-0 w-full h-full" 
                             id="video-preview"
                             frameborder="0" 
-                            allowfullscreen>
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            allowfullscreen
+                            referrerpolicy="strict-origin-when-cross-origin">
                     </iframe>
                 </div>
                 <p class="text-sm text-gray-500 mt-2">YouTube: {{ product.video_url }}</p>
@@ -297,7 +299,7 @@ function updateVideoPreview() {
         }
         
         if (videoId) {
-            videoPreview.src = `https://www.youtube.com/embed/${videoId}`;
+            videoPreview.src = `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&playsinline=1`;
         }
     }
 }

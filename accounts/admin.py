@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.utils.html import format_html
-from .models import User, UserProfile, Address, NewsletterSubscriber, UserOTP, UserActivityLog, LoginAttempt
+from .models import User, UserProfile, Address, NewsletterSubscriber, UserOTP, UserActivityLog, LoginAttempt, RegistrationMessageTemplate
 
 class UserProfileInline(admin.StackedInline):
     model = UserProfile
@@ -14,8 +14,8 @@ class UserProfileInline(admin.StackedInline):
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
-    list_display = ['email', 'username', 'user_type', 'is_active', 'email_verified', 'last_login', 'avatar_preview']
-    list_filter = ['user_type', 'is_active', 'email_verified', 'is_staff']
+    list_display = ['email', 'username', 'user_type', 'is_active', 'email_verified', 'phone_verified', 'last_login', 'avatar_preview']
+    list_filter = ['user_type', 'is_active', 'email_verified', 'phone_verified', 'is_staff']
     search_fields = ['email', 'username', 'first_name', 'last_name']
     ordering = ['-date_joined']
     inlines = [UserProfileInline]
@@ -185,3 +185,18 @@ class LoginAttemptAdmin(admin.ModelAdmin):
     
     def has_add_permission(self, request):
         return False
+
+@admin.register(RegistrationMessageTemplate)
+class RegistrationMessageTemplateAdmin(admin.ModelAdmin):
+    list_display = ['name', 'role', 'channel', 'subject', 'is_active', 'updated_at']
+    list_filter = ['role', 'channel', 'is_active']
+    search_fields = ['name', 'subject', 'body']
+    list_editable = ['is_active']
+    fieldsets = (
+        ('Audience', {
+            'fields': ('name', 'role', 'channel', 'is_active')
+        }),
+        ('Message', {
+            'fields': ('subject', 'body', 'notification_title', 'notification_link')
+        }),
+    )

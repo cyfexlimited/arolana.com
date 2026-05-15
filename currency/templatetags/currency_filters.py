@@ -1,6 +1,6 @@
 from django import template
 from decimal import Decimal
-from django.core.cache import cache
+from core.local_cache import local_get_or_set
 
 register = template.Library()
 
@@ -10,12 +10,12 @@ CURRENCY_CACHE_TIMEOUT = 3600  # 1 hour
 
 def get_currency_data():
     """Get all active currencies with caching"""
+    return local_get_or_set(CURRENCY_CACHE_KEY, _build_currency_data, CURRENCY_CACHE_TIMEOUT)
+
+
+def _build_currency_data():
     from currency.models import Currency
-    
-    cached = cache.get(CURRENCY_CACHE_KEY)
-    if cached:
-        return cached
-    
+
     currencies = Currency.objects.filter(is_active=True)
     currency_data = {}
     default_currency = None
@@ -38,7 +38,6 @@ def get_currency_data():
         'rates': {code: data['exchange_rate'] for code, data in currency_data.items()},
     }
     
-    cache.set(CURRENCY_CACHE_KEY, result, CURRENCY_CACHE_TIMEOUT)
     return result
 
 @register.filter

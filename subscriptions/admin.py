@@ -4,7 +4,7 @@ from .models import SubscriptionPlan, VendorSubscription
 
 @admin.register(SubscriptionPlan)
 class SubscriptionPlanAdmin(admin.ModelAdmin):
-    list_display = ['display_name', 'price_monthly', 'max_products', 'commission_rate', 'is_popular', 'is_active', 'icon_preview']
+    list_display = ['display_name', 'tier_key', 'price_monthly', 'max_products', 'commission_rate', 'chat_enabled', 'is_popular', 'is_active', 'icon_preview']
     list_filter = ['is_active', 'is_popular']
     list_editable = ['price_monthly', 'max_products', 'commission_rate', 'is_popular', 'is_active']
     search_fields = ['display_name', 'description']
@@ -33,6 +33,11 @@ class SubscriptionPlanAdmin(admin.ModelAdmin):
             return format_html('<i class="{} fa-2x"></i>', obj.icon)
         return "-"
     icon_preview.short_description = 'Icon'
+
+    def chat_enabled(self, obj):
+        return obj.limits['chat_enabled']
+    chat_enabled.boolean = True
+    chat_enabled.short_description = 'Chat'
 
 @admin.register(VendorSubscription)
 class VendorSubscriptionAdmin(admin.ModelAdmin):

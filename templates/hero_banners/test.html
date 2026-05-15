@@ -69,16 +69,24 @@
                 
                 <div class="image-section">
                     <h3>🔘 Buttons</h3>
+                    {% if banner.show_button1 %}
                     <p><strong>Button 1:</strong> {{ banner.button1_text }} → {{ banner.button1_url }}</p>
+                    {% endif %}
+                    {% if banner.show_button2 %}
                     <p><strong>Button 2:</strong> {{ banner.button2_text }} → {{ banner.button2_url }}</p>
-                    {% if banner.button3_text %}
+                    {% endif %}
+                    {% if banner.show_button3 %}
                     <p><strong>Button 3:</strong> {{ banner.button3_text }} → {{ banner.button3_url }}</p>
+                    {% endif %}
+                    {% if not banner.show_button1 and not banner.show_button2 and not banner.show_button3 %}
+                    <p><span class="status-badge status-warning">No buttons visible</span></p>
                     {% endif %}
                 </div>
                 
                 <div class="image-section">
                     <h3>⚙️ Settings</h3>
                     <p><strong>Animation Effect:</strong> {{ banner.animation_effect }}</p>
+                    <p><strong>Overlay Opacity:</strong> {{ banner.overlay_opacity_css }}</p>
                     <p><strong>Autoplay Delay:</strong> {{ banner.autoplay_delay }}ms</p>
                     <p><strong>Status:</strong> {% if banner.is_active %}✅ Active{% else %}❌ Inactive{% endif %}</p>
                 </div>

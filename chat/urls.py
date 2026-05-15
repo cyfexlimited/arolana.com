@@ -19,6 +19,8 @@ urlpatterns = [
     path('vendor/room/<int:room_id>/', views.vendor_chat_room, name='vendor_room'),
     path('vendor/send/<int:room_id>/', views.vendor_send_message, name='vendor_send'),
     path('vendor/unread-count/', views.get_vendor_unread_count, name='vendor_unread'),
+    path('vendor/typing/<int:room_id>/', views.vendor_chat_typing, name='vendor_typing'),
+    path('vendor/typing-status/<int:room_id>/', views.vendor_chat_typing_status, name='vendor_typing_status'),
     
     # Customer chat URLs
     path('customer/room/<int:room_id>/', views.customer_chat_room, name='customer_room'),

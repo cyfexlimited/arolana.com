@@ -17,7 +17,7 @@
     </div>
     {% endif %}
     
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {% for plan in plans %}
         <div class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition {% if plan.is_popular %}ring-2 ring-blue-500{% endif %}">
             {% if plan.is_popular %}
@@ -40,44 +40,20 @@
                     </div>
                 </div>
                 
-                <div class="mt-6 space-y-3">
-                    <div class="flex items-center gap-2 text-sm">
-                        <i class="fas fa-check-circle text-green-500"></i>
-                        <span>{{ plan.max_products }} products</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-sm">
-                        <i class="fas fa-check-circle text-green-500"></i>
-                        <span>{{ plan.featured_products }} featured products</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-sm">
-                        <i class="fas fa-check-circle text-green-500"></i>
-                        <span>{{ plan.commission_rate }}% commission</span>
-                    </div>
-                    {% if plan.priority_support %}
-                    <div class="flex items-center gap-2 text-sm">
-                        <i class="fas fa-check-circle text-green-500"></i>
-                        <span>Priority support</span>
-                    </div>
-                    {% endif %}
-                    {% if plan.analytics_access %}
-                    <div class="flex items-center gap-2 text-sm">
-                        <i class="fas fa-check-circle text-green-500"></i>
-                        <span>Advanced analytics</span>
-                    </div>
-                    {% endif %}
-                    {% if plan.promotion_opportunities %}
-                    <div class="flex items-center gap-2 text-sm">
-                        <i class="fas fa-check-circle text-green-500"></i>
-                        <span>Promotion opportunities</span>
-                    </div>
-                    {% endif %}
-                    {% if plan.dedicated_account_manager %}
-                    <div class="flex items-center gap-2 text-sm">
-                        <i class="fas fa-check-circle text-green-500"></i>
-                        <span>Dedicated account manager</span>
-                    </div>
-                    {% endif %}
-                </div>
+	                <div class="mt-6 space-y-3">
+	                    {% for feature in plan.get_features_list %}
+	                    <div class="flex items-start gap-2 text-sm">
+	                        <i class="fas fa-check-circle text-green-500 mt-1"></i>
+	                        <span>{{ feature }}</span>
+	                    </div>
+	                    {% endfor %}
+	                    {% if not plan.limits.chat_enabled %}
+	                    <div class="flex items-start gap-2 text-sm text-gray-500">
+	                        <i class="fas fa-lock mt-1"></i>
+	                        <span>Product chat locked on this plan</span>
+	                    </div>
+	                    {% endif %}
+	                </div>
                 
                 <div class="mt-6">
                     {% if current_subscription and current_subscription.plan.id == plan.id %}

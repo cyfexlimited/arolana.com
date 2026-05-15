@@ -14,13 +14,14 @@ from django.views.decorators.http import require_http_methods, require_POST, req
 from django.contrib.sessions.models import Session
 from django.core.cache import cache
 from django.core.validators import validate_email
-from django.core.exceptions import ValidationError
-from allauth.socialaccount.models import SocialApp
-from django.contrib.sites.models import Site
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from allauth.socialaccount.adapter import get_adapter as get_socialaccount_adapter
+from django.utils.text import slugify
 
 from .models import User, UserProfile, UserOTP, UserActivityLog, NewsletterSubscriber, Address
 from products.models import RecentlyViewed, Wishlist
 from .utils.otp_utils import create_otp, verify_otp
+from .utils.messaging import send_registration_messages, sync_newsletter_subscriber
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ def create_notification(user, notification_type, title, message, link=''):
     if NOTIFICATIONS_AVAILABLE and user and user.is_authenticated:
         try:
             Notification.objects.create(
-                recipient=user,
+                user=user,
                 notification_type=notification_type,
                 title=title,
                 message=message,
@@ -69,12 +70,12 @@ def log_user_activity(user, action, request, details=None):
     except Exception as e:
         logger.error(f"Failed to log activity: {e}")
 
-def get_social_apps_context():
+def get_social_apps_context(request=None):
     """Get social apps availability for template context"""
     try:
-        current_site = Site.objects.get_current()
-        google_app = SocialApp.objects.filter(provider='google', sites=current_site).exists()
-        facebook_app = SocialApp.objects.filter(provider='facebook', sites=current_site).exists()
+        adapter = get_socialaccount_adapter(request)
+        google_app = bool(adapter.list_apps(request, provider='google'))
+        facebook_app = bool(adapter.list_apps(request, provider='facebook'))
         return {
             'google_app_exists': google_app,
             'facebook_app_exists': facebook_app,
@@ -85,6 +86,47 @@ def get_social_apps_context():
             'google_app_exists': False,
             'facebook_app_exists': False,
         }
+
+def unique_store_slug(store_name):
+    from vendors.models import VendorProfile
+
+    base_slug = slugify(store_name) or 'seller'
+    slug = base_slug
+    counter = 2
+    while VendorProfile.objects.filter(store_slug=slug).exists():
+        slug = f'{base_slug}-{counter}'
+        counter += 1
+    return slug
+
+def create_business_profile_for_user(user, account_type, business_name, business_description=''):
+    if account_type not in ['vendor', 'manufacturer']:
+        return None
+
+    from vendors.models import VendorProfile
+
+    store_name = business_name or user.get_full_name() or user.username or user.email.split('@')[0]
+    profile, created = VendorProfile.objects.get_or_create(
+        user=user,
+        defaults={
+            'store_name': store_name,
+            'store_slug': unique_store_slug(store_name),
+            'description': business_description or f'{store_name} storefront on Arolana.',
+            'is_verified': False,
+            'subscription_tier': 'free',
+        },
+    )
+    if not created:
+        profile.store_name = store_name
+        if business_description:
+            profile.description = business_description
+        profile.save()
+    return profile
+
+def get_vendor_profile(user):
+    try:
+        return user.vendor_profile
+    except ObjectDoesNotExist:
+        return None
 
 # ==================== NEWSLETTER ====================
 
@@ -129,7 +171,7 @@ def login_view(request):
         
         if not identifier or not password:
             messages.error(request, 'Please fill in all fields')
-            return render(request, 'accounts/login.html')
+            return render(request, 'accounts/login.html', get_social_apps_context(request))
         
         # Try to find user by email or username
         user = None
@@ -175,13 +217,13 @@ def login_view(request):
                 )
                 
                 messages.success(request, f"Welcome back, {user.get_full_name() or user.email}!")
-                next_url = request.GET.get('next', 'home')
+                next_url = request.POST.get('next') or request.GET.get('next') or 'home'
                 return redirect(next_url)
         else:
             log_user_activity(None, 'failed_login', request, {'identifier': identifier[:50]})
             messages.error(request, "Invalid email/username or password.")
     
-    return render(request, 'accounts/login.html')
+    return render(request, 'accounts/login.html', get_social_apps_context(request))
 
 def register_view(request):
     """Enhanced registration with email/phone verification"""
@@ -196,7 +238,15 @@ def register_view(request):
         confirm_password = request.POST.get('confirm_password', '')
         first_name = request.POST.get('first_name', '').strip()
         last_name = request.POST.get('last_name', '').strip()
+        account_type = request.POST.get('account_type', 'customer')
+        business_name = request.POST.get('business_name', '').strip()
+        business_description = request.POST.get('business_description', '').strip()
+        newsletter_opt_in = request.POST.get('newsletter') == 'on'
         terms = request.POST.get('terms') == 'on'
+
+        allowed_account_types = ['customer', 'vendor', 'manufacturer']
+        if account_type not in allowed_account_types:
+            account_type = 'customer'
         
         errors = []
         
@@ -239,13 +289,18 @@ def register_view(request):
         # Terms acceptance
         if not terms:
             errors.append('You must agree to the Terms of Service')
+
+        if account_type in ['vendor', 'manufacturer'] and not business_name:
+            errors.append('Business or brand name is required for seller accounts')
         
         if errors:
             context = {
                 'email': email, 'username': username, 'first_name': first_name,
-                'last_name': last_name, 'phone_number': phone_number
+                'last_name': last_name, 'phone_number': phone_number,
+                'account_type': account_type, 'business_name': business_name,
+                'business_description': business_description
             }
-            context.update(get_social_apps_context())
+            context.update(get_social_apps_context(request))
             for error in errors:
                 messages.error(request, error)
             return render(request, 'accounts/register.html', context)
@@ -253,30 +308,65 @@ def register_view(request):
         # Create user
         user = User.objects.create_user(
             username=username, email=email, password=password,
-            first_name=first_name, last_name=last_name
+            first_name=first_name, last_name=last_name,
+            user_type=account_type
         )
         
         if phone_number:
             user.phone_number = phone_number
             user.save()
         
-        UserProfile.objects.get_or_create(user=user, defaults={'newsletter_subscription': True})
+        UserProfile.objects.get_or_create(
+            user=user,
+            defaults={
+                'newsletter_subscription': newsletter_opt_in,
+                'promo_emails': newsletter_opt_in,
+                'marketing_emails': newsletter_opt_in,
+            }
+        )
+        sync_newsletter_subscriber(user, subscribe=newsletter_opt_in, source='registration')
+        business_profile = create_business_profile_for_user(user, account_type, business_name, business_description)
+        if business_profile:
+            try:
+                from kyc.models import KYCRecord
+                KYCRecord.objects.get_or_create(
+                    vendor=business_profile,
+                    defaults={
+                        'legal_business_name': business_profile.store_name,
+                        'business_email': user.email,
+                        'business_phone': phone_number or '',
+                        'authorized_person_name': user.get_full_name() or username,
+                        'authorized_person_email': user.email,
+                        'authorized_person_phone': phone_number or '',
+                    }
+                )
+            except Exception as e:
+                logger.warning(f'Could not create KYC record for {user.email}: {e}')
         
         create_notification(
             user, 'success', '🎉 Welcome to Arolana!',
             'Thank you for joining Arolana.com. Start exploring our products and enjoy exclusive deals!',
             '/products/'
         )
+        email_otp = create_otp(user, user.email, 'email')
+        if phone_number:
+            create_otp(user, phone_number, 'phone')
+        send_registration_messages(user, request)
         
         log_user_activity(user, 'register', request, {'method': 'email'})
         
         user.backend = 'django.contrib.auth.backends.ModelBackend'
         login(request, user)
         
-        messages.success(request, f"Welcome to Arolana, {username}! Your account has been created.")
-        return redirect('home')
+        if not email_otp:
+            messages.error(request, 'Your account was created, but the verification email could not be sent. Please try Resend Code or contact support.')
+        elif account_type in ['vendor', 'manufacturer']:
+            messages.success(request, f"Welcome to Arolana, {username}! Verify your email, then complete KYC before uploading products.")
+        else:
+            messages.success(request, f"Welcome to Arolana, {username}! Verify your email to secure your account.")
+        return redirect('accounts:verify_email')
     
-    context = get_social_apps_context()
+    context = get_social_apps_context(request)
     return render(request, 'accounts/register.html', context)
 
 def logout_view(request):
@@ -286,18 +376,27 @@ def logout_view(request):
         log_user_activity(request.user, 'logout', request, {})
         create_notification(request.user, 'info', '👋 Logged Out', 'You have been logged out of your account', '/accounts/login/')
         logout(request)
-        messages.success(request, f"Goodbye! You have been logged out successfully.")
+        return render(request, 'accounts/logout.html', {'username': username})
     else:
         messages.info(request, "You were not logged in.")
-    
-    return redirect('home')
+
+    return render(request, 'accounts/logout.html')
 
 # ==================== PROFILE & SETTINGS ====================
 
 @login_required
 def profile_view(request):
     """User profile page"""
-    return render(request, 'accounts/profile.html', {'user': request.user})
+    vendor_profile = get_vendor_profile(request.user)
+    try:
+        kyc_record = vendor_profile.kyc_record if vendor_profile else None
+    except ObjectDoesNotExist:
+        kyc_record = None
+    return render(request, 'accounts/profile.html', {
+        'user': request.user,
+        'vendor_profile': vendor_profile,
+        'kyc_record': kyc_record,
+    })
 
 @login_required
 def edit_profile(request):
@@ -315,13 +414,36 @@ def edit_profile(request):
         if hasattr(request.user, 'profile'):
             request.user.profile.bio = request.POST.get('bio', '').strip()
             request.user.profile.newsletter_subscription = request.POST.get('newsletter') == 'on'
+            request.user.profile.promo_emails = request.POST.get('promo_emails') == 'on'
+            request.user.profile.marketing_emails = request.POST.get('marketing_emails') == 'on'
+            request.user.profile.company = request.POST.get('company', '').strip()
+            request.user.profile.location = request.POST.get('location', '').strip()
+            request.user.profile.website = request.POST.get('website', '').strip()
             request.user.profile.save()
+
+        vendor_profile = get_vendor_profile(request.user)
+        if vendor_profile:
+            vendor_profile.store_name = request.POST.get('store_name', vendor_profile.store_name).strip() or vendor_profile.store_name
+            vendor_profile.description = request.POST.get('store_description', vendor_profile.description).strip() or vendor_profile.description
+            if request.FILES.get('store_logo'):
+                vendor_profile.store_logo = request.FILES.get('store_logo')
+            if request.FILES.get('store_banner'):
+                vendor_profile.store_banner = request.FILES.get('store_banner')
+            vendor_profile.save()
+
+        sync_newsletter_subscriber(
+            request.user,
+            subscribe=request.POST.get('newsletter') == 'on',
+            source='profile',
+        )
         
         create_notification(request.user, 'system', '👤 Profile Updated', 'Your profile information has been updated successfully.', '/accounts/profile/')
         messages.success(request, "Profile updated successfully!")
         return redirect('accounts:profile')
     
-    return render(request, 'accounts/edit_profile.html')
+    return render(request, 'accounts/edit_profile.html', {
+        'vendor_profile': get_vendor_profile(request.user),
+    })
 
 @login_required
 def change_password(request):
@@ -508,8 +630,20 @@ def wishlist_count(request):
 @require_GET
 def social_apps_status(request):
     """Check if social apps are configured"""
-    context = get_social_apps_context()
+    context = get_social_apps_context(request)
     return JsonResponse(context)
+
+@require_GET
+def check_username(request):
+    username = request.GET.get('username', '').strip()
+    exists = User.objects.filter(username__iexact=username).exists() if username else False
+    return JsonResponse({'exists': exists})
+
+@require_GET
+def check_email(request):
+    email = request.GET.get('email', '').strip()
+    exists = User.objects.filter(email__iexact=email).exists() if email else False
+    return JsonResponse({'exists': exists})
 
 @require_GET
 def recent_activity_api(request):
@@ -627,8 +761,11 @@ def enable_2fa(request):
         else:
             messages.error(request, message)
     
-    create_otp(request.user, request.user.email, 'login')
-    messages.info(request, f"An OTP has been sent to {request.user.email}")
+    otp = create_otp(request.user, request.user.email, 'login')
+    if otp:
+        messages.info(request, f"An OTP has been sent to {request.user.email}")
+    else:
+        messages.error(request, 'We could not send your 2FA code. Please try again or contact support.')
     return render(request, 'accounts/enable_2fa.html')
 
 @login_required
@@ -676,10 +813,39 @@ def verify_email(request):
         else:
             messages.error(request, message)
     else:
-        create_otp(request.user, request.user.email, 'email')
-        messages.info(request, f"Verification code sent to {request.user.email}")
+        otp = create_otp(request.user, request.user.email, 'email')
+        if otp:
+            messages.info(request, f"Verification code sent to {request.user.email}")
+        else:
+            messages.error(request, 'We could not send your verification email. Please try again or contact support.')
     
     return render(request, 'accounts/verify_email.html', {'user': request.user})
+
+@login_required
+def verify_phone(request):
+    """Verify phone number with OTP."""
+    if not request.user.phone_number:
+        messages.error(request, 'Add a phone number before verifying it.')
+        return redirect('accounts:edit_profile')
+
+    if request.method == 'POST':
+        otp_code = request.POST.get('otp_code', '').strip()
+        success, message = verify_otp(request.user, otp_code, 'phone')
+        if success:
+            request.user.phone_verified = True
+            request.user.save(update_fields=['phone_verified', 'updated_at'])
+            create_notification(request.user, 'system', 'Phone Verified', 'Your phone number has been verified.', '/accounts/profile/')
+            messages.success(request, 'Phone number verified successfully!')
+            return redirect('accounts:profile')
+        messages.error(request, message)
+    else:
+        otp = create_otp(request.user, request.user.phone_number, 'phone')
+        if otp:
+            messages.info(request, f'Verification code sent to {request.user.phone_number}')
+        else:
+            messages.error(request, 'We could not send your phone verification code. Please try again or contact support.')
+
+    return render(request, 'accounts/verify_phone.html', {'user': request.user})
 
 @login_required
 def resend_verification_email(request):

@@ -1,90 +1,236 @@
 {% extends 'base/base.html' %}
 
-{% block title %}Chat with {{ customer.username }}{% endblock %}
+{% block title %}Chat with {{ customer.get_full_name|default:customer.username }} | Arolana{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto">
-    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-        <div class="bg-gray-800 text-white px-6 py-4">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <i class="fas fa-user-circle text-2xl"></i>
-                    <div>
-                        <h2 class="font-semibold">{{ customer.get_full_name|default:customer.username }}</h2>
+<div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
+        <div class="bg-gray-900 text-white px-4 sm:px-6 py-4">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-11 h-11 bg-green-600 rounded-full flex items-center justify-center shrink-0">
+                        <i class="fas fa-user text-white"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h1 class="font-semibold text-lg leading-tight truncate">{{ customer.get_full_name|default:customer.username }}</h1>
                         {% if product %}
-                        <p class="text-xs text-gray-300">Product: {{ product.name|truncatechars:40 }}</p>
+                            <p class="text-xs text-gray-300 truncate">Regarding {{ product.name }}</p>
+                        {% else %}
+                            <p class="text-xs text-gray-300 truncate">{{ customer.email }}</p>
                         {% endif %}
                     </div>
                 </div>
-                <a href="{% url 'chat:vendor_list' %}" class="text-gray-300 hover:text-white">
-                    <i class="fas fa-arrow-left"></i> Back
-                </a>
+                <div class="flex items-center gap-3 shrink-0">
+                    {% if product %}
+                    <a href="{{ product.get_absolute_url }}" class="text-sm text-green-200 hover:text-white transition">
+                        <i class="fas fa-box-open mr-1"></i> View Product
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'chat:vendor_list' %}" class="text-sm text-gray-300 hover:text-white transition">
+                        <i class="fas fa-arrow-left mr-1"></i> Back
+                    </a>
+                </div>
             </div>
         </div>
-        
-        <div id="chat-messages" class="h-96 overflow-y-auto p-4 space-y-3 bg-gray-50">
+
+        {% if product %}
+        <div class="border-b border-gray-100 bg-gray-50 px-4 sm:px-6 py-4">
+            <a href="{{ product.get_absolute_url }}" class="flex items-center gap-4 group">
+                <div class="w-16 h-16 rounded-lg bg-white border border-gray-200 overflow-hidden shrink-0">
+                    {% if product.main_image %}
+                    <img src="{{ product.main_image.url }}" alt="{{ product.name }}" class="w-full h-full object-cover">
+                    {% else %}
+                    <div class="w-full h-full flex items-center justify-center text-gray-300">
+                        <i class="fas fa-image text-xl"></i>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="min-w-0">
+                    <p class="font-semibold text-gray-900 group-hover:text-green-700 transition truncate">{{ product.name }}</p>
+                    <p class="text-sm text-gray-500">Customer product conversation</p>
+                </div>
+            </a>
+        </div>
+        {% endif %}
+
+        <div id="chat-messages" class="h-[32rem] max-h-[68vh] overflow-y-auto p-4 sm:p-6 space-y-4 bg-gray-50">
             {% for message in messages %}
             <div class="flex {% if message.sender == request.user %}justify-end{% else %}justify-start{% endif %}">
-                <div class="max-w-[70%] p-3 rounded-lg {% if message.sender == request.user %}bg-blue-600 text-white{% else %}bg-gray-200 text-gray-800{% endif %}">
-                    <div class="text-sm">{{ message.message }}</div>
-                    <div class="text-xs mt-1 opacity-75">{{ message.created_at|time:"H:i" }}</div>
+                <div class="max-w-[84%] sm:max-w-[70%]">
+                    <div class="px-4 py-3 rounded-2xl shadow-sm {% if message.sender == request.user %}bg-green-600 text-white rounded-br-md{% else %}bg-white text-gray-900 border border-gray-200 rounded-bl-md{% endif %}">
+                        <p class="text-sm leading-relaxed whitespace-pre-wrap break-words">{{ message.message }}</p>
+                        {% if message.attachment %}
+                        <a href="{{ message.attachment.url }}" class="mt-2 inline-flex items-center gap-2 text-xs {% if message.sender == request.user %}text-green-100 hover:text-white{% else %}text-blue-700 hover:text-blue-900{% endif %}" target="_blank" rel="noopener">
+                            <i class="fas fa-paperclip"></i> Attachment
+                        </a>
+                        {% endif %}
+                    </div>
+                    <div class="mt-1 text-[11px] text-gray-400 {% if message.sender == request.user %}text-right{% endif %}">
+                        {{ message.created_at|date:"M d, Y" }} at {{ message.created_at|time:"H:i" }}
+                        {% if message.sender == request.user %}
+                            {% if message.is_read %}
+                                <i class="fas fa-check-double text-green-500 ml-1"></i>
+                            {% else %}
+                                <i class="fas fa-check text-gray-400 ml-1"></i>
+                            {% endif %}
+                        {% endif %}
+                    </div>
                 </div>
+            </div>
+            {% empty %}
+            <div class="h-full min-h-72 flex flex-col items-center justify-center text-center text-gray-500">
+                <i class="fas fa-comments text-5xl text-gray-300 mb-4"></i>
+                <p class="font-semibold text-gray-700">No messages yet</p>
+                <p class="text-sm">Reply when {{ customer.get_full_name|default:customer.username }} sends a message.</p>
             </div>
             {% endfor %}
         </div>
-        
-        <form id="chat-form" class="border-t p-4 bg-white flex gap-2">
+
+        <div id="typing-indicator" class="hidden border-t border-gray-100 bg-gray-50 px-4 sm:px-6 py-3 text-sm text-gray-500">
+            <span class="inline-flex items-center gap-2">
+                <span id="typing-name">{{ customer.get_full_name|default:customer.username }}</span> is typing
+                <span class="inline-flex gap-1" aria-hidden="true">
+                    <span class="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce"></span>
+                    <span class="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce [animation-delay:120ms]"></span>
+                    <span class="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce [animation-delay:240ms]"></span>
+                </span>
+            </span>
+        </div>
+
+        <form id="chat-form" method="post" action="{% url 'chat:vendor_send' room.id %}" class="border-t border-gray-100 bg-white p-4 sm:p-5">
             {% csrf_token %}
-            <input type="text" id="message-input" placeholder="Type your reply..." 
-                   class="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
-                <i class="fas fa-paper-plane"></i> Send
-            </button>
+            <div class="flex items-end gap-3">
+                <label for="message-input" class="sr-only">Message</label>
+                <textarea id="message-input" name="message" rows="1" placeholder="Type your reply..." class="flex-1 resize-none rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-200" required></textarea>
+                <button type="submit" class="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-green-600 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-300" aria-label="Send message">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+            <p id="chat-error" class="hidden mt-2 text-sm text-red-600"></p>
         </form>
     </div>
 </div>
 
 <script>
-const roomId = {{ room.id }};
-const csrfToken = '{{ csrf_token }}';
-
-function loadMessages() {
-    fetch(window.location.href)
-        .then(response => response.text())
-        .then(html => {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            const newMessages = doc.getElementById('chat-messages');
-            const currentMessages = document.getElementById('chat-messages');
-            if (newMessages && currentMessages.innerHTML !== newMessages.innerHTML) {
-                currentMessages.innerHTML = newMessages.innerHTML;
-                currentMessages.scrollTop = currentMessages.scrollHeight;
-            }
-        });
-}
-
-document.getElementById('chat-form').addEventListener('submit', function(e) {
-    e.preventDefault();
+    const roomId = {{ room.id }};
+    const csrfToken = '{{ csrf_token }}';
+    const messagesContainer = document.getElementById('chat-messages');
+    const form = document.getElementById('chat-form');
     const input = document.getElementById('message-input');
-    const message = input.value.trim();
-    
-    if (message) {
+    const errorBox = document.getElementById('chat-error');
+    const typingIndicator = document.getElementById('typing-indicator');
+    const typingName = document.getElementById('typing-name');
+    let lastTypingSentAt = 0;
+
+    function scrollMessagesToBottom() {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    function resizeMessageInput() {
+        input.style.height = 'auto';
+        input.style.height = Math.min(input.scrollHeight, 140) + 'px';
+    }
+
+    function loadMessages() {
+        fetch(window.location.href, {
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
+        })
+            .then(response => response.text())
+            .then(html => {
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                const newMessages = doc.getElementById('chat-messages');
+                if (newMessages && newMessages.innerHTML !== messagesContainer.innerHTML) {
+                    messagesContainer.innerHTML = newMessages.innerHTML;
+                    scrollMessagesToBottom();
+                }
+            })
+            .catch(() => {});
+    }
+
+    function sendTypingSignal() {
+        const now = Date.now();
+        if (now - lastTypingSentAt < 1500) {
+            return;
+        }
+        lastTypingSentAt = now;
+        fetch(`/chat/vendor/typing/${roomId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        }).catch(() => {});
+    }
+
+    function checkTypingStatus() {
+        fetch(`/chat/vendor/typing-status/${roomId}/`, {
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.is_typing) {
+                    typingName.textContent = data.name || '{{ customer.get_full_name|default:customer.username|escapejs }}';
+                    typingIndicator.classList.remove('hidden');
+                } else {
+                    typingIndicator.classList.add('hidden');
+                }
+            })
+            .catch(() => {});
+    }
+
+    input.addEventListener('input', function() {
+        resizeMessageInput();
+        if (input.value.trim()) {
+            sendTypingSignal();
+        }
+    });
+
+    input.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            form.requestSubmit();
+        }
+    });
+
+    form.addEventListener('submit', function(event) {
+        event.preventDefault();
+        const message = input.value.trim();
+        if (!message) {
+            return;
+        }
+
+        errorBox.classList.add('hidden');
         fetch(`/chat/vendor/send/${roomId}/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
-                'X-CSRFToken': csrfToken
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
             },
             body: `message=${encodeURIComponent(message)}`
-        }).then(() => {
-            input.value = '';
-            loadMessages();
-        });
-    }
-});
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Message could not be sent.');
+                }
+                return response.json();
+            })
+            .then(() => {
+                input.value = '';
+                resizeMessageInput();
+                loadMessages();
+                checkTypingStatus();
+            })
+            .catch(error => {
+                errorBox.textContent = error.message;
+                errorBox.classList.remove('hidden');
+            });
+    });
 
-// Auto-refresh every 3 seconds
-setInterval(loadMessages, 3000);
-loadMessages();
+    resizeMessageInput();
+    scrollMessagesToBottom();
+    setInterval(loadMessages, 5000);
+    setInterval(checkTypingStatus, 2000);
+    checkTypingStatus();
 </script>
 {% endblock %}

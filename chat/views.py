@@ -5,11 +5,60 @@ from django.db.models import Q, Sum
 from django.contrib import messages
 from django.utils import timezone
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ObjectDoesNotExist
+from django.core.cache import cache
+from django.views.decorators.http import require_GET, require_POST
 from .models import ChatRoom, ChatMessage, VendorChatRoom, VendorChatMessage
 from products.models import Product
 from orders.models import Order
+from subscriptions.models import user_has_paid_subscription
 
 User = get_user_model()
+
+
+def _vendor_profile_for(user):
+    try:
+        return user.vendor_profile
+    except ObjectDoesNotExist:
+        return None
+
+
+def _vendor_display_name(user):
+    profile = _vendor_profile_for(user)
+    if profile and profile.store_name:
+        return profile.store_name
+    return user.get_full_name() or user.username or user.email
+
+
+def _vendor_chat_locked_redirect(request, room, for_vendor=False):
+    if user_has_paid_subscription(room.vendor):
+        return None
+
+    messages.info(request, 'Vendor chat is available only for sellers with an active paid subscription.')
+    if for_vendor:
+        return redirect('subscriptions:plans')
+    if room.product:
+        return redirect(room.product.get_absolute_url())
+    return redirect('vendors:list')
+
+
+def _vendor_room_for_participant(request, room_id):
+    return get_object_or_404(
+        VendorChatRoom.objects.select_related('vendor', 'customer', 'product'),
+        Q(vendor=request.user) | Q(customer=request.user),
+        id=room_id,
+        is_active=True,
+    )
+
+
+def _chat_name_for(user, room):
+    if user == room.vendor:
+        return _vendor_display_name(user)
+    return user.get_full_name() or user.username or user.email
+
+
+def _typing_cache_key(room_id, user_id):
+    return f'vendor-chat-typing:{room_id}:{user_id}'
 
 @login_required
 def chat_list(request):
@@ -69,6 +118,10 @@ def start_chat(request, user_id=None, product_id=None, order_id=None):
     elif product_id:
         product = get_object_or_404(Product, id=product_id)
         vendor = product.vendor
+
+        if not user_has_paid_subscription(vendor):
+            messages.info(request, 'Vendor chat is available only for sellers with an active paid subscription.')
+            return redirect(product.get_absolute_url())
         
         existing_room = ChatRoom.objects.filter(
             room_type='vendor_customer',
@@ -179,6 +232,9 @@ def vendor_chat_list(request):
 def vendor_chat_room(request, room_id):
     """View a specific vendor chat room"""
     room = get_object_or_404(VendorChatRoom, id=room_id, vendor=request.user, is_active=True)
+    locked_response = _vendor_chat_locked_redirect(request, room, for_vendor=True)
+    if locked_response:
+        return locked_response
     
     room.messages.filter(is_read=False).exclude(sender=request.user).update(is_read=True, read_at=timezone.now())
     room.vendor_unread = 0
@@ -200,6 +256,12 @@ def vendor_send_message(request, room_id):
     """Send a message from vendor to customer"""
     if request.method == 'POST':
         room = get_object_or_404(VendorChatRoom, id=room_id, vendor=request.user)
+        locked_response = _vendor_chat_locked_redirect(request, room, for_vendor=True)
+        if locked_response:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'error': 'Vendor chat requires an active paid subscription.'}, status=403)
+            return locked_response
+
         message_text = request.POST.get('message', '').strip()
         
         if message_text:
@@ -231,6 +293,12 @@ def customer_send_message(request, room_id):
     """Send a message from customer to vendor"""
     if request.method == 'POST':
         room = get_object_or_404(VendorChatRoom, id=room_id, customer=request.user)
+        locked_response = _vendor_chat_locked_redirect(request, room)
+        if locked_response:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'error': 'Vendor chat requires an active paid subscription.'}, status=403)
+            return locked_response
+
         message_text = request.POST.get('message', '').strip()
         
         if message_text:
@@ -264,6 +332,12 @@ def start_vendor_chat(request, vendor_id, product_id=None):
     product = None
     if product_id:
         product = get_object_or_404(Product, id=product_id)
+
+    if not user_has_paid_subscription(vendor):
+        messages.info(request, 'Vendor chat is available only for sellers with an active paid subscription.')
+        if product:
+            return redirect(product.get_absolute_url())
+        return redirect('vendors:list')
     
     room = VendorChatRoom.objects.filter(
         vendor=vendor,
@@ -284,6 +358,9 @@ def start_vendor_chat(request, vendor_id, product_id=None):
 def customer_chat_room(request, room_id):
     """View a specific chat room as a customer"""
     room = get_object_or_404(VendorChatRoom, id=room_id, customer=request.user, is_active=True)
+    locked_response = _vendor_chat_locked_redirect(request, room)
+    if locked_response:
+        return locked_response
     
     room.messages.filter(is_read=False).exclude(sender=request.user).update(is_read=True, read_at=timezone.now())
     room.customer_unread = 0
@@ -295,9 +372,37 @@ def customer_chat_room(request, room_id):
         'room': room,
         'messages': messages_list,
         'vendor': room.vendor,
+        'vendor_profile': _vendor_profile_for(room.vendor),
+        'vendor_display_name': _vendor_display_name(room.vendor),
         'product': room.product,
     }
     return render(request, 'chat/customer_chat_room.html', context)
+
+
+@login_required
+@require_POST
+def vendor_chat_typing(request, room_id):
+    """Record a short-lived typing signal for a vendor/customer chat room."""
+    room = _vendor_room_for_participant(request, room_id)
+    locked_response = _vendor_chat_locked_redirect(request, room, for_vendor=request.user == room.vendor)
+    if locked_response:
+        return JsonResponse({'success': False, 'error': 'Chat is not available for this seller.'}, status=403)
+
+    cache.set(_typing_cache_key(room.id, request.user.id), True, timeout=6)
+    return JsonResponse({'success': True})
+
+
+@login_required
+@require_GET
+def vendor_chat_typing_status(request, room_id):
+    """Return whether the other participant is currently typing."""
+    room = _vendor_room_for_participant(request, room_id)
+    other_user = room.customer if request.user == room.vendor else room.vendor
+    is_typing = bool(cache.get(_typing_cache_key(room.id, other_user.id)))
+    return JsonResponse({
+        'is_typing': is_typing,
+        'name': _chat_name_for(other_user, room),
+    })
 
 @login_required
 def get_vendor_unread_count(request):

@@ -1,5 +1,6 @@
 from django import template
 from django.core.serializers.json import DjangoJSONEncoder
+from django.db.models import Count, Q
 from homepage.models import (
     HomepageCategory, HomepageBanner, HomepageSection, 
     HomepageVendorSettings, HomepageNewsletterSettings, 
@@ -17,13 +18,26 @@ register = template.Library()
 @register.inclusion_tag('homepage/categories.html', takes_context=True)
 def homepage_categories(context):
     request = context.get('request')
-    categories = HomepageCategory.objects.filter(is_active=True).select_related('category').order_by('display_order')
+    categories = (
+        HomepageCategory.objects
+        .filter(is_active=True)
+        .select_related('category')
+        .annotate(
+            product_total=Count(
+                'category__products',
+                filter=Q(
+                    category__products__is_active=True,
+                    category__products__approval_status='approved',
+                ),
+            )
+        )
+        .order_by('display_order')
+    )
     
-    # Enhance each category with image URL and product count
+    # Enhance each category with fallback image URL and product count
     for hp_category in categories:
-        if hp_category.category.image:
-            hp_category.image_url = hp_category.category.image.url
-        else:
+        hp_category.image_url = None
+        if not hp_category.category.image:
             default_images = {
                 'accessories': '/media/categories/defaults/accessories.jpg',
                 'audio': '/media/categories/defaults/audio.jpg',
@@ -36,7 +50,7 @@ def homepage_categories(context):
             }
             hp_category.image_url = default_images.get(hp_category.category.slug, None)
         
-        hp_category.product_count = hp_category.category.product_count if hasattr(hp_category.category, 'product_count') else 0
+        hp_category.product_count = hp_category.product_total
         
         if not hp_category.icon:
             default_icons = {
@@ -67,9 +81,9 @@ def homepage_banner(context):
             'button_url': banner.button_url,
             'background_color_start': banner.background_color_start,
             'background_color_end': banner.background_color_end,
-            'left_image': banner.left_image.url if banner.left_image else None,
-            'right_image': banner.right_image.url if banner.right_image else None,
-            'center_image': banner.center_image.url if banner.center_image else None,
+            'left_image': banner.left_image or None,
+            'right_image': banner.right_image or None,
+            'center_image': banner.center_image or None,
             'left_animation': banner.left_animation,
             'right_animation': banner.right_animation,
             'center_animation': banner.center_animation,
@@ -122,8 +136,13 @@ def manufacturers_section(context):
     else:
         manufacturers = Manufacturer.objects.filter(is_active=True).order_by('-total_sales', '-rating_avg')[:settings.display_count]
     
-    homepage_categories = HomepageManufacturerCategory.objects.filter(is_active=True).order_by('display_order')
-    categories = [hc.category for hc in homepage_categories if hc.category.is_active]
+    homepage_categories = (
+        HomepageManufacturerCategory.objects
+        .filter(is_active=True)
+        .select_related('category')
+        .order_by('display_order')
+    )
+    categories = [hc.category for hc in homepage_categories if hc.category and hc.category.is_active]
     
     return {
         'show_section': True,

@@ -202,7 +202,7 @@
         <!-- Sign up link -->
         <p class="text-center text-sm text-gray-600">
             Don't have an account? 
-            <a href="{% url 'account_signup' %}" class="font-medium text-blue-600 hover:text-blue-500 transition-colors">Sign up now</a>
+            <a href="{% url 'accounts:register' %}" class="font-medium text-blue-600 hover:text-blue-500 transition-colors">Sign up now</a>
         </p>
         
         <!-- Trust badges -->
@@ -317,7 +317,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Social login status check (optional)
 async function checkSocialLoginStatus() {
     try {
-        const response = await fetch('/social-apps-status/');
+        const response = await fetch('/accounts/social-apps-status/');
         const data = await response.json();
         if (!data.google) {
             console.log('Google login not configured, but email login works');

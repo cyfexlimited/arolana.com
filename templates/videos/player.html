@@ -9,6 +9,7 @@
                 frameborder="0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowfullscreen
+                referrerpolicy="strict-origin-when-cross-origin"
                 loading="lazy">
             </iframe>
         
@@ -20,13 +21,14 @@
                 frameborder="0"
                 allow="autoplay; fullscreen; picture-in-picture"
                 allowfullscreen
+                referrerpolicy="strict-origin-when-cross-origin"
                 loading="lazy">
             </iframe>
         
         {% elif video.video_type == 'local' and video.video_file %}
             <video 
                 class="w-full h-full"
-                controls="{{ video.controls|yesno:'true,false' }}"
+                {% if video.controls %}controls{% endif %}
                 {% if video.autoplay %}autoplay{% endif %}
                 {% if video.loop %}loop{% endif %}
                 {% if video.muted %}muted{% endif %}
@@ -39,7 +41,7 @@
         {% elif video.video_type == 'streaming' and video.streaming_url %}
             <video 
                 class="w-full h-full"
-                controls="{{ video.controls|yesno:'true,false' }}"
+                {% if video.controls %}controls{% endif %}
                 {% if video.autoplay %}autoplay{% endif %}
                 {% if video.loop %}loop{% endif %}
                 {% if video.muted %}muted{% endif %}

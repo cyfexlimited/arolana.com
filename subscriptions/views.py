@@ -2,7 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
-from .models import SubscriptionPlan, VendorSubscription
+from .models import SubscriptionPlan, VendorSubscription, normalize_subscription_tier, get_tier_limits
 from vendors.models import VendorProfile
 
 @login_required
@@ -35,7 +35,7 @@ def subscribe(request, plan_id):
         messages.error(request, 'You need to become a vendor first.')
         return redirect('vendors:become')
     
-    # Check if already has active subscription
+    # Replace any existing active subscription so vendors can upgrade/downgrade cleanly.
     existing = VendorSubscription.objects.filter(
         vendor=request.user,
         is_active=True,
@@ -43,8 +43,9 @@ def subscribe(request, plan_id):
     ).first()
     
     if existing:
-        messages.warning(request, f'You already have an active {existing.plan.display_name} subscription.')
-        return redirect('subscriptions:plans')
+        existing.is_active = False
+        existing.auto_renew = False
+        existing.save(update_fields=['is_active', 'auto_renew', 'updated_at'])
     
     # Create subscription (30 days)
     from django.utils import timezone
@@ -61,8 +62,11 @@ def subscribe(request, plan_id):
     
     # Update vendor profile
     vendor_profile = request.user.vendor_profile
-    vendor_profile.subscription_plan = plan.name
-    vendor_profile.subscription_end_date = end_date
+    tier = normalize_subscription_tier(plan.name)
+    limits = get_tier_limits(tier)
+    vendor_profile.subscription_tier = tier
+    vendor_profile.subscription_expiry = end_date
+    vendor_profile.priority_score = limits['priority_score']
     vendor_profile.save()
     
     messages.success(request, f'Successfully subscribed to {plan.display_name}!')
@@ -78,8 +82,10 @@ def cancel_subscription(request, subscription_id):
     
     # Update vendor profile
     vendor_profile = request.user.vendor_profile
-    vendor_profile.subscription_plan = 'basic'
-    vendor_profile.save()
+    vendor_profile.subscription_tier = 'free'
+    vendor_profile.subscription_expiry = None
+    vendor_profile.priority_score = 0
+    vendor_profile.save(update_fields=['subscription_tier', 'subscription_expiry', 'priority_score', 'updated_at'])
     
     messages.success(request, 'Your subscription has been cancelled.')
     return redirect('subscriptions:plans')

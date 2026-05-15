@@ -242,12 +242,41 @@ ACCOUNT_RATE_LIMITS = {
     'signup': '5/1h',
 }
 
-SOCIALACCOUNT_PROVIDERS = {
-    'google': {
-        'SCOPE': ['profile', 'email'],
-        'AUTH_PARAMS': {'access_type': 'online'},
-        'OAUTH_PKCE_ENABLED': True,
+ACCOUNT_ADAPTER = 'accounts.adapters.CustomAccountAdapter'
+SOCIALACCOUNT_ADAPTER = 'accounts.adapters.CustomSocialAccountAdapter'
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
+SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
+SOCIALACCOUNT_LOGIN_ON_GET = True
+SOCIALACCOUNT_STORE_TOKENS = True
+
+GOOGLE_OAUTH_CLIENT_ID = config(
+    'GOOGLE_OAUTH_CLIENT_ID',
+    default=config('GOOGLE_CLIENT_ID', default='')
+)
+GOOGLE_OAUTH_CLIENT_SECRET = config(
+    'GOOGLE_OAUTH_CLIENT_SECRET',
+    default=config('GOOGLE_CLIENT_SECRET', default='')
+)
+
+GOOGLE_SOCIALACCOUNT_PROVIDER = {
+    'SCOPE': ['profile', 'email'],
+    'AUTH_PARAMS': {
+        'access_type': 'online',
+        'prompt': 'select_account',
     },
+    'OAUTH_PKCE_ENABLED': True,
+}
+if GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET:
+    GOOGLE_SOCIALACCOUNT_PROVIDER['APP'] = {
+        'client_id': GOOGLE_OAUTH_CLIENT_ID,
+        'secret': GOOGLE_OAUTH_CLIENT_SECRET,
+        'key': '',
+        'name': 'Google',
+    }
+
+SOCIALACCOUNT_PROVIDERS = {
+    'google': GOOGLE_SOCIALACCOUNT_PROVIDER,
     'facebook': {
         'METHOD': 'oauth2',
         'SCOPE': ['email', 'public_profile'],
@@ -269,6 +298,34 @@ if not MEDIA_URL.endswith('/'):
     MEDIA_URL = f'{MEDIA_URL}/'
 MEDIA_ROOT = BASE_DIR / 'media'
 SERVE_MEDIA = config('SERVE_MEDIA', default=False, cast=bool)
+
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
+    },
+}
+
+AWS_STORAGE_BUCKET_NAME = config('AWS_STORAGE_BUCKET_NAME', default='')
+AWS_S3_ENDPOINT_URL = config('AWS_S3_ENDPOINT_URL', default='')
+AWS_S3_REGION_NAME = config('AWS_S3_REGION_NAME', default='auto')
+AWS_S3_ADDRESSING_STYLE = config('AWS_S3_ADDRESSING_STYLE', default='path')
+AWS_DEFAULT_ACL = config('AWS_DEFAULT_ACL', default='public-read')
+AWS_S3_FILE_OVERWRITE = config('AWS_S3_FILE_OVERWRITE', default=False, cast=bool)
+AWS_QUERYSTRING_AUTH = config('AWS_QUERYSTRING_AUTH', default=False, cast=bool)
+AWS_QUERYSTRING_EXPIRE = config('AWS_QUERYSTRING_EXPIRE', default=3600, cast=int)
+AWS_S3_OBJECT_PARAMETERS = {
+    'CacheControl': config('AWS_S3_CACHE_CONTROL', default='max-age=31536000, public'),
+}
+OPTIMIZED_MEDIA_ENABLED = config('OPTIMIZED_MEDIA_ENABLED', default=True, cast=bool)
+
+if AWS_STORAGE_BUCKET_NAME and AWS_S3_ENDPOINT_URL:
+    MEDIA_URL = f"{AWS_S3_ENDPOINT_URL.rstrip('/')}/{AWS_STORAGE_BUCKET_NAME}/media/"
+    STORAGES['default'] = {
+        'BACKEND': 'core.storages.CachedS3MediaStorage',
+    }
 
 # ============ CKEDITOR 5 ============
 CKEDITOR_5_CONFIGS = {
@@ -321,17 +378,32 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = 'tailwind'
 CRISPY_TEMPLATE_PACK = 'tailwind'
 
 # ============ EMAIL ============
-if DEBUG:
-    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-else:
-    EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
-    EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
-    EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
-    EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
-    EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
-    EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
-
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@arolana.com')
+EMAIL_BACKEND = config(
+    'EMAIL_BACKEND',
+    default='django.core.mail.backends.console.EmailBackend' if DEBUG else 'django.core.mail.backends.smtp.EmailBackend'
+)
+EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_USE_SSL = config('EMAIL_USE_SSL', default=False, cast=bool)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+EMAIL_TIMEOUT = config('EMAIL_TIMEOUT', default=20, cast=int)
+EMAIL_ALLOW_UNAUTHENTICATED_SMTP = config('EMAIL_ALLOW_UNAUTHENTICATED_SMTP', default=False, cast=bool)
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER or 'noreply@arolana.com')
+SERVER_EMAIL = config('SERVER_EMAIL', default=DEFAULT_FROM_EMAIL)
+EMAIL_CONFIGURED = (
+    EMAIL_BACKEND != 'django.core.mail.backends.smtp.EmailBackend'
+    or (
+        bool(EMAIL_HOST)
+        and bool(EMAIL_PORT)
+        and bool(DEFAULT_FROM_EMAIL)
+        and (
+            EMAIL_ALLOW_UNAUTHENTICATED_SMTP
+            or (bool(EMAIL_HOST_USER) and bool(EMAIL_HOST_PASSWORD))
+        )
+    )
+)
 
 # ============ SECURITY ============
 if DEBUG:
@@ -421,6 +493,7 @@ USE_TZ = True
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 SITE_URL = config('SITE_URL', default='https://arolana.com')
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 
 # ============ CACHING ============
 if REDIS_URL:

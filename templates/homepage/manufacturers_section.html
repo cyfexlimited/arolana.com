@@ -1,3 +1,5 @@
+{% load media_optimization %}
+
 {% if show_section %}
 <section class="mb-12">
     <div class="text-center mb-8">
@@ -29,12 +31,14 @@
            class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition group">
             <div class="h-32 bg-gradient-to-r from-blue-600 to-purple-600 relative">
                 {% if manufacturer.banner %}
-                <img src="{{ manufacturer.banner.url }}" class="w-full h-32 object-cover">
+                {% optimized_image_url manufacturer.banner 'ad_card' as manufacturer_banner_url %}
+                <img src="{{ manufacturer_banner_url }}" class="w-full h-32 object-cover" loading="lazy">
                 {% endif %}
                 <div class="absolute -bottom-8 left-1/2 transform -translate-x-1/2">
                     {% if manufacturer.logo %}
-                    <img src="{{ manufacturer.logo.url }}" 
-                         class="w-16 h-16 rounded-full border-4 border-white object-cover bg-white shadow-lg group-hover:scale-110 transition">
+                    {% optimized_image_url manufacturer.logo 'avatar' as manufacturer_logo_url %}
+                    <img src="{{ manufacturer_logo_url }}"
+                         class="w-16 h-16 rounded-full border-4 border-white object-cover bg-white shadow-lg group-hover:scale-110 transition" loading="lazy">
                     {% else %}
                     <div class="w-16 h-16 rounded-full bg-white border-4 border-white flex items-center justify-center shadow-lg group-hover:scale-110 transition">
                         <i class="fas fa-industry text-2xl text-blue-600"></i>
