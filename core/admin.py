@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django import forms
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.contrib.auth import get_user_model
@@ -7,10 +8,103 @@ from django.db.models import Sum
 from datetime import timedelta
 from django.utils.timezone import now
 from django.conf import settings
-from .models import SiteSettings, PromoBanner
+from .models import AdminAppearance, SiteSettings, PromoBanner
 from products.models import Product
 from orders.models import Order
 from vendors.models import VendorProfile
+
+
+# =========================
+# ADMIN APPEARANCE
+# =========================
+class AdminAppearanceForm(forms.ModelForm):
+    color_fields = (
+        'page_background_color',
+        'content_background_color',
+        'card_background_color',
+        'text_color',
+        'muted_text_color',
+        'primary_color',
+        'accent_color',
+        'hero_start_color',
+        'hero_end_color',
+        'navbar_background_color',
+        'navbar_text_color',
+        'sidebar_background_color',
+        'sidebar_text_color',
+    )
+
+    class Meta:
+        model = AdminAppearance
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field_name in self.color_fields:
+            if field_name in self.fields:
+                self.fields[field_name].widget = forms.TextInput(attrs={'type': 'color'})
+
+
+@admin.register(AdminAppearance)
+class AdminAppearanceAdmin(admin.ModelAdmin):
+    form = AdminAppearanceForm
+    list_display = ('name', 'is_active', 'page_background_color', 'primary_color', 'accent_color', 'updated_at')
+    list_editable = ('is_active',)
+    readonly_fields = ('preview', 'created_at', 'updated_at')
+
+    fieldsets = (
+        ('Status', {
+            'fields': ('name', 'is_active', 'preview'),
+            'description': 'Only one admin appearance can be active at a time.',
+        }),
+        ('Main Colors', {
+            'fields': (
+                'page_background_color',
+                'content_background_color',
+                'card_background_color',
+                'text_color',
+                'muted_text_color',
+            ),
+        }),
+        ('Brand Colors', {
+            'fields': ('primary_color', 'accent_color', 'hero_start_color', 'hero_end_color'),
+        }),
+        ('Navigation Colors', {
+            'fields': (
+                'navbar_background_color',
+                'navbar_text_color',
+                'sidebar_background_color',
+                'sidebar_text_color',
+            ),
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',),
+        }),
+    )
+
+    def preview(self, obj):
+        return format_html(
+            '''
+            <div style="background:{};border:1px solid #e5e7eb;border-radius:12px;max-width:520px;padding:14px;">
+                <div style="background:linear-gradient(135deg, {}, {});border-radius:10px;color:#fff;padding:14px;margin-bottom:12px;">
+                    <strong>Operations dashboard</strong><br>
+                    <small>Hero and accent preview</small>
+                </div>
+                <div style="background:{};border-radius:10px;color:{};padding:12px;">
+                    <strong>Readable content card</strong><br>
+                    <small style="color:{};">Cards, forms, tables, and dashboard panels use these colors.</small>
+                </div>
+            </div>
+            ''',
+            obj.page_background_color,
+            obj.hero_start_color,
+            obj.hero_end_color,
+            obj.card_background_color,
+            obj.text_color,
+            obj.muted_text_color,
+        )
+    preview.short_description = 'Preview'
 
 
 # =========================

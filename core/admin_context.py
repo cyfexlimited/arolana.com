@@ -16,6 +16,12 @@ def admin_context(request):
         return {}
 
     User = get_user_model()
+    admin_appearance = None
+    try:
+        from core.models import AdminAppearance
+        admin_appearance = AdminAppearance.objects.filter(is_active=True).first()
+    except Exception:
+        admin_appearance = None
     
     # Import models inside function to avoid circular imports at startup
     from products.models import Product, ProductVariant
@@ -224,6 +230,7 @@ def admin_context(request):
         # Additional context
         'current_date': today.strftime('%B %d, %Y'),
         'site_name': 'Arolana',
+        'admin_appearance': admin_appearance,
         'admin_pending_count': stats['pending_vendors'] + stats['pending_orders'] + stats['pending_products'] + stats['low_stock_products'],
     }
 

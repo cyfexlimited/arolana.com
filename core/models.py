@@ -1,4 +1,11 @@
+from django.core.validators import RegexValidator
 from django.db import models
+
+
+hex_color_validator = RegexValidator(
+    regex=r'^#(?:[0-9a-fA-F]{3}){1,2}$',
+    message='Enter a valid hex color, for example #F8FAFC.',
+)
 
 class BaseModel(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
@@ -77,3 +84,34 @@ class PromoBanner(BaseModel):
     
     def __str__(self):
         return self.title
+
+
+class AdminAppearance(BaseModel):
+    """Editable colors for the Jazzmin admin interface."""
+
+    name = models.CharField(max_length=100, default='Default Admin Theme')
+    page_background_color = models.CharField(max_length=7, default='#F6F8FB', validators=[hex_color_validator])
+    content_background_color = models.CharField(max_length=7, default='#FFFFFF', validators=[hex_color_validator])
+    card_background_color = models.CharField(max_length=7, default='#FFFFFF', validators=[hex_color_validator])
+    text_color = models.CharField(max_length=7, default='#111827', validators=[hex_color_validator])
+    muted_text_color = models.CharField(max_length=7, default='#667085', validators=[hex_color_validator])
+    primary_color = models.CharField(max_length=7, default='#2563EB', validators=[hex_color_validator])
+    accent_color = models.CharField(max_length=7, default='#0F766E', validators=[hex_color_validator])
+    hero_start_color = models.CharField(max_length=7, default='#111827', validators=[hex_color_validator])
+    hero_end_color = models.CharField(max_length=7, default='#0F766E', validators=[hex_color_validator])
+    navbar_background_color = models.CharField(max_length=7, default='#FFFFFF', validators=[hex_color_validator])
+    navbar_text_color = models.CharField(max_length=7, default='#111827', validators=[hex_color_validator])
+    sidebar_background_color = models.CharField(max_length=7, default='#FFFFFF', validators=[hex_color_validator])
+    sidebar_text_color = models.CharField(max_length=7, default='#1F2937', validators=[hex_color_validator])
+
+    class Meta:
+        verbose_name = 'Admin Appearance'
+        verbose_name_plural = 'Admin Appearance'
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        if self.is_active:
+            AdminAppearance.objects.exclude(pk=self.pk).update(is_active=False)
+        super().save(*args, **kwargs)
