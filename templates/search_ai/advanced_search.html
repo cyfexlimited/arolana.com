@@ -1,5 +1,117 @@
 {% extends 'base/base.html' %}
 
+{% block extra_css %}
+<style>
+    /* Voice search button animation */
+    .voice-btn {
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .voice-btn.recording {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        animation: pulse 1.5s infinite;
+        box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+    }
+
+    @keyframes pulse {
+        0% {
+            transform: scale(1);
+            opacity: 1;
+        }
+        50% {
+            transform: scale(1.05);
+            opacity: 0.9;
+        }
+        100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
+    .voice-wave {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        height: 20px;
+    }
+
+    .voice-wave span {
+        width: 3px;
+        height: 100%;
+        background-color: white;
+        animation: wave 1s ease-in-out infinite;
+    }
+
+    .voice-wave span:nth-child(2) { animation-delay: 0.1s; }
+    .voice-wave span:nth-child(3) { animation-delay: 0.2s; }
+    .voice-wave span:nth-child(4) { animation-delay: 0.3s; }
+    .voice-wave span:nth-child(5) { animation-delay: 0.4s; }
+
+    @keyframes wave {
+        0%, 100% { height: 5px; }
+        50% { height: 20px; }
+    }
+
+    /* Voice search modal */
+    .voice-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.9);
+        z-index: 10000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        animation: fadeIn 0.3s ease;
+    }
+
+    .voice-modal.active {
+        display: flex;
+    }
+
+    .voice-modal-content {
+        text-align: center;
+        color: white;
+        max-width: 500px;
+        padding: 40px;
+    }
+
+    .voice-visualizer {
+        width: 200px;
+        height: 200px;
+        margin: 0 auto 30px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: rotate 3s linear infinite;
+    }
+
+    @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .voice-text {
+        font-size: 24px;
+        margin: 20px 0;
+        min-height: 80px;
+        padding: 20px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 15px;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="bg-gradient-to-b from-slate-50 to-white min-h-screen">
     <!-- Header Section -->
@@ -21,10 +133,22 @@
                             Reset
                         </a>
                     </div>
-                    
+
                     <form method="GET" action="{% url 'search_ai:advanced_search' %}" class="space-y-6">
-                        <input type="hidden" name="q" value="{{ query }}">
-                        
+                        <!-- Search Input with Voice Button -->
+                        <div class="border-b pb-6">
+                            <label class="block font-bold text-gray-900 mb-3 flex items-center gap-2">
+                                <i class="fas fa-microphone text-red-500"></i>
+                                Voice Search
+                            </label>
+                            <div class="relative">
+                                <input type="text" id="voice-search-input" name="q" value="{{ query }}" placeholder="Speak or type your search..." class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition pr-12">
+                                <button type="button" id="voice-search-btn" class="voice-btn absolute right-3 top-1/2 -translate-y-1/2 bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition">
+                                    <i class="fas fa-microphone"></i>
+                                </button>
+                            </div>
+                        </div>
+
                         <!-- Category Filter -->
                         <div class="border-b pb-6">
                             <label class="block font-bold text-gray-900 mb-3 flex items-center gap-2">
@@ -40,7 +164,7 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        
+
                         <!-- Price Range -->
                         <div class="border-b pb-6">
                             <label class="block font-bold text-gray-900 mb-3 flex items-center gap-2">
@@ -52,7 +176,7 @@
                                 <input type="number" name="max_price" placeholder="Max Price" value="{{ max_price }}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition">
                             </div>
                         </div>
-                        
+
                         <!-- Rating Filter -->
                         <div class="border-b pb-6">
                             <label class="block font-bold text-gray-900 mb-3 flex items-center gap-2">
@@ -66,7 +190,7 @@
                                 <option value="2" {% if selected_rating == "2" %}selected{% endif %}>⭐⭐ & above</option>
                             </select>
                         </div>
-                        
+
                         <!-- Sort -->
                         <div class="pb-6">
                             <label class="block font-bold text-gray-900 mb-3 flex items-center gap-2">
@@ -81,7 +205,7 @@
                                 <option value="-rating_avg" {% if sort == "-rating_avg" %}selected{% endif %}>⭐ Top Rated</option>
                             </select>
                         </div>
-                        
+
                         <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-xl hover:from-blue-700 hover:to-blue-800 font-bold transition transform hover:scale-105 shadow-lg flex items-center justify-center gap-2">
                             <i class="fas fa-filter"></i>
                             Apply Filters
@@ -89,7 +213,7 @@
                     </form>
                 </div>
             </div>
-            
+
             <!-- Results -->
             <div class="lg:col-span-3">
                 <div class="bg-white rounded-2xl shadow-lg p-8 border border-gray-100">
@@ -110,9 +234,9 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     {% if products %}
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" id="search-results">
                             {% for product in products %}
                             <div class="group product-card bg-white border-2 border-gray-100 rounded-2xl overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
                                 <!-- Product Image -->
@@ -126,20 +250,19 @@
                                             </div>
                                         {% endif %}
                                     </a>
-                                    <!-- Badge -->
+                                    {% if product.discount_percent > 0 %}
                                     <div class="absolute top-3 right-3 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold">
-                                        Sale
+                                        -{{ product.discount_percent }}%
                                     </div>
+                                    {% endif %}
                                 </div>
 
                                 <!-- Product Info -->
                                 <div class="p-5">
-                                    <!-- Title -->
                                     <a href="{{ product.get_absolute_url }}" class="font-bold text-gray-900 text-lg group-hover:text-blue-600 transition line-clamp-2 block mb-3">
                                         {{ product.name }}
                                     </a>
-                                    
-                                    <!-- Rating -->
+
                                     <div class="flex items-center gap-2 mb-4">
                                         <div class="flex text-yellow-400 gap-1">
                                             {% for i in "12345"|make_list %}
@@ -156,14 +279,14 @@
                                             ({{ product.rating_count }})
                                         </span>
                                     </div>
-                                    
-                                    <!-- Price -->
+
                                     <div class="flex items-baseline gap-2 mb-4">
                                         <span class="text-2xl font-bold text-blue-600">${{ product.price }}</span>
-                                        <span class="text-sm text-gray-400 line-through">${{ product.original_price|default:product.price }}</span>
+                                        {% if product.compare_price %}
+                                        <span class="text-sm text-gray-400 line-through">${{ product.compare_price }}</span>
+                                        {% endif %}
                                     </div>
-                                    
-                                    <!-- CTA Button -->
+
                                     <a href="{{ product.get_absolute_url }}" class="w-full block text-center bg-gradient-to-r from-blue-600 to-blue-700 text-white py-2 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition">
                                         View Details
                                     </a>
@@ -178,7 +301,7 @@
                             </div>
                             <p class="text-2xl font-bold text-gray-900 mb-2">No products found</p>
                             <p class="text-gray-500 text-lg mb-6">Try adjusting your filters or search terms</p>
-                            <a href="{% url 'shop:product_list' %}" class="inline-block bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-blue-700 transition">
+                            <a href="{% url 'products:list' %}" class="inline-block bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-blue-700 transition">
                                 <i class="fas fa-shopping-bag mr-2"></i>
                                 Browse All Products
                             </a>
@@ -187,7 +310,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Popular Searches -->
         {% if popular_searches %}
         <div class="mt-12 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200 p-8">
@@ -208,28 +331,188 @@
     </div>
 </div>
 
-<style>
-    /* Smooth transitions */
-    * {
-        transition: all 0.3s ease;
+<!-- Voice Search Modal -->
+<div id="voice-modal" class="voice-modal">
+    <div class="voice-modal-content">
+        <div class="voice-visualizer">
+            <i class="fas fa-microphone-alt text-6xl text-white"></i>
+        </div>
+        <div class="voice-wave" style="justify-content: center; gap: 8px;">
+            <span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <div id="voice-text" class="voice-text text-2xl text-white">
+            Listening...
+        </div>
+        <p class="text-gray-400 mb-4">Speak clearly into your microphone</p>
+        <button onclick="closeVoiceModal()" class="px-6 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition">
+            Cancel
+        </button>
+    </div>
+</div>
+
+<script>
+// Voice Search Functionality
+let recognition = null;
+let isRecording = false;
+
+function initSpeechRecognition(showUnsupportedMessage = true) {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
+        recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = document.documentElement.lang || navigator.language || 'en-US';
+
+        recognition.onstart = function() {
+            console.log('Voice recognition started');
+            document.getElementById('voice-modal').classList.add('active');
+            isRecording = true;
+        };
+
+        recognition.onend = function() {
+            console.log('Voice recognition ended');
+            setTimeout(() => {
+                if (!isRecording) {
+                    document.getElementById('voice-modal').classList.remove('active');
+                }
+            }, 500);
+        };
+
+        recognition.onresult = function(event) {
+            const transcript = event.results[0][0].transcript;
+            document.getElementById('voice-text').innerHTML = `<i class="fas fa-check-circle text-green-500 mr-2"></i> "${transcript}"`;
+
+            // Submit the voice search
+            submitVoiceSearch(transcript);
+            setTimeout(() => {
+                document.getElementById('voice-modal').classList.remove('active');
+                isRecording = false;
+            }, 1500);
+        };
+
+        recognition.onerror = function(event) {
+            console.error('Speech recognition error', event.error);
+            const messages = {
+                'not-allowed': 'Microphone access was blocked. Allow microphone permission in your browser, then try again.',
+                'audio-capture': 'No microphone was found. Check your input device and try again.',
+                'no-speech': 'I did not hear anything. Please tap the mic and speak clearly.',
+                'network': 'Voice recognition could not reach the browser speech service. Please try again.',
+            };
+            document.getElementById('voice-text').innerHTML = `<i class="fas fa-exclamation-circle text-red-500 mr-2"></i> ${messages[event.error] || 'Voice recognition failed. Please try again.'}`;
+            setTimeout(() => {
+                document.getElementById('voice-modal').classList.remove('active');
+                isRecording = false;
+            }, 2000);
+        };
+
+        return true;
+    } else {
+        if (showUnsupportedMessage) {
+            showToast('Voice search needs Chrome, Edge, or Safari. Firefox does not support browser voice recognition yet.', 'error');
+        }
+        return false;
     }
-    
-    /* Custom scrollbar */
-    ::-webkit-scrollbar {
-        width: 8px;
+}
+
+function startVoiceSearch() {
+    if (!recognition) {
+        if (!initSpeechRecognition()) {
+            return;
+        }
     }
-    
-    ::-webkit-scrollbar-track {
-        background: #f1f5f9;
+
+    try {
+        document.getElementById('voice-text').innerHTML = 'Listening...';
+        if (recognition) {
+            recognition.start();
+        }
+    } catch (error) {
+        console.error('Error starting recognition:', error);
+        recognition = null;
+        if (initSpeechRecognition() && recognition) {
+            recognition.start();
+        }
     }
-    
-    ::-webkit-scrollbar-thumb {
-        background: #3b82f6;
-        border-radius: 4px;
+}
+
+function closeVoiceModal() {
+    if (recognition) {
+        recognition.stop();
     }
-    
-    ::-webkit-scrollbar-thumb:hover {
-        background: #1e40af;
+    document.getElementById('voice-modal').classList.remove('active');
+    isRecording = false;
+}
+
+async function submitVoiceSearch(query) {
+    const searchInput = document.getElementById('voice-search-input');
+    if (searchInput) {
+        searchInput.value = query;
     }
-</style>
+
+    // Show loading state
+    const resultsContainer = document.getElementById('search-results');
+    if (resultsContainer) {
+        resultsContainer.innerHTML = '<div class="col-span-full text-center py-12"><i class="fas fa-spinner fa-spin text-4xl text-blue-600"></i><p class="mt-4 text-gray-500">Searching...</p></div>';
+    }
+
+    try {
+        const response = await fetch('{% url "search_ai:voice_search" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({ voice_text: query })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Update URL with query parameter
+            const url = new URL(window.location.href);
+            url.searchParams.set('q', query);
+            window.history.pushState({}, '', url);
+
+            // Reload the page to show results
+            window.location.reload();
+        } else {
+            showToast(data.error || 'Search failed', 'error');
+        }
+    } catch (error) {
+        console.error('Voice search error:', error);
+        showToast('Network error. Please try again.', 'error');
+    }
+}
+
+function getCsrfToken() {
+    const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrfInput) {
+        return csrfInput.value;
+    }
+
+    const tokenCookie = document.cookie
+        .split('; ')
+        .find((row) => row.startsWith('csrftoken='));
+
+    return tokenCookie ? decodeURIComponent(tokenCookie.split('=')[1]) : '';
+}
+
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `fixed bottom-20 right-4 z-50 px-4 py-2 rounded-lg text-white shadow-lg ${
+        type === 'success' ? 'bg-green-500' : 'bg-red-500'
+    }`;
+    toast.innerHTML = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+// Initialize voice button
+document.addEventListener('DOMContentLoaded', function() {
+    const voiceBtn = document.getElementById('voice-search-btn');
+    if (voiceBtn) {
+        voiceBtn.addEventListener('click', startVoiceSearch);
+    }
+});
+</script>
 {% endblock %}

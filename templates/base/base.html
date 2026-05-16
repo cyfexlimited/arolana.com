@@ -1571,8 +1571,19 @@
             const container = document.getElementById('toast-container');
             if (!container) return;
 
+            const toastBorders = {
+                success: 'border-green-500',
+                info: 'border-blue-500',
+                error: 'border-red-500',
+            };
+            const toastIcons = {
+                success: 'fa-check-circle text-green-500',
+                info: 'fa-info-circle text-blue-500',
+                error: 'fa-exclamation-circle text-red-500',
+            };
+
             const toast = document.createElement('div');
-            toast.className = `toast-luxury ${type === 'success' ? 'border-green-500' : 'border-red-500'}`;
+            toast.className = `toast-luxury ${toastBorders[type] || toastBorders.error}`;
 
             const row = document.createElement('div');
             row.className = 'flex items-center justify-between gap-4';
@@ -1581,7 +1592,7 @@
             content.className = 'flex items-center gap-3 min-w-0';
 
             const icon = document.createElement('i');
-            icon.className = `fas ${type === 'success' ? 'fa-check-circle text-green-500' : 'fa-exclamation-circle text-red-500'} text-lg shrink-0`;
+            icon.className = `fas ${toastIcons[type] || toastIcons.error} text-lg shrink-0`;
 
             const text = document.createElement('p');
             text.className = 'text-gray-800 text-sm';
@@ -1614,17 +1625,31 @@
         function startArolanaVoiceSearch(targetSelector, button) {
             const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             const input = document.querySelector(targetSelector);
-            if (!Recognition || !input) {
-                showToast('Voice search is not supported on this browser. Please type your search.', 'error');
+            if (!input) {
+                showToast('Search input is not ready yet. Please try again.', 'error');
+                return;
+            }
+            if (!window.isSecureContext) {
+                showToast('Voice search needs HTTPS or localhost so the browser can use your microphone.', 'error');
+                input.focus();
+                return;
+            }
+            if (!Recognition) {
+                showToast('Voice search needs Chrome, Edge, or Safari. Firefox does not support browser voice recognition yet.', 'error');
+                input.focus();
                 return;
             }
 
             const recognition = new Recognition();
-            recognition.lang = navigator.language || 'en-US';
+            recognition.lang = document.documentElement.lang || navigator.language || 'en-US';
             recognition.interimResults = false;
             recognition.maxAlternatives = 1;
+            recognition.continuous = false;
 
-            if (button) button.classList.add('is-listening');
+            if (button) {
+                button.classList.add('is-listening');
+                button.setAttribute('aria-pressed', 'true');
+            }
             recognition.onresult = (event) => {
                 const transcript = event.results?.[0]?.[0]?.transcript || '';
                 if (!transcript) return;
@@ -1635,13 +1660,26 @@
                     setTimeout(() => form.submit(), 150);
                 }
             };
-            recognition.onerror = () => {
-                showToast('I could not hear that clearly. Please try again.', 'error');
+            recognition.onerror = (event) => {
+                const messages = {
+                    'not-allowed': 'Microphone access was blocked. Allow microphone permission in your browser, then try again.',
+                    'audio-capture': 'No microphone was found. Check your input device and try again.',
+                    'no-speech': 'I did not hear anything. Please tap the mic and speak clearly.',
+                    'network': 'Voice recognition could not reach the browser speech service. Please try again.',
+                };
+                showToast(messages[event.error] || 'I could not hear that clearly. Please try again.', 'error');
             };
             recognition.onend = () => {
-                if (button) button.classList.remove('is-listening');
+                if (button) {
+                    button.classList.remove('is-listening');
+                    button.setAttribute('aria-pressed', 'false');
+                }
             };
-            recognition.start();
+            try {
+                recognition.start();
+            } catch (error) {
+                showToast('Voice search is already listening. Please speak now.', 'info');
+            }
         }
 
         function getCsrfToken() {

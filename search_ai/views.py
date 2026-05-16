@@ -1,5 +1,6 @@
 import json
 import re
+import logging
 
 from django.db.models import Case, Count, IntegerField, Q, Value, When
 from django.http import JsonResponse
@@ -14,6 +15,8 @@ from products.models import Category, Product
 from vendors.models import VendorProfile
 
 from .models import SearchHistory
+
+logger = logging.getLogger(__name__)
 
 
 def _client_ip(request):
@@ -56,29 +59,54 @@ def ai_search(request):
     if len(query) < 2:
         return JsonResponse({'results': [], 'suggestions': []})
 
-    product_matches = (
-        Product.objects
-        .filter(
-            Q(name__icontains=query) |
-            Q(description__icontains=query) |
-            Q(category__name__icontains=query) |
-            Q(brand__name__icontains=query),
-            is_active=True,
-            approval_status='approved',
-        )
-        .select_related('category', 'brand')
-        .annotate(
-            relevance=Case(
-                When(name__iexact=query, then=Value(100)),
-                When(name__istartswith=query, then=Value(90)),
-                When(brand__name__istartswith=query, then=Value(82)),
-                When(category__name__istartswith=query, then=Value(78)),
-                default=Value(60),
-                output_field=IntegerField(),
+    try:
+        product_matches = (
+            Product.objects
+            .filter(
+                Q(name__icontains=query) |
+                Q(description__icontains=query) |
+                Q(category__name__icontains=query) |
+                Q(brand__name__icontains=query),
+                is_active=True,
+                approval_status='approved',
             )
+            .select_related('category', 'brand')
+            .annotate(
+                relevance=Case(
+                    When(name__iexact=query, then=Value(100)),
+                    When(name__istartswith=query, then=Value(90)),
+                    When(brand__name__istartswith=query, then=Value(82)),
+                    When(category__name__istartswith=query, then=Value(78)),
+                    default=Value(60),
+                    output_field=IntegerField(),
+                )
+            )
+            .order_by('-relevance', '-rating_avg', '-sales_count')[:8]
         )
-        .order_by('-relevance', '-rating_avg', '-sales_count')[:8]
-    )
+    except Exception:
+        product_matches = (
+            Product.objects
+            .filter(
+                Q(name__icontains=query) |
+                Q(description__icontains=query) |
+                Q(category__name__icontains=query) |
+                Q(brand__name__icontains=query),
+                is_active=True,
+                approval_status='approved',
+            )
+            .select_related('category', 'brand')
+            .annotate(
+                relevance=Case(
+                    When(name__iexact=query, then=Value(100)),
+                    When(name__istartswith=query, then=Value(90)),
+                    When(brand__name__istartswith=query, then=Value(82)),
+                    When(category__name__istartswith=query, then=Value(78)),
+                    default=Value(60),
+                    output_field=IntegerField(),
+                )
+            )
+            .order_by('-relevance', '-rating_avg', '-sales_count')[:8]
+        )
 
     categories = (
         Category.objects
@@ -237,18 +265,29 @@ def advanced_search(request):
         products = products.filter(category__slug=category)
 
     if min_price:
-        products = products.filter(price__gte=min_price)
+        try:
+            products = products.filter(price__gte=float(min_price))
+        except:
+            pass
 
     if max_price:
-        products = products.filter(price__lte=max_price)
+        try:
+            products = products.filter(price__lte=float(max_price))
+        except:
+            pass
 
     if rating:
-        products = products.filter(rating_avg__gte=rating)
+        try:
+            products = products.filter(rating_avg__gte=float(rating))
+        except:
+            pass
 
     allowed_sorts = {'-created_at', 'created_at', 'price', '-price', '-rating_avg', '-sales_count', 'name'}
     if sort not in allowed_sorts:
         sort = '-created_at'
     products = products.order_by(sort)
+
+    popular_searches = SearchHistory.objects.values('query').annotate(count=Count('id')).order_by('-count')[:10]
 
     context = {
         'products': products,
@@ -259,6 +298,7 @@ def advanced_search(request):
         'max_price': max_price,
         'selected_rating': rating,
         'sort': sort,
+        'popular_searches': popular_searches,
     }
 
     return render(request, 'search_ai/advanced_search.html', context)
@@ -284,3 +324,86 @@ def upload_search_image(request):
         return JsonResponse({'success': False, 'error': 'No image provided'})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def voice_search(request):
+    """Handle voice search requests with AI-powered intent recognition"""
+    try:
+        data = json.loads(request.body)
+        voice_text = _clean_query(data.get('voice_text', ''))
+
+        if not voice_text:
+            return JsonResponse({'success': False, 'error': 'No voice input detected'}, status=400)
+
+        products = Product.objects.filter(
+            is_active=True,
+            approval_status='approved',
+        ).select_related('category', 'brand')
+
+        products = products.filter(
+            Q(name__icontains=voice_text) |
+            Q(description__icontains=voice_text) |
+            Q(category__name__icontains=voice_text) |
+            Q(brand__name__icontains=voice_text)
+        ).annotate(
+            relevance=Case(
+                When(name__icontains=voice_text, then=Value(100)),
+                When(brand__name__icontains=voice_text, then=Value(85)),
+                When(category__name__icontains=voice_text, then=Value(75)),
+                default=Value(60),
+                output_field=IntegerField(),
+            )
+        ).order_by('-relevance', '-rating_avg', '-sales_count')[:12]
+
+        result_count = products.count()
+
+        if request.user.is_authenticated:
+            SearchHistory.objects.create(
+                user=request.user,
+                session_id=request.session.session_key or '',
+                query=f"[Voice] {voice_text}",
+                results_count=result_count,
+                ip_address=_client_ip(request),
+            )
+
+        results_data = []
+        for product in products:
+            results_data.append({
+                'id': product.id,
+                'name': product.name,
+                'price': str(product.price),
+                'price_display': format_currency(product.price, request),
+                'image': get_optimized_image_url(product.main_image, 'product_card') if product.main_image else '',
+                'url': product.get_absolute_url(),
+                'category': product.category.name if product.category else '',
+                'brand': product.brand.name if product.brand else '',
+                'rating': float(product.rating_avg),
+                'relevance_score': product.relevance,
+            })
+
+        if result_count == 0:
+            ai_message = f"I couldn't find any products matching '{voice_text}'. Try a different search term!"
+        elif result_count == 1:
+            ai_message = f"I found exactly what you're looking for! Here's the perfect match for '{voice_text}'."
+        elif result_count < 5:
+            ai_message = f"I found {result_count} great products for '{voice_text}'. Check them out below!"
+        else:
+            ai_message = f"I discovered {result_count} amazing products matching '{voice_text}'. Here are the best ones!"
+
+        return JsonResponse({
+            'success': True,
+            'query': voice_text,
+            'results': results_data,
+            'count': result_count,
+            'ai_message': ai_message,
+        })
+
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+def voice_search_page(request):
+    """Render the voice search page with Web Speech API support"""
+    return render(request, 'search_ai/voice_search_modal.html')

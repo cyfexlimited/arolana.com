@@ -1,0 +1,313 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Voice Search | Arolana.com{% endblock %}
+
+{% block extra_css %}
+<style>
+    .voice-button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        transition: all 0.3s ease;
+    }
+
+    .voice-button:hover {
+        transform: scale(1.05);
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+    }
+
+    .voice-button.listening {
+        animation: pulse 1.5s infinite;
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    @keyframes pulse {
+        0% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(240, 147, 251, 0.7);
+        }
+        70% {
+            transform: scale(1.05);
+            box-shadow: 0 0 0 15px rgba(240, 147, 251, 0);
+        }
+        100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(240, 147, 251, 0);
+        }
+    }
+
+    .result-card {
+        transition: all 0.3s ease;
+    }
+
+    .result-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-12">
+    <!-- Hero Section -->
+    <div class="text-center mb-12">
+        <h1 class="text-4xl md:text-5xl font-bold mb-4 gradient-luxury bg-clip-text text-transparent">
+            Voice Search
+        </h1>
+        <p class="text-gray-600 text-lg">Speak naturally to find what you're looking for</p>
+    </div>
+
+    <!-- Voice Input Section -->
+    <div class="bg-white rounded-2xl shadow-2xl p-12 text-center mb-12">
+        <div class="max-w-2xl mx-auto">
+            <!-- Voice Button -->
+            <button id="voiceBtn" class="voice-button w-32 h-32 rounded-full text-white flex items-center justify-center mx-auto mb-6">
+                <i class="fas fa-microphone text-4xl"></i>
+            </button>
+
+            <!-- Status Message -->
+            <div id="status" class="text-gray-600 mb-4">
+                Click the microphone and speak naturally
+            </div>
+
+            <!-- Recognized Text -->
+            <div id="recognizedText" class="bg-gray-50 rounded-xl p-4 mb-4 hidden">
+                <p class="text-gray-500 text-sm mb-1">You said:</p>
+                <p class="text-gray-900 font-semibold text-lg" id="spokenText"></p>
+            </div>
+
+            <!-- Search Button -->
+            <button id="searchBtn" class="bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-blue-700 transition hidden">
+                <i class="fas fa-search mr-2"></i>
+                Search Now
+            </button>
+
+            <!-- Tips -->
+            <div class="mt-8 text-left bg-blue-50 rounded-xl p-4">
+                <p class="font-semibold text-blue-800 mb-2">💡 Try saying:</p>
+                <div class="flex flex-wrap gap-2">
+                    <span class="px-3 py-1 bg-white rounded-full text-sm text-gray-700">wireless headphones</span>
+                    <span class="px-3 py-1 bg-white rounded-full text-sm text-gray-700">best selling laptops</span>
+                    <span class="px-3 py-1 bg-white rounded-full text-sm text-gray-700">cameras under $500</span>
+                    <span class="px-3 py-1 bg-white rounded-full text-sm text-gray-700">smartphones with good camera</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Section -->
+    <div id="resultsSection" class="hidden">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-bold">Search Results</h2>
+            <div id="aiMessage" class="text-blue-600 text-sm"></div>
+        </div>
+        <div id="resultsGrid" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
+    </div>
+</div>
+
+<script>
+let recognition = null;
+let isListening = false;
+let currentQuery = '';
+
+// Check if browser supports Web Speech API
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = document.documentElement.lang || navigator.language || 'en-US';
+
+    recognition.onstart = function() {
+        isListening = true;
+        const btn = document.getElementById('voiceBtn');
+        btn.classList.add('listening');
+        document.getElementById('status').innerHTML = '<i class="fas fa-microphone-slash mr-2"></i> Listening... Speak now';
+        document.getElementById('status').classList.add('text-blue-600');
+    };
+
+    recognition.onend = function() {
+        isListening = false;
+        const btn = document.getElementById('voiceBtn');
+        btn.classList.remove('listening');
+        document.getElementById('status').innerHTML = 'Click the microphone and speak naturally';
+        document.getElementById('status').classList.remove('text-blue-600');
+    };
+
+    recognition.onresult = function(event) {
+        const transcript = event.results[0][0].transcript;
+        currentQuery = transcript;
+
+        document.getElementById('recognizedText').classList.remove('hidden');
+        document.getElementById('spokenText').innerHTML = transcript;
+        document.getElementById('searchBtn').classList.remove('hidden');
+
+        // Auto-search after 1 second
+        setTimeout(() => {
+            performVoiceSearch(transcript);
+        }, 1000);
+    };
+
+    recognition.onerror = function(event) {
+        console.error('Speech recognition error:', event.error);
+        const messages = {
+            'not-allowed': 'Microphone access was blocked. Allow microphone permission in your browser, then try again.',
+            'audio-capture': 'No microphone was found. Check your input device and try again.',
+            'no-speech': 'I did not hear anything. Please tap the mic and speak clearly.',
+            'network': 'Voice recognition could not reach the browser speech service. Please try again.',
+        };
+        document.getElementById('status').innerHTML = messages[event.error] || 'Voice recognition failed. Please try again.';
+        document.getElementById('status').classList.add('text-red-600');
+        setTimeout(() => {
+            document.getElementById('status').classList.remove('text-red-600');
+            document.getElementById('status').innerHTML = 'Click the microphone and speak naturally';
+        }, 3000);
+    };
+} else {
+    document.getElementById('voiceBtn').disabled = true;
+    document.getElementById('voiceBtn').style.opacity = '0.5';
+    document.getElementById('status').innerHTML = 'Voice search needs Chrome, Edge, or Safari. Firefox does not support browser voice recognition yet.';
+    document.getElementById('status').classList.add('text-red-600');
+}
+
+// Voice button click handler
+document.getElementById('voiceBtn').addEventListener('click', function() {
+    if (recognition && !isListening) {
+        try {
+            recognition.start();
+        } catch (error) {
+            document.getElementById('status').innerHTML = 'Voice search is already listening. Please speak now.';
+        }
+    }
+});
+
+// Manual search button
+document.getElementById('searchBtn').addEventListener('click', function() {
+    performVoiceSearch(currentQuery);
+});
+
+async function performVoiceSearch(query) {
+    if (!query) return;
+
+    // Show loading state
+    const btn = document.getElementById('searchBtn');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Searching...';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch('/search/voice/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ voice_text: query })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            displayResults(data);
+        } else {
+            showToast(data.error || 'Search failed', 'error');
+        }
+    } catch (error) {
+        console.error('Search error:', error);
+        showToast('Network error. Please try again.', 'error');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+function displayResults(data) {
+    const resultsSection = document.getElementById('resultsSection');
+    const resultsGrid = document.getElementById('resultsGrid');
+    const aiMessage = document.getElementById('aiMessage');
+
+    // Show AI message
+    aiMessage.innerHTML = '<i class="fas fa-robot mr-1"></i> ' + data.ai_message;
+
+    // Clear previous results
+    resultsGrid.innerHTML = '';
+
+    if (data.results && data.results.length > 0) {
+        data.results.forEach(product => {
+            const card = document.createElement('div');
+            card.className = 'result-card bg-white rounded-xl shadow-md overflow-hidden hover:shadow-2xl transition';
+            card.innerHTML = `
+                <a href="${product.url}" class="block">
+                    <div class="h-48 overflow-hidden bg-gray-100">
+                        ${product.image ?
+                            `<img src="${product.image}" alt="${product.name}" class="w-full h-full object-cover transition group-hover:scale-110">` :
+                            '<div class="w-full h-full flex items-center justify-center"><i class="fas fa-image text-4xl text-gray-400"></i></div>'
+                        }
+                    </div>
+                    <div class="p-4">
+                        <h3 class="font-semibold text-gray-800 mb-2 line-clamp-2">${product.name}</h3>
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="flex text-yellow-400">
+                                ${generateStars(product.rating)}
+                            </div>
+                            <span class="text-xs text-gray-500">(${product.rating || 0})</span>
+                        </div>
+                        <div class="text-xl font-bold text-blue-600">${product.price_display}</div>
+                    </div>
+                </a>
+            `;
+            resultsGrid.appendChild(card);
+        });
+
+        resultsSection.classList.remove('hidden');
+        // Scroll to results
+        resultsSection.scrollIntoView({ behavior: 'smooth' });
+    } else {
+        resultsSection.classList.add('hidden');
+        showToast('No products found for "' + data.query + '"', 'info');
+    }
+}
+
+function generateStars(rating) {
+    rating = Number(rating) || 0;
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+    let stars = '';
+
+    for (let i = 1; i <= 5; i++) {
+        if (i <= fullStars) {
+            stars += '<i class="fas fa-star"></i>';
+        } else if (i === fullStars + 1 && hasHalfStar) {
+            stars += '<i class="fas fa-star-half-alt"></i>';
+        } else {
+            stars += '<i class="far fa-star"></i>';
+        }
+    }
+
+    return stars;
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `fixed bottom-20 right-4 z-50 px-4 py-2 rounded-lg text-white shadow-lg ${
+        type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+    }`;
+    toast.innerHTML = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+</script>
+{% endblock %}
