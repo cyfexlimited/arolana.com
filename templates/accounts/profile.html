@@ -100,13 +100,9 @@
                             </div>
                             <div class="flex items-center justify-between">
                                 <span class="text-sm text-gray-700">Phone</span>
-                                {% if user.phone_verified %}
-                                    <span class="text-sm font-semibold text-green-700">Verified</span>
-                                {% elif user.phone_number %}
-                                    <a href="{% url 'accounts:verify_phone' %}" class="text-sm font-semibold text-blue-700 hover:underline">Verify now</a>
-                                {% else %}
-                                    <a href="{% url 'accounts:edit_profile' %}" class="text-sm font-semibold text-blue-700 hover:underline">Add phone</a>
-                                {% endif %}
+                                <a href="{% url 'accounts:edit_profile' %}" class="text-sm font-semibold text-blue-700 hover:underline">
+                                    {% if user.phone_number %}Edit phone{% else %}Add phone{% endif %}
+                                </a>
                             </div>
                         </div>
                     </div>

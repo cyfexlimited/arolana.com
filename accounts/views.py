@@ -6,7 +6,6 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.conf import settings
 from django.utils import timezone
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -237,7 +236,7 @@ def login_view(request):
     return render(request, 'accounts/login.html', get_social_apps_context(request))
 
 def register_view(request):
-    """Enhanced registration with email/phone verification"""
+    """Enhanced registration with email verification."""
     if request.user.is_authenticated:
         return redirect('home')
     
@@ -360,8 +359,6 @@ def register_view(request):
             '/products/'
         )
         email_otp = create_otp(user, user.email, 'email')
-        if phone_number:
-            create_otp(user, phone_number, 'phone')
         send_registration_messages(user, request)
         
         log_user_activity(user, 'register', request, {'method': 'email'})
@@ -808,7 +805,6 @@ def security_settings(request):
         'recent_activities': recent_activities,
         'has_2fa': getattr(request.user, 'two_factor_enabled', False),
         'email_verified': request.user.email_verified,
-        'phone_verified': request.user.phone_verified,
     })
 
 def verify_email_token(request, uidb64, token):
@@ -867,31 +863,9 @@ def verify_email(request):
 
 @login_required
 def verify_phone(request):
-    """Verify phone number with OTP."""
-    if not request.user.phone_number:
-        messages.error(request, 'Add a phone number before verifying it.')
-        return redirect('accounts:edit_profile')
-
-    if request.method == 'POST':
-        otp_code = request.POST.get('otp_code', '').strip()
-        success, message = verify_otp(request.user, otp_code, 'phone')
-        if success:
-            request.user.phone_verified = True
-            request.user.save(update_fields=['phone_verified', 'updated_at'])
-            create_notification(request.user, 'system', 'Phone Verified', 'Your phone number has been verified.', '/accounts/profile/')
-            messages.success(request, 'Phone number verified successfully!')
-            return redirect('accounts:profile')
-        messages.error(request, message)
-    else:
-        otp = create_otp(request.user, request.user.phone_number, 'phone')
-        if otp:
-            messages.info(request, f'Verification code sent to {request.user.phone_number}')
-        elif not getattr(settings, 'SMS_CONFIGURED', False):
-            messages.error(request, 'Phone verification is not configured yet. Please contact support or verify your email instead.')
-        else:
-            messages.error(request, 'We could not send your phone verification code. Please try again or contact support.')
-
-    return render(request, 'accounts/verify_phone.html', {'user': request.user})
+    """Phone verification is paused until SMS delivery is needed."""
+    messages.info(request, 'Phone verification is not required right now. Email verification is enough to secure your account.')
+    return redirect('accounts:security_settings')
 
 @login_required
 @require_POST
@@ -1068,16 +1042,11 @@ def resend_2fa_setup_otp(request):
 @login_required
 @require_http_methods(["POST"])
 def send_phone_verification(request):
-    """Send phone verification OTP"""
-    if not request.user.phone_number:
-        return JsonResponse({'success': False, 'error': 'No phone number on file'})
-    
-    otp = create_otp(request.user, request.user.phone_number, 'phone')
-    if otp:
-        return JsonResponse({'success': True, 'message': 'Verification code sent'})
-    if not getattr(settings, 'SMS_CONFIGURED', False):
-        return JsonResponse({'success': False, 'error': 'Phone verification is not configured yet'})
-    return JsonResponse({'success': False, 'error': 'Failed to send code'})
+    """Phone verification is paused until SMS delivery is needed."""
+    return JsonResponse({
+        'success': False,
+        'error': 'Phone verification is not required right now. Please use email verification.',
+    })
 
 @login_required
 @require_http_methods(["POST"])

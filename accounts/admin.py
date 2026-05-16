@@ -14,8 +14,8 @@ class UserProfileInline(admin.StackedInline):
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
-    list_display = ['email', 'username', 'user_type', 'is_active', 'email_verified', 'phone_verified', 'last_login', 'avatar_preview']
-    list_filter = ['user_type', 'is_active', 'email_verified', 'phone_verified', 'is_staff']
+    list_display = ['email', 'username', 'user_type', 'is_active', 'email_verified', 'last_login', 'avatar_preview']
+    list_filter = ['user_type', 'is_active', 'email_verified', 'is_staff']
     search_fields = ['email', 'username', 'first_name', 'last_name']
     ordering = ['-date_joined']
     inlines = [UserProfileInline]
@@ -24,7 +24,7 @@ class CustomUserAdmin(UserAdmin):
         (None, {'fields': ('email', 'username', 'password')}),
         ('Personal Info', {'fields': ('first_name', 'last_name', 'avatar', 'phone_number', 'country')}),
         ('Permissions', {'fields': ('user_type', 'is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
-        ('Verification', {'fields': ('email_verified', 'phone_verified', 'two_factor_enabled')}),
+        ('Verification', {'fields': ('email_verified', 'two_factor_enabled')}),
         ('Important dates', {'fields': ('last_login', 'date_joined', 'last_seen')}),
         ('OAuth', {'fields': ('google_id', 'facebook_id'), 'classes': ('collapse',)}),
     )

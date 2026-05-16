@@ -57,7 +57,7 @@
                 <i class="fas fa-info-circle text-blue-600 mt-1"></i>
                 <div class="text-sm text-blue-800">
                     <p class="font-semibold">Why enable 2FA?</p>
-                    <p>Two-factor authentication adds an extra layer of security to your account. After enabling, you'll need to enter a verification code from your phone in addition to your password when logging in.</p>
+                    <p>Two-factor authentication adds an extra layer of security to your account. After enabling, you'll need to enter a verification code from your email in addition to your password when logging in.</p>
                 </div>
             </div>
         </div>
@@ -82,25 +82,6 @@
                     {% else %}
                         <a href="{% url 'accounts:verify_email' %}" class="inline-flex items-center gap-1 bg-yellow-500 text-white px-4 py-1 rounded-lg text-sm hover:bg-yellow-600 transition">
                             <i class="fas fa-envelope"></i> Verify Now
-                        </a>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="flex justify-between items-center py-3">
-                <div>
-                    <p class="font-semibold">📱 Phone Verification</p>
-                    <p class="text-sm text-gray-500">{{ user.phone_number|default:"Not provided" }}</p>
-                </div>
-                <div class="text-right">
-                    {% if phone_verified %}
-                        <span class="text-green-600"><i class="fas fa-check-circle"></i> Verified</span>
-                    {% elif user.phone_number %}
-                        <a href="{% url 'accounts:verify_phone' %}" class="inline-flex items-center gap-1 bg-yellow-500 text-white px-4 py-1 rounded-lg text-sm hover:bg-yellow-600 transition">
-                            Verify Phone
-                        </a>
-                    {% else %}
-                        <a href="{% url 'accounts:edit_profile' %}" class="text-blue-600 hover:underline">
-                            Add Phone Number →
                         </a>
                     {% endif %}
                 </div>
@@ -257,37 +238,6 @@ function sendVerificationEmail() {
             showToast('Verification email sent! Check your inbox.', 'success');
         } else {
             showToast(data.error || 'Failed to send email', 'error');
-        }
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    })
-    .catch(error => {
-        showToast('Network error. Please try again.', 'error');
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    });
-}
-
-// Send phone verification
-function sendPhoneVerification() {
-    const btn = event.target;
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
-    btn.disabled = true;
-    
-    fetch('/accounts/send-phone-verification/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token }}'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showToast('Verification code sent to your phone!', 'success');
-        } else {
-            showToast(data.error || 'Failed to send verification code', 'error');
         }
         btn.innerHTML = originalText;
         btn.disabled = false;
