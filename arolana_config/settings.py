@@ -458,6 +458,21 @@ EMAIL_CONFIGURED = (
     or SMTP_EMAIL_CONFIGURED
 )
 
+# ============ SMS ============
+TWILIO_ACCOUNT_SID = config('TWILIO_ACCOUNT_SID', default='')
+TWILIO_AUTH_TOKEN = config('TWILIO_AUTH_TOKEN', default='')
+TWILIO_FROM_NUMBER = config('TWILIO_FROM_NUMBER', default='')
+TWILIO_MESSAGING_SERVICE_SID = config('TWILIO_MESSAGING_SERVICE_SID', default='')
+SMS_CONFIGURED = bool(
+    TWILIO_ACCOUNT_SID
+    and TWILIO_AUTH_TOKEN
+    and (TWILIO_FROM_NUMBER or TWILIO_MESSAGING_SERVICE_SID)
+)
+SMS_OTP_MESSAGE = config(
+    'SMS_OTP_MESSAGE',
+    default='Your Arolana verification code is {code}. It expires in 10 minutes.',
+)
+
 # ============ SECURITY ============
 if DEBUG:
     SECURE_SSL_REDIRECT = False

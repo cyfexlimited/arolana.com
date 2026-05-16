@@ -17,6 +17,12 @@ from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
+def mask_destination(value, visible=4):
+    value = str(value or '')
+    if len(value) <= visible:
+        return '*' * len(value)
+    return f"{'*' * (len(value) - visible)}{value[-visible:]}"
+
 def generate_otp(length=6):
     """Generate a random OTP code"""
     return ''.join(random.choices(string.digits, k=length))
@@ -175,10 +181,44 @@ def send_otp_email(email, otp_code, otp_type='email', user=None):
         return False
 
 def send_otp_sms(phone_number, otp_code):
-    """Send OTP via SMS (placeholder - implement with SMS service)"""
-    print(f"SMS to {phone_number}: Your OTP is {otp_code}")
-    # TODO: Integrate with Twilio or other SMS service
-    return True
+    """Send OTP via SMS using Twilio."""
+    if not getattr(settings, 'SMS_CONFIGURED', False):
+        logger.error(
+            'OTP SMS cannot be sent because SMS is not configured. '
+            'Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and either '
+            'TWILIO_FROM_NUMBER or TWILIO_MESSAGING_SERVICE_SID.'
+        )
+        return False
+
+    try:
+        from twilio.base.exceptions import TwilioRestException
+        from twilio.rest import Client
+    except ImportError as e:
+        logger.exception('Twilio package is not available: %s', e)
+        return False
+
+    destination = str(phone_number).strip()
+    body = settings.SMS_OTP_MESSAGE.format(code=otp_code)
+    message_kwargs = {
+        'body': body,
+        'to': destination,
+    }
+    if settings.TWILIO_MESSAGING_SERVICE_SID:
+        message_kwargs['messaging_service_sid'] = settings.TWILIO_MESSAGING_SERVICE_SID
+    else:
+        message_kwargs['from_'] = settings.TWILIO_FROM_NUMBER
+
+    try:
+        client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+        message = client.messages.create(**message_kwargs)
+        logger.info('OTP SMS sent to %s via Twilio message %s', mask_destination(destination), message.sid)
+        return True
+    except TwilioRestException as e:
+        logger.exception('Twilio rejected OTP SMS to %s: %s', mask_destination(destination), e)
+        return False
+    except Exception as e:
+        logger.exception('Failed to send OTP SMS to %s: %s', mask_destination(destination), e)
+        return False
 
 def cleanup_expired_otps():
     """Delete expired OTPs"""

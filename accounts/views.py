@@ -886,6 +886,8 @@ def verify_phone(request):
         otp = create_otp(request.user, request.user.phone_number, 'phone')
         if otp:
             messages.info(request, f'Verification code sent to {request.user.phone_number}')
+        elif not getattr(settings, 'SMS_CONFIGURED', False):
+            messages.error(request, 'Phone verification is not configured yet. Please contact support or verify your email instead.')
         else:
             messages.error(request, 'We could not send your phone verification code. Please try again or contact support.')
 
@@ -1073,6 +1075,8 @@ def send_phone_verification(request):
     otp = create_otp(request.user, request.user.phone_number, 'phone')
     if otp:
         return JsonResponse({'success': True, 'message': 'Verification code sent'})
+    if not getattr(settings, 'SMS_CONFIGURED', False):
+        return JsonResponse({'success': False, 'error': 'Phone verification is not configured yet'})
     return JsonResponse({'success': False, 'error': 'Failed to send code'})
 
 @login_required
