@@ -9,7 +9,7 @@ from django.views.decorators.http import require_safe
 from products.models import Product
 from currency.models import Currency
 from django.contrib.admin.views.decorators import staff_member_required
-from django.db.models import Sum, Count
+from django.db.models import F, Sum, Count
 from django.utils import timezone
 from datetime import timedelta
 from orders.models import Order
@@ -71,14 +71,32 @@ def time_since(dt):
 @staff_member_required
 def live_stats(request):
     """API endpoint for live statistics"""
-    today = timezone.now().date()
-    month_ago = today - timedelta(days=30)
+    now_dt = timezone.now()
+    today = now_dt.date()
+    month_ago = now_dt - timedelta(days=30)
     
     # Current month stats
     total_users = User.objects.count()
     total_products = Product.objects.filter(is_active=True, approval_status="approved").count()
     total_orders = Order.objects.count()
     pending_orders = Order.objects.filter(status='pending').count()
+    pending_products = Product.objects.filter(approval_status='pending').count()
+    low_stock_products = Product.objects.filter(
+        is_active=True,
+        stock_quantity__gt=0,
+        stock_quantity__lte=F('low_stock_threshold'),
+    ).count()
+    out_of_stock_products = Product.objects.filter(is_active=True, stock_quantity__lte=0).count()
+    total_vendors = VendorProfile.objects.filter(is_verified=True).count()
+    pending_vendors = VendorProfile.objects.filter(is_verified=False).count()
+    delivered_revenue = Order.objects.filter(status='delivered').aggregate(total=Sum('total'))['total'] or 0
+
+    unread_notifications = 0
+    if request.user.is_authenticated:
+        try:
+            unread_notifications = request.user.notifications.filter(is_read=False, is_archived=False).count()
+        except Exception:
+            unread_notifications = 0
     
     # Previous month stats (for trend calculation)
     prev_total_users = User.objects.filter(date_joined__lt=month_ago).count()
@@ -132,6 +150,13 @@ def live_stats(request):
         'total_products': total_products,
         'total_orders': total_orders,
         'pending_orders': pending_orders,
+        'pending_products': pending_products,
+        'low_stock_products': low_stock_products,
+        'out_of_stock_products': out_of_stock_products,
+        'total_vendors': total_vendors,
+        'pending_vendors': pending_vendors,
+        'total_revenue': float(delivered_revenue),
+        'unread_notifications': unread_notifications,
         'prev_total_users': prev_total_users,
         'prev_total_products': prev_total_products,
         'prev_total_orders': prev_total_orders,

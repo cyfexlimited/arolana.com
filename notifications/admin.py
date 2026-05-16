@@ -44,7 +44,8 @@ class NotificationAdmin(admin.ModelAdmin):
         avatar_url = obj.user.avatar.url if hasattr(obj.user, 'avatar') and obj.user.avatar else None
         if avatar_url:
             return format_html(
-                '<div class="flex items-center gap-2"><img src="{}" class="w-8 h-8 rounded-full object-cover">'
+                '<div style="display:flex;align-items:center;gap:8px;">'
+                '<img src="{}" style="width:32px;height:32px;border-radius:999px;object-fit:cover;">'
                 '<a href="{}" target="_blank">{}</a></div>',
                 avatar_url, reverse('admin:accounts_user_change', args=[obj.user.id]), obj.user.username
             )
@@ -64,42 +65,47 @@ class NotificationAdmin(admin.ModelAdmin):
     def notification_type_badge(self, obj):
         """Display type with colored badge"""
         colors = {
-            'cart': 'blue',
-            'order': 'green',
-            'payment': 'purple',
-            'message': 'yellow',
-            'review': 'orange',
-            'vendor': 'indigo',
-            'product': 'teal',
-            'promotion': 'pink',
-            'shipping': 'cyan',
-            'system': 'gray',
-            'security': 'red',
-            'wishlist': 'red',
-            'follow': 'green',
-            'achievement': 'yellow',
-            'reminder': 'blue',
-            'newsletter': 'purple',
-            'success': 'green',
-            'error': 'red',
-            'warning': 'yellow',
-            'info': 'blue',
+            'cart': ('#dbeafe', '#1d4ed8'),
+            'order': ('#d1fae5', '#047857'),
+            'payment': ('#ede9fe', '#6d28d9'),
+            'message': ('#fef3c7', '#92400e'),
+            'review': ('#ffedd5', '#c2410c'),
+            'vendor': ('#e0e7ff', '#4338ca'),
+            'product': ('#ccfbf1', '#0f766e'),
+            'promotion': ('#fce7f3', '#be185d'),
+            'shipping': ('#cffafe', '#0e7490'),
+            'system': ('#f1f5f9', '#475569'),
+            'security': ('#fee2e2', '#b91c1c'),
+            'wishlist': ('#fee2e2', '#be123c'),
+            'follow': ('#d1fae5', '#047857'),
+            'achievement': ('#fef3c7', '#a16207'),
+            'reminder': ('#dbeafe', '#1d4ed8'),
+            'newsletter': ('#ede9fe', '#6d28d9'),
+            'success': ('#d1fae5', '#047857'),
+            'error': ('#fee2e2', '#b91c1c'),
+            'warning': ('#fef3c7', '#92400e'),
+            'info': ('#dbeafe', '#1d4ed8'),
         }
-        color = colors.get(obj.notification_type, 'gray')
+        bg, fg = colors.get(obj.notification_type, ('#f1f5f9', '#475569'))
         return format_html(
-            '<span class="px-2 py-1 rounded-full text-xs font-semibold bg-{}-100 text-{}-800">{}</span>',
-            color, color, obj.get_notification_type_display().split()[0] if obj.get_notification_type_display() else obj.notification_type
+            '<span style="background:{};color:{};padding:4px 8px;border-radius:999px;font-size:11px;font-weight:700;">{}</span>',
+            bg, fg, obj.get_notification_type_display().split()[0] if obj.get_notification_type_display() else obj.notification_type
         )
     notification_type_badge.short_description = 'Type'
     notification_type_badge.admin_order_field = 'notification_type'
     
     def priority_badge(self, obj):
         """Display priority with color-coded badge"""
-        colors = {1: 'gray', 2: 'blue', 3: 'orange', 4: 'red'}
-        color = colors.get(obj.priority, 'gray')
+        colors = {
+            1: ('#f1f5f9', '#475569'),
+            2: ('#dbeafe', '#1d4ed8'),
+            3: ('#fef3c7', '#92400e'),
+            4: ('#fee2e2', '#b91c1c'),
+        }
+        bg, fg = colors.get(obj.priority, ('#f1f5f9', '#475569'))
         return format_html(
-            '<span class="px-2 py-1 rounded-full text-xs font-semibold bg-{}-100 text-{}-800">P{}</span>',
-            color, color, obj.priority
+            '<span style="background:{};color:{};padding:4px 8px;border-radius:999px;font-size:11px;font-weight:800;">P{}</span>',
+            bg, fg, obj.priority
         )
     priority_badge.short_description = 'Priority'
     priority_badge.admin_order_field = 'priority'
@@ -119,7 +125,7 @@ class NotificationAdmin(admin.ModelAdmin):
         if obj.metadata:
             import json
             return format_html(
-                '<pre class="bg-gray-100 p-2 rounded text-xs overflow-auto max-h-40">{}</pre>',
+                '<pre style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;max-height:180px;overflow:auto;padding:10px;font-size:12px;">{}</pre>',
                 json.dumps(obj.metadata, indent=2)
             )
         return '-'
@@ -128,10 +134,10 @@ class NotificationAdmin(admin.ModelAdmin):
     def action_buttons(self, obj):
         """Display action buttons"""
         return format_html(
-            '<div class="flex gap-2">'
-            '<a href="{}" class="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600" target="_blank">'
+            '<div style="display:flex;gap:6px;flex-wrap:wrap;">'
+            '<a href="{}" style="background:#2563eb;color:#fff;border-radius:6px;padding:4px 8px;font-size:12px;" target="_blank">'
             '<i class="fas fa-eye"></i> View</a>'
-            '<a href="{}" class="px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600">'
+            '<a href="{}" style="background:#059669;color:#fff;border-radius:6px;padding:4px 8px;font-size:12px;">'
             '<i class="fas fa-edit"></i> Edit</a>'
             '</div>',
             reverse('admin:notifications_notification_change', args=[obj.id]),
@@ -220,20 +226,20 @@ class NotificationPreferenceAdmin(admin.ModelAdmin):
     def promotions_display(self, obj):
         """Display promotions with colored badge (read-only)"""
         icon = '✅' if obj.promotions else '❌'
-        color = 'green' if obj.promotions else 'red'
+        bg, fg = ('#d1fae5', '#047857') if obj.promotions else ('#fee2e2', '#b91c1c')
         return format_html(
-            '<span class="px-2 py-1 rounded-full text-xs font-semibold bg-{}-100 text-{}-800">{} Promos</span>',
-            color, color, icon
+            '<span style="background:{};color:{};padding:4px 8px;border-radius:999px;font-size:11px;font-weight:700;">{} Promos</span>',
+            bg, fg, icon
         )
     promotions_display.short_description = 'Promotions'
     
     def vendor_alerts_display(self, obj):
         """Display vendor alerts with colored badge (read-only)"""
         icon = '✅' if obj.vendor_alerts else '❌'
-        color = 'green' if obj.vendor_alerts else 'red'
+        bg, fg = ('#d1fae5', '#047857') if obj.vendor_alerts else ('#fee2e2', '#b91c1c')
         return format_html(
-            '<span class="px-2 py-1 rounded-full text-xs font-semibold bg-{}-100 text-{}-800">{} Vendor</span>',
-            color, color, icon
+            '<span style="background:{};color:{};padding:4px 8px;border-radius:999px;font-size:11px;font-weight:700;">{} Vendor</span>',
+            bg, fg, icon
         )
     vendor_alerts_display.short_description = 'Vendor Alerts'
     

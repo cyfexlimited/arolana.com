@@ -1,412 +1,472 @@
-{% extends 'jazzmin/base.html' %}
-{% load static %}
+{% load i18n static %}
+<div class="ar-admin-dashboard">
+    <section class="ar-admin-hero">
+        <div>
+            <p class="ar-eyebrow">Arolana Admin</p>
+            <h1>Operations dashboard</h1>
+            <p class="ar-muted">Live marketplace health, approvals, inventory, and customer activity in one clean workspace.</p>
+        </div>
+        <div class="ar-hero-actions">
+            <a class="btn btn-light" href="{% url 'admin:products_product_add' %}">
+                <i class="fas fa-plus mr-1"></i> Add Product
+            </a>
+            <a class="btn btn-outline-light" href="{% url 'admin:notifications_notification_changelist' %}">
+                <i class="fas fa-bell mr-1"></i> Notifications
+                {% if notification_count %}
+                    <span class="badge badge-warning ml-1">{{ notification_count }}</span>
+                {% endif %}
+            </a>
+        </div>
+    </section>
 
-{% block content %}
-<div class="container-fluid animate-fade-in-up">
-    <!-- Stats Cards Row -->
-    <div class="row g-4 mb-4">
-        <div class="col-md-6 col-xl-3">
-            <div class="stat-card" data-aos="fade-up" data-aos-delay="100">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <p class="text-muted mb-1">Total Users</p>
-                        <h3 class="mb-0">{{ admin_stats.total_users|default:"0" }}</h3>
-                        <small class="text-success">
-                            <i class="fas fa-arrow-up"></i> +12% from last month
-                        </small>
-                    </div>
-                    <div class="icon" style="background: linear-gradient(135deg, #667eea20 0%, #764ba220 100%);">
-                        <i class="fas fa-users" style="color: #667eea;"></i>
-                    </div>
-                </div>
-                <div class="mt-3">
-                    <div class="progress" style="height: 4px;">
-                        <div class="progress-bar bg-primary" style="width: 75%"></div>
-                    </div>
-                </div>
-            </div>
+    <section class="ar-kpi-grid" aria-label="Key marketplace metrics">
+        <a class="ar-kpi-card" href="{% url 'admin:accounts_user_changelist' %}">
+            <span class="ar-kpi-icon ar-kpi-blue"><i class="fas fa-users"></i></span>
+            <span class="ar-kpi-label">Customers</span>
+            <strong id="stat-total-users">{{ admin_stats.total_users|default:0 }}</strong>
+            <small>Registered accounts</small>
+        </a>
+        <a class="ar-kpi-card" href="{% url 'admin:products_product_changelist' %}">
+            <span class="ar-kpi-icon ar-kpi-green"><i class="fas fa-box"></i></span>
+            <span class="ar-kpi-label">Approved Products</span>
+            <strong id="stat-total-products">{{ admin_stats.total_products|default:0 }}</strong>
+            <small>{{ admin_stats.pending_products|default:0 }} waiting approval</small>
+        </a>
+        <a class="ar-kpi-card" href="{% url 'admin:orders_order_changelist' %}">
+            <span class="ar-kpi-icon ar-kpi-violet"><i class="fas fa-receipt"></i></span>
+            <span class="ar-kpi-label">Orders</span>
+            <strong id="stat-total-orders">{{ admin_stats.total_orders|default:0 }}</strong>
+            <small>{{ admin_stats.pending_orders|default:0 }} pending</small>
+        </a>
+        <a class="ar-kpi-card" href="{% url 'admin:vendors_vendorprofile_changelist' %}">
+            <span class="ar-kpi-icon ar-kpi-amber"><i class="fas fa-store"></i></span>
+            <span class="ar-kpi-label">Verified Vendors</span>
+            <strong id="stat-total-vendors">{{ admin_stats.total_vendors|default:0 }}</strong>
+            <small>{{ admin_stats.pending_vendors|default:0 }} need verification</small>
+        </a>
+        <a class="ar-kpi-card" href="{% url 'admin:products_product_changelist' %}">
+            <span class="ar-kpi-icon ar-kpi-red"><i class="fas fa-exclamation-triangle"></i></span>
+            <span class="ar-kpi-label">Stock Alerts</span>
+            <strong id="stat-low-stock">{{ admin_stats.low_stock_products|default:0 }}</strong>
+            <small>{{ admin_stats.out_of_stock_products|default:0 }} out of stock</small>
+        </a>
+        <div class="ar-kpi-card">
+            <span class="ar-kpi-icon ar-kpi-teal"><i class="fas fa-chart-line"></i></span>
+            <span class="ar-kpi-label">Revenue</span>
+            <strong id="stat-total-revenue">${{ admin_stats.total_revenue|default:0|floatformat:0 }}</strong>
+            <small>This month: ${{ admin_stats.revenue_this_month|default:0|floatformat:0 }}</small>
         </div>
-        
-        <div class="col-md-6 col-xl-3">
-            <div class="stat-card" data-aos="fade-up" data-aos-delay="200">
-                <div class="d-flex justify-content-between align-items-start">
+    </section>
+
+    <section class="row">
+        <div class="col-xl-8 mb-4">
+            <div class="card ar-panel h-100">
+                <div class="card-header ar-panel-header">
                     <div>
-                        <p class="text-muted mb-1">Active Vendors</p>
-                        <h3 class="mb-0">{{ admin_stats.total_vendors|default:"0" }}</h3>
-                        <small class="text-success">
-                            <i class="fas fa-arrow-up"></i> +5 new this week
-                        </small>
+                        <h2>Revenue Trend</h2>
+                        <p>Delivered-order revenue for the last 30 days.</p>
                     </div>
-                    <div class="icon" style="background: linear-gradient(135deg, #10b98120 0%, #05966920 100%);">
-                        <i class="fas fa-store" style="color: #10b981;"></i>
-                    </div>
-                </div>
-                <div class="mt-3">
-                    <div class="progress" style="height: 4px;">
-                        <div class="progress-bar bg-success" style="width: 60%"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-6 col-xl-3">
-            <div class="stat-card" data-aos="fade-up" data-aos-delay="300">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <p class="text-muted mb-1">Total Products</p>
-                        <h3 class="mb-0">{{ admin_stats.total_products|default:"0" }}</h3>
-                        <small class="text-warning">
-                            <i class="fas fa-clock"></i> {{ admin_stats.pending_products|default:"0" }} pending approval
-                        </small>
-                    </div>
-                    <div class="icon" style="background: linear-gradient(135deg, #f59e0b20 0%, #d9770620 100%);">
-                        <i class="fas fa-box" style="color: #f59e0b;"></i>
-                    </div>
-                </div>
-                <div class="mt-3">
-                    <div class="progress" style="height: 4px;">
-                        <div class="progress-bar bg-warning" style="width: 45%"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-6 col-xl-3">
-            <div class="stat-card" data-aos="fade-up" data-aos-delay="400">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <p class="text-muted mb-1">Total Revenue</p>
-                        <h3 class="mb-0">${{ admin_stats.total_revenue|default:"0"|floatformat:0 }}</h3>
-                        <small class="text-danger">
-                            <i class="fas fa-chart-line"></i> +23% this quarter
-                        </small>
-                    </div>
-                    <div class="icon" style="background: linear-gradient(135deg, #ef444420 0%, #dc262620 100%);">
-                        <i class="fas fa-dollar-sign" style="color: #ef4444;"></i>
-                    </div>
-                </div>
-                <div class="mt-3">
-                    <div class="progress" style="height: 4px;">
-                        <div class="progress-bar bg-danger" style="width: 85%"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Charts Row -->
-    <div class="row g-4 mb-4">
-        <div class="col-xl-8">
-            <div class="card border-0 shadow-sm" data-aos="fade-up" data-aos-delay="500">
-                <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        <i class="fas fa-chart-line me-2 text-primary"></i>
-                        Revenue Overview
-                    </h5>
-                    <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-secondary" onclick="updateChart('week')">Week</button>
-                        <button class="btn btn-outline-secondary active" onclick="updateChart('month')">Month</button>
-                        <button class="btn btn-outline-secondary" onclick="updateChart('year')">Year</button>
-                    </div>
+                    <span class="ar-live-pill"><span></span> Near real time</span>
                 </div>
                 <div class="card-body">
-                    <canvas id="revenueChart" height="300"></canvas>
+                    <div class="ar-chart-wrap">
+                        <canvas id="revenueChart" height="130"></canvas>
+                        <div id="chartFallback" class="ar-chart-fallback">
+                            Chart will load when Chart.js is available. The metrics above remain live.
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-        
-        <div class="col-xl-4">
-            <div class="card border-0 shadow-sm" data-aos="fade-up" data-aos-delay="600">
-                <div class="card-header bg-transparent border-0">
-                    <h5 class="mb-0">
-                        <i class="fas fa-shopping-cart me-2 text-success"></i>
-                        Recent Orders
-                    </h5>
+
+        <div class="col-xl-4 mb-4">
+            <div class="card ar-panel h-100">
+                <div class="card-header ar-panel-header">
+                    <div>
+                        <h2>Alerts</h2>
+                        <p>Work that needs admin attention.</p>
+                    </div>
                 </div>
                 <div class="card-body p-0">
-                    <div class="list-group list-group-flush">
-                        {% for order in latest_orders|slice:":5" %}
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-1">#{{ order.order_number }}</h6>
-                                <small class="text-muted">{{ order.user.username }}</small>
+                    {% if admin_alerts %}
+                        <div class="ar-alert-list">
+                            {% for alert in admin_alerts %}
+                                <a class="ar-alert-item ar-alert-{{ alert.level }}" href="{{ alert.url }}">
+                                    <span><i class="{{ alert.icon }}"></i></span>
+                                    <div>
+                                        <strong>{{ alert.title }}</strong>
+                                        <p>{{ alert.message }}</p>
+                                        <small>{{ alert.label }} <i class="fas fa-arrow-right"></i></small>
+                                    </div>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="ar-empty-state">
+                            <i class="fas fa-check-circle"></i>
+                            <strong>No urgent admin alerts</strong>
+                            <p>Your approvals, notifications, and inventory alerts are clear.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="row">
+        <div class="col-xl-7 mb-4">
+            <div class="card ar-panel h-100">
+                <div class="card-header ar-panel-header">
+                    <div>
+                        <h2>Inventory Management</h2>
+                        <p>Stock health across products and variants.</p>
+                    </div>
+                    <a href="{% url 'admin:products_product_changelist' %}" class="btn btn-sm btn-outline-primary">Manage inventory</a>
+                </div>
+                <div class="card-body">
+                    <div class="ar-inventory-summary">
+                        <div>
+                            <span>Total Units</span>
+                            <strong>{{ admin_stats.inventory_units|default:0 }}</strong>
+                        </div>
+                        <div>
+                            <span>Available</span>
+                            <strong>{{ admin_stats.available_units|default:0 }}</strong>
+                        </div>
+                        <div>
+                            <span>Reserved</span>
+                            <strong>{{ admin_stats.reserved_units|default:0 }}</strong>
+                        </div>
+                        <div>
+                            <span>Variants</span>
+                            <strong>{{ admin_stats.total_variants|default:0 }}</strong>
+                        </div>
+                    </div>
+                    <div class="ar-health-meter" aria-label="Inventory health">
+                        <div class="d-flex justify-content-between">
+                            <span>Inventory health</span>
+                            <strong>{{ admin_stats.inventory_health_percent|default:100 }}%</strong>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar" style="width: {{ admin_stats.inventory_health_percent|default:100 }}%"></div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive mt-3">
+                        <table class="table table-sm ar-admin-table">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>SKU</th>
+                                    <th>Stock</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in low_stock_items %}
+                                    <tr>
+                                        <td>
+                                            <a href="{% url 'admin:products_product_change' product.pk %}">{{ product.name|truncatechars:42 }}</a>
+                                            <small>{{ product.category.name|default:"Uncategorized" }}</small>
+                                        </td>
+                                        <td>{{ product.sku }}</td>
+                                        <td>{{ product.stock_quantity }}</td>
+                                        <td><span class="ar-status ar-status-warning">Low stock</span></td>
+                                    </tr>
+                                {% endfor %}
+                                {% for product in out_of_stock_items %}
+                                    <tr>
+                                        <td>
+                                            <a href="{% url 'admin:products_product_change' product.pk %}">{{ product.name|truncatechars:42 }}</a>
+                                            <small>{{ product.category.name|default:"Uncategorized" }}</small>
+                                        </td>
+                                        <td>{{ product.sku }}</td>
+                                        <td>0</td>
+                                        <td><span class="ar-status ar-status-danger">Out</span></td>
+                                    </tr>
+                                {% endfor %}
+                                {% if not low_stock_items and not out_of_stock_items %}
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted py-4">No low-stock products right now.</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-5 mb-4">
+            <div class="card ar-panel h-100">
+                <div class="card-header ar-panel-header">
+                    <div>
+                        <h2>Approvals</h2>
+                        <p>New product and vendor submissions.</p>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="ar-feed">
+                        {% for product in pending_product_list %}
+                            <a class="ar-feed-item" href="{% url 'admin:products_product_change' product.pk %}">
+                                <span class="ar-feed-icon ar-kpi-green"><i class="fas fa-box"></i></span>
+                                <div>
+                                    <strong>{{ product.name|truncatechars:46 }}</strong>
+                                    <p>Product approval from {{ product.vendor.email|default:product.vendor.username }}</p>
+                                    <small>{{ product.submitted_for_review_at|timesince }} ago</small>
+                                </div>
+                            </a>
+                        {% endfor %}
+                        {% for vendor in pending_vendor_profiles %}
+                            <a class="ar-feed-item" href="{% url 'admin:vendors_vendorprofile_change' vendor.pk %}">
+                                <span class="ar-feed-icon ar-kpi-amber"><i class="fas fa-store"></i></span>
+                                <div>
+                                    <strong>{{ vendor.store_name|truncatechars:46 }}</strong>
+                                    <p>Vendor verification pending</p>
+                                    <small>{{ vendor.created_at|timesince }} ago</small>
+                                </div>
+                            </a>
+                        {% endfor %}
+                        {% if not pending_product_list and not pending_vendor_profiles %}
+                            <div class="ar-empty-state">
+                                <i class="fas fa-check-circle"></i>
+                                <strong>No approval backlog</strong>
+                                <p>Product and vendor review queues are clear.</p>
                             </div>
-                            <div class="text-end">
-                                <span class="fw-bold">${{ order.total }}</span>
-                                <br>
-                                <span class="badge {% if order.status == 'delivered' %}badge-success{% elif order.status == 'pending' %}badge-warning{% else %}badge-info{% endif %}">
-                                    {{ order.get_status_display }}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="row">
+        <div class="col-xl-4 mb-4">
+            <div class="card ar-panel h-100">
+                <div class="card-header ar-panel-header">
+                    <div>
+                        <h2>Recent Orders</h2>
+                        <p>Newest customer purchases.</p>
+                    </div>
+                    <a href="{% url 'admin:orders_order_changelist' %}" class="btn btn-sm btn-outline-primary">View all</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="ar-feed">
+                        {% for order in latest_orders|slice:":6" %}
+                            <a class="ar-feed-item" href="{% url 'admin:orders_order_change' order.pk %}">
+                                <span class="ar-feed-icon ar-kpi-violet"><i class="fas fa-receipt"></i></span>
+                                <div>
+                                    <strong>#{{ order.order_number }}</strong>
+                                    <p>{{ order.user.email|default:order.user.username }} - ${{ order.total }}</p>
+                                    <small>{{ order.get_status_display }} - {{ order.created_at|timesince }} ago</small>
+                                </div>
+                            </a>
+                        {% empty %}
+                            <div class="ar-empty-state">
+                                <i class="fas fa-receipt"></i>
+                                <strong>No orders yet</strong>
+                                <p>New orders will appear here automatically.</p>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4 mb-4">
+            <div class="card ar-panel h-100">
+                <div class="card-header ar-panel-header">
+                    <div>
+                        <h2>Top Products</h2>
+                        <p>Best selling approved inventory.</p>
+                    </div>
+                    <a href="{% url 'admin:products_product_changelist' %}" class="btn btn-sm btn-outline-primary">Products</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="ar-product-list">
+                        {% for product in top_products|slice:":6" %}
+                            <a class="ar-product-item" href="{% url 'admin:products_product_change' product.pk %}">
+                                {% if product.main_image %}
+                                    <img src="{{ product.main_image.url }}" alt="{{ product.name }}">
+                                {% else %}
+                                    <span class="ar-product-placeholder"><i class="fas fa-image"></i></span>
+                                {% endif %}
+                                <div>
+                                    <strong>{{ product.name|truncatechars:42 }}</strong>
+                                    <p>{{ product.sales_count }} sales - ${{ product.price }}</p>
+                                </div>
+                            </a>
+                        {% empty %}
+                            <div class="ar-empty-state">
+                                <i class="fas fa-box"></i>
+                                <strong>No product sales yet</strong>
+                                <p>Top products will appear once sales activity starts.</p>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4 mb-4">
+            <div class="card ar-panel h-100">
+                <div class="card-header ar-panel-header">
+                    <div>
+                        <h2>Notifications</h2>
+                        <p>Latest admin messages and alerts.</p>
+                    </div>
+                    <a href="{% url 'admin:notifications_notification_changelist' %}" class="btn btn-sm btn-outline-primary">Message box</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="ar-feed">
+                        {% for note in recent_notifications|slice:":6" %}
+                            <a class="ar-feed-item" href="{% url 'admin:notifications_notification_change' note.pk %}">
+                                <span class="ar-feed-icon {% if note.priority >= 4 %}ar-kpi-red{% elif note.priority == 3 %}ar-kpi-amber{% else %}ar-kpi-blue{% endif %}">
+                                    <i class="fas {{ note.icon_class }}"></i>
                                 </span>
-                            </div>
-                        </div>
-                        {% empty %}
-                        <div class="list-group-item text-center text-muted">
-                            No orders yet
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                <div class="card-footer bg-transparent border-0 text-center">
-                    <a href="/admin/orders/order/" class="text-decoration-none">View All Orders →</a>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Recent Activity & Top Products Row -->
-    <div class="row g-4">
-        <div class="col-xl-6">
-            <div class="card border-0 shadow-sm" data-aos="fade-up" data-aos-delay="700">
-                <div class="card-header bg-transparent border-0">
-                    <h5 class="mb-0">
-                        <i class="fas fa-history me-2 text-info"></i>
-                        Recent Activity
-                    </h5>
-                </div>
-                <div class="card-body p-0">
-                    <div class="timeline">
-                        {% for activity in recent_activities|slice:":5" %}
-                        <div class="timeline-item d-flex p-3 border-bottom">
-                            <div class="timeline-icon me-3">
-                                <div class="rounded-circle bg-primary bg-opacity-10 p-2">
-                                    <i class="fas fa-user-plus text-primary"></i>
+                                <div>
+                                    <strong>{{ note.title|truncatechars:46 }}</strong>
+                                    <p>{{ note.message|truncatechars:80 }}</p>
+                                    <small>{% if not note.is_read %}Unread - {% endif %}{{ note.created_at|timesince }} ago</small>
                                 </div>
-                            </div>
-                            <div class="timeline-content flex-grow-1">
-                                <p class="mb-1">{{ activity.action|title }} by {{ activity.user.username }}</p>
-                                <small class="text-muted">{{ activity.timestamp|timesince }} ago</small>
-                            </div>
-                        </div>
+                            </a>
                         {% empty %}
-                        <div class="text-center text-muted p-4">
-                            No recent activity
-                        </div>
+                            <div class="ar-empty-state">
+                                <i class="fas fa-bell"></i>
+                                <strong>No notifications</strong>
+                                <p>System and marketplace alerts will show here.</p>
+                            </div>
                         {% endfor %}
                     </div>
                 </div>
             </div>
         </div>
-        
-        <div class="col-xl-6">
-            <div class="card border-0 shadow-sm" data-aos="fade-up" data-aos-delay="800">
-                <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        <i class="fas fa-fire me-2 text-danger"></i>
-                        Top Products
-                    </h5>
-                    <a href="/admin/products/product/" class="text-decoration-none small">View All</a>
-                </div>
-                <div class="card-body p-0">
-                    {% for product in top_products|slice:":5" %}
-                    <div class="d-flex align-items-center p-3 border-bottom">
-                        <div class="flex-shrink-0">
-                            {% if product.main_image %}
-                                <img src="{{ product.main_image.url }}" alt="{{ product.name }}" class="rounded" width="50" height="50" style="object-fit: cover;">
-                            {% else %}
-                                <div class="bg-light rounded d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
-                                    <i class="fas fa-image text-secondary"></i>
-                                </div>
-                            {% endif %}
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h6 class="mb-1">{{ product.name|truncatechars:40 }}</h6>
-                            <small class="text-muted">{{ product.sales_count }} sales • ${{ product.price }}</small>
-                        </div>
-                        <div class="text-end">
-                            <span class="badge bg-primary">{{ product.rating_avg|floatformat:1 }} ★</span>
-                        </div>
-                    </div>
-                    {% empty %}
-                    <div class="text-center text-muted p-4">
-                        No products yet
-                    </div>
-                    {% endfor %}
-                </div>
+    </section>
+
+    <section class="card ar-panel mb-4">
+        <div class="card-header ar-panel-header">
+            <div>
+                <h2>Admin Modules</h2>
+                <p>Organized shortcuts for marketplace operations.</p>
             </div>
         </div>
-    </div>
-    
-    <!-- Pending Vendors Alert -->
-    {% if admin_stats.pending_vendors > 0 %}
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                <strong>{{ admin_stats.pending_vendors }} vendor(s) pending verification!</strong>
-                <a href="/admin/vendors/vendorprofile/?is_verified__exact=0" class="alert-link ms-2">Review now</a>
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        <div class="card-body">
+            <div class="ar-module-grid">
+                {% for app in app_list %}
+                    <div class="ar-module">
+                        <h3>{{ app.name }}</h3>
+                        {% for model in app.models %}
+                            <a href="{{ model.admin_url }}">
+                                <span>{{ model.name }}</span>
+                                {% if model.add_url %}
+                                    <small>Add</small>
+                                {% endif %}
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% empty %}
+                    <div class="ar-empty-state">
+                        <i class="fas fa-layer-group"></i>
+                        <strong>No registered modules</strong>
+                        <p>Admin modules will appear when permissions allow them.</p>
+                    </div>
+                {% endfor %}
             </div>
         </div>
-    </div>
-    {% endif %}
+    </section>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-let revenueChart;
+    const dashboardChartLabels = {{ chart_labels_json|default:"[]"|safe }};
+    const dashboardChartData = {{ chart_data_json|default:"[]"|safe }};
+    let revenueChart = null;
 
-function initChart() {
-    const ctx = document.getElementById('revenueChart').getContext('2d');
-    revenueChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: {{ chart_labels|safe }},
-            datasets: [{
-                label: 'Revenue ($)',
-                data: {{ chart_data|safe }},
-                borderColor: '#3b82f6',
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                tension: 0.4,
-                fill: true,
-                pointBackgroundColor: '#3b82f6',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                pointRadius: 4,
-                pointHoverRadius: 6
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    position: 'top',
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return '$' + context.parsed.y.toFixed(2);
-                        }
-                    }
-                }
+    function formatMoney(value) {
+        const amount = Number(value || 0);
+        return '$' + amount.toLocaleString(undefined, { maximumFractionDigits: 0 });
+    }
+
+    function setText(id, value) {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = value;
+        }
+    }
+
+    function initRevenueChart() {
+        const canvas = document.getElementById('revenueChart');
+        const fallback = document.getElementById('chartFallback');
+        if (!canvas || typeof Chart === 'undefined') {
+            if (fallback) fallback.style.display = 'flex';
+            return;
+        }
+
+        if (fallback) fallback.style.display = 'none';
+        revenueChart = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: dashboardChartLabels,
+                datasets: [{
+                    label: 'Revenue',
+                    data: dashboardChartData,
+                    borderColor: '#2563eb',
+                    backgroundColor: 'rgba(37, 99, 235, 0.12)',
+                    borderWidth: 3,
+                    tension: 0.35,
+                    fill: true,
+                    pointRadius: 0,
+                    pointHoverRadius: 5
+                }]
             },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value) {
-                            return '$' + value;
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => formatMoney(context.parsed.y)
                         }
+                    }
+                },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: (value) => formatMoney(value) }
                     }
                 }
             }
-        }
-    });
-}
-
-function updateChart(period) {
-    fetch(`/admin/chart-data/?period=${period}`)
-        .then(response => response.json())
-        .then(data => {
-            revenueChart.data.labels = data.labels;
-            revenueChart.data.datasets[0].data = data.values;
-            revenueChart.update();
         });
-}
+    }
 
-document.addEventListener('DOMContentLoaded', function() {
-    initChart();
-    
-    const observerOptions = {
-        threshold: 0.1,
-        rootMargin: '0px 0px -50px 0px'
-    };
-    
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.style.opacity = '1';
-                entry.target.style.transform = 'translateY(0)';
-                observer.unobserve(entry.target);
+    async function refreshDashboard() {
+        try {
+            const response = await fetch('{% url "live_stats" %}', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            if (!response.ok) return;
+            const data = await response.json();
+            setText('stat-total-users', data.total_users || 0);
+            setText('stat-total-products', data.total_products || 0);
+            setText('stat-total-orders', data.total_orders || 0);
+            setText('stat-total-vendors', data.total_vendors || 0);
+            setText('stat-low-stock', data.low_stock_products || 0);
+            setText('stat-total-revenue', formatMoney(data.total_revenue || 0));
+
+            if (revenueChart && data.chart_labels && data.chart_data) {
+                revenueChart.data.labels = data.chart_labels;
+                revenueChart.data.datasets[0].data = data.chart_data;
+                revenueChart.update('none');
             }
-        });
-    }, observerOptions);
-    
-    document.querySelectorAll('.stat-card').forEach(card => {
-        card.style.opacity = '0';
-        card.style.transform = 'translateY(20px)';
-        card.style.transition = 'all 0.6s ease';
-        observer.observe(card);
-    });
-});
-</script>
+        } catch (error) {
+            console.debug('Admin dashboard refresh skipped', error);
+        }
+    }
 
-<style>
-    .stat-card {
-        transition: all 0.3s ease;
-        cursor: pointer;
-        background: white;
-        border-radius: 15px;
-        padding: 20px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
-    
-    .stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-    }
-    
-    .timeline-item {
-        transition: background-color 0.2s ease;
-    }
-    
-    .timeline-item:hover {
-        background-color: #f8fafc;
-    }
-    
-    body.dark-mode .stat-card,
-    body.dark-mode .card {
-        background: #1e293b;
-        color: #f1f5f9;
-    }
-    
-    body.dark-mode .list-group-item {
-        background: #1e293b;
-        color: #f1f5f9;
-        border-color: #334155;
-    }
-    
-    body.dark-mode .timeline-item:hover {
-        background-color: #334155;
-    }
-    
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-    
-    .animate-fade-in-up {
-        animation: fadeInUp 0.6s ease-out;
-    }
-    
-    .badge-success {
-        background: #10b981;
-        color: white;
-        padding: 4px 8px;
-        border-radius: 12px;
-        font-size: 11px;
-    }
-    
-    .badge-warning {
-        background: #f59e0b;
-        color: white;
-        padding: 4px 8px;
-        border-radius: 12px;
-        font-size: 11px;
-    }
-    
-    .badge-info {
-        background: #3b82f6;
-        color: white;
-        padding: 4px 8px;
-        border-radius: 12px;
-        font-size: 11px;
-    }
-</style>
-{% endblock %}
+    document.addEventListener('DOMContentLoaded', function() {
+        initRevenueChart();
+        window.setInterval(refreshDashboard, 45000);
+    });
+</script>

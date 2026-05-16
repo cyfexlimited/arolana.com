@@ -79,12 +79,12 @@ except ImportError:
 
 urlpatterns = [
     # Admin & Core
-    path('admin/', admin.site.urls),
-    path('admin/logo-check/', TemplateView.as_view(template_name='admin/logo_check.html'), name='logo_check'),
     path('admin/live-stats/', core_views.live_stats, name='live_stats'),
+    path('admin/logo-check/', TemplateView.as_view(template_name='admin/logo_check.html'), name='logo_check'),
     path('admin/upload-logo/', core_admin_views.upload_logo, name='upload_logo'),
     path('admin/avatar-upload/<int:user_id>/', core_admin_views.upload_user_avatar, name='avatar_upload'),
     path('admin/avatar-delete/<int:user_id>/', core_admin_views.delete_user_avatar, name='avatar_delete'),
+    path('admin/', admin.site.urls),
     
     # Health check for Railway
     path('health/', health_check, name='health'),

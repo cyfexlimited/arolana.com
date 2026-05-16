@@ -3,7 +3,7 @@ from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django import forms
 from django_ckeditor_5.widgets import CKEditor5Widget
-from django.db.models import Q
+from django.db.models import F, Q
 from .models import (
     Category, Brand, Product, ProductImage, ProductVariant, 
     ProductVariantImage, ProductReview, RecentlyViewed, 
@@ -26,6 +26,75 @@ class ProductAdminForm(forms.ModelForm):
             'description': CKEditor5Widget(config_name='default'),
             'specifications': CKEditor5Widget(config_name='default'),
         }
+
+    class Media:
+        css = {
+            'all': ('css/ckeditor-custom.css',)
+        }
+
+
+class AccessoryAdminForm(forms.ModelForm):
+    class Meta:
+        model = Accessory
+        fields = '__all__'
+        widgets = {
+            'description': CKEditor5Widget(config_name='default'),
+        }
+
+    class Media:
+        css = {
+            'all': ('css/ckeditor-custom.css',)
+        }
+
+
+class InventoryStatusFilter(admin.SimpleListFilter):
+    title = 'inventory status'
+    parameter_name = 'inventory_status'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('in_stock', 'In stock'),
+            ('low_stock', 'Low stock'),
+            ('out_of_stock', 'Out of stock'),
+            ('reserved', 'Has reserved stock'),
+            ('backorder', 'Backorder enabled'),
+        )
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value == 'in_stock':
+            return queryset.filter(stock_quantity__gt=F('reserved_quantity'))
+        if value == 'low_stock':
+            return queryset.filter(stock_quantity__gt=0, stock_quantity__lte=F('low_stock_threshold'))
+        if value == 'out_of_stock':
+            return queryset.filter(stock_quantity__lte=0)
+        if value == 'reserved':
+            return queryset.filter(reserved_quantity__gt=0)
+        if value == 'backorder':
+            return queryset.filter(allow_backorder=True)
+        return queryset
+
+
+class VariantStockStatusFilter(admin.SimpleListFilter):
+    title = 'variant stock'
+    parameter_name = 'variant_stock_status'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('available', 'Available'),
+            ('out', 'Out of stock'),
+            ('inactive', 'Inactive'),
+        )
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value == 'available':
+            return queryset.filter(is_active=True, stock_quantity__gt=0)
+        if value == 'out':
+            return queryset.filter(stock_quantity__lte=0)
+        if value == 'inactive':
+            return queryset.filter(is_active=False)
+        return queryset
 
 
 # =================================
@@ -111,15 +180,16 @@ class ReviewVideoInline(admin.TabularInline):
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     form = ProductAdminForm
-    list_display = ['sku', 'name', 'price', 'stock_quantity', 'approval_status_badge', 'is_featured', 'is_active', 'image_preview']
-    list_filter = ['is_active', 'is_featured', 'is_new', 'is_bestseller', 'category', 'brand', 'approval_status', 'created_at']
+    list_display = ['sku', 'name', 'price', 'stock_quantity', 'available_stock_display', 'stock_status_badge', 'approval_status_badge', 'is_featured', 'is_active', 'image_preview']
+    list_editable = ['price', 'stock_quantity', 'is_featured', 'is_active']
+    list_filter = [InventoryStatusFilter, 'is_active', 'is_featured', 'is_new', 'is_bestseller', 'category', 'brand', 'approval_status', 'allow_backorder', 'created_at']
     search_fields = ['sku', 'name', 'description']
     prepopulated_fields = {'slug': ['name']}
     readonly_fields = ['views_count', 'sales_count', 'rating_avg', 'rating_count', 'created_at', 'updated_at', 'sku', 'submitted_for_review_at', 'approved_at']
     inlines = [ProductImageInline, ProductVariantInline, ProductVideoInline, AccessoryInline, ManufacturerWarrantyInline, ShippingInfoInline]
     autocomplete_fields = ['vendor', 'category', 'brand']
     list_select_related = ['category', 'brand', 'vendor']
-    list_per_page = 25
+    list_per_page = 30
     
     fieldsets = (
         ('Basic Information', {
@@ -133,7 +203,8 @@ class ProductAdmin(admin.ModelAdmin):
             'fields': ('price', 'compare_price', 'cost_per_item')
         }),
         ('Inventory', {
-            'fields': ('stock_quantity', 'reserved_quantity', 'low_stock_threshold', 'is_in_stock', 'allow_backorder')
+            'fields': ('stock_quantity', 'reserved_quantity', 'low_stock_threshold', 'is_in_stock', 'allow_backorder'),
+            'description': 'Manage product stock, reserved quantities, low-stock alerts, and backorder behavior from one place.'
         }),
         ('Physical Attributes', {
             'fields': ('weight', 'weight_unit', 'dimensions_length', 'dimensions_width', 'dimensions_height', 'dimension_unit'),
@@ -192,6 +263,29 @@ class ProductAdmin(admin.ModelAdmin):
             color, text
         )
     approval_status_badge.short_description = 'Approval Status'
+
+    def available_stock_display(self, obj):
+        available = obj.available_stock
+        color = '#dc2626' if available <= 0 else '#d97706' if obj.is_low_stock else '#059669'
+        return format_html('<strong style="color: {};">{}</strong>', color, available)
+    available_stock_display.short_description = 'Available'
+    available_stock_display.admin_order_field = 'stock_quantity'
+
+    def stock_status_badge(self, obj):
+        if obj.stock_quantity <= 0:
+            label, color = 'Out of stock', '#dc2626'
+        elif obj.is_low_stock:
+            label, color = 'Low stock', '#d97706'
+        elif obj.reserved_quantity:
+            label, color = 'Reserved', '#2563eb'
+        else:
+            label, color = 'Healthy', '#059669'
+        return format_html(
+            '<span style="background: {}; color: #fff; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 700;">{}</span>',
+            color,
+            label
+        )
+    stock_status_badge.short_description = 'Stock'
     
     def get_search_results(self, request, queryset, search_term):
         queryset, use_distinct = super().get_search_results(request, queryset, search_term)
@@ -207,7 +301,18 @@ class ProductAdmin(admin.ModelAdmin):
         
         return queryset, use_distinct
     
-    actions = ['mark_as_featured', 'mark_as_unfeatured', 'activate_products', 'deactivate_products', 'approve_products', 'reject_products']
+    actions = [
+        'mark_as_featured',
+        'mark_as_unfeatured',
+        'activate_products',
+        'deactivate_products',
+        'approve_products',
+        'reject_products',
+        'mark_out_of_stock',
+        'reset_reserved_quantity',
+        'enable_backorders',
+        'disable_backorders',
+    ]
     
     def mark_as_featured(self, request, queryset):
         queryset.update(is_featured=True)
@@ -240,6 +345,26 @@ class ProductAdmin(admin.ModelAdmin):
         updated = queryset.update(approval_status='rejected', is_active=False)
         self.message_user(request, f"❌ {updated} product(s) rejected.")
     reject_products.short_description = "❌ Reject selected products"
+
+    def mark_out_of_stock(self, request, queryset):
+        updated = queryset.update(stock_quantity=0, is_in_stock=False)
+        self.message_user(request, f"{updated} product(s) marked out of stock.")
+    mark_out_of_stock.short_description = "Mark selected products out of stock"
+
+    def reset_reserved_quantity(self, request, queryset):
+        updated = queryset.update(reserved_quantity=0)
+        self.message_user(request, f"Reserved quantity reset for {updated} product(s).")
+    reset_reserved_quantity.short_description = "Reset reserved stock for selected products"
+
+    def enable_backorders(self, request, queryset):
+        updated = queryset.update(allow_backorder=True)
+        self.message_user(request, f"Backorders enabled for {updated} product(s).")
+    enable_backorders.short_description = "Enable backorders"
+
+    def disable_backorders(self, request, queryset):
+        updated = queryset.update(allow_backorder=False)
+        self.message_user(request, f"Backorders disabled for {updated} product(s).")
+    disable_backorders.short_description = "Disable backorders"
 
 
 # =================================
@@ -335,6 +460,7 @@ class BrandAdmin(admin.ModelAdmin):
 
 @admin.register(Accessory)
 class AccessoryAdmin(admin.ModelAdmin):
+    form = AccessoryAdminForm
     list_display = ['name', 'price', 'compare_price', 'stock_quantity', 'is_active', 'image_preview', 'discount_display']
     list_filter = ['is_active', 'created_at']
     search_fields = ['name', 'description']
@@ -439,13 +565,14 @@ class ProductImageAdmin(admin.ModelAdmin):
 
 @admin.register(ProductVariant)
 class ProductVariantAdmin(admin.ModelAdmin):
-    list_display = ['product_name', 'variant_type', 'value', 'sku', 'price_adjustment', 'stock_quantity', 'color_swatch', 'is_active']
-    list_filter = ['variant_type', 'is_active', 'created_at']
+    list_display = ['product_name', 'variant_type', 'value', 'sku', 'final_price_display', 'price_adjustment', 'stock_quantity', 'variant_stock_badge', 'color_swatch', 'is_active']
+    list_filter = [VariantStockStatusFilter, 'variant_type', 'is_active', 'created_at']
     search_fields = ['sku', 'value', 'product__name']
     list_editable = ['price_adjustment', 'stock_quantity', 'is_active']
     readonly_fields = ['sku', 'created_at', 'updated_at']
     list_select_related = ['product']
     inlines = [ProductVariantImageInline]
+    actions = ['activate_variants', 'deactivate_variants', 'mark_variants_out_of_stock']
     
     def product_name(self, obj):
         return obj.product.name
@@ -479,6 +606,39 @@ class ProductVariantAdmin(admin.ModelAdmin):
             )
         return "-"
     color_swatch.short_description = 'Color'
+
+    def final_price_display(self, obj):
+        return format_html('<strong>${}</strong>', obj.final_price)
+    final_price_display.short_description = 'Final Price'
+
+    def variant_stock_badge(self, obj):
+        if not obj.is_active:
+            label, color = 'Inactive', '#6b7280'
+        elif obj.stock_quantity <= 0:
+            label, color = 'Out', '#dc2626'
+        else:
+            label, color = 'Available', '#059669'
+        return format_html(
+            '<span style="background: {}; color: #fff; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 700;">{}</span>',
+            color,
+            label
+        )
+    variant_stock_badge.short_description = 'Stock Status'
+
+    def activate_variants(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f"{updated} variant(s) activated.")
+    activate_variants.short_description = "Activate variants"
+
+    def deactivate_variants(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f"{updated} variant(s) deactivated.")
+    deactivate_variants.short_description = "Deactivate variants"
+
+    def mark_variants_out_of_stock(self, request, queryset):
+        updated = queryset.update(stock_quantity=0)
+        self.message_user(request, f"{updated} variant(s) marked out of stock.")
+    mark_variants_out_of_stock.short_description = "Mark variants out of stock"
 
 
 # =================================
