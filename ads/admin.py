@@ -64,11 +64,48 @@ class AdCreativeAdmin(admin.ModelAdmin):
 
 @admin.register(AdBanner)
 class AdBannerAdmin(admin.ModelAdmin):
-    list_display = ['title', 'campaign', 'placement', 'priority', 'performance', 'is_active']
+    list_display = ['title', 'campaign', 'placement', 'banner_size', 'priority', 'performance', 'is_active']
     list_filter = ['is_active', 'priority', 'placement', 'animation']
     search_fields = ['title', 'description']
     readonly_fields = ['impressions', 'clicks', 'ctr', 'conversion_rate', 'created_at', 'updated_at']
     autocomplete_fields = ['campaign', 'creative', 'placement']
+    fieldsets = (
+        ('Campaign & Placement', {
+            'fields': ('campaign', 'creative', 'placement')
+        }),
+        ('Content', {
+            'fields': ('title', 'description', 'cta_text', 'cta_url', 'alt_text')
+        }),
+        ('Media', {
+            'fields': ('image', 'image_mobile', 'video_url')
+        }),
+        ('Size, Fit & Focal Position', {
+            'fields': (
+                ('width_override', 'height_override'),
+                ('mobile_width_override', 'mobile_height_override'),
+                ('image_fit', 'image_position'),
+                ('mobile_image_fit', 'mobile_image_position'),
+            ),
+            'description': 'Leave size overrides empty to use the selected placement dimensions.'
+        }),
+        ('Animation & Effects', {
+            'fields': ('animation', 'hover_effect'),
+            'classes': ('collapse',)
+        }),
+        ('Schedule & Status', {
+            'fields': ('priority', 'start_date', 'end_date', 'is_active')
+        }),
+        ('Performance', {
+            'fields': ('impressions', 'clicks', 'ctr', 'conversion_rate'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    def banner_size(self, obj):
+        width = obj.width_override or (obj.placement.width if obj.placement else 1200)
+        height = obj.height_override or (obj.placement.height if obj.placement else 320)
+        return f"{width}x{height}"
+    banner_size.short_description = 'Size'
     
     def performance(self, obj):
         if obj.impressions > 0:

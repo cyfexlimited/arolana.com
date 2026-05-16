@@ -8,13 +8,14 @@
             {% for banner in banners %}
             <div class="banner-slide w-full flex-shrink-0" data-index="{{ forloop.counter0 }}">
                 <!-- Banner Slide Content -->
-                <div class="homepage-banner-slide relative overflow-hidden"
-                     style="background: linear-gradient(135deg, {{ banner.background_color_start|default:'#667eea' }}, {{ banner.background_color_end|default:'#764ba2' }});">
+                <div class="homepage-banner-slide homepage-banner-slide--{{ banner.content_layout|default:'designed' }} relative overflow-hidden"
+                     style="background: linear-gradient(135deg, {{ banner.background_color_start|default:'#667eea' }}, {{ banner.background_color_end|default:'#764ba2' }}); --homepage-height-desktop: {{ banner.desktop_height|default:320 }}px; --homepage-height-tablet: {{ banner.tablet_height|default:300 }}px; --homepage-height-mobile: {{ banner.mobile_height|default:260 }}px; --homepage-bg-fit: {{ banner.background_fit|default:'cover' }}; --homepage-bg-position: {{ banner.background_position|default:'center center' }}; --homepage-bg-opacity: {% if banner.content_layout == 'image_only' %}1{% else %}{{ banner.background_opacity|default:'0.35' }}{% endif %}; --homepage-content-align: {{ banner.content_alignment|default:'center' }};">
                     {% if banner.background_image and banner.background_image.image %}
                         {% optimized_image_url banner.background_image.image 'hero' as banner_background_url %}
                         <img src="{{ banner_background_url }}" alt="" class="homepage-banner-bg" loading="{% if forloop.first %}eager{% else %}lazy{% endif %}">
                     {% endif %}
 
+                    {% if banner.content_layout != 'image_only' or not banner.background_image %}
                     <div class="container mx-auto px-4 py-10 md:py-16 relative z-10">
                         <div class="homepage-banner-grid">
                             
@@ -22,7 +23,7 @@
                             <div class="homepage-banner-media homepage-banner-media--left" data-aos="{{ banner.left_animation|default:'fade-right' }}">
                                 {% for banner_image in banner.left_images %}
                                     {% optimized_image_url banner_image.image 'ad_card' as left_image_url %}
-                                    <img src="{{ left_image_url }}" alt="{{ banner.title }}" loading="lazy">
+                                    <img src="{{ left_image_url }}" alt="{{ banner.title }}" loading="lazy" style="{% if banner_image.width_px %}--banner-img-width: {{ banner_image.width_px }}px;{% endif %}{% if banner_image.height_px %}--banner-img-height: {{ banner_image.height_px }}px;{% endif %}--banner-img-fit: {{ banner_image.object_fit|default:'contain' }}; --banner-img-position: {{ banner_image.object_position|default:'center center' }};">
                                 {% empty %}
                                     {% if banner.left_image %}
                                         <img src="{{ banner.left_image }}" alt="{{ banner.title }}" loading="lazy">
@@ -36,7 +37,7 @@
                                     <div class="homepage-banner-center-images">
                                         {% for banner_image in banner.center_images %}
                                             {% optimized_image_url banner_image.image 'ad_card' as center_image_url %}
-                                            <img src="{{ center_image_url }}" alt="{{ banner.title }}" loading="{% if forloop.parentloop.first %}eager{% else %}lazy{% endif %}">
+                                            <img src="{{ center_image_url }}" alt="{{ banner.title }}" loading="{% if forloop.parentloop.first %}eager{% else %}lazy{% endif %}" style="{% if banner_image.width_px %}--banner-img-width: {{ banner_image.width_px }}px;{% endif %}{% if banner_image.height_px %}--banner-img-height: {{ banner_image.height_px }}px;{% endif %}--banner-img-fit: {{ banner_image.object_fit|default:'contain' }}; --banner-img-position: {{ banner_image.object_position|default:'center center' }};">
                                         {% endfor %}
                                     </div>
                                 {% endif %}
@@ -62,7 +63,7 @@
                             <div class="homepage-banner-media homepage-banner-media--right" data-aos="{{ banner.right_animation|default:'fade-left' }}">
                                 {% for banner_image in banner.right_images %}
                                     {% optimized_image_url banner_image.image 'ad_card' as right_image_url %}
-                                    <img src="{{ right_image_url }}" alt="{{ banner.title }}" loading="lazy">
+                                    <img src="{{ right_image_url }}" alt="{{ banner.title }}" loading="lazy" style="{% if banner_image.width_px %}--banner-img-width: {{ banner_image.width_px }}px;{% endif %}{% if banner_image.height_px %}--banner-img-height: {{ banner_image.height_px }}px;{% endif %}--banner-img-fit: {{ banner_image.object_fit|default:'contain' }}; --banner-img-position: {{ banner_image.object_position|default:'center center' }};">
                                 {% empty %}
                                     {% if banner.right_image %}
                                         <img src="{{ banner.right_image }}" alt="{{ banner.title }}" loading="lazy">
@@ -71,6 +72,7 @@
                             </div>
                         </div>
                     </div>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}
@@ -206,7 +208,7 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 .homepage-banner-slide {
-    min-height: clamp(360px, 38vw, 540px);
+    height: var(--homepage-height-desktop, 320px);
 }
 
 .homepage-banner-bg {
@@ -214,8 +216,15 @@ document.addEventListener('DOMContentLoaded', function() {
     inset: 0;
     width: 100%;
     height: 100%;
-    object-fit: cover;
-    opacity: 0.28;
+    object-fit: var(--homepage-bg-fit, cover);
+    object-position: var(--homepage-bg-position, center center);
+    opacity: var(--homepage-bg-opacity, 0.35);
+}
+
+.homepage-banner-slide > .container {
+    height: 100%;
+    display: flex;
+    align-items: center;
 }
 
 .homepage-banner-grid {
@@ -223,11 +232,12 @@ document.addEventListener('DOMContentLoaded', function() {
     grid-template-columns: minmax(160px, 0.75fr) minmax(280px, 1.5fr) minmax(160px, 0.75fr);
     align-items: center;
     gap: clamp(1rem, 4vw, 2.5rem);
+    width: 100%;
 }
 
 .homepage-banner-content {
     color: #fff;
-    text-align: center;
+    text-align: var(--homepage-content-align, center);
     min-width: 0;
 }
 
@@ -275,9 +285,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .homepage-banner-media img,
 .homepage-banner-center-images img {
-    width: min(100%, 260px);
-    max-height: 250px;
-    object-fit: contain;
+    width: var(--banner-img-width, min(100%, 320px));
+    height: var(--banner-img-height, auto);
+    max-height: min(100%, 280px);
+    object-fit: var(--banner-img-fit, contain);
+    object-position: var(--banner-img-position, center center);
     border-radius: 8px;
     filter: drop-shadow(0 18px 30px rgba(15, 23, 42, 0.25));
 }
@@ -287,7 +299,7 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 .homepage-banner-center-images img {
-    width: min(100%, 320px);
+    width: var(--banner-img-width, min(100%, 360px));
     max-height: 180px;
 }
 
@@ -327,7 +339,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 @media (max-width: 768px) {
     .homepage-banner-slide {
-        min-height: 420px;
+        height: var(--homepage-height-mobile, 260px);
     }
 
     .homepage-banner-grid {
@@ -360,6 +372,12 @@ document.addEventListener('DOMContentLoaded', function() {
     .banner-prev,
     .banner-next {
         padding: 0.5rem;
+    }
+}
+
+@media (min-width: 769px) and (max-width: 1023px) {
+    .homepage-banner-slide {
+        height: var(--homepage-height-tablet, 300px);
     }
 }
 </style>

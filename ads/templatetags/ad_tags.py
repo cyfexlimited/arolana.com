@@ -88,6 +88,10 @@ def render_ad_carousel(context, placement, count=5, interval=5000, autoplay='tru
                 ).select_related('campaign', 'creative').order_by('-priority', '?')[:count]
             
             for banner in banners:
+                banner_width = banner.width_override or (banner.placement.width if banner.placement else 1200)
+                banner_height = banner.height_override or (banner.placement.height if banner.placement else 320)
+                banner_mobile_width = banner.mobile_width_override or banner_width
+                banner_mobile_height = banner.mobile_height_override or banner_height
                 all_ads.append({
                     'object': banner,
                     'type': 'banner',
@@ -102,6 +106,14 @@ def render_ad_carousel(context, placement, count=5, interval=5000, autoplay='tru
                     'views': banner.impressions or 0,
                     'clicks': banner.clicks or 0,
                     'animation': banner.animation or 'fade',
+                    'width': banner_width,
+                    'height': banner_height,
+                    'mobile_width': banner_mobile_width,
+                    'mobile_height': banner_mobile_height,
+                    'image_fit': banner.image_fit or 'cover',
+                    'image_position': banner.image_position or 'center center',
+                    'mobile_image_fit': banner.mobile_image_fit or 'cover',
+                    'mobile_image_position': banner.mobile_image_position or 'center center',
                 })
     except Exception as e:
         logger.error(f"Error fetching banners: {e}")

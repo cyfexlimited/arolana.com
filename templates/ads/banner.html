@@ -2,6 +2,8 @@
 
 {% for ad in ads %}
     <div class="ad-banner" data-ad-id="{{ ad.id }}" data-campaign-id="{{ ad.campaign.id }}">
+        {% firstof ad.width_override ad.placement.width 1200 as ad_width %}
+        {% firstof ad.height_override ad.placement.height 320 as ad_height %}
         {% if ad.cta_url %}
         <a href="{{ ad.cta_url }}" target="_blank" rel="noopener noreferrer"
            class="ad-link block"
@@ -9,21 +11,21 @@
         {% else %}
         <div class="ad-link block">
         {% endif %}
-            {% if ad.image or ad.mobile_image %}
+            {% if ad.image or ad.image_mobile %}
                 {% if ad.image %}
                     {% optimized_image_url ad.image 'ad_card' as ad_image_url %}
                 {% endif %}
-                {% if ad.mobile_image %}
-                    {% optimized_image_url ad.mobile_image 'ad_card' as ad_mobile_url %}
+                {% if ad.image_mobile %}
+                    {% optimized_image_url ad.image_mobile 'ad_card' as ad_mobile_url %}
                 {% endif %}
                 <picture>
-                    {% if ad.mobile_image %}
+                    {% if ad.image_mobile %}
                     <source media="(max-width: 767px)" srcset="{{ ad_mobile_url }}">
                     {% endif %}
                     <img src="{% if ad.image %}{{ ad_image_url }}{% else %}{{ ad_mobile_url }}{% endif %}"
                          alt="{{ ad.alt_text|default:ad.title }}"
-                         class="w-full rounded-lg shadow-lg object-cover"
-                         style="aspect-ratio: {{ ad.placement.width|default:1200 }} / {{ ad.placement.height|default:320 }};"
+                         class="w-full rounded-lg shadow-lg"
+                         style="aspect-ratio: {{ ad_width }} / {{ ad_height }}; object-fit: {{ ad.image_fit|default:'cover' }}; object-position: {{ ad.image_position|default:'center center' }};"
                          loading="lazy">
                 </picture>
             {% else %}

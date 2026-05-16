@@ -3,10 +3,11 @@
 {% if ads %}
 <div class="ad-carousel-container relative" data-interval="{{ interval }}">
     <!-- Carousel wrapper -->
-    <div class="ad-carousel overflow-hidden rounded-xl relative bg-gray-100" style="min-height: 350px;">
+    <div class="ad-carousel overflow-hidden rounded-xl relative bg-gray-100">
         <div class="ad-carousel-track flex transition-transform duration-500 ease-out">
             {% for ad in ads %}
-            <div class="ad-carousel-slide w-full flex-shrink-0" data-index="{{ forloop.counter0 }}">
+            <div class="ad-carousel-slide w-full flex-shrink-0" data-index="{{ forloop.counter0 }}"
+                 style="--ad-frame-height: {{ ad.height|default:280 }}px; --ad-mobile-frame-height: {{ ad.mobile_height|default:220 }}px; --ad-fit: {{ ad.image_fit|default:'cover' }}; --ad-position: {{ ad.image_position|default:'center center' }}; --ad-mobile-fit: {{ ad.mobile_image_fit|default:'cover' }}; --ad-mobile-position: {{ ad.mobile_image_position|default:'center center' }};">
                 
                 <!-- CREATIVE AD (Most Advanced) -->
                 {% if ad.type == 'creative' %}
@@ -17,7 +18,7 @@
                         </div>
                         {% if ad.image %}
                         {% optimized_image_url ad.image 'ad_card' as ad_image_url %}
-                        <img src="{{ ad_image_url }}" alt="{{ ad.title }}" class="mx-auto mb-4 rounded-lg max-h-32 object-cover" loading="lazy">
+                        <img src="{{ ad_image_url }}" alt="{{ ad.title }}" class="ad-carousel-image mx-auto mb-4 rounded-lg" loading="lazy">
                         {% endif %}
                         <h3 class="text-2xl font-bold mb-3">{{ ad.title }}</h3>
                         <p class="text-sm opacity-95 mb-6 leading-relaxed">{{ ad.description|truncatewords:25 }}</p>
@@ -44,7 +45,7 @@
                         </div>
                         {% if ad.image %}
                         {% optimized_image_url ad.image 'ad_card' as ad_image_url %}
-                        <img src="{{ ad_image_url }}" alt="{{ ad.title }}" class="mx-auto mb-4 rounded-lg max-h-32 object-cover" loading="lazy">
+                        <img src="{{ ad_image_url }}" alt="{{ ad.title }}" class="ad-carousel-image mx-auto mb-4 rounded-lg" loading="lazy">
                         {% endif %}
                         <h3 class="text-2xl font-bold mb-3">{{ ad.title }}</h3>
                         <p class="text-sm opacity-95 mb-6 leading-relaxed">{{ ad.description|truncatewords:25 }}</p>
@@ -71,7 +72,7 @@
                         </div>
                         {% if ad.image %}
                         {% optimized_image_url ad.image 'ad_card' as ad_image_url %}
-                        <img src="{{ ad_image_url }}" alt="{{ ad.title }}" class="mx-auto mb-4 rounded-lg max-h-32 object-cover" loading="lazy">
+                        <img src="{{ ad_image_url }}" alt="{{ ad.title }}" class="ad-carousel-image mx-auto mb-4 rounded-lg" loading="lazy">
                         {% endif %}
                         <h3 class="text-2xl font-bold mb-3">{{ ad.title }}</h3>
                         <p class="text-sm opacity-95 mb-6 leading-relaxed">{{ ad.description|truncatewords:25 }}</p>
@@ -260,6 +261,18 @@ function getCookie(name) {
     border-radius: 0.75rem;
 }
 
+.ad-carousel-slide > div {
+    min-height: var(--ad-frame-height, 280px) !important;
+}
+
+.ad-carousel-image {
+    width: 100%;
+    height: min(260px, calc(var(--ad-frame-height, 280px) * 0.62));
+    max-height: none !important;
+    object-fit: var(--ad-fit, cover);
+    object-position: var(--ad-position, center center);
+}
+
 .ad-carousel-track {
     display: flex;
     will-change: transform;
@@ -296,6 +309,16 @@ function getCookie(name) {
 }
 
 @media (max-width: 768px) {
+    .ad-carousel-slide > div {
+        min-height: var(--ad-mobile-frame-height, 220px) !important;
+    }
+
+    .ad-carousel-image {
+        height: min(220px, calc(var(--ad-mobile-frame-height, 220px) * 0.68));
+        object-fit: var(--ad-mobile-fit, var(--ad-fit, cover));
+        object-position: var(--ad-mobile-position, var(--ad-position, center center));
+    }
+
     .carousel-prev,
     .carousel-next {
         width: 32px;

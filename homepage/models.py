@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.validators import MaxValueValidator, MinValueValidator
 from core.models import BaseModel
 from products.models import Category, Product
 from vendors.models import VendorProfile
@@ -30,6 +31,21 @@ class HomepageBanner(BaseModel):
         ('manufacturers', 'Manufacturers'),
         ('staff', 'Staff/Admin'),
     ]
+    IMAGE_FIT_CHOICES = [
+        ('cover', 'Fill frame (crop if needed)'),
+        ('contain', 'Fit whole image'),
+        ('fill', 'Stretch to frame'),
+        ('scale-down', 'Scale down only'),
+    ]
+    CONTENT_LAYOUT_CHOICES = [
+        ('designed', 'Designed banner with text/images'),
+        ('image_only', 'Image only'),
+    ]
+    CONTENT_ALIGNMENT_CHOICES = [
+        ('left', 'Left'),
+        ('center', 'Center'),
+        ('right', 'Right'),
+    ]
 
     title = models.CharField(max_length=200, default="Summer Mega Sale!")
     subtitle = models.CharField(max_length=500, blank=True, default="Get up to 50% off on selected items + Free Shipping")
@@ -43,6 +59,14 @@ class HomepageBanner(BaseModel):
     )
     background_color_start = models.CharField(max_length=20, default="#3B82F6", help_text="Gradient start color")
     background_color_end = models.CharField(max_length=20, default="#8B5CF6", help_text="Gradient end color")
+    desktop_height = models.PositiveIntegerField(default=320, validators=[MinValueValidator(120), MaxValueValidator(900)], help_text="Homepage banner height on desktop in pixels.")
+    tablet_height = models.PositiveIntegerField(default=300, validators=[MinValueValidator(120), MaxValueValidator(800)], help_text="Homepage banner height on tablet in pixels.")
+    mobile_height = models.PositiveIntegerField(default=260, validators=[MinValueValidator(120), MaxValueValidator(700)], help_text="Homepage banner height on mobile in pixels.")
+    content_layout = models.CharField(max_length=20, choices=CONTENT_LAYOUT_CHOICES, default='designed', help_text="Choose image-only when the uploaded background already includes all text/buttons.")
+    content_alignment = models.CharField(max_length=20, choices=CONTENT_ALIGNMENT_CHOICES, default='center')
+    background_fit = models.CharField(max_length=20, choices=IMAGE_FIT_CHOICES, default='cover')
+    background_position = models.CharField(max_length=50, default='center center', help_text="CSS object-position. Examples: center center, left center, 50% 35%.")
+    background_opacity = models.FloatField(default=0.35, validators=[MinValueValidator(0), MaxValueValidator(1)], help_text="0 is hidden, 1 is full strength. Image-only banners display at full strength.")
     
     # Floating images
     left_image = models.URLField(blank=True, help_text="URL for left floating image")
@@ -141,6 +165,8 @@ class HomepageNewsletterSettings(BaseModel):
 
 class HomepageBannerImage(BaseModel):
     """Upload images for banners"""
+    IMAGE_FIT_CHOICES = HomepageBanner.IMAGE_FIT_CHOICES
+
     banner = models.ForeignKey(HomepageBanner, on_delete=models.CASCADE, related_name='uploaded_images')
     image = models.ImageField(upload_to='homepage/banners/', help_text="Upload banner image")
     position = models.CharField(max_length=20, choices=[
@@ -150,6 +176,10 @@ class HomepageBannerImage(BaseModel):
         ('background', 'Background'),
     ], default='center')
     animation = models.CharField(max_length=50, default='animate-bounce')
+    width_px = models.PositiveIntegerField(null=True, blank=True, help_text="Optional custom display width in pixels.")
+    height_px = models.PositiveIntegerField(null=True, blank=True, help_text="Optional custom display height in pixels.")
+    object_fit = models.CharField(max_length=20, choices=IMAGE_FIT_CHOICES, default='contain')
+    object_position = models.CharField(max_length=50, default='center center', help_text="CSS object-position for this image.")
     display_order = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
     

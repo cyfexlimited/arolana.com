@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.utils import timezone
 from django.utils.text import slugify
 from core.models import BaseModel
@@ -220,6 +221,13 @@ class AdCreative(BaseModel):
 
 class AdBanner(BaseModel):
     """Enhanced banner with advanced features"""
+    IMAGE_FIT_CHOICES = [
+        ('cover', 'Fill frame (crop if needed)'),
+        ('contain', 'Fit whole image'),
+        ('fill', 'Stretch to frame'),
+        ('scale-down', 'Scale down only'),
+    ]
+
     campaign = models.ForeignKey(AdCampaign, on_delete=models.CASCADE, related_name='banners')
     creative = models.ForeignKey(AdCreative, on_delete=models.SET_NULL, null=True, related_name='banners')
     placement = models.ForeignKey(AdPlacement, on_delete=models.SET_NULL, null=True, related_name='banners')
@@ -232,6 +240,14 @@ class AdBanner(BaseModel):
     image = models.ImageField(upload_to='ads/banners/', null=True, blank=True)
     image_mobile = models.ImageField(upload_to='ads/banners/mobile/', null=True, blank=True)
     video_url = models.URLField(blank=True)
+    width_override = models.PositiveIntegerField(null=True, blank=True, validators=[MinValueValidator(80), MaxValueValidator(3000)], help_text="Optional desktop width override in pixels. Falls back to placement width.")
+    height_override = models.PositiveIntegerField(null=True, blank=True, validators=[MinValueValidator(40), MaxValueValidator(2000)], help_text="Optional desktop height override in pixels. Falls back to placement height.")
+    mobile_width_override = models.PositiveIntegerField(null=True, blank=True, validators=[MinValueValidator(80), MaxValueValidator(1600)], help_text="Optional mobile width override in pixels.")
+    mobile_height_override = models.PositiveIntegerField(null=True, blank=True, validators=[MinValueValidator(40), MaxValueValidator(1600)], help_text="Optional mobile height override in pixels.")
+    image_fit = models.CharField(max_length=20, choices=IMAGE_FIT_CHOICES, default='cover')
+    image_position = models.CharField(max_length=50, default='center center', help_text="CSS object-position for desktop/tablet.")
+    mobile_image_fit = models.CharField(max_length=20, choices=IMAGE_FIT_CHOICES, default='cover')
+    mobile_image_position = models.CharField(max_length=50, default='center center', help_text="CSS object-position for mobile.")
     
     # Interactive Elements
     cta_text = models.CharField(max_length=50, default='Learn More')

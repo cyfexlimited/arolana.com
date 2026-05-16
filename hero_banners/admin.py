@@ -31,6 +31,16 @@ class HeroBannerAdmin(admin.ModelAdmin):
             'fields': ('image_desktop', 'image_tablet', 'image_mobile'),
             'description': 'Upload images here. Desktop image is required.'
         }),
+        ('Size, Fit & Focal Position', {
+            'fields': (
+                ('desktop_height', 'tablet_height', 'mobile_height'),
+                ('image_fit_desktop', 'image_position_desktop'),
+                ('image_fit_tablet', 'image_position_tablet'),
+                ('image_fit_mobile', 'image_position_mobile'),
+                'mobile_content_layout',
+            ),
+            'description': 'Control the banner frame size and how each image fills it. Use mobile image-only for a B&H-style mobile banner.'
+        }),
         ('Animation', {
             'fields': ('animation_effect', 'animation_duration', 'autoplay_delay'),
             'classes': ('collapse',)

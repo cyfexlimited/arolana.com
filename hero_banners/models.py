@@ -20,6 +20,18 @@ def normalize_opacity(value):
 
 class HeroBanner(BaseModel):
     """Advanced Hero Banner with full features"""
+    IMAGE_FIT_CHOICES = [
+        ('cover', 'Fill frame (crop if needed)'),
+        ('contain', 'Fit whole image'),
+        ('fill', 'Stretch to frame'),
+        ('scale-down', 'Scale down only'),
+    ]
+
+    MOBILE_CONTENT_LAYOUT_CHOICES = [
+        ('image_only', 'Image only on mobile (B&H style)'),
+        ('overlay', 'Text over image'),
+        ('below', 'Text below image'),
+    ]
     
     # Basic Content
     title = models.CharField(max_length=200, help_text="Main headline text")
@@ -30,6 +42,18 @@ class HeroBanner(BaseModel):
     image_desktop = models.ImageField(upload_to='hero_banners/desktop/', blank=True, null=True, help_text="Desktop image (1920x1080 recommended)")
     image_tablet = models.ImageField(upload_to='hero_banners/tablet/', null=True, blank=True, help_text="Tablet image (1024x768)")
     image_mobile = models.ImageField(upload_to='hero_banners/mobile/', null=True, blank=True, help_text="Mobile image (768x1024)")
+
+    # Size & crop controls
+    desktop_height = models.PositiveIntegerField(default=560, validators=[MinValueValidator(160), MaxValueValidator(1200)], help_text="Desktop hero height in pixels.")
+    tablet_height = models.PositiveIntegerField(default=460, validators=[MinValueValidator(160), MaxValueValidator(1000)], help_text="Tablet hero height in pixels.")
+    mobile_height = models.PositiveIntegerField(default=380, validators=[MinValueValidator(180), MaxValueValidator(900)], help_text="Mobile hero height in pixels. Around 360-420 gives a B&H-style mobile banner.")
+    image_fit_desktop = models.CharField(max_length=20, choices=IMAGE_FIT_CHOICES, default='cover')
+    image_fit_tablet = models.CharField(max_length=20, choices=IMAGE_FIT_CHOICES, default='cover')
+    image_fit_mobile = models.CharField(max_length=20, choices=IMAGE_FIT_CHOICES, default='cover')
+    image_position_desktop = models.CharField(max_length=50, default='center center', help_text="CSS object-position. Examples: center center, left center, 50% 35%.")
+    image_position_tablet = models.CharField(max_length=50, default='center center', help_text="CSS object-position for tablet.")
+    image_position_mobile = models.CharField(max_length=50, default='center center', help_text="CSS object-position for mobile.")
+    mobile_content_layout = models.CharField(max_length=20, choices=MOBILE_CONTENT_LAYOUT_CHOICES, default='image_only', help_text="Use image only when your mobile image already contains the text/buttons.")
     
     # 3D & Animation Effects
     EFFECTS_CHOICES = [

@@ -12,7 +12,7 @@ from .models import (
 class HomepageBannerImageInline(admin.TabularInline):
     model = HomepageBannerImage
     extra = 1
-    fields = ['image_preview', 'image', 'position', 'animation', 'display_order', 'is_active']
+    fields = ['image_preview', 'image', 'position', 'width_px', 'height_px', 'object_fit', 'object_position', 'animation', 'display_order', 'is_active']
     readonly_fields = ['image_preview']
 
     def image_preview(self, obj):
@@ -58,7 +58,13 @@ class HomepageBannerAdmin(admin.ModelAdmin):
             'description': 'Use this to show a banner to everyone, guests, customers, vendors, manufacturers, or staff only.'
         }),
         ('🎨 Styling', {
-            'fields': ('background_color_start', 'background_color_end')
+            'fields': (
+                ('background_color_start', 'background_color_end'),
+                ('desktop_height', 'tablet_height', 'mobile_height'),
+                ('content_layout', 'content_alignment'),
+                ('background_fit', 'background_position', 'background_opacity'),
+            ),
+            'description': 'Set the exact banner height and how the background image fits the frame.'
         }),
         ('🖼 Floating Images', {
             'fields': (

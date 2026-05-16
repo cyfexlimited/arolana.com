@@ -39,12 +39,15 @@
             <!-- Banner Ad -->
             <div class="ad-content bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
                 {% if ad.image %}
+                    {% firstof ad.width_override ad.placement.width 1200 as ad_width %}
+                    {% firstof ad.height_override ad.placement.height 320 as ad_height %}
                     {% optimized_image_url ad.image 'ad_card' as banner_image_url %}
                     <a href="{{ ad.cta_url }}" target="_blank" rel="noopener noreferrer" 
                        onclick="trackAdClick({{ ad.id }})"
                        class="block">
                         <img src="{{ banner_image_url }}" alt="{{ ad.title }}"
-                             class="w-full rounded-xl shadow-md hover:scale-105 transition-transform duration-300">
+                             class="w-full rounded-xl shadow-md transition-transform duration-300"
+                             style="aspect-ratio: {{ ad_width }} / {{ ad_height }}; object-fit: {{ ad.image_fit|default:'cover' }}; object-position: {{ ad.image_position|default:'center center' }};">
                     </a>
                 {% else %}
                     <div class="p-5">

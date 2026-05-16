@@ -5,9 +5,10 @@
     .hero-carousel-container {
         position: relative;
         width: 100%;
-        height: 700px;
+        height: 560px;
         overflow: hidden;
         background: #111827;
+        transition: height 0.25s ease;
     }
     .hero-slide,
     .hero-background,
@@ -20,8 +21,8 @@
         display: block;
     }
     .hero-background img {
-        object-fit: cover;
-        object-position: center;
+        object-fit: var(--hero-fit-desktop, cover);
+        object-position: var(--hero-pos-desktop, center center);
     }
     .hero-overlay {
         position: absolute;
@@ -111,40 +112,27 @@
     .hero-next { right: 20px; }
 
     @media (max-width: 1023px) {
-        .hero-carousel-container { height: 560px; }
+        .hero-carousel-container { height: 460px; }
+        .hero-background img {
+            object-fit: var(--hero-fit-tablet, var(--hero-fit-desktop, cover));
+            object-position: var(--hero-pos-tablet, var(--hero-pos-desktop, center center));
+        }
         .hero-content { padding: 64px 40px; }
     }
 
     @media (max-width: 767px) {
         .hero-carousel-container {
-            height: min(76svh, 660px);
-            min-height: 500px;
-        }
-        .hero-slide {
-            display: flex;
-            flex-direction: column;
-            background: #111827;
+            height: 380px;
         }
         .hero-background {
-            position: relative !important;
-            top: auto !important;
-            left: auto !important;
-            flex: 1 1 auto;
-            min-height: 0;
             background: #111827;
         }
         .hero-background img {
-            object-fit: contain;
+            object-fit: var(--hero-fit-mobile, cover);
+            object-position: var(--hero-pos-mobile, center center);
         }
         .hero-content {
-            flex: 0 0 auto;
-            height: auto;
-            max-height: 42%;
-            padding: 16px 20px 52px;
-            overflow-y: auto;
-            background: rgba(17, 24, 39, 0.96);
-            justify-content: center !important;
-            align-items: center !important;
+            padding: 22px 20px 52px;
         }
         .hero-content-inner {
             width: 100%;
@@ -179,6 +167,34 @@
         }
         .hero-prev { left: 12px; }
         .hero-next { right: 12px; }
+
+        .hero-slide[data-mobile-content-layout="image_only"] .hero-content {
+            display: none;
+        }
+
+        .hero-slide[data-mobile-content-layout="below"] {
+            display: flex;
+            flex-direction: column;
+            background: #111827;
+        }
+
+        .hero-slide[data-mobile-content-layout="below"] .hero-background {
+            position: relative !important;
+            top: auto !important;
+            left: auto !important;
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+
+        .hero-slide[data-mobile-content-layout="below"] .hero-content {
+            flex: 0 0 auto;
+            height: auto;
+            max-height: 44%;
+            overflow-y: auto;
+            background: rgba(17, 24, 39, 0.96);
+            justify-content: center !important;
+            align-items: center !important;
+        }
     }
 </style>
 
@@ -189,7 +205,11 @@
          data-slide-index="{{ forloop.counter0 }}"
          data-banner-id="{{ banner.id }}"
          data-autoplay-delay="{{ banner.autoplay_delay|default:5000 }}"
-         style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: {% if forloop.first %}1{% else %}0{% endif %}; transition: opacity 0.8s ease-in-out; z-index: {% if forloop.first %}10{% else %}1{% endif %};">
+         data-height-desktop="{{ banner.desktop_height|default:560 }}"
+         data-height-tablet="{{ banner.tablet_height|default:460 }}"
+         data-height-mobile="{{ banner.mobile_height|default:380 }}"
+         data-mobile-content-layout="{{ banner.mobile_content_layout|default:'image_only' }}"
+         style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: {% if forloop.first %}1{% else %}0{% endif %}; transition: opacity 0.8s ease-in-out; z-index: {% if forloop.first %}10{% else %}1{% endif %}; --hero-fit-desktop: {{ banner.image_fit_desktop|default:'cover' }}; --hero-fit-tablet: {{ banner.image_fit_tablet|default:'cover' }}; --hero-fit-mobile: {{ banner.image_fit_mobile|default:'cover' }}; --hero-pos-desktop: {{ banner.image_position_desktop|default:'center center' }}; --hero-pos-tablet: {{ banner.image_position_tablet|default:'center center' }}; --hero-pos-mobile: {{ banner.image_position_mobile|default:'center center' }};">
         
         <!-- Background Image -->
         <div class="hero-background" style="position: absolute; top: 0; left: 0;">
@@ -281,14 +301,30 @@
 <script>
     let currentSlide = 0;
     const totalSlides = {{ banners|length }};
+    const heroContainer = document.querySelector('.hero-carousel-container');
     const firstSlide = document.querySelector('.hero-slide');
     const autoplayDelay = parseInt(firstSlide?.dataset.autoplayDelay || '5000', 10);
     let autoSlideInterval;
     let isHovering = false;
+
+    function getSlideHeight(slide) {
+        if (!slide) return window.innerWidth <= 767 ? '380px' : window.innerWidth <= 1023 ? '460px' : '560px';
+        const key = window.innerWidth <= 767 ? 'heightMobile' : window.innerWidth <= 1023 ? 'heightTablet' : 'heightDesktop';
+        const height = parseInt(slide.dataset[key] || '', 10);
+        return height > 0 ? `${height}px` : (window.innerWidth <= 767 ? '380px' : window.innerWidth <= 1023 ? '460px' : '560px');
+    }
+
+    function applySlideSizing(index) {
+        const slide = document.querySelector(`.hero-slide[data-slide-index="${index}"]`);
+        if (heroContainer && slide) {
+            heroContainer.style.height = getSlideHeight(slide);
+        }
+    }
     
     function showSlide(index) {
         const slides = document.querySelectorAll('.hero-slide');
         const dots = document.querySelectorAll('.hero-dot');
+        applySlideSizing(index);
         
         slides.forEach((slide, i) => {
             slide.style.opacity = i === index ? '1' : '0';
@@ -420,12 +456,14 @@
         });
     });
     
-    const container = document.querySelector('.hero-carousel-container');
-    if (container) {
-        container.addEventListener('mouseenter', () => { isHovering = true; });
-        container.addEventListener('mouseleave', () => { isHovering = false; });
+    if (heroContainer) {
+        heroContainer.addEventListener('mouseenter', () => { isHovering = true; });
+        heroContainer.addEventListener('mouseleave', () => { isHovering = false; });
     }
+
+    window.addEventListener('resize', () => applySlideSizing(currentSlide));
     
+    applySlideSizing(0);
     startAutoSlide();
 </script>
 {% else %}
