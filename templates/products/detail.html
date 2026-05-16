@@ -2,6 +2,7 @@
 {% load static %}
 {% load currency_filters %}
 {% load products_extras %}
+{% load ad_tags %}
 
 {% block title %}{{ product.name }} | Arolana.com{% endblock %}
 
@@ -275,6 +276,10 @@
             <li class="text-gray-900 font-semibold truncate">{{ product.name|truncatewords:5 }}</li>
         </ol>
     </nav>
+
+    <div class="mb-8">
+        {% render_ad 'product-detail' %}
+    </div>
 
     <!-- Main Product Section with 3D Gallery -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">

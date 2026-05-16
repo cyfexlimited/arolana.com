@@ -3,6 +3,7 @@ from django.db.models import Count, Prefetch, Q, Sum
 from products.models import Category, Product
 from vendors.models import VendorProfile
 from manufacturers.models import Manufacturer, ManufacturerCategory
+from currency.models import Currency
 import random
 from django.conf import settings
 from core.local_cache import local_get_or_set
@@ -88,6 +89,12 @@ def global_context(request):
         'global_context:featured_manufacturers',
         lambda: list(Manufacturer.objects.filter(is_featured=True, is_active=True)[:4]),
     )
+
+    active_currencies = _cached(
+        'global_context:active_currencies',
+        lambda: list(Currency.objects.filter(is_active=True).order_by('code')),
+        3600,
+    )
     
     notification_unread_count = 0
     recent_user_notifications = []
@@ -126,6 +133,9 @@ def global_context(request):
         'notification_unread_count': notification_unread_count,
         'recent_user_notifications': recent_user_notifications,
         'chat_unread_count': chat_unread_count,
+        'all_currencies': active_currencies,
+        'current_currency_code': request.session.get('user_currency') or request.COOKIES.get('user_currency') or 'USD',
+        'currency_source': request.session.get('user_currency_source', 'auto'),
     }
 
 def admin_notifications(request):

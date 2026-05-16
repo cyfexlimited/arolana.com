@@ -1,46 +1,57 @@
-{% load static %}
+{% load static media_optimization %}
 
 {% if banners %}
-<div class="relative overflow-hidden rounded-2xl mb-12" data-aos="fade-up">
+<div class="homepage-banner-wrap relative overflow-hidden mb-12" data-aos="fade-up">
     <!-- Main Carousel Container -->
     <div class="banner-carousel-container relative" data-autoplay="5000">
         <div class="banner-carousel-track flex transition-transform duration-500 ease-out">
             {% for banner in banners %}
             <div class="banner-slide w-full flex-shrink-0" data-index="{{ forloop.counter0 }}">
                 <!-- Banner Slide Content -->
-                <div class="relative overflow-hidden" 
+                <div class="homepage-banner-slide relative overflow-hidden"
                      style="background: linear-gradient(135deg, {{ banner.background_color_start|default:'#667eea' }}, {{ banner.background_color_end|default:'#764ba2' }});">
-                    <div class="container mx-auto px-4 py-16 md:py-24 relative z-10">
-                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
+                    {% if banner.background_image and banner.background_image.image %}
+                        {% optimized_image_url banner.background_image.image 'hero' as banner_background_url %}
+                        <img src="{{ banner_background_url }}" alt="" class="homepage-banner-bg" loading="{% if forloop.first %}eager{% else %}lazy{% endif %}">
+                    {% endif %}
+
+                    <div class="container mx-auto px-4 py-10 md:py-16 relative z-10">
+                        <div class="homepage-banner-grid">
                             
                             <!-- Left Image/Video -->
-                            <div class="flex justify-center" data-aos="{{ banner.left_animation|default:'fade-right' }}">
-                                {% if banner.left_video %}
-                                    <video class="max-h-64 w-auto rounded-lg shadow-lg" autoplay muted loop playsinline>
-                                        <source src="{{ banner.left_video.url }}" type="video/mp4">
-                                    </video>
-                                {% elif banner.left_image %}
-                                    <img src="{{ banner.left_image }}" alt="Left banner" class="max-h-64 w-auto rounded-lg shadow-lg hover:scale-105 transition-transform duration-300" loading="lazy">
-                                {% endif %}
+                            <div class="homepage-banner-media homepage-banner-media--left" data-aos="{{ banner.left_animation|default:'fade-right' }}">
+                                {% for banner_image in banner.left_images %}
+                                    {% optimized_image_url banner_image.image 'ad_card' as left_image_url %}
+                                    <img src="{{ left_image_url }}" alt="{{ banner.title }}" loading="lazy">
+                                {% empty %}
+                                    {% if banner.left_image %}
+                                        <img src="{{ banner.left_image }}" alt="{{ banner.title }}" loading="lazy">
+                                    {% endif %}
+                                {% endfor %}
                             </div>
-                            
+
                             <!-- Center Content -->
-                            <div class="text-center" data-aos="{{ banner.center_animation|default:'fade-up' }}">
-                                {% if banner.icon %}
-                                    <i class="{{ banner.icon }} text-5xl text-white mb-4"></i>
+                            <div class="homepage-banner-content" data-aos="{{ banner.center_animation|default:'fade-up' }}">
+                                {% if banner.center_images %}
+                                    <div class="homepage-banner-center-images">
+                                        {% for banner_image in banner.center_images %}
+                                            {% optimized_image_url banner_image.image 'ad_card' as center_image_url %}
+                                            <img src="{{ center_image_url }}" alt="{{ banner.title }}" loading="{% if forloop.parentloop.first %}eager{% else %}lazy{% endif %}">
+                                        {% endfor %}
+                                    </div>
                                 {% endif %}
-                                <h2 class="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 leading-tight">
+                                <h2 class="homepage-banner-title">
                                     {{ banner.title }}
                                 </h2>
                                 {% if banner.subtitle %}
-                                    <p class="text-lg md:text-xl text-white/90 mb-6 max-w-2xl mx-auto">
+                                    <p class="homepage-banner-subtitle">
                                         {{ banner.subtitle }}
                                     </p>
                                 {% endif %}
                                 
-                                {% if banner.button_text and banner.button_url %}
+                                {% if banner.show_button %}
                                     <a href="{{ banner.button_url }}" 
-                                       class="inline-flex items-center gap-2 bg-white text-gray-900 px-6 md:px-8 py-3 rounded-lg font-semibold hover:shadow-lg transition transform hover:scale-105">
+                                       class="homepage-banner-button">
                                         {{ banner.button_text }}
                                         <i class="fas fa-arrow-right"></i>
                                     </a>
@@ -48,21 +59,18 @@
                             </div>
                             
                             <!-- Right Image/Video -->
-                            <div class="flex justify-center" data-aos="{{ banner.right_animation|default:'fade-left' }}">
-                                {% if banner.right_video %}
-                                    <video class="max-h-64 w-auto rounded-lg shadow-lg" autoplay muted loop playsinline>
-                                        <source src="{{ banner.right_video.url }}" type="video/mp4">
-                                    </video>
-                                {% elif banner.right_image %}
-                                    <img src="{{ banner.right_image }}" alt="Right banner" class="max-h-64 w-auto rounded-lg shadow-lg hover:scale-105 transition-transform duration-300" loading="lazy">
-                                {% endif %}
+                            <div class="homepage-banner-media homepage-banner-media--right" data-aos="{{ banner.right_animation|default:'fade-left' }}">
+                                {% for banner_image in banner.right_images %}
+                                    {% optimized_image_url banner_image.image 'ad_card' as right_image_url %}
+                                    <img src="{{ right_image_url }}" alt="{{ banner.title }}" loading="lazy">
+                                {% empty %}
+                                    {% if banner.right_image %}
+                                        <img src="{{ banner.right_image }}" alt="{{ banner.title }}" loading="lazy">
+                                    {% endif %}
+                                {% endfor %}
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- Decorative Elements -->
-                    <div class="absolute top-0 left-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
-                    <div class="absolute bottom-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl translate-x-1/2 translate-y-1/2"></div>
                 </div>
             </div>
             {% endfor %}
@@ -187,10 +195,100 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style>
+.homepage-banner-wrap {
+    border-radius: 8px;
+}
+
 .banner-carousel-container {
     position: relative;
     width: 100%;
     overflow: hidden;
+}
+
+.homepage-banner-slide {
+    min-height: clamp(360px, 38vw, 540px);
+}
+
+.homepage-banner-bg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.28;
+}
+
+.homepage-banner-grid {
+    display: grid;
+    grid-template-columns: minmax(160px, 0.75fr) minmax(280px, 1.5fr) minmax(160px, 0.75fr);
+    align-items: center;
+    gap: clamp(1rem, 4vw, 2.5rem);
+}
+
+.homepage-banner-content {
+    color: #fff;
+    text-align: center;
+    min-width: 0;
+}
+
+.homepage-banner-title {
+    font-size: clamp(2rem, 5vw, 4rem);
+    line-height: 1.05;
+    font-weight: 800;
+    margin: 0 0 1rem;
+}
+
+.homepage-banner-subtitle {
+    max-width: 720px;
+    margin: 0 auto 1.5rem;
+    color: rgba(255, 255, 255, 0.92);
+    font-size: clamp(1rem, 2vw, 1.25rem);
+    line-height: 1.55;
+}
+
+.homepage-banner-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 46px;
+    border-radius: 8px;
+    background: #fff;
+    color: #111827;
+    padding: 0.75rem 1.5rem;
+    font-weight: 700;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.homepage-banner-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.22);
+}
+
+.homepage-banner-media,
+.homepage-banner-center-images {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    gap: 1rem;
+}
+
+.homepage-banner-media img,
+.homepage-banner-center-images img {
+    width: min(100%, 260px);
+    max-height: 250px;
+    object-fit: contain;
+    border-radius: 8px;
+    filter: drop-shadow(0 18px 30px rgba(15, 23, 42, 0.25));
+}
+
+.homepage-banner-center-images {
+    margin-bottom: 1.25rem;
+}
+
+.homepage-banner-center-images img {
+    width: min(100%, 320px);
+    max-height: 180px;
 }
 
 .banner-carousel-track {
@@ -228,12 +326,35 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 @media (max-width: 768px) {
-    .banner-slide .grid {
+    .homepage-banner-slide {
+        min-height: 420px;
+    }
+
+    .homepage-banner-grid {
+        grid-template-columns: 1fr;
         gap: 1rem;
     }
-    
-    .banner-slide h2 {
-        font-size: 1.5rem;
+
+    .homepage-banner-media {
+        min-height: 80px;
+    }
+
+    .homepage-banner-media--left,
+    .homepage-banner-media--right {
+        display: none;
+    }
+
+    .homepage-banner-title {
+        font-size: clamp(1.7rem, 9vw, 2.6rem);
+    }
+
+    .homepage-banner-subtitle {
+        font-size: 1rem;
+    }
+
+    .homepage-banner-button {
+        width: min(100%, 280px);
+        justify-content: center;
     }
     
     .banner-prev,

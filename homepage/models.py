@@ -21,10 +21,26 @@ class HomepageCategory(BaseModel):
 
 class HomepageBanner(BaseModel):
     """Manageable promo banner on homepage"""
+    TARGET_AUDIENCE_CHOICES = [
+        ('all', 'Everyone'),
+        ('guests', 'Guests only'),
+        ('authenticated', 'Signed-in users'),
+        ('customers', 'Customers'),
+        ('vendors', 'Vendors'),
+        ('manufacturers', 'Manufacturers'),
+        ('staff', 'Staff/Admin'),
+    ]
+
     title = models.CharField(max_length=200, default="Summer Mega Sale!")
     subtitle = models.CharField(max_length=500, blank=True, default="Get up to 50% off on selected items + Free Shipping")
     button_text = models.CharField(max_length=50, default="Shop Now")
     button_url = models.CharField(max_length=500, default="/products/?deals=true")
+    target_audience = models.CharField(
+        max_length=20,
+        choices=TARGET_AUDIENCE_CHOICES,
+        default='all',
+        help_text="Choose who should see this banner.",
+    )
     background_color_start = models.CharField(max_length=20, default="#3B82F6", help_text="Gradient start color")
     background_color_end = models.CharField(max_length=20, default="#8B5CF6", help_text="Gradient end color")
     
@@ -48,6 +64,10 @@ class HomepageBanner(BaseModel):
     
     def __str__(self):
         return self.title
+
+    @property
+    def show_button(self):
+        return bool(self.button_text and self.button_url and self.button_url != '#')
 
 class HomepageSection(BaseModel):
     """Manageable sections on homepage"""

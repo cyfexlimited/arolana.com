@@ -43,13 +43,19 @@ class HomepageCategoryAdmin(admin.ModelAdmin):
 # 🔹 BANNER ADMIN
 @admin.register(HomepageBanner)
 class HomepageBannerAdmin(admin.ModelAdmin):
-    list_display = ['title', 'display_order', 'is_active', 'preview']
+    list_display = ['title', 'target_audience', 'display_order', 'is_active', 'preview']
     list_editable = ['display_order', 'is_active']
+    list_filter = ['target_audience', 'is_active']
+    search_fields = ['title', 'subtitle']
     inlines = [HomepageBannerImageInline]
 
     fieldsets = (
         ('📝 Content', {
             'fields': ('title', 'subtitle', 'button_text', 'button_url')
+        }),
+        ('👥 Audience', {
+            'fields': ('target_audience',),
+            'description': 'Use this to show a banner to everyone, guests, customers, vendors, manufacturers, or staff only.'
         }),
         ('🎨 Styling', {
             'fields': ('background_color_start', 'background_color_end')

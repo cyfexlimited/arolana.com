@@ -1,3 +1,5 @@
+{% load media_optimization %}
+
 {% if ad %}
     <div class="advanced-ad advanced-ad-{{ placement }} advanced-ad-{{ ad_type }}" data-ad-id="{{ ad.id }}">
         
@@ -5,10 +7,11 @@
             <!-- Creative (Most Advanced) -->
             <div class="ad-content bg-gradient-to-br from-purple-600 to-pink-600 text-white rounded-xl p-5 shadow-lg hover:shadow-xl transition-all duration-300">
                 {% if ad.creative_type == 'image' and ad.image %}
+                    {% optimized_image_url ad.image 'ad_card' as creative_image_url %}
                     <a href="{{ ad.clickthrough_url }}" target="_blank" rel="noopener noreferrer" 
                        onclick="trackAdClick({{ ad.id }})"
                        class="block group">
-                        <img src="{{ ad.image.url }}" alt="{{ ad.headline }}" 
+                        <img src="{{ creative_image_url }}" alt="{{ ad.headline }}"
                              class="w-full rounded-lg shadow-md group-hover:shadow-xl transition-all duration-300">
                     </a>
                 {% endif %}
@@ -36,10 +39,11 @@
             <!-- Banner Ad -->
             <div class="ad-content bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
                 {% if ad.image %}
+                    {% optimized_image_url ad.image 'ad_card' as banner_image_url %}
                     <a href="{{ ad.cta_url }}" target="_blank" rel="noopener noreferrer" 
                        onclick="trackAdClick({{ ad.id }})"
                        class="block">
-                        <img src="{{ ad.image.url }}" alt="{{ ad.title }}" 
+                        <img src="{{ banner_image_url }}" alt="{{ ad.title }}"
                              class="w-full rounded-xl shadow-md hover:scale-105 transition-transform duration-300">
                     </a>
                 {% else %}
@@ -65,10 +69,11 @@
             <!-- Simple Advertisement -->
             <div class="ad-content bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4 shadow-md hover:shadow-lg transition-all duration-300">
                 {% if ad.image %}
+                    {% optimized_image_url ad.image 'ad_card' as simple_image_url %}
                     <a href="{{ ad.url }}" target="_blank" rel="noopener noreferrer" 
                        onclick="trackAdClick({{ ad.id }})"
                        class="block group">
-                        <img src="{{ ad.image.url }}" alt="{{ ad.title }}" 
+                        <img src="{{ simple_image_url }}" alt="{{ ad.title }}"
                              class="w-full rounded-lg shadow-md group-hover:shadow-xl transition-all duration-300">
                         <div class="mt-2 text-center text-sm font-medium text-gray-700">
                             {{ ad.title }}
@@ -115,6 +120,7 @@
     </div>
 {% else %}
     <!-- Placeholder when no ads available -->
+    {% if user.is_staff %}
     <div class="text-center text-gray-500 py-6 px-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
         <i class="fas fa-ad text-3xl text-gray-300 mb-2"></i>
         <p class="text-sm font-medium">Advertisement Space</p>
@@ -135,6 +141,7 @@
             </div>
         {% endif %}
     </div>
+    {% endif %}
 {% endif %}
 
 <script>

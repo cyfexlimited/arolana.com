@@ -27,6 +27,8 @@ def render_ad_carousel(context, placement, count=5, interval=5000, autoplay='tru
     """
     request = context.get('request')
     now = timezone.now()
+    device = _detect_device(request)
+    country = _get_country(request)
     
     all_ads = []
     
@@ -40,6 +42,8 @@ def render_ad_carousel(context, placement, count=5, interval=5000, autoplay='tru
             campaign__start_date__lte=now
         ).filter(
             Q(campaign__end_date__isnull=True) | Q(campaign__end_date__gte=now)
+        ).filter(
+            _campaign_audience_filter(request)
         ).order_by('-ab_weight', '?')[:count]
         
         for creative in creatives:
@@ -70,13 +74,18 @@ def render_ad_carousel(context, placement, count=5, interval=5000, autoplay='tru
         ).first()
         
         if placement_obj:
-            banners = AdBanner.objects.filter(
-                placement=placement_obj,
-                is_active=True,
-                start_date__lte=now
-            ).filter(
-                Q(end_date__isnull=True) | Q(end_date__gte=now)
-            ).select_related('campaign', 'creative').order_by('-priority', '?')[:count]
+            if not _placement_matches(placement_obj, device, country, request):
+                banners = AdBanner.objects.none()
+            else:
+                banners = AdBanner.objects.filter(
+                    placement=placement_obj,
+                    is_active=True,
+                    start_date__lte=now
+                ).filter(
+                    Q(end_date__isnull=True) | Q(end_date__gte=now)
+                ).filter(
+                    _campaign_audience_filter(request)
+                ).select_related('campaign', 'creative').order_by('-priority', '?')[:count]
             
             for banner in banners:
                 all_ads.append({
@@ -104,7 +113,12 @@ def render_ad_carousel(context, placement, count=5, interval=5000, autoplay='tru
             is_active=True
         ).filter(
             Q(end_date__isnull=True) | Q(end_date__gte=now)
-        ).order_by('-is_featured', '-created_at')[:count]
+        )
+        if request and request.user.is_authenticated:
+            ads = ads.filter(show_to_logged_in=True)
+        else:
+            ads = ads.filter(show_to_guests=True)
+        ads = ads.order_by('-is_featured', '-created_at')[:count]
         
         for ad in ads:
             all_ads.append({
@@ -157,6 +171,8 @@ def render_ad(context, placement):
     """
     request = context.get('request')
     now = timezone.now()
+    device = _detect_device(request)
+    country = _get_country(request)
     
     selected_ad = None
     ad_type = None
@@ -171,6 +187,8 @@ def render_ad(context, placement):
             campaign__start_date__lte=now
         ).filter(
             Q(campaign__end_date__isnull=True) | Q(campaign__end_date__gte=now)
+        ).filter(
+            _campaign_audience_filter(request)
         ).annotate(
             weight=F('ab_weight')
         ).order_by('-weight', '?')
@@ -185,13 +203,15 @@ def render_ad(context, placement):
                 is_active=True
             ).first()
             
-            if placement_obj:
+            if placement_obj and _placement_matches(placement_obj, device, country, request):
                 banners = AdBanner.objects.filter(
                     placement=placement_obj,
                     is_active=True,
                     start_date__lte=now
                 ).filter(
                     Q(end_date__isnull=True) | Q(end_date__gte=now)
+                ).filter(
+                    _campaign_audience_filter(request)
                 ).select_related('campaign', 'creative').order_by('-priority', '?')
                 
                 if banners.exists():
@@ -210,6 +230,10 @@ def render_ad(context, placement):
                 ).filter(
                     Q(end_date__isnull=True) | Q(end_date__gte=now)
                 ).order_by('-is_featured', '-created_at')
+                if request and request.user.is_authenticated:
+                    ads = ads.filter(show_to_logged_in=True)
+                else:
+                    ads = ads.filter(show_to_guests=True)
                 
                 if ads.exists():
                     selected_ad = ads.first()
@@ -319,8 +343,51 @@ def _detect_device(request):
         return 'desktop'
 
 
+def _campaign_audience_filter(request):
+    if not request:
+        return Q(campaign__targeting='all')
+
+    if not request.user.is_authenticated:
+        return Q(campaign__targeting__in=['all', 'new'])
+
+    return Q(campaign__targeting__in=['all', 'logged_in', 'returning', 'high_value'])
+
+
+def _placement_matches(placement, device, country, request):
+    if not placement:
+        return False
+
+    if placement.requires_login and not (request and request.user.is_authenticated):
+        return False
+
+    allowed_devices = placement.allowed_devices or []
+    if allowed_devices and device not in allowed_devices:
+        return False
+
+    allowed_countries = [str(code).upper() for code in (placement.allowed_countries or [])]
+    if allowed_countries and country.upper() not in allowed_countries:
+        return False
+
+    return True
+
+
 def _get_country(request):
     """Get country from request (requires GeoIP setup)"""
+    if not request:
+        return 'XX'
+
+    for header in (
+        'HTTP_CF_IPCOUNTRY',
+        'HTTP_CLOUDFRONT_VIEWER_COUNTRY',
+        'HTTP_X_COUNTRY_CODE',
+        'HTTP_X_FORWARDED_COUNTRY',
+        'HTTP_X_APPENGINE_COUNTRY',
+        'HTTP_FLY_CLIENT_IP_COUNTRY',
+    ):
+        country_code = (request.META.get(header) or '').strip().upper()
+        if len(country_code) == 2 and country_code != 'XX':
+            return country_code
+
     try:
         from django.contrib.gis.geoip2 import GeoIP2
         from django.conf import settings

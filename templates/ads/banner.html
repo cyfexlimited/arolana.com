@@ -1,24 +1,47 @@
+{% load media_optimization %}
+
 {% for ad in ads %}
     <div class="ad-banner" data-ad-id="{{ ad.id }}" data-campaign-id="{{ ad.campaign.id }}">
-        <a href="{{ ad.cta_url }}" target="_blank" rel="noopener noreferrer" 
+        {% if ad.cta_url %}
+        <a href="{{ ad.cta_url }}" target="_blank" rel="noopener noreferrer"
            class="ad-link block"
            onclick="trackBannerClick({{ ad.id }}, {{ ad.campaign.id }})">
-            {% if ad.image %}
-                <img src="{{ ad.image.url }}" alt="{{ ad.title }}" 
-                     class="w-full h-auto rounded-lg shadow-lg">
-            {% elif ad.mobile_image %}
-                <img src="{{ ad.mobile_image.url }}" alt="{{ ad.title }}" 
-                     class="w-full h-auto rounded-lg shadow-lg block md:hidden">
+        {% else %}
+        <div class="ad-link block">
+        {% endif %}
+            {% if ad.image or ad.mobile_image %}
+                {% if ad.image %}
+                    {% optimized_image_url ad.image 'ad_card' as ad_image_url %}
+                {% endif %}
+                {% if ad.mobile_image %}
+                    {% optimized_image_url ad.mobile_image 'ad_card' as ad_mobile_url %}
+                {% endif %}
+                <picture>
+                    {% if ad.mobile_image %}
+                    <source media="(max-width: 767px)" srcset="{{ ad_mobile_url }}">
+                    {% endif %}
+                    <img src="{% if ad.image %}{{ ad_image_url }}{% else %}{{ ad_mobile_url }}{% endif %}"
+                         alt="{{ ad.alt_text|default:ad.title }}"
+                         class="w-full rounded-lg shadow-lg object-cover"
+                         style="aspect-ratio: {{ ad.placement.width|default:1200 }} / {{ ad.placement.height|default:320 }};"
+                         loading="lazy">
+                </picture>
             {% else %}
-                <div class="bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg p-6 text-white">
+                <div class="rounded-lg p-6 text-white" style="background: linear-gradient(135deg, #1f2937, #2563eb);">
                     <h3 class="text-xl font-bold mb-2">{{ ad.title }}</h3>
                     <p class="mb-4">{{ ad.description|truncatewords:20 }}</p>
-                    <span class="inline-block bg-white text-purple-600 px-4 py-2 rounded-lg font-semibold">
+                    {% if ad.cta_text %}
+                    <span class="inline-block bg-white text-blue-700 px-4 py-2 rounded-lg font-semibold">
                         {{ ad.cta_text }}
                     </span>
+                    {% endif %}
                 </div>
             {% endif %}
+        {% if ad.cta_url %}
         </a>
+        {% else %}
+        </div>
+        {% endif %}
     </div>
 {% endfor %}
 

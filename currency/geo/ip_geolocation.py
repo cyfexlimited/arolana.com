@@ -1,5 +1,8 @@
 import requests
 from django.core.cache import cache
+import logging
+
+logger = logging.getLogger(__name__)
 
 class IPGeolocationService:
     """IP geolocation service using multiple free APIs"""
@@ -27,7 +30,7 @@ class IPGeolocationService:
         for api_template, parser in self.apis:
             try:
                 api_url = api_template.format(ip=ip_address)
-                response = requests.get(api_url, timeout=3)
+                response = requests.get(api_url, timeout=1.2)
                 
                 if response.status_code == 200:
                     data = response.json()
@@ -38,7 +41,7 @@ class IPGeolocationService:
                         return country_code
                         
             except Exception as e:
-                print(f"IP geolocation API error: {e}")
+                logger.info("IP geolocation API error: %s", e)
                 continue
         
         return None

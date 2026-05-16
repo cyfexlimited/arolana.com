@@ -70,15 +70,42 @@ def homepage_categories(context):
 @register.inclusion_tag('homepage/banner.html', takes_context=True)
 def homepage_banner(context):
     request = context.get('request')
-    banners = HomepageBanner.objects.filter(is_active=True).order_by('display_order')
+    allowed_audiences = ['all']
+    user = getattr(request, 'user', None)
+    if user and user.is_authenticated:
+        allowed_audiences.append('authenticated')
+        if user.is_staff or user.is_superuser:
+            allowed_audiences.append('staff')
+        user_type = getattr(user, 'user_type', '')
+        if user_type == 'customer':
+            allowed_audiences.append('customers')
+        elif user_type == 'vendor':
+            allowed_audiences.append('vendors')
+        elif user_type == 'manufacturer':
+            allowed_audiences.append('manufacturers')
+    else:
+        allowed_audiences.append('guests')
+
+    banners = (
+        HomepageBanner.objects
+        .filter(is_active=True, target_audience__in=allowed_audiences)
+        .prefetch_related('uploaded_images')
+        .order_by('display_order')
+    )
     banners_json = []
     for banner in banners:
+        active_images = [image for image in banner.uploaded_images.all() if image.is_active]
+        banner.background_image = next((image for image in active_images if image.position == 'background'), None)
+        banner.left_images = [image for image in active_images if image.position == 'left']
+        banner.center_images = [image for image in active_images if image.position == 'center']
+        banner.right_images = [image for image in active_images if image.position == 'right']
         banners_json.append({
             'id': banner.id,
             'title': banner.title,
             'subtitle': banner.subtitle,
             'button_text': banner.button_text,
             'button_url': banner.button_url,
+            'target_audience': banner.target_audience,
             'background_color_start': banner.background_color_start,
             'background_color_end': banner.background_color_end,
             'left_image': banner.left_image or None,

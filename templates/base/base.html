@@ -246,6 +246,20 @@
             filter: brightness(1.05);
         }
 
+        .luxury-search .voice-search-button {
+            min-width: 48px;
+            padding: 0 14px;
+            color: #4b5563;
+            background: transparent;
+            border-left: 1px solid rgba(17, 24, 39, 0.08);
+        }
+
+        .luxury-search .voice-search-button:hover,
+        .luxury-search .voice-search-button.is-listening {
+            color: var(--color-primary);
+            filter: none;
+        }
+
         .search-dropdown {
             position: absolute;
             top: calc(100% + 8px);
@@ -833,13 +847,12 @@
                 <form method="POST" action="{% url 'currency:switch' %}" class="inline" id="currency-form">
                     {% csrf_token %}
                     <input type="hidden" name="next" value="{{ request.path }}">
-                    <select name="code" onchange="this.form.submit()" class="bg-gray-800 text-white text-xs border border-gray-700 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 transition">
-                        <option value="USD" {% if request.session.user_currency == 'USD' %}selected{% endif %}>USD $</option>
-                        <option value="EUR" {% if request.session.user_currency == 'EUR' %}selected{% endif %}>EUR &euro;</option>
-                        <option value="GBP" {% if request.session.user_currency == 'GBP' %}selected{% endif %}>GBP &pound;</option>
-                        <option value="NGN" {% if request.session.user_currency == 'NGN' %}selected{% endif %}>NGN &#8358;</option>
-                        <option value="CAD" {% if request.session.user_currency == 'CAD' %}selected{% endif %}>CAD C$</option>
-                        <option value="AUD" {% if request.session.user_currency == 'AUD' %}selected{% endif %}>AUD A$</option>
+                    <select name="code" onchange="this.form.submit()" title="{% if currency_source == 'manual' %}Manual currency{% else %}Auto-detected currency{% endif %}" class="bg-gray-800 text-white text-xs border border-gray-700 rounded-lg px-3 py-1 focus:outline-none focus:ring-2 transition">
+                        {% for currency in all_currencies %}
+                            <option value="{{ currency.code }}" {% if current_currency_code == currency.code %}selected{% endif %}>{{ currency.code }} {{ currency.symbol }}</option>
+                        {% empty %}
+                            <option value="USD">USD $</option>
+                        {% endfor %}
                     </select>
                 </form>
 
@@ -858,7 +871,7 @@
                                 <span class="font-semibold">Notifications</span>
                                 <a href="{% url 'notifications:list' %}" class="text-xs text-blue-600 hover:underline">View all</a>
                             </div>
-                            <div class="max-h-80 overflow-y-auto divide-y">
+                            <div id="notification-menu-list" class="max-h-80 overflow-y-auto divide-y">
                                 {% for notification in recent_user_notifications %}
                                 <a href="{{ notification.link|default:'/notifications/' }}" class="block px-4 py-3 hover:bg-gray-50 {% if not notification.is_read %}bg-blue-50{% endif %}">
                                     <div class="flex items-start gap-3">
@@ -971,16 +984,21 @@
                         }
                      "
                      @click.away="showDropdown = false">
-                    <div class="luxury-search flex">
+                    <form action="{% url 'search_ai:advanced_search' %}" method="get" class="luxury-search flex">
                         <input type="search"
+                               id="desktop-search-input"
+                               name="q"
                                x-model="query"
                                placeholder="Search products, brands, vendors..."
                                class="w-full focus:outline-none"
                                @focus="showDropdown = query.length > 2 && results.length > 0">
-                        <button type="button" aria-label="Search">
+                        <button type="button" class="voice-search-button" aria-label="Voice search" title="Voice search" onclick="startArolanaVoiceSearch('#desktop-search-input', this)">
+                            <i class="fas fa-microphone"></i>
+                        </button>
+                        <button type="submit" aria-label="Search">
                             <i class="fas fa-search"></i>
                         </button>
-                    </div>
+                    </form>
 
                     <div x-show="isLoading" x-cloak class="absolute right-20 top-3.5">
                         <div class="loading-luxury"></div>
@@ -992,8 +1010,11 @@
                                 <img :src="item.image" class="w-16 h-16 object-cover rounded-lg" loading="lazy" alt="">
                                 <div class="flex-1 min-w-0">
                                     <div x-text="item.name" class="font-semibold text-gray-900 truncate"></div>
-                                    <div class="text-sm text-gray-500 truncate" x-text="item.category"></div>
-                                    <div class="text-lg font-bold text-brand" x-text="'$' + item.price"></div>
+                                    <div class="text-sm text-gray-500 truncate">
+                                        <span x-text="item.label || item.category"></span>
+                                        <template x-if="item.brand"><span x-text="' · ' + item.brand"></span></template>
+                                    </div>
+                                    <div class="text-lg font-bold text-brand" x-text="item.price_display || item.price"></div>
                                 </div>
                             </a>
                         </template>
@@ -1015,8 +1036,11 @@
                 </div>
             </div>
 
-            <form action="/search/" method="get" class="lg:hidden mt-3 luxury-search flex">
-                <input name="q" type="search" placeholder="Search products..." class="w-full focus:outline-none">
+            <form action="{% url 'search_ai:advanced_search' %}" method="get" class="lg:hidden mt-3 luxury-search flex">
+                <input id="mobile-search-input" name="q" type="search" placeholder="Search products, brands, vendors..." class="w-full focus:outline-none">
+                <button type="button" class="voice-search-button" aria-label="Voice search" title="Voice search" onclick="startArolanaVoiceSearch('#mobile-search-input', this)">
+                    <i class="fas fa-microphone"></i>
+                </button>
                 <button type="submit" aria-label="Search"><i class="fas fa-search"></i></button>
             </form>
         </div>
@@ -1577,6 +1601,49 @@
             setTimeout(() => toast.remove(), 5000);
         }
 
+        function escapeHtml(value) {
+            return String(value || '').replace(/[&<>"']/g, (char) => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            })[char]);
+        }
+
+        function startArolanaVoiceSearch(targetSelector, button) {
+            const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const input = document.querySelector(targetSelector);
+            if (!Recognition || !input) {
+                showToast('Voice search is not supported on this browser. Please type your search.', 'error');
+                return;
+            }
+
+            const recognition = new Recognition();
+            recognition.lang = navigator.language || 'en-US';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            if (button) button.classList.add('is-listening');
+            recognition.onresult = (event) => {
+                const transcript = event.results?.[0]?.[0]?.transcript || '';
+                if (!transcript) return;
+                input.value = transcript.trim();
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                const form = input.closest('form');
+                if (form) {
+                    setTimeout(() => form.submit(), 150);
+                }
+            };
+            recognition.onerror = () => {
+                showToast('I could not hear that clearly. Please try again.', 'error');
+            };
+            recognition.onend = () => {
+                if (button) button.classList.remove('is-listening');
+            };
+            recognition.start();
+        }
+
         function getCsrfToken() {
             const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
             return csrfInput ? csrfInput.value : '';
@@ -1680,17 +1747,44 @@
         }
 
         function updateNotificationCount() {
-            fetch('/notifications/unread-count/')
+            fetch('/notifications/api/latest/?limit=5')
                 .then(r => r.json())
                 .then(d => {
                     const badge = document.getElementById('notification-badge');
-                    if (!badge) return;
-                    if (d.unread_count > 0) {
+                    if (badge && d.unread_count > 0) {
                         badge.textContent = d.unread_count > 9 ? '9+' : d.unread_count;
                         badge.classList.remove('hidden');
-                    } else {
+                    } else if (badge) {
                         badge.classList.add('hidden');
                     }
+
+                    const list = document.getElementById('notification-menu-list');
+                    if (!list || !Array.isArray(d.notifications)) return;
+                    if (!d.notifications.length) {
+                        list.innerHTML = `
+                            <div class="px-4 py-8 text-center text-sm text-gray-500">
+                                <i class="fas fa-bell-slash text-2xl text-gray-300 mb-2"></i>
+                                <p>No notifications yet</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    list.innerHTML = d.notifications.map((notification) => `
+                        <a href="${escapeHtml(notification.link || '/notifications/')}"
+                           class="block px-4 py-3 hover:bg-gray-50 ${notification.is_read ? '' : 'bg-blue-50'}"
+                           data-notification-id="${notification.id}">
+                            <div class="flex items-start gap-3">
+                                <span class="w-9 h-9 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center shrink-0">
+                                    <i class="fas ${escapeHtml(notification.icon_class || 'fa-bell')}"></i>
+                                </span>
+                                <span class="min-w-0">
+                                    <span class="block text-sm font-semibold truncate">${escapeHtml(notification.title)}</span>
+                                    <span class="block text-xs text-gray-500 line-clamp-2">${escapeHtml(notification.message)}</span>
+                                    <span class="block text-[11px] text-gray-400 mt-1">${escapeHtml(notification.time_ago)} ago</span>
+                                </span>
+                            </div>
+                        </a>
+                    `).join('');
                 })
                 .catch(() => {});
         }

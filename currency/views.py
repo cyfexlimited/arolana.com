@@ -35,12 +35,15 @@ def switch_currency(request):
             currency = Currency.objects.get(code=currency_code.upper(), is_active=True)
             request.session['user_currency'] = currency.code
             request.session['user_currency_set'] = True
+            request.session['user_currency_source'] = 'manual'
             request.session.modified = True
             
             response = redirect(next_url)
             response.set_cookie('user_currency', currency.code, max_age=31536000, httponly=False, samesite='Lax')
+            response.set_cookie('currency_manual', '1', max_age=31536000, httponly=False, samesite='Lax')
+            response.delete_cookie('currency_auto')
             
-            print(f"✅ Currency switched to: {currency.code} ({currency.symbol})")
+            logger.info("Currency switched to %s", currency.code)
             
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({
@@ -52,13 +55,13 @@ def switch_currency(request):
             return response
             
         except Currency.DoesNotExist:
-            print(f"❌ Currency not found: {currency_code}")
+            logger.warning("Currency not found: %s", currency_code)
     
     return redirect(next_url)
 
 def auto_detect_currency(request):
     """Automatically detect and set currency based on visitor's IP"""
-    if request.session.get('user_currency_set') or request.COOKIES.get('user_currency'):
+    if request.session.get('user_currency_set') or request.COOKIES.get('currency_manual') == '1':
         return
     
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
@@ -77,21 +80,21 @@ def auto_detect_currency(request):
             try:
                 currency = Currency.objects.get(code=currency_code, is_active=True)
                 request.session['user_currency'] = currency.code
-                request.session['user_currency_set'] = True
+                request.session['user_currency_source'] = 'auto'
                 request.session.modified = True
-                print(f"🌍 Auto-detected currency: {currency.code} for country: {country_code}")
+                logger.info("Auto-detected currency %s for country %s", currency.code, country_code)
                 return
             except Currency.DoesNotExist:
                 pass
     except Exception as e:
-        print(f"Auto-detect error: {e}")
+        logger.info("Auto-detect error: %s", e)
 
 def currency_settings(request):
     """Currency settings page"""
     currencies = Currency.objects.filter(is_active=True)
     user_currency = request.session.get('user_currency', 'USD')
     
-    if not request.session.get('user_currency_set') and not request.COOKIES.get('user_currency'):
+    if not request.session.get('user_currency_set') and request.COOKIES.get('currency_manual') != '1':
         auto_detect_currency(request)
         user_currency = request.session.get('user_currency', 'USD')
     
@@ -213,6 +216,7 @@ def set_currency_ajax(request):
                 currency = Currency.objects.get(code=currency_code.upper(), is_active=True)
                 request.session['user_currency'] = currency.code
                 request.session['user_currency_set'] = True
+                request.session['user_currency_source'] = 'manual'
                 request.session.modified = True
                 
                 response = JsonResponse({
@@ -221,7 +225,9 @@ def set_currency_ajax(request):
                     'symbol': currency.symbol,
                     'message': f'Currency changed to {currency.code} ({currency.symbol})'
                 })
-                response.set_cookie('user_currency', currency.code, max_age=31536000)
+                response.set_cookie('user_currency', currency.code, max_age=31536000, samesite='Lax')
+                response.set_cookie('currency_manual', '1', max_age=31536000, samesite='Lax')
+                response.delete_cookie('currency_auto')
                 return response
                 
         except Currency.DoesNotExist:
