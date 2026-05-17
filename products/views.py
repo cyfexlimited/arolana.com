@@ -476,34 +476,50 @@ def product_list(request):
 
 
 def product_detail(request, slug):
-    """Display detailed product page with reviews, Q&A, and variants - APPROVED ONLY"""
+    """
+    Display detailed product page with reviews, Q&A, variants and full galleries.
+
+    IMPORTANT:
+    - Page refresh always loads the main product gallery.
+    - No variant is auto-selected on page load.
+    - Every variant sends ALL its images to variant_data_json.
+    """
     product = get_object_or_404(
         Product.objects.select_related(
             'category',
             'brand',
             'vendor'
         ).prefetch_related(
-            Prefetch('images', queryset=ProductImage.objects.filter(is_active=True).order_by('order')),
+            Prefetch(
+                'images',
+                queryset=ProductImage.objects.filter(is_active=True).order_by('-is_main', 'order', 'id')
+            ),
             Prefetch(
                 'variants',
                 queryset=ProductVariant.objects.filter(is_active=True).prefetch_related(
-                    Prefetch('images', queryset=ProductVariantImage.objects.filter(is_active=True).order_by('order'))
-                ),
+                    Prefetch(
+                        'images',
+                        queryset=ProductVariantImage.objects.filter(is_active=True).order_by('-is_main', 'order', 'id')
+                    )
+                ).order_by('variant_type', 'name', 'value', 'id'),
                 to_attr='active_variants'
             ),
             Prefetch('reviews', queryset=ProductReview.objects.select_related('user').order_by('-created_at')),
             Prefetch('product_accessories__accessory', queryset=Accessory.objects.filter(is_active=True)),
             'additional_videos',
-            Prefetch('questions', queryset=ProductQuestion.objects.filter(is_public=True).select_related('user', 'answered_by').order_by('-created_at'))
+            Prefetch(
+                'questions',
+                queryset=ProductQuestion.objects.filter(is_public=True).select_related('user', 'answered_by').order_by('-created_at')
+            )
         ),
         slug=slug,
         is_active=True,
         approval_status='approved'
     )
-    
+
     # ====== Track Views ======
     Product.objects.filter(pk=product.id).update(views_count=F('views_count') + 1)
-    
+
     # ====== Track Recently Viewed ======
     if request.user.is_authenticated:
         RecentlyViewed.objects.update_or_create(
@@ -511,27 +527,96 @@ def product_detail(request, slug):
             product=product,
             defaults={'viewed_at': timezone.now()}
         )
-    
-    # ====== Get Variants with proper grouping ======
+
+    # ====== Currency ======
+    user_currency = get_user_currency(request)
+    base_currency = Currency.objects.filter(is_base=True).first() if Currency else None
+
+    # ====== Small safe image helpers ======
+    def safe_url(image_field):
+        """
+        Return a usable URL for ImageField/FileField.
+        Keeps the page safe if an image is missing or storage is not ready.
+        """
+        if not image_field:
+            return None
+        try:
+            return image_field.url
+        except Exception:
+            return None
+
+    def push_image(images, src, alt):
+        """
+        Add image once only. This prevents duplicates between:
+        product.main_image + ProductImage marked as main,
+        variant.image + ProductVariantImage marked as main.
+        """
+        if not src:
+            return
+        if src not in {image['src'] for image in images}:
+            images.append({
+                'src': src,
+                'alt': alt or product.name,
+            })
+
+    def build_product_gallery():
+        """
+        Main product gallery.
+        This is what must load after every refresh.
+        """
+        images = []
+
+        # Main product image first
+        push_image(images, safe_url(product.main_image), product.name)
+
+        # Then all ProductImage rows from admin
+        for image in product.images.all():
+            push_image(images, safe_url(image.image), image.alt_text or product.name)
+
+        return images
+
+    def build_variant_gallery(variant):
+        """
+        Variant gallery.
+        This sends ALL variant images to the frontend, not only variant.image.
+        """
+        images = []
+
+        # Main variant image first
+        push_image(
+            images,
+            safe_url(variant.image),
+            f"{product.name} - {variant.value}"
+        )
+
+        # Then all ProductVariantImage rows from admin
+        for image in variant.images.all():
+            push_image(
+                images,
+                safe_url(image.image),
+                image.alt_text or f"{product.name} - {variant.value}"
+            )
+
+        return images
+
+    # ====== Variants ======
     all_variants = list(getattr(product, 'active_variants', []))
-    
-    # Group variants by type
+
     variants_by_type = {}
     variant_options = {}
-    
+
     for variant in all_variants:
         variant_type = variant.variant_type or 'other'
+
         if variant_type not in variants_by_type:
             variants_by_type[variant_type] = []
             variant_options[variant_type] = []
-        
+
         variants_by_type[variant_type].append(variant)
-        
-        # Store unique values for selection
+
         if variant.value not in variant_options[variant_type]:
             variant_options[variant_type].append(variant.value)
-    
-    # Separate size and color variants for backwards-compatible template/context use
+
     size_variants = variants_by_type.get('size', [])
     color_variants = variants_by_type.get('color', [])
 
@@ -544,58 +629,24 @@ def product_detail(request, slug):
                 'label': variant_label,
                 'options': options,
             })
-    
-    # ====== Get selected variant from URL parameter or POST ======
-    selected_variant_id = request.GET.get('variant_id') or request.POST.get('variant_id')
+
+    # ====== CRITICAL FIX ======
+    # Do not read variant_id from GET/POST for the page initial render.
+    # Do not auto-select the first/default variant.
+    # This makes every browser refresh return to the main product image/gallery.
     selected_variant = None
-    selected_variant_price = product.price
-    
-    if selected_variant_id:
-        try:
-            selected_variant = next(
-                variant for variant in all_variants if variant.id == int(selected_variant_id)
-            )
-            selected_variant_price = product.price + selected_variant.price_adjustment
-        except (ProductVariant.DoesNotExist, StopIteration, ValueError, TypeError):
-            pass
-    
-    # ====== Get Default Variant (first active variant) ======
+    selected_variant_id = None
     default_variant = all_variants[0] if all_variants else None
-    if not selected_variant and default_variant:
-        selected_variant = default_variant
-        selected_variant_price = product.price + selected_variant.price_adjustment
-    
-    # ====== Calculate current price based on selected variant ======
-    current_price = selected_variant_price if selected_variant else product.price
+
+    current_price = product.price
     current_compare_price = product.compare_price
-    
-    if selected_variant and product.compare_price:
-        current_compare_price = product.compare_price + selected_variant.price_adjustment
-    
-    # ====== Get Accessories ======
-    accessories = product.product_accessories.filter(
-        accessory__is_active=True
-    ).select_related('accessory')
-    
-    # ====== Get Videos ======
-    videos = product.additional_videos.order_by('display_order')
-    
-    # ====== Currency Conversion ======
-    user_currency = get_user_currency(request)
-    base_currency = Currency.objects.filter(is_base=True).first() if Currency else None
-    
-    # ====== Variant Data for JavaScript ======
-    def push_image(images, src, alt):
-        if src and src not in {image['src'] for image in images}:
-            images.append({'src': src, 'alt': alt or product.name})
 
-    gallery_images = []
-    if product.main_image:
-        push_image(gallery_images, product.main_image.url, product.name)
-    for image in product.images.all():
-        push_image(gallery_images, image.image.url, image.alt_text or product.name)
+    # ====== Product Gallery JSON ======
+    gallery_images = build_product_gallery()
 
+    # ====== Variant Data JSON ======
     variant_data = {}
+
     for variant in all_variants:
         variant_price = product.price + variant.price_adjustment
         variant_compare_price = product.compare_price + variant.price_adjustment if product.compare_price else None
@@ -604,17 +655,15 @@ def product_detail(request, slug):
             base_currency,
             user_currency
         )
-        variant_images = []
-        push_image(variant_images, variant.image.url if variant.image else None, f"{product.name} - {variant.value}")
-        for image in variant.images.all():
-            push_image(variant_images, image.image.url, image.alt_text or f"{product.name} - {variant.value}")
-        
+
+        variant_images = build_variant_gallery(variant)
+
         variant_data[str(variant.id)] = {
             'id': variant.id,
             'name': variant.name,
             'value': variant.value,
             'variant_type': variant.variant_type,
-            'price': float(converted_variant_price),
+            'price': float(converted_variant_price or variant_price),
             'price_display': format_currency(variant_price, request),
             'price_raw': float(variant_price),
             'compare_price_display': format_currency(variant_compare_price, request) if variant_compare_price else '',
@@ -622,71 +671,81 @@ def product_detail(request, slug):
             'stock': variant.stock_quantity,
             'price_adjustment': float(variant.price_adjustment),
             'price_adjustment_display': format_currency(variant.price_adjustment, request),
-            'image': variant.image.url if variant.image else None,
+            'image': variant_images[0]['src'] if variant_images else '',
             'images': variant_images,
+            'gallery_images': variant_images,
+            'variant_images': variant_images,
             'color_code': variant.color_code or '#CCCCCC',
             'is_available': variant.is_available,
         }
-    
+
+    # ====== Accessories ======
+    accessories = product.product_accessories.filter(
+        accessory__is_active=True
+    ).select_related('accessory')
+
+    # ====== Videos ======
+    videos = product.additional_videos.order_by('display_order')
+
     # ====== Related Products (APPROVED ONLY) ======
     related_products = Product.objects.filter(
         category=product.category,
         is_active=True,
         approval_status='approved'
     ).exclude(id=product.id).select_related('brand').order_by('?')[:12]
-    
+
     top_rated = Product.objects.filter(
         category=product.category,
         is_active=True,
         rating_avg__gt=0,
         approval_status='approved'
     ).exclude(id=product.id).order_by('?')[:12]
-    
+
     bestsellers = Product.objects.filter(
         category=product.category,
         is_active=True,
         approval_status='approved'
     ).exclude(id=product.id).order_by('?')[:12]
-    
+
     frequently_bought_together = Product.objects.filter(
         is_active=True,
         approval_status='approved'
     ).exclude(id=product.id).order_by('?')[:12]
-    
+
     # ====== Recently Viewed ======
     recently_viewed = []
     if request.user.is_authenticated:
         recently_viewed = RecentlyViewed.objects.filter(
             user=request.user
         ).exclude(product=product).select_related('product').order_by('-viewed_at')[:12]
-    
+
     # ====== AI Recommendations (APPROVED ONLY) ======
     ai_recommendations = Product.objects.filter(
         is_active=True,
         approval_status='approved'
     ).exclude(id=product.id).order_by('?')[:12]
-    
-    # ====== Calculate Rating Percentages ======
+
+    # ====== Rating Percentages ======
     total_reviews = product.rating_count or 1
     five_star_count = product.reviews.filter(rating=5).count()
     four_star_count = product.reviews.filter(rating=4).count()
     three_star_count = product.reviews.filter(rating=3).count()
-    
+
     five_star_percent = int((five_star_count / total_reviews) * 100)
     four_star_percent = int((four_star_count / total_reviews) * 100)
     three_star_percent = int((three_star_count / total_reviews) * 100)
-    
-    # ====== All Categories for Explore Section ======
+
+    # ====== Explore Categories ======
     all_categories = Category.objects.filter(is_active=True, parent=None).order_by('name')[:12]
-    
-    # ====== Wishlist Status ======
+
+    # ====== Wishlist ======
     in_wishlist = False
     if request.user.is_authenticated:
         in_wishlist = Wishlist.objects.filter(
             user=request.user,
             product=product
         ).exists()
-    
+
     context = {
         'product': product,
         'size_variants': size_variants,
@@ -695,14 +754,21 @@ def product_detail(request, slug):
         'variants_by_type': variants_by_type,
         'variant_options': variant_options,
         'variant_groups': variant_groups,
+
+        # JSON for frontend gallery + variant switching
         'variant_data_json': json.dumps(variant_data),
         'gallery_images': gallery_images,
         'gallery_images_json': json.dumps(gallery_images),
+
+        # CRITICAL: keep empty on refresh/page load
         'selected_variant': selected_variant,
-        'selected_variant_id': selected_variant.id if selected_variant else None,
+        'selected_variant_id': selected_variant_id,
         'default_variant': default_variant,
+
+        # Main product price on refresh/page load
         'current_price': current_price,
         'current_compare_price': current_compare_price,
+
         'vendor_chat_available': user_has_paid_subscription(product.vendor),
         'accessories': accessories,
         'product_accessories': accessories,
@@ -721,7 +787,7 @@ def product_detail(request, slug):
         'three_star_percent': three_star_percent,
         'user_currency': user_currency,
     }
-    
+
     return render(request, 'products/detail.html', context)
 
 
@@ -1093,21 +1159,61 @@ def edit_answer(request, qna_id):
 # ================================
 
 def get_variant_details(request, variant_id):
-    """API: Get variant details with pricing"""
+    """API: Get variant details with pricing and ALL variant images."""
     try:
-        variant = ProductVariant.objects.select_related('product').get(
+        variant = ProductVariant.objects.select_related('product').prefetch_related(
+            Prefetch(
+                'images',
+                queryset=ProductVariantImage.objects.filter(is_active=True).order_by('-is_main', 'order', 'id')
+            )
+        ).get(
             id=variant_id,
             is_active=True
         )
         product = variant.product
-        
+
+        def safe_url(image_field):
+            if not image_field:
+                return None
+            try:
+                return image_field.url
+            except Exception:
+                return None
+
+        def push_image(images, src, alt):
+            if not src:
+                return
+            if src not in {image['src'] for image in images}:
+                images.append({
+                    'src': src,
+                    'alt': alt or product.name,
+                })
+
+        variant_images = []
+        push_image(
+            variant_images,
+            safe_url(variant.image),
+            f"{product.name} - {variant.value}"
+        )
+        for image in variant.images.all():
+            push_image(
+                variant_images,
+                safe_url(image.image),
+                image.alt_text or f"{product.name} - {variant.value}"
+            )
+
+        product_gallery = []
+        push_image(product_gallery, safe_url(product.main_image), product.name)
+        for image in product.images.filter(is_active=True).order_by('-is_main', 'order', 'id'):
+            push_image(product_gallery, safe_url(image.image), image.alt_text or product.name)
+
         # ====== Currency Conversion ======
         user_currency = get_user_currency(request)
         base_currency = Currency.objects.filter(is_base=True).first() if Currency else None
-        
-        final_price = product.price + variant.price_adjustment
-        final_price = convert_price(final_price, base_currency, user_currency)
-        
+
+        final_price_raw = product.price + variant.price_adjustment
+        final_price = convert_price(final_price_raw, base_currency, user_currency)
+
         return JsonResponse({
             'success': True,
             'variant': {
@@ -1117,14 +1223,20 @@ def get_variant_details(request, variant_id):
                 'variant_type': variant.variant_type,
                 'price_adjustment': float(variant.price_adjustment),
                 'stock_quantity': variant.stock_quantity,
-                'image': variant.image.url if variant.image else None,
+                'image': variant_images[0]['src'] if variant_images else None,
+                'images': variant_images,
+                'gallery_images': variant_images,
+                'variant_images': variant_images,
+                'is_available': variant.is_available,
             },
             'product': {
                 'id': product.id,
                 'name': product.name,
                 'base_price': float(product.price),
-                'final_price': float(final_price),
-                'main_image': product.main_image.url if product.main_image else None,
+                'final_price': float(final_price or final_price_raw),
+                'final_price_display': format_currency(final_price_raw, request),
+                'main_image': safe_url(product.main_image),
+                'gallery_images': product_gallery,
                 'sku': variant.sku or product.sku,
             }
         })
@@ -1333,3 +1445,4 @@ def debug_colors(request, product_id):
     </html>
     """
     return HttpResponse(html)
+

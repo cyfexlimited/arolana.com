@@ -13,6 +13,12 @@ from .models import (
 
 from django.utils.timezone import now
 
+# NOTE FOR VARIANT IMAGES:
+# Add variant rows from the Product admin, save, then click the change/open link
+# on each variant to upload multiple ProductVariantImage records.
+# Django admin does not support Product > Variant > Variant Images nested inline directly.
+
+
 
 # =================================
 # 🔥 FORMS
@@ -103,7 +109,7 @@ class VariantStockStatusFilter(admin.SimpleListFilter):
 
 class ProductImageInline(admin.TabularInline):
     model = ProductImage
-    extra = 1
+    extra = 5
     fields = ['image', 'alt_text', 'is_main', 'order', 'image_preview']
     readonly_fields = ['image_preview']
     
@@ -120,13 +126,28 @@ class ProductImageInline(admin.TabularInline):
 class ProductVariantInline(admin.TabularInline):
     model = ProductVariant
     extra = 1
-    fields = ['variant_type', 'name', 'value', 'price_adjustment', 'stock_quantity', 'image', 'color_code', 'is_active']
+    fields = [
+        'variant_type',
+        'name',
+        'value',
+        'price_adjustment',
+        'stock_quantity',
+        'image',
+        'color_code',
+        'is_active',
+    ]
     readonly_fields = ['sku']
+
+    # Important:
+    # Django admin does not support nested inlines like Product > Variant > Variant Images.
+    # This adds an "open/change" link beside each variant row, so you can open the variant
+    # and add multiple ProductVariantImage records under it.
+    show_change_link = True
 
 
 class ProductVariantImageInline(admin.TabularInline):
     model = ProductVariantImage
-    extra = 1
+    extra = 5
     fields = ['image', 'alt_text', 'is_main', 'order', 'image_preview']
     readonly_fields = ['image_preview']
 
@@ -565,19 +586,30 @@ class ProductImageAdmin(admin.ModelAdmin):
 
 @admin.register(ProductVariant)
 class ProductVariantAdmin(admin.ModelAdmin):
-    list_display = ['product_name', 'variant_type', 'value', 'sku', 'final_price_display', 'price_adjustment', 'stock_quantity', 'variant_stock_badge', 'color_swatch', 'is_active']
+    list_display = [
+        'product_name',
+        'variant_type',
+        'value',
+        'sku',
+        'final_price_display',
+        'price_adjustment',
+        'stock_quantity',
+        'variant_stock_badge',
+        'color_swatch',
+        'variant_images_count',
+        'is_active',
+    ]
     list_filter = [VariantStockStatusFilter, 'variant_type', 'is_active', 'created_at']
-    search_fields = ['sku', 'value', 'product__name']
+    search_fields = ['sku', 'value', 'name', 'product__name']
     list_editable = ['price_adjustment', 'stock_quantity', 'is_active']
     readonly_fields = ['sku', 'created_at', 'updated_at']
     list_select_related = ['product']
+    autocomplete_fields = ['product']
     inlines = [ProductVariantImageInline]
     actions = ['activate_variants', 'deactivate_variants', 'mark_variants_out_of_stock']
-    
-    def product_name(self, obj):
-        return obj.product.name
-    product_name.short_description = 'Product'
-    
+    list_per_page = 30
+    save_on_top = True
+
     fieldsets = (
         ('Product & Type', {
             'fields': ('product', 'variant_type')
@@ -588,9 +620,9 @@ class ProductVariantAdmin(admin.ModelAdmin):
         ('Pricing & Stock', {
             'fields': ('price_adjustment', 'stock_quantity', 'is_active')
         }),
-        ('Media', {
+        ('Main Variant Image / Color', {
             'fields': ('image', 'color_code'),
-            'classes': ('collapse',)
+            'description': 'This is only the main variant image. Add the full variant gallery below under Variant Images.',
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),
@@ -598,17 +630,23 @@ class ProductVariantAdmin(admin.ModelAdmin):
         }),
     )
 
+    def product_name(self, obj):
+        return obj.product.name
+    product_name.short_description = 'Product'
+    product_name.admin_order_field = 'product__name'
+
     def color_swatch(self, obj):
         if obj.color_code:
             return format_html(
-                '<span style="display:inline-block;width:22px;height:22px;border-radius:999px;border:1px solid #d1d5db;background:{};"></span>',
+                '<span title="{}" style="display:inline-block;width:22px;height:22px;border-radius:999px;border:1px solid #d1d5db;background:{};"></span>',
+                obj.color_code,
                 obj.color_code
             )
-        return "-"
+        return '-'
     color_swatch.short_description = 'Color'
 
     def final_price_display(self, obj):
-        return format_html('<strong>${}</strong>', obj.final_price)
+        return format_html('<strong>{}</strong>', obj.final_price)
     final_price_display.short_description = 'Final Price'
 
     def variant_stock_badge(self, obj):
@@ -625,20 +663,31 @@ class ProductVariantAdmin(admin.ModelAdmin):
         )
     variant_stock_badge.short_description = 'Stock Status'
 
+    def variant_images_count(self, obj):
+        count = obj.images.count()
+        if count:
+            return format_html(
+                '<span style="color:#059669;font-weight:700;">{} image{}</span>',
+                count,
+                '' if count == 1 else 's'
+            )
+        return format_html('<span style="color:#dc2626;font-weight:700;">0 images</span>')
+    variant_images_count.short_description = 'Gallery Images'
+
     def activate_variants(self, request, queryset):
         updated = queryset.update(is_active=True)
         self.message_user(request, f"{updated} variant(s) activated.")
-    activate_variants.short_description = "Activate variants"
+    activate_variants.short_description = 'Activate variants'
 
     def deactivate_variants(self, request, queryset):
         updated = queryset.update(is_active=False)
         self.message_user(request, f"{updated} variant(s) deactivated.")
-    deactivate_variants.short_description = "Deactivate variants"
+    deactivate_variants.short_description = 'Deactivate variants'
 
     def mark_variants_out_of_stock(self, request, queryset):
         updated = queryset.update(stock_quantity=0)
         self.message_user(request, f"{updated} variant(s) marked out of stock.")
-    mark_variants_out_of_stock.short_description = "Mark variants out of stock"
+    mark_variants_out_of_stock.short_description = 'Mark variants out of stock'
 
 
 # =================================
@@ -650,7 +699,10 @@ class ProductVariantImageAdmin(admin.ModelAdmin):
     list_display = ['variant_display', 'is_main', 'order', 'image_preview']
     list_filter = ['is_main', 'created_at']
     list_editable = ['order', 'is_main']
+    search_fields = ['variant__product__name', 'variant__value', 'alt_text']
+    autocomplete_fields = ['variant']
     list_select_related = ['variant', 'variant__product']
+    list_per_page = 50
     
     def variant_display(self, obj):
         return f"{obj.variant.product.name} - {obj.variant.value}"

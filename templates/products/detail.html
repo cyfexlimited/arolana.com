@@ -258,6 +258,35 @@
         z-index: 10000;
         transition: width 0.3s;
     }
+
+    /* Arolana AI Chat Panel */
+    .arolana-ai-panel {
+        transform-origin: bottom right;
+        animation: aiPanelIn 0.22s ease-out;
+    }
+    @keyframes aiPanelIn {
+        from { opacity: 0; transform: translateY(14px) scale(0.96); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .ai-message-bubble {
+        max-width: 86%;
+        word-break: break-word;
+    }
+    .ai-message-user {
+        margin-left: auto;
+        background: linear-gradient(135deg, #2563eb, #7c3aed);
+        color: white;
+    }
+    .ai-message-bot {
+        margin-right: auto;
+        background: #f3f4f6;
+        color: #111827;
+    }
+    .ai-chat-scroll {
+        scrollbar-width: thin;
+        scrollbar-color: #8b5cf6 #f1f5f9;
+    }
+
 </style>
 {% endblock %}
 
@@ -293,8 +322,7 @@
 	                            <img src="{{ gallery_images.0.src }}" alt="{{ gallery_images.0.alt|default:product.name }}"
 	                                 class="w-full h-96 object-contain cursor-zoom-in transition-transform duration-700 group-hover:scale-105"
 	                                 id="main-product-image"
-	                                 data-gallery-index="0"
-	                                 onclick="openImageLightbox()">
+	                                 data-gallery-index="0">
 	                        {% else %}
 	                            <div class="w-full h-96 flex items-center justify-center">
 	                                <i class="fas fa-image text-6xl text-gray-400"></i>
@@ -450,34 +478,36 @@
                 <div class="mb-4">
                     <label class="block font-semibold mb-2">🔢 Quantity:</label>
                     <div class="flex items-center gap-3">
-                        <button onclick="decrementQty()" class="w-12 h-12 border-2 rounded-xl hover:bg-gray-100 transition-all hover:scale-105">-</button>
-                        <input type="number" id="quantity" value="1" min="1" max="{{ product.stock_quantity }}"
+                        <button type="button" onclick="decrementQty()" class="w-12 h-12 border-2 rounded-xl hover:bg-gray-100 transition-all hover:scale-105" aria-label="Decrease quantity">-</button>
+                        <input type="number" id="quantity" value="1" min="1" max="{{ product.stock_quantity|default:1 }}"
                                class="w-24 text-center border-2 rounded-xl py-3 text-lg font-semibold">
-                        <button onclick="incrementQty()" class="w-12 h-12 border-2 rounded-xl hover:bg-gray-100 transition-all hover:scale-105">+</button>
+                        <button type="button" onclick="incrementQty()" class="w-12 h-12 border-2 rounded-xl hover:bg-gray-100 transition-all hover:scale-105" aria-label="Increase quantity">+</button>
                     </div>
                 </div>
 
                 <!-- Smart Actions -->
                 <div class="flex flex-col gap-3 mb-4">
                     <div class="flex gap-3">
-	                        <form method="POST" action="{% url 'products:add_to_cart' product.slug %}" class="flex-1" id="add-to-cart-form">
-	                            {% csrf_token %}
-	                            <input type="hidden" name="quantity" id="cart_quantity" value="1">
-	                            <input type="hidden" name="variant_id" id="selected_variant_id" value="{% if selected_variant_id %}{{ selected_variant_id }}{% endif %}">
-	                            <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-lg">
-	                                <i class="fas fa-cart-plus mr-2"></i> Add to Cart
-	                            </button>
+                        <form method="POST" action="{% url 'products:add_to_cart' product.slug %}" class="flex-1" id="add-to-cart-form" autocomplete="off">
+                            {% csrf_token %}
+                            <input type="hidden" name="quantity" id="cart_quantity" value="1">
+                            <input type="hidden" name="variant_id" id="selected_variant_id" value="" autocomplete="off">
+                            <input type="hidden" name="variant_ids" id="selected_variant_ids" value="">
+                            <input type="hidden" name="variant_payload" id="selected_variant_payload" value="">
+                            <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-lg">
+                                <i class="fas fa-cart-plus mr-2"></i> Add to Cart
+                            </button>
                         </form>
-                        <button onclick="buyNow()" class="flex-1 bg-gradient-to-r from-green-600 to-green-700 text-white py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-lg">
+                        <button type="button" onclick="buyNow()" class="flex-1 bg-gradient-to-r from-green-600 to-green-700 text-white py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-lg">
                             <i class="fas fa-bolt mr-2"></i> Buy Now
                         </button>
-                        <button onclick="toggleWishlist()" class="wishlist-btn px-6 py-3 border-2 rounded-xl hover:bg-red-50 transition-all hover:scale-105">
+                        <button type="button" onclick="toggleWishlist()" class="wishlist-btn px-6 py-3 border-2 rounded-xl hover:bg-red-50 transition-all hover:scale-105" aria-label="Toggle wishlist">
                             <i class="{% if in_wishlist %}fas{% else %}far{% endif %} fa-heart text-red-500 text-xl"></i>
                         </button>
                     </div>
 
                     <!-- AI Price Alert -->
-                    <button onclick="setPriceAlert()" class="w-full bg-gray-100 text-gray-700 py-2 rounded-xl font-semibold hover:bg-gray-200 transition">
+                    <button type="button" onclick="setPriceAlert()" class="w-full bg-gray-100 text-gray-700 py-2 rounded-xl font-semibold hover:bg-gray-200 transition">
                         <i class="fas fa-bell mr-2"></i> Set Price Alert
                     </button>
                 </div>
@@ -493,7 +523,7 @@
 	                            {% if vendor_chat_available %}
 	                                <p class="text-xs text-green-600">Paid vendor support is available for this product.</p>
 	                            {% else %}
-	                                <p class="text-xs text-gray-500">Vendor chat opens when this seller has an active paid subscription.</p>
+	                                <p class="text-xs text-gray-500">Chat Lock Contact Support Assistant</p>
 	                            {% endif %}
 	                        </div>
 	                        {% if vendor_chat_available %}
@@ -516,8 +546,8 @@
                             <span class="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
                         </div>
                         <div class="flex-1">
-                            <p class="font-semibold">AI Expert Assistant</p>
-                            <p class="text-xs opacity-90">Powered by GPT-5 | 24/7 Available</p>
+                            <p class="font-semibold">Chat With Expert Assistant</p>
+                            <p class="text-xs opacity-90">Support | 24/7 Available</p>
                         </div>
                         <button onclick="startAIChat()" class="bg-white text-gray-900 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-100 transition">
                             <i class="fas fa-comment-dots mr-1"></i> Chat Now
@@ -634,7 +664,7 @@
 
                 <!-- Review Form -->
                 <div id="review-form" class="mt-8 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl p-6">
-                    <h3 class="text-xl font-bold mb-4">✍️ Write a Review</h3>
+                    <h3 class="text-xl font-bold mb-4">Write a Review</h3>
                     {% if user.is_authenticated %}
                     <form method="POST" action="{% url 'products:add_review' product.slug %}">
                         {% csrf_token %}
@@ -989,7 +1019,7 @@
     <div class="mt-12 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-8 text-white">
         <div class="flex items-center justify-between mb-6">
             <div>
-                <h2 class="text-2xl font-bold">🎯 Pick Up Where You Left Off</h2>
+                <h2 class="text-2xl font-bold">Pick Up Where You Left Off</h2>
                 <p class="mt-1 opacity-90">Continue browsing your recent items</p>
             </div>
             <i class="fas fa-hourglass-half text-4xl"></i>
@@ -1043,7 +1073,7 @@
     <div class="mt-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white">
         <div class="flex items-center justify-between mb-6">
             <div>
-                <h2 class="text-2xl font-bold">🤖 AI Smart Recommendations</h2>
+                <h2 class="text-2xl font-bold">Smart Recommendations</h2>
                 <p class="mt-1 opacity-90">Personalized for you based on your browsing history</p>
             </div>
             <i class="fas fa-brain text-4xl"></i>
@@ -1094,13 +1124,64 @@
     </button>
 </div>
 
-<!-- Floating AI Chat Widget -->
-<div class="chat-widget">
-    <div class="ai-chat-bubble relative">
-        <button onclick="openAIChat()" class="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 rounded-full shadow-2xl hover:shadow-xl transition-all hover:scale-110">
-            <i class="fas fa-comment-dots text-2xl"></i>
-            <span class="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full animate-pulse"></span>
+<!-- Arolana Floating AI Chat Widget -->
+<div id="arolana-ai-widget" class="fixed bottom-6 right-6 z-[9999]">
+    <!-- Chat Panel -->
+    <div id="ai-chat-panel" class="arolana-ai-panel hidden mb-4 w-[calc(100vw-2rem)] max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl border border-gray-200">
+        <div class="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 p-4 text-white">
+            <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <div class="relative flex h-11 w-11 items-center justify-center rounded-full bg-white/15 backdrop-blur-md">
+                        <i class="fas fa-robot text-xl"></i>
+                        <span class="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white bg-green-400"></span>
+                    </div>
+                    <div>
+                        <p class="font-bold leading-tight">Arolana AI Assistant</p>
+                        <p class="text-xs text-white/85">Product help • 24/7 available</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeAIChat()" class="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition" aria-label="Close AI chat">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <div id="ai-chat-messages" class="ai-chat-scroll h-80 overflow-y-auto bg-gray-50 p-4 space-y-3">
+            <div class="ai-message-bubble ai-message-bot rounded-2xl rounded-tl-md px-4 py-3 text-sm shadow-sm">
+                Hi! I can help with <strong>{{ product.name|truncatewords:8 }}</strong>. Ask about price, variants, stock, delivery, compatibility, or reviews.
+            </div>
+        </div>
+
+        <div class="border-t bg-white p-3">
+            <div class="mb-3 flex flex-wrap gap-2">
+                <button type="button" class="ai-quick-reply rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100" data-ai-prompt="Is this product in stock?">Stock</button>
+                <button type="button" class="ai-quick-reply rounded-full bg-purple-50 px-3 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-100" data-ai-prompt="Which variant should I choose?">Variants</button>
+                <button type="button" class="ai-quick-reply rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-100" data-ai-prompt="Tell me about delivery and warranty.">Delivery</button>
+            </div>
+            <form id="ai-chat-form" class="flex items-center gap-2">
+                <input id="ai-chat-input" type="text" autocomplete="off" placeholder="Ask about this product..." class="min-w-0 flex-1 rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
+                <button type="submit" class="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg hover:scale-105 transition" aria-label="Send AI chat message">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Floating Toggle Button -->
+    <div class="group relative ml-auto h-16 w-16">
+        <div class="absolute inset-0 rounded-full bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 blur-xl opacity-40 group-hover:opacity-70 transition duration-500 animate-pulse"></div>
+        <button id="ai-chat-toggle" type="button" onclick="openAIChat()" aria-label="Open AI Chat" aria-expanded="false"
+            class="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 text-white shadow-2xl backdrop-blur-md transition-all duration-300 hover:scale-110 hover:shadow-purple-500/40 active:scale-95">
+            <span class="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition duration-500"></span>
+            <i id="ai-chat-toggle-icon" class="fas fa-comment-dots text-2xl relative z-10"></i>
+            <span class="absolute top-1 right-1 flex h-4 w-4">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span class="relative inline-flex h-4 w-4 rounded-full border-2 border-white bg-green-500"></span>
+            </span>
         </button>
+        <div id="ai-chat-tooltip" class="pointer-events-none absolute bottom-20 right-0 translate-y-2 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+            <div class="whitespace-nowrap rounded-xl bg-black/90 px-4 py-2 text-sm text-white shadow-xl">Chat with Arolana AI</div>
+        </div>
     </div>
 </div>
 
@@ -1119,393 +1200,1003 @@
 
 <script id="variant-data-json" type="application/json">{{ variant_data_json|safe }}</script>
 <script id="gallery-data-json" type="application/json">{{ gallery_images_json|safe }}</script>
+
 <script>
-const variantData = JSON.parse(document.getElementById('variant-data-json')?.textContent || '{}');
-const defaultGalleryImages = JSON.parse(document.getElementById('gallery-data-json')?.textContent || '[]');
-let currentGalleryImages = [...defaultGalleryImages];
-let currentGalleryIndex = 0;
-let activeVariantByType = {};
+(function () {
+    'use strict';
 
-// Reading Progress Bar
-window.addEventListener('scroll', () => {
-    const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
-    const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-    const scrolled = (winScroll / height) * 100;
-    document.getElementById('reading-progress').style.width = scrolled + '%';
-});
-
-function escapeHtml(value) {
-    return String(value || '').replace(/[&<>"']/g, (char) => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    })[char]);
-}
-
-// Video Player
-function openProductVideosTab() {
-    const tabButton = document.querySelector('[data-product-videos-tab]');
-    if (tabButton) {
-        tabButton.click();
-        tabButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-}
-
-function showVideoPlayer(videoUrl) {
-    const modal = document.getElementById('video-modal');
-    const video = document.getElementById('product-video');
-    if (!modal || !video || !videoUrl) {
-        openProductVideosTab();
-        return;
+    function getEl(id) {
+        return document.getElementById(id);
     }
 
-    video.src = videoUrl;
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    video.play();
-}
-
-function closeVideoPlayer() {
-    const modal = document.getElementById('video-modal');
-    const video = document.getElementById('product-video');
-    if (!modal || !video) return;
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-    video.pause();
-    video.src = '';
-}
-
-function setMainImage(src, index = 0, altText = '') {
-    const img = document.getElementById('main-product-image');
-    if (!img || !src) return;
-    currentGalleryIndex = Number(index) || 0;
-    img.src = src;
-    img.alt = altText || img.alt || '{{ product.name|escapejs }}';
-    img.dataset.galleryIndex = currentGalleryIndex;
-
-    document.querySelectorAll('.thumbnail-img').forEach((thumb, thumbIndex) => {
-        thumb.classList.toggle('border-blue-500', thumbIndex === currentGalleryIndex);
-        thumb.classList.toggle('active', thumbIndex === currentGalleryIndex);
-    });
-}
-
-function renderGallery(images) {
-    currentGalleryImages = images && images.length ? images : [...defaultGalleryImages];
-    currentGalleryIndex = 0;
-    const thumbnails = document.getElementById('product-image-thumbnails');
-    if (thumbnails) {
-        thumbnails.innerHTML = currentGalleryImages.map((image, index) => `
-            <button type="button"
-                    class="thumbnail-item flex-shrink-0"
-                    data-gallery-index="${index}"
-                    data-gallery-src="${escapeHtml(image.src)}"
-                    data-gallery-alt="${escapeHtml(image.alt)}">
-                <img src="${escapeHtml(image.src)}"
-                     alt="${escapeHtml(image.alt)}"
-                     class="w-20 h-20 object-cover rounded-lg cursor-pointer border-2 transition-all hover:border-blue-500 hover:scale-105 thumbnail-img ${index === 0 ? 'active border-blue-500' : ''}">
-            </button>
-        `).join('');
+    function escapeHtml(value) {
+        return String(value || '').replace(/[&<>"']/g, function (char) {
+            return {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            }[char];
+        });
     }
-    if (currentGalleryImages[0]) {
-        setMainImage(currentGalleryImages[0].src, 0, currentGalleryImages[0].alt);
+
+    function parseJSONSafe(elementId, fallback) {
+        try {
+            const el = getEl(elementId);
+            const value = el ? el.textContent.trim() : '';
+            if (!value) return fallback;
+            return JSON.parse(value);
+        } catch (error) {
+            console.warn(`Arolana: ${elementId} JSON could not be parsed.`, error);
+            return fallback;
+        }
     }
-}
 
-function openImageLightbox(index) {
-    if (!currentGalleryImages.length) return;
-    const lightbox = document.getElementById('image-lightbox');
-    const lightboxImage = document.getElementById('lightbox-image');
-    const caption = document.getElementById('lightbox-caption');
-    currentGalleryIndex = Number.isInteger(index) ? index : Number(document.getElementById('main-product-image')?.dataset.galleryIndex || 0);
-    const image = currentGalleryImages[currentGalleryIndex] || currentGalleryImages[0];
-    if (!lightbox || !lightboxImage || !image) return;
-    lightboxImage.src = image.src;
-    lightboxImage.alt = image.alt || '{{ product.name|escapejs }}';
-    if (caption) caption.textContent = `${currentGalleryIndex + 1} / ${currentGalleryImages.length}${image.alt ? ' - ' + image.alt : ''}`;
-    lightbox.classList.remove('hidden');
-    lightbox.classList.add('flex');
-    document.body.style.overflow = 'hidden';
-}
+    function normaliseImage(image, fallbackAlt) {
+        if (!image) return null;
 
-function closeImageLightbox() {
-    const lightbox = document.getElementById('image-lightbox');
-    if (!lightbox) return;
-    lightbox.classList.add('hidden');
-    lightbox.classList.remove('flex');
-    document.body.style.overflow = '';
-}
+        if (typeof image === 'string') {
+            return image ? { src: image, alt: fallbackAlt || '' } : null;
+        }
 
-function showNextLightboxImage() {
-    if (!currentGalleryImages.length) return;
-    currentGalleryIndex = (currentGalleryIndex + 1) % currentGalleryImages.length;
-    setMainImage(currentGalleryImages[currentGalleryIndex].src, currentGalleryIndex, currentGalleryImages[currentGalleryIndex].alt);
-    openImageLightbox(currentGalleryIndex);
-}
+        const src = image.src || image.url || image.image || image.image_url || image.file || image.file_url || image.thumbnail || '';
+        if (!src) return null;
 
-function showPreviousLightboxImage() {
-    if (!currentGalleryImages.length) return;
-    currentGalleryIndex = (currentGalleryIndex - 1 + currentGalleryImages.length) % currentGalleryImages.length;
-    setMainImage(currentGalleryImages[currentGalleryIndex].src, currentGalleryIndex, currentGalleryImages[currentGalleryIndex].alt);
-    openImageLightbox(currentGalleryIndex);
-}
-
-function handleLightboxBackdrop(event) {
-    if (event.target && event.target.id === 'image-lightbox') {
-        closeImageLightbox();
+        return {
+            src: String(src),
+            alt: String(image.alt || image.title || image.name || fallbackAlt || '')
+        };
     }
-}
 
-// Star Rating for Review Form
-document.querySelectorAll('#rating-stars i').forEach(star => {
-    star.addEventListener('click', function() {
-        const rating = this.dataset.rating;
-        document.getElementById('rating-value').value = rating;
+    function uniqueImages(images, fallbackAlt) {
+        const seen = new Set();
+        const result = [];
 
-        document.querySelectorAll('#rating-stars i').forEach(s => {
-            s.classList.remove('fas', 'text-yellow-400');
-            s.classList.add('far');
+        (Array.isArray(images) ? images : []).forEach(function (image) {
+            const clean = normaliseImage(image, fallbackAlt);
+            if (!clean || !clean.src || seen.has(clean.src)) return;
+            seen.add(clean.src);
+            result.push(clean);
         });
 
-        for (let i = 0; i < rating; i++) {
-            document.querySelectorAll('#rating-stars i')[i].classList.remove('far');
-            document.querySelectorAll('#rating-stars i')[i].classList.add('fas', 'text-yellow-400');
+        return result;
+    }
+
+    function collectGalleryFromDOM() {
+        const images = [];
+
+        document.querySelectorAll('#product-image-thumbnails [data-gallery-src]').forEach(function (button) {
+            const src = button.dataset.gallerySrc || '';
+            const alt = button.dataset.galleryAlt || '';
+            if (src) {
+                images.push({ src: src, alt: alt });
+            }
+        });
+
+        if (!images.length) {
+            const main = getEl('main-product-image');
+            if (main && main.getAttribute('src')) {
+                images.push({
+                    src: main.getAttribute('src'),
+                    alt: main.getAttribute('alt') || '{{ product.name|escapejs }}'
+                });
+            }
         }
-    });
-});
 
-function applyVariant(variantId, button) {
-    const variant = variantData[String(variantId)];
-    if (!variant) return;
-    activeVariantByType[variant.variant_type] = variant.id;
-
-    const selectedInput = document.getElementById('selected_variant_id');
-    if (selectedInput) selectedInput.value = variant.id;
-
-    const price = document.getElementById('product-price');
-    if (price) price.textContent = variant.price_display;
-
-    const comparePrice = document.getElementById('product-compare-price');
-    if (comparePrice) {
-        comparePrice.textContent = variant.compare_price_display || '';
-        comparePrice.classList.toggle('hidden', !variant.compare_price_display);
+        return uniqueImages(images, '{{ product.name|escapejs }}');
     }
 
-    const sku = document.getElementById('product-sku');
-    if (sku) sku.textContent = variant.sku;
+    const variantData = parseJSONSafe('variant-data-json', {});
+    const jsonGalleryImages = uniqueImages(parseJSONSafe('gallery-data-json', []), '{{ product.name|escapejs }}');
+    const domGalleryImages = collectGalleryFromDOM();
 
-    const stockStatus = document.getElementById('product-stock-status');
-    const stockCount = document.getElementById('product-stock-count');
-    if (stockStatus) {
-        stockStatus.className = variant.stock > 0 ? 'text-green-600 text-sm' : 'text-red-600 text-sm';
-        stockStatus.innerHTML = variant.stock > 0 ? '<i class="fas fa-check-circle"></i> In Stock' : '<i class="fas fa-clock"></i> Out of Stock';
+    /*
+        IMPORTANT FIX:
+        If gallery_images_json contains only 1 image but your HTML loop already rendered 5 thumbnails,
+        we keep the 5 DOM images instead of allowing JavaScript to overwrite them with 1.
+    */
+    const mainGalleryImages = jsonGalleryImages.length >= domGalleryImages.length
+        ? jsonGalleryImages
+        : domGalleryImages;
+
+    const state = {
+        mainGalleryImages: [...mainGalleryImages],
+        galleryImages: [...mainGalleryImages],
+        galleryIndex: 0,
+        selectedVariants: {},
+        activeVariantId: '',
+        defaultStock: Number('{{ product.stock_quantity|default:1 }}') || 1,
+        productName: '{{ product.name|escapejs }}',
+        productSku: '{{ product.sku|escapejs }}',
+        productPrice: '{{ current_price|currency:request|escapejs }}',
+        aiBusy: false,
+        defaultUI: null
+    };
+
+    function captureDefaultUI() {
+        const price = getEl('product-price');
+        const compare = getEl('product-compare-price');
+        const sku = getEl('product-sku');
+        const stockStatus = getEl('product-stock-status');
+        const stockCount = getEl('product-stock-count');
+        const quantity = getEl('quantity');
+
+        state.defaultUI = {
+            priceText: price ? price.textContent : state.productPrice,
+            compareText: compare ? compare.textContent : '',
+            compareHidden: compare ? compare.classList.contains('hidden') : true,
+            skuText: sku ? sku.textContent : state.productSku,
+            stockStatusHTML: stockStatus ? stockStatus.innerHTML : '',
+            stockStatusClass: stockStatus ? stockStatus.className : '',
+            stockCountText: stockCount ? stockCount.textContent : '',
+            quantityMax: quantity ? quantity.max : String(state.defaultStock)
+        };
     }
-    if (stockCount) stockCount.textContent = variant.stock > 0 ? `${variant.stock} units available` : '';
 
-    const quantity = document.getElementById('quantity');
-    if (quantity) {
-        quantity.max = variant.stock > 0 ? variant.stock : 1;
-        if (Number(quantity.value) > Number(quantity.max)) {
-            quantity.value = quantity.max;
+    function syncCartQuantity() {
+        const qty = getEl('quantity');
+        const cartQty = getEl('cart_quantity');
+        if (!qty || !cartQty) return;
+
+        let value = Number(qty.value) || 1;
+        let max = Number(qty.max) || state.defaultStock || 1;
+
+        if (value < 1) value = 1;
+        if (value > max) value = max;
+
+        qty.value = value;
+        cartQty.value = value;
+    }
+
+    function setAddToCartState(isAvailable) {
+        const submitBtn = document.querySelector('#add-to-cart-form button[type="submit"]');
+        if (!submitBtn) return;
+
+        submitBtn.disabled = !isAvailable;
+        submitBtn.classList.toggle('opacity-50', !isAvailable);
+        submitBtn.classList.toggle('cursor-not-allowed', !isAvailable);
+        submitBtn.innerHTML = isAvailable
+            ? '<i class="fas fa-cart-plus mr-2"></i> Add to Cart'
+            : '<i class="fas fa-ban mr-2"></i> Out of Stock';
+    }
+
+    function updateHiddenVariantInputs() {
+        const variantIds = Object.values(state.selectedVariants).filter(Boolean);
+        const selectedVariantId = getEl('selected_variant_id');
+        const selectedVariantIds = getEl('selected_variant_ids');
+        const selectedVariantPayload = getEl('selected_variant_payload');
+
+        if (selectedVariantId) {
+            selectedVariantId.value = state.activeVariantId || variantIds[variantIds.length - 1] || '';
         }
-        document.getElementById('cart_quantity').value = quantity.value;
+
+        if (selectedVariantIds) {
+            selectedVariantIds.value = variantIds.join(',');
+        }
+
+        if (selectedVariantPayload) {
+            selectedVariantPayload.value = JSON.stringify(state.selectedVariants);
+        }
     }
 
-    if (variant.images && variant.images.length) {
-        renderGallery(variant.images);
-    } else if (variant.image) {
-        renderGallery([{ src: variant.image, alt: `{{ product.name|escapejs }} - ${variant.value}` }]);
+    function setMainImage(src, index = 0, altText = '') {
+        const img = getEl('main-product-image');
+        if (!img || !src) return;
+
+        state.galleryIndex = Number(index) || 0;
+        img.src = src;
+        img.alt = altText || state.productName;
+        img.dataset.galleryIndex = String(state.galleryIndex);
+
+        document.querySelectorAll('#product-image-thumbnails .thumbnail-img').forEach(function (thumb, thumbIndex) {
+            const isActive = thumbIndex === state.galleryIndex;
+            thumb.classList.toggle('border-blue-500', isActive);
+            thumb.classList.toggle('active', isActive);
+        });
     }
 
-    document.querySelectorAll(`.variant-option[data-variant-type="${variant.variant_type}"]`).forEach(option => {
-        option.classList.toggle('active', option === button);
-    });
+    function renderGallery(images) {
+        const cleanImages = uniqueImages(images, state.productName);
+        const finalImages = cleanImages.length ? cleanImages : state.mainGalleryImages;
 
-    const selectedLabel = document.querySelector(`[data-selected-variant-label="${variant.variant_type}"]`);
-    if (selectedLabel) selectedLabel.textContent = variant.value;
+        state.galleryImages = [...finalImages];
+        state.galleryIndex = 0;
 
-    const liveStatus = document.getElementById('variant-live-status');
-    if (liveStatus) {
-        liveStatus.textContent = `${variant.value} selected. Price updated to ${variant.price_display}.`;
+        const thumbnails = getEl('product-image-thumbnails');
+        if (thumbnails) {
+            thumbnails.innerHTML = state.galleryImages.map(function (image, index) {
+                const src = image.src || '';
+                const alt = image.alt || state.productName;
+
+                return `
+                    <button type="button"
+                            class="thumbnail-item flex-shrink-0"
+                            data-gallery-index="${index}"
+                            data-gallery-src="${escapeHtml(src)}"
+                            data-gallery-alt="${escapeHtml(alt)}"
+                            aria-label="View image ${index + 1}">
+                        <img src="${escapeHtml(src)}"
+                             alt="${escapeHtml(alt)}"
+                             class="w-20 h-20 object-cover rounded-lg cursor-pointer border-2 transition-all hover:border-blue-500 hover:scale-105 thumbnail-img ${index === 0 ? 'active border-blue-500' : ''}">
+                    </button>
+                `;
+            }).join('');
+        }
+
+        if (state.galleryImages[0]) {
+            setMainImage(state.galleryImages[0].src, 0, state.galleryImages[0].alt || state.productName);
+        }
     }
-}
 
-document.querySelectorAll('.variant-option').forEach(btn => {
-    btn.addEventListener('click', function() {
-        applyVariant(this.dataset.variantId, this);
-    });
-});
+    function openImageLightbox(index) {
+        if (!state.galleryImages.length) return;
 
-document.addEventListener('click', function(event) {
-    const thumbButton = event.target.closest('[data-gallery-src]');
-    if (!thumbButton) return;
-    const index = Number(thumbButton.dataset.galleryIndex || 0);
-    setMainImage(thumbButton.dataset.gallerySrc, index, thumbButton.dataset.galleryAlt || '');
-    openImageLightbox(index);
-});
+        const lightbox = getEl('image-lightbox');
+        const lightboxImage = getEl('lightbox-image');
+        const caption = getEl('lightbox-caption');
+        if (!lightbox || !lightboxImage) return;
 
-// Cart Functions
-function decrementQty() {
-    let qty = parseInt(document.getElementById('quantity').value);
-    if(qty > 1) {
-        document.getElementById('quantity').value = qty - 1;
-        document.getElementById('cart_quantity').value = qty - 1;
+        const selectedIndex = Number.isInteger(index)
+            ? index
+            : Number(getEl('main-product-image')?.dataset.galleryIndex || 0);
+
+        state.galleryIndex = Math.max(0, Math.min(selectedIndex, state.galleryImages.length - 1));
+
+        const image = state.galleryImages[state.galleryIndex] || state.galleryImages[0];
+        if (!image) return;
+
+        lightboxImage.src = image.src;
+        lightboxImage.alt = image.alt || state.productName;
+
+        if (caption) {
+            caption.textContent = `${state.galleryIndex + 1} / ${state.galleryImages.length}${image.alt ? ' - ' + image.alt : ''}`;
+        }
+
+        lightbox.classList.remove('hidden');
+        lightbox.classList.add('flex');
+        document.body.style.overflow = 'hidden';
     }
-}
 
-function incrementQty() {
-    let qty = parseInt(document.getElementById('quantity').value);
-    let maxQty = {{ product.stock_quantity }};
-    if(qty < maxQty) {
-        document.getElementById('quantity').value = qty + 1;
-        document.getElementById('cart_quantity').value = qty + 1;
+    function closeImageLightbox() {
+        const lightbox = getEl('image-lightbox');
+        if (!lightbox) return;
+
+        lightbox.classList.add('hidden');
+        lightbox.classList.remove('flex');
+        document.body.style.overflow = '';
     }
-}
 
-function toggleWishlist() {
-    fetch("{% url 'products:toggle_wishlist' product.slug %}", {
-        method: 'POST',
-        headers: {'X-CSRFToken': '{{ csrf_token }}', 'X-Requested-With': 'XMLHttpRequest'}
-    }).then(() => location.reload());
-}
+    function showNextLightboxImage() {
+        if (!state.galleryImages.length) return;
 
-function buyNow() {
-    document.querySelector('form[action*="add-to-cart"]').submit();
-    setTimeout(() => { window.location.href = '/products/cart/'; }, 500);
-}
+        state.galleryIndex = (state.galleryIndex + 1) % state.galleryImages.length;
+        const image = state.galleryImages[state.galleryIndex];
 
-function startExpertChat() {
-    window.location.href = "{% url 'chat:start_product' product.id %}";
-}
+        setMainImage(image.src, state.galleryIndex, image.alt || state.productName);
+        openImageLightbox(state.galleryIndex);
+    }
 
-function startAIChat() {
-    // AI Chat functionality
-    alert("🤖 AI Assistant: How can I help you with this product?");
-}
+    function showPreviousLightboxImage() {
+        if (!state.galleryImages.length) return;
 
-function addToCart(productSlug) {
-    fetch(`/products/${productSlug}/add-to-cart/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-            'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: 'quantity=1'
-    }).then(() => {
-        showToast('Product added to cart!', 'success');
-        updateCartCount();
-    });
-}
+        state.galleryIndex = (state.galleryIndex - 1 + state.galleryImages.length) % state.galleryImages.length;
+        const image = state.galleryImages[state.galleryIndex];
 
-function addAccessoryToCart(accessoryId) {
-    fetch(`/products/api/accessory/${accessoryId}/add/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: 'quantity=1'
-    }).then(response => response.json())
-      .then(data => {
-          showToast(data.message || 'Accessory added to cart!', data.success ? 'success' : 'error');
-          updateCartCount();
-      });
-}
+        setMainImage(image.src, state.galleryIndex, image.alt || state.productName);
+        openImageLightbox(state.galleryIndex);
+    }
 
-function setPriceAlert() {
-    document.getElementById('price-alert-modal').classList.remove('hidden');
-    document.getElementById('price-alert-modal').classList.add('flex');
-}
+    function handleLightboxBackdrop(event) {
+        if (event.target && event.target.id === 'image-lightbox') {
+            closeImageLightbox();
+        }
+    }
 
-function closePriceAlert() {
-    document.getElementById('price-alert-modal').classList.add('hidden');
-    document.getElementById('price-alert-modal').classList.remove('flex');
-}
+    function getVariantImages(variant) {
+        if (!variant) return [];
 
-function savePriceAlert() {
-    const targetPrice = document.getElementById('target-price').value;
-    if (targetPrice) {
+        const candidates = [];
+
+        [
+            'images',
+            'gallery_images',
+            'variant_images',
+            'media',
+            'media_images',
+            'additional_images',
+            'product_images',
+            'photos'
+        ].forEach(function (key) {
+            if (Array.isArray(variant[key])) {
+                candidates.push(...variant[key]);
+            }
+        });
+
+        [
+            'image',
+            'image_url',
+            'main_image',
+            'thumbnail',
+            'photo'
+        ].forEach(function (key) {
+            if (variant[key]) {
+                candidates.push(variant[key]);
+            }
+        });
+
+        return uniqueImages(candidates, `${state.productName} - ${variant.value || 'Variant'}`);
+    }
+
+    function updateVariantUI(variant, button) {
+        if (!variant) return;
+
+        const price = getEl('product-price');
+        if (price && variant.price_display) {
+            price.textContent = variant.price_display;
+        }
+
+        const comparePrice = getEl('product-compare-price');
+        if (comparePrice) {
+            comparePrice.textContent = variant.compare_price_display || '';
+            comparePrice.classList.toggle('hidden', !variant.compare_price_display);
+        }
+
+        const sku = getEl('product-sku');
+        if (sku && variant.sku) {
+            sku.textContent = variant.sku;
+        }
+
+        const stock = Number(variant.stock) || 0;
+        const isAvailable = stock > 0;
+        const stockStatus = getEl('product-stock-status');
+        const stockCount = getEl('product-stock-count');
+
+        if (stockStatus) {
+            stockStatus.className = isAvailable ? 'text-green-600 text-sm' : 'text-red-600 text-sm';
+            stockStatus.innerHTML = isAvailable
+                ? '<i class="fas fa-check-circle"></i> In Stock'
+                : '<i class="fas fa-clock"></i> Out of Stock';
+        }
+
+        if (stockCount) {
+            stockCount.textContent = isAvailable ? `${stock} units available` : '';
+        }
+
+        const quantity = getEl('quantity');
+        if (quantity) {
+            quantity.max = isAvailable ? stock : 1;
+            syncCartQuantity();
+        }
+
+        setAddToCartState(isAvailable);
+
+        const variantImages = getVariantImages(variant);
+
+        if (variantImages.length) {
+            renderGallery(variantImages);
+        } else {
+            /*
+                If a variant has no gallery data in variant_data_json,
+                do not break the gallery. Keep the main product gallery visible.
+            */
+            renderGallery(state.mainGalleryImages);
+        }
+
+        document.querySelectorAll(`.variant-option[data-variant-type="${variant.variant_type}"]`).forEach(function (option) {
+            const active = option === button;
+            option.classList.toggle('active', active);
+            option.setAttribute('aria-checked', active ? 'true' : 'false');
+        });
+
+        const selectedLabel = document.querySelector(`[data-selected-variant-label="${variant.variant_type}"]`);
+        if (selectedLabel) {
+            selectedLabel.textContent = variant.value || '';
+        }
+
+        const liveStatus = getEl('variant-live-status');
+        if (liveStatus) {
+            const imageCount = variantImages.length ? ` ${variantImages.length} image${variantImages.length > 1 ? 's' : ''} loaded.` : '';
+            liveStatus.textContent = `${variant.value || 'Variant'} selected${variant.price_display ? '. Price updated to ' + variant.price_display : ''}.${imageCount}`;
+        }
+    }
+
+    function applyVariant(variantId, button) {
+        const variant = variantData[String(variantId)];
+        if (!variant) return;
+
+        state.activeVariantId = String(variant.id || variantId);
+        state.selectedVariants[variant.variant_type || 'default'] = String(variant.id || variantId);
+
+        updateHiddenVariantInputs();
+        updateVariantUI(variant, button);
+    }
+
+    function resetToMainProduct(options) {
+        const silent = options && options.silent;
+
+        state.activeVariantId = '';
+        state.selectedVariants = {};
+        updateHiddenVariantInputs();
+
+        document.querySelectorAll('.variant-option').forEach(function (button) {
+            button.classList.remove('active');
+            button.setAttribute('aria-checked', 'false');
+        });
+
+        document.querySelectorAll('[data-selected-variant-label]').forEach(function (label) {
+            label.textContent = '';
+        });
+
+        const price = getEl('product-price');
+        const compare = getEl('product-compare-price');
+        const sku = getEl('product-sku');
+        const stockStatus = getEl('product-stock-status');
+        const stockCount = getEl('product-stock-count');
+        const quantity = getEl('quantity');
+
+        if (state.defaultUI) {
+            if (price) price.textContent = state.defaultUI.priceText;
+            if (compare) {
+                compare.textContent = state.defaultUI.compareText || '';
+                compare.classList.toggle('hidden', state.defaultUI.compareHidden);
+            }
+            if (sku) sku.textContent = state.defaultUI.skuText;
+            if (stockStatus) {
+                stockStatus.innerHTML = state.defaultUI.stockStatusHTML;
+                stockStatus.className = state.defaultUI.stockStatusClass;
+            }
+            if (stockCount) stockCount.textContent = state.defaultUI.stockCountText;
+            if (quantity) {
+                quantity.max = state.defaultUI.quantityMax || String(state.defaultStock);
+                quantity.value = '1';
+            }
+        }
+
+        syncCartQuantity();
+        setAddToCartState(state.defaultStock > 0);
+        renderGallery(state.mainGalleryImages);
+
+        const liveStatus = getEl('variant-live-status');
+        if (liveStatus && !silent) {
+            liveStatus.textContent = 'Main product images restored.';
+        }
+    }
+
+    function decrementQty() {
+        const qty = getEl('quantity');
+        if (!qty) return;
+
+        let value = Number(qty.value) || 1;
+        if (value > 1) {
+            qty.value = value - 1;
+            syncCartQuantity();
+        }
+    }
+
+    function incrementQty() {
+        const qty = getEl('quantity');
+        if (!qty) return;
+
+        let value = Number(qty.value) || 1;
+        let max = Number(qty.max) || state.defaultStock || 1;
+
+        if (value < max) {
+            qty.value = value + 1;
+            syncCartQuantity();
+        }
+    }
+
+    function openProductVideosTab() {
+        const tabButton = document.querySelector('[data-product-videos-tab]');
+        if (tabButton) {
+            tabButton.click();
+            tabButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+
+    function showVideoPlayer(videoUrl) {
+        const modal = getEl('video-modal');
+        const video = getEl('product-video');
+
+        if (!modal || !video || !videoUrl) {
+            openProductVideosTab();
+            return;
+        }
+
+        video.src = videoUrl;
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        video.play();
+    }
+
+    function closeVideoPlayer() {
+        const modal = getEl('video-modal');
+        const video = getEl('product-video');
+        if (!modal || !video) return;
+
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        video.pause();
+        video.src = '';
+    }
+
+    function toggleWishlist() {
+        fetch("{% url 'products:toggle_wishlist' product.slug %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        }).then(function () {
+            location.reload();
+        });
+    }
+
+    function buyNow() {
+        syncCartQuantity();
+        const form = getEl('add-to-cart-form');
+        if (form) form.submit();
+    }
+
+    function startExpertChat() {
+        window.location.href = "{% url 'chat:start_product' product.id %}";
+    }
+
+    function appendAIMessage(message, sender) {
+        const box = getEl('ai-chat-messages');
+        if (!box) return;
+
+        const bubble = document.createElement('div');
+        bubble.className = sender === 'user'
+            ? 'ai-message-bubble ai-message-user rounded-2xl rounded-tr-md px-4 py-3 text-sm shadow-sm'
+            : 'ai-message-bubble ai-message-bot rounded-2xl rounded-tl-md px-4 py-3 text-sm shadow-sm';
+
+        bubble.innerHTML = escapeHtml(message);
+        box.appendChild(bubble);
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function localAIReply(message) {
+        const text = String(message || '').toLowerCase();
+        const selectedVariantText = Object.values(state.selectedVariants).length
+            ? ' I can see your selected variant and will pass it correctly to cart.'
+            : '';
+
+        if (text.includes('stock') || text.includes('available')) {
+            const stockText = getEl('product-stock-status')?.innerText || 'Please check the stock status beside the price.';
+            return `${stockText}.${selectedVariantText}`;
+        }
+
+        if (text.includes('variant') || text.includes('color') || text.includes('size') || text.includes('image')) {
+            return `Choose a color or size above. The price, SKU, stock, and gallery update safely. The main product gallery will return after refresh.${selectedVariantText}`;
+        }
+
+        if (text.includes('price') || text.includes('cost')) {
+            const price = getEl('product-price')?.innerText || state.productPrice;
+            return `The current displayed price is ${price}. Select a variant to see any price adjustment.`;
+        }
+
+        if (text.includes('delivery') || text.includes('shipping') || text.includes('warranty')) {
+            return 'Delivery, warranty, and return information are available on this product page under the specifications section.';
+        }
+
+        if (text.includes('cart') || text.includes('buy')) {
+            return 'Select your preferred variant, choose quantity, then click Add to Cart or Buy Now.';
+        }
+
+        return 'I can help with stock, variants, product images, price, delivery, warranty, and Add to Cart.';
+    }
+
+    async function sendAIMessage(message) {
+        if (!message || state.aiBusy) return;
+
+        state.aiBusy = true;
+        appendAIMessage(message, 'user');
+
+        const typingId = 'ai-typing-' + Date.now();
+        const box = getEl('ai-chat-messages');
+
+        if (box) {
+            const typing = document.createElement('div');
+            typing.id = typingId;
+            typing.className = 'ai-message-bubble ai-message-bot rounded-2xl rounded-tl-md px-4 py-3 text-sm shadow-sm';
+            typing.textContent = 'Typing...';
+            box.appendChild(typing);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        try {
+            let reply = '';
+
+            /*
+                Optional backend endpoint:
+                If /support/ai/product-chat/ exists, this will use it.
+                If it does not exist, the local fallback reply still works.
+            */
+            try {
+                const response = await fetch('/support/ai/product-chat/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({
+                        product_id: {{ product.id }},
+                        product_name: state.productName,
+                        sku: getEl('product-sku')?.innerText || state.productSku,
+                        selected_variants: state.selectedVariants,
+                        message: message
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    reply = data.reply || data.message || '';
+                }
+            } catch (apiError) {
+                reply = '';
+            }
+
+            if (!reply) {
+                reply = localAIReply(message);
+            }
+
+            const typing = getEl(typingId);
+            if (typing) typing.remove();
+
+            appendAIMessage(reply, 'bot');
+        } finally {
+            state.aiBusy = false;
+        }
+    }
+
+    function openAIChat() {
+        const panel = getEl('ai-chat-panel');
+        const toggle = getEl('ai-chat-toggle');
+        const icon = getEl('ai-chat-toggle-icon');
+        const input = getEl('ai-chat-input');
+
+        if (!panel) return;
+
+        panel.classList.remove('hidden');
+
+        if (toggle) toggle.setAttribute('aria-expanded', 'true');
+        if (icon) {
+            icon.classList.remove('fa-comment-dots');
+            icon.classList.add('fa-times');
+        }
+
+        setTimeout(function () {
+            if (input) input.focus();
+        }, 50);
+    }
+
+    function closeAIChat() {
+        const panel = getEl('ai-chat-panel');
+        const toggle = getEl('ai-chat-toggle');
+        const icon = getEl('ai-chat-toggle-icon');
+
+        if (!panel) return;
+
+        panel.classList.add('hidden');
+
+        if (toggle) toggle.setAttribute('aria-expanded', 'false');
+        if (icon) {
+            icon.classList.remove('fa-times');
+            icon.classList.add('fa-comment-dots');
+        }
+    }
+
+    function startAIChat() {
+        openAIChat();
+    }
+
+    function addToCart(productSlug) {
+        fetch(`/products/${productSlug}/add-to-cart/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: 'quantity=1'
+        }).then(function () {
+            showToast('Product added to cart!', 'success');
+            updateCartCount();
+        }).catch(function () {
+            showToast('Unable to add product to cart.', 'error');
+        });
+    }
+
+    function addAccessoryToCart(accessoryId) {
+        fetch(`/products/api/accessory/${accessoryId}/add/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: 'quantity=1'
+        })
+        .then(function (response) {
+            return response.json();
+        })
+        .then(function (data) {
+            showToast(data.message || 'Accessory added to cart!', data.success ? 'success' : 'error');
+            updateCartCount();
+        })
+        .catch(function () {
+            showToast('Unable to add accessory to cart.', 'error');
+        });
+    }
+
+    function setPriceAlert() {
+        const modal = getEl('price-alert-modal');
+        if (!modal) return;
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    function closePriceAlert() {
+        const modal = getEl('price-alert-modal');
+        if (!modal) return;
+
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+
+    function savePriceAlert() {
+        const targetPrice = getEl('target-price')?.value;
+
+        if (!targetPrice) {
+            showToast('Please enter a target price.', 'error');
+            return;
+        }
+
         fetch('/products/set-price-alert/', {
             method: 'POST',
             headers: {
                 'X-CSRFToken': '{{ csrf_token }}',
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
             },
             body: JSON.stringify({
                 product_id: {{ product.id }},
                 target_price: targetPrice
             })
-        }).then(() => {
+        }).then(function () {
             showToast('Price alert set successfully!', 'success');
             closePriceAlert();
+        }).catch(function () {
+            showToast('Unable to save price alert.', 'error');
         });
     }
-}
 
-function markHelpful(reviewId) {
-    fetch(`/products/review/${reviewId}/helpful/`, {
-        method: 'POST',
-        headers: {'X-CSRFToken': '{{ csrf_token }}'}
-    }).then(() => {
-        showToast('Thanks for your feedback!', 'success');
-    });
-}
-
-function openAIChat() {
-    // Open AI chat interface
-    alert("🤖 AI Assistant: I'm here to help! Ask me anything about this product.");
-}
-
-function updateCartCount() {
-    fetch('/products/cart/count/')
-        .then(response => response.json())
-        .then(data => {
-            const cartCountEl = document.getElementById('cart-count');
-            if (cartCountEl) cartCountEl.innerText = data.count || 0;
+    function markHelpful(reviewId) {
+        fetch(`/products/review/${reviewId}/helpful/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        }).then(function () {
+            showToast('Thanks for your feedback!', 'success');
         });
-}
-
-function showToast(message, type) {
-    const toast = document.createElement('div');
-    toast.className = `fixed bottom-20 right-4 bg-${type === 'success' ? 'green' : 'red'}-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-bounce`;
-    toast.innerHTML = message;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
-}
-
-// Initialize
-document.addEventListener('DOMContentLoaded', function() {
-    renderGallery(defaultGalleryImages);
-
-    const initialVariantId = document.getElementById('selected_variant_id')?.value;
-    if (initialVariantId) {
-        const initialButton = document.querySelector(`.variant-option[data-variant-id="${initialVariantId}"]`);
-        applyVariant(initialVariantId, initialButton);
     }
 
-    document.addEventListener('keydown', function(event) {
-        const lightbox = document.getElementById('image-lightbox');
-        if (!lightbox || lightbox.classList.contains('hidden')) return;
-        if (event.key === 'Escape') closeImageLightbox();
-        if (event.key === 'ArrowRight') showNextLightboxImage();
-        if (event.key === 'ArrowLeft') showPreviousLightboxImage();
-    });
+    function updateCartCount() {
+        fetch('/products/cart/count/')
+            .then(function (response) {
+                return response.json();
+            })
+            .then(function (data) {
+                const cartCountEl = getEl('cart-count');
+                if (cartCountEl) cartCountEl.innerText = data.count || 0;
+            });
+    }
 
-    // Lazy load images
-    const lazyImages = document.querySelectorAll('img[data-src]');
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
+    function showToast(message, type) {
+        const toast = document.createElement('div');
+        const colorClass = type === 'success' ? 'bg-green-500' : 'bg-red-500';
+
+        toast.className = `fixed bottom-20 right-4 ${colorClass} text-white px-6 py-3 rounded-lg shadow-lg z-50`;
+        toast.innerHTML = escapeHtml(message);
+
+        document.body.appendChild(toast);
+
+        setTimeout(function () {
+            toast.remove();
+        }, 3000);
+    }
+
+    function setupRatingStars() {
+        document.querySelectorAll('#rating-stars i').forEach(function (star) {
+            star.addEventListener('click', function () {
+                const rating = Number(this.dataset.rating || 5);
+                const ratingValue = getEl('rating-value');
+
+                if (ratingValue) {
+                    ratingValue.value = rating;
+                }
+
+                document.querySelectorAll('#rating-stars i').forEach(function (s, index) {
+                    s.classList.remove('fas', 'text-yellow-400');
+                    s.classList.add('far');
+
+                    if (index < rating) {
+                        s.classList.remove('far');
+                        s.classList.add('fas', 'text-yellow-400');
+                    }
+                });
+            });
+        });
+    }
+
+    function setupReadingProgress() {
+        const bar = getEl('reading-progress');
+        if (!bar) return;
+
+        window.addEventListener('scroll', function () {
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrolled = height > 0 ? (winScroll / height) * 100 : 0;
+            bar.style.width = scrolled + '%';
+        });
+    }
+
+    function setupLazyImages() {
+        const lazyImages = document.querySelectorAll('img[data-src]');
+        if (!lazyImages.length || !('IntersectionObserver' in window)) return;
+
+        const observer = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+                if (!entry.isIntersecting) return;
+
                 const img = entry.target;
                 img.src = img.dataset.src;
                 img.classList.add('loaded');
                 observer.unobserve(img);
+            });
+        });
+
+        lazyImages.forEach(function (img) {
+            observer.observe(img);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        captureDefaultUI();
+        setupReadingProgress();
+        setupRatingStars();
+        setupLazyImages();
+
+        /*
+            MAIN FIX:
+            Every normal refresh starts from the main product gallery.
+            No saved variant input, no browser-restored variant, no stale variant image.
+        */
+        resetToMainProduct({ silent: true });
+
+        const variantSelector = getEl('variant-selector');
+        if (variantSelector) {
+            variantSelector.addEventListener('click', function (event) {
+                const btn = event.target.closest('.variant-option');
+                if (!btn || btn.disabled) return;
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                applyVariant(btn.dataset.variantId, btn);
+            });
+        }
+
+        const thumbnails = getEl('product-image-thumbnails');
+        if (thumbnails) {
+            thumbnails.addEventListener('click', function (event) {
+                const thumbButton = event.target.closest('[data-gallery-src]');
+                if (!thumbButton) return;
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                const index = Number(thumbButton.dataset.galleryIndex || 0);
+
+                /*
+                    Thumbnail click only changes the main image.
+                    It does NOT open the lightbox.
+                */
+                setMainImage(
+                    thumbButton.dataset.gallerySrc,
+                    index,
+                    thumbButton.dataset.galleryAlt || state.productName
+                );
+            });
+        }
+
+        const mainImage = getEl('main-product-image');
+        if (mainImage) {
+            mainImage.addEventListener('click', function () {
+                openImageLightbox();
+            });
+        }
+
+        const quantity = getEl('quantity');
+        if (quantity) {
+            quantity.addEventListener('input', syncCartQuantity);
+            quantity.addEventListener('change', syncCartQuantity);
+        }
+
+        const aiForm = getEl('ai-chat-form');
+        const aiInput = getEl('ai-chat-input');
+        if (aiForm && aiInput) {
+            aiForm.addEventListener('submit', function (event) {
+                event.preventDefault();
+                const message = aiInput.value.trim();
+                if (!message) return;
+
+                aiInput.value = '';
+                sendAIMessage(message);
+            });
+        }
+
+        document.querySelectorAll('.ai-quick-reply').forEach(function (button) {
+            button.addEventListener('click', function () {
+                const prompt = this.dataset.aiPrompt || this.textContent.trim();
+                openAIChat();
+                sendAIMessage(prompt);
+            });
+        });
+
+        document.addEventListener('keydown', function (event) {
+            const lightbox = getEl('image-lightbox');
+
+            if (lightbox && !lightbox.classList.contains('hidden')) {
+                if (event.key === 'Escape') closeImageLightbox();
+                if (event.key === 'ArrowRight') showNextLightboxImage();
+                if (event.key === 'ArrowLeft') showPreviousLightboxImage();
             }
+
+            if (event.key === 'Escape') closeAIChat();
         });
     });
-    lazyImages.forEach(img => observer.observe(img));
-});
+
+    /*
+        Safari/Chrome bfcache fix:
+        If user leaves and comes back, force product page to main image again.
+    */
+    window.addEventListener('pageshow', function (event) {
+        if (event.persisted) {
+            resetToMainProduct({ silent: true });
+        }
+    });
+
+    window.openImageLightbox = openImageLightbox;
+    window.closeImageLightbox = closeImageLightbox;
+    window.showNextLightboxImage = showNextLightboxImage;
+    window.showPreviousLightboxImage = showPreviousLightboxImage;
+    window.handleLightboxBackdrop = handleLightboxBackdrop;
+
+    window.decrementQty = decrementQty;
+    window.incrementQty = incrementQty;
+    window.openProductVideosTab = openProductVideosTab;
+    window.showVideoPlayer = showVideoPlayer;
+    window.closeVideoPlayer = closeVideoPlayer;
+    window.toggleWishlist = toggleWishlist;
+    window.buyNow = buyNow;
+    window.startExpertChat = startExpertChat;
+    window.startAIChat = startAIChat;
+    window.openAIChat = openAIChat;
+    window.closeAIChat = closeAIChat;
+    window.addToCart = addToCart;
+    window.addAccessoryToCart = addAccessoryToCart;
+    window.setPriceAlert = setPriceAlert;
+    window.closePriceAlert = closePriceAlert;
+    window.savePriceAlert = savePriceAlert;
+    window.markHelpful = markHelpful;
+    window.resetToMainProduct = resetToMainProduct;
+})();
 </script>
 {% endblock %}
