@@ -1,1 +1,1 @@
-// Logic is inline in arolana_smart_chat_widget.html to prevent refresh on customer view.
+// Chat logic is inline in templates/partials/arolana_smart_chat_widget.html to prevent stale static-cache issues.

@@ -65,7 +65,6 @@
                 <button type="button" class="arolana-smartchat-quick rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-100" data-prompt="Tell me about delivery and payment options.">Delivery</button>
             </div>
 
-            <!-- Not a form on purpose: prevents customer-page refresh even if JS fails partially. -->
             <div id="arolana-smartchat-form" class="flex items-center gap-2">
                 <input
                     id="arolana-smartchat-input"
@@ -186,6 +185,11 @@
         busy: false
     };
 
+    if (!Number.isFinite(state.lastMessageId)) {
+        state.lastMessageId = 0;
+        localStorage.setItem("arolanaSmartChatLastMessageId", "0");
+    }
+
     function getEl(id) {
         return document.getElementById(id);
     }
@@ -218,11 +222,32 @@
         if (box) box.scrollTop = box.scrollHeight;
     }
 
-    function renderMessage(message) {
+    function updateLastMessageId(rawId) {
+        const numericId = Number(rawId);
+        if (!Number.isFinite(numericId) || numericId <= 0) return;
+
+        state.lastMessageId = Math.max(state.lastMessageId || 0, numericId);
+        localStorage.setItem("arolanaSmartChatLastMessageId", String(state.lastMessageId));
+
+        const box = getEl("arolana-smartchat-messages");
+        if (box) box.dataset.lastMessageId = String(state.lastMessageId);
+    }
+
+    function renderMessage(message, options) {
+        options = options || {};
         const box = getEl("arolana-smartchat-messages");
         if (!box || !message) return;
 
-        if (message.id && document.querySelector(`[data-arolana-message-id="${message.id}"]`)) {
+        const numericId = Number(message.id);
+        const hasNumericId = Number.isFinite(numericId) && numericId > 0;
+
+        if (hasNumericId && document.querySelector(`[data-arolana-message-id="${numericId}"]`)) {
+            updateLastMessageId(numericId);
+            return;
+        }
+
+        if (options.updateOnly) {
+            if (hasNumericId) updateLastMessageId(numericId);
             return;
         }
 
@@ -244,8 +269,8 @@
         const bubble = document.createElement("div");
         bubble.className = `arolana-chat-bubble ${bubbleClass} rounded-2xl px-4 py-3 text-sm shadow-sm`;
 
-        if (message.id) {
-            bubble.dataset.arolanaMessageId = message.id;
+        if (hasNumericId) {
+            bubble.dataset.arolanaMessageId = String(numericId);
         }
 
         bubble.innerHTML = `
@@ -256,11 +281,7 @@
         box.appendChild(bubble);
         scrollMessages();
 
-        if (message.id) {
-            state.lastMessageId = Math.max(state.lastMessageId, Number(message.id));
-            localStorage.setItem("arolanaSmartChatLastMessageId", String(state.lastMessageId));
-            box.dataset.lastMessageId = String(state.lastMessageId);
-        }
+        if (hasNumericId) updateLastMessageId(numericId);
     }
 
     function setBusy(isBusy) {
@@ -331,6 +352,7 @@
         }, 80);
 
         startPolling();
+        if (state.conversationId) poll();
     }
 
     function close() {
@@ -349,8 +371,10 @@
     function sendFromInput() {
         const input = getEl("arolana-smartchat-input");
         if (!input) return;
+
         const message = input.value.trim();
         if (!message) return;
+
         input.value = "";
         send(message);
     }
@@ -361,7 +385,6 @@
         if (!w || !text || state.busy) return;
 
         renderMessage({
-            id: "local-" + Date.now(),
             sender_type: "user",
             sender_name: "You",
             message: text
@@ -403,7 +426,11 @@
 
             if (Array.isArray(data.messages)) {
                 data.messages.forEach(function (msg) {
-                    if (msg.sender_type !== "user") renderMessage(msg);
+                    if (msg.sender_type === "user") {
+                        renderMessage(msg, { updateOnly: true });
+                    } else {
+                        renderMessage(msg);
+                    }
                 });
             } else if (data.reply) {
                 renderMessage({
@@ -414,6 +441,8 @@
             }
 
             startPolling();
+            setTimeout(poll, 700);
+
         } catch (error) {
             renderMessage({
                 sender_type: "ai",
@@ -468,6 +497,8 @@
             });
 
             startPolling();
+            setTimeout(poll, 700);
+
         } catch (error) {
             renderMessage({
                 sender_type: "system",
@@ -483,8 +514,13 @@
         const w = widget();
         if (!w || !state.conversationId) return;
 
+        if (!Number.isFinite(state.lastMessageId)) {
+            state.lastMessageId = 0;
+            localStorage.setItem("arolanaSmartChatLastMessageId", "0");
+        }
+
         try {
-            const url = `${w.dataset.pollUrl || "/smartchat/api/poll/"}?conversation_id=${encodeURIComponent(state.conversationId)}&after_id=${encodeURIComponent(state.lastMessageId)}`;
+            const url = `${w.dataset.pollUrl || "/smartchat/api/poll/"}?conversation_id=${encodeURIComponent(state.conversationId)}&after_id=${encodeURIComponent(state.lastMessageId || 0)}`;
             const response = await fetch(url, {
                 credentials: "same-origin",
                 headers: { "X-Requested-With": "XMLHttpRequest" }
@@ -494,9 +530,17 @@
 
             const data = await response.json();
 
-            if (Array.isArray(data.messages)) {
-                data.messages.forEach(renderMessage);
+            if (data.status === "admin_requested" || data.status === "admin_active") {
+                const status = getEl("arolana-smartchat-admin-status");
+                if (status) status.classList.remove("hidden");
             }
+
+            if (Array.isArray(data.messages)) {
+                data.messages.forEach(function (msg) {
+                    renderMessage(msg);
+                });
+            }
+
         } catch (error) {
             console.warn("Arolana SmartChat poll failed:", error);
         }
@@ -510,7 +554,7 @@
             if (panel && !panel.classList.contains("hidden") && state.conversationId) {
                 poll();
             }
-        }, 4000);
+        }, 2500);
 
         if (state.conversationId) poll();
     }
@@ -568,6 +612,15 @@
             event.stopPropagation();
             open();
         }, true);
+
+        if (state.conversationId) startPolling();
+    }
+
+    function resetConversation() {
+        state.conversationId = "";
+        state.lastMessageId = 0;
+        localStorage.removeItem("arolanaSmartChatConversationId");
+        localStorage.setItem("arolanaSmartChatLastMessageId", "0");
     }
 
     window.openAIChat = open;
@@ -580,7 +633,8 @@
         send,
         sendFromInput,
         requestAdmin,
-        poll
+        poll,
+        resetConversation
     };
 
     window.ArolanaSmartChatNoRefresh = window.ArolanaSmartChat;
