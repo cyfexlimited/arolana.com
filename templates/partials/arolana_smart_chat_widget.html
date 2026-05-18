@@ -2,7 +2,7 @@
 
 <div
     id="arolana-smartchat-widget"
-    class="fixed bottom-6 right-6 z-[9999]"
+    class="fixed bottom-6 right-6 z-[99999]"
     data-message-url="{% url 'smartchat:api_message' %}"
     data-poll-url="{% url 'smartchat:api_poll' %}"
     data-request-admin-url="{% url 'smartchat:api_request_admin' %}"
@@ -30,6 +30,7 @@
                         </p>
                     </div>
                 </div>
+
                 <button
                     type="button"
                     onclick="window.ArolanaSmartChatNoRefresh.close()"
@@ -64,27 +65,31 @@
                 <button type="button" class="arolana-smartchat-quick rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-100" data-prompt="Tell me about delivery and payment options.">Delivery</button>
             </div>
 
-            <form id="arolana-smartchat-form" class="flex items-center gap-2" action="javascript:void(0);" method="post" novalidate>
+            <!-- Not a form on purpose: prevents customer-page refresh even if JS fails partially. -->
+            <div id="arolana-smartchat-form" class="flex items-center gap-2">
                 <input
                     id="arolana-smartchat-input"
                     type="text"
                     autocomplete="off"
                     placeholder="Ask Arolana AI..."
                     class="min-w-0 flex-1 rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    onkeydown="if(event.key === 'Enter'){event.preventDefault(); window.ArolanaSmartChatNoRefresh.sendFromInput();}"
                 >
                 <button
-                    type="submit"
+                    type="button"
                     id="arolana-smartchat-send"
+                    onclick="window.ArolanaSmartChatNoRefresh.sendFromInput()"
                     class="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg hover:scale-105 transition shrink-0"
                     aria-label="Send AI chat message"
                 >
                     <i class="fas fa-paper-plane"></i>
                 </button>
-            </form>
+            </div>
 
             <button
                 type="button"
                 id="arolana-smartchat-admin-btn"
+                onclick="window.ArolanaSmartChatNoRefresh.requestAdmin()"
                 class="mt-3 w-full rounded-xl bg-gray-100 px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-200 transition"
             >
                 <i class="fas fa-headset mr-1"></i>
@@ -341,6 +346,15 @@
         if (icon) icon.className = "fas fa-comment-dots text-2xl relative z-10";
     }
 
+    function sendFromInput() {
+        const input = getEl("arolana-smartchat-input");
+        if (!input) return;
+        const message = input.value.trim();
+        if (!message) return;
+        input.value = "";
+        send(message);
+    }
+
     async function send(text) {
         const w = widget();
 
@@ -502,44 +516,54 @@
     }
 
     function bind() {
-        const form = getEl("arolana-smartchat-form");
         const input = getEl("arolana-smartchat-input");
+        const sendButton = getEl("arolana-smartchat-send");
         const adminBtn = getEl("arolana-smartchat-admin-btn");
 
-        if (form && input) {
-            form.addEventListener("submit", function (event) {
+        if (sendButton) {
+            sendButton.addEventListener("click", function (event) {
                 event.preventDefault();
                 event.stopPropagation();
+                sendFromInput();
+            }, true);
+        }
 
-                const message = input.value.trim();
-                if (!message) return;
-
-                input.value = "";
-                send(message);
+        if (input) {
+            input.addEventListener("keydown", function (event) {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    sendFromInput();
+                }
             }, true);
         }
 
         document.querySelectorAll(".arolana-smartchat-quick").forEach(function (button) {
             button.addEventListener("click", function (event) {
                 event.preventDefault();
+                event.stopPropagation();
+
                 const prompt = this.dataset.prompt || this.textContent.trim();
                 if (!prompt) return;
+
                 open();
                 send(prompt);
-            });
+            }, true);
         });
 
         if (adminBtn) {
             adminBtn.addEventListener("click", function (event) {
                 event.preventDefault();
+                event.stopPropagation();
                 open();
                 requestAdmin();
-            });
+            }, true);
         }
 
         document.addEventListener("click", function (event) {
             const toggle = event.target.closest("#arolana-smartchat-toggle");
             if (!toggle) return;
+
             event.preventDefault();
             event.stopPropagation();
             open();
@@ -554,6 +578,7 @@
         open,
         close,
         send,
+        sendFromInput,
         requestAdmin,
         poll
     };
