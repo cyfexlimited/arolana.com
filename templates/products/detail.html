@@ -287,6 +287,117 @@
         scrollbar-color: #8b5cf6 #f1f5f9;
     }
 
+
+    /* ============================================================
+       Mobile Lightbox Navigation Fix
+       ============================================================ */
+    .lightbox-close-btn {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        width: 46px;
+        height: 46px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100001;
+        transition: background 0.2s ease, transform 0.2s ease;
+    }
+
+    .lightbox-close-btn:hover {
+        background: rgba(255, 255, 255, 0.22);
+        transform: scale(1.05);
+    }
+
+    .lightbox-nav-btn {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 52px;
+        height: 52px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.14);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100001;
+        transition: background 0.2s ease, transform 0.2s ease;
+    }
+
+    .lightbox-nav-btn:hover {
+        background: rgba(255, 255, 255, 0.24);
+        transform: translateY(-50%) scale(1.05);
+    }
+
+    .lightbox-prev-btn {
+        left: 1rem;
+    }
+
+    .lightbox-next-btn {
+        right: 1rem;
+    }
+
+    .lightbox-mobile-controls {
+        display: none;
+    }
+
+    @media (max-width: 640px) {
+        .image-lightbox {
+            padding: 1rem;
+            padding-bottom: 5.5rem;
+        }
+
+        .image-lightbox img {
+            max-width: 100%;
+            max-height: 72vh;
+            object-fit: contain;
+        }
+
+        .lightbox-nav-btn {
+            display: none;
+        }
+
+        .lightbox-close-btn {
+            top: 0.75rem;
+            right: 0.75rem;
+            width: 42px;
+            height: 42px;
+            background: rgba(0, 0, 0, 0.55);
+        }
+
+        .lightbox-mobile-controls {
+            position: absolute;
+            left: 1rem;
+            right: 1rem;
+            bottom: 1rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+            z-index: 100001;
+        }
+
+        .lightbox-mobile-controls button {
+            min-height: 48px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.14);
+            color: white;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.45rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .lightbox-mobile-controls button:active {
+            transform: scale(0.97);
+        }
+    }
+
 </style>
 {% endblock %}
 
@@ -1108,20 +1219,58 @@
 </div>
 
 <!-- Product Image Lightbox -->
-<div id="image-lightbox" class="image-lightbox fixed inset-0 bg-black/90 hidden items-center justify-center p-4" style="z-index: 99999;" onclick="handleLightboxBackdrop(event)">
-    <button type="button" onclick="closeImageLightbox()" class="absolute top-4 right-4 w-11 h-11 rounded-full bg-white/10 text-white hover:bg-white/20 transition" aria-label="Close image viewer">
+<div id="image-lightbox"
+     class="image-lightbox fixed inset-0 bg-black/90 hidden items-center justify-center p-4"
+     style="z-index: 99999;"
+     onclick="handleLightboxBackdrop(event)">
+
+    <!-- Close -->
+    <button type="button"
+            onclick="closeImageLightbox()"
+            class="lightbox-close-btn"
+            aria-label="Close image viewer">
         <i class="fas fa-times text-xl"></i>
     </button>
-    <button type="button" onclick="showPreviousLightboxImage()" class="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 text-white hover:bg-white/20 transition" aria-label="Previous image">
+
+    <!-- Desktop Previous -->
+    <button type="button"
+            onclick="showPreviousLightboxImage()"
+            class="lightbox-nav-btn lightbox-prev-btn"
+            aria-label="Previous image">
         <i class="fas fa-chevron-left"></i>
     </button>
+
+    <!-- Image -->
     <figure class="w-full max-w-6xl text-center">
-        <img id="lightbox-image" src="" alt="{{ product.name }}" class="mx-auto rounded-lg shadow-2xl">
-        <figcaption id="lightbox-caption" class="text-white/80 text-sm mt-4"></figcaption>
+        <img id="lightbox-image"
+             src=""
+             alt="{{ product.name }}"
+             class="mx-auto rounded-lg shadow-2xl">
+
+        <figcaption id="lightbox-caption"
+                    class="text-white/80 text-sm mt-4"></figcaption>
     </figure>
-    <button type="button" onclick="showNextLightboxImage()" class="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 text-white hover:bg-white/20 transition" aria-label="Next image">
+
+    <!-- Desktop Next -->
+    <button type="button"
+            onclick="showNextLightboxImage()"
+            class="lightbox-nav-btn lightbox-next-btn"
+            aria-label="Next image">
         <i class="fas fa-chevron-right"></i>
     </button>
+
+    <!-- Mobile Bottom Controls -->
+    <div class="lightbox-mobile-controls">
+        <button type="button" onclick="showPreviousLightboxImage()" aria-label="Previous image">
+            <i class="fas fa-chevron-left"></i>
+            Prev
+        </button>
+
+        <button type="button" onclick="showNextLightboxImage()" aria-label="Next image">
+            Next
+            <i class="fas fa-chevron-right"></i>
+        </button>
+    </div>
 </div>
 
 <!-- Price Alert Modal -->
@@ -1909,6 +2058,38 @@
     }
 
     function openAIChat() {
+        /*
+            Product detail fallback:
+            Prefer the global Arolana SmartChat widget in base.html.
+            If the global widget is unavailable, fall back to the old product-local widget IDs.
+        */
+        const globalPanel = document.getElementById('arolana-smartchat-panel');
+        const globalToggle = document.getElementById('arolana-smartchat-toggle');
+        const globalIcon = document.getElementById('arolana-smartchat-toggle-icon');
+        const globalInput = document.getElementById('arolana-smartchat-input');
+
+        if (globalPanel) {
+            globalPanel.classList.remove('hidden');
+
+            if (globalToggle) {
+                globalToggle.setAttribute('aria-expanded', 'true');
+            }
+
+            if (globalIcon) {
+                globalIcon.className = 'fas fa-times text-2xl relative z-10';
+            }
+
+            setTimeout(function () {
+                if (globalInput) globalInput.focus();
+            }, 80);
+
+            if (window.ArolanaSmartChat && typeof window.ArolanaSmartChat.poll === 'function') {
+                window.ArolanaSmartChat.poll();
+            }
+
+            return;
+        }
+
         const panel = getEl('ai-chat-panel');
         const toggle = getEl('ai-chat-toggle');
         const icon = getEl('ai-chat-toggle-icon');
@@ -1930,6 +2111,24 @@
     }
 
     function closeAIChat() {
+        const globalPanel = document.getElementById('arolana-smartchat-panel');
+        const globalToggle = document.getElementById('arolana-smartchat-toggle');
+        const globalIcon = document.getElementById('arolana-smartchat-toggle-icon');
+
+        if (globalPanel) {
+            globalPanel.classList.add('hidden');
+
+            if (globalToggle) {
+                globalToggle.setAttribute('aria-expanded', 'false');
+            }
+
+            if (globalIcon) {
+                globalIcon.className = 'fas fa-comment-dots text-2xl relative z-10';
+            }
+
+            return;
+        }
+
         const panel = getEl('ai-chat-panel');
         const toggle = getEl('ai-chat-toggle');
         const icon = getEl('ai-chat-toggle-icon');
@@ -2123,6 +2322,18 @@
         });
     }
 
+
+    // Extra protection: ensure global Arolana AI chat button always opens on product pages.
+    document.addEventListener('click', function (event) {
+        const toggle = event.target.closest('#arolana-smartchat-toggle');
+        if (!toggle) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        openAIChat();
+    }, true);
+
+
     document.addEventListener('DOMContentLoaded', function () {
         captureDefaultUI();
         setupReadingProgress();
@@ -2228,6 +2439,35 @@
             resetToMainProduct({ silent: true });
         }
     });
+
+
+    // Mobile lightbox swipe support
+    let lightboxTouchStartX = 0;
+    let lightboxTouchEndX = 0;
+
+    document.addEventListener('touchstart', function (event) {
+        const lightbox = getEl('image-lightbox');
+        if (!lightbox || lightbox.classList.contains('hidden')) return;
+
+        lightboxTouchStartX = event.changedTouches[0].screenX;
+    }, { passive: true });
+
+    document.addEventListener('touchend', function (event) {
+        const lightbox = getEl('image-lightbox');
+        if (!lightbox || lightbox.classList.contains('hidden')) return;
+
+        lightboxTouchEndX = event.changedTouches[0].screenX;
+
+        const diff = lightboxTouchStartX - lightboxTouchEndX;
+
+        if (Math.abs(diff) < 45) return;
+
+        if (diff > 0) {
+            showNextLightboxImage();
+        } else {
+            showPreviousLightboxImage();
+        }
+    }, { passive: true });
 
     window.openImageLightbox = openImageLightbox;
     window.closeImageLightbox = closeImageLightbox;
