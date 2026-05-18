@@ -1,10 +1,92 @@
 {% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard | Arolana{% endblock %}
 
 {% block content %}
-<div class="max-w-md mx-auto text-center py-12">
-    <i class="fas fa-chart-line text-6xl text-blue-500 mb-4"></i>
-    <h1 class="text-2xl font-bold mb-4">Dashboard</h1>
-    <p class="text-gray-600 mb-6">Please log in to access your dashboard.</p>
-    <a href="/accounts/login/" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">Login</a>
+<div class="min-h-[70vh] flex items-center justify-center px-4 py-12">
+    <div class="relative max-w-2xl w-full overflow-hidden rounded-3xl bg-white shadow-2xl border border-gray-100">
+
+        <!-- Top Gradient -->
+        <div class="h-2 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600"></div>
+
+        <div class="p-8 sm:p-12 text-center">
+
+            <!-- Icon -->
+            <div class="mx-auto mb-6 w-24 h-24 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+                <i class="fas fa-chart-line text-5xl text-blue-600"></i>
+            </div>
+
+            {% if user.is_authenticated %}
+                <h1 class="text-3xl sm:text-4xl font-black text-gray-900 mb-4">
+                    Welcome to your Dashboard
+                </h1>
+
+                <p class="text-gray-600 mb-8 max-w-lg mx-auto">
+                    Choose where you want to go. Manage your account, vendor tools, or admin controls from one place.
+                </p>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                    {% if user.is_staff or user.is_superuser %}
+                    <a href="{% url 'dashboard:admin_home' %}"
+                       class="group rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 text-white p-5 font-bold shadow-lg hover:shadow-2xl transition transform hover:-translate-y-1">
+                        <i class="fas fa-crown text-2xl mb-3"></i>
+                        <div>Admin Dashboard</div>
+                        <span class="text-xs opacity-80">Manage Arolana</span>
+                    </a>
+                    {% endif %}
+
+                    {% if user.user_type == 'vendor' %}
+                    <a href="{% url 'dashboard:vendor_home' %}"
+                       class="group rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 text-white p-5 font-bold shadow-lg hover:shadow-2xl transition transform hover:-translate-y-1">
+                        <i class="fas fa-store text-2xl mb-3"></i>
+                        <div>Vendor Dashboard</div>
+                        <span class="text-xs opacity-80">Manage products & orders</span>
+                    </a>
+                    {% endif %}
+
+                    <a href="{% url 'accounts:profile' %}"
+                       class="group rounded-2xl bg-gray-100 text-gray-800 p-5 font-bold hover:bg-gray-200 transition">
+                        <i class="fas fa-user-circle text-2xl mb-3 text-blue-600"></i>
+                        <div>My Account</div>
+                        <span class="text-xs text-gray-500">Profile & settings</span>
+                    </a>
+
+                    <a href="/products/"
+                       class="group rounded-2xl bg-gray-100 text-gray-800 p-5 font-bold hover:bg-gray-200 transition">
+                        <i class="fas fa-shopping-bag text-2xl mb-3 text-purple-600"></i>
+                        <div>Continue Shopping</div>
+                        <span class="text-xs text-gray-500">Browse marketplace</span>
+                    </a>
+
+                </div>
+
+            {% else %}
+                <h1 class="text-3xl sm:text-4xl font-black text-gray-900 mb-4">
+                    Dashboard Access
+                </h1>
+
+                <p class="text-gray-600 mb-8 max-w-lg mx-auto">
+                    Please log in to access your Arolana dashboard, manage orders, products, messages, and account settings.
+                </p>
+
+                <div class="flex flex-col sm:flex-row justify-center gap-4">
+                    <a href="{% url 'accounts:login' %}"
+                       class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-xl font-bold hover:shadow-xl transition">
+                        <i class="fas fa-sign-in-alt"></i>
+                        Login
+                    </a>
+
+                    <a href="{% url 'accounts:register' %}"
+                       class="inline-flex items-center justify-center gap-2 bg-gray-100 text-gray-800 px-8 py-3 rounded-xl font-bold hover:bg-gray-200 transition">
+                        <i class="fas fa-user-plus"></i>
+                        Create Account
+                    </a>
+                </div>
+            {% endif %}
+
+        </div>
+    </div>
 </div>
 {% endblock %}

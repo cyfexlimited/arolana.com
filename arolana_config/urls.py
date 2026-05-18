@@ -15,10 +15,11 @@ import core.views as core_views
 from core import admin_views as core_admin_views
 from accounts import views as accounts_views
 from django.contrib.sitemaps.views import sitemap
+from arolana_seo.sitemaps import ArolanaProductSitemap, ArolanaCategorySitemap
 from .sitemaps import StaticViewSitemap, ProductSitemap, CategorySitemap, VendorSitemap, BlogSitemap
 from products.models import Product, Category
 from vendors.models import VendorProfile
-
+from arolana_seo.views import robots_txt, google_merchant_feed
 
 def health_check(request):
     return JsonResponse({"status": "ok"})
@@ -40,6 +41,10 @@ sitemaps = {
     'categories': CategorySitemap,
     'vendors': VendorSitemap,
     'blog': BlogSitemap,
+
+    # Arolana SEO Engine
+    'seo_products': ArolanaProductSitemap,
+    'seo_categories': ArolanaCategorySitemap,
 }
 
 def home_view(request):
@@ -93,9 +98,24 @@ urlpatterns = [
     path('', home_view, name='home'),
     
     # Sitemap
+       # Sitemap
     path('sitemap/', sitemap_page, name='sitemap'),
     path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
+    path("robots.txt", robots_txt, name="robots_txt"),
+    path("merchant-feed.xml", google_merchant_feed, name="merchant_feed"),
+
     
+    # Arolana SEO Engine
+    path('', include('arolana_seo.urls')),
+    path(
+        'products/sitemap.xml',
+        sitemap,
+        {'sitemaps': {
+            'products': ArolanaProductSitemap,
+            'categories': ArolanaCategorySitemap,
+        }},
+        name='arolana_product_sitemap'
+    ),
     # Authentication
     path('accounts/', include('accounts.urls')),
     path('accounts/', include('allauth.urls')),
@@ -120,6 +140,10 @@ urlpatterns = [
     path('reports/', include('reports.urls')),
     path('notifications/', include('notifications.urls')),
     
+    # Smart AI Chat
+    path("smartchat/", include(("smartchat.urls", "smartchat"), namespace="smartchat")),
+    path("support/ai/", include("smartchat.compat_urls")),
+
     # Social Apps Status
     path('social-apps-status/', accounts_views.social_apps_status, name='social_apps_status'),
     

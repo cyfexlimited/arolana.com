@@ -476,7 +476,7 @@
 
                 <!-- Quantity Selector -->
                 <div class="mb-4">
-                    <label class="block font-semibold mb-2">Quantity:</label>
+                    <label class="block font-semibold mb-2">🔢 Quantity:</label>
                     <div class="flex items-center gap-3">
                         <button type="button" onclick="decrementQty()" class="w-12 h-12 border-2 rounded-xl hover:bg-gray-100 transition-all hover:scale-105" aria-label="Decrease quantity">-</button>
                         <input type="number" id="quantity" value="1" min="1" max="{{ product.stock_quantity|default:1 }}"
@@ -561,12 +561,12 @@
     <!-- Modern Tabs with Smooth Animations -->
     <div class="mt-12 bg-white rounded-2xl shadow-2xl overflow-hidden" x-data="{ tab: 'overview' }">
         <div class="border-b flex flex-wrap gap-2 px-6 pt-4 bg-gray-50">
-            <button @click="tab='overview'" :class="{'modern-tab active': tab=='overview'}" class="px-6 py-3 font-semibold transition-all">Overview</button>
-            <button @click="tab='specs'" :class="{'modern-tab active': tab=='specs'}" class="px-6 py-3 font-semibold transition-all">Specifications</button>
-            <button @click="tab='reviews'" :class="{'modern-tab active': tab=='reviews'}" class="px-6 py-3 font-semibold transition-all">Reviews ({{ product.reviews.count }})</button>
-	            <button @click="tab='qa'" :class="{'modern-tab active': tab=='qa'}" class="px-6 py-3 font-semibold transition-all">Q&A ({{ product.questions.count }})</button>
-            <button data-product-videos-tab @click="tab='videos'" :class="{'modern-tab active': tab=='videos'}" class="px-6 py-3 font-semibold transition-all">Videos</button>
-            <button @click="tab='accessories'" :class="{'modern-tab active': tab=='accessories'}" class="px-6 py-3 font-semibold transition-all">Accessories</button>
+            <button @click="tab='overview'" :class="{'modern-tab active': tab=='overview'}" class="px-6 py-3 font-semibold transition-all">📖 Overview</button>
+            <button @click="tab='specs'" :class="{'modern-tab active': tab=='specs'}" class="px-6 py-3 font-semibold transition-all">⚙️ Specifications</button>
+            <button @click="tab='reviews'" :class="{'modern-tab active': tab=='reviews'}" class="px-6 py-3 font-semibold transition-all">⭐ Reviews ({{ product.reviews.count }})</button>
+	            <button @click="tab='qa'" :class="{'modern-tab active': tab=='qa'}" class="px-6 py-3 font-semibold transition-all">💬 Q&A ({{ product.questions.count }})</button>
+            <button data-product-videos-tab @click="tab='videos'" :class="{'modern-tab active': tab=='videos'}" class="px-6 py-3 font-semibold transition-all">🎥 Videos</button>
+            <button @click="tab='accessories'" :class="{'modern-tab active': tab=='accessories'}" class="px-6 py-3 font-semibold transition-all">🎁 Accessories</button>
         </div>
 
         <div class="p-6">
@@ -823,7 +823,7 @@
     {% if frequently_bought_together %}
     <div class="mt-12">
         <div class="section-header">
-            <h2 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent">Frequently Bought Together</h2>
+            <h2 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent">🤝 Frequently Bought Together</h2>
             <a href="#" class="text-blue-600 text-sm hover:underline">View All →</a>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
@@ -867,7 +867,7 @@
     {% if related_products %}
     <div class="mt-12">
         <div class="section-header">
-            <h2 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent">You May Also Like</h2>
+            <h2 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent">✨ You May Also Like</h2>
             <a href="#" class="text-blue-600 text-sm hover:underline">View All →</a>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
@@ -908,7 +908,7 @@
     {% if top_rated_similar %}
     <div class="mt-12">
         <div class="section-header">
-            <h2 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent">Top Rated Similar</h2>
+            <h2 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent">⭐ Top Rated Similar</h2>
             <a href="#" class="text-blue-600 text-sm hover:underline">View All →</a>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
@@ -946,7 +946,7 @@
     {% if best_sellers %}
     <div class="mt-12">
         <div class="section-header">
-            <h2 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent">Best Sellers in {{ product.category.name }}</h2>
+            <h2 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent">🏆 Best Sellers in {{ product.category.name }}</h2>
             <a href="#" class="text-blue-600 text-sm hover:underline">View All →</a>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
@@ -962,7 +962,7 @@
                             </div>
                         {% endif %}
                         {% if item.is_bestseller %}
-                            <span class="absolute top-2 left-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded-full">Bestseller</span>
+                            <span class="absolute top-2 left-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded-full">🔥 Bestseller</span>
                         {% endif %}
                     </div>
                     <div class="p-3">
@@ -987,7 +987,7 @@
     {% if recently_viewed %}
     <div class="mt-12">
         <div class="section-header">
-            <h2 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent">Recently Viewed</h2>
+            <h2 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent">🕐 Recently Viewed</h2>
             <a href="#" class="text-blue-600 text-sm hover:underline">Clear History</a>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
@@ -1049,7 +1049,7 @@
     <!-- Explore More from Across the Store -->
     <div class="mt-12">
         <div class="section-header">
-            <h2 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent">Explore More from Across the Store</h2>
+            <h2 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent">🌐 Explore More from Across the Store</h2>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {% for category in all_categories|slice:":12" %}
@@ -1122,6 +1122,67 @@
     <button type="button" onclick="showNextLightboxImage()" class="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 text-white hover:bg-white/20 transition" aria-label="Next image">
         <i class="fas fa-chevron-right"></i>
     </button>
+</div>
+
+<!-- Arolana Floating AI Chat Widget -->
+<div id="arolana-ai-widget" class="fixed bottom-6 right-6 z-[9999]">
+    <!-- Chat Panel -->
+    <div id="ai-chat-panel" class="arolana-ai-panel hidden mb-4 w-[calc(100vw-2rem)] max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl border border-gray-200">
+        <div class="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 p-4 text-white">
+            <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <div class="relative flex h-11 w-11 items-center justify-center rounded-full bg-white/15 backdrop-blur-md">
+                        <i class="fas fa-robot text-xl"></i>
+                        <span class="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white bg-green-400"></span>
+                    </div>
+                    <div>
+                        <p class="font-bold leading-tight">Arolana AI Assistant</p>
+                        <p class="text-xs text-white/85">Product help • 24/7 available</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeAIChat()" class="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition" aria-label="Close AI chat">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <div id="ai-chat-messages" class="ai-chat-scroll h-80 overflow-y-auto bg-gray-50 p-4 space-y-3">
+            <div class="ai-message-bubble ai-message-bot rounded-2xl rounded-tl-md px-4 py-3 text-sm shadow-sm">
+                Hi! I can help with <strong>{{ product.name|truncatewords:8 }}</strong>. Ask about price, variants, stock, delivery, compatibility, or reviews.
+            </div>
+        </div>
+
+        <div class="border-t bg-white p-3">
+            <div class="mb-3 flex flex-wrap gap-2">
+                <button type="button" class="ai-quick-reply rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100" data-ai-prompt="Is this product in stock?">Stock</button>
+                <button type="button" class="ai-quick-reply rounded-full bg-purple-50 px-3 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-100" data-ai-prompt="Which variant should I choose?">Variants</button>
+                <button type="button" class="ai-quick-reply rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-100" data-ai-prompt="Tell me about delivery and warranty.">Delivery</button>
+            </div>
+            <form id="ai-chat-form" class="flex items-center gap-2">
+                <input id="ai-chat-input" type="text" autocomplete="off" placeholder="Ask about this product..." class="min-w-0 flex-1 rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
+                <button type="submit" class="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg hover:scale-105 transition" aria-label="Send AI chat message">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Floating Toggle Button -->
+    <div class="group relative ml-auto h-16 w-16">
+        <div class="absolute inset-0 rounded-full bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 blur-xl opacity-40 group-hover:opacity-70 transition duration-500 animate-pulse"></div>
+        <button id="ai-chat-toggle" type="button" onclick="openAIChat()" aria-label="Open AI Chat" aria-expanded="false"
+            class="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 text-white shadow-2xl backdrop-blur-md transition-all duration-300 hover:scale-110 hover:shadow-purple-500/40 active:scale-95">
+            <span class="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition duration-500"></span>
+            <i id="ai-chat-toggle-icon" class="fas fa-comment-dots text-2xl relative z-10"></i>
+            <span class="absolute top-1 right-1 flex h-4 w-4">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span class="relative inline-flex h-4 w-4 rounded-full border-2 border-white bg-green-500"></span>
+            </span>
+        </button>
+        <div id="ai-chat-tooltip" class="pointer-events-none absolute bottom-20 right-0 translate-y-2 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+            <div class="whitespace-nowrap rounded-xl bg-black/90 px-4 py-2 text-sm text-white shadow-xl">Chat with Arolana AI</div>
+        </div>
+    </div>
 </div>
 
 <!-- Price Alert Modal -->
@@ -1250,10 +1311,6 @@
         productSku: '{{ product.sku|escapejs }}',
         productPrice: '{{ current_price|currency:request|escapejs }}',
         aiBusy: false,
-        aiConversationId: null,
-        aiLastMessageId: 0,
-        aiAdminRequested: false,
-        aiPollTimer: null,
         defaultUI: null
     };
 
@@ -1731,111 +1788,6 @@
         return 'I can help with stock, variants, product images, price, delivery, warranty, and Add to Cart.';
     }
 
-    function updateAIStatus(status, assignedAdmin) {
-        const statusText = getEl('ai-chat-status-text');
-        if (!statusText) return;
-
-        if (status === 'admin_active') {
-            statusText.textContent = assignedAdmin ? `Admin joined • ${assignedAdmin}` : 'Admin joined • live support';
-        } else if (status === 'admin_requested') {
-            statusText.textContent = 'Waiting for admin • AI still available';
-        } else if (status === 'closed') {
-            statusText.textContent = 'Chat closed';
-        } else {
-            statusText.textContent = 'AI product help • admin can join';
-        }
-    }
-
-    function getLastRenderedMessageId() {
-        return Number(state.aiLastMessageId || 0);
-    }
-
-    function appendServerMessages(messages) {
-        if (!Array.isArray(messages)) return;
-        messages.forEach(function (msg) {
-            if (!msg || !msg.id) return;
-            if (Number(msg.id) <= getLastRenderedMessageId()) return;
-
-            if (msg.sender_type === 'user') {
-                // User message is already rendered instantly before request.
-                state.aiLastMessageId = Math.max(getLastRenderedMessageId(), Number(msg.id));
-                return;
-            }
-
-            const sender = msg.sender_type === 'admin' ? 'bot' : 'bot';
-            const prefix = msg.sender_type === 'admin' ? 'Admin: ' : '';
-            appendAIMessage(prefix + (msg.message || ''), sender);
-            state.aiLastMessageId = Math.max(getLastRenderedMessageId(), Number(msg.id));
-        });
-    }
-
-    function startSmartChatPolling() {
-        if (state.aiPollTimer || !state.aiConversationId) return;
-
-        state.aiPollTimer = setInterval(async function () {
-            if (!state.aiConversationId) return;
-
-            try {
-                const url = `/smartchat/api/poll/?conversation_id=${encodeURIComponent(state.aiConversationId)}&after_id=${encodeURIComponent(getLastRenderedMessageId())}`;
-                const response = await fetch(url, {
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                });
-
-                if (!response.ok) return;
-                const data = await response.json();
-                updateAIStatus(data.status, data.assigned_admin || '');
-                appendServerMessages(data.messages || []);
-
-                if (data.status === 'closed' && state.aiPollTimer) {
-                    clearInterval(state.aiPollTimer);
-                    state.aiPollTimer = null;
-                }
-            } catch (error) {
-                // Keep silent; polling will retry.
-            }
-        }, 4000);
-    }
-
-    async function requestAdminHandoff() {
-        openAIChat();
-
-        if (state.aiAdminRequested) {
-            appendAIMessage('Admin support has already been requested. Please keep this chat open.', 'bot');
-            return;
-        }
-
-        state.aiAdminRequested = true;
-        appendAIMessage('Please connect me with an Arolana admin.', 'user');
-
-        try {
-            const response = await fetch('/smartchat/api/request-admin/', {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': '{{ csrf_token }}',
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: JSON.stringify({
-                    conversation_id: state.aiConversationId || null,
-                    product_id: {{ product.id }},
-                    product_name: state.productName,
-                    sku: getEl('product-sku')?.innerText || state.productSku,
-                    selected_variants: state.selectedVariants,
-                    page_url: window.location.href,
-                    message: 'Customer requested admin support from product page.'
-                })
-            });
-
-            const data = response.ok ? await response.json() : {};
-            if (data.conversation_id) state.aiConversationId = data.conversation_id;
-            updateAIStatus(data.status || 'admin_requested');
-            appendAIMessage(data.reply || 'Admin support has been requested. Please keep this chat open.', 'bot');
-            startSmartChatPolling();
-        } catch (error) {
-            appendAIMessage('I could not alert admin right now. Please try again or use the support page.', 'bot');
-        }
-    }
-
     async function sendAIMessage(message) {
         if (!message || state.aiBusy) return;
 
@@ -1849,17 +1801,21 @@
             const typing = document.createElement('div');
             typing.id = typingId;
             typing.className = 'ai-message-bubble ai-message-bot rounded-2xl rounded-tl-md px-4 py-3 text-sm shadow-sm';
-            typing.textContent = 'Thinking...';
+            typing.textContent = 'Typing...';
             box.appendChild(typing);
             box.scrollTop = box.scrollHeight;
         }
 
         try {
             let reply = '';
-            let data = {};
 
+            /*
+                Optional backend endpoint:
+                If /support/ai/product-chat/ exists, this will use it.
+                If it does not exist, the local fallback reply still works.
+            */
             try {
-                const response = await fetch('/smartchat/api/message/', {
+                const response = await fetch('/support/ai/product-chat/', {
                     method: 'POST',
                     headers: {
                         'X-CSRFToken': '{{ csrf_token }}',
@@ -1867,26 +1823,17 @@
                         'X-Requested-With': 'XMLHttpRequest'
                     },
                     body: JSON.stringify({
-                        conversation_id: state.aiConversationId || null,
                         product_id: {{ product.id }},
                         product_name: state.productName,
                         sku: getEl('product-sku')?.innerText || state.productSku,
                         selected_variants: state.selectedVariants,
-                        page_url: window.location.href,
                         message: message
                     })
                 });
 
                 if (response.ok) {
-                    data = await response.json();
+                    const data = await response.json();
                     reply = data.reply || data.message || '';
-                    if (data.conversation_id) state.aiConversationId = data.conversation_id;
-                    if (data.status) updateAIStatus(data.status);
-                    if (data.handoff_requested) {
-                        state.aiAdminRequested = true;
-                        startSmartChatPolling();
-                    }
-                    appendServerMessages(data.messages || []);
                 }
             } catch (apiError) {
                 reply = '';
@@ -1899,10 +1846,7 @@
             const typing = getEl(typingId);
             if (typing) typing.remove();
 
-            // If server messages did not already render a bot/admin reply, show the reply.
-            if (!data.messages || !data.messages.length) {
-                appendAIMessage(reply, 'bot');
-            }
+            appendAIMessage(reply, 'bot');
         } finally {
             state.aiBusy = false;
         }
@@ -2246,7 +2190,6 @@
     window.startAIChat = startAIChat;
     window.openAIChat = openAIChat;
     window.closeAIChat = closeAIChat;
-    window.requestAdminHandoff = requestAdminHandoff;
     window.addToCart = addToCart;
     window.addAccessoryToCart = addAccessoryToCart;
     window.setPriceAlert = setPriceAlert;

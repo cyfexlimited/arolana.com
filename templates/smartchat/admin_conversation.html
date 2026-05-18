@@ -1,0 +1,729 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Smart Chat #{{ conversation.id }} | Arolana Admin{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    :root {
+        --arolana-blue: #2563eb;
+        --arolana-purple: #7c3aed;
+        --arolana-green: #059669;
+        --arolana-gray: #f3f4f6;
+        --arolana-dark: #111827;
+    }
+
+    body.change-list,
+    body {
+        background: #f5f7fb !important;
+    }
+
+    .smartchat-wrap {
+        max-width: 1180px;
+        margin: 24px auto;
+        padding: 0 16px 40px;
+        color: #111827;
+    }
+
+    .smartchat-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+
+    .smartchat-title h1 {
+        margin: 0;
+        font-size: 24px;
+        font-weight: 800;
+        color: #111827;
+    }
+
+    .smartchat-title p {
+        margin: 4px 0 0;
+        color: #6b7280;
+        font-size: 13px;
+    }
+
+    .smartchat-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-end;
+    }
+
+    .smartchat-btn,
+    .smartchat-link-btn {
+        border: 0;
+        border-radius: 999px;
+        padding: 9px 14px;
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+        text-decoration: none !important;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    }
+
+    .smartchat-link-btn:hover,
+    .smartchat-btn:hover {
+        transform: translateY(-1px);
+    }
+
+    .smartchat-btn-primary {
+        color: #fff !important;
+        background: linear-gradient(135deg, var(--arolana-blue), var(--arolana-purple));
+        box-shadow: 0 12px 28px rgba(37, 99, 235, 0.25);
+    }
+
+    .smartchat-btn-secondary {
+        color: #111827 !important;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+    }
+
+    .smartchat-btn-danger {
+        color: #fff !important;
+        background: #dc2626;
+    }
+
+    .smartchat-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 330px;
+        gap: 16px;
+        align-items: start;
+    }
+
+    .smartchat-card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+    }
+
+    .smartchat-chat-header {
+        padding: 16px 18px;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        background: linear-gradient(135deg, #ffffff, #f8fafc);
+    }
+
+    .smartchat-customer {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+    }
+
+    .smartchat-avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, var(--arolana-blue), var(--arolana-purple));
+        color: #fff;
+        font-weight: 900;
+        flex: 0 0 auto;
+    }
+
+    .smartchat-customer strong {
+        display: block;
+        color: #111827;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .smartchat-customer span {
+        display: block;
+        color: #6b7280;
+        font-size: 12px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .smartchat-status {
+        flex: 0 0 auto;
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 12px;
+        font-weight: 900;
+        background: #eef2ff;
+        color: #3730a3;
+        text-transform: capitalize;
+    }
+
+    .smartchat-live-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 11px;
+        font-weight: 900;
+        color: #065f46;
+        background: #ecfdf5;
+        border: 1px solid #a7f3d0;
+    }
+
+    .smartchat-live-dot {
+        width: 8px;
+        height: 8px;
+        background: #10b981;
+        border-radius: 999px;
+        box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.14);
+    }
+
+    .smartchat-messages {
+        height: min(64vh, 650px);
+        min-height: 420px;
+        overflow-y: auto;
+        padding: 18px;
+        background:
+            radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 35%),
+            radial-gradient(circle at bottom right, rgba(124, 58, 237, 0.08), transparent 35%),
+            #f8fafc;
+    }
+
+    .smartchat-message-row {
+        display: flex;
+        margin-bottom: 12px;
+    }
+
+    .smartchat-message-row.user,
+    .smartchat-message-row.ai,
+    .smartchat-message-row.system {
+        justify-content: flex-start;
+    }
+
+    .smartchat-message-row.admin {
+        justify-content: flex-end;
+    }
+
+    .smartchat-bubble {
+        max-width: min(76%, 680px);
+        border-radius: 18px;
+        padding: 12px 14px;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+        word-break: break-word;
+        white-space: pre-wrap;
+        line-height: 1.45;
+        font-size: 14px;
+    }
+
+    .smartchat-message-row.user .smartchat-bubble {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        color: #111827;
+        border-top-left-radius: 6px;
+    }
+
+    .smartchat-message-row.ai .smartchat-bubble {
+        background: #eef2ff;
+        border: 1px solid #dbeafe;
+        color: #1e3a8a;
+        border-top-left-radius: 6px;
+    }
+
+    .smartchat-message-row.admin .smartchat-bubble {
+        background: linear-gradient(135deg, var(--arolana-blue), var(--arolana-purple));
+        color: #fff;
+        border-top-right-radius: 6px;
+    }
+
+    .smartchat-message-row.system .smartchat-bubble {
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        color: #92400e;
+        border-radius: 14px;
+        font-size: 12px;
+        max-width: 92%;
+    }
+
+    .smartchat-private-note {
+        background: #fef2f2 !important;
+        border: 1px dashed #ef4444 !important;
+        color: #991b1b !important;
+    }
+
+    .smartchat-meta {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 11px;
+        opacity: 0.72;
+        margin-bottom: 5px;
+        font-weight: 800;
+    }
+
+    .smartchat-reply-area {
+        border-top: 1px solid #e5e7eb;
+        padding: 14px;
+        background: #fff;
+    }
+
+    .smartchat-reply-form {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: end;
+    }
+
+    .smartchat-reply-form textarea {
+        width: 100%;
+        min-height: 88px;
+        resize: vertical;
+        border: 1px solid #d1d5db;
+        border-radius: 14px;
+        padding: 12px 14px;
+        outline: none;
+        font-size: 14px;
+        line-height: 1.45;
+        box-shadow: none !important;
+    }
+
+    .smartchat-reply-form textarea:focus {
+        border-color: var(--arolana-blue);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14) !important;
+    }
+
+    .smartchat-send-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: stretch;
+    }
+
+    .smartchat-note-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        color: #4b5563;
+        font-size: 12px;
+        font-weight: 700;
+        user-select: none;
+    }
+
+    .smartchat-side {
+        display: grid;
+        gap: 16px;
+    }
+
+    .smartchat-side-card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 18px;
+        padding: 16px;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.06);
+    }
+
+    .smartchat-side-card h3 {
+        margin: 0 0 12px;
+        font-size: 15px;
+        font-weight: 900;
+        color: #111827;
+    }
+
+    .smartchat-info-list {
+        display: grid;
+        gap: 10px;
+        font-size: 13px;
+    }
+
+    .smartchat-info-item {
+        display: grid;
+        gap: 3px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #f3f4f6;
+    }
+
+    .smartchat-info-item:last-child {
+        border-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    .smartchat-info-item span {
+        color: #6b7280;
+        font-size: 11px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+
+    .smartchat-info-item strong,
+    .smartchat-info-item a {
+        color: #111827;
+        font-weight: 700;
+        text-decoration: none;
+        overflow-wrap: anywhere;
+    }
+
+    .smartchat-info-item a:hover {
+        color: var(--arolana-blue);
+    }
+
+    .smartchat-empty {
+        text-align: center;
+        color: #6b7280;
+        padding: 55px 20px;
+    }
+
+    .smartchat-empty-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 999px;
+        background: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 10px;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+    }
+
+    @media (max-width: 900px) {
+        .smartchat-grid {
+            grid-template-columns: 1fr;
+        }
+        .smartchat-header {
+            flex-direction: column;
+        }
+        .smartchat-actions {
+            justify-content: flex-start;
+        }
+        .smartchat-reply-form {
+            grid-template-columns: 1fr;
+        }
+        .smartchat-send-stack {
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .smartchat-bubble {
+            max-width: 92%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="smartchat-wrap">
+    <div class="smartchat-header">
+        <div class="smartchat-title">
+            <h1>Smart Chat #{{ conversation.id }}</h1>
+            <p>Admin can continue the same customer conversation from here. New customer messages appear automatically.</p>
+        </div>
+        <div class="smartchat-actions">
+            <span class="smartchat-live-pill"><span class="smartchat-live-dot"></span> Live polling</span>
+            <a href="{% url 'smartchat:admin_inbox' %}" class="smartchat-link-btn smartchat-btn-secondary">← Inbox</a>
+            {% if conversation.product %}
+                <a href="{{ conversation.product.get_absolute_url }}" target="_blank" class="smartchat-link-btn smartchat-btn-secondary">View Product</a>
+            {% endif %}
+            {% if conversation.status != conversation.STATUS_CLOSED %}
+                <form method="post" action="{% url 'smartchat:admin_close' conversation.id %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="smartchat-btn smartchat-btn-danger" onclick="return confirm('Close this conversation?')">Close Chat</button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="smartchat-grid">
+        <section class="smartchat-card">
+            <div class="smartchat-chat-header">
+                <div class="smartchat-customer">
+                    <div class="smartchat-avatar">
+                        {% if conversation.customer_name %}
+                            {{ conversation.customer_name|first|upper }}
+                        {% elif conversation.user %}
+                            {{ conversation.user.username|first|upper }}
+                        {% else %}
+                            C
+                        {% endif %}
+                    </div>
+                    <div class="min-w-0">
+                        <strong>
+                            {% if conversation.customer_name %}
+                                {{ conversation.customer_name }}
+                            {% elif conversation.user %}
+                                {{ conversation.user.get_full_name|default:conversation.user.username }}
+                            {% else %}
+                                Guest Customer
+                            {% endif %}
+                        </strong>
+                        <span>
+                            {% if conversation.customer_email %}
+                                {{ conversation.customer_email }}
+                            {% elif conversation.user and conversation.user.email %}
+                                {{ conversation.user.email }}
+                            {% else %}
+                                Session {{ conversation.session_key|default:"anonymous"|truncatechars:18 }}
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+                <span class="smartchat-status" id="smartchat-status">{{ conversation.status|default:"open"|cut:"_" }}</span>
+            </div>
+
+            <div
+                id="smartchat-message-list"
+                class="smartchat-messages"
+                data-last-message-id="{% if messages %}{{ messages.last.id }}{% else %}0{% endif %}"
+            >
+                {% for message in messages %}
+                    <div class="smartchat-message-row {{ message.sender_type }}" data-message-id="{{ message.id }}">
+                        <div class="smartchat-bubble {% if message.is_private_note %}smartchat-private-note{% endif %}">
+                            <div class="smartchat-meta">
+                                <span>
+                                    {% if message.is_private_note %}Private note • {% endif %}
+                                    {% if message.sender_type == message.SENDER_USER %}
+                                        Customer
+                                    {% elif message.sender_type == message.SENDER_ADMIN %}
+                                        {% if message.user %}{{ message.user.get_full_name|default:message.user.username }}{% else %}Admin{% endif %}
+                                    {% elif message.sender_type == message.SENDER_AI %}
+                                        Arolana AI
+                                    {% else %}
+                                        System
+                                    {% endif %}
+                                </span>
+                                <span>{{ message.created_at|date:"M d, H:i" }}</span>
+                            </div>
+                            {{ message.message|linebreaksbr }}
+                        </div>
+                    </div>
+                {% empty %}
+                    <div id="smartchat-empty-state" class="smartchat-empty">
+                        <div class="smartchat-empty-icon">💬</div>
+                        <strong>No messages yet.</strong>
+                        <p>The customer conversation will appear here once messages are sent.</p>
+                    </div>
+                {% endfor %}
+            </div>
+
+            {% if conversation.status != conversation.STATUS_CLOSED %}
+                <div class="smartchat-reply-area">
+                    <form method="post" action="{% url 'smartchat:admin_reply' conversation.id %}" class="smartchat-reply-form" id="smartchat-admin-reply-form">
+                        {% csrf_token %}
+                        <textarea name="message" id="smartchat-admin-message" placeholder="Type your reply to the customer..." required></textarea>
+                        <div class="smartchat-send-stack">
+                            <label class="smartchat-note-toggle" title="Private note will not be visible to customer">
+                                <input type="checkbox" name="private_note">
+                                Private note
+                            </label>
+                            <button type="submit" class="smartchat-btn smartchat-btn-primary">Send Reply</button>
+                        </div>
+                    </form>
+                </div>
+            {% else %}
+                <div class="smartchat-reply-area">
+                    <strong>This conversation is closed.</strong>
+                </div>
+            {% endif %}
+        </section>
+
+        <aside class="smartchat-side">
+            <div class="smartchat-side-card">
+                <h3>Customer Details</h3>
+                <div class="smartchat-info-list">
+                    <div class="smartchat-info-item">
+                        <span>Name</span>
+                        <strong>{{ conversation.customer_name|default:"Guest Customer" }}</strong>
+                    </div>
+                    <div class="smartchat-info-item">
+                        <span>Email</span>
+                        <strong>{{ conversation.customer_email|default:"Not provided" }}</strong>
+                    </div>
+                    <div class="smartchat-info-item">
+                        <span>Status</span>
+                        <strong id="smartchat-side-status">{{ conversation.status }}</strong>
+                    </div>
+                    <div class="smartchat-info-item">
+                        <span>Assigned Admin</span>
+                        <strong>{% if conversation.assigned_admin %}{{ conversation.assigned_admin.get_full_name|default:conversation.assigned_admin.username }}{% else %}Not assigned{% endif %}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="smartchat-side-card">
+                <h3>Product Context</h3>
+                <div class="smartchat-info-list">
+                    <div class="smartchat-info-item">
+                        <span>Product</span>
+                        {% if conversation.product %}
+                            <a href="{{ conversation.product.get_absolute_url }}" target="_blank">{{ conversation.product.name }}</a>
+                        {% else %}
+                            <strong>Not attached</strong>
+                        {% endif %}
+                    </div>
+                    {% if conversation.product %}
+                    <div class="smartchat-info-item">
+                        <span>SKU</span>
+                        <strong>{{ conversation.product.sku }}</strong>
+                    </div>
+                    <div class="smartchat-info-item">
+                        <span>Price</span>
+                        <strong>{{ conversation.product.price }}</strong>
+                    </div>
+                    <div class="smartchat-info-item">
+                        <span>Stock</span>
+                        <strong>{{ conversation.product.stock_quantity }}</strong>
+                    </div>
+                    {% endif %}
+                    {% if conversation.page_url %}
+                    <div class="smartchat-info-item">
+                        <span>Page URL</span>
+                        <a href="{{ conversation.page_url }}" target="_blank">{{ conversation.page_url|truncatechars:42 }}</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="smartchat-side-card">
+                <h3>Quick Replies</h3>
+                <div style="display:grid; gap:8px;">
+                    <button type="button" class="smartchat-link-btn smartchat-btn-secondary" data-quick-reply="Hello, thank you for contacting Arolana. I am checking this for you now.">Checking now</button>
+                    <button type="button" class="smartchat-link-btn smartchat-btn-secondary" data-quick-reply="This product is available. Kindly choose your preferred variant and quantity before adding it to cart.">Available</button>
+                    <button type="button" class="smartchat-link-btn smartchat-btn-secondary" data-quick-reply="Please share the exact issue you are having so I can assist you better.">Ask for details</button>
+                    <button type="button" class="smartchat-link-btn smartchat-btn-secondary" data-quick-reply="Thank you for your patience. I will escalate this and update you shortly.">Escalate</button>
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+
+<script>
+(function () {
+    const messageList = document.getElementById('smartchat-message-list');
+    const textarea = document.getElementById('smartchat-admin-message');
+    const form = document.getElementById('smartchat-admin-reply-form');
+    const statusPill = document.getElementById('smartchat-status');
+    const sideStatus = document.getElementById('smartchat-side-status');
+
+    if (!messageList) return;
+
+    let lastMessageId = Number(messageList.dataset.lastMessageId || 0);
+
+    function escapeHtml(value) {
+        return String(value || '').replace(/[&<>"']/g, function (char) {
+            return {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            }[char];
+        });
+    }
+
+    function senderLabel(message) {
+        if (message.sender_type === 'user') return 'Customer';
+        if (message.sender_type === 'admin') return message.sender_name || 'Admin';
+        if (message.sender_type === 'ai') return 'Arolana AI';
+        return 'System';
+    }
+
+    function formatDate(value) {
+        try {
+            const date = new Date(value);
+            return date.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        } catch (error) {
+            return '';
+        }
+    }
+
+    function renderMessage(message) {
+        if (!message || !message.id) return;
+        if (document.querySelector('[data-message-id="' + message.id + '"]')) return;
+
+        const emptyState = document.getElementById('smartchat-empty-state');
+        if (emptyState) emptyState.remove();
+
+        const senderType = message.sender_type || 'system';
+        const row = document.createElement('div');
+        row.className = 'smartchat-message-row ' + senderType;
+        row.dataset.messageId = message.id;
+
+        const bubble = document.createElement('div');
+        bubble.className = 'smartchat-bubble';
+
+        const meta = document.createElement('div');
+        meta.className = 'smartchat-meta';
+        meta.innerHTML = '<span>' + escapeHtml(senderLabel(message)) + '</span><span>' + escapeHtml(formatDate(message.created_at)) + '</span>';
+
+        const text = document.createElement('div');
+        text.innerHTML = escapeHtml(message.message).replace(/\n/g, '<br>');
+
+        bubble.appendChild(meta);
+        bubble.appendChild(text);
+        row.appendChild(bubble);
+        messageList.appendChild(row);
+
+        lastMessageId = Math.max(lastMessageId, Number(message.id));
+        messageList.dataset.lastMessageId = String(lastMessageId);
+        messageList.scrollTop = messageList.scrollHeight;
+    }
+
+    async function pollMessages() {
+        try {
+            const response = await fetch("{% url 'smartchat:admin_poll' conversation.id %}?after_id=" + encodeURIComponent(lastMessageId), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin'
+            });
+
+            if (!response.ok) return;
+
+            const data = await response.json();
+            if (!data.success) return;
+
+            if (data.status) {
+                const clean = String(data.status).replace(/_/g, ' ');
+                if (statusPill) statusPill.textContent = clean;
+                if (sideStatus) sideStatus.textContent = data.status;
+            }
+
+            if (Array.isArray(data.messages)) {
+                data.messages.forEach(renderMessage);
+            }
+        } catch (error) {
+            console.warn('Arolana admin smartchat polling failed:', error);
+        }
+    }
+
+    if (messageList) {
+        messageList.scrollTop = messageList.scrollHeight;
+    }
+
+    document.querySelectorAll('[data-quick-reply]').forEach(function (button) {
+        button.addEventListener('click', function () {
+            if (!textarea) return;
+            textarea.value = this.dataset.quickReply || '';
+            textarea.focus();
+        });
+    });
+
+    if (textarea) {
+        textarea.addEventListener('keydown', function (event) {
+            if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+                event.preventDefault();
+                if (form) form.submit();
+            }
+        });
+        textarea.focus();
+    }
+
+    pollMessages();
+    window.setInterval(pollMessages, 3000);
+})();
+</script>
+{% endblock %}

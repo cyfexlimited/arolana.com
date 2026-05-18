@@ -1233,7 +1233,58 @@ class ReviewVideo(BaseModel):
     def __str__(self):
         return f"Review video for {self.review.product.name}"
 
+class ProductListingBanner(BaseModel):
+    """Admin-editable banner for the main products listing page."""
 
+    PLACEMENT_CHOICES = [
+        ("products_list", "Products List Page"),
+    ]
+
+    title = models.CharField(max_length=160, default="Discover the future of shopping")
+    subtitle = models.TextField(
+        blank=True,
+        default="Explore trusted products from verified vendors, compare prices, filter faster, and shop with a premium marketplace experience built for every screen."
+    )
+    eyebrow = models.CharField(max_length=80, default="Arolana Marketplace")
+    placement = models.CharField(max_length=40, choices=PLACEMENT_CHOICES, default="products_list", db_index=True)
+
+    background_image = models.ImageField(
+        upload_to="products/listing_banners/%Y/%m/",
+        blank=True,
+        null=True,
+        help_text="Main banner background image. Recommended: 1920x700."
+    )
+    side_image = models.ImageField(
+        upload_to="products/listing_banners/side/%Y/%m/",
+        blank=True,
+        null=True,
+        help_text="Optional floating side image/icon for desktop."
+    )
+
+    cta_text = models.CharField(max_length=80, blank=True, default="Start shopping")
+    cta_link = models.CharField(max_length=255, blank=True, default="#products-section")
+
+    metric_one_icon = models.CharField(max_length=50, default="box")
+    metric_one_text = models.CharField(max_length=80, default="Products")
+    metric_two_icon = models.CharField(max_length=50, default="shield-alt")
+    metric_two_text = models.CharField(max_length=80, default="Verified Vendors")
+    metric_three_icon = models.CharField(max_length=50, default="truck")
+    metric_three_text = models.CharField(max_length=80, default="Fast Delivery")
+
+    primary_color = models.CharField(max_length=20, blank=True, default="#2563eb")
+    secondary_color = models.CharField(max_length=20, blank=True, default="#7c3aed")
+
+    is_active = models.BooleanField(default=True, db_index=True)
+    display_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["display_order", "-created_at"]
+        verbose_name = "Product Listing Banner"
+        verbose_name_plural = "Product Listing Banners"
+
+    def __str__(self):
+        return self.title
+        
 # =========================
 # 🔥 BACKWARD COMPATIBILITY ALIAS
 # =========================

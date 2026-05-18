@@ -15,7 +15,7 @@ from django.template.loader import render_to_string
 from .models import (
     Product, Category, ProductReview, Wishlist, RecentlyViewed, 
     ProductVariant, ProductQuestion, Accessory, AccessoryProduct,
-    ProductImage, ProductVideo, ProductVariantImage, Brand
+    ProductImage, ProductVideo, ProductVariantImage, Brand, ProductListingBanner
 )
 from accounts.models import User
 from currency.templatetags.currency_filters import currency as format_currency
@@ -394,84 +394,113 @@ def remove_from_cart(request, item_id):
 
 def product_list(request):
     """Display paginated product list with filtering and sorting - APPROVED ONLY"""
-    products = Product.objects.filter(is_active=True, approval_status='approved').select_related(
-        'category',
-        'brand'
+
+    # ====== Admin-editable product listing banner ======
+    # This must be loaded BEFORE render so templates/products/list.html can use {{ shop_banner }}.
+    shop_banner = ProductListingBanner.objects.filter(
+        placement="products_list",
+        is_active=True,
+    ).order_by("display_order", "-created_at").first()
+
+    products = Product.objects.filter(
+        is_active=True,
+        approval_status="approved",
+    ).select_related(
+        "category",
+        "brand",
     )
-    
+
     # ====== Apply Filters ======
     products = apply_filters(products, request)
-    
+
     # ====== Sorting ======
-    sort_param = request.GET.get('sort', 'featured')
+    sort_param = request.GET.get("sort", "featured")
     sort_mapping = {
-        'featured': '-is_featured',
-        'newest': '-created_at',
-        'bestsellers': '-sales_count',
-        'trending': '-views_count',
-        'price_low': 'price',
-        'price_high': '-price',
-        'rating': '-rating_avg',
-        'name_asc': 'name',
-        'name_desc': '-name',
+        "featured": "-is_featured",
+        "newest": "-created_at",
+        "bestsellers": "-sales_count",
+        "trending": "-views_count",
+        "price_low": "price",
+        "price_high": "-price",
+        "rating": "-rating_avg",
+        "name_asc": "name",
+        "name_desc": "-name",
     }
-    
-    sort_field = sort_mapping.get(sort_param, '-is_featured')
+
+    sort_field = sort_mapping.get(sort_param, "-is_featured")
     products = products.order_by(sort_field)
-    
+
     # ====== Pagination ======
     paginator = Paginator(products, 24)
-    page = request.GET.get('page', 1)
+    page = request.GET.get("page", 1)
+
     try:
         products_page = paginator.page(page)
     except (PageNotAnInteger, EmptyPage):
         products_page = paginator.page(1)
-    
+
     # ====== Currency ======
     user_currency = get_user_currency(request)
-    
+
     # ====== Prepare categories and brands for template ======
-    product_count_filter = Q(products__is_active=True, products__approval_status='approved')
+    product_count_filter = Q(
+        products__is_active=True,
+        products__approval_status="approved",
+    )
+
     categories_list = (
         Category.objects
         .filter(is_active=True, parent=None)
-        .annotate(approved_product_count=Count('products', filter=product_count_filter))
-        .order_by('order', 'name')
+        .annotate(approved_product_count=Count("products", filter=product_count_filter))
+        .order_by("order", "name")
     )
+
     brands_list = (
         Brand.objects
         .filter(is_active=True)
-        .annotate(approved_product_count=Count('products', filter=product_count_filter))
-        .order_by('name')
+        .annotate(approved_product_count=Count("products", filter=product_count_filter))
+        .order_by("name")
     )
+
     filter_counts = {
-        'categories': {category.slug: category.approved_product_count for category in categories_list},
-        'brands': {brand.slug: brand.approved_product_count for brand in brands_list},
+        "categories": {
+            category.slug: category.approved_product_count
+            for category in categories_list
+        },
+        "brands": {
+            brand.slug: brand.approved_product_count
+            for brand in brands_list
+        },
     }
-    
+
     # ====== AJAX Request (return JSON for filtering) ======
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        html = render_to_string('products/product_grid.html', {
-            'products': products_page,
-            'user_currency': user_currency,
-        }, request=request)
-        
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        html = render_to_string(
+            "products/product_grid.html",
+            {
+                "products": products_page,
+                "user_currency": user_currency,
+            },
+            request=request,
+        )
+
         return JsonResponse({
-            'html': html,
-            'total_count': paginator.count,
-            'start_index': products_page.start_index(),
-            'end_index': products_page.end_index(),
+            "html": html,
+            "total_count": paginator.count,
+            "start_index": products_page.start_index(),
+            "end_index": products_page.end_index(),
         })
-    
+
     # ====== Regular Page Load ======
-    return render(request, 'products/list.html', {
-        'products': products_page,
-        'categories': categories_list,
-        'brands': brands_list,
-        'filter_counts': filter_counts,
-        'current_sort': sort_param,
-        'user_currency': user_currency,
-        'paginator': paginator,
+    return render(request, "products/list.html", {
+        "products": products_page,
+        "categories": categories_list,
+        "brands": brands_list,
+        "filter_counts": filter_counts,
+        "current_sort": sort_param,
+        "user_currency": user_currency,
+        "paginator": paginator,
+        "shop_banner": shop_banner,
     })
 
 

@@ -8,7 +8,7 @@ from .models import (
     Category, Brand, Product, ProductImage, ProductVariant, 
     ProductVariantImage, ProductReview, RecentlyViewed, 
     Wishlist, ProductVideo, ReviewVideo, ProductQnA,
-    Accessory, AccessoryProduct, ManufacturerWarranty, ShippingInfo
+    Accessory, AccessoryProduct, ManufacturerWarranty, ShippingInfo, ProductListingBanner
 )
 
 from django.utils.timezone import now
@@ -1000,6 +1000,61 @@ class RecentlyViewedAdmin(admin.ModelAdmin):
     def product_name(self, obj):
         return obj.product.name
     product_name.short_description = 'Product'
+
+@admin.register(ProductListingBanner)
+class ProductListingBannerAdmin(admin.ModelAdmin):
+    list_display = [
+        "title",
+        "placement",
+        "is_active",
+        "display_order",
+        "banner_preview",
+        "created_at",
+    ]
+    list_editable = ["is_active", "display_order"]
+    list_filter = ["placement", "is_active", "created_at"]
+    search_fields = ["title", "subtitle", "eyebrow"]
+    readonly_fields = ["banner_preview", "created_at", "updated_at"]
+
+    fieldsets = (
+        ("Banner Content", {
+            "fields": ("placement", "eyebrow", "title", "subtitle")
+        }),
+        ("Images", {
+            "fields": ("background_image", "side_image", "banner_preview"),
+            "description": "Recommended background image size: 1920x700."
+        }),
+        ("Call To Action", {
+            "fields": ("cta_text", "cta_link")
+        }),
+        ("Metrics", {
+            "fields": (
+                ("metric_one_icon", "metric_one_text"),
+                ("metric_two_icon", "metric_two_text"),
+                ("metric_three_icon", "metric_three_text"),
+            )
+        }),
+        ("Design Colors", {
+            "fields": ("primary_color", "secondary_color")
+        }),
+        ("Publishing", {
+            "fields": ("is_active", "display_order")
+        }),
+        ("Timestamps", {
+            "fields": ("created_at", "updated_at"),
+            "classes": ("collapse",)
+        }),
+    )
+
+    def banner_preview(self, obj):
+        if obj.background_image:
+            return format_html(
+                '<img src="{}" style="width:320px;height:120px;object-fit:cover;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);" />',
+                obj.background_image.url
+            )
+        return mark_safe('<span style="color:#9ca3af;">No banner image uploaded</span>')
+
+    banner_preview.short_description = "Preview"
 
 
 # =================================

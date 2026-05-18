@@ -23,6 +23,8 @@ ALLOWED_HOSTS = csv_config(
     'ALLOWED_HOSTS',
     default='arolana.com,www.arolana.com,localhost,127.0.0.1'
 )
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+AROLANA_AI_MODEL = os.environ.get("AROLANA_AI_MODEL", "gpt-5.5")
 
 REQUIRED_ALLOWED_HOSTS = [
     'arolana.com',
@@ -100,6 +102,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.humanize',
     'django.contrib.sites',
+    'django.contrib.sitemaps',
     'taggit',
     'rest_framework',
     'corsheaders',
@@ -136,8 +139,10 @@ INSTALLED_APPS = [
     'search_ai',
     'dashboard',
     'channels',
+    'smartchat',
+    'arolana_seo',
 ]
-
+AROLANA_BASE_CURRENCY = "NGN"
 # ============ MIDDLEWARE ============
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

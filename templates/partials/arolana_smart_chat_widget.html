@@ -1,0 +1,173 @@
+{% load static %}
+
+<div
+    id="arolana-smartchat-widget"
+    class="fixed bottom-6 right-6 z-[9999]"
+    data-message-url="{% url 'smartchat:api_message' %}"
+    data-poll-url="{% url 'smartchat:api_poll' %}"
+    data-request-admin-url="{% url 'smartchat:api_request_admin' %}"
+    data-admin-inbox-url="{% url 'smartchat:admin_inbox' %}"
+    data-product-id="{% if product %}{{ product.id }}{% endif %}"
+    data-product-name="{% if product %}{{ product.name|escape }}{% endif %}"
+    data-product-sku="{% if product %}{{ product.sku|escape }}{% endif %}"
+>
+    <div
+        id="arolana-smartchat-panel"
+        class="hidden mb-4 w-[calc(100vw-2rem)] max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl border border-gray-200"
+        style="animation: arolanaSmartChatIn .22s ease-out; transform-origin: bottom right;"
+    >
+        <div class="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 p-4 text-white">
+            <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="relative flex h-11 w-11 items-center justify-center rounded-full bg-white/15 backdrop-blur-md shrink-0">
+                        <i class="fas fa-robot text-xl"></i>
+                        <span class="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white bg-green-400"></span>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="font-bold leading-tight truncate">Arolana AI Assistant</p>
+                        <p id="arolana-smartchat-subtitle" class="text-xs text-white/85 truncate">
+                            Smart support • Admin handoff available
+                        </p>
+                    </div>
+                </div>
+                <button
+                    type="button"
+                    onclick="closeAIChat()"
+                    class="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition shrink-0"
+                    aria-label="Close AI chat"
+                >
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <div
+            id="arolana-smartchat-messages"
+            class="h-80 overflow-y-auto bg-gray-50 p-4 space-y-3"
+            data-last-message-id="0"
+            style="scrollbar-width: thin; scrollbar-color: #8b5cf6 #f1f5f9;"
+        >
+            <div class="arolana-chat-bubble arolana-chat-bot rounded-2xl rounded-tl-md px-4 py-3 text-sm shadow-sm bg-gray-100 text-gray-900 max-w-[86%]">
+                Hi! I’m Arolana AI. I can help with products, orders, delivery, vendors, payments, or connect you to an admin.
+            </div>
+        </div>
+
+        <div id="arolana-smartchat-admin-status" class="hidden border-t border-yellow-200 bg-yellow-50 px-4 py-2 text-xs text-yellow-800">
+            <i class="fas fa-headset mr-1"></i>
+            Admin support requested. Keep this chat open for replies.
+        </div>
+
+        <div class="border-t bg-white p-3">
+            <div class="mb-3 flex flex-wrap gap-2">
+                <button type="button" class="arolana-smartchat-quick rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100" data-prompt="I need help with this product.">Product help</button>
+                <button type="button" class="arolana-smartchat-quick rounded-full bg-purple-50 px-3 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-100" data-prompt="I want to speak with an admin.">Talk to admin</button>
+                <button type="button" class="arolana-smartchat-quick rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-100" data-prompt="Tell me about delivery and payment options.">Delivery</button>
+            </div>
+
+            <form id="arolana-smartchat-form" class="flex items-center gap-2">
+                <input
+                    id="arolana-smartchat-input"
+                    type="text"
+                    autocomplete="off"
+                    placeholder="Ask Arolana AI..."
+                    class="min-w-0 flex-1 rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                >
+                <button
+                    type="submit"
+                    id="arolana-smartchat-send"
+                    class="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg hover:scale-105 transition shrink-0"
+                    aria-label="Send AI chat message"
+                >
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </form>
+
+            <button
+                type="button"
+                id="arolana-smartchat-admin-btn"
+                class="mt-3 w-full rounded-xl bg-gray-100 px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-200 transition"
+            >
+                <i class="fas fa-headset mr-1"></i>
+                Request admin support
+            </button>
+        </div>
+    </div>
+
+    <div class="group relative ml-auto h-16 w-16">
+        <div class="absolute inset-0 rounded-full bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 blur-xl opacity-40 group-hover:opacity-70 transition duration-500 animate-pulse"></div>
+        <button
+            id="arolana-smartchat-toggle"
+            type="button"
+            onclick="openAIChat()"
+            aria-label="Open Arolana AI Chat"
+            aria-expanded="false"
+            class="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 text-white shadow-2xl backdrop-blur-md transition-all duration-300 hover:scale-110 hover:shadow-purple-500/40 active:scale-95"
+        >
+            <span class="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition duration-500"></span>
+            <i id="arolana-smartchat-toggle-icon" class="fas fa-comment-dots text-2xl relative z-10"></i>
+            <span class="absolute top-1 right-1 flex h-4 w-4">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span class="relative inline-flex h-4 w-4 rounded-full border-2 border-white bg-green-500"></span>
+            </span>
+        </button>
+        <div class="pointer-events-none absolute bottom-20 right-0 translate-y-2 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+            <div class="whitespace-nowrap rounded-xl bg-black/90 px-4 py-2 text-sm text-white shadow-xl">Chat with Arolana AI</div>
+        </div>
+    </div>
+</div>
+
+<style>
+    @keyframes arolanaSmartChatIn {
+        from { opacity: 0; transform: translateY(14px) scale(.96); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .arolana-chat-bubble {
+        word-break: break-word;
+        white-space: pre-wrap;
+    }
+
+    .arolana-chat-user {
+        margin-left: auto;
+        background: linear-gradient(135deg, #2563eb, #7c3aed);
+        color: #fff;
+        max-width: 86%;
+    }
+
+    .arolana-chat-bot {
+        margin-right: auto;
+        background: #f3f4f6;
+        color: #111827;
+        max-width: 86%;
+    }
+
+    .arolana-chat-admin {
+        margin-right: auto;
+        background: #ecfdf5;
+        color: #064e3b;
+        border: 1px solid #bbf7d0;
+        max-width: 86%;
+    }
+
+    .arolana-chat-system {
+        margin-right: auto;
+        background: #fffbeb;
+        color: #92400e;
+        border: 1px solid #fde68a;
+        max-width: 92%;
+        font-size: 12px;
+    }
+
+    @media (max-width: 480px) {
+        #arolana-smartchat-widget {
+            right: 1rem;
+            bottom: 1rem;
+        }
+
+        #arolana-smartchat-panel {
+            max-width: calc(100vw - 2rem);
+        }
+    }
+</style>
+
+<script src="{% static 'js/arolana-smart-chat.js' %}" defer></script>

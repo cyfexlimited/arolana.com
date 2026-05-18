@@ -306,132 +306,534 @@
         }
 
         .desktop-nav {
-    position: relative;
-    z-index: 1000;
-}
+            position: relative;
+            z-index: 1000;
+            background: #f8fafc;
+        }
 
-.desktop-nav .container {
-    position: relative;
-    max-width: 100%;
-}
+        .desktop-nav .container {
+            position: relative;
+            max-width: 100%;
+            overflow: visible;
+        }
 
-.desktop-nav-list {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: visible;
-}
+        .desktop-nav-list {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.15rem;
+            overflow: visible;
+            min-width: 0;
+        }
 
-.mega-menu-container {
-    position: relative;
-}
-
-.mega-menu-container > a {
-    gap: 0.70rem !important;
-    padding: 0.70rem 0.2rem !important;
-    font-size: 1.2rem !important;
-    line-height: 1;
-    white-space: nowrap;
-}
-
-.mega-menu-container:hover > a,
-.mega-menu-container:focus-within > a {
-    background: #fff;
-    color: var(--color-primary);
-    box-shadow: inset 0 -3px 0 var(--color-primary);
-}
-
-.mega-menu-dropdown {
-    display: block;
-    position: absolute;
-    top: 100%;
-    left: 0;
-
-    width: min(56rem, calc(100vw - 48px));
-    max-width: calc(100vw - 48px);
-    min-height: 240px;
-    max-height: min(72vh, 640px);
-
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding: 2rem;
-
-    background: #fff;
-    color: #1f2937;
-    border: 1px solid #e5e7eb;
-    border-top: 0;
-    border-radius: 0 0 8px 8px;
-    box-shadow: 0 28px 70px rgba(0, 0, 0, 0.18);
-
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    transform: translateY(8px);
-    transition: opacity 0.18s ease, visibility 0.18s ease, transform 0.18s ease;
-    z-index: 9999;
-}
-
-.mega-menu-container:hover > .mega-menu-dropdown,
-.mega-menu-container:focus-within > .mega-menu-dropdown {
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
-    transform: translateY(0);
-}
-
-/* Middle menu opens centered under its category */
-.mega-align-center > .mega-menu-dropdown {
-    left: 50%;
-    transform: translateX(-50%) translateY(8px);
-}
-
-.mega-align-center:hover > .mega-menu-dropdown,
-.mega-align-center:focus-within > .mega-menu-dropdown {
-    transform: translateX(-50%) translateY(0);
-}
-
-/* Right menu opens leftward but stays attached to the category */
-.mega-align-right > .mega-menu-dropdown {
-    left: auto;
-    right: 0;
-}
-
-/* Keep content from floating in the middle */
-.mega-menu-dropdown > .grid {
-    justify-items: start !important;
-    text-align: left !important;
-}
-
-.mega-menu-dropdown > .grid > * {
-    justify-self: stretch;
-}
-
-/* Right-side menus keep their content close to the hovered item */
-.mega-align-right > .mega-menu-dropdown > .grid,
-.mega-align-right > .mega-menu-dropdown > .mega-menu-inner {
-    width: min(100%, 36rem);
-    margin-left: auto;
-    margin-right: 0;
-}
-
-.mega-menu-sm {
-    width: min(26rem, calc(100vw - 48px));
-}
-
-.mega-menu-md {
-    width: min(28rem, calc(100vw - 48px));
-}
-
-.mega-menu-lg {
-    width: min(36rem, calc(100vw - 48px));
-}
-
-.mega-menu-xl {
-    width: min(40rem, calc(100vw - 48px));
-}
+        .mega-menu-container {
+            position: relative;
+            flex: 0 0 auto;
+        }
 
 
+        /* Strong hover bridge: keeps desktop dropdown clickable */
+        .mega-menu-container.is-mega-open::after,
+        .mega-menu-container:hover::after {
+            content: '';
+            position: absolute;
+            left: -10px;
+            right: -10px;
+            top: 100%;
+            height: 18px;
+            z-index: 10049;
+            background: transparent;
+        }
+
+        .mega-menu-container.is-mega-open > .mega-menu-dropdown {
+            opacity: 1 !important;
+            visibility: visible !important;
+            pointer-events: auto !important;
+            transform: translateY(0) scale(1) !important;
+        }
+
+        .mega-menu-dropdown {
+            margin-top: 0 !important;
+        }
+
+
+        .mega-menu-container > a {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem !important;
+            padding: 0.86rem 0.78rem !important;
+            font-size: 0.94rem !important;
+            line-height: 1;
+            font-weight: 750;
+            white-space: nowrap;
+            color: #1f2937;
+            border-radius: 0.75rem 0.75rem 0 0;
+            transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        .mega-menu-container > a img {
+            width: 1.25rem;
+            height: 1.25rem;
+            object-fit: cover;
+            flex: 0 0 auto;
+        }
+
+        .mega-menu-container:hover > a,
+        .mega-menu-container:focus-within > a,
+        .mega-menu-container.is-mega-open > a {
+            background: #fff;
+            color: var(--color-primary);
+            box-shadow: inset 0 -3px 0 var(--color-primary), 0 8px 20px rgba(15, 23, 42, 0.07);
+        }
+
+        .mega-menu-dropdown {
+            display: block;
+            position: fixed !important;
+            top: var(--mega-top, 150px);
+            left: var(--mega-left, 16px);
+
+            width: min(58rem, calc(100vw - 32px));
+            max-width: calc(100vw - 32px);
+            min-height: 220px;
+            max-height: min(72vh, calc(100vh - var(--mega-top, 150px) - 24px));
+
+            overflow-y: auto;
+            overflow-x: hidden;
+            overscroll-behavior: contain;
+            padding: 1.5rem;
+
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.98));
+            color: #1f2937;
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            border-top: 3px solid var(--color-primary);
+            border-radius: 0 0 1rem 1rem;
+            box-shadow: 0 28px 80px rgba(15, 23, 42, 0.20);
+
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transform: translateY(8px) scale(0.985);
+            transform-origin: top center;
+            transition:
+                opacity 0.18s ease,
+                visibility 0.18s ease,
+                transform 0.18s ease;
+            z-index: 10050;
+            scrollbar-width: thin;
+            scrollbar-color: var(--color-primary) #eef2f7;
+        }
+
+        .mega-menu-dropdown::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .mega-menu-dropdown::-webkit-scrollbar-track {
+            background: #eef2f7;
+            border-radius: 999px;
+        }
+
+        .mega-menu-dropdown::-webkit-scrollbar-thumb {
+            background: var(--color-primary);
+            border-radius: 999px;
+        }
+
+        .mega-menu-container:hover > .mega-menu-dropdown,
+        .mega-menu-container:focus-within > .mega-menu-dropdown,
+        .mega-menu-container.is-mega-open > .mega-menu-dropdown {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transform: translateY(0) scale(1);
+        }
+
+        .mega-menu-dropdown::before {
+            content: '';
+            position: fixed;
+            top: calc(var(--mega-top, 150px) - 10px);
+            left: var(--mega-caret-left, 40px);
+            width: 18px;
+            height: 18px;
+            background: #fff;
+            border-left: 1px solid rgba(15, 23, 42, 0.08);
+            border-top: 1px solid rgba(15, 23, 42, 0.08);
+            transform: rotate(45deg);
+            z-index: -1;
+        }
+
+        .mega-menu-dropdown > .grid {
+            justify-items: start !important;
+            text-align: left !important;
+            align-items: start;
+            min-width: 0;
+        }
+
+        .mega-menu-dropdown > .grid > * {
+            justify-self: stretch;
+            min-width: 0;
+        }
+
+        .mega-menu-dropdown h3,
+        .mega-menu-dropdown .font-bold {
+            color: #111827;
+            letter-spacing: -0.01em;
+        }
+
+        .mega-menu-dropdown a {
+            border-radius: 0.6rem;
+        }
+
+        .mega-menu-dropdown a:hover {
+            background: rgba(212, 175, 55, 0.07);
+        }
+
+        .mega-menu-sm {
+            width: min(26rem, calc(100vw - 32px));
+        }
+
+        .mega-menu-md {
+            width: min(30rem, calc(100vw - 32px));
+        }
+
+        .mega-menu-lg {
+            width: min(42rem, calc(100vw - 32px));
+        }
+
+        .mega-menu-xl {
+            width: min(48rem, calc(100vw - 32px));
+        }
+
+        /* Premium desktop category mega menu with images */
+        .mega-category-dropdown {
+            width: min(72rem, calc(100vw - 32px));
+            padding: 1.25rem;
+        }
+
+        .mega-category-layout {
+            display: grid;
+            grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+            gap: 1rem;
+            align-items: stretch;
+        }
+
+        .mega-category-hero {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            overflow: hidden;
+            border-radius: 1rem;
+            background:
+                radial-gradient(circle at top left, rgba(212, 175, 55, 0.20), transparent 36%),
+                linear-gradient(135deg, #111827 0%, #1f2937 48%, #0f172a 100%);
+            color: #fff !important;
+            text-decoration: none !important;
+            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.18);
+        }
+
+        .mega-category-hero:hover {
+            background:
+                radial-gradient(circle at top left, rgba(212, 175, 55, 0.28), transparent 36%),
+                linear-gradient(135deg, #0f172a 0%, #111827 48%, #1f2937 100%) !important;
+        }
+
+        .mega-category-hero-media {
+            position: relative;
+            min-height: 150px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .mega-category-hero-media img {
+            width: 100%;
+            height: 170px;
+            object-fit: cover;
+            transform: scale(1.01);
+            transition: transform 0.35s ease;
+        }
+
+        .mega-category-hero:hover .mega-category-hero-media img {
+            transform: scale(1.08);
+        }
+
+        .mega-category-hero-fallback {
+            height: 170px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: var(--color-primary);
+            background:
+                linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+        }
+
+        .mega-category-hero-badge {
+            position: absolute;
+            top: 0.75rem;
+            left: 0.75rem;
+            padding: 0.32rem 0.65rem;
+            border-radius: 999px;
+            color: #111827;
+            background: var(--color-primary);
+            font-size: 0.66rem;
+            font-weight: 900;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            box-shadow: 0 8px 18px rgba(0,0,0,0.20);
+        }
+
+        .mega-category-hero-body {
+            padding: 1rem;
+            display: grid;
+            gap: 0.45rem;
+        }
+
+        .mega-category-eyebrow {
+            color: rgba(255,255,255,0.68);
+            font-size: 0.68rem;
+            font-weight: 900;
+            letter-spacing: 0.13em;
+            text-transform: uppercase;
+        }
+
+        .mega-category-hero-body strong {
+            color: #fff;
+            font-size: 1.2rem;
+            line-height: 1.12;
+            font-weight: 900;
+        }
+
+        .mega-category-hero-body small {
+            color: rgba(255,255,255,0.78);
+            font-size: 0.78rem;
+            line-height: 1.45;
+        }
+
+        .mega-category-hero-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            width: fit-content;
+            margin-top: 0.35rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.12);
+            color: #fff;
+            font-size: 0.76rem;
+            font-weight: 900;
+        }
+
+        .mega-category-card-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.75rem;
+            min-width: 0;
+        }
+
+        @media (min-width: 1280px) {
+            .mega-category-card-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+
+        .mega-category-card {
+            min-width: 0;
+            border: 1px solid #e5e7eb;
+            border-radius: 1rem;
+            background: rgba(255, 255, 255, 0.92);
+            overflow: hidden;
+            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+        }
+
+        .mega-category-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(212, 175, 55, 0.38);
+            box-shadow: 0 14px 28px rgba(15, 23, 42, 0.10);
+        }
+
+        .mega-category-card-head {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            min-width: 0;
+            padding: 0.75rem;
+            color: #111827 !important;
+            text-decoration: none !important;
+        }
+
+        .mega-category-card-head:hover {
+            background: rgba(212, 175, 55, 0.08) !important;
+        }
+
+        .mega-category-card-image {
+            width: 3.15rem;
+            height: 3.15rem;
+            flex: 0 0 auto;
+            overflow: hidden;
+            border-radius: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #f8fafc, #eef2f7);
+            border: 1px solid rgba(15, 23, 42, 0.06);
+        }
+
+        .mega-category-card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .mega-category-icon-fallback {
+            color: var(--color-primary);
+            font-size: 1.2rem;
+        }
+
+        .mega-category-card-title {
+            display: grid;
+            min-width: 0;
+            flex: 1 1 auto;
+            gap: 0.12rem;
+        }
+
+        .mega-category-card-title strong {
+            color: #111827;
+            font-size: 0.88rem;
+            font-weight: 900;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .mega-category-card-title small {
+            color: #64748b;
+            font-size: 0.68rem;
+            font-weight: 700;
+        }
+
+        .mega-category-card-head > i {
+            color: #94a3b8;
+            font-size: 0.72rem;
+            flex: 0 0 auto;
+        }
+
+        .mega-grandchild-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+            padding: 0 0.75rem 0.75rem 4.65rem;
+            margin-top: -0.15rem;
+        }
+
+        .mega-grandchild-list a {
+            max-width: 100%;
+            padding: 0.32rem 0.55rem;
+            border-radius: 999px;
+            background: #f1f5f9;
+            color: #475569;
+            font-size: 0.68rem;
+            font-weight: 800;
+            text-decoration: none !important;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .mega-grandchild-list a:hover {
+            color: var(--color-primary);
+            background: #fffaf0 !important;
+        }
+
+        .mega-category-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-top: 1rem;
+            padding-top: 0.9rem;
+            border-top: 1px solid #e5e7eb;
+            color: #64748b;
+            font-size: 0.76rem;
+            font-weight: 700;
+        }
+
+        .mega-category-footer a {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--color-primary);
+            font-weight: 900;
+            text-decoration: none !important;
+        }
+
+        /* Sharp desktop mega menu category images */
+        .mega-category-hero-media img,
+        .mega-category-card-image img,
+        .mega-menu-dropdown img {
+            image-rendering: auto;
+            -webkit-font-smoothing: antialiased;
+            backface-visibility: hidden;
+            transform: translateZ(0);
+            filter: none !important;
+        }
+
+        .mega-category-hero-media img {
+            width: 100%;
+            height: 170px;
+            object-fit: cover;
+            transform: none !important;
+        }
+
+        .mega-category-hero:hover .mega-category-hero-media img {
+            transform: scale(1.025) translateZ(0) !important;
+        }
+
+        .mega-category-card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: none !important;
+        }
+
+        .mega-category-card:hover .mega-category-card-image img {
+            transform: none !important;
+        }
+
+        /* Prevent browser blur from oversized stretch */
+        .mega-category-card-image {
+            width: 3.4rem;
+            height: 3.4rem;
+        }
+
+        @media (min-width: 1024px) and (max-width: 1180px) {
+            .mega-category-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .mega-category-hero {
+                display: none;
+            }
+
+            .mega-category-card-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+
+        @media (min-width: 1024px) and (max-width: 1240px) {
+            .mega-menu-container > a {
+                padding-left: 0.52rem !important;
+                padding-right: 0.52rem !important;
+                font-size: 0.84rem !important;
+                gap: 0.35rem !important;
+            }
+
+            .mega-menu-container > a img,
+            .mega-menu-container > a i {
+                transform: scale(0.92);
+            }
+        }
 
         /* ===============================
            AROLANA AMAZON-STYLE MOBILE DRAWER
@@ -1359,26 +1761,77 @@
                             <span>{{ category.name }}</span>
                         </a>
                         {% if category.active_child_count %}
-                        <div class="mega-menu-dropdown">
-                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                {% for child in category.children.all|slice:":8" %}
-                                <div class="min-w-0">
-                                    <a href="{% url 'products:category' child.slug %}" class="font-bold text-gray-900 hover:text-brand block mb-3 text-sm transition">
-                                        {{ child.name }}
-                                    </a>
-                                    {% if child.active_child_count %}
-                                    <ul class="space-y-1 text-xs">
-                                        {% for grandchild in child.children.all|slice:":6" %}
-                                        <li>
-                                            <a href="{% url 'products:category' grandchild.slug %}" class="hover:text-brand block text-gray-600 py-1 transition">
+                        <div class="mega-menu-dropdown mega-category-dropdown">
+                            <div class="mega-category-layout">
+                                <!-- Featured Parent Category -->
+                                <a href="{% url 'products:category' category.slug %}" class="mega-category-hero">
+                                    <div class="mega-category-hero-media">
+                                        {% if category.background_image %}
+                                            <img src="{{ category.background_image.url }}" alt="{{ category.name }}" loading="lazy" decoding="async">
+                                        {% elif category.image %}
+                                            <img src="{{ category.image.url }}" alt="{{ category.name }}" loading="lazy" decoding="async">
+                                        {% else %}
+                                            <div class="mega-category-hero-fallback">
+                                                {% if category.icon %}
+                                                    <i class="fas fa-{{ category.icon }}"></i>
+                                                {% else %}
+                                                    <i class="fas fa-folder-open"></i>
+                                                {% endif %}
+                                            </div>
+                                        {% endif %}
+                                        <span class="mega-category-hero-badge">Featured</span>
+                                    </div>
+                                    <div class="mega-category-hero-body">
+                                        <span class="mega-category-eyebrow">Department</span>
+                                        <strong>{{ category.name }}</strong>
+                                        <small>View all products, subcategories, and latest deals</small>
+                                        <span class="mega-category-hero-cta">Shop {{ category.name }} <i class="fas fa-arrow-right"></i></span>
+                                    </div>
+                                </a>
+
+                                <!-- Child Category Cards -->
+                                <div class="mega-category-card-grid">
+                                    {% for child in category.children.all|slice:":10" %}
+                                    <div class="mega-category-card">
+                                        <a href="{% url 'products:category' child.slug %}" class="mega-category-card-head">
+                                            <span class="mega-category-card-image">
+                                                {% if child.image %}
+                                                    <img src="{{ child.image.url }}" alt="{{ child.name }}" loading="lazy" decoding="async">
+                                                {% elif child.background_image %}
+                                                    <img src="{{ child.background_image.url }}" alt="{{ child.name }}" loading="lazy" decoding="async">
+                                                {% elif child.icon %}
+                                                    <span class="mega-category-icon-fallback"><i class="fas fa-{{ child.icon }}"></i></span>
+                                                {% else %}
+                                                    <span class="mega-category-icon-fallback"><i class="fas fa-box-open"></i></span>
+                                                {% endif %}
+                                            </span>
+                                            <span class="mega-category-card-title">
+                                                <strong>{{ child.name }}</strong>
+                                                <small>Explore category</small>
+                                            </span>
+                                            <i class="fas fa-chevron-right"></i>
+                                        </a>
+
+                                        {% if child.active_child_count %}
+                                        <div class="mega-grandchild-list">
+                                            {% for grandchild in child.children.all|slice:":5" %}
+                                            <a href="{% url 'products:category' grandchild.slug %}">
                                                 {{ grandchild.name }}
                                             </a>
-                                        </li>
-                                        {% endfor %}
-                                    </ul>
-                                    {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
                                 </div>
-                                {% endfor %}
+                            </div>
+
+                            <div class="mega-category-footer">
+                                <a href="{% url 'products:category' category.slug %}">
+                                    <i class="fas fa-grid-2"></i>
+                                    View all {{ category.name }}
+                                </a>
+                                <span>Premium categories curated for Arolana shoppers</span>
                             </div>
                         </div>
                         {% endif %}
@@ -2381,6 +2834,232 @@
             }, { once: true });
         });
     </script>
+
+
+    <script>
+        (function () {
+            'use strict';
+
+            const OPEN_CLASS = 'is-mega-open';
+            const CLOSE_DELAY = 420;
+            let activeItem = null;
+            let closeTimer = null;
+
+            function clamp(value, min, max) {
+                return Math.min(Math.max(value, min), max);
+            }
+
+            function clearCloseTimer() {
+                if (closeTimer) {
+                    window.clearTimeout(closeTimer);
+                    closeTimer = null;
+                }
+            }
+
+            function desiredDropdownWidth(dropdown) {
+                if (!dropdown) return 360;
+
+                const previousInlineWidth = dropdown.style.width;
+                dropdown.style.width = '';
+
+                const computed = window.getComputedStyle(dropdown);
+                let width = parseFloat(computed.width);
+
+                if (!width || Number.isNaN(width)) {
+                    width = dropdown.offsetWidth || 720;
+                }
+
+                dropdown.style.width = previousInlineWidth;
+
+                const viewportMax = Math.max(320, window.innerWidth - 32);
+                return Math.min(width, viewportMax);
+            }
+
+            function positionMegaDropdown(item) {
+                const trigger = item ? item.querySelector(':scope > a') : null;
+                const dropdown = item ? item.querySelector(':scope > .mega-menu-dropdown') : null;
+
+                if (!trigger || !dropdown || window.innerWidth < 1024) return;
+
+                dropdown.style.width = '';
+
+                const triggerRect = trigger.getBoundingClientRect();
+                const width = desiredDropdownWidth(dropdown);
+                const viewportPadding = 16;
+
+                /*
+                    Important:
+                    top overlaps the trigger by 1px so there is no mouse gap between
+                    the menu title and the dropdown. This prevents the dropdown from
+                    closing before the user can click inside it.
+                */
+                const top = Math.round(triggerRect.bottom - 1);
+
+                let left;
+
+                if (item.classList.contains('mega-align-right')) {
+                    left = triggerRect.right - width;
+                } else if (item.classList.contains('mega-align-center')) {
+                    left = triggerRect.left + (triggerRect.width / 2) - (width / 2);
+                } else {
+                    left = triggerRect.left;
+                }
+
+                left = clamp(left, viewportPadding, window.innerWidth - width - viewportPadding);
+
+                const caretLeft = clamp(
+                    triggerRect.left + (triggerRect.width / 2) - left - 9,
+                    18,
+                    width - 36
+                );
+
+                dropdown.style.width = width + 'px';
+                dropdown.style.setProperty('--mega-left', Math.round(left) + 'px');
+                dropdown.style.setProperty('--mega-top', top + 'px');
+                dropdown.style.setProperty('--mega-caret-left', Math.round(left + caretLeft) + 'px');
+
+                item.classList.add('is-mega-positioned');
+            }
+
+            function closeItem(item) {
+                if (!item) return;
+                item.classList.remove(OPEN_CLASS);
+                if (activeItem === item) {
+                    activeItem = null;
+                }
+            }
+
+            function closeAllMegaMenus(exceptItem) {
+                document.querySelectorAll('.mega-menu-container.' + OPEN_CLASS).forEach(function (item) {
+                    if (item !== exceptItem) closeItem(item);
+                });
+            }
+
+            function openItem(item) {
+                if (!item || window.innerWidth < 1024) return;
+
+                clearCloseTimer();
+                closeAllMegaMenus(item);
+                positionMegaDropdown(item);
+                item.classList.add(OPEN_CLASS);
+                activeItem = item;
+            }
+
+            function isPointerInsideItemOrDropdown(item) {
+                if (!item) return false;
+
+                const dropdown = item.querySelector(':scope > .mega-menu-dropdown');
+                const itemHovered = item.matches(':hover');
+                const dropdownHovered = dropdown && dropdown.matches(':hover');
+                const focusInside = item.contains(document.activeElement);
+
+                return Boolean(itemHovered || dropdownHovered || focusInside);
+            }
+
+            function scheduleClose(item) {
+                clearCloseTimer();
+
+                closeTimer = window.setTimeout(function () {
+                    if (!isPointerInsideItemOrDropdown(item)) {
+                        closeItem(item);
+                    }
+                }, CLOSE_DELAY);
+            }
+
+            function bindMegaMenus() {
+                const items = document.querySelectorAll('.desktop-nav .mega-menu-container');
+
+                items.forEach(function (item) {
+                    const trigger = item.querySelector(':scope > a');
+                    const dropdown = item.querySelector(':scope > .mega-menu-dropdown');
+
+                    if (!trigger || !dropdown) return;
+
+                    item.addEventListener('mouseenter', function () {
+                        openItem(item);
+                    });
+
+                    item.addEventListener('mousemove', function () {
+                        if (activeItem === item) clearCloseTimer();
+                    });
+
+                    dropdown.addEventListener('mouseenter', function () {
+                        openItem(item);
+                    });
+
+                    dropdown.addEventListener('mousemove', function () {
+                        if (activeItem === item) clearCloseTimer();
+                    });
+
+                    item.addEventListener('mouseleave', function (event) {
+                        if (dropdown.contains(event.relatedTarget)) return;
+                        scheduleClose(item);
+                    });
+
+                    dropdown.addEventListener('mouseleave', function (event) {
+                        if (item.contains(event.relatedTarget)) return;
+                        scheduleClose(item);
+                    });
+
+                    item.addEventListener('focusin', function () {
+                        openItem(item);
+                    });
+
+                    item.addEventListener('focusout', function () {
+                        window.setTimeout(function () {
+                            if (!item.contains(document.activeElement)) {
+                                scheduleClose(item);
+                            }
+                        }, 80);
+                    });
+
+                    /*
+                        Desktop click behavior:
+                        - First click opens and holds the dropdown.
+                        - If it is already open, the category link can navigate normally.
+                        This makes the menu usable on trackpads and touch laptops.
+                    */
+                    trigger.addEventListener('click', function (event) {
+                        if (window.innerWidth < 1024 || !dropdown) return;
+
+                        if (!item.classList.contains(OPEN_CLASS)) {
+                            event.preventDefault();
+                            openItem(item);
+                        }
+                    });
+                });
+
+                document.addEventListener('keydown', function (event) {
+                    if (event.key === 'Escape') {
+                        closeAllMegaMenus();
+                    }
+                });
+
+                document.addEventListener('click', function (event) {
+                    const insideMenu = event.target.closest('.mega-menu-container');
+                    if (!insideMenu) {
+                        closeAllMegaMenus();
+                    }
+                });
+
+                window.addEventListener('resize', function () {
+                    document.querySelectorAll('.mega-menu-container.' + OPEN_CLASS).forEach(positionMegaDropdown);
+                });
+
+                window.addEventListener('scroll', function () {
+                    document.querySelectorAll('.mega-menu-container.' + OPEN_CLASS).forEach(positionMegaDropdown);
+                }, { passive: true });
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', bindMegaMenus);
+            } else {
+                bindMegaMenus();
+            }
+        })();
+    </script>
+
+    {% include "partials/arolana_smart_chat_widget.html" %}
 
     {% block extra_js %}{% endblock %}
 </body>
