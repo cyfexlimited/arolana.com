@@ -1,0 +1,143 @@
+{% extends "base/base.html" %}
+
+{% block title %}Choose Payment Method | Arolana{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-10">
+    <div class="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+        <div class="p-6 md:p-8 bg-gradient-to-r from-blue-700 to-purple-700 text-white">
+            <h1 class="text-3xl md:text-4xl font-black">Choose Payment Method</h1>
+            <p class="mt-2 text-white/85">Secure checkout for Arolana orders.</p>
+        </div>
+
+        <div class="p-6 md:p-8">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="mb-4 rounded-xl p-4 {% if message.tags == 'error' %}bg-red-50 text-red-700{% else %}bg-blue-50 text-blue-700{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <form id="paymentBaseForm" class="grid gap-4 mb-8">
+                <input type="hidden" name="order_id" value="{{ order_id }}">
+                <div class="grid md:grid-cols-2 gap-4">
+                    <label class="grid gap-1">
+                        <span class="text-sm font-bold text-gray-700">Amount</span>
+                        <input name="amount" value="{{ amount }}" required class="border rounded-xl px-4 py-3">
+                    </label>
+                    <label class="grid gap-1">
+                        <span class="text-sm font-bold text-gray-700">Currency</span>
+                        <input name="currency" value="{{ currency|default:'NGN' }}" required class="border rounded-xl px-4 py-3 uppercase">
+                    </label>
+                    <label class="grid gap-1">
+                        <span class="text-sm font-bold text-gray-700">Name</span>
+                        <input name="name" value="{{ name }}" class="border rounded-xl px-4 py-3">
+                    </label>
+                    <label class="grid gap-1">
+                        <span class="text-sm font-bold text-gray-700">Email</span>
+                        <input type="email" name="email" value="{{ email }}" class="border rounded-xl px-4 py-3">
+                    </label>
+                    <label class="grid gap-1 md:col-span-2">
+                        <span class="text-sm font-bold text-gray-700">Phone</span>
+                        <input name="phone" value="{{ phone }}" class="border rounded-xl px-4 py-3">
+                    </label>
+                </div>
+            </form>
+
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for gateway, label, icon, note in payment_options %}
+                {% endfor %}
+
+                <button onclick="submitGateway('flutterwave')" class="payment-card">
+                    <i class="fas fa-bolt text-orange-500"></i>
+                    <strong>Flutterwave</strong>
+                    <span>Cards, bank transfer, local methods</span>
+                </button>
+
+                <button onclick="submitGateway('stripe')" class="payment-card">
+                    <i class="fab fa-stripe-s text-indigo-600"></i>
+                    <strong>Stripe / Card</strong>
+                    <span>International card checkout</span>
+                </button>
+
+                <button onclick="submitGateway('paypal')" class="payment-card">
+                    <i class="fab fa-paypal text-blue-600"></i>
+                    <strong>PayPal</strong>
+                    <span>PayPal wallet and supported cards</span>
+                </button>
+
+                <button onclick="submitGateway('coinbase')" class="payment-card">
+                    <i class="fab fa-bitcoin text-yellow-500"></i>
+                    <strong>Coinbase Commerce</strong>
+                    <span>Hosted crypto checkout</span>
+                </button>
+
+                <button onclick="submitGateway('manual_crypto')" class="payment-card">
+                    <i class="fas fa-wallet text-green-600"></i>
+                    <strong>Manual Crypto Transfer</strong>
+                    <span>Upload proof after sending crypto</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.payment-card {
+    min-height: 150px;
+    border: 1px solid #e5e7eb;
+    border-radius: 1.25rem;
+    background: #fff;
+    padding: 1.25rem;
+    display: grid;
+    gap: .45rem;
+    text-align: left;
+    box-shadow: 0 18px 45px rgba(15,23,42,.06);
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.payment-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 28px 70px rgba(15,23,42,.12);
+    border-color: #2563eb;
+}
+.payment-card i {
+    font-size: 2rem;
+}
+.payment-card strong {
+    color: #0f172a;
+    font-size: 1.05rem;
+    font-weight: 950;
+}
+.payment-card span {
+    color: #64748b;
+    font-size: .9rem;
+}
+</style>
+
+<script>
+function submitGateway(gateway) {
+    const baseForm = document.getElementById("paymentBaseForm");
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = `/payments/start/${gateway}/`;
+
+    const csrf = document.createElement("input");
+    csrf.type = "hidden";
+    csrf.name = "csrfmiddlewaretoken";
+    csrf.value = "{{ csrf_token }}";
+    form.appendChild(csrf);
+
+    new FormData(baseForm).forEach((value, key) => {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
+    });
+
+    document.body.appendChild(form);
+    form.submit();
+}
+</script>
+{% endblock %}

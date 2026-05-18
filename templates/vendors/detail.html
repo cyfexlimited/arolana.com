@@ -1,302 +1,862 @@
 {% extends 'base/base.html' %}
 {% load static %}
+{% load currency_filters %}
+
+{% block title %}{{ vendor.store_name }} Store | Arolana{% endblock %}
+
+{% block extra_css %}
+<style>
+    .vendor-store-shell {
+        max-width: 1480px;
+        margin: 0 auto;
+        padding: 1rem;
+    }
+
+    .vendor-store-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 2rem;
+        background: #0f172a;
+        box-shadow: 0 35px 90px rgba(15, 23, 42, 0.18);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        margin-bottom: 1.25rem;
+    }
+
+    .vendor-store-banner {
+        position: relative;
+        min-height: clamp(220px, 26vw, 360px);
+        background:
+            radial-gradient(circle at 80% 10%, rgba(37, 99, 235, 0.34), transparent 35%),
+            linear-gradient(135deg, #0f172a, #1e293b);
+    }
+
+    .vendor-store-banner img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .vendor-store-banner::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.05), rgba(15, 23, 42, 0.58));
+        pointer-events: none;
+    }
+
+    .vendor-store-profile {
+        position: relative;
+        z-index: 2;
+        margin-top: -78px;
+        padding: 0 1.25rem 1.4rem;
+        color: #fff;
+    }
+
+    .vendor-store-profile-inner {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 1.25rem;
+        align-items: end;
+    }
+
+    .vendor-logo-wrap {
+        width: 132px;
+        height: 132px;
+        border-radius: 2rem;
+        overflow: hidden;
+        display: grid;
+        place-items: center;
+        background: rgba(255, 255, 255, 0.15);
+        border: 5px solid #fff;
+        box-shadow: 0 18px 55px rgba(0, 0, 0, 0.22);
+        flex: 0 0 auto;
+    }
+
+    .vendor-logo-wrap img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .vendor-logo-fallback {
+        width: 100%;
+        height: 100%;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(135deg, #2563eb, #7c3aed);
+        color: #fff;
+        font-size: 3rem;
+    }
+
+    .vendor-title-area {
+        min-width: 0;
+        text-shadow: 0 3px 14px rgba(0, 0, 0, 0.35);
+    }
+
+    .vendor-title-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.55rem;
+        margin-bottom: 0.45rem;
+    }
+
+    .vendor-title-row h1 {
+        margin: 0;
+        font-size: clamp(1.8rem, 3.7vw, 3.8rem);
+        line-height: 0.98;
+        font-weight: 950;
+        letter-spacing: -0.055em;
+    }
+
+    .vendor-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        min-height: 28px;
+        padding: 0.3rem 0.65rem;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 950;
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        background: rgba(15, 23, 42, 0.35);
+        backdrop-filter: blur(8px);
+    }
+
+    .vendor-badge.verified { background: rgba(5, 150, 105, 0.82); }
+    .vendor-badge.top { background: rgba(245, 158, 11, 0.86); }
+    .vendor-badge.best { background: rgba(249, 115, 22, 0.86); }
+
+    .vendor-stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+        margin-top: 0.75rem;
+    }
+
+    .vendor-stat {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.62rem 0.8rem;
+        border-radius: 1rem;
+        background: rgba(255, 255, 255, 0.11);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        backdrop-filter: blur(10px);
+        font-weight: 850;
+        color: rgba(255, 255, 255, 0.94);
+        font-size: 0.82rem;
+    }
+
+    .vendor-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.7rem;
+        justify-content: flex-end;
+        align-items: center;
+    }
+
+    .vendor-follow-btn,
+    .vendor-contact-btn {
+        min-height: 46px;
+        border: 0;
+        border-radius: 999px;
+        padding: 0 1rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        font-weight: 950;
+        color: #fff;
+        box-shadow: 0 14px 32px rgba(0, 0, 0, 0.18);
+        transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, opacity 0.18s ease;
+        white-space: nowrap;
+    }
+
+    .vendor-follow-btn {
+        background: linear-gradient(135deg, #2563eb, #7c3aed);
+    }
+
+    .vendor-follow-btn.is-following {
+        background: linear-gradient(135deg, #334155, #0f172a);
+    }
+
+    .vendor-follow-btn:disabled {
+        opacity: 0.72;
+        cursor: wait;
+        transform: none;
+    }
+
+    .vendor-contact-btn {
+        background: rgba(255, 255, 255, 0.16);
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        backdrop-filter: blur(10px);
+    }
+
+    .vendor-follow-btn:hover,
+    .vendor-contact-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 18px 42px rgba(0, 0, 0, 0.26);
+    }
+
+    .vendor-body-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 340px;
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .vendor-info-card,
+    .vendor-score-card {
+        border-radius: 1.35rem;
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        box-shadow: 0 18px 55px rgba(15, 23, 42, 0.07);
+        padding: 1.1rem;
+        backdrop-filter: blur(14px);
+    }
+
+    .vendor-info-card h3,
+    .vendor-score-card h3 {
+        margin: 0 0 0.55rem;
+        color: #0f172a;
+        font-size: 1rem;
+        font-weight: 950;
+    }
+
+    .vendor-info-card p {
+        color: #64748b;
+        line-height: 1.7;
+        margin: 0;
+    }
+
+    .vendor-score-value {
+        font-size: 2.3rem;
+        line-height: 1;
+        font-weight: 950;
+        color: #2563eb;
+        letter-spacing: -0.05em;
+    }
+
+    .score-bars {
+        display: grid;
+        gap: 0.75rem;
+        margin-top: 0.85rem;
+    }
+
+    .score-bar-label {
+        display: flex;
+        justify-content: space-between;
+        color: #475569;
+        font-size: 0.8rem;
+        font-weight: 850;
+        margin-bottom: 0.35rem;
+    }
+
+    .score-track {
+        height: 9px;
+        border-radius: 999px;
+        background: #e2e8f0;
+        overflow: hidden;
+    }
+
+    .score-fill {
+        height: 100%;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #2563eb, #7c3aed);
+    }
+
+    .store-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin: 1.25rem 0 1rem;
+        padding: 0.9rem;
+        border-radius: 1.25rem;
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        box-shadow: 0 18px 50px rgba(15, 23, 42, 0.06);
+    }
+
+    .store-toolbar h2 {
+        margin: 0;
+        color: #0f172a;
+        font-size: clamp(1.2rem, 2.3vw, 2rem);
+        font-weight: 950;
+        letter-spacing: -0.04em;
+    }
+
+    .store-sort {
+        min-height: 42px;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.95rem;
+        background: #fff;
+        color: #0f172a;
+        font-weight: 850;
+        font-size: 0.84rem;
+        padding: 0 0.85rem;
+        outline: none;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.045);
+    }
+
+    .vendor-products-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .vendor-product-card {
+        position: relative;
+        min-width: 0;
+        overflow: hidden;
+        border-radius: 1.35rem;
+        background: #fff;
+        border: 1px solid rgba(148, 163, 184, 0.20);
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.075);
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .vendor-product-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 28px 70px rgba(15, 23, 42, 0.14);
+    }
+
+    .vendor-product-media {
+        position: relative;
+        aspect-ratio: 1 / 1;
+        padding: 0.9rem;
+        background:
+            radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.10), transparent 55%),
+            linear-gradient(180deg, #f8fafc, #fff);
+    }
+
+    .vendor-product-media img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        transition: transform 0.35s ease;
+    }
+
+    .vendor-product-card:hover .vendor-product-media img {
+        transform: scale(1.04);
+    }
+
+    .vendor-product-fallback {
+        height: 100%;
+        display: grid;
+        place-items: center;
+        color: #cbd5e1;
+        font-size: 3rem;
+    }
+
+    .product-pill {
+        position: absolute;
+        top: 0.75rem;
+        left: 0.75rem;
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.55rem;
+        border-radius: 999px;
+        color: #fff;
+        font-size: 0.65rem;
+        font-weight: 950;
+        background: linear-gradient(135deg, #10b981, #059669);
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.15);
+    }
+
+    .product-discount {
+        left: auto;
+        right: 0.75rem;
+        background: linear-gradient(135deg, #ef4444, #f97316);
+    }
+
+    .vendor-product-body {
+        padding: 0.95rem;
+        display: grid;
+        gap: 0.5rem;
+    }
+
+    .vendor-product-title {
+        color: #0f172a;
+        font-size: 0.92rem;
+        font-weight: 900;
+        line-height: 1.35;
+        min-height: 2.5rem;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .vendor-product-title:hover {
+        color: #2563eb;
+    }
+
+    .vendor-product-rating {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        color: #64748b;
+        font-size: 0.75rem;
+        font-weight: 750;
+    }
+
+    .vendor-stars {
+        color: #f59e0b;
+        display: inline-flex;
+        gap: 0.08rem;
+    }
+
+    .vendor-product-price {
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .vendor-price-current {
+        color: #2563eb;
+        font-size: 1.16rem;
+        font-weight: 950;
+        letter-spacing: -0.04em;
+    }
+
+    .vendor-price-compare {
+        color: #94a3b8;
+        text-decoration: line-through;
+        font-size: 0.78rem;
+        font-weight: 750;
+    }
+
+    .vendor-cart-btn {
+        width: 100%;
+        min-height: 40px;
+        border: 0;
+        border-radius: 0.95rem;
+        color: #fff;
+        font-weight: 950;
+        background: linear-gradient(135deg, #2563eb, #7c3aed);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .vendor-cart-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 16px 32px rgba(37, 99, 235, 0.22);
+    }
+
+    .similar-vendors-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .similar-vendor-card {
+        border-radius: 1.25rem;
+        background: #fff;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.06);
+        padding: 1rem;
+        text-align: center;
+        transition: transform 0.22s ease, box-shadow 0.22s ease;
+    }
+
+    .similar-vendor-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 28px 70px rgba(15, 23, 42, 0.12);
+    }
+
+    .similar-vendor-logo {
+        width: 72px;
+        height: 72px;
+        margin: 0 auto 0.65rem;
+        border-radius: 1.35rem;
+        overflow: hidden;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(135deg, #eff6ff, #f5f3ff);
+        color: #2563eb;
+        font-size: 1.8rem;
+    }
+
+    .similar-vendor-logo img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .vendor-empty-state {
+        border-radius: 1.5rem;
+        background: #fff;
+        border: 1px dashed #cbd5e1;
+        text-align: center;
+        padding: 4rem 1rem;
+    }
+
+    @media (max-width: 1180px) {
+        .vendor-products-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .similar-vendors-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 900px) {
+        .vendor-store-profile-inner { grid-template-columns: auto minmax(0, 1fr); }
+        .vendor-actions { grid-column: 1 / -1; justify-content: flex-start; }
+        .vendor-body-grid { grid-template-columns: 1fr; }
+        .vendor-products-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .similar-vendors-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 640px) {
+        .vendor-store-shell { padding: 0.75rem; }
+        .vendor-store-hero { border-radius: 1.35rem; }
+        .vendor-store-profile { margin-top: -55px; padding: 0 0.9rem 1rem; }
+        .vendor-store-profile-inner { grid-template-columns: 1fr; }
+        .vendor-logo-wrap { width: 104px; height: 104px; border-radius: 1.55rem; }
+        .vendor-title-row h1 { font-size: 2rem; }
+        .vendor-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
+        .vendor-follow-btn, .vendor-contact-btn { width: 100%; padding: 0 0.75rem; font-size: 0.8rem; }
+        .vendor-products-grid { gap: 0.65rem; }
+        .vendor-product-body { padding: 0.75rem; }
+        .vendor-product-title { font-size: 0.82rem; min-height: 2.3rem; }
+        .vendor-price-current { font-size: 1rem; }
+        .vendor-cart-btn { font-size: 0.78rem; }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto">
-    <!-- Vendor Header -->
-    <div class="bg-white rounded-lg shadow-md overflow-hidden mb-8">
-        <!-- Banner -->
-        {% if vendor.store_banner %}
-            <div class="h-48 bg-cover bg-center" style="background-image: url('{{ vendor.store_banner.url }}')"></div>
-        {% else %}
-            <div class="h-48 bg-gradient-to-r from-blue-600 to-purple-600"></div>
-        {% endif %}
-        
-        <div class="p-6">
-            <div class="flex flex-col md:flex-row items-start md:items-center gap-6">
-                <!-- Logo -->
-                <div class="relative">
+<div class="vendor-store-shell">
+    <section class="vendor-store-hero">
+        <div class="vendor-store-banner">
+            {% if vendor.store_banner %}
+                <img src="{{ vendor.store_banner.url }}" alt="{{ vendor.store_name }} banner">
+            {% endif %}
+        </div>
+
+        <div class="vendor-store-profile">
+            <div class="vendor-store-profile-inner">
+                <div class="vendor-logo-wrap">
                     {% if vendor.store_logo %}
-                        <img src="{{ vendor.store_logo.url }}" alt="{{ vendor.store_name }}" class="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg -mt-12">
+                        <img src="{{ vendor.store_logo.url }}" alt="{{ vendor.store_name }}">
                     {% else %}
-                        <div class="w-24 h-24 rounded-full bg-blue-100 flex items-center justify-center border-4 border-white shadow-lg -mt-12">
-                            <i class="fas fa-store text-4xl text-blue-600"></i>
+                        <div class="vendor-logo-fallback">
+                            <i class="fas fa-store"></i>
                         </div>
                     {% endif %}
                 </div>
-                
-                <div class="flex-1">
-                    <div class="flex flex-wrap items-center gap-3 mb-2">
-                        <h1 class="text-3xl font-bold">{{ vendor.store_name }}</h1>
+
+                <div class="vendor-title-area">
+                    <div class="vendor-title-row">
+                        <h1>{{ vendor.store_name }}</h1>
+
                         {% if vendor.is_verified %}
-                            <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-sm">
-                                <i class="fas fa-check-circle"></i> Verified Vendor
-                            </span>
+                            <span class="vendor-badge verified"><i class="fas fa-check-circle"></i> Verified</span>
                         {% endif %}
                         {% if vendor.is_top_rated %}
-                            <span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-sm">
-                                <i class="fas fa-trophy"></i> Top Rated
-                            </span>
+                            <span class="vendor-badge top"><i class="fas fa-trophy"></i> Top Rated</span>
                         {% endif %}
                         {% if vendor.is_best_seller %}
-                            <span class="bg-orange-100 text-orange-700 px-2 py-1 rounded text-sm">
-                                <i class="fas fa-crown"></i> Best Seller
-                            </span>
+                            <span class="vendor-badge best"><i class="fas fa-crown"></i> Best Seller</span>
                         {% endif %}
                     </div>
-                    
-                    <div class="flex flex-wrap items-center gap-4 text-sm">
-                        <div class="flex items-center gap-1">
-                            <i class="fas fa-star text-yellow-400"></i>
-                            <span class="font-semibold">{{ vendor.rating_avg|floatformat:1 }}</span>
-                            <span class="text-gray-500">({{ vendor.total_reviews }} reviews)</span>
-                        </div>
-                        <div class="flex items-center gap-1">
-                            <i class="fas fa-chart-line text-blue-500"></i>
-                            <span>{{ vendor.total_sales }} sales</span>
-                        </div>
-                        <div class="flex items-center gap-1">
-                            <i class="fas fa-users text-green-500"></i>
-                            <span>{{ vendor.followers_count }} followers</span>
-                        </div>
-                        <div class="flex items-center gap-1">
-                            <i class="fas fa-clock text-purple-500"></i>
-                            <span>Response: {{ vendor.response_time }}</span>
-                        </div>
-                        <div class="flex items-center gap-1">
-                            <i class="fas fa-percent text-indigo-500"></i>
-                            <span>Fulfillment: {{ vendor.fulfillment_rate }}%</span>
-                        </div>
+
+                    <div class="vendor-stats">
+                        <span class="vendor-stat">
+                            <i class="fas fa-star text-yellow-300"></i>
+                            <strong>{{ vendor.rating_avg|floatformat:1 }}</strong>
+                            ({{ vendor.total_reviews }} reviews)
+                        </span>
+                        <span class="vendor-stat">
+                            <i class="fas fa-chart-line text-blue-300"></i>
+                            {{ vendor.total_sales }} sales
+                        </span>
+                        <span class="vendor-stat">
+                            <i class="fas fa-users text-green-300"></i>
+                            <span id="followersCount">{{ followers_count|default:vendor.followers_count|default:0 }}</span> followers
+                        </span>
+                        <span class="vendor-stat">
+                            <i class="fas fa-clock text-purple-300"></i>
+                            Response: {{ vendor.response_time|default:"Fast" }}
+                        </span>
+                        <span class="vendor-stat">
+                            <i class="fas fa-percent text-indigo-300"></i>
+                            Fulfillment: {{ vendor.fulfillment_rate|default:0 }}%
+                        </span>
                     </div>
                 </div>
-                
-                <div class="flex gap-3">
-                    <button onclick="followVendor({{ vendor.id }})" 
-                            class="{% if is_following %}bg-gray-600{% else %}bg-blue-600{% endif %} text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
-                            id="followBtn">
+
+                <div class="vendor-actions">
+                    <button
+                        type="button"
+                        onclick="followVendor({{ vendor.id }})"
+                        class="vendor-follow-btn {% if is_following %}is-following{% endif %}"
+                        id="followBtn"
+                        data-following="{% if is_following %}true{% else %}false{% endif %}"
+                    >
                         <i class="fas {% if is_following %}fa-bell-slash{% else %}fa-bell{% endif %}"></i>
-                        {% if is_following %}Unfollow{% else %}Follow{% endif %} Store
+                        <span id="followText">{% if is_following %}Following{% else %}Follow Store{% endif %}</span>
                     </button>
-                    <a href="/contact/?vendor={{ vendor.id }}" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition">
-                        <i class="fas fa-envelope"></i> Contact
+
+                    <a href="/contact/?vendor={{ vendor.id }}" class="vendor-contact-btn">
+                        <i class="fas fa-envelope"></i>
+                        Contact
                     </a>
                 </div>
             </div>
-            
-            <div class="mt-6">
-                <h3 class="font-semibold mb-2">About {{ vendor.store_name }}</h3>
-                <p class="text-gray-600">{{ vendor.description }}</p>
-            </div>
-            
-            <!-- Vendor Score -->
-            <div class="mt-6 bg-blue-50 rounded-lg p-4">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <p class="text-sm text-blue-600">Vendor Score</p>
-                        <p class="text-3xl font-bold text-blue-600">{{ vendor_score|default:"0" }}</p>
+        </div>
+    </section>
+
+    <section class="vendor-body-grid">
+        <div class="vendor-info-card">
+            <h3>About {{ vendor.store_name }}</h3>
+            <p>{{ vendor.description|default:"This vendor has not added a store description yet." }}</p>
+        </div>
+
+        <aside class="vendor-score-card">
+            <h3>Vendor Score</h3>
+            <div class="vendor-score-value">{{ vendor_score|default:"0" }}</div>
+
+            <div class="score-bars">
+                <div>
+                    <div class="score-bar-label">
+                        <span>Rating</span>
+                        <span>{{ vendor.rating_avg|floatformat:1 }} / 5</span>
                     </div>
-                    <div class="w-2/3">
-                        <div class="flex justify-between text-sm mb-1">
-                            <span>Rating</span>
-                            <span>{{ vendor.rating_avg|floatformat:1 }} / 5</span>
-                        </div>
-                        <div class="w-full bg-gray-200 rounded-full h-2">
-                            <div class="bg-yellow-400 rounded-full h-2" style="width: {% widthratio vendor.rating_avg 5 100 %}%"></div>
-                        </div>
-                        <div class="flex justify-between text-sm mt-2 mb-1">
-                            <span>Fulfillment</span>
-                            <span>{{ vendor.fulfillment_rate }}%</span>
-                        </div>
-                        <div class="w-full bg-gray-200 rounded-full h-2">
-                            <div class="bg-green-500 rounded-full h-2" style="width: {{ vendor.fulfillment_rate }}%"></div>
-                        </div>
+                    <div class="score-track">
+                        <div class="score-fill" style="width:{% widthratio vendor.rating_avg 5 100 %}%"></div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="score-bar-label">
+                        <span>Fulfillment</span>
+                        <span>{{ vendor.fulfillment_rate|default:0 }}%</span>
+                    </div>
+                    <div class="score-track">
+                        <div class="score-fill" style="width:{{ vendor.fulfillment_rate|default:0 }}%"></div>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
-    
-    <!-- Products Section -->
-    <div class="mb-8">
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-bold">Products from {{ vendor.store_name }}</h2>
-            <div class="flex gap-2">
-                <select id="sortProducts" onchange="sortProducts(this.value)" class="border rounded-lg px-3 py-1">
-                    <option value="newest">Newest First</option>
-                    <option value="price_low">Price: Low to High</option>
-                    <option value="price_high">Price: High to Low</option>
-                </select>
-            </div>
-        </div>
-        
-        {% if products %}
-            <div class="products-grid-wrapper" id="productsGridWrapper">
-                <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6" id="productsGrid">
-                    {% for product in products %}
-                    <div class="product-card bg-white rounded-xl shadow-md overflow-hidden hover:shadow-2xl transition-all duration-300" data-price="{{ product.price }}">
-                        <a href="{{ product.get_absolute_url }}" class="block bg-gray-50 p-3 sm:p-4">
-                            {% if product.main_image and product.main_image.url %}
-                                <img src="{{ product.main_image.url }}" alt="{{ product.name }}" class="w-full aspect-square object-cover hover:scale-105 transition duration-300">
-                            {% else %}
-                                <div class="w-full aspect-square bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
-                                    <i class="fas fa-image text-4xl sm:text-5xl text-gray-400"></i>
-                                </div>
-                            {% endif %}
-                        </a>
-                        <div class="p-3 sm:p-4">
-                            <a href="{{ product.get_absolute_url }}" class="font-semibold text-sm sm:text-lg hover:text-blue-600 line-clamp-2">{{ product.name }}</a>
-                            
-                            <div class="flex items-center gap-1 sm:gap-2 mt-2">
-                                <div class="flex text-yellow-400 text-xs sm:text-sm">
-                                    {% for i in "12345"|make_list %}
-                                        {% if forloop.counter <= product.rating_avg|add:"0" %}
-                                            <i class="fas fa-star"></i>
-                                        {% elif forloop.counter <= product.rating_avg|add:"0.5" %}
-                                            <i class="fas fa-star-half-alt"></i>
-                                        {% else %}
-                                            <i class="far fa-star"></i>
-                                        {% endif %}
-                                    {% endfor %}
-                                </div>
-                                <span class="text-xs sm:text-sm text-gray-500">({{ product.rating_count }})</span>
+        </aside>
+    </section>
+
+    <section class="store-toolbar">
+        <h2>Products from {{ vendor.store_name }}</h2>
+        <select id="sortProducts" onchange="sortProducts(this.value)" class="store-sort">
+            <option value="newest">Newest First</option>
+            <option value="price_low">Price: Low to High</option>
+            <option value="price_high">Price: High to Low</option>
+        </select>
+    </section>
+
+    {% if products %}
+        <section class="vendor-products-grid" id="productsGrid">
+            {% for product in products %}
+            <article class="vendor-product-card" data-price="{{ product.price }}">
+                <a href="{{ product.get_absolute_url }}" class="block">
+                    <div class="vendor-product-media">
+                        {% if product.main_image and product.main_image.url %}
+                            <img src="{{ product.main_image.url }}" alt="{{ product.name }}" loading="lazy">
+                        {% else %}
+                            <div class="vendor-product-fallback">
+                                <i class="fas fa-image"></i>
                             </div>
-                            
-                            <div class="mt-2 sm:mt-3">
-                                <span class="text-base sm:text-2xl font-bold text-blue-600">${{ product.price }}</span>
-                                {% if product.compare_price %}
-                                    <span class="text-gray-400 line-through ml-1 sm:ml-2 text-xs sm:text-sm">${{ product.compare_price }}</span>
-                                    <span class="text-green-600 text-xs sm:text-sm ml-1 sm:ml-2">-{{ product.discount_percent }}%</span>
+                        {% endif %}
+
+                        {% if product.is_new %}
+                            <span class="product-pill">New</span>
+                        {% endif %}
+
+                        {% if product.discount_percent > 0 %}
+                            <span class="product-pill product-discount">-{{ product.discount_percent }}%</span>
+                        {% endif %}
+                    </div>
+                </a>
+
+                <div class="vendor-product-body">
+                    <a href="{{ product.get_absolute_url }}" class="vendor-product-title">
+                        {{ product.name }}
+                    </a>
+
+                    <div class="vendor-product-rating">
+                        <div class="vendor-stars">
+                            {% for i in "12345"|make_list %}
+                                {% if forloop.counter <= product.rating_avg|add:"0" %}
+                                    <i class="fas fa-star"></i>
+                                {% elif forloop.counter <= product.rating_avg|add:"0.5" %}
+                                    <i class="fas fa-star-half-alt"></i>
+                                {% else %}
+                                    <i class="far fa-star"></i>
                                 {% endif %}
-                            </div>
-                            
-                            <form method="POST" action="{% url 'products:add_to_cart' product.slug %}">
-                                {% csrf_token %}
-                                <input type="hidden" name="quantity" value="1">
-                                <button type="submit" class="mt-2 sm:mt-3 w-full bg-blue-600 text-white py-1.5 sm:py-2 rounded-lg hover:bg-blue-700 transition text-sm sm:text-base">
-                                    <i class="fas fa-cart-plus"></i> Add to Cart
-                                </button>
-                            </form>
+                            {% endfor %}
                         </div>
+                        <span>({{ product.rating_count }})</span>
                     </div>
-                    {% endfor %}
+
+                    <div class="vendor-product-price">
+                        <span class="vendor-price-current">{{ product.price|currency:request }}</span>
+                        {% if product.compare_price %}
+                            <span class="vendor-price-compare">{{ product.compare_price|currency:request }}</span>
+                        {% endif %}
+                    </div>
+
+                    <form method="POST" action="{% url 'products:add_to_cart' product.slug %}" class="vendor-cart-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="quantity" value="1">
+                        <button type="submit" class="vendor-cart-btn">
+                            <i class="fas fa-cart-plus"></i>
+                            Add to Cart
+                        </button>
+                    </form>
                 </div>
-            </div>
-        {% else %}
-            <div class="bg-white rounded-lg shadow-md p-12 text-center">
-                <i class="fas fa-box-open text-6xl text-gray-400 mb-4"></i>
-                <p class="text-gray-500 text-lg">No products available from this vendor yet.</p>
-            </div>
-        {% endif %}
-    </div>
-    
-    <!-- Similar Vendors Section -->
+            </article>
+            {% endfor %}
+        </section>
+    {% else %}
+        <div class="vendor-empty-state">
+            <i class="fas fa-box-open text-6xl text-gray-400 mb-4"></i>
+            <p class="text-gray-500 text-lg">No products available from this vendor yet.</p>
+        </div>
+    {% endif %}
+
     {% if similar_vendors %}
-    <div class="mt-12">
-        <h2 class="text-2xl font-bold mb-6">Similar Vendors You Might Like</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <section class="mt-12">
+        <h2 class="text-2xl font-black text-gray-900 mb-6">Similar Vendors You Might Like</h2>
+
+        <div class="similar-vendors-grid">
             {% for similar in similar_vendors %}
-            <a href="{% url 'vendors:detail' similar.store_slug %}" class="bg-white rounded-lg shadow p-4 text-center hover:shadow-xl transition group">
-                {% if similar.store_logo %}
-                    <img src="{{ similar.store_logo.url }}" class="w-16 h-16 mx-auto mb-2 rounded-full object-cover">
-                {% else %}
-                    <div class="w-16 h-16 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-2 group-hover:scale-110 transition">
-                        <i class="fas fa-store text-2xl text-blue-600"></i>
-                    </div>
-                {% endif %}
-                <h3 class="font-semibold">{{ similar.store_name }}</h3>
-                <p class="text-sm text-gray-500">{{ similar.rating_avg|floatformat:1 }} ★ ({{ similar.total_sales }} sales)</p>
+            <a href="{% url 'vendors:detail' similar.store_slug %}" class="similar-vendor-card group">
+                <div class="similar-vendor-logo">
+                    {% if similar.store_logo %}
+                        <img src="{{ similar.store_logo.url }}" alt="{{ similar.store_name }}">
+                    {% else %}
+                        <i class="fas fa-store"></i>
+                    {% endif %}
+                </div>
+                <h3 class="font-black text-gray-900">{{ similar.store_name }}</h3>
+                <p class="text-sm text-gray-500 mt-1">{{ similar.rating_avg|floatformat:1 }} ★ ({{ similar.total_sales }} sales)</p>
             </a>
             {% endfor %}
         </div>
-    </div>
+    </section>
     {% endif %}
 </div>
 
-<style>
-/* Force 2 columns on mobile for products grid */
-@media (max-width: 768px) {
-    #productsGrid {
-        display: grid !important;
-        grid-template-columns: repeat(2, 1fr) !important;
-        gap: 12px !important;
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
     }
-    
-    #productsGrid .product-card {
-        width: 100% !important;
-        margin: 0 !important;
+
+    return cookieValue;
+}
+
+function showVendorToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `fixed bottom-6 right-6 z-[99999] px-5 py-3 rounded-2xl text-white shadow-2xl font-bold text-sm ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2800);
+}
+
+function setFollowButtonState(isFollowing, followersCount) {
+    const btn = document.getElementById('followBtn');
+    const followersCountEl = document.getElementById('followersCount');
+
+    if (!btn) return;
+
+    btn.disabled = false;
+    btn.dataset.following = isFollowing ? 'true' : 'false';
+
+    if (isFollowing) {
+        btn.classList.add('is-following');
+        btn.innerHTML = '<i class="fas fa-bell-slash"></i><span id="followText">Following</span>';
+    } else {
+        btn.classList.remove('is-following');
+        btn.innerHTML = '<i class="fas fa-bell"></i><span id="followText">Follow Store</span>';
     }
-    
-    #productsGrid .product-card img {
-        width: 100% !important;
-        height: auto !important;
-        aspect-ratio: 1 / 1 !important;
-        object-fit: cover !important;
-    }
-    
-    #productsGrid .product-card .font-semibold {
-        font-size: 13px !important;
-        line-height: 1.3 !important;
-    }
-    
-    #productsGrid .product-card .text-2xl {
-        font-size: 14px !important;
-    }
-    
-    #productsGrid .product-card button {
-        padding: 6px !important;
-        font-size: 11px !important;
-    }
-    
-    #productsGrid .product-card .p-4 {
-        padding: 8px !important;
+
+    if (followersCountEl && typeof followersCount !== 'undefined') {
+        followersCountEl.textContent = followersCount;
     }
 }
-</style>
 
-<script>
-function followVendor(vendorId) {
-    fetch(`/vendors/follow/${vendorId}/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-            'Content-Type': 'application/json'
+async function followVendor(vendorId) {
+    const btn = document.getElementById('followBtn');
+
+    if (!btn || btn.disabled) {
+        return;
+    }
+
+    const wasFollowing = btn.dataset.following === 'true';
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Updating...</span>';
+
+    try {
+        const response = await fetch(`/vendors/follow/${vendorId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({})
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Could not update follow status.');
         }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.followed) {
-            document.getElementById('followBtn').innerHTML = '<i class="fas fa-bell-slash"></i> Unfollow Store';
-            document.getElementById('followBtn').classList.remove('bg-blue-600');
-            document.getElementById('followBtn').classList.add('bg-gray-600');
-        } else {
-            document.getElementById('followBtn').innerHTML = '<i class="fas fa-bell"></i> Follow Store';
-            document.getElementById('followBtn').classList.remove('bg-gray-600');
-            document.getElementById('followBtn').classList.add('bg-blue-600');
-        }
-    })
-    .catch(error => console.error('Error:', error));
+
+        setFollowButtonState(data.followed, data.followers_count);
+        showVendorToast(data.message || (data.followed ? 'Store followed.' : 'Store unfollowed.'), 'success');
+
+    } catch (error) {
+        setFollowButtonState(wasFollowing);
+        showVendorToast(error.message || 'Could not update follow status.', 'error');
+    }
 }
 
 function sortProducts(sortBy) {
     const grid = document.getElementById('productsGrid');
+
     if (!grid) return;
-    
+
     const products = Array.from(grid.children);
-    
+
     products.sort((a, b) => {
         if (sortBy === 'price_low') {
-            const priceA = parseFloat(a.dataset.price || 0);
-            const priceB = parseFloat(b.dataset.price || 0);
-            return priceA - priceB;
+            return parseFloat(a.dataset.price || 0) - parseFloat(b.dataset.price || 0);
         }
+
         if (sortBy === 'price_high') {
-            const priceA = parseFloat(a.dataset.price || 0);
-            const priceB = parseFloat(b.dataset.price || 0);
-            return priceB - priceA;
+            return parseFloat(b.dataset.price || 0) - parseFloat(a.dataset.price || 0);
         }
+
         return 0;
     });
-    
+
     products.forEach(product => grid.appendChild(product));
 }
 </script>

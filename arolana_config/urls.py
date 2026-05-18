@@ -104,7 +104,7 @@ urlpatterns = [
     path("robots.txt", robots_txt, name="robots_txt"),
     path("merchant-feed.xml", google_merchant_feed, name="merchant_feed"),
 
-    
+
     # Arolana SEO Engine
     path('', include('arolana_seo.urls')),
     path(
@@ -139,7 +139,7 @@ urlpatterns = [
     path('videos/', include('videos.urls')),
     path('reports/', include('reports.urls')),
     path('notifications/', include('notifications.urls')),
-    
+    path('payments/', include('arolana_payments.urls')),
     # Smart AI Chat
     path("smartchat/", include(("smartchat.urls", "smartchat"), namespace="smartchat")),
     path("support/ai/", include("smartchat.compat_urls")),

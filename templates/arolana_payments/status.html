@@ -1,0 +1,33 @@
+{% extends "base/base.html" %}
+
+{% block title %}Payment Status | Arolana{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-10">
+    <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 text-center">
+        {% if payment.status == "success" %}
+            <i class="fas fa-check-circle text-6xl text-green-500 mb-4"></i>
+        {% elif payment.status == "failed" %}
+            <i class="fas fa-times-circle text-6xl text-red-500 mb-4"></i>
+        {% elif payment.status == "review" %}
+            <i class="fas fa-search-dollar text-6xl text-yellow-500 mb-4"></i>
+        {% else %}
+            <i class="fas fa-clock text-6xl text-blue-500 mb-4"></i>
+        {% endif %}
+
+        <h1 class="text-3xl font-black text-gray-900">Payment {{ payment.get_status_display }}</h1>
+        <p class="text-gray-600 mt-2">Reference: <strong>{{ payment.reference }}</strong></p>
+
+        <div class="mt-6 grid gap-2 text-left bg-gray-50 rounded-2xl p-4">
+            <p><strong>Gateway:</strong> {{ payment.get_gateway_display }}</p>
+            <p><strong>Amount:</strong> {{ payment.amount }} {{ payment.currency }}</p>
+            {% if payment.order_id %}<p><strong>Order:</strong> {{ payment.order_id }}</p>{% endif %}
+            {% if payment.gateway_reference %}<p><strong>Gateway Ref:</strong> {{ payment.gateway_reference }}</p>{% endif %}
+        </div>
+
+        <a href="/" class="inline-flex mt-6 bg-blue-600 text-white rounded-xl px-6 py-3 font-black">
+            Continue Shopping
+        </a>
+    </div>
+</div>
+{% endblock %}

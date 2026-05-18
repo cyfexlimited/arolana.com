@@ -1,110 +1,304 @@
 {% extends 'base/base.html' %}
 {% load currency_filters %}
 
+{% block title %}Checkout | Arolana{% endblock %}
+
 {% block content %}
-<div class="max-w-4xl mx-auto">
-    <h1 class="text-3xl font-bold mb-8">Checkout</h1>
-    
+<div class="max-w-5xl mx-auto px-4 py-10">
+    <h1 class="text-3xl font-black mb-8 text-gray-900">Checkout</h1>
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Checkout Form -->
         <div class="lg:col-span-2">
-            <div class="bg-white rounded-xl shadow-lg p-6">
-                <h2 class="text-xl font-bold mb-4">Shipping Information</h2>
-                
-                <form method="POST" id="checkout-form">
+            <div class="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+                <h2 class="text-xl font-black mb-4 text-gray-900">Shipping Information</h2>
+
+                <form method="POST" id="checkout-form" onsubmit="return false;">
                     {% csrf_token %}
-                    
-                    <div class="grid grid-cols-2 gap-4 mb-4">
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                         <div>
                             <label class="block font-semibold mb-2">First Name</label>
-                            <input type="text" name="first_name" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <input type="text" name="first_name" id="first_name" required class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
+
                         <div>
                             <label class="block font-semibold mb-2">Last Name</label>
-                            <input type="text" name="last_name" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <input type="text" name="last_name" id="last_name" required class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                     </div>
-                    
+
                     <div class="mb-4">
                         <label class="block font-semibold mb-2">Email</label>
-                        <input type="email" name="email" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <input type="email" name="email" id="email" required class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
-                    
+
+                    <div class="mb-4">
+                        <label class="block font-semibold mb-2">Phone Number</label>
+                        <input type="text" name="phone" id="phone" class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+
                     <div class="mb-4">
                         <label class="block font-semibold mb-2">Address</label>
-                        <input type="text" name="address" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <input type="text" name="address" id="address" required class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
-                    
-                    <div class="grid grid-cols-2 gap-4 mb-4">
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                         <div>
                             <label class="block font-semibold mb-2">City</label>
-                            <input type="text" name="city" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <input type="text" name="city" id="city" required class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
+
                         <div>
                             <label class="block font-semibold mb-2">Postal Code</label>
-                            <input type="text" name="postal_code" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <input type="text" name="postal_code" id="postal_code" class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                     </div>
-                    
-                    <h2 class="text-xl font-bold mt-6 mb-4">Payment Method</h2>
-                    
-                    <div class="space-y-3 mb-6">
-                        <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                            <input type="radio" name="payment_method" value="card" checked>
-                            <i class="fab fa-cc-visa text-2xl text-blue-600"></i>
-                            <span>Credit / Debit Card</span>
-                        </label>
-                        <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                            <input type="radio" name="payment_method" value="paypal">
+
+                    <!-- Payment Data -->
+                    <!-- Do not reference total_converted/subtotal_converted here unless the view passes them. -->
+                    <div
+                        id="arolana-payment-data"
+                        data-amount="{{ cart.total|default:cart.subtotal|default:'0' }}"
+                        data-currency="NGN"
+                        data-order-id="{{ cart.id|default:'' }}"
+                    ></div>
+
+                    <h2 class="text-xl font-black mt-6 mb-4 text-gray-900">Choose Payment Method</h2>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+                        <button type="button"
+                                onclick="startArolanaPayment('flutterwave')"
+                                class="arolana-payment-option">
+                            <i class="fas fa-bolt text-2xl text-orange-500"></i>
+                            <span>
+                                <strong>Flutterwave</strong>
+                                <small>Cards, bank transfer, USSD and local methods</small>
+                            </span>
+                        </button>
+
+                        <button type="button"
+                                onclick="startArolanaPayment('stripe')"
+                                class="arolana-payment-option">
+                            <i class="fab fa-stripe-s text-2xl text-indigo-600"></i>
+                            <span>
+                                <strong>Stripe / Card</strong>
+                                <small>International card checkout</small>
+                            </span>
+                        </button>
+
+                        <button type="button"
+                                onclick="startArolanaPayment('paypal')"
+                                class="arolana-payment-option">
                             <i class="fab fa-paypal text-2xl text-blue-600"></i>
-                            <span>PayPal</span>
-                        </label>
-                        <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                            <input type="radio" name="payment_method" value="bank">
-                            <i class="fas fa-university text-2xl text-blue-600"></i>
-                            <span>Bank Transfer</span>
-                        </label>
+                            <span>
+                                <strong>PayPal</strong>
+                                <small>PayPal wallet and supported cards</small>
+                            </span>
+                        </button>
+
+                        <button type="button"
+                                onclick="startArolanaPayment('coinbase')"
+                                class="arolana-payment-option">
+                            <i class="fab fa-bitcoin text-2xl text-yellow-500"></i>
+                            <span>
+                                <strong>Coinbase Commerce</strong>
+                                <small>Hosted crypto checkout</small>
+                            </span>
+                        </button>
+
+                        <button type="button"
+                                onclick="startArolanaPayment('manual_crypto')"
+                                class="arolana-payment-option md:col-span-2">
+                            <i class="fas fa-wallet text-2xl text-green-600"></i>
+                            <span>
+                                <strong>Manual Crypto Wallet Transfer</strong>
+                                <small>Transfer manually and upload proof after payment</small>
+                            </span>
+                        </button>
                     </div>
-                    
-                    <button type="submit" class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition">
-                        Place Order
-                    </button>
+
+                    <p class="text-sm text-gray-500 text-center">
+                        Choose one of the payment methods above to complete your order securely.
+                    </p>
                 </form>
             </div>
         </div>
-        
+
         <!-- Order Summary -->
         <div class="lg:col-span-1">
-            <div class="bg-white rounded-xl shadow-lg p-6 sticky top-24">
-                <h2 class="text-xl font-bold mb-4">Order Summary</h2>
-                
+            <div class="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 sticky top-24">
+                <h2 class="text-xl font-black mb-4 text-gray-900">Order Summary</h2>
+
                 <div class="space-y-3 mb-4">
                     {% for item in cart.items.all %}
-                    <div class="flex justify-between text-sm">
-                        <span>{{ item.product.name }} x{{ item.quantity }}</span>
-                        <span class="font-semibold">{{ item.subtotal|currency:request }}</span>
+                    <div class="flex justify-between gap-4 text-sm">
+                        <span class="text-gray-700">{{ item.product.name }} × {{ item.quantity }}</span>
+                        <span class="font-semibold whitespace-nowrap">{{ item.subtotal|currency:request }}</span>
                     </div>
+                    {% empty %}
+                    <p class="text-sm text-gray-500">No items in cart.</p>
                     {% endfor %}
                 </div>
-                
+
                 <div class="border-t pt-3 space-y-2">
                     <div class="flex justify-between">
                         <span>Subtotal</span>
                         <span>{{ cart.subtotal|currency:request }}</span>
                     </div>
+
                     <div class="flex justify-between">
                         <span>Shipping</span>
                         <span class="text-green-600">Free</span>
                     </div>
+
                     <div class="border-t pt-3 mt-3">
-                        <div class="flex justify-between text-lg font-bold">
+                        <div class="flex justify-between text-lg font-black">
                             <span>Total</span>
-                            <span class="text-green-600">{{ cart.total|currency:request }}</span>
+                            <span class="text-green-600">{{ cart.total|default:cart.subtotal|currency:request }}</span>
                         </div>
                     </div>
+                </div>
+
+                <div class="mt-5 rounded-xl bg-blue-50 p-4 text-sm text-blue-800">
+                    <i class="fas fa-lock mr-1"></i>
+                    Payments are securely processed by your selected gateway.
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+    .arolana-payment-option {
+        display: flex;
+        align-items: center;
+        gap: 0.9rem;
+        min-height: 88px;
+        padding: 1rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 1rem;
+        background: #fff;
+        cursor: pointer;
+        text-align: left;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    }
+
+    .arolana-payment-option:hover {
+        transform: translateY(-2px);
+        border-color: #2563eb;
+        background: #eff6ff;
+        box-shadow: 0 18px 40px rgba(37, 99, 235, 0.12);
+    }
+
+    .arolana-payment-option strong {
+        display: block;
+        color: #0f172a;
+        font-weight: 950;
+    }
+
+    .arolana-payment-option small {
+        display: block;
+        color: #64748b;
+        line-height: 1.35;
+        margin-top: 0.15rem;
+    }
+</style>
+
+<script>
+function getCheckoutValue(selector) {
+    return document.querySelector(selector)?.value?.trim() || "";
+}
+
+function startArolanaPayment(gateway) {
+    const dataBox = document.getElementById("arolana-payment-data");
+
+    if (!dataBox) {
+        alert("Payment data is missing.");
+        return;
+    }
+
+    const amount = dataBox.dataset.amount || "0";
+    const currency = dataBox.dataset.currency || "NGN";
+    const orderId = dataBox.dataset.orderId || "";
+
+    const firstName = getCheckoutValue('[name="first_name"]');
+    const lastName = getCheckoutValue('[name="last_name"]');
+    const email = getCheckoutValue('[name="email"]');
+    const phone = getCheckoutValue('[name="phone"]');
+    const address = getCheckoutValue('[name="address"]');
+    const city = getCheckoutValue('[name="city"]');
+    const postalCode = getCheckoutValue('[name="postal_code"]');
+
+    if (!firstName) {
+        alert("Please enter your first name.");
+        document.querySelector('[name="first_name"]')?.focus();
+        return;
+    }
+
+    if (!lastName) {
+        alert("Please enter your last name.");
+        document.querySelector('[name="last_name"]')?.focus();
+        return;
+    }
+
+    if (!email) {
+        alert("Please enter your email before choosing a payment method.");
+        document.querySelector('[name="email"]')?.focus();
+        return;
+    }
+
+    if (!address) {
+        alert("Please enter your delivery address.");
+        document.querySelector('[name="address"]')?.focus();
+        return;
+    }
+
+    if (!city) {
+        alert("Please enter your city.");
+        document.querySelector('[name="city"]')?.focus();
+        return;
+    }
+
+    const amountNumber = Number(String(amount).replace(/,/g, ""));
+
+    if (!amountNumber || amountNumber <= 0) {
+        alert("Invalid payment amount. Please refresh the cart and try again.");
+        return;
+    }
+
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = `/payments/start/${gateway}/`;
+
+    const csrfInput = document.createElement("input");
+    csrfInput.type = "hidden";
+    csrfInput.name = "csrfmiddlewaretoken";
+    csrfInput.value = "{{ csrf_token }}";
+    form.appendChild(csrfInput);
+
+    const fields = {
+        amount: amountNumber.toString(),
+        currency: currency,
+        order_id: orderId,
+        name: `${firstName} ${lastName}`.trim(),
+        email: email,
+        phone: phone,
+        address: address,
+        city: city,
+        postal_code: postalCode
+    };
+
+    Object.entries(fields).forEach(([key, value]) => {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = key;
+        input.value = value || "";
+        form.appendChild(input);
+    });
+
+    document.body.appendChild(form);
+    form.submit();
+}
+</script>
 {% endblock %}

@@ -141,6 +141,7 @@ INSTALLED_APPS = [
     'channels',
     'smartchat',
     'arolana_seo',
+    'arolana_payments',
 ]
 AROLANA_BASE_CURRENCY = "NGN"
 # ============ MIDDLEWARE ============
@@ -503,6 +504,41 @@ X_FRAME_OPTIONS = 'DENY'
 SESSION_COOKIE_AGE = 86400
 SESSION_COOKIE_HTTPONLY = True
 
+
+# ============ PAYMENT GATEWAYS ============
+
+AROLANA_DEFAULT_CURRENCY = "NGN"
+PAYMENT_ADMIN_EMAIL = config("PAYMENT_ADMIN_EMAIL", default="")
+
+# Flutterwave
+FLUTTERWAVE_SECRET_KEY = config("FLUTTERWAVE_SECRET_KEY", default="")
+FLUTTERWAVE_SECRET_HASH = config("FLUTTERWAVE_SECRET_HASH", default="")
+
+# Stripe
+STRIPE_SECRET_KEY = config("STRIPE_SECRET_KEY", default="")
+STRIPE_WEBHOOK_SECRET = config("STRIPE_WEBHOOK_SECRET", default="")
+
+# PayPal
+PAYPAL_CLIENT_ID = config("PAYPAL_CLIENT_ID", default="")
+PAYPAL_CLIENT_SECRET = config("PAYPAL_CLIENT_SECRET", default="")
+PAYPAL_BASE_URL = config(
+    "PAYPAL_BASE_URL",
+    default="https://api-m.sandbox.paypal.com"
+)
+
+# Coinbase Commerce
+COINBASE_COMMERCE_API_KEY = config("COINBASE_COMMERCE_API_KEY", default="")
+COINBASE_COMMERCE_WEBHOOK_SECRET = config("COINBASE_COMMERCE_WEBHOOK_SECRET", default="")
+COINBASE_COMMERCE_API_VERSION = config(
+    "COINBASE_COMMERCE_API_VERSION",
+    default="2018-03-22"
+)
+
+# Optional order success hook
+AROLANA_PAYMENT_SUCCESS_HANDLER = config(
+    "AROLANA_PAYMENT_SUCCESS_HANDLER",
+    default=""
+)
 # ============ JAZZMIN ============
 os.makedirs(os.path.join(BASE_DIR, 'static', 'admin', 'css'), exist_ok=True)
 

@@ -1,0 +1,68 @@
+{% extends "base/base.html" %}
+
+{% block title %}Manual Crypto Payment | Arolana{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-10">
+    <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-6 md:p-8">
+        <h1 class="text-3xl font-black text-gray-900">Manual Crypto Transfer</h1>
+        <p class="text-gray-600 mt-2">
+            Send exactly <strong>{{ payment.amount }} {{ payment.currency }}</strong>, then submit your proof below.
+        </p>
+
+        <div class="grid md:grid-cols-2 gap-4 my-6">
+            {% for wallet in wallets %}
+            <label class="border rounded-2xl p-4 cursor-pointer hover:border-blue-500 transition">
+                <input type="radio" name="wallet_preview" value="{{ wallet.id }}" class="mr-2">
+                <strong>{{ wallet.currency }} - {{ wallet.network }}</strong>
+                <p class="text-sm text-gray-500 break-all mt-2">{{ wallet.address }}</p>
+                {% if wallet.qr_code %}
+                    <img src="{{ wallet.qr_code.url }}" class="w-32 h-32 object-contain mt-3" alt="{{ wallet.network }} QR">
+                {% endif %}
+            </label>
+            {% empty %}
+            <div class="md:col-span-2 bg-yellow-50 text-yellow-800 rounded-xl p-4">
+                No active crypto wallet has been added yet. Add one from Django Admin.
+            </div>
+            {% endfor %}
+        </div>
+
+        <form method="POST" enctype="multipart/form-data" class="grid gap-4">
+            {% csrf_token %}
+
+            <label class="grid gap-1">
+                <span class="text-sm font-bold text-gray-700">Wallet Used</span>
+                <select name="wallet_id" required class="border rounded-xl px-4 py-3">
+                    {% for wallet in wallets %}
+                    <option value="{{ wallet.id }}">{{ wallet.currency }} - {{ wallet.network }} - {{ wallet.address }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+
+            <label class="grid gap-1">
+                <span class="text-sm font-bold text-gray-700">Your Sending Wallet Address</span>
+                <input name="sender_wallet" class="border rounded-xl px-4 py-3" placeholder="Wallet address you paid from">
+            </label>
+
+            <label class="grid gap-1">
+                <span class="text-sm font-bold text-gray-700">Transaction Hash / TXID</span>
+                <input name="tx_hash" required class="border rounded-xl px-4 py-3" placeholder="Paste transaction hash">
+            </label>
+
+            <label class="grid gap-1">
+                <span class="text-sm font-bold text-gray-700">Upload Proof</span>
+                <input type="file" name="proof" class="border rounded-xl px-4 py-3">
+            </label>
+
+            <label class="grid gap-1">
+                <span class="text-sm font-bold text-gray-700">Note</span>
+                <textarea name="note" class="border rounded-xl px-4 py-3" rows="4"></textarea>
+            </label>
+
+            <button class="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl px-6 py-3 font-black">
+                Submit Payment Proof
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -2,7 +2,7 @@
 
 <div
     id="arolana-smartchat-widget"
-    class="fixed bottom-6 right-6 z-[9999]"
+    class="fixed bottom-6 right-6 z-[99999]"
     data-message-url="{% url 'smartchat:api_message' %}"
     data-poll-url="{% url 'smartchat:api_poll' %}"
     data-request-admin-url="{% url 'smartchat:api_request_admin' %}"
@@ -10,6 +10,7 @@
     data-product-id="{% if product %}{{ product.id }}{% endif %}"
     data-product-name="{% if product %}{{ product.name|escape }}{% endif %}"
     data-product-sku="{% if product %}{{ product.sku|escape }}{% endif %}"
+    style="pointer-events:auto;"
 >
     <div
         id="arolana-smartchat-panel"
@@ -32,7 +33,7 @@
                 </div>
                 <button
                     type="button"
-                    onclick="closeAIChat()"
+                    onclick="window.closeAIChat()"
                     class="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition shrink-0"
                     aria-label="Close AI chat"
                 >
@@ -98,7 +99,7 @@
         <button
             id="arolana-smartchat-toggle"
             type="button"
-            onclick="openAIChat()"
+            onclick="window.ArolanaSmartChat && window.ArolanaSmartChat.open ? window.ArolanaSmartChat.open() : window.openAIChat()"
             aria-label="Open Arolana AI Chat"
             aria-expanded="false"
             class="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 text-white shadow-2xl backdrop-blur-md transition-all duration-300 hover:scale-110 hover:shadow-purple-500/40 active:scale-95"
@@ -171,3 +172,86 @@
 </style>
 
 <script src="{% static 'js/arolana-smart-chat.js' %}" defer></script>
+
+<script>
+(function () {
+    function getEl(id) {
+        return document.getElementById(id);
+    }
+
+    function openPanel() {
+        const panel = getEl("arolana-smartchat-panel");
+        const toggle = getEl("arolana-smartchat-toggle");
+        const icon = getEl("arolana-smartchat-toggle-icon");
+        const input = getEl("arolana-smartchat-input");
+
+        if (!panel) {
+            console.warn("Arolana SmartChat panel not found.");
+            return;
+        }
+
+        panel.classList.remove("hidden");
+
+        if (toggle) {
+            toggle.setAttribute("aria-expanded", "true");
+        }
+
+        if (icon) {
+            icon.className = "fas fa-times text-2xl relative z-10";
+        }
+
+        setTimeout(function () {
+            if (input) {
+                input.focus();
+            }
+        }, 80);
+    }
+
+    function closePanel() {
+        const panel = getEl("arolana-smartchat-panel");
+        const toggle = getEl("arolana-smartchat-toggle");
+        const icon = getEl("arolana-smartchat-toggle-icon");
+
+        if (!panel) {
+            return;
+        }
+
+        panel.classList.add("hidden");
+
+        if (toggle) {
+            toggle.setAttribute("aria-expanded", "false");
+        }
+
+        if (icon) {
+            icon.className = "fas fa-comment-dots text-2xl relative z-10";
+        }
+    }
+
+    /*
+      This fallback intentionally runs after the widget HTML.
+      It prevents older product-detail scripts from overriding openAIChat()
+      with the old #ai-chat-panel IDs.
+    */
+    window.openAIChat = openPanel;
+    window.closeAIChat = closePanel;
+    window.startAIChat = openPanel;
+
+    window.ArolanaSmartChat = window.ArolanaSmartChat || {};
+    window.ArolanaSmartChat.open = window.ArolanaSmartChat.open || openPanel;
+    window.ArolanaSmartChat.close = window.ArolanaSmartChat.close || closePanel;
+
+    document.addEventListener("click", function (event) {
+        const toggle = event.target.closest("#arolana-smartchat-toggle");
+        if (!toggle) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (window.ArolanaSmartChat && typeof window.ArolanaSmartChat.open === "function") {
+            window.ArolanaSmartChat.open();
+        } else {
+            openPanel();
+        }
+    }, true);
+})();
+</script>
