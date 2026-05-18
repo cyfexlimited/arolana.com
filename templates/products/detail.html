@@ -2059,55 +2059,36 @@
 
     function openAIChat() {
         /*
-            Product detail fallback:
-            Prefer the global Arolana SmartChat widget in base.html.
-            If the global widget is unavailable, fall back to the old product-local widget IDs.
+            Always open the global Arolana SmartChat widget from base.html.
+            Do NOT fall back to the old product-local chat IDs.
         */
         const globalPanel = document.getElementById('arolana-smartchat-panel');
         const globalToggle = document.getElementById('arolana-smartchat-toggle');
         const globalIcon = document.getElementById('arolana-smartchat-toggle-icon');
         const globalInput = document.getElementById('arolana-smartchat-input');
 
-        if (globalPanel) {
-            globalPanel.classList.remove('hidden');
-
-            if (globalToggle) {
-                globalToggle.setAttribute('aria-expanded', 'true');
-            }
-
-            if (globalIcon) {
-                globalIcon.className = 'fas fa-times text-2xl relative z-10';
-            }
-
-            setTimeout(function () {
-                if (globalInput) globalInput.focus();
-            }, 80);
-
-            if (window.ArolanaSmartChat && typeof window.ArolanaSmartChat.poll === 'function') {
-                window.ArolanaSmartChat.poll();
-            }
-
+        if (!globalPanel) {
+            console.warn('Arolana global SmartChat panel not found. Make sure base.html includes partials/arolana_smart_chat_widget.html once before </body>.');
             return;
         }
 
-        const panel = getEl('ai-chat-panel');
-        const toggle = getEl('ai-chat-toggle');
-        const icon = getEl('ai-chat-toggle-icon');
-        const input = getEl('ai-chat-input');
+        globalPanel.classList.remove('hidden');
 
-        if (!panel) return;
+        if (globalToggle) {
+            globalToggle.setAttribute('aria-expanded', 'true');
+        }
 
-        panel.classList.remove('hidden');
-
-        if (toggle) toggle.setAttribute('aria-expanded', 'true');
-        if (icon) {
-            icon.classList.remove('fa-comment-dots');
-            icon.classList.add('fa-times');
+        if (globalIcon) {
+            globalIcon.className = 'fas fa-times text-2xl relative z-10';
         }
 
         setTimeout(function () {
-            if (input) input.focus();
-        }, 50);
+            if (globalInput) globalInput.focus();
+        }, 80);
+
+        if (window.ArolanaSmartChat && typeof window.ArolanaSmartChat.poll === 'function') {
+            window.ArolanaSmartChat.poll();
+        }
     }
 
     function closeAIChat() {
@@ -2115,32 +2096,16 @@
         const globalToggle = document.getElementById('arolana-smartchat-toggle');
         const globalIcon = document.getElementById('arolana-smartchat-toggle-icon');
 
-        if (globalPanel) {
-            globalPanel.classList.add('hidden');
+        if (!globalPanel) return;
 
-            if (globalToggle) {
-                globalToggle.setAttribute('aria-expanded', 'false');
-            }
+        globalPanel.classList.add('hidden');
 
-            if (globalIcon) {
-                globalIcon.className = 'fas fa-comment-dots text-2xl relative z-10';
-            }
-
-            return;
+        if (globalToggle) {
+            globalToggle.setAttribute('aria-expanded', 'false');
         }
 
-        const panel = getEl('ai-chat-panel');
-        const toggle = getEl('ai-chat-toggle');
-        const icon = getEl('ai-chat-toggle-icon');
-
-        if (!panel) return;
-
-        panel.classList.add('hidden');
-
-        if (toggle) toggle.setAttribute('aria-expanded', 'false');
-        if (icon) {
-            icon.classList.remove('fa-times');
-            icon.classList.add('fa-comment-dots');
+        if (globalIcon) {
+            globalIcon.className = 'fas fa-comment-dots text-2xl relative z-10';
         }
     }
 
@@ -2333,6 +2298,20 @@
         openAIChat();
     }, true);
 
+    // Also catch any old product-local chat buttons and redirect them to global SmartChat.
+    document.addEventListener('click', function (event) {
+        const oldAiButton = event.target.closest('[onclick*="startAIChat"], [onclick*="openAIChat"]');
+        if (!oldAiButton) return;
+
+        const isGlobalToggle = oldAiButton.id === 'arolana-smartchat-toggle';
+        const isLightboxOrOther = oldAiButton.closest('#image-lightbox, #price-alert-modal');
+        if (isGlobalToggle || isLightboxOrOther) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        openAIChat();
+    }, true);
+
 
     document.addEventListener('DOMContentLoaded', function () {
         captureDefaultUI();
@@ -2486,6 +2465,9 @@
     window.startAIChat = startAIChat;
     window.openAIChat = openAIChat;
     window.closeAIChat = closeAIChat;
+    window.ArolanaSmartChat = window.ArolanaSmartChat || {};
+    window.ArolanaSmartChat.open = openAIChat;
+    window.ArolanaSmartChat.close = closeAIChat;
     window.requestAdminHandoff = requestAdminHandoff;
     window.addToCart = addToCart;
     window.addAccessoryToCart = addAccessoryToCart;
