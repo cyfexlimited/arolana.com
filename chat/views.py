@@ -86,9 +86,12 @@ def _send_message_notification(user, sender, message, link, room_type='chat', ro
 
 
 def _total_chat_unread(user):
-    direct_unread = 0
-    for room in ChatRoom.objects.filter(participants=user, is_active=True):
-        direct_unread += room.get_unread_count(user)
+    direct_unread = ChatMessage.objects.filter(
+        room__participants=user,
+        room__is_active=True,
+        is_active=True,
+        is_read=False,
+    ).exclude(sender=user).count()
     customer_unread = VendorChatRoom.objects.filter(customer=user, is_active=True).aggregate(total=Sum('customer_unread'))['total'] or 0
     vendor_unread = VendorChatRoom.objects.filter(vendor=user, is_active=True).aggregate(total=Sum('vendor_unread'))['total'] or 0
     return direct_unread + customer_unread + vendor_unread

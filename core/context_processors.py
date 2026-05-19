@@ -109,10 +109,13 @@ def global_context(request):
             notification_unread_count = 0
             recent_user_notifications = []
         try:
-            from chat.models import ChatRoom, VendorChatRoom
-            direct_unread = 0
-            for room in ChatRoom.objects.filter(participants=request.user, is_active=True):
-                direct_unread += room.get_unread_count(request.user)
+            from chat.models import ChatMessage, VendorChatRoom
+            direct_unread = ChatMessage.objects.filter(
+                room__participants=request.user,
+                room__is_active=True,
+                is_active=True,
+                is_read=False,
+            ).exclude(sender=request.user).count()
             vendor_unread = VendorChatRoom.objects.filter(customer=request.user, is_active=True).aggregate(total=Sum('customer_unread'))['total'] or 0
             seller_unread = VendorChatRoom.objects.filter(vendor=request.user, is_active=True).aggregate(total=Sum('vendor_unread'))['total'] or 0
             chat_unread_count = direct_unread + vendor_unread + seller_unread

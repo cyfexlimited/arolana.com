@@ -69,13 +69,13 @@ sitemaps = {
 
 def home_view(request):
     """Custom home view with video section and proper context"""
+    from core.local_cache import local_get_or_set
     from homepage.models import HomepageVideoSection
 
-    video_section = (
-        HomepageVideoSection.objects
-        .filter(is_active=True)
-        .order_by("display_order")
-        .first()
+    video_section = local_get_or_set(
+        "homepage:video_section",
+        lambda: HomepageVideoSection.objects.filter(is_active=True).order_by("display_order").first(),
+        300,
     )
 
     return render(request, "base/home.html", {
