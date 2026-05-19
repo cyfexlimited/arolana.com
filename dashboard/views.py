@@ -351,7 +351,11 @@ def vendor_products(request):
     
     search_query = request.GET.get('q')
     if search_query:
-        products = products.filter(Q(name__icontains=search_query) | Q(sku__icontains=search_query))
+        products = products.filter(
+            Q(name__icontains=search_query)
+            | Q(sku__icontains=search_query)
+            | Q(manufacturer_sku__icontains=search_query)
+        )
     
     sort_by = request.GET.get('sort', '-created_at')
     sort_mapping = {
@@ -425,6 +429,7 @@ def vendor_add_product(request):
             compare_price = request.POST.get('compare_price')
             stock_quantity = request.POST.get('stock_quantity', 0)
             sku = request.POST.get('sku', '')
+            manufacturer_sku = request.POST.get('manufacturer_sku', '').strip()
             category_id = request.POST.get('category')
             brand_id = request.POST.get('brand')
             is_featured = request.POST.get('is_featured') == 'on'
@@ -469,6 +474,7 @@ def vendor_add_product(request):
                     compare_price=compare_price_amount,
                     stock_quantity=int(stock_quantity or 0),
                     sku=sku,
+                    manufacturer_sku=manufacturer_sku,
                     category_id=category_id,
                     brand_id=brand_id if brand_id else None,
                     vendor=request.user,
@@ -589,6 +595,7 @@ def vendor_product_detail(request, product_id):
             product.compare_price = Decimal(str(request.POST.get('compare_price'))) if request.POST.get('compare_price') else None
             product.stock_quantity = int(request.POST.get('stock_quantity', product.stock_quantity))
             product.sku = request.POST.get('sku', product.sku)
+            product.manufacturer_sku = request.POST.get('manufacturer_sku', '').strip()
             product.category_id = request.POST.get('category', product.category_id)
             product.brand_id = request.POST.get('brand') if request.POST.get('brand') else None
             product.is_featured = request.POST.get('is_featured') == 'on'
@@ -1164,6 +1171,8 @@ def api_product_update(request, product_id):
         product.name = data.get('name', product.name)
         product.price = data.get('price', product.price)
         product.stock_quantity = data.get('stock_quantity', product.stock_quantity)
+        if 'manufacturer_sku' in data:
+            product.manufacturer_sku = data.get('manufacturer_sku', '').strip()
         product.save()
         return JsonResponse({'success': True})
     except Exception as e:
@@ -1179,6 +1188,7 @@ def api_product_create(request):
                 price=data.get('price', 0),
                 stock_quantity=data.get('stock_quantity', 0),
                 sku=data.get('sku', f"SKU-{int(timezone.now().timestamp())}"),
+                manufacturer_sku=data.get('manufacturer_sku', '').strip(),
                 vendor=User.objects.filter(is_staff=True).first(),
                 category=Category.objects.first(),
                 is_active=True

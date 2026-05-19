@@ -42,6 +42,9 @@
                             <div>
                                 <p class="font-semibold">{{ product.name }}</p>
                                 <p class="text-xs text-gray-500">{{ product.category.name|default:"No Category" }}</p>
+                                {% if product.manufacturer_sku %}
+                                    <p class="text-xs text-gray-500">Manufacturer SKU: {{ product.manufacturer_sku }}</p>
+                                {% endif %}
                             </div>
                         </div>
                     </td>

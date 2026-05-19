@@ -508,8 +508,11 @@
             <div class="bg-white rounded-2xl shadow-2xl p-6 sticky top-24">
                 <!-- Brand -->
                 <div class="text-sm text-gray-500 mb-2 flex items-center gap-2">
-	                    <span class="px-2 py-1 bg-blue-100 text-blue-600 rounded-full text-xs">{{ product.brand.name|default:product.category.name }}</span>
-	                    <span>SKU: <span id="product-sku">{{ product.sku }}</span></span>
+                    <span class="px-2 py-1 bg-blue-100 text-blue-600 rounded-full text-xs">{{ product.brand.name|default:product.category.name }}</span>
+                    <span>SKU: <span id="product-sku">{{ product.sku }}</span></span>
+                    {% if product.manufacturer_sku %}
+                        <span>Manufacturer SKU: {{ product.manufacturer_sku }}</span>
+                    {% endif %}
                 </div>
 
                 <h1 class="text-3xl font-bold mb-3 leading-tight">{{ product.name }}</h1>
@@ -716,6 +719,9 @@
                         <table class="w-full text-sm">
                             <tr class="border-b"><td class="py-2 font-semibold">Brand</td><td>{{ product.brand.name|default:"Arolana" }}</td></tr>
                             <tr class="border-b"><td class="py-2 font-semibold">Model</td><td>{{ product.sku }}</td></tr>
+                            {% if product.manufacturer_sku %}
+                            <tr class="border-b"><td class="py-2 font-semibold">Manufacturer SKU</td><td>{{ product.manufacturer_sku }}</td></tr>
+                            {% endif %}
                             <tr class="border-b"><td class="py-2 font-semibold">Condition</td><td>New</td></tr>
                             <tr class="border-b"><td class="py-2 font-semibold">Warranty</td><td>{{ product.warranty_years }} Years</td></tr>
                         </table>

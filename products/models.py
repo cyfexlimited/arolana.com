@@ -239,6 +239,12 @@ class Product(BaseModel):
         db_index=True,
         help_text="Unique product identifier"
     )
+    manufacturer_sku = models.CharField(
+        max_length=100,
+        blank=True,
+        db_index=True,
+        help_text="Optional SKU/model number supplied by the manufacturer"
+    )
     name = models.CharField(max_length=200, db_index=True)
     slug = models.SlugField(max_length=255, unique=True, db_index=True)
     description = CKEditor5Field()

@@ -11,6 +11,7 @@
                 <tr class="border-b">
                     <th class="text-left py-3">Name</th>
                     <th class="text-left py-3">SKU</th>
+                    <th class="text-left py-3">Manufacturer SKU</th>
                     <th class="text-left py-3">Price</th>
                     <th class="text-left py-3">Stock</th>
                     <th class="text-left py-3">Actions</th>
@@ -21,6 +22,7 @@
                 <tr class="border-b hover:bg-gray-50">
                     <td class="py-3">{{ product.name|truncatechars:50 }}</td>
                     <td class="py-3">{{ product.sku }}</td>
+                    <td class="py-3">{{ product.manufacturer_sku|default:"-" }}</td>
                     <td class="py-3">${{ product.price }}</td>
                     <td class="py-3">{{ product.stock_quantity }}</td>
                     <td class="py-3">

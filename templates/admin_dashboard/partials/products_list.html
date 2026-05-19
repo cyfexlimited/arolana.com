@@ -15,6 +15,7 @@
                     <th>ID</th>
                     <th>Name</th>
                     <th>SKU</th>
+                    <th>Manufacturer SKU</th>
                     <th>Price</th>
                     <th>Stock</th>
                     <th>Actions</th>
@@ -26,6 +27,7 @@
                     <td>{{ product.id }}</td>
                     <td>{{ product.name|truncatechars:50 }}</td>
                     <td>{{ product.sku }}</td>
+                    <td>{{ product.manufacturer_sku|default:"-" }}</td>
                     <td>${{ product.price }}</td>
                     <td>{{ product.stock_quantity }}</td>
                     <td>
@@ -43,6 +45,7 @@
 function editProduct(id, data) {
     editItem('product', id, {
         name: data.name,
+        manufacturer_sku: data.manufacturer_sku || '',
         price: data.price,
         stock_quantity: data.stock_quantity
     });
@@ -54,6 +57,10 @@ function showAddProductForm() {
         <div class="mb-3">
             <label class="block text-sm font-medium mb-1">Name</label>
             <input type="text" id="productName" class="w-full p-2 border rounded">
+        </div>
+        <div class="mb-3">
+            <label class="block text-sm font-medium mb-1">Manufacturer SKU (Optional)</label>
+            <input type="text" id="productManufacturerSku" class="w-full p-2 border rounded" placeholder="Manufacturer model/SKU">
         </div>
         <div class="mb-3">
             <label class="block text-sm font-medium mb-1">Price</label>
@@ -76,6 +83,7 @@ function showAddProductForm() {
 function saveNewProduct() {
     const data = {
         name: document.getElementById('productName').value,
+        manufacturer_sku: document.getElementById('productManufacturerSku').value,
         price: document.getElementById('productPrice').value,
         stock_quantity: document.getElementById('productStock').value
     };

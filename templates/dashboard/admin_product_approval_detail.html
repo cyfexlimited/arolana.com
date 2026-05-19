@@ -58,6 +58,10 @@
                     <p class="text-gray-900">{{ product.sku }}</p>
                 </div>
                 <div>
+                    <label class="font-medium text-gray-700">Manufacturer SKU</label>
+                    <p class="text-gray-900">{{ product.manufacturer_sku|default:"N/A" }}</p>
+                </div>
+                <div>
                     <label class="font-medium text-gray-700">Vendor</label>
                     <p class="text-gray-900">{{ product.vendor.email }}</p>
                 </div>

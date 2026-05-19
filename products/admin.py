@@ -209,10 +209,10 @@ class ReviewVideoInline(admin.TabularInline):
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     form = ProductAdminForm
-    list_display = ['sku', 'name', 'price', 'stock_quantity', 'available_stock_display', 'stock_status_badge', 'approval_status_badge', 'is_featured', 'is_active', 'image_preview']
+    list_display = ['sku', 'manufacturer_sku', 'name', 'price', 'stock_quantity', 'available_stock_display', 'stock_status_badge', 'approval_status_badge', 'is_featured', 'is_active', 'image_preview']
     list_editable = ['price', 'stock_quantity', 'is_featured', 'is_active']
     list_filter = [InventoryStatusFilter, 'is_active', 'is_featured', 'is_new', 'is_bestseller', 'category', 'brand', 'approval_status', 'allow_backorder', 'created_at']
-    search_fields = ['sku', 'name', 'description']
+    search_fields = ['sku', 'manufacturer_sku', 'name', 'description']
     prepopulated_fields = {'slug': ['name']}
     readonly_fields = ['views_count', 'sales_count', 'rating_avg', 'rating_count', 'created_at', 'updated_at', 'sku', 'submitted_for_review_at', 'approved_at']
     inlines = [ProductImageInline, ProductVariantInline, ProductVideoInline, ProductArticleLinkInline, AccessoryInline, ManufacturerWarrantyInline, ShippingInfoInline]
@@ -222,7 +222,7 @@ class ProductAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Basic Information', {
-            'fields': ('sku', 'name', 'slug', 'category', 'brand', 'vendor')
+            'fields': ('sku', 'manufacturer_sku', 'name', 'slug', 'category', 'brand', 'vendor')
         }),
         ('Description & Specifications', {
             'fields': ('description', 'specifications'),
