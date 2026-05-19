@@ -20,8 +20,13 @@
         {% endfor %}
     {% endif %}
     
-    <form method="POST" enctype="multipart/form-data" class="space-y-6">
-        {% csrf_token %}
+	    <form method="POST" enctype="multipart/form-data" class="space-y-6">
+	        {% csrf_token %}
+            <div class="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
+                <strong class="block mb-1">Plan limits</strong>
+                Images/product: {{ subscription_limits.max_images_per_product }} · Variants/product:
+                {% if subscription_limits.max_variants_per_product == -1 %}Unlimited{% else %}{{ subscription_limits.max_variants_per_product }}{% endif %}
+            </div>
         
         <!-- Basic Information -->
         <div class="border-b border-gray-200 pb-4">
@@ -172,9 +177,14 @@
             <div class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                    <textarea name="description" rows="6" 
-                              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">{{ product.description }}</textarea>
-                </div>
+	                    <textarea name="description" id="descriptionEditor" rows="6"
+	                              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">{{ product.description }}</textarea>
+	                </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Specifications</label>
+                        <textarea name="specifications" id="specificationsEditor" rows="6"
+                                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">{{ product.specifications|default:'' }}</textarea>
+                    </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Meta Title</label>
                     <input type="text" name="meta_title" value="{{ product.meta_title|default:'' }}" 
@@ -182,8 +192,8 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Meta Description</label>
-                    <textarea name="meta_description" rows="3" 
-                              class="w-full px-4 py-2 border border-gray-300 rounded-lg">{{ product.meta_description|default:'' }}</textarea>
+	                    <textarea name="meta_description" id="metaDescriptionEditor" rows="3"
+	                              class="w-full px-4 py-2 border border-gray-300 rounded-lg">{{ product.meta_description|default:'' }}</textarea>
                 </div>
             </div>
         </div>
@@ -201,16 +211,21 @@
     <!-- Variants Section -->
     {% if variants %}
     <div class="mt-8 pt-6 border-t">
-        <h2 class="text-xl font-semibold mb-4">Product Variants</h2>
+	        <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold">Product Variants</h2>
+                <span class="text-sm text-gray-500">{{ variants|length }} active</span>
+            </div>
         <div class="overflow-x-auto">
             <table class="w-full">
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-4 py-2 text-left">Image</th>
-                        <th class="px-4 py-2 text-left">Type</th>
-                        <th class="px-4 py-2 text-left">Value</th>
-                        <th class="px-4 py-2 text-left">Price Adj</th>
-                        <th class="px-4 py-2 text-left">Stock</th>
+	                        <th class="px-4 py-2 text-left">Type</th>
+	                        <th class="px-4 py-2 text-left">Value</th>
+                            <th class="px-4 py-2 text-left">SKU</th>
+                            <th class="px-4 py-2 text-left">Color</th>
+	                        <th class="px-4 py-2 text-left">Price Adj</th>
+	                        <th class="px-4 py-2 text-left">Stock</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -223,9 +238,15 @@
                                 <div class="w-10 h-10 bg-gray-200 rounded"></div>
                             {% endif %}
                         </td>
-                        <td class="px-4 py-2">{{ variant.variant_type }} </td>
-                        <td class="px-4 py-2">{{ variant.value }} </td>
-                        <td class="px-4 py-2">${{ variant.price_adjustment }} </td>
+	                        <td class="px-4 py-2">{{ variant.variant_type }} </td>
+	                        <td class="px-4 py-2">{{ variant.value }} </td>
+                            <td class="px-4 py-2">{{ variant.sku }}</td>
+                            <td class="px-4 py-2">
+                                {% if variant.color_code %}
+                                <span class="inline-flex items-center gap-2"><span class="w-5 h-5 rounded border" style="background: {{ variant.color_code }}"></span>{{ variant.color_code }}</span>
+                                {% else %}-{% endif %}
+                            </td>
+	                        <td class="px-4 py-2">${{ variant.price_adjustment }} </td>
                         <td class="px-4 py-2">{{ variant.stock_quantity }} </td>
                      </tr>
                     {% endfor %}
@@ -264,7 +285,16 @@
     {% endif %}
 </div>
 
+<script src="https://cdn.ckeditor.com/ckeditor5/39.0.1/classic/ckeditor.js"></script>
 <script>
+if (window.ClassicEditor) {
+    ['descriptionEditor', 'specificationsEditor', 'metaDescriptionEditor'].forEach((id) => {
+        const element = document.getElementById(id);
+        if (element) {
+            ClassicEditor.create(element).catch(() => {});
+        }
+    });
+}
 // Video type toggle
 document.getElementById('videoType').addEventListener('change', function() {
     const youtubeDiv = document.getElementById('youtubeUrlDiv');

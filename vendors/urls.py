@@ -7,5 +7,6 @@ urlpatterns = [
     path("", views.vendor_list, name="list"),
     path("become-vendor/", views.become_vendor, name="become"),
     path("follow/<int:vendor_id>/", views.follow_vendor, name="follow_vendor"),
+    path("review/<int:vendor_id>/", views.add_vendor_review, name="add_review"),
     path("<slug:slug>/", views.vendor_detail, name="detail"),
 ]

@@ -1,7 +1,30 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import ManualCryptoWallet, PaymentTransaction
+from .models import ManualCryptoWallet, PaymentGatewayConfig, PaymentTransaction
+
+
+@admin.register(PaymentGatewayConfig)
+class PaymentGatewayConfigAdmin(admin.ModelAdmin):
+    list_display = ["display_name", "gateway", "is_active", "display_order", "updated_at"]
+    list_editable = ["is_active", "display_order"]
+    list_filter = ["is_active", "gateway"]
+    search_fields = ["display_name", "description", "admin_note"]
+    readonly_fields = ["created_at", "updated_at"]
+
+    fieldsets = (
+        ("Gateway", {
+            "fields": ("gateway", "display_name", "description", "icon_class", "is_active", "display_order")
+        }),
+        ("Admin Note", {
+            "fields": ("admin_note",),
+            "classes": ("collapse",)
+        }),
+        ("Dates", {
+            "fields": ("created_at", "updated_at"),
+            "classes": ("collapse",)
+        }),
+    )
 
 
 @admin.register(PaymentTransaction)
@@ -30,6 +53,7 @@ class PaymentTransactionAdmin(admin.ModelAdmin):
         "reference",
         "gateway_response",
         "webhook_payload",
+        "checkout_data",
         "created_at",
         "updated_at",
         "paid_at",
@@ -54,6 +78,10 @@ class PaymentTransactionAdmin(admin.ModelAdmin):
         }),
         ("Gateway", {
             "fields": ("gateway_reference", "gateway_checkout_url", "gateway_response", "webhook_payload")
+        }),
+        ("Checkout Data", {
+            "fields": ("checkout_data",),
+            "classes": ("collapse",)
         }),
         ("Manual Crypto", {
             "fields": (

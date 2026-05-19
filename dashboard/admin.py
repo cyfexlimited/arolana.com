@@ -1,8 +1,59 @@
+from django.contrib import admin
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import get_user_model
 from django.db.models import Sum
 from django.shortcuts import render
 from django.utils import timezone
+
+from .models import AdminActivityLog, DashboardWidget, SystemAlert, VendorAdminMessage, VendorNotification
+
+
+@admin.register(SystemAlert)
+class SystemAlertAdmin(admin.ModelAdmin):
+    list_display = ["title", "level", "is_read", "is_dismissed", "created_at"]
+    list_filter = ["level", "is_read", "is_dismissed", "created_at"]
+    search_fields = ["title", "message", "link"]
+    readonly_fields = ["created_at", "updated_at"]
+    actions = ["mark_read", "dismiss"]
+
+    def mark_read(self, request, queryset):
+        queryset.update(is_read=True)
+    mark_read.short_description = "Mark selected alerts read"
+
+    def dismiss(self, request, queryset):
+        queryset.update(is_dismissed=True)
+    dismiss.short_description = "Dismiss selected alerts"
+
+
+@admin.register(VendorNotification)
+class VendorNotificationAdmin(admin.ModelAdmin):
+    list_display = ["vendor", "title", "notification_type", "is_read", "created_at"]
+    list_filter = ["notification_type", "is_read", "created_at"]
+    search_fields = ["vendor__email", "vendor__username", "title", "message"]
+    readonly_fields = ["created_at", "updated_at"]
+
+
+@admin.register(VendorAdminMessage)
+class VendorAdminMessageAdmin(admin.ModelAdmin):
+    list_display = ["sender", "recipient", "subject", "message_type", "status", "created_at"]
+    list_filter = ["message_type", "status", "created_at"]
+    search_fields = ["sender__email", "recipient__email", "subject", "message"]
+    readonly_fields = ["created_at", "updated_at", "read_at"]
+
+
+@admin.register(AdminActivityLog)
+class AdminActivityLogAdmin(admin.ModelAdmin):
+    list_display = ["admin", "action_type", "model_name", "object_repr", "created_at"]
+    list_filter = ["action_type", "model_name", "created_at"]
+    search_fields = ["admin__email", "admin__username", "model_name", "object_repr", "changes"]
+    readonly_fields = ["created_at", "updated_at"]
+
+
+@admin.register(DashboardWidget)
+class DashboardWidgetAdmin(admin.ModelAdmin):
+    list_display = ["title", "widget_type", "position", "width", "is_active"]
+    list_filter = ["widget_type", "width", "is_active"]
+    search_fields = ["title", "roles"]
 
 
 def _safe_count(model, **filters):

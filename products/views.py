@@ -20,6 +20,7 @@ from .models import (
 )
 from accounts.models import User
 from currency.templatetags.currency_filters import currency as format_currency
+from arolana_payments.services import get_gateway_options
 
 try:
     from subscriptions.models import user_has_paid_subscription
@@ -1434,7 +1435,10 @@ def checkout(request):
         messages.info(request, 'Your cart is empty.')
         return redirect('products:list')
     
-    return render(request, 'products/checkout.html', {'cart': cart})
+    return render(request, 'products/checkout.html', {
+        'cart': cart,
+        'payment_options': get_gateway_options(),
+    })
 
 
 @login_required

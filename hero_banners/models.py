@@ -32,6 +32,12 @@ class HeroBanner(BaseModel):
         ('overlay', 'Text over image'),
         ('below', 'Text below image'),
     ]
+
+    OPEN_BEHAVIOR_CHOICES = [
+        ('same_page', 'Open in same page'),
+        ('new_page', 'Open in new tab'),
+        ('popup', 'Open in popup modal'),
+    ]
     
     # Basic Content
     title = models.CharField(max_length=200, help_text="Main headline text")
@@ -83,6 +89,17 @@ class HeroBanner(BaseModel):
     button3_text = models.CharField(max_length=50, blank=True, default='')
     button3_url = models.CharField(max_length=500, blank=True, default='')
     button3_style = models.CharField(max_length=20, choices=BUTTON_STYLE_CHOICES, default='secondary')
+
+    linked_article = models.ForeignKey(
+        'blog.BlogPost',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='hero_banners',
+        help_text="Optional article opened from this hero banner."
+    )
+    article_button_text = models.CharField(max_length=60, blank=True, default='Read Article')
+    article_open_behavior = models.CharField(max_length=20, choices=OPEN_BEHAVIOR_CHOICES, default='same_page')
     
     # Advanced Styling
     overlay_color = models.CharField(max_length=20, default='#000000')
@@ -133,6 +150,14 @@ class HeroBanner(BaseModel):
     @property
     def show_button3(self):
         return bool(self.button3_text and self.button3_url and self.button3_url != '#')
+
+    @property
+    def show_article_button(self):
+        return bool(self.linked_article and self.article_button_text)
+
+    @property
+    def article_url(self):
+        return self.linked_article.get_absolute_url() if self.linked_article else ''
     
     def increment_view(self):
         self.views_count += 1

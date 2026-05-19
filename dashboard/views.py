@@ -16,13 +16,18 @@ import json
 import random
 import string
 
-from products.models import Product, Category, ProductReview, Wishlist, RecentlyViewed, ProductVariant, ProductQuestion, Accessory, AccessoryProduct, ProductImage, ProductVideo, Brand
+from products.models import Product, Category, ProductReview, Wishlist, RecentlyViewed, ProductVariant, ProductVariantImage, ProductQuestion, Accessory, AccessoryProduct, ProductImage, ProductVideo, Brand
 from vendors.models import VendorProfile
 from accounts.models import User
 from orders.models import Order, OrderItem
 from .models import AdminActivityLog, SystemAlert, VendorAdminMessage, VendorNotification
-from subscriptions.models import user_subscription_limits
+from subscriptions.models import VendorSubscription, user_has_paid_subscription, user_subscription_limits, user_subscription_tier
 from django.core.exceptions import ObjectDoesNotExist
+
+try:
+    from chat.models import VendorChatRoom
+except Exception:
+    VendorChatRoom = None
 
 # ==================== HELPER FUNCTIONS ====================
 
@@ -46,6 +51,121 @@ def require_verified_kyc(request):
         return None
     messages.error(request, 'KYC verification must be approved before you can upload or manage products.')
     return redirect('kyc:dashboard')
+
+
+def _percent(part, total, fallback=0):
+    if not total:
+        return round(float(fallback or 0), 1)
+    return round((float(part or 0) / float(total)) * 100, 1)
+
+
+def _vendor_unread_admin_count(user):
+    return VendorAdminMessage.objects.filter(
+        recipient=user,
+        status='unread',
+        is_deleted_by_sender=False,
+        is_deleted_by_recipient=False
+    ).count()
+
+
+def _vendor_customer_chat_stats(user):
+    if VendorChatRoom is None:
+        return {'customer_chat_unread': 0, 'customer_chat_count': 0}
+    rooms = VendorChatRoom.objects.filter(vendor=user, is_active=True)
+    return {
+        'customer_chat_unread': rooms.aggregate(total=Sum('vendor_unread'))['total'] or 0,
+        'customer_chat_count': rooms.count(),
+    }
+
+
+def _vendor_subscription_context(user):
+    tier = user_subscription_tier(user)
+    limits = user_subscription_limits(user)
+    current_subscription = VendorSubscription.objects.filter(
+        vendor=user,
+        is_active=True,
+        end_date__gt=timezone.now()
+    ).select_related('plan').first()
+    return {
+        'subscription_tier': tier,
+        'subscription_limits': limits,
+        'current_subscription': current_subscription,
+        'chat_enabled': user_has_paid_subscription(user),
+    }
+
+
+def _vendor_performance_context(user, vendor_profile=None):
+    all_products = Product.objects.filter(vendor=user)
+    active_products = all_products.filter(is_active=True, approval_status='approved')
+    order_items = OrderItem.objects.filter(product__vendor=user)
+    orders = Order.objects.filter(items__product__vendor=user).distinct()
+    reviews = ProductReview.objects.filter(product__vendor=user, is_active=True)
+
+    delivered_count = orders.filter(status='delivered').count()
+    shipped_count = orders.filter(status='shipped').count()
+    cancelled_count = orders.filter(status='cancelled').count()
+    refunded_count = orders.filter(status='refunded').count()
+    completed_or_problem_count = delivered_count + shipped_count + cancelled_count + refunded_count
+    fallback_fulfillment = getattr(vendor_profile, 'fulfillment_rate', 0) if vendor_profile else 0
+    fallback_return = getattr(vendor_profile, 'return_rate', 0) if vendor_profile else 0
+    fulfillment_rate = _percent(delivered_count + shipped_count, completed_or_problem_count, fallback_fulfillment)
+    return_rate = _percent(refunded_count, completed_or_problem_count, fallback_return)
+
+    avg_rating = reviews.aggregate(avg=Avg('rating'))['avg'] or 0
+    rating_score = _percent(avg_rating, 5)
+    in_stock_count = active_products.filter(Q(stock_quantity__gt=F('low_stock_threshold')) | Q(allow_backorder=True)).count()
+    product_health = _percent(in_stock_count, active_products.count(), 100 if active_products.exists() else 0)
+    approved_count = all_products.filter(approval_status='approved').count()
+    approval_base = all_products.exclude(approval_status='rejected').count() or all_products.count()
+    approval_rate = _percent(approved_count, approval_base, 0)
+    kyc_score = 100 if vendor_profile and vendor_profile.has_verified_kyc() else 0
+    subscription_priority = user_subscription_limits(user).get('priority_score', 0)
+
+    vendor_score = round(
+        (rating_score * 0.30) +
+        (fulfillment_rate * 0.25) +
+        (approval_rate * 0.15) +
+        (product_health * 0.15) +
+        (float(subscription_priority) * 0.10) +
+        (kyc_score * 0.05),
+        1
+    )
+    vendor_score = min(100, max(0, vendor_score))
+
+    if vendor_score >= 85:
+        vendor_score_label = 'Excellent'
+    elif vendor_score >= 70:
+        vendor_score_label = 'Strong'
+    elif vendor_score >= 50:
+        vendor_score_label = 'Building'
+    else:
+        vendor_score_label = 'Needs Attention'
+
+    total_units_sold = order_items.filter(order__status='delivered').aggregate(total=Sum('quantity'))['total'] or 0
+    total_views = all_products.aggregate(total=Sum('views_count'))['total'] or 0
+
+    return {
+        'vendor_score': vendor_score,
+        'vendor_score_label': vendor_score_label,
+        'fulfillment_rate': fulfillment_rate,
+        'return_rate': return_rate,
+        'delivered_count': delivered_count,
+        'shipped_count': shipped_count,
+        'cancelled_count': cancelled_count,
+        'refunded_count': refunded_count,
+        'product_health': product_health,
+        'approval_rate': approval_rate,
+        'total_units_sold': total_units_sold,
+        'total_views': total_views,
+        'score_breakdown': [
+            {'label': 'Customer rating', 'value': round(rating_score, 1)},
+            {'label': 'Fulfillment', 'value': fulfillment_rate},
+            {'label': 'Approval quality', 'value': approval_rate},
+            {'label': 'Inventory health', 'value': product_health},
+            {'label': 'Subscription boost', 'value': subscription_priority},
+            {'label': 'KYC trust', 'value': kyc_score},
+        ],
+    }
 
 # ==================== PROFESSIONAL ADMIN DASHBOARD ====================
 
@@ -105,9 +225,10 @@ def vendor_dashboard(request):
             'message': 'Your vendor profile is not set up. Please contact support.'
         })
     
-    products = Product.objects.filter(vendor=request.user, is_active=True, approval_status='approved').select_related('category', 'brand').prefetch_related('variants', 'images')
+    all_products = Product.objects.filter(vendor=request.user).select_related('category', 'brand').prefetch_related('variants', 'images')
+    products = all_products.filter(is_active=True, approval_status='approved')
     order_items = OrderItem.objects.filter(product__vendor=request.user)
-    orders = Order.objects.filter(items__in=order_items).distinct()
+    orders = Order.objects.filter(items__product__vendor=request.user).distinct().order_by('-created_at')
     
     total_orders = orders.count()
     total_sales = order_items.filter(order__status='delivered').aggregate(total=Sum('subtotal'))['total'] or 0
@@ -126,10 +247,10 @@ def vendor_dashboard(request):
     recent_reviews = reviews.order_by('-created_at')[:5]
     
     # ========== APPROVAL COUNTS ==========
-    pending_count = Product.objects.filter(vendor=request.user, approval_status='pending').count()
-    approved_count = Product.objects.filter(vendor=request.user, approval_status='approved').count()
-    rejected_count = Product.objects.filter(vendor=request.user, approval_status='rejected').count()
-    changes_required_count = Product.objects.filter(vendor=request.user, approval_status='requires_changes').count()
+    pending_count = all_products.filter(approval_status='pending').count()
+    approved_count = all_products.filter(approval_status='approved').count()
+    rejected_count = all_products.filter(approval_status='rejected').count()
+    changes_required_count = all_products.filter(approval_status='requires_changes').count()
     
     # Get notifications for this vendor
     notifications_list = VendorNotification.objects.filter(vendor=request.user).order_by('-created_at')[:10]
@@ -147,12 +268,7 @@ def vendor_dashboard(request):
         })
     
     # Get unread message count
-    unread_messages_count = VendorAdminMessage.objects.filter(
-        recipient=request.user,
-        status='unread',
-        is_deleted_by_sender=False,
-        is_deleted_by_recipient=False
-    ).count()
+    unread_messages_count = _vendor_unread_admin_count(request.user)
     
     # Monthly sales data for chart
     monthly_sales = []
@@ -169,9 +285,14 @@ def vendor_dashboard(request):
         })
     monthly_sales.reverse()
     
+    subscription_context = _vendor_subscription_context(request.user)
+    performance_context = _vendor_performance_context(request.user, vendor_profile)
+    chat_context = _vendor_customer_chat_stats(request.user)
+
     context = {
         'vendor_profile': vendor_profile,
         'total_products': products.count(),
+        'current_product_count': all_products.exclude(approval_status='rejected').count(),
         'total_orders': total_orders,
         'total_sales': total_sales,
         'low_stock': low_stock,
@@ -191,6 +312,9 @@ def vendor_dashboard(request):
         'unread_count': unread_messages_count,
         'monthly_sales': monthly_sales,
     }
+    context.update(subscription_context)
+    context.update(performance_context)
+    context.update(chat_context)
     return render(request, 'dashboard/vendor_dashboard.html', context)
 
 def dashboard_home(request):
@@ -207,21 +331,23 @@ def dashboard_home(request):
 @login_required
 def vendor_products(request):
     """Vendor product management with filtering"""
-    products = Product.objects.filter(vendor=request.user, is_active=True, approval_status="approved").order_by('-created_at')
+    products = Product.objects.filter(vendor=request.user).select_related('category', 'brand').order_by('-created_at')
     
     category_slug = request.GET.get('category')
     if category_slug:
         products = products.filter(category__slug=category_slug)
     
     status = request.GET.get('status')
-    if status == 'active':
-        products = products.filter(is_active=True)
+    if status in {'pending', 'approved', 'requires_changes', 'rejected'}:
+        products = products.filter(approval_status=status)
+    elif status == 'active':
+        products = products.filter(is_active=True, approval_status='approved')
     elif status == 'inactive':
         products = products.filter(is_active=False)
     elif status == 'low_stock':
-        products = products.filter(stock_quantity__lte=5, is_active=True)
+        products = products.filter(stock_quantity__lte=5, is_active=True, approval_status='approved')
     elif status == 'out_of_stock':
-        products = products.filter(stock_quantity=0, is_active=True)
+        products = products.filter(stock_quantity=0, is_active=True, approval_status='approved')
     
     search_query = request.GET.get('q')
     if search_query:
@@ -240,7 +366,6 @@ def vendor_products(request):
     }
     products = products.order_by(sort_mapping.get(sort_by, '-created_at'))
     
-    paginator = Paginator(products, 20)
     page = request.GET.get('page', 1)
     products_page = get_paginated_items(products, page, 20)
     
@@ -263,6 +388,9 @@ def vendor_products(request):
         'approved_count': approved_count,
         'rejected_count': rejected_count,
         'changes_required_count': changes_required_count,
+        'unread_count': _vendor_unread_admin_count(request.user),
+        **_vendor_subscription_context(request.user),
+        **_vendor_customer_chat_stats(request.user),
     }
     return render(request, 'dashboard/vendor_products.html', context)
 
@@ -292,6 +420,7 @@ def vendor_add_product(request):
             # Get form data
             name = request.POST.get('name', '').strip()
             description = request.POST.get('description', '')
+            specifications = request.POST.get('specifications', '')
             price = request.POST.get('price', '')
             compare_price = request.POST.get('compare_price')
             stock_quantity = request.POST.get('stock_quantity', 0)
@@ -312,7 +441,9 @@ def vendor_add_product(request):
                 messages.error(request, 'Product name is required.')
                 return redirect('dashboard:vendor_add_product')
             
-            if not price or float(price) <= 0:
+            price_amount = Decimal(str(price or '0'))
+            compare_price_amount = Decimal(str(compare_price)) if compare_price else None
+            if price_amount <= 0:
                 messages.error(request, 'Valid price is required.')
                 return redirect('dashboard:vendor_add_product')
             
@@ -329,71 +460,94 @@ def vendor_add_product(request):
                 is_featured = False
                 messages.warning(request, 'Featured product limit reached for your current plan. The product was saved without featured placement.')
             
-            # Create product
-            product = Product.objects.create(
-                name=name,
-                description=description,
-                price=float(price),
-                compare_price=float(compare_price) if compare_price else None,
-                stock_quantity=int(stock_quantity),
-                sku=sku,
-                category_id=category_id,
-                brand_id=brand_id if brand_id else None,
-                vendor=request.user,
-                is_featured=is_featured,
-                is_active=is_active,
-                meta_title=meta_title,
-                meta_description=meta_description,
-                approval_status='pending',
-            )
-            
-            # Handle video
-            if video_type == 'youtube' and video_url:
-                product.video_type = 'youtube'
-                product.video_url = video_url
-                product.save()
-            elif video_type == 'local' and request.FILES.get('local_video'):
-                product.video_type = 'local'
-                product.local_video = request.FILES['local_video']
-                product.save()
-            
-            # Handle main image
-            main_image = request.FILES.get('main_image')
-            if main_image:
-                product.main_image = main_image
-                product.save()
-            
-            # Handle additional images according to subscription limits
-            additional_images = request.FILES.getlist('additional_images')
-            max_images = subscription_limits['max_images_per_product']
-            for img in additional_images[:max_images]:
-                ProductImage.objects.create(product=product, image=img, is_active=True)
-            
-            # Handle variants with images
-            variant_types = request.POST.getlist('variant_type[]')
-            variant_values = request.POST.getlist('variant_value[]')
-            variant_prices = request.POST.getlist('variant_price[]')
-            variant_stocks = request.POST.getlist('variant_stock[]')
-            variant_color_codes = request.POST.getlist('variant_color_code[]')
-            variant_images = request.FILES.getlist('variant_image[]')
-            
-            max_variants = subscription_limits['max_variants_per_product']
-            variant_limit = len(variant_types) if max_variants == -1 else max_variants
-            for i in range(min(len(variant_types), variant_limit)):
-                if variant_types[i] and variant_values[i]:
-                    variant = ProductVariant.objects.create(
+            with transaction.atomic():
+                product = Product.objects.create(
+                    name=name,
+                    description=description,
+                    specifications=specifications,
+                    price=price_amount,
+                    compare_price=compare_price_amount,
+                    stock_quantity=int(stock_quantity or 0),
+                    sku=sku,
+                    category_id=category_id,
+                    brand_id=brand_id if brand_id else None,
+                    vendor=request.user,
+                    is_featured=is_featured,
+                    is_active=is_active,
+                    meta_title=meta_title,
+                    meta_description=meta_description,
+                    approval_status='pending',
+                )
+
+                if video_type == 'youtube' and video_url:
+                    product.video_type = 'youtube'
+                    product.video_url = video_url
+                    product.save(update_fields=['video_type', 'video_url'])
+                elif video_type == 'local' and request.FILES.get('local_video'):
+                    product.video_type = 'local'
+                    product.local_video = request.FILES['local_video']
+                    product.save(update_fields=['video_type', 'local_video'])
+
+                main_image = request.FILES.get('main_image')
+                if main_image:
+                    product.main_image = main_image
+                    product.save(update_fields=['main_image'])
+
+                additional_images = request.FILES.getlist('additional_images')
+                max_images = subscription_limits['max_images_per_product']
+                image_limit = len(additional_images) if max_images == -1 else max_images
+                for order, img in enumerate(additional_images[:image_limit]):
+                    ProductImage.objects.create(product=product, image=img, order=order)
+
+                max_variants = subscription_limits['max_variants_per_product']
+                variant_indexes = request.POST.getlist('variant_index[]')
+                if not variant_indexes:
+                    variant_indexes = [str(i) for i in range(len(request.POST.getlist('variant_type[]')))]
+                variant_limit = len(variant_indexes) if max_variants == -1 else max_variants
+
+                for raw_index in variant_indexes[:variant_limit]:
+                    variant_type = request.POST.get(f'variant_type_{raw_index}')
+                    variant_value = request.POST.get(f'variant_value_{raw_index}', '').strip()
+                    if not variant_type:
+                        legacy_types = request.POST.getlist('variant_type[]')
+                        try:
+                            legacy_index = int(raw_index)
+                            variant_type = legacy_types[legacy_index] if legacy_index < len(legacy_types) else ''
+                            variant_value = request.POST.getlist('variant_value[]')[legacy_index]
+                        except Exception:
+                            variant_type = ''
+                    if variant_type and variant_value:
+                        variant_name = request.POST.get(f'variant_name_{raw_index}', '').strip() or f"{variant_type.title()}: {variant_value}"
+                        variant_price = request.POST.get(f'variant_price_{raw_index}', '0') or '0'
+                        variant_stock = request.POST.get(f'variant_stock_{raw_index}', '0') or '0'
+                        variant_color = request.POST.get(f'variant_color_code_{raw_index}', '').strip()
+                        variant_sku = request.POST.get(f'variant_sku_{raw_index}', '').strip()
+                        variant = ProductVariant.objects.create(
                         product=product,
-                        variant_type=variant_types[i],
-                        name=f"{variant_types[i].title()}: {variant_values[i]}",
-                        value=variant_values[i],
-                        price_adjustment=float(variant_prices[i]) if variant_prices[i] else 0,
-                        stock_quantity=int(variant_stocks[i]) if variant_stocks[i] else 0,
-                        color_code=variant_color_codes[i] if i < len(variant_color_codes) else '',
+                        variant_type=variant_type,
+                        name=variant_name,
+                        value=variant_value,
+                        sku=variant_sku,
+                        price_adjustment=Decimal(str(variant_price)),
+                        stock_quantity=int(variant_stock),
+                        color_code=variant_color,
                         is_active=True
                     )
-                    if i < len(variant_images) and variant_images[i]:
-                        variant.image = variant_images[i]
-                        variant.save()
+                        variant_images = request.FILES.getlist(f'variant_images_{raw_index}')
+                        for image_order, image_file in enumerate(variant_images):
+                            if image_order == 0:
+                                variant.image = image_file
+                                variant.save(update_fields=['image'])
+                            ProductVariantImage.objects.create(
+                                variant=variant,
+                                image=image_file,
+                                order=image_order,
+                                is_main=image_order == 0,
+                                alt_text=f"{product.name} {variant.value}",
+                            )
+
+                if max_variants != -1 and len(variant_indexes) > max_variants:
+                    messages.warning(request, f'Your plan allows {max_variants} variants per product. Extra variants were not saved.')
             
             messages.success(request, f'Product "{product.name}" added successfully!')
             return redirect('dashboard:vendor_products')
@@ -411,6 +565,9 @@ def vendor_add_product(request):
         'subscription_limits': subscription_limits,
         'current_product_count': current_product_count,
         'current_featured_count': current_featured_count,
+        **_vendor_subscription_context(request.user),
+        **_vendor_customer_chat_stats(request.user),
+        'unread_count': _vendor_unread_admin_count(request.user),
     }
     return render(request, 'dashboard/vendor_add_product.html', context)
 
@@ -427,8 +584,9 @@ def vendor_product_detail(request, product_id):
         try:
             product.name = request.POST.get('name', product.name)
             product.description = request.POST.get('description', product.description)
-            product.price = float(request.POST.get('price', product.price))
-            product.compare_price = float(request.POST.get('compare_price')) if request.POST.get('compare_price') else None
+            product.specifications = request.POST.get('specifications', product.specifications)
+            product.price = Decimal(str(request.POST.get('price', product.price)))
+            product.compare_price = Decimal(str(request.POST.get('compare_price'))) if request.POST.get('compare_price') else None
             product.stock_quantity = int(request.POST.get('stock_quantity', product.stock_quantity))
             product.sku = request.POST.get('sku', product.sku)
             product.category_id = request.POST.get('category', product.category_id)
@@ -441,8 +599,26 @@ def vendor_product_detail(request, product_id):
             main_image = request.FILES.get('main_image')
             if main_image:
                 product.main_image = main_image
+
+            video_type = request.POST.get('video_type')
+            product.video_type = video_type or ''
+            product.video_url = request.POST.get('youtube_url', '') if video_type == 'youtube' else ''
+            if video_type == 'local' and request.FILES.get('local_video'):
+                product.local_video = request.FILES['local_video']
             
             product.save()
+
+            subscription_limits = user_subscription_limits(request.user)
+            additional_images = request.FILES.getlist('additional_images')
+            if additional_images:
+                max_images = subscription_limits['max_images_per_product']
+                existing_images = product.images.count()
+                remaining = len(additional_images) if max_images == -1 else max(0, max_images - existing_images)
+                for order, img in enumerate(additional_images[:remaining], start=existing_images):
+                    ProductImage.objects.create(product=product, image=img, order=order)
+                if max_images != -1 and len(additional_images) > remaining:
+                    messages.warning(request, f'Only {remaining} gallery image(s) were added because of your plan limit.')
+
             messages.success(request, 'Product updated successfully!')
             return redirect('dashboard:vendor_products')
             
@@ -451,7 +627,7 @@ def vendor_product_detail(request, product_id):
     
     categories = Category.objects.filter(is_active=True)
     brands = Brand.objects.filter(is_active=True)
-    product_images = product.images.filter(is_active=True)
+    product_images = product.images.all()
     variants = product.variants.filter(is_active=True)
     reviews = product.reviews.filter(is_active=True)
     
@@ -464,6 +640,10 @@ def vendor_product_detail(request, product_id):
         'reviews': reviews,
         'total_reviews': reviews.count(),
         'avg_rating': reviews.aggregate(avg=Avg('rating'))['avg'] or 0,
+        'subscription_limits': user_subscription_limits(request.user),
+        **_vendor_subscription_context(request.user),
+        **_vendor_customer_chat_stats(request.user),
+        'unread_count': _vendor_unread_admin_count(request.user),
     }
     return render(request, 'dashboard/vendor_product_detail.html', context)
 
@@ -481,13 +661,19 @@ def vendor_product_variants(request, product_id):
             action = data.get('action')
             
             if action == 'add':
+                limits = user_subscription_limits(request.user)
+                max_variants = limits['max_variants_per_product']
+                if max_variants != -1 and product.variants.filter(is_active=True).count() >= max_variants:
+                    return JsonResponse({'success': False, 'error': f'Your plan allows {max_variants} variants per product.'}, status=403)
                 variant = ProductVariant.objects.create(
                     product=product,
                     variant_type=data.get('variant_type'),
                     name=data.get('name'),
                     value=data.get('value'),
+                    sku=data.get('sku', ''),
                     price_adjustment=Decimal(str(data.get('price_adjustment', 0))),
                     stock_quantity=int(data.get('stock_quantity', 0)),
+                    color_code=data.get('color_code', ''),
                     is_active=True
                 )
                 return JsonResponse({'success': True, 'variant_id': variant.id})
@@ -499,6 +685,8 @@ def vendor_product_variants(request, product_id):
                 variant.value = data.get('value', variant.value)
                 variant.price_adjustment = Decimal(str(data.get('price_adjustment', variant.price_adjustment)))
                 variant.stock_quantity = int(data.get('stock_quantity', variant.stock_quantity))
+                variant.sku = data.get('sku', variant.sku)
+                variant.color_code = data.get('color_code', variant.color_code)
                 variant.is_active = data.get('is_active', variant.is_active)
                 variant.save()
                 return JsonResponse({'success': True})
@@ -521,6 +709,9 @@ def vendor_product_variants(request, product_id):
                 'value': v.value,
                 'price_adjustment': float(v.price_adjustment),
                 'stock_quantity': v.stock_quantity,
+                'sku': v.sku,
+                'color_code': v.color_code,
+                'image': v.image.url if v.image else '',
             }
             for v in variants
         ]
@@ -538,7 +729,7 @@ def vendor_product_images(request, product_id):
         try:
             images = request.FILES.getlist('images')
             for img in images:
-                ProductImage.objects.create(product=product, image=img, is_active=True)
+                ProductImage.objects.create(product=product, image=img)
             return JsonResponse({'success': True, 'count': len(images)})
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
@@ -553,7 +744,7 @@ def vendor_product_images(request, product_id):
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
     
-    images = product.images.filter(is_active=True)
+    images = product.images.all()
     return JsonResponse({
         'images': [
             {
@@ -574,7 +765,46 @@ def vendor_product_reviews(request, product_id):
     return render(request, 'dashboard/vendor_product_reviews.html', {
         'product': product,
         'reviews': reviews,
+        'unread_count': _vendor_unread_admin_count(request.user),
+        **_vendor_subscription_context(request.user),
+        **_vendor_customer_chat_stats(request.user),
     })
+
+
+@login_required
+def vendor_reviews(request):
+    """All reviews received by the vendor across products."""
+    reviews = ProductReview.objects.filter(
+        product__vendor=request.user,
+        is_active=True
+    ).select_related('product', 'user').order_by('-created_at')
+
+    rating = request.GET.get('rating')
+    if rating in {'1', '2', '3', '4', '5'}:
+        reviews = reviews.filter(rating=int(rating))
+
+    product_id = request.GET.get('product')
+    if product_id:
+        reviews = reviews.filter(product_id=product_id)
+
+    all_reviews = ProductReview.objects.filter(product__vendor=request.user, is_active=True)
+    rating_counts = {item['rating']: item['count'] for item in all_reviews.values('rating').annotate(count=Count('id'))}
+    products = Product.objects.filter(vendor=request.user).only('id', 'name').order_by('name')
+    reviews_page = get_paginated_items(reviews, request.GET.get('page', 1), 20)
+
+    context = {
+        'reviews': reviews_page,
+        'products': products,
+        'current_rating': rating,
+        'current_product': product_id,
+        'avg_rating': all_reviews.aggregate(avg=Avg('rating'))['avg'] or 0,
+        'total_reviews': all_reviews.count(),
+        'rating_counts': rating_counts,
+        'unread_count': _vendor_unread_admin_count(request.user),
+        **_vendor_subscription_context(request.user),
+        **_vendor_customer_chat_stats(request.user),
+    }
+    return render(request, 'dashboard/vendor_reviews.html', context)
 
 @login_required
 def vendor_product_questions(request, product_id):
@@ -680,13 +910,22 @@ def vendor_update_order_status(request, order_id):
 @login_required
 def vendor_analytics(request):
     """Vendor analytics dashboard"""
-    from django.db.models import Sum
-    
     products = Product.objects.filter(vendor=request.user, is_active=True, approval_status="approved")
+    all_products = Product.objects.filter(vendor=request.user)
     order_items = OrderItem.objects.filter(product__vendor=request.user)
     orders = Order.objects.filter(items__in=order_items).distinct()
     
-    total_revenue = order_items.aggregate(total=Sum('subtotal'))['total'] or 0
+    delivered_items = order_items.filter(order__status='delivered')
+    total_revenue = delivered_items.aggregate(total=Sum('subtotal'))['total'] or 0
+    total_units_sold = delivered_items.aggregate(total=Sum('quantity'))['total'] or 0
+    total_views = all_products.aggregate(total=Sum('views_count'))['total'] or 0
+    average_order_value = (total_revenue / orders.filter(status='delivered').count()) if orders.filter(status='delivered').exists() else 0
+    reviews = ProductReview.objects.filter(product__vendor=request.user, is_active=True)
+    top_products = all_products.annotate(total_sold=Sum('orderitem__quantity')).order_by('-total_sold')[:10]
+    order_status_counts = {
+        status: orders.filter(status=status).count()
+        for status, _label in Order.STATUS_CHOICES
+    }
     
     today = timezone.now().date()
     sales_data = []
@@ -702,20 +941,22 @@ def vendor_analytics(request):
         })
     sales_data.reverse()
     
-    # Get unread message count for sidebar
-    unread_count = VendorAdminMessage.objects.filter(
-        recipient=request.user,
-        status='unread',
-        is_deleted_by_sender=False,
-        is_deleted_by_recipient=False
-    ).count()
-    
     context = {
         'total_products': products.count(),
         'total_orders': orders.count(),
         'total_revenue': total_revenue,
+        'total_units_sold': total_units_sold,
+        'total_views': total_views,
+        'average_order_value': average_order_value,
+        'total_reviews': reviews.count(),
+        'avg_rating': reviews.aggregate(avg=Avg('rating'))['avg'] or 0,
+        'top_products': top_products,
+        'order_status_counts': order_status_counts,
         'sales_data': sales_data,
-        'unread_count': unread_count,
+        'unread_count': _vendor_unread_admin_count(request.user),
+        **_vendor_subscription_context(request.user),
+        **_vendor_performance_context(request.user, getattr(request.user, 'vendor_profile', None)),
+        **_vendor_customer_chat_stats(request.user),
     }
     return render(request, 'dashboard/vendor_analytics.html', context)
 

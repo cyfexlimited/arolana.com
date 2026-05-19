@@ -8,7 +8,8 @@ from .models import (
     Category, Brand, Product, ProductImage, ProductVariant, 
     ProductVariantImage, ProductReview, RecentlyViewed, 
     Wishlist, ProductVideo, ReviewVideo, ProductQnA,
-    Accessory, AccessoryProduct, ManufacturerWarranty, ShippingInfo, ProductListingBanner
+    Accessory, AccessoryProduct, ManufacturerWarranty, ShippingInfo, ProductListingBanner,
+    ProductArticleLink
 )
 
 from django.utils.timezone import now
@@ -167,6 +168,13 @@ class ProductVideoInline(admin.TabularInline):
     fields = ['title', 'description', 'source', 'youtube_url', 'vimeo_url', 'local_video', 'thumbnail', 'is_main', 'display_order']
 
 
+class ProductArticleLinkInline(admin.TabularInline):
+    model = ProductArticleLink
+    extra = 1
+    fields = ['article', 'label', 'placement', 'open_behavior', 'sort_order', 'is_active']
+    autocomplete_fields = ['article']
+
+
 class AccessoryInline(admin.TabularInline):
     model = AccessoryProduct
     extra = 1
@@ -207,7 +215,7 @@ class ProductAdmin(admin.ModelAdmin):
     search_fields = ['sku', 'name', 'description']
     prepopulated_fields = {'slug': ['name']}
     readonly_fields = ['views_count', 'sales_count', 'rating_avg', 'rating_count', 'created_at', 'updated_at', 'sku', 'submitted_for_review_at', 'approved_at']
-    inlines = [ProductImageInline, ProductVariantInline, ProductVideoInline, AccessoryInline, ManufacturerWarrantyInline, ShippingInfoInline]
+    inlines = [ProductImageInline, ProductVariantInline, ProductVideoInline, ProductArticleLinkInline, AccessoryInline, ManufacturerWarrantyInline, ShippingInfoInline]
     autocomplete_fields = ['vendor', 'category', 'brand']
     list_select_related = ['category', 'brand', 'vendor']
     list_per_page = 30

@@ -63,6 +63,7 @@ urlpatterns = [
     path("vendor/product/<int:product_id>/reviews/", views.vendor_product_reviews, name="vendor_product_reviews"),
     path("vendor/product/<int:product_id>/questions/", views.vendor_product_questions, name="vendor_product_questions"),
     path("vendor/product/resubmit/<int:product_id>/", views.vendor_resubmit_product, name="vendor_resubmit_product"),
+    path("vendor/reviews/", views.vendor_reviews, name="vendor_reviews"),
 
     # Vendor notifications
     path("vendor/notifications/api/", views.vendor_notifications_api, name="notifications_api"),
@@ -79,4 +80,3 @@ urlpatterns = [
     path("vendor/messages/<int:admin_id>/", views.vendor_message_conversation, name="vendor_message_conversation"),
     path("vendor/messages/notifications/api/", views.vendor_notifications_api, name="vendor_notifications_api"),
 ]
-

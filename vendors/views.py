@@ -3,8 +3,11 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
 from django.core.paginator import Paginator
-from .models import VendorProfile, VendorFollow
+from django.db.models import Avg
+from .models import VendorProfile, VendorFollow, VendorReview
 from products.models import Product
+from orders.models import OrderItem
+from subscriptions.models import user_has_paid_subscription, user_subscription_limits, user_subscription_tier
 import random
 
 def vendor_list(request):
@@ -69,6 +72,17 @@ def vendor_detail(request, slug):
         ).exists()
 
     followers_count = VendorFollow.objects.filter(vendor=vendor).count()
+    subscription_limits = user_subscription_limits(vendor.user)
+    chat_enabled = user_has_paid_subscription(vendor.user)
+    store_reviews_enabled = bool(subscription_limits.get('store_reviews_enabled'))
+    vendor_reviews = vendor.store_reviews.filter(is_active=True).select_related('user')[:8]
+    customer_has_order = False
+    if request.user.is_authenticated:
+        customer_has_order = OrderItem.objects.filter(
+            product__vendor=vendor.user,
+            order__user=request.user,
+            order__status='delivered'
+        ).exists()
 
     # Keep stored followers_count synced
     if vendor.followers_count != followers_count:
@@ -104,9 +118,61 @@ def vendor_detail(request, slug):
         "is_following": is_following,
         "followers_count": followers_count,
         "vendor_score": vendor_score,
+        "chat_enabled": chat_enabled,
+        "subscription_tier": user_subscription_tier(vendor.user),
+        "subscription_limits": subscription_limits,
+        "store_reviews_enabled": store_reviews_enabled,
+        "vendor_reviews": vendor_reviews,
+        "customer_has_order": customer_has_order,
+        "store_review_count": vendor.store_reviews.filter(is_active=True).count(),
+        "store_review_avg": vendor.store_reviews.filter(is_active=True).aggregate(avg=Avg('rating'))['avg'] or 0,
     }
 
     return render(request, "vendors/detail.html", context)
+
+
+@login_required
+def add_vendor_review(request, vendor_id):
+    """Create or update a customer review for a vendor storefront."""
+    if request.method != "POST":
+        return JsonResponse({"success": False, "message": "Invalid request method."}, status=405)
+
+    vendor = get_object_or_404(VendorProfile, id=vendor_id, is_active=True)
+    limits = user_subscription_limits(vendor.user)
+    if not limits.get('store_reviews_enabled'):
+        messages.info(request, "Store reviews are available only for vendors with an active paid subscription.")
+        return redirect("vendors:detail", slug=vendor.store_slug)
+
+    if request.user == vendor.user:
+        messages.error(request, "You cannot review your own store.")
+        return redirect("vendors:detail", slug=vendor.store_slug)
+
+    rating = request.POST.get("rating", "5")
+    title = request.POST.get("title", "").strip()
+    comment = request.POST.get("comment", "").strip()
+
+    if not comment:
+        messages.error(request, "Please write a comment before submitting your review.")
+        return redirect("vendors:detail", slug=vendor.store_slug)
+
+    customer_has_order = OrderItem.objects.filter(
+        product__vendor=vendor.user,
+        order__user=request.user,
+        order__status='delivered'
+    ).exists()
+
+    VendorReview.objects.create(
+        vendor=vendor,
+        user=request.user,
+        rating=rating,
+        title=title,
+        comment=comment,
+        is_active=True,
+        is_verified_customer=customer_has_order,
+    )
+
+    messages.success(request, "Your vendor review was submitted. You can write another one anytime.")
+    return redirect("vendors:detail", slug=vendor.store_slug)
 
 @login_required
 def become_vendor(request):

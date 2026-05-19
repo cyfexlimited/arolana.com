@@ -17,6 +17,8 @@ from .services import (
     init_flutterwave_checkout,
     init_paypal_checkout,
     init_stripe_checkout,
+    gateway_is_available,
+    get_gateway_options,
     update_order_after_payment,
     verify_coinbase_signature,
     verify_flutterwave_transaction,
@@ -35,6 +37,7 @@ def checkout(request):
 
     context = {
         "wallets": wallets,
+        "payment_options": get_gateway_options(),
         "amount": request.GET.get("amount", request.POST.get("amount", "")),
         "currency": request.GET.get("currency", request.POST.get("currency", getattr(settings, "AROLANA_DEFAULT_CURRENCY", "NGN"))),
         "order_id": request.GET.get("order_id", request.POST.get("order_id", "")),
@@ -50,9 +53,14 @@ def start_payment(request, gateway):
     if gateway not in PaymentMethod.values:
         return HttpResponseBadRequest("Unsupported payment gateway.")
 
-    payment = create_transaction(request, gateway)
-
     try:
+        is_available, disabled_reason = gateway_is_available(gateway)
+        if not is_available:
+            messages.error(request, disabled_reason or "This payment gateway is not available yet.")
+            return redirect("arolana_payments:checkout")
+
+        payment = create_transaction(request, gateway)
+
         if gateway == PaymentMethod.FLUTTERWAVE:
             url = init_flutterwave_checkout(request, payment)
         elif gateway == PaymentMethod.PAYPAL:
@@ -74,7 +82,8 @@ def start_payment(request, gateway):
         return redirect(url)
 
     except Exception as exc:
-        payment.mark_failed({"error": str(exc)})
+        if 'payment' in locals():
+            payment.mark_failed({"error": str(exc)})
         messages.error(request, f"Payment initialization failed: {exc}")
         return redirect("arolana_payments:checkout")
 

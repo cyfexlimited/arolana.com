@@ -14,6 +14,26 @@ class PaymentMethod(models.TextChoices):
     MANUAL_CRYPTO = "manual_crypto", "Manual Crypto Wallet Transfer"
 
 
+class PaymentGatewayConfig(models.Model):
+    gateway = models.CharField(max_length=30, choices=PaymentMethod.choices, unique=True)
+    display_name = models.CharField(max_length=80)
+    description = models.CharField(max_length=220, blank=True)
+    icon_class = models.CharField(max_length=80, blank=True)
+    is_active = models.BooleanField(default=True)
+    display_order = models.PositiveIntegerField(default=0)
+    admin_note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["display_order", "display_name"]
+        verbose_name = "Payment Gateway"
+        verbose_name_plural = "Payment Gateways"
+
+    def __str__(self):
+        return self.display_name or self.get_gateway_display()
+
+
 class PaymentStatus(models.TextChoices):
     PENDING = "pending", "Pending"
     PROCESSING = "processing", "Processing"
@@ -56,6 +76,7 @@ class PaymentTransaction(models.Model):
     gateway_checkout_url = models.URLField(blank=True, max_length=1000)
     gateway_response = models.JSONField(default=dict, blank=True)
     webhook_payload = models.JSONField(default=dict, blank=True)
+    checkout_data = models.JSONField(default=dict, blank=True)
 
     manual_wallet_network = models.CharField(max_length=80, blank=True)
     manual_wallet_address = models.CharField(max_length=255, blank=True)

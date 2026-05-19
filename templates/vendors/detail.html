@@ -159,8 +159,9 @@
         align-items: center;
     }
 
-    .vendor-follow-btn,
-    .vendor-contact-btn {
+	    .vendor-follow-btn,
+	    .vendor-contact-btn,
+        .vendor-chat-btn {
         min-height: 46px;
         border: 0;
         border-radius: 999px;
@@ -190,24 +191,112 @@
         transform: none;
     }
 
-    .vendor-contact-btn {
-        background: rgba(255, 255, 255, 0.16);
-        border: 1px solid rgba(255, 255, 255, 0.22);
-        backdrop-filter: blur(10px);
-    }
+	    .vendor-contact-btn {
+	        background: rgba(255, 255, 255, 0.16);
+	        border: 1px solid rgba(255, 255, 255, 0.22);
+	        backdrop-filter: blur(10px);
+	    }
 
-    .vendor-follow-btn:hover,
-    .vendor-contact-btn:hover {
+        .vendor-chat-btn {
+            background: linear-gradient(135deg, #059669, #2563eb);
+        }
+
+        .vendor-chat-btn.is-locked {
+            background: rgba(15, 23, 42, 0.55);
+            cursor: not-allowed;
+        }
+
+	    .vendor-follow-btn:hover,
+	    .vendor-contact-btn:hover,
+        .vendor-chat-btn:hover {
         transform: translateY(-2px);
         box-shadow: 0 18px 42px rgba(0, 0, 0, 0.26);
     }
 
-    .vendor-body-grid {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) 340px;
-        gap: 1rem;
-        margin-bottom: 1.25rem;
-    }
+	    .vendor-body-grid {
+	        display: grid;
+	        grid-template-columns: minmax(0, 1fr) 340px;
+	        gap: 1rem;
+	        margin-bottom: 1.25rem;
+	    }
+
+        .vendor-interaction-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 380px;
+            gap: 1rem;
+            margin: 1.25rem 0;
+        }
+
+        .vendor-review-panel,
+        .vendor-review-form {
+            border-radius: 1.35rem;
+            background: #fff;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            box-shadow: 0 18px 55px rgba(15, 23, 42, 0.07);
+            padding: 1.1rem;
+        }
+
+        .vendor-review-list {
+            display: grid;
+            gap: 0.8rem;
+            margin-top: 1rem;
+        }
+
+        .vendor-review-item {
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 0.8rem;
+        }
+
+        .vendor-review-item:last-child {
+            border-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .vendor-review-stars {
+            color: #f59e0b;
+            display: inline-flex;
+            gap: 0.08rem;
+        }
+
+        .vendor-review-form label {
+            display: block;
+            color: #334155;
+            font-size: 0.78rem;
+            font-weight: 900;
+            margin-bottom: 0.35rem;
+        }
+
+        .vendor-review-form input,
+        .vendor-review-form select,
+        .vendor-review-form textarea {
+            width: 100%;
+            border: 1px solid #cbd5e1;
+            border-radius: 0.9rem;
+            padding: 0.7rem 0.85rem;
+            outline: none;
+            font-size: 0.9rem;
+        }
+
+        .vendor-review-form input:focus,
+        .vendor-review-form select:focus,
+        .vendor-review-form textarea:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
+        .vendor-review-submit {
+            width: 100%;
+            min-height: 44px;
+            border: 0;
+            border-radius: 0.95rem;
+            color: #fff;
+            font-weight: 950;
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.45rem;
+        }
 
     .vendor-info-card,
     .vendor-score-card {
@@ -507,10 +596,11 @@
     }
 
     @media (max-width: 900px) {
-        .vendor-store-profile-inner { grid-template-columns: auto minmax(0, 1fr); }
-        .vendor-actions { grid-column: 1 / -1; justify-content: flex-start; }
-        .vendor-body-grid { grid-template-columns: 1fr; }
-        .vendor-products-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	        .vendor-store-profile-inner { grid-template-columns: auto minmax(0, 1fr); }
+	        .vendor-actions { grid-column: 1 / -1; justify-content: flex-start; }
+	        .vendor-body-grid { grid-template-columns: 1fr; }
+            .vendor-interaction-grid { grid-template-columns: 1fr; }
+	        .vendor-products-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .similar-vendors-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
 
@@ -605,20 +695,32 @@
                         <span id="followText">{% if is_following %}Following{% else %}Follow Store{% endif %}</span>
                     </button>
 
-                    <a href="/contact/?vendor={{ vendor.id }}" class="vendor-contact-btn">
-                        <i class="fas fa-envelope"></i>
-                        Contact
-                    </a>
+                        {% if chat_enabled %}
+	                    <a href="{% url 'chat:start_vendor' vendor.user.id %}" class="vendor-chat-btn">
+	                        <i class="fas fa-comments"></i>
+	                        Chat with Vendor
+	                    </a>
+                        {% else %}
+                        <span class="vendor-chat-btn is-locked" title="Vendor chat is available for paid vendor plans">
+                            <i class="fas fa-lock"></i>
+                            Chat Locked
+                        </span>
+                        {% endif %}
+
+	                    <a href="/contact/?vendor={{ vendor.id }}" class="vendor-contact-btn">
+	                        <i class="fas fa-envelope"></i>
+	                        Contact
+	                    </a>
                 </div>
             </div>
         </div>
     </section>
 
-    <section class="vendor-body-grid">
-        <div class="vendor-info-card">
-            <h3>About {{ vendor.store_name }}</h3>
-            <p>{{ vendor.description|default:"This vendor has not added a store description yet." }}</p>
-        </div>
+	    <section class="vendor-body-grid">
+	        <div class="vendor-info-card">
+	            <h3>About {{ vendor.store_name }}</h3>
+	            <p>{{ vendor.description|default:"This vendor has not added a store description yet." }}</p>
+	        </div>
 
         <aside class="vendor-score-card">
             <h3>Vendor Score</h3>
@@ -645,10 +747,95 @@
                     </div>
                 </div>
             </div>
-        </aside>
-    </section>
+	        </aside>
+	    </section>
 
-    <section class="store-toolbar">
+        <section class="vendor-interaction-grid">
+            <div class="vendor-review-panel">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                        <h3 class="text-xl font-black text-gray-900 m-0">Store Reviews</h3>
+                        <p class="text-sm text-gray-500 mt-1">{{ store_review_count }} store comment{{ store_review_count|pluralize }} · {{ store_review_avg|floatformat:1 }} average</p>
+                    </div>
+                    {% if store_reviews_enabled %}
+                    <span class="inline-flex items-center gap-2 rounded-full bg-green-50 px-3 py-2 text-sm font-bold text-green-700"><i class="fas fa-unlock"></i> Reviews open</span>
+                    {% else %}
+                    <span class="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-2 text-sm font-bold text-gray-600"><i class="fas fa-lock"></i> Paid plan required</span>
+                    {% endif %}
+                </div>
+
+                <div class="vendor-review-list">
+                    {% for review in vendor_reviews %}
+                    <article class="vendor-review-item">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <div class="vendor-review-stars">
+                                    {% for i in "12345"|make_list %}
+                                        {% if forloop.counter <= review.rating %}<i class="fas fa-star"></i>{% else %}<i class="far fa-star"></i>{% endif %}
+                                    {% endfor %}
+                                </div>
+                                <h4 class="font-black text-gray-900 mt-1 mb-1">{{ review.title|default:"Store experience" }}</h4>
+                                <p class="text-sm text-gray-600 leading-relaxed">{{ review.comment }}</p>
+                            </div>
+                            <div class="text-right text-xs text-gray-500 shrink-0">
+                                <div>{{ review.user.get_full_name|default:review.user.username }}</div>
+                                {% if review.is_verified_customer %}
+                                <span class="mt-1 inline-flex rounded-full bg-blue-50 px-2 py-1 font-bold text-blue-700">Verified customer</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </article>
+                    {% empty %}
+                    <div class="rounded-xl border border-dashed border-gray-200 p-6 text-center text-gray-500">
+                        <i class="fas fa-star text-3xl text-gray-200 mb-2"></i>
+                        <p>No store reviews yet.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <aside class="vendor-review-form">
+                <h3 class="text-xl font-black text-gray-900 mb-2">Rate this vendor</h3>
+                {% if not request.user.is_authenticated %}
+                    <p class="text-sm text-gray-600">Please <a href="{% url 'accounts:login' %}?next={{ request.path }}" class="text-blue-600 font-bold">sign in</a> to leave a store review.</p>
+                {% elif request.user.id == vendor.user.id %}
+                    <p class="text-sm text-gray-600">You cannot review your own store.</p>
+                {% elif not store_reviews_enabled %}
+                    <p class="text-sm text-gray-600">This vendor needs an active paid subscription before customers can rate and comment on the store.</p>
+                {% else %}
+                    <form method="POST" action="{% url 'vendors:add_review' vendor.id %}" class="grid gap-4">
+                        {% csrf_token %}
+                        <div>
+                            <label for="vendorRating">Rating</label>
+                            <select id="vendorRating" name="rating">
+                                <option value="5" selected>5 stars - Excellent</option>
+                                <option value="4">4 stars - Good</option>
+                                <option value="3">3 stars - Fair</option>
+                                <option value="2">2 stars - Poor</option>
+                                <option value="1">1 star - Bad</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="vendorReviewTitle">Title</label>
+                            <input id="vendorReviewTitle" type="text" name="title" maxlength="160" placeholder="Quick summary">
+                        </div>
+                        <div>
+                            <label for="vendorReviewComment">Comment</label>
+                            <textarea id="vendorReviewComment" name="comment" rows="5" required placeholder="Tell other customers about your experience with this vendor."></textarea>
+                            {% if customer_has_order %}
+                            <p class="text-xs text-blue-600 font-bold mt-2"><i class="fas fa-check-circle"></i> Your review will show as verified customer.</p>
+                            {% endif %}
+                        </div>
+                        <button type="submit" class="vendor-review-submit">
+                            <i class="fas fa-paper-plane"></i>
+                            Submit Review
+                        </button>
+                    </form>
+                {% endif %}
+            </aside>
+        </section>
+
+	    <section class="store-toolbar">
         <h2>Products from {{ vendor.store_name }}</h2>
         <select id="sortProducts" onchange="sortProducts(this.value)" class="store-sort">
             <option value="newest">Newest First</option>

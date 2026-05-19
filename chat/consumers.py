@@ -169,6 +169,21 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 message=message
             )
             room.save()
+            try:
+                from notifications.models import Notification
+                sender_name = user.get_full_name() or user.username or user.email
+                for recipient in room.participants.exclude(id=user.id):
+                    Notification.send(
+                        user=recipient,
+                        notification_type='message',
+                        title=f'New message from {sender_name}',
+                        message=(message[:140] + '...') if len(message) > 140 else message,
+                        link=f'/chat/room/{room.id}/',
+                        metadata={'room_type': 'direct', 'room_id': room.id, 'sender_id': user.id},
+                        priority=3,
+                    )
+            except Exception:
+                pass
             return msg
         except ChatRoom.DoesNotExist:
             return None

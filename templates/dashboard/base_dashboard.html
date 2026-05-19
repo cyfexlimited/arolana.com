@@ -41,6 +41,23 @@
                             <i class="fas fa-chart-line w-5"></i> Analytics
                         </a>
                     </li>
+
+                    <li>
+                        <a href="{% url 'dashboard:vendor_reviews' %}" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition">
+                            <i class="fas fa-star w-5"></i> Reviews
+                        </a>
+                    </li>
+
+                    <li>
+                        <a href="{% url 'chat:vendor_list' %}" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition">
+                            <i class="fas fa-comments w-5"></i> Customer Chat
+                            {% if customer_chat_unread %}
+                            <span class="ml-auto bg-blue-600 text-white text-xs px-2 py-1 rounded-full">{{ customer_chat_unread }}</span>
+                            {% elif chat_enabled is False %}
+                            <i class="fas fa-lock ml-auto text-gray-400 text-xs"></i>
+                            {% endif %}
+                        </a>
+                    </li>
                     
                     <!-- Messages - Single link that works for both roles -->
                     <li>

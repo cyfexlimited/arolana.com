@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import json
 from decimal import Decimal
+from decimal import InvalidOperation
 
 import requests
 import stripe
@@ -10,7 +11,105 @@ from django.conf import settings
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import PaymentStatus, PaymentTransaction
+from .models import ManualCryptoWallet, PaymentGatewayConfig, PaymentMethod, PaymentStatus, PaymentTransaction
+
+
+GATEWAY_DEFAULTS = {
+    PaymentMethod.FLUTTERWAVE: {
+        "display_name": "Flutterwave",
+        "description": "Cards, bank transfer, USSD, and local methods",
+        "icon_class": "fas fa-bolt text-orange-500",
+        "display_order": 10,
+    },
+    PaymentMethod.STRIPE: {
+        "display_name": "Stripe / Card",
+        "description": "International card checkout",
+        "icon_class": "fab fa-stripe-s text-indigo-600",
+        "display_order": 20,
+    },
+    PaymentMethod.PAYPAL: {
+        "display_name": "PayPal",
+        "description": "PayPal wallet and supported cards",
+        "icon_class": "fab fa-paypal text-blue-600",
+        "display_order": 30,
+    },
+    PaymentMethod.COINBASE: {
+        "display_name": "Coinbase Commerce",
+        "description": "Hosted crypto checkout",
+        "icon_class": "fab fa-bitcoin text-yellow-500",
+        "display_order": 40,
+    },
+    PaymentMethod.MANUAL_CRYPTO: {
+        "display_name": "Manual Crypto Transfer",
+        "description": "Transfer to a wallet and upload proof",
+        "icon_class": "fas fa-wallet text-green-600",
+        "display_order": 50,
+    },
+}
+
+
+def _configured_secret(value):
+    value = str(value or "").strip()
+    if not value:
+        return False
+    lowered = value.lower()
+    return not any(marker in lowered for marker in ("your_key", "xxxx", "placeholder", "change-me"))
+
+
+def gateway_credentials_status(gateway):
+    if gateway == PaymentMethod.FLUTTERWAVE:
+        ok = _configured_secret(getattr(settings, "FLUTTERWAVE_SECRET_KEY", ""))
+        return ok, "" if ok else "Add FLUTTERWAVE_SECRET_KEY to enable Flutterwave."
+    if gateway == PaymentMethod.STRIPE:
+        ok = _configured_secret(getattr(settings, "STRIPE_SECRET_KEY", ""))
+        return ok, "" if ok else "Add STRIPE_SECRET_KEY to enable Stripe."
+    if gateway == PaymentMethod.PAYPAL:
+        ok = (
+            _configured_secret(getattr(settings, "PAYPAL_CLIENT_ID", ""))
+            and _configured_secret(getattr(settings, "PAYPAL_CLIENT_SECRET", ""))
+        )
+        return ok, "" if ok else "Add PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET to enable PayPal."
+    if gateway == PaymentMethod.COINBASE:
+        ok = _configured_secret(getattr(settings, "COINBASE_COMMERCE_API_KEY", ""))
+        return ok, "" if ok else "Add COINBASE_COMMERCE_API_KEY to enable Coinbase Commerce."
+    if gateway == PaymentMethod.MANUAL_CRYPTO:
+        ok = ManualCryptoWallet.objects.filter(is_active=True).exists()
+        return ok, "" if ok else "Add at least one active Manual Crypto Wallet."
+    return False, "Unsupported payment gateway."
+
+
+def get_gateway_options(include_inactive=False):
+    configs = {config.gateway: config for config in PaymentGatewayConfig.objects.all()}
+    options = []
+
+    for gateway, defaults in GATEWAY_DEFAULTS.items():
+        config = configs.get(gateway)
+        is_active = config.is_active if config else True
+        credentials_ok, disabled_reason = gateway_credentials_status(gateway)
+        available = bool(is_active and credentials_ok)
+
+        if not include_inactive and not is_active:
+            continue
+
+        options.append({
+            "gateway": gateway,
+            "display_name": config.display_name if config else defaults["display_name"],
+            "description": config.description if config else defaults["description"],
+            "icon_class": config.icon_class if config else defaults["icon_class"],
+            "display_order": config.display_order if config else defaults["display_order"],
+            "is_active": is_active,
+            "available": available,
+            "disabled_reason": "" if available else (disabled_reason or "This gateway is disabled."),
+        })
+
+    return sorted(options, key=lambda option: option["display_order"])
+
+
+def gateway_is_available(gateway):
+    for option in get_gateway_options(include_inactive=True):
+        if option["gateway"] == gateway:
+            return option["available"], option["disabled_reason"]
+    return False, "Unsupported payment gateway."
 
 
 def absolute_url(request, path):
@@ -27,10 +126,28 @@ def get_customer_data(request):
 
 
 def create_transaction(request, gateway):
-    amount = Decimal(str(request.POST.get("amount", "0"))).quantize(Decimal("0.01"))
+    try:
+        amount = Decimal(str(request.POST.get("amount", "0")).replace(",", "")).quantize(Decimal("0.01"))
+    except (InvalidOperation, ValueError):
+        raise ValueError("Enter a valid payment amount.")
+
+    if amount <= 0:
+        raise ValueError("Payment amount must be greater than zero.")
+
     currency = (request.POST.get("currency") or getattr(settings, "AROLANA_DEFAULT_CURRENCY", "NGN")).upper()
     order_id = request.POST.get("order_id", "")
     customer = get_customer_data(request)
+
+    if not customer["email"]:
+        raise ValueError("Customer email is required before payment.")
+
+    checkout_data = {
+        "address": request.POST.get("address", ""),
+        "city": request.POST.get("city", ""),
+        "state": request.POST.get("state", ""),
+        "postal_code": request.POST.get("postal_code", ""),
+        "country": request.POST.get("country", ""),
+    }
 
     payment = PaymentTransaction.objects.create(
         user=request.user if request.user.is_authenticated else None,
@@ -41,6 +158,7 @@ def create_transaction(request, gateway):
         customer_email=customer["email"],
         customer_name=customer["name"],
         customer_phone=customer["phone"],
+        checkout_data=checkout_data,
     )
     return payment
 

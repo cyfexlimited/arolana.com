@@ -1,18 +1,33 @@
-{% extends 'base/base.html' %}
+{% extends 'dashboard/base_dashboard.html' %}
 
-{% block title %}Vendor Messages | Arolana{% endblock %}
+{% block title %}Customer Chat | Arolana{% endblock %}
 
-{% block content %}
-<div class="max-w-6xl mx-auto">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-3xl font-bold">Customer Messages</h1>
-        {% if total_unread > 0 %}
-        <span class="bg-red-500 text-white px-3 py-1 rounded-full text-sm">
-            {{ total_unread }} unread
-        </span>
-        {% endif %}
+{% block dashboard_content %}
+<div class="space-y-6">
+    <div class="bg-white rounded-xl shadow-lg p-6">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+                <h1 class="text-2xl font-bold">Customer Chat</h1>
+                <p class="text-sm text-gray-500">Product conversations from shoppers.</p>
+            </div>
+            {% if total_unread > 0 %}
+            <span class="bg-red-500 text-white px-3 py-1 rounded-full text-sm">{{ total_unread }} unread</span>
+            {% endif %}
+        </div>
     </div>
-    
+
+    {% if chat_locked %}
+    <div class="bg-white rounded-xl shadow-lg p-8 text-center">
+        <div class="mx-auto w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+            <i class="fas fa-lock text-2xl text-gray-500"></i>
+        </div>
+        <h2 class="text-2xl font-bold">Customer chat is locked on the {{ subscription_tier|title }} plan</h2>
+        <p class="text-gray-600 mt-2 max-w-2xl mx-auto">Upgrade to Basic or higher to receive and reply to customer product messages. Customers will only see chat for vendors with an active paid subscription.</p>
+        <a href="{% url 'subscriptions:plans' %}" class="inline-flex items-center gap-2 mt-6 bg-blue-600 text-white px-5 py-3 rounded-lg font-semibold hover:bg-blue-700">
+            View subscription plans <i class="fas fa-arrow-right"></i>
+        </a>
+    </div>
+    {% else %}
     <div class="bg-white rounded-xl shadow-lg overflow-hidden">
         {% if chat_rooms %}
             {% for room in chat_rooms %}
@@ -21,22 +36,20 @@
                     <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                         <i class="fas fa-user text-green-600 text-xl"></i>
                     </div>
-                    <div class="flex-1">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <h3 class="font-semibold">{{ room.customer.get_full_name|default:room.customer.username }}</h3>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-start gap-3">
+                            <div class="min-w-0">
+                                <h3 class="font-semibold truncate">{{ room.customer.get_full_name|default:room.customer.username }}</h3>
                                 {% if room.product %}
-                                <p class="text-xs text-gray-500">Regarding: {{ room.product.name|truncatechars:30 }}</p>
+                                <p class="text-xs text-gray-500 truncate">Regarding: {{ room.product.name }}</p>
                                 {% endif %}
                             </div>
-                            <span class="text-xs text-gray-400">{{ room.last_message_time|timesince }} ago</span>
+                            <span class="text-xs text-gray-400 whitespace-nowrap">{{ room.last_message_time|timesince }} ago</span>
                         </div>
-                        <p class="text-sm text-gray-600 mt-1">{{ room.get_last_message_preview }}</p>
+                        <p class="text-sm text-gray-600 mt-1 truncate">{{ room.get_last_message_preview }}</p>
                     </div>
                     {% if room.vendor_unread > 0 %}
-                    <div class="bg-blue-600 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center">
-                        {{ room.vendor_unread }}
-                    </div>
+                    <div class="bg-blue-600 text-white text-xs rounded-full min-w-6 h-6 px-2 flex items-center justify-center">{{ room.vendor_unread }}</div>
                     {% endif %}
                 </div>
             </a>
@@ -45,9 +58,10 @@
             <div class="p-12 text-center">
                 <i class="fas fa-comments text-6xl text-gray-300 mb-4"></i>
                 <p class="text-gray-500">No customer messages yet.</p>
-                <p class="text-sm text-gray-400 mt-2">When customers message you, they'll appear here.</p>
+                <p class="text-sm text-gray-400 mt-2">When customers message you, they will appear here.</p>
             </div>
         {% endif %}
     </div>
+    {% endif %}
 </div>
 {% endblock %}

@@ -4,55 +4,132 @@
 {% block title %}Analytics - Vendor Dashboard{% endblock %}
 
 {% block dashboard_content %}
-<div class="bg-white rounded-xl shadow-lg p-6">
-    <h1 class="text-2xl font-bold mb-6">Sales Analytics</h1>
-    
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div class="bg-blue-50 rounded-lg p-4">
-            <p class="text-gray-600">Total Products</p>
-            <p class="text-2xl font-bold">{{ total_products }}</p>
+<div class="space-y-6">
+    <div class="bg-white rounded-xl shadow-lg p-6">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
+            <div>
+                <h1 class="text-2xl font-bold">Vendor Analytics</h1>
+                <p class="text-sm text-gray-500">Sales, fulfillment, reviews, and product performance.</p>
+            </div>
+            <span class="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700">
+                <i class="fas fa-chart-line"></i> {{ vendor_score_label }} score
+            </span>
         </div>
-        <div class="bg-green-50 rounded-lg p-4">
-            <p class="text-gray-600">Total Orders</p>
-            <p class="text-2xl font-bold">{{ total_orders }}</p>
-        </div>
-        <div class="bg-purple-50 rounded-lg p-4">
-            <p class="text-gray-600">Total Revenue</p>
-            <p class="text-2xl font-bold">${{ total_revenue|floatformat:2 }}</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div class="rounded-xl bg-blue-50 p-4">
+                <p class="text-sm text-gray-600">Vendor Score</p>
+                <p class="text-3xl font-bold text-blue-800">{{ vendor_score|floatformat:1 }}</p>
+            </div>
+            <div class="rounded-xl bg-green-50 p-4">
+                <p class="text-sm text-gray-600">Revenue</p>
+                <p class="text-3xl font-bold text-green-700">${{ total_revenue|floatformat:2 }}</p>
+            </div>
+            <div class="rounded-xl bg-purple-50 p-4">
+                <p class="text-sm text-gray-600">Orders</p>
+                <p class="text-3xl font-bold text-purple-700">{{ total_orders }}</p>
+            </div>
+            <div class="rounded-xl bg-amber-50 p-4">
+                <p class="text-sm text-gray-600">Average Rating</p>
+                <p class="text-3xl font-bold text-amber-700">{{ avg_rating|floatformat:1 }}</p>
+            </div>
+            <div class="rounded-xl bg-gray-50 p-4">
+                <p class="text-sm text-gray-600">Products</p>
+                <p class="text-2xl font-bold">{{ total_products }}</p>
+            </div>
+            <div class="rounded-xl bg-gray-50 p-4">
+                <p class="text-sm text-gray-600">Units Sold</p>
+                <p class="text-2xl font-bold">{{ total_units_sold }}</p>
+            </div>
+            <div class="rounded-xl bg-gray-50 p-4">
+                <p class="text-sm text-gray-600">Product Views</p>
+                <p class="text-2xl font-bold">{{ total_views }}</p>
+            </div>
+            <div class="rounded-xl bg-gray-50 p-4">
+                <p class="text-sm text-gray-600">Avg Order Value</p>
+                <p class="text-2xl font-bold">${{ average_order_value|floatformat:2 }}</p>
+            </div>
         </div>
     </div>
-    
-    <div class="mt-6">
-        <h2 class="text-xl font-semibold mb-4">Last 30 Days Sales</h2>
-        <canvas id="salesChart" height="100"></canvas>
+
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div class="xl:col-span-2 bg-white rounded-xl shadow-lg p-6">
+            <h2 class="text-xl font-semibold mb-4">Last 30 Days Sales</h2>
+            <canvas id="salesChart" height="120"></canvas>
+        </div>
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h2 class="text-xl font-semibold mb-4">Operations</h2>
+            <div class="space-y-4">
+                <div>
+                    <div class="flex justify-between text-sm mb-1"><span>Fulfillment</span><strong>{{ fulfillment_rate|floatformat:1 }}%</strong></div>
+                    <div class="h-2 bg-gray-100 rounded-full"><div class="h-2 bg-green-600 rounded-full" style="width: {{ fulfillment_rate|floatformat:0 }}%"></div></div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-sm mb-1"><span>Inventory health</span><strong>{{ product_health|floatformat:1 }}%</strong></div>
+                    <div class="h-2 bg-gray-100 rounded-full"><div class="h-2 bg-blue-600 rounded-full" style="width: {{ product_health|floatformat:0 }}%"></div></div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-sm mb-1"><span>Approval rate</span><strong>{{ approval_rate|floatformat:1 }}%</strong></div>
+                    <div class="h-2 bg-gray-100 rounded-full"><div class="h-2 bg-purple-600 rounded-full" style="width: {{ approval_rate|floatformat:0 }}%"></div></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3 pt-2 text-sm">
+                    <div class="rounded-lg bg-green-50 p-3">Delivered <strong class="block">{{ delivered_count }}</strong></div>
+                    <div class="rounded-lg bg-blue-50 p-3">Shipped <strong class="block">{{ shipped_count }}</strong></div>
+                    <div class="rounded-lg bg-red-50 p-3">Cancelled <strong class="block">{{ cancelled_count }}</strong></div>
+                    <div class="rounded-lg bg-amber-50 p-3">Refunded <strong class="block">{{ refunded_count }}</strong></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-lg p-6">
+        <h2 class="text-xl font-semibold mb-4">Top Products</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left">Product</th>
+                        <th class="px-4 py-3 text-left">Views</th>
+                        <th class="px-4 py-3 text-left">Units Sold</th>
+                        <th class="px-4 py-3 text-left">Stock</th>
+                        <th class="px-4 py-3 text-left">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in top_products %}
+                    <tr class="border-t">
+                        <td class="px-4 py-3 font-semibold">{{ product.name }}</td>
+                        <td class="px-4 py-3">{{ product.views_count }}</td>
+                        <td class="px-4 py-3">{{ product.total_sold|default:0 }}</td>
+                        <td class="px-4 py-3">{{ product.stock_quantity }}</td>
+                        <td class="px-4 py-3">{{ product.approval_status|title }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">No product activity yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    const ctx = document.getElementById('salesChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: [{% for data in sales_data %}'{{ data.date }}',{% endfor %}],
-            datasets: [{
-                label: 'Sales ($)',
-                data: [{% for data in sales_data %}{{ data.sales }},{% endfor %}],
-                borderColor: '#3B82F6',
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                tension: 0.4,
-                fill: true
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    position: 'bottom'
-                }
-            }
-        }
-    });
+const ctx = document.getElementById('salesChart').getContext('2d');
+new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: [{% for data in sales_data %}'{{ data.date }}',{% endfor %}],
+        datasets: [{
+            label: 'Sales ($)',
+            data: [{% for data in sales_data %}{{ data.sales }},{% endfor %}],
+            borderColor: '#2563eb',
+            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+            tension: 0.35,
+            fill: true
+        }]
+    },
+    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom' } } }
+});
 </script>
 {% endblock %}

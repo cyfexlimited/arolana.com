@@ -4,54 +4,75 @@
 {% block title %}Messages | Arolana.com{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto">
-    <h1 class="text-3xl font-bold mb-6">Messages</h1>
-    
-    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-        <div class="divide-y">
+<div class="max-w-6xl mx-auto px-4 py-8">
+    <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
+        <div>
+            <h1 class="text-3xl font-black text-gray-900">Messages</h1>
+            <p class="text-gray-500 mt-1">All your customer, vendor, and support conversations in one place.</p>
+        </div>
+        <div class="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-blue-700 font-bold text-sm">
+            <i class="fas fa-inbox"></i>
+            {% if total_unread %}{{ total_unread }} unread{% else %}Inbox clear{% endif %}
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+        {% if room_data %}
+        <div class="divide-y divide-gray-100">
             {% for item in room_data %}
-            <a href="{% url 'chat:room' item.room.id %}" class="block hover:bg-gray-50 transition">
-                <div class="p-4 flex items-center gap-4">
-                    <!-- Avatar -->
-                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                        <i class="fas fa-user text-blue-600 text-xl"></i>
-                    </div>
-                    
-                    <!-- Message Info -->
-                    <div class="flex-1">
-                        <div class="flex justify-between items-start">
-                            <h3 class="font-semibold">{{ item.room.name|default:"Chat" }}</h3>
-                            {% if item.last_message %}
-                            <span class="text-xs text-gray-400">{{ item.last_message.created_at|timesince }} ago</span>
-                            {% endif %}
+            <a href="{{ item.url }}" class="group block transition hover:bg-blue-50/45 {% if item.unread_count %}bg-blue-50/70{% endif %}">
+                <div class="p-4 sm:p-5 flex items-center gap-4">
+                    <div class="relative">
+                        <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center {% if item.kind == 'vendor_customer' %}bg-green-100 text-green-700{% else %}bg-blue-100 text-blue-700{% endif %}">
+                            <i class="fas {{ item.avatar_icon }} text-xl"></i>
                         </div>
-                        <p class="text-sm text-gray-600 truncate">
+                        {% if item.unread_count %}
+                        <span class="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[11px] font-black flex items-center justify-center">
+                            {% if item.unread_count > 9 %}9+{% else %}{{ item.unread_count }}{% endif %}
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <h2 class="font-black text-gray-900 truncate group-hover:text-blue-700">{{ item.title|default:"Conversation" }}</h2>
+                                <p class="text-xs text-gray-500 truncate">{{ item.subtitle }}</p>
+                            </div>
+                            <span class="text-xs text-gray-400 whitespace-nowrap">
+                                {% if item.last_message_time %}{{ item.last_message_time|timesince }} ago{% endif %}
+                            </span>
+                        </div>
+                        <p class="text-sm mt-2 truncate {% if item.unread_count %}font-bold text-gray-900{% else %}text-gray-600{% endif %}">
                             {% if item.last_message %}
-                                {{ item.last_message.sender.username }}: {{ item.last_message.message|truncatewords:10 }}
+                                {{ item.last_message.sender.username }}: {{ item.last_message.message|truncatechars:90 }}
+                            {% elif item.last_message_text %}
+                                {{ item.last_message_text|truncatechars:90 }}
                             {% else %}
                                 No messages yet
                             {% endif %}
                         </p>
                     </div>
-                    
-                    <!-- Unread Badge -->
-                    {% if item.unread_count > 0 %}
-                    <div class="bg-blue-600 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center">
-                        {{ item.unread_count }}
+
+                    <div class="hidden sm:flex items-center text-gray-300 group-hover:text-blue-600">
+                        <i class="fas fa-chevron-right"></i>
                     </div>
-                    {% endif %}
                 </div>
             </a>
-            {% empty %}
-            <div class="p-12 text-center">
-                <i class="fas fa-comments text-6xl text-gray-300 mb-4"></i>
-                <p class="text-gray-500">No conversations yet.</p>
-                <a href="/products/" class="inline-block mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
-                    Start Shopping
-                </a>
-            </div>
             {% endfor %}
         </div>
+        {% else %}
+        <div class="p-12 text-center">
+            <div class="mx-auto w-20 h-20 rounded-3xl bg-gray-100 flex items-center justify-center mb-4">
+                <i class="fas fa-comments text-4xl text-gray-300"></i>
+            </div>
+            <h2 class="text-xl font-black text-gray-900">No conversations yet</h2>
+            <p class="text-gray-500 mt-2">When you message a vendor, customer, or support, the conversation will appear here.</p>
+            <a href="/products/" class="inline-flex items-center gap-2 mt-5 bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700">
+                Start Shopping <i class="fas fa-arrow-right"></i>
+            </a>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

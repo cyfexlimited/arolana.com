@@ -4,6 +4,7 @@ from django.utils.text import slugify
 from django_ckeditor_5.fields import CKEditor5Field
 from core.models import BaseModel
 from accounts.models import User
+import re
 
 class BlogCategory(BaseModel):
     """Article categories like Reviews, Guides, News, etc."""
@@ -61,6 +62,12 @@ class BlogPost(BaseModel):
     thumbnail_image = models.ImageField(upload_to='blog/thumbnails/', null=True, blank=True, help_text="Small thumbnail (300x200)")
     gallery_images = models.JSONField(default=list, blank=True, help_text="Additional images for gallery")
     video_url = models.URLField(blank=True, help_text="YouTube or Vimeo URL for video content")
+    social_links = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text='Optional social/media links. Example: {"YouTube": "https://...", "Instagram": "https://..."}'
+    )
+    source_url = models.URLField(blank=True, help_text="Optional source, manufacturer, or external reference link")
     
     # SEO
     meta_title = models.CharField(max_length=200, blank=True)
@@ -90,6 +97,8 @@ class BlogPost(BaseModel):
     
     # Styling
     custom_css = models.TextField(blank=True, help_text="Custom CSS for this article")
+    hero_background_color = models.CharField(max_length=20, default="#111827")
+    show_featured_image = models.BooleanField(default=True)
     layout_style = models.CharField(max_length=20, choices=[
         ('standard', 'Standard'),
         ('featured', 'Featured Image Top'),
@@ -130,6 +139,43 @@ class BlogPost(BaseModel):
         if self.reading_time == 1:
             return "1 min read"
         return f"{self.reading_time} min read"
+
+    def get_video_embed_url(self):
+        """Return an embeddable YouTube or Vimeo URL when possible."""
+        if not self.video_url:
+            return ""
+
+        youtube_patterns = [
+            r'youtube\.com/watch\?(?:.*&)?v=([\w-]+)',
+            r'youtu\.be/([\w-]+)',
+            r'youtube\.com/embed/([\w-]+)',
+            r'youtube\.com/shorts/([\w-]+)',
+        ]
+        for pattern in youtube_patterns:
+            match = re.search(pattern, self.video_url)
+            if match:
+                return f"https://www.youtube.com/embed/{match.group(1)}?rel=0&modestbranding=1&playsinline=1"
+
+        vimeo_match = re.search(r'vimeo\.com/(?:video/)?(\d+)', self.video_url)
+        if vimeo_match:
+            return f"https://player.vimeo.com/video/{vimeo_match.group(1)}"
+
+        return self.video_url
+
+    @property
+    def social_links_list(self):
+        if isinstance(self.social_links, dict):
+            return [
+                {'label': str(label), 'url': str(url)}
+                for label, url in self.social_links.items()
+                if label and url
+            ]
+        if isinstance(self.social_links, list):
+            return [
+                item for item in self.social_links
+                if isinstance(item, dict) and item.get('label') and item.get('url')
+            ]
+        return []
 
 class BlogComment(BaseModel):
     """Comments on articles"""

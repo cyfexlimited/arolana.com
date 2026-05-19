@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import VendorProfile, VendorSubscription
+from .models import VendorProfile, VendorSubscription, VendorReview
 
 @admin.register(VendorProfile)
 class VendorProfileAdmin(admin.ModelAdmin):
@@ -53,3 +53,26 @@ class VendorSubscriptionAdmin(admin.ModelAdmin):
     list_display = ['vendor', 'plan', 'start_date', 'end_date', 'is_active']
     list_filter = ['plan', 'is_active']
     search_fields = ['vendor__username']
+
+
+@admin.register(VendorReview)
+class VendorReviewAdmin(admin.ModelAdmin):
+    list_display = ['vendor', 'user', 'rating', 'is_verified_customer', 'is_active', 'created_at']
+    list_filter = ['rating', 'is_verified_customer', 'is_active', 'created_at']
+    search_fields = ['vendor__store_name', 'user__email', 'user__username', 'title', 'comment']
+    readonly_fields = ['created_at', 'updated_at', 'helpful_count']
+    actions = ['approve_reviews', 'hide_reviews']
+
+    def approve_reviews(self, request, queryset):
+        queryset.update(is_active=True)
+        for review in queryset.select_related('vendor'):
+            review.vendor.update_rating()
+        self.message_user(request, f'{queryset.count()} vendor review(s) approved.')
+    approve_reviews.short_description = 'Approve selected vendor reviews'
+
+    def hide_reviews(self, request, queryset):
+        queryset.update(is_active=False)
+        for review in queryset.select_related('vendor'):
+            review.vendor.update_rating()
+        self.message_user(request, f'{queryset.count()} vendor review(s) hidden.')
+    hide_reviews.short_description = 'Hide selected vendor reviews'

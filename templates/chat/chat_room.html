@@ -1,238 +1,241 @@
 {% extends 'base/base.html' %}
 {% load static %}
 
-{% block title %}Chat | {{ other_participant.username }}{% endblock %}
+{% block title %}Chat | {{ other_participant.username|default:"Conversation" }}{% endblock %}
 
 {% block extra_css %}
 <style>
-    .chat-messages {
-        height: 500px;
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
+    .chat-shell {
+        height: min(760px, calc(100vh - 170px));
+        min-height: 560px;
     }
-    .message-bubble {
-        max-width: 70%;
-        word-wrap: break-word;
+
+    .chat-scroll {
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 transparent;
     }
-    .message-sent {
-        align-self: flex-end;
+
+    .chat-bubble {
+        max-width: min(76%, 620px);
+        overflow-wrap: anywhere;
     }
-    .message-sent .message-bubble {
-        background-color: #3B82F6;
-        color: white;
-        border-radius: 18px 18px 4px 18px;
-    }
-    .message-received {
-        align-self: flex-start;
-    }
-    .message-received .message-bubble {
-        background-color: #E5E7EB;
-        color: #1F2937;
-        border-radius: 18px 18px 18px 4px;
-    }
-    .typing-indicator {
-        display: inline-block;
-        padding: 8px 12px;
-        background-color: #E5E7EB;
-        border-radius: 18px;
-    }
-    .typing-indicator span {
-        display: inline-block;
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background-color: #9CA3AF;
-        margin: 0 2px;
-        animation: typing 1.4s infinite;
-    }
-    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
-    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes typing {
-        0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
-        30% { transform: translateY(-10px); opacity: 1; }
-    }
-    .read-receipt {
-        font-size: 10px;
-        margin-left: 8px;
+
+    @media (max-width: 640px) {
+        .chat-shell {
+            height: calc(100vh - 120px);
+            min-height: 560px;
+            border-radius: 0;
+        }
+
+        .chat-bubble {
+            max-width: 86%;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto">
-    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-        <!-- Chat Header -->
-        <div class="bg-gray-800 text-white px-6 py-4 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+<div class="max-w-6xl mx-auto px-0 sm:px-4 py-4 sm:py-8">
+    <div class="chat-shell bg-white sm:rounded-2xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col">
+        <header class="bg-gray-950 text-white px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3 min-w-0">
+                <a href="{% url 'chat:list' %}" class="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center shrink-0" aria-label="Back to messages">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+                <div class="w-11 h-11 rounded-2xl bg-blue-600 flex items-center justify-center shrink-0">
                     <i class="fas fa-user text-white"></i>
                 </div>
-                <div>
-                    <h2 class="font-semibold">{{ other_participant.get_full_name|default:other_participant.username }}</h2>
-                    <p class="text-xs text-gray-300" id="online-status">Online</p>
+                <div class="min-w-0">
+                    <h1 class="font-black truncate">{{ other_participant.get_full_name|default:other_participant.username|default:"Conversation" }}</h1>
+                    <p class="text-xs text-gray-300 truncate">
+                        {% if product %}Product: {{ product.name }}{% elif order %}Order #{{ order.order_number }}{% else %}Direct message{% endif %}
+                    </p>
                 </div>
             </div>
             {% if product %}
-            <a href="{{ product.get_absolute_url }}" class="text-sm text-blue-300 hover:text-blue-200">
-                View Product →
+            <a href="{{ product.get_absolute_url }}" class="hidden sm:inline-flex items-center gap-2 text-sm bg-white/10 hover:bg-white/20 rounded-xl px-3 py-2">
+                View Product <i class="fas fa-arrow-right"></i>
             </a>
             {% endif %}
-        </div>
-        
-        <!-- Messages Area -->
-        <div id="chat-messages" class="chat-messages p-4 space-y-3 bg-gray-50">
+        </header>
+
+        <div id="chat-messages" class="chat-scroll flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-gradient-to-b from-gray-50 to-white">
             {% for message in messages %}
-            <div class="flex {% if message.sender == request.user %}justify-end{% else %}justify-start{% endif %}">
-                <div class="message-bubble p-3 max-w-[70%] {% if message.sender == request.user %}bg-blue-600 text-white rounded-2xl rounded-tr-none{% else %}bg-gray-200 text-gray-800 rounded-2xl rounded-tl-none{% endif %}">
-                    <div class="text-sm">{{ message.message }}</div>
-                    <div class="text-xs mt-1 opacity-75 flex items-center gap-1">
+            <div class="flex {% if message.sender == request.user %}justify-end{% else %}justify-start{% endif %}" data-message-id="{{ message.id }}">
+                <div class="chat-bubble px-4 py-3 shadow-sm {% if message.sender == request.user %}bg-blue-600 text-white rounded-2xl rounded-br-md{% else %}bg-white text-gray-900 border border-gray-100 rounded-2xl rounded-bl-md{% endif %}">
+                    <div class="text-sm leading-relaxed whitespace-pre-wrap">{{ message.message }}</div>
+                    <div class="text-[11px] mt-2 opacity-75 flex items-center justify-end gap-1">
                         {{ message.created_at|time:"H:i" }}
                         {% if message.sender == request.user %}
-                            {% if message.is_read %}
-                                <i class="fas fa-check-double text-blue-300"></i>
-                            {% else %}
-                                <i class="fas fa-check text-blue-300"></i>
-                            {% endif %}
+                            {% if message.is_read %}<i class="fas fa-check-double"></i>{% else %}<i class="fas fa-check"></i>{% endif %}
                         {% endif %}
                     </div>
                 </div>
             </div>
+            {% empty %}
+            <div id="empty-chat-state" class="h-full flex items-center justify-center text-center text-gray-500">
+                <div>
+                    <i class="fas fa-comments text-5xl text-gray-200 mb-3"></i>
+                    <p class="font-bold text-gray-700">No messages yet</p>
+                    <p class="text-sm">Start the conversation below.</p>
+                </div>
+            </div>
             {% endfor %}
         </div>
-        
-        <!-- Typing Indicator -->
-        <div id="typing-indicator" class="px-4 hidden">
-            <div class="typing-indicator">
-                <span></span><span></span><span></span>
-                <span class="text-xs text-gray-500 ml-2">Someone is typing...</span>
-            </div>
+
+        <div id="typing-indicator" class="hidden px-5 py-2 bg-white border-t border-gray-100 text-sm text-gray-500">
+            <span class="inline-flex items-center gap-2">
+                <span class="inline-flex gap-1">
+                    <span class="w-2 h-2 rounded-full bg-gray-400 animate-bounce"></span>
+                    <span class="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style="animation-delay: .12s"></span>
+                    <span class="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style="animation-delay: .24s"></span>
+                </span>
+                <span>{{ other_participant.get_full_name|default:other_participant.username|default:"Someone" }} is typing</span>
+            </span>
         </div>
-        
-        <!-- Message Input -->
-        <div class="border-t p-4 bg-white">
-            <form id="chat-form" class="flex gap-2">
-                {% csrf_token %}
-                <input type="text" id="message-input" placeholder="Type a message..." 
-                       class="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
-                    <i class="fas fa-paper-plane"></i> Send
+
+        <form id="chat-form" class="border-t border-gray-100 bg-white p-3 sm:p-4">
+            {% csrf_token %}
+            <div class="flex items-end gap-2">
+                <textarea id="message-input" rows="1" placeholder="Type a message..." class="flex-1 resize-none rounded-2xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 max-h-32"></textarea>
+                <button type="submit" class="w-12 h-12 rounded-2xl bg-blue-600 text-white hover:bg-blue-700 flex items-center justify-center shrink-0" aria-label="Send message">
+                    <i class="fas fa-paper-plane"></i>
                 </button>
-            </form>
-        </div>
+            </div>
+            <p id="chat-error" class="hidden mt-2 text-sm text-red-600"></p>
+        </form>
     </div>
 </div>
 
 <script>
-    const roomId = {{ room.id }};
-    const userId = {{ request.user.id }};
-    const chatSocket = new WebSocket(
-        'ws://' + window.location.host + '/ws/chat/' + roomId + '/'
-    );
-    
-    let typingTimeout;
-    
-    chatSocket.onmessage = function(e) {
-        const data = JSON.parse(e.data);
-        
-        if (data.type === 'message') {
-            addMessageToChat(data);
-        } else if (data.type === 'typing') {
-            handleTypingIndicator(data);
-        } else if (data.type === 'read') {
-            markMessageAsRead(data.message_id);
-        }
-    };
-    
-    chatSocket.onopen = function(e) {
-        console.log('WebSocket connected');
-    };
-    
-    chatSocket.onclose = function(e) {
-        console.log('WebSocket disconnected');
-    };
-    
-    function addMessageToChat(data) {
-        const isOwnMessage = data.sender_id == userId;
-        const messagesContainer = document.getElementById('chat-messages');
-        
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`;
-        messageDiv.innerHTML = `
-            <div class="message-bubble p-3 max-w-[70%] ${isOwnMessage ? 'bg-blue-600 text-white rounded-2xl rounded-tr-none' : 'bg-gray-200 text-gray-800 rounded-2xl rounded-tl-none'}">
-                <div class="text-sm">${escapeHtml(data.message)}</div>
-                <div class="text-xs mt-1 opacity-75 flex items-center gap-1">
-                    ${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
-                    ${isOwnMessage ? '<i class="fas fa-check text-blue-300"></i>' : ''}
-                </div>
-            </div>
-        `;
-        
-        messagesContainer.appendChild(messageDiv);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    }
-    
-    function handleTypingIndicator(data) {
-        const indicator = document.getElementById('typing-indicator');
-        if (data.is_typing && data.user_id != userId) {
-            indicator.classList.remove('hidden');
-        } else {
-            indicator.classList.add('hidden');
-        }
-    }
-    
-    function markMessageAsRead(messageId) {
-        // Update message read status in UI
-        const messages = document.querySelectorAll('.message-bubble');
-        // Implementation for marking messages as read
-    }
-    
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-    
-    // Handle form submission
-    document.getElementById('chat-form').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const input = document.getElementById('message-input');
-        const message = input.value.trim();
-        
-        if (message) {
-            chatSocket.send(JSON.stringify({
-                'type': 'message',
-                'message': message,
-                'sender_id': userId,
-                'room_id': roomId
-            }));
-            input.value = '';
-        }
-    });
-    
-    // Handle typing indicator
-    const messageInput = document.getElementById('message-input');
-    messageInput.addEventListener('input', function() {
-        clearTimeout(typingTimeout);
-        chatSocket.send(JSON.stringify({
-            'type': 'typing',
-            'room_id': roomId,
-            'user_id': userId,
-            'is_typing': true
-        }));
-        
-        typingTimeout = setTimeout(() => {
-            chatSocket.send(JSON.stringify({
-                'type': 'typing',
-                'room_id': roomId,
-                'user_id': userId,
-                'is_typing': false
-            }));
-        }, 1000);
-    });
-    
-    // Scroll to bottom
-    const messagesContainer = document.getElementById('chat-messages');
+const roomId = {{ room.id }};
+const userId = {{ request.user.id }};
+const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+const messagesContainer = document.getElementById('chat-messages');
+const form = document.getElementById('chat-form');
+const input = document.getElementById('message-input');
+const typingIndicator = document.getElementById('typing-indicator');
+const errorBox = document.getElementById('chat-error');
+let typingTimeout;
+let chatSocket;
+
+function scrollToBottom() {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function appendMessage(data) {
+    const emptyState = document.getElementById('empty-chat-state');
+    if (emptyState) emptyState.remove();
+    const isOwn = Number(data.user_id) === Number(userId);
+    const div = document.createElement('div');
+    div.className = `flex ${isOwn ? 'justify-end' : 'justify-start'}`;
+    div.dataset.messageId = data.message_id || '';
+    div.innerHTML = `
+        <div class="chat-bubble px-4 py-3 shadow-sm ${isOwn ? 'bg-blue-600 text-white rounded-2xl rounded-br-md' : 'bg-white text-gray-900 border border-gray-100 rounded-2xl rounded-bl-md'}">
+            <div class="text-sm leading-relaxed whitespace-pre-wrap">${escapeHtml(data.message)}</div>
+            <div class="text-[11px] mt-2 opacity-75 flex items-center justify-end gap-1">
+                ${new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
+                ${isOwn ? '<i class="fas fa-check"></i>' : ''}
+            </div>
+        </div>`;
+    messagesContainer.appendChild(div);
+    scrollToBottom();
+    updateHeaderChatBadge();
+}
+
+function showError(message) {
+    if (!errorBox) return;
+    errorBox.textContent = message;
+    errorBox.classList.remove('hidden');
+}
+
+function updateHeaderChatBadge() {
+    fetch('/chat/unread-count/')
+        .then((response) => response.json())
+        .then((data) => {
+            const badge = document.getElementById('chat-unread-badge');
+            if (!badge) return;
+            if (data.unread_count > 0) {
+                badge.textContent = data.unread_count > 9 ? '9+' : data.unread_count;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        })
+        .catch(() => {});
+}
+
+function connectSocket() {
+    chatSocket = new WebSocket(`${protocol}://${window.location.host}/ws/chat/${roomId}/`);
+
+    chatSocket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'message') {
+            appendMessage(data);
+        } else if (data.type === 'typing' && Number(data.user_id) !== Number(userId)) {
+            typingIndicator.classList.toggle('hidden', !data.is_typing);
+        } else if (data.type === 'read') {
+            document.querySelectorAll('[data-message-id]').forEach((node) => {
+                if (node.dataset.messageId === String(data.message_id)) {
+                    const icon = node.querySelector('.fa-check');
+                    if (icon) {
+                        icon.classList.remove('fa-check');
+                        icon.classList.add('fa-check-double');
+                    }
+                }
+            });
+        } else if (data.type === 'error') {
+            showError(data.message || 'Message could not be sent.');
+        }
+    };
+
+    chatSocket.onclose = () => {
+        showError('Connection lost. Refresh the page if messages stop sending.');
+    };
+}
+
+form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const message = input.value.trim();
+    if (!message) return;
+    if (!chatSocket || chatSocket.readyState !== WebSocket.OPEN) {
+        showError('Chat connection is not ready. Please refresh and try again.');
+        return;
+    }
+    errorBox.classList.add('hidden');
+    chatSocket.send(JSON.stringify({type: 'message', message, room_id: roomId, sender_id: userId}));
+    input.value = '';
+    input.style.height = 'auto';
+});
+
+input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = `${Math.min(input.scrollHeight, 128)}px`;
+    if (!chatSocket || chatSocket.readyState !== WebSocket.OPEN) return;
+    clearTimeout(typingTimeout);
+    chatSocket.send(JSON.stringify({type: 'typing', room_id: roomId, user_id: userId, is_typing: true}));
+    typingTimeout = setTimeout(() => {
+        if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+            chatSocket.send(JSON.stringify({type: 'typing', room_id: roomId, user_id: userId, is_typing: false}));
+        }
+    }, 900);
+});
+
+input.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        form.requestSubmit();
+    }
+});
+
+connectSocket();
+scrollToBottom();
+updateHeaderChatBadge();
 </script>
 {% endblock %}

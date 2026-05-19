@@ -634,10 +634,57 @@ class Product(BaseModel):
         if re.match(r'^\d+$', url or ''):
             return f"https://player.vimeo.com/video/{url}"
         return None
-    
+
     def increment_views(self):
         """Increment view count"""
         Product.objects.filter(pk=self.pk).update(views_count=models.F('views_count') + 1)
+
+
+class ProductArticleLink(BaseModel):
+    """Attach rich editorial articles to a product with configurable behavior."""
+
+    OPEN_BEHAVIOR_CHOICES = [
+        ('same_page', 'Open in same page'),
+        ('new_page', 'Open in new tab'),
+        ('popup', 'Open in popup modal'),
+    ]
+
+    PLACEMENT_CHOICES = [
+        ('overview', 'Below product overview'),
+        ('articles_tab', 'Articles tab'),
+        ('description', 'Description support link'),
+        ('hero', 'Product top section'),
+    ]
+
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='article_links')
+    article = models.ForeignKey('blog.BlogPost', on_delete=models.CASCADE, related_name='product_links')
+    label = models.CharField(max_length=120, blank=True, help_text="Optional button/card title override")
+    teaser = models.TextField(blank=True, help_text="Optional short teaser override")
+    placement = models.CharField(max_length=30, choices=PLACEMENT_CHOICES, default='articles_tab')
+    open_behavior = models.CharField(max_length=20, choices=OPEN_BEHAVIOR_CHOICES, default='same_page')
+    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['sort_order', 'article__published_at']
+        unique_together = [('product', 'article', 'placement')]
+        verbose_name = 'Product Article Link'
+        verbose_name_plural = 'Product Article Links'
+
+    def __str__(self):
+        return f"{self.product.name} -> {self.article.title}"
+
+    @property
+    def display_label(self):
+        return self.label or self.article.title
+
+    @property
+    def display_teaser(self):
+        return self.teaser or self.article.excerpt
+
+    @property
+    def article_url(self):
+        return self.article.get_absolute_url()
 
 
 # =========================

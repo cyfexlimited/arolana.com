@@ -537,7 +537,7 @@ COINBASE_COMMERCE_API_VERSION = config(
 # Optional order success hook
 AROLANA_PAYMENT_SUCCESS_HANDLER = config(
     "AROLANA_PAYMENT_SUCCESS_HANDLER",
-    default=""
+    default="orders.services.mark_order_paid"
 )
 # ============ JAZZMIN ============
 os.makedirs(os.path.join(BASE_DIR, 'static', 'admin', 'css'), exist_ok=True)
@@ -559,6 +559,28 @@ JAZZMIN_SETTINGS = {
     'show_ui_builder': False,
     'custom_css': 'admin/css/custom_admin.css',
     'hide_apps': ['account', 'socialaccount'],
+    'custom_links': {
+        'reports': [
+            {
+                'name': 'Login Dashboard',
+                'url': '/reports/dashboard/',
+                'icon': 'fas fa-chart-line',
+                'permissions': ['reports.view_loginreport'],
+            },
+            {
+                'name': 'Live Monitoring',
+                'url': '/reports/realtime/',
+                'icon': 'fas fa-shield-alt',
+                'permissions': ['reports.view_loginalert'],
+            },
+            {
+                'name': 'Failed Attempts',
+                'url': '/reports/login-attempts/',
+                'icon': 'fas fa-user-lock',
+                'permissions': ['accounts.view_loginattempt'],
+            },
+        ],
+    },
     'icons': {
         'accounts.User': 'fas fa-users',
         'accounts.UserProfile': 'fas fa-user-circle',
@@ -589,6 +611,8 @@ JAZZMIN_SETTINGS = {
         'newsletter.NewsletterSubscriber': 'fas fa-envelope',
         'subscriptions.SubscriptionPlan': 'fas fa-gem',
         'subscriptions.VendorSubscription': 'fas fa-user-check',
+        'reports.LoginReport': 'fas fa-chart-line',
+        'reports.LoginAlert': 'fas fa-shield-alt',
     },
     'order_with_respect_to': [
         'accounts',

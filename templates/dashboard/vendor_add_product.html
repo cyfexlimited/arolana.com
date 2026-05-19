@@ -189,13 +189,18 @@
         <div class="border-b border-gray-200 pb-4">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-semibold">Product Variants (Optional)</h2>
-	                <button type="button" onclick="addVariantRow()" class="bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700">
-	                    <i class="fas fa-plus"></i> Add Variant
-	                </button>
-            </div>
-            <div id="variants-container" class="space-y-3">
-                <!-- Variant rows will be added here -->
-            </div>
+		                <button type="button" onclick="addVariantRow()" {% if subscription_limits.max_variants_per_product == 0 %}disabled{% endif %} class="bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed">
+		                    <i class="fas fa-plus"></i> Add Variant
+		                </button>
+	            </div>
+                {% if subscription_limits.max_variants_per_product == 0 %}
+                <div class="mb-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
+                    Product variants are locked on the Free plan. Upgrade to Basic or higher to add color, size, material, capacity, finish, pattern, and other variant options.
+                </div>
+                {% endif %}
+	            <div id="variants-container" class="space-y-3">
+	                <!-- Variant rows will be added here -->
+	            </div>
         </div>
 
         <!-- Description -->
@@ -204,9 +209,14 @@
             <div class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                    <textarea name="description" rows="6"
-                              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"></textarea>
-                </div>
+	                    <textarea name="description" id="descriptionEditor" rows="6"
+	                              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"></textarea>
+	                </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Specifications</label>
+                        <textarea name="specifications" id="specificationsEditor" rows="6"
+                                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Meta Title</label>
                     <input type="text" name="meta_title"
@@ -214,8 +224,8 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Meta Description</label>
-                    <textarea name="meta_description" rows="3"
-                              class="w-full px-4 py-2 border border-gray-300 rounded-lg"></textarea>
+	                    <textarea name="meta_description" id="metaDescriptionEditor" rows="3"
+	                              class="w-full px-4 py-2 border border-gray-300 rounded-lg"></textarea>
                 </div>
             </div>
         </div>
@@ -231,6 +241,7 @@
     </form>
 </div>
 
+<script src="https://cdn.ckeditor.com/ckeditor5/39.0.1/classic/ckeditor.js"></script>
 <script>
 // Image preview
 document.querySelector('input[name="additional_images"]').addEventListener('change', function(e) {
@@ -270,41 +281,56 @@ document.getElementById('videoType').addEventListener('change', function() {
     }
 });
 
-// Variant management
-	const variantLimit = {{ subscription_limits.max_variants_per_product }};
-	let variantCount = 0;
+    if (window.ClassicEditor) {
+        ['descriptionEditor', 'specificationsEditor', 'metaDescriptionEditor'].forEach((id) => {
+            const element = document.getElementById(id);
+            if (element) {
+                ClassicEditor.create(element).catch(() => {});
+            }
+        });
+    }
 
-	function addVariantRow() {
-	    if (variantLimit !== -1 && document.querySelectorAll('.variant-row').length >= variantLimit) {
-	        alert(`Your current plan allows ${variantLimit} variants per product.`);
-	        return;
-	    }
-	    const container = document.getElementById('variants-container');
-	    const row = document.createElement('div');
-	    row.className = 'variant-row grid grid-cols-1 md:grid-cols-7 gap-3';
-	    row.innerHTML = `
-	        <select name="variant_type[]" class="px-3 py-2 border rounded">
-	            <option value="size">Size</option>
-	            <option value="color">Color</option>
-	            <option value="material">Material</option>
-	            <option value="capacity">Capacity</option>
-	            <option value="style">Style</option>
-	            <option value="finish">Finish</option>
-	            <option value="pattern">Pattern</option>
-	            <option value="other">Other</option>
-	        </select>
-	        <input type="text" name="variant_value[]" placeholder="Value (L, Red)" class="px-3 py-2 border rounded">
-	        <input type="number" name="variant_price[]" placeholder="Price Adj" step="0.01" class="px-3 py-2 border rounded">
-	        <input type="number" name="variant_stock[]" placeholder="Stock" class="px-3 py-2 border rounded">
-	        <input type="text" name="variant_color_code[]" placeholder="#000000 for colors" class="px-3 py-2 border rounded">
-	        <div class="col-span-1">
-	            <input type="file" name="variant_image[]" accept="image/*" class="px-3 py-2 border rounded w-full">
-        </div>
-        <button type="button" onclick="this.parentElement.remove()" class="bg-red-500 text-white px-3 py-2 rounded hover:bg-red-600">
-            <i class="fas fa-trash"></i> Remove
-        </button>
-    `;
-    container.appendChild(row);
-}
+	// Variant management
+		const variantLimit = {{ subscription_limits.max_variants_per_product }};
+		let variantIndex = 0;
+
+		function addVariantRow() {
+		    if (variantLimit !== -1 && document.querySelectorAll('.variant-row').length >= variantLimit) {
+		        alert(`Your current plan allows ${variantLimit} variants per product.`);
+		        return;
+		    }
+		    const container = document.getElementById('variants-container');
+		    const row = document.createElement('div');
+            const index = variantIndex++;
+		    row.className = 'variant-row rounded-lg border border-gray-200 bg-gray-50 p-4';
+		    row.innerHTML = `
+                <input type="hidden" name="variant_index[]" value="${index}">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <select name="variant_type_${index}" class="px-3 py-2 border rounded">
+                        <option value="color">Color</option>
+                        <option value="size">Size</option>
+                        <option value="material">Material</option>
+                        <option value="capacity">Capacity</option>
+                        <option value="style">Style</option>
+                        <option value="finish">Finish</option>
+                        <option value="pattern">Pattern</option>
+                        <option value="other">Other</option>
+                    </select>
+                    <input type="text" name="variant_value_${index}" placeholder="Value (Blue, XL, 256GB)" class="px-3 py-2 border rounded">
+                    <input type="text" name="variant_name_${index}" placeholder="Display name (optional)" class="px-3 py-2 border rounded">
+                    <input type="text" name="variant_sku_${index}" placeholder="Variant SKU (optional)" class="px-3 py-2 border rounded">
+                    <input type="number" name="variant_price_${index}" placeholder="Price adjustment" step="0.01" value="0" class="px-3 py-2 border rounded">
+                    <input type="number" name="variant_stock_${index}" placeholder="Stock" value="0" class="px-3 py-2 border rounded">
+                    <input type="text" name="variant_color_code_${index}" placeholder="#000000 for colors" class="px-3 py-2 border rounded">
+                    <input type="file" name="variant_images_${index}" accept="image/*" multiple class="px-3 py-2 border rounded w-full">
+                </div>
+                <div class="flex justify-end mt-3">
+                    <button type="button" onclick="this.closest('.variant-row').remove()" class="bg-red-500 text-white px-3 py-2 rounded hover:bg-red-600">
+                        <i class="fas fa-trash"></i> Remove Variant
+                    </button>
+                </div>
+	    `;
+	    container.appendChild(row);
+	}
 </script>
 {% endblock %}

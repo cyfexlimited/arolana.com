@@ -3,6 +3,11 @@ from django.utils.html import format_html
 from django.utils import timezone
 from .models import BlogCategory, BlogTag, BlogPost, BlogComment, NewsletterSubscriber
 
+try:
+    from products.models import ProductArticleLink
+except Exception:
+    ProductArticleLink = None
+
 @admin.register(BlogCategory)
 class BlogCategoryAdmin(admin.ModelAdmin):
     list_display = ['name', 'slug', 'color_preview', 'is_active', 'post_count']
@@ -36,13 +41,22 @@ class BlogPostAdmin(admin.ModelAdmin):
     prepopulated_fields = {'slug': ['title']}
     readonly_fields = ['views', 'likes', 'shares', 'reading_time', 'created_at', 'updated_at']
     filter_horizontal = ['tags', 'related_posts']
+
+    if ProductArticleLink:
+        class ProductArticleLinkInline(admin.TabularInline):
+            model = ProductArticleLink
+            extra = 1
+            fields = ['product', 'label', 'placement', 'open_behavior', 'sort_order', 'is_active']
+            autocomplete_fields = ['product']
+
+        inlines = [ProductArticleLinkInline]
     
     fieldsets = (
         ('Basic Information', {
             'fields': ('title', 'slug', 'excerpt', 'content', 'category', 'author')
         }),
         ('Media', {
-            'fields': ('featured_image', 'thumbnail_image', 'gallery_images', 'video_url'),
+            'fields': ('featured_image', 'thumbnail_image', 'gallery_images', 'video_url', 'source_url', 'social_links'),
             'classes': ('wide',)
         }),
         ('SEO & Metadata', {
@@ -57,7 +71,7 @@ class BlogPostAdmin(admin.ModelAdmin):
             'fields': ('is_published', 'is_featured', 'published_at')
         }),
         ('Advanced', {
-            'fields': ('layout_style', 'custom_css', 'schema_markup'),
+            'fields': ('layout_style', 'hero_background_color', 'show_featured_image', 'custom_css', 'schema_markup'),
             'classes': ('collapse',)
         }),
         ('Statistics', {

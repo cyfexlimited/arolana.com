@@ -24,6 +24,7 @@ TIER_LIMITS = {
         'max_images_per_product': 3,
         'max_variants_per_product': 0,
         'chat_enabled': False,
+        'store_reviews_enabled': False,
         'manufacturer_access': False,
         'priority_score': 0,
         'commission_rate': 12,
@@ -34,6 +35,7 @@ TIER_LIMITS = {
         'max_images_per_product': 6,
         'max_variants_per_product': 10,
         'chat_enabled': True,
+        'store_reviews_enabled': True,
         'manufacturer_access': False,
         'priority_score': 20,
         'commission_rate': 10,
@@ -44,6 +46,7 @@ TIER_LIMITS = {
         'max_images_per_product': 10,
         'max_variants_per_product': 30,
         'chat_enabled': True,
+        'store_reviews_enabled': True,
         'manufacturer_access': True,
         'priority_score': 40,
         'commission_rate': 8,
@@ -54,6 +57,7 @@ TIER_LIMITS = {
         'max_images_per_product': 15,
         'max_variants_per_product': 75,
         'chat_enabled': True,
+        'store_reviews_enabled': True,
         'manufacturer_access': True,
         'priority_score': 65,
         'commission_rate': 6,
@@ -64,6 +68,7 @@ TIER_LIMITS = {
         'max_images_per_product': 20,
         'max_variants_per_product': 150,
         'chat_enabled': True,
+        'store_reviews_enabled': True,
         'manufacturer_access': True,
         'priority_score': 85,
         'commission_rate': 4,
@@ -74,6 +79,7 @@ TIER_LIMITS = {
         'max_images_per_product': 30,
         'max_variants_per_product': -1,
         'chat_enabled': True,
+        'store_reviews_enabled': True,
         'manufacturer_access': True,
         'priority_score': 100,
         'commission_rate': 2,
@@ -184,6 +190,8 @@ class SubscriptionPlan(BaseModel):
         ]
         if limits['chat_enabled']:
             features.append("Product chat with customers")
+        if limits.get('store_reviews_enabled'):
+            features.append("Vendor store reviews and comments")
         if limits['manufacturer_access']:
             features.append("Manufacturer tools")
         if self.priority_support:

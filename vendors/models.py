@@ -117,13 +117,22 @@ class VendorProfile(BaseModel):
         return self.is_verified and self.kyc_status == 'verified'
     
     def update_rating(self):
-        """Update vendor rating based on product reviews"""
+        """Update vendor rating based on product and storefront reviews."""
         from products.models import ProductReview
         reviews = ProductReview.objects.filter(product__vendor=self.user, is_active=True)
-        if reviews.exists():
-            self.rating_avg = reviews.aggregate(Avg('rating'))['rating__avg'] or 0
-            self.total_reviews = reviews.count()
-            self.save()
+        store_reviews = self.store_reviews.filter(is_active=True)
+        product_count = reviews.count()
+        store_count = store_reviews.count()
+        total_count = product_count + store_count
+        if total_count:
+            product_total = sum(reviews.values_list('rating', flat=True))
+            store_total = sum(store_reviews.values_list('rating', flat=True))
+            self.rating_avg = round((product_total + store_total) / total_count, 2)
+            self.total_reviews = total_count
+        else:
+            self.rating_avg = 0
+            self.total_reviews = 0
+        self.save(update_fields=['rating_avg', 'total_reviews', 'updated_at'])
     
     def update_followers_count(self):
         """Update followers count"""
@@ -158,6 +167,38 @@ class VendorFollow(BaseModel):
     
     def __str__(self):
         return f"{self.user.username} follows {self.vendor.store_name}"
+
+
+class VendorReview(BaseModel):
+    """Customer reviews for a vendor storefront."""
+    vendor = models.ForeignKey(VendorProfile, on_delete=models.CASCADE, related_name='store_reviews')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='vendor_store_reviews')
+    rating = models.PositiveSmallIntegerField(default=5)
+    title = models.CharField(max_length=160, blank=True)
+    comment = models.TextField()
+    is_active = models.BooleanField(default=True)
+    is_verified_customer = models.BooleanField(default=False)
+    helpful_count = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['vendor', 'is_active', '-created_at']),
+            models.Index(fields=['rating']),
+        ]
+
+    def __str__(self):
+        return f"{self.vendor.store_name} review by {self.user.username}"
+
+    def save(self, *args, **kwargs):
+        self.rating = max(1, min(5, int(self.rating or 5)))
+        super().save(*args, **kwargs)
+        self.vendor.update_rating()
+
+    def delete(self, *args, **kwargs):
+        vendor = self.vendor
+        super().delete(*args, **kwargs)
+        vendor.update_rating()
 
 class VendorSubscriptionPlan(BaseModel):
     """Vendor subscription plans for premium features"""

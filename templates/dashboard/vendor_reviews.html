@@ -1,0 +1,77 @@
+{% extends 'dashboard/base_dashboard.html' %}
+
+{% block title %}Vendor Reviews - Arolana{% endblock %}
+
+{% block dashboard_content %}
+<div class="space-y-6">
+    <div class="bg-white rounded-xl shadow-lg p-6">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-bold">Vendor Reviews</h1>
+                <p class="text-sm text-gray-500">All customer feedback across your products.</p>
+            </div>
+            <div class="rounded-xl bg-amber-50 px-5 py-3 text-amber-800">
+                <span class="text-3xl font-bold">{{ avg_rating|floatformat:1 }}</span>
+                <span class="text-sm">/ 5 from {{ total_reviews }} reviews</span>
+            </div>
+        </div>
+
+        <form method="get" class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-6">
+            <select name="rating" class="px-4 py-2 border rounded-lg">
+                <option value="">All ratings</option>
+                {% for value in "54321"|make_list %}
+                <option value="{{ value }}" {% if current_rating == value %}selected{% endif %}>{{ value }} stars</option>
+                {% endfor %}
+            </select>
+            <select name="product" class="px-4 py-2 border rounded-lg">
+                <option value="">All products</option>
+                {% for product in products %}
+                <option value="{{ product.id }}" {% if current_product == product.id|stringformat:"s" %}selected{% endif %}>{{ product.name }}</option>
+                {% endfor %}
+            </select>
+            <button class="bg-blue-600 text-white rounded-lg px-4 py-2 font-semibold">Filter Reviews</button>
+        </form>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-lg p-6">
+        {% for review in reviews %}
+        <div class="border-b last:border-b-0 py-5">
+            <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                <div>
+                    <div class="flex items-center gap-2 text-amber-400">
+                        {% for i in "12345"|make_list %}
+                            {% if forloop.counter <= review.rating %}<i class="fas fa-star"></i>{% else %}<i class="far fa-star"></i>{% endif %}
+                        {% endfor %}
+                        <span class="text-gray-500 text-sm ml-2">{{ review.created_at|date:"M d, Y" }}</span>
+                    </div>
+                    <h3 class="font-semibold text-lg mt-2">{{ review.title|default:"Customer review" }}</h3>
+                    <p class="text-gray-600 mt-1">{{ review.review }}</p>
+                    <p class="text-sm text-gray-500 mt-2">Product: <a href="{% url 'dashboard:vendor_product_detail' review.product.id %}" class="text-blue-600">{{ review.product.name }}</a></p>
+                </div>
+                <div class="text-sm text-gray-500 md:text-right">
+                    <div>{{ review.user.get_full_name|default:review.user.username }}</div>
+                    {% if review.verified_purchase %}<span class="inline-block mt-1 rounded-full bg-green-50 px-2 py-1 text-green-700">Verified purchase</span>{% endif %}
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="py-12 text-center text-gray-500">
+            <i class="fas fa-star text-5xl text-gray-200 mb-4"></i>
+            <p>No reviews match this filter yet.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if reviews.has_other_pages %}
+    <div class="flex justify-center gap-2">
+        {% if reviews.has_previous %}
+        <a href="?page={{ reviews.previous_page_number }}" class="px-4 py-2 bg-white border rounded-lg">Previous</a>
+        {% endif %}
+        <span class="px-4 py-2 bg-blue-600 text-white rounded-lg">{{ reviews.number }}</span>
+        {% if reviews.has_next %}
+        <a href="?page={{ reviews.next_page_number }}" class="px-4 py-2 bg-white border rounded-lg">Next</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -228,6 +228,12 @@ class AdBanner(BaseModel):
         ('scale-down', 'Scale down only'),
     ]
 
+    OPEN_BEHAVIOR_CHOICES = [
+        ('same_page', 'Open in same page'),
+        ('new_page', 'Open in new tab'),
+        ('popup', 'Open in popup modal'),
+    ]
+
     campaign = models.ForeignKey(AdCampaign, on_delete=models.CASCADE, related_name='banners')
     creative = models.ForeignKey(AdCreative, on_delete=models.SET_NULL, null=True, related_name='banners')
     placement = models.ForeignKey(AdPlacement, on_delete=models.SET_NULL, null=True, related_name='banners')
@@ -253,6 +259,15 @@ class AdBanner(BaseModel):
     cta_text = models.CharField(max_length=50, default='Learn More')
     cta_url = models.URLField(blank=True)
     alt_text = models.CharField(max_length=200, blank=True)
+    linked_article = models.ForeignKey(
+        'blog.BlogPost',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ad_banners',
+        help_text="Optional article target. If set, it is used before the CTA URL."
+    )
+    article_open_behavior = models.CharField(max_length=20, choices=OPEN_BEHAVIOR_CHOICES, default='same_page')
     
     # Animation & Effects
     animation = models.CharField(max_length=50, blank=True,
@@ -273,6 +288,16 @@ class AdBanner(BaseModel):
     
     class Meta:
         ordering = ['-priority', '-created_at']
+
+    @property
+    def target_url(self):
+        if self.linked_article:
+            return self.linked_article.get_absolute_url()
+        return self.cta_url
+
+    @property
+    def target_open_behavior(self):
+        return self.article_open_behavior if self.linked_article else 'new_page'
 
 
 class AdImpression(BaseModel):
@@ -419,6 +444,15 @@ class Advertisement(BaseModel):
     image = models.ImageField(upload_to='advertisements/', null=True, blank=True)
     url = models.URLField(blank=True)
     button_text = models.CharField(max_length=100, default='Learn More')
+    linked_article = models.ForeignKey(
+        'blog.BlogPost',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='simple_ads',
+        help_text="Optional article target. If set, it is used before the URL."
+    )
+    article_open_behavior = models.CharField(max_length=20, choices=AdBanner.OPEN_BEHAVIOR_CHOICES, default='same_page')
     placement = models.CharField(max_length=20, choices=PLACEMENT_CHOICES, default='sidebar')
     is_featured = models.BooleanField(default=False)
     
@@ -444,3 +478,13 @@ class Advertisement(BaseModel):
 
     def __str__(self):
         return self.title
+
+    @property
+    def target_url(self):
+        if self.linked_article:
+            return self.linked_article.get_absolute_url()
+        return self.url
+
+    @property
+    def target_open_behavior(self):
+        return self.article_open_behavior if self.linked_article else 'new_page'

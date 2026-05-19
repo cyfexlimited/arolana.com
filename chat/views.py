@@ -4,6 +4,7 @@ from django.http import JsonResponse
 from django.db.models import Q, Sum
 from django.contrib import messages
 from django.utils import timezone
+from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.cache import cache
@@ -11,7 +12,7 @@ from django.views.decorators.http import require_GET, require_POST
 from .models import ChatRoom, ChatMessage, VendorChatRoom, VendorChatMessage
 from products.models import Product
 from orders.models import Order
-from subscriptions.models import user_has_paid_subscription
+from subscriptions.models import user_has_paid_subscription, user_subscription_limits, user_subscription_tier
 
 User = get_user_model()
 
@@ -60,22 +61,120 @@ def _chat_name_for(user, room):
 def _typing_cache_key(room_id, user_id):
     return f'vendor-chat-typing:{room_id}:{user_id}'
 
+
+def _user_display_name(user):
+    if not user:
+        return 'Arolana Support'
+    return user.get_full_name() or user.username or user.email
+
+
+def _send_message_notification(user, sender, message, link, room_type='chat', room_id=None):
+    try:
+        from notifications.models import Notification
+        sender_name = _user_display_name(sender)
+        Notification.send(
+            user=user,
+            notification_type='message',
+            title=f'New message from {sender_name}',
+            message=(message[:140] + '...') if len(message) > 140 else message,
+            link=link,
+            metadata={'room_type': room_type, 'room_id': room_id, 'sender_id': sender.id},
+            priority=3,
+        )
+    except Exception:
+        pass
+
+
+def _total_chat_unread(user):
+    direct_unread = 0
+    for room in ChatRoom.objects.filter(participants=user, is_active=True):
+        direct_unread += room.get_unread_count(user)
+    customer_unread = VendorChatRoom.objects.filter(customer=user, is_active=True).aggregate(total=Sum('customer_unread'))['total'] or 0
+    vendor_unread = VendorChatRoom.objects.filter(vendor=user, is_active=True).aggregate(total=Sum('vendor_unread'))['total'] or 0
+    return direct_unread + customer_unread + vendor_unread
+
+
+def _report_vendor_chat_to_admin(room, message=None, event='message'):
+    """Create an admin-visible alert for vendor/customer chat activity."""
+    try:
+        from dashboard.models import SystemAlert
+        if event == 'started':
+            title = 'New vendor/customer chat started'
+            body = f'{room.customer.email} opened a chat with {room.vendor.email}.'
+        else:
+            sender = message.sender.email if message else 'Unknown sender'
+            body = f'{sender} sent a message in vendor chat #{room.id}.'
+            title = 'Vendor/customer chat message logged'
+        if room.product:
+            body += f' Product: {room.product.name}.'
+        SystemAlert.objects.create(
+            title=title,
+            message=body,
+            level='info',
+            link=f'/admin/chat/vendorchatroom/{room.id}/change/'
+        )
+    except Exception:
+        pass
+
 @login_required
 def chat_list(request):
-    """List all chats for the current user"""
-    rooms = request.user.chat_rooms.filter(is_active=True).order_by('-updated_at')
+    """Unified message inbox for the current user."""
+    rooms = request.user.chat_rooms.filter(is_active=True).prefetch_related('participants').order_by('-updated_at')
     
     room_data = []
     for room in rooms:
         last_message = room.get_last_message()
         unread_count = room.get_unread_count(request.user)
+        other_participant = room.participants.exclude(id=request.user.id).first()
         room_data.append({
             'room': room,
+            'kind': 'direct',
+            'title': room.name or _user_display_name(other_participant),
+            'subtitle': room.product.name if room.product else (f'Order #{room.order.order_number}' if room.order else 'Direct message'),
+            'avatar_icon': 'fa-user',
+            'url': reverse('chat:room', args=[room.id]),
             'last_message': last_message,
+            'last_message_text': last_message.message if last_message else '',
+            'last_message_time': last_message.created_at if last_message else room.updated_at,
             'unread_count': unread_count,
         })
+
+    customer_rooms = VendorChatRoom.objects.filter(customer=request.user, is_active=True).select_related('vendor', 'product', 'vendor__vendor_profile')
+    for room in customer_rooms:
+        room_data.append({
+            'room': room,
+            'kind': 'vendor_customer',
+            'title': _vendor_display_name(room.vendor),
+            'subtitle': room.product.name if room.product else 'Vendor store chat',
+            'avatar_icon': 'fa-store',
+            'url': reverse('chat:customer_room', args=[room.id]),
+            'last_message': None,
+            'last_message_text': room.last_message,
+            'last_message_time': room.last_message_time,
+            'unread_count': room.customer_unread,
+        })
+
+    vendor_rooms = VendorChatRoom.objects.filter(vendor=request.user, is_active=True).select_related('customer', 'product')
+    for room in vendor_rooms:
+        room_data.append({
+            'room': room,
+            'kind': 'vendor_customer',
+            'title': _user_display_name(room.customer),
+            'subtitle': room.product.name if room.product else 'Customer store chat',
+            'avatar_icon': 'fa-user',
+            'url': reverse('chat:vendor_room', args=[room.id]),
+            'last_message': None,
+            'last_message_text': room.last_message,
+            'last_message_time': room.last_message_time,
+            'unread_count': room.vendor_unread,
+        })
+
+    room_data.sort(key=lambda item: item['last_message_time'] or timezone.now(), reverse=True)
     
-    return render(request, 'chat/chat_list.html', {'room_data': room_data})
+    return render(request, 'chat/chat_list.html', {
+        'room_data': room_data,
+        'total_unread': sum(item['unread_count'] for item in room_data),
+    })
 
 @login_required
 def chat_room(request, room_id):
@@ -101,6 +200,8 @@ def start_chat(request, user_id=None, product_id=None, order_id=None):
     """Start a new chat"""
     if user_id:
         other_user = get_object_or_404(User, id=user_id)
+        if other_user.user_type == 'vendor':
+            return start_vendor_chat(request, vendor_id=other_user.id)
         
         existing_room = ChatRoom.objects.filter(
             room_type='direct',
@@ -172,6 +273,15 @@ def send_message(request, room_id):
                 message=message_text
             )
             room.save()
+            for recipient in room.participants.exclude(id=request.user.id):
+                _send_message_notification(
+                    recipient,
+                    request.user,
+                    message_text,
+                    reverse('chat:room', args=[room.id]),
+                    room_type='direct',
+                    room_id=room.id,
+                )
             
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({
@@ -203,12 +313,7 @@ def get_unread_count(request):
     if not request.user.is_authenticated:
         return JsonResponse({'unread_count': 0})
     
-    from .models import ChatRoom, ChatMessage
-    rooms = ChatRoom.objects.filter(participants=request.user, is_active=True)
-    unread = 0
-    for room in rooms:
-        unread += room.get_unread_count(request.user)
-    return JsonResponse({'unread_count': unread})
+    return JsonResponse({'unread_count': _total_chat_unread(request.user)})
 
 @login_required
 def vendor_chat_list(request):
@@ -216,6 +321,17 @@ def vendor_chat_list(request):
     if request.user.user_type != 'vendor' and not request.user.is_staff:
         messages.error(request, 'Only vendors can access this page.')
         return redirect('home')
+
+    chat_enabled = user_has_paid_subscription(request.user)
+    if not chat_enabled:
+        return render(request, 'chat/vendor_chat_list.html', {
+            'chat_rooms': [],
+            'total_unread': 0,
+            'chat_locked': True,
+            'chat_enabled': False,
+            'subscription_tier': user_subscription_tier(request.user),
+            'subscription_limits': user_subscription_limits(request.user),
+        })
     
     chat_rooms = VendorChatRoom.objects.filter(vendor=request.user, is_active=True).select_related('customer', 'product')
     
@@ -225,6 +341,10 @@ def vendor_chat_list(request):
     context = {
         'chat_rooms': chat_rooms,
         'total_unread': sum(room.vendor_unread for room in chat_rooms),
+        'chat_locked': False,
+        'chat_enabled': True,
+        'subscription_tier': user_subscription_tier(request.user),
+        'subscription_limits': user_subscription_limits(request.user),
     }
     return render(request, 'chat/vendor_chat_list.html', context)
 
@@ -270,11 +390,20 @@ def vendor_send_message(request, room_id):
                 sender=request.user,
                 message=message_text
             )
+            _report_vendor_chat_to_admin(room, message)
             
             room.last_message = message_text
             room.last_message_time = timezone.now()
             room.customer_unread += 1
             room.save()
+            _send_message_notification(
+                room.customer,
+                request.user,
+                message_text,
+                reverse('chat:customer_room', args=[room.id]),
+                room_type='vendor_customer',
+                room_id=room.id,
+            )
             
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({
@@ -307,11 +436,20 @@ def customer_send_message(request, room_id):
                 sender=request.user,
                 message=message_text
             )
+            _report_vendor_chat_to_admin(room, message)
             
             room.last_message = message_text
             room.last_message_time = timezone.now()
             room.vendor_unread += 1
             room.save()
+            _send_message_notification(
+                room.vendor,
+                request.user,
+                message_text,
+                reverse('chat:vendor_room', args=[room.id]),
+                room_type='vendor_customer',
+                room_id=room.id,
+            )
             
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({
@@ -351,6 +489,7 @@ def start_vendor_chat(request, vendor_id, product_id=None):
             customer=request.user,
             product=product
         )
+        _report_vendor_chat_to_admin(room, event='started')
     
     return redirect('chat:customer_room', room_id=room.id)
 
