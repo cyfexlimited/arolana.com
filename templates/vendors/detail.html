@@ -16,9 +16,9 @@
         position: relative;
         overflow: hidden;
         border-radius: 2rem;
-        background: #0f172a;
-        box-shadow: 0 35px 90px rgba(15, 23, 42, 0.18);
-        border: 1px solid rgba(148, 163, 184, 0.2);
+        background: #fff;
+        box-shadow: 0 22px 60px rgba(15, 23, 42, 0.1);
+        border: 1px solid rgba(226, 232, 240, 0.95);
         margin-bottom: 1.25rem;
     }
 
@@ -26,8 +26,8 @@
         position: relative;
         min-height: clamp(220px, 26vw, 360px);
         background:
-            radial-gradient(circle at 80% 10%, rgba(37, 99, 235, 0.34), transparent 35%),
-            linear-gradient(135deg, #0f172a, #1e293b);
+            radial-gradient(circle at 80% 10%, rgba(37, 99, 235, 0.16), transparent 35%),
+            linear-gradient(135deg, #eff6ff, #f8fafc);
     }
 
     .vendor-store-banner img {
@@ -42,7 +42,7 @@
         content: "";
         position: absolute;
         inset: 0;
-        background: linear-gradient(180deg, rgba(15, 23, 42, 0.05), rgba(15, 23, 42, 0.58));
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.58));
         pointer-events: none;
     }
 
@@ -51,7 +51,7 @@
         z-index: 2;
         margin-top: -78px;
         padding: 0 1.25rem 1.4rem;
-        color: #fff;
+        color: #0f172a;
     }
 
     .vendor-store-profile-inner {
@@ -59,6 +59,12 @@
         grid-template-columns: auto minmax(0, 1fr) auto;
         gap: 1.25rem;
         align-items: end;
+        border-radius: 1.5rem;
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid rgba(226, 232, 240, 0.95);
+        box-shadow: 0 18px 50px rgba(15, 23, 42, 0.1);
+        padding: 1rem;
+        backdrop-filter: blur(12px);
     }
 
     .vendor-logo-wrap {
@@ -92,7 +98,7 @@
 
     .vendor-title-area {
         min-width: 0;
-        text-shadow: 0 3px 14px rgba(0, 0, 0, 0.35);
+        text-shadow: none;
     }
 
     .vendor-title-row {
@@ -122,7 +128,7 @@
         font-weight: 950;
         color: #fff;
         border: 1px solid rgba(255, 255, 255, 0.22);
-        background: rgba(15, 23, 42, 0.35);
+        background: rgba(37, 99, 235, 0.92);
         backdrop-filter: blur(8px);
     }
 
@@ -143,11 +149,11 @@
         gap: 0.45rem;
         padding: 0.62rem 0.8rem;
         border-radius: 1rem;
-        background: rgba(255, 255, 255, 0.11);
-        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
         backdrop-filter: blur(10px);
         font-weight: 850;
-        color: rgba(255, 255, 255, 0.94);
+        color: #334155;
         font-size: 0.82rem;
     }
 
@@ -607,17 +613,26 @@
     @media (max-width: 640px) {
         .vendor-store-shell { padding: 0.75rem; }
         .vendor-store-hero { border-radius: 1.35rem; }
-        .vendor-store-profile { margin-top: -55px; padding: 0 0.9rem 1rem; }
+        .vendor-store-profile { margin-top: -48px; padding: 0 0.75rem 1rem; }
         .vendor-store-profile-inner { grid-template-columns: 1fr; }
         .vendor-logo-wrap { width: 104px; height: 104px; border-radius: 1.55rem; }
-        .vendor-title-row h1 { font-size: 2rem; }
+        .vendor-title-row h1 { font-size: 1.65rem; letter-spacing: 0; }
+        .vendor-stats { display: grid; grid-template-columns: 1fr 1fr; }
+        .vendor-stat { min-width: 0; justify-content: center; text-align: center; }
         .vendor-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
-        .vendor-follow-btn, .vendor-contact-btn { width: 100%; padding: 0 0.75rem; font-size: 0.8rem; }
+        .vendor-follow-btn, .vendor-contact-btn, .vendor-chat-btn { width: 100%; padding: 0 0.75rem; font-size: 0.8rem; }
         .vendor-products-grid { gap: 0.65rem; }
         .vendor-product-body { padding: 0.75rem; }
         .vendor-product-title { font-size: 0.82rem; min-height: 2.3rem; }
         .vendor-price-current { font-size: 1rem; }
         .vendor-cart-btn { font-size: 0.78rem; }
+    }
+
+    @media (max-width: 420px) {
+        .vendor-store-banner { min-height: 190px; }
+        .vendor-store-profile-inner { padding: 0.85rem; }
+        .vendor-stats { grid-template-columns: 1fr; }
+        .vendor-actions { grid-template-columns: 1fr; }
     }
 </style>
 {% endblock %}

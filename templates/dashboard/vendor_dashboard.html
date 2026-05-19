@@ -2,6 +2,7 @@
 {% load static %}
 
 {% block extra_css %}
+{{ block.super }}
 <style>
     .stat-card {
         transition: all 0.3s ease;
@@ -31,18 +32,116 @@
     .notification-item:hover {
         background-color: #f3f4f6;
     }
+
+    .vendor-dashboard-card {
+        min-width: 0;
+    }
+
+    .vendor-dashboard-chart-card {
+        min-width: 0;
+    }
+
+    .vendor-dashboard-product-row {
+        min-width: 0;
+    }
+
+    .vendor-dashboard-product-row p {
+        overflow-wrap: anywhere;
+    }
+
+    @media (max-width: 768px) {
+        .vendor-dashboard-page {
+            max-width: 100%;
+        }
+
+        .vendor-dashboard-header {
+            align-items: stretch;
+            flex-direction: column;
+            gap: 1rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .vendor-dashboard-header h1 {
+            font-size: 1.75rem;
+            line-height: 1.1;
+        }
+
+        .vendor-dashboard-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            width: 100%;
+        }
+
+        .vendor-dashboard-actions a {
+            align-items: center;
+            display: inline-flex;
+            justify-content: center;
+            min-height: 44px;
+            text-align: center;
+        }
+
+        .vendor-dashboard-card,
+        .stat-card,
+        .approval-card {
+            border-radius: 1rem;
+            padding: 1rem;
+        }
+
+        .vendor-dashboard-metrics {
+            gap: 1rem;
+        }
+
+        .vendor-dashboard-status-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .vendor-dashboard-stats-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1rem;
+        }
+
+        .vendor-dashboard-chart-grid {
+            gap: 1rem;
+        }
+
+        .vendor-dashboard-product-row {
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .vendor-dashboard-product-row > div:first-child {
+            min-width: 0;
+        }
+
+        .vendor-dashboard-table-wrap table {
+            min-width: 760px;
+        }
+    }
+
+    @media (max-width: 420px) {
+        .vendor-dashboard-actions,
+        .vendor-dashboard-status-grid,
+        .vendor-dashboard-stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .vendor-dashboard-card h2,
+        .stat-card p.text-3xl {
+            font-size: 1.75rem;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block dashboard_content %}
-<div class="max-w-7xl mx-auto">
+<div class="vendor-dashboard-page max-w-7xl mx-auto">
     <!-- Header -->
-    <div class="flex justify-between items-center mb-8">
+    <div class="vendor-dashboard-header flex justify-between items-center mb-8">
         <div>
             <h1 class="text-3xl font-bold">Vendor Dashboard</h1>
             <p class="text-gray-600">Welcome back, {{ vendor_profile.store_name }}</p>
         </div>
-        <div class="flex gap-3">
+        <div class="vendor-dashboard-actions flex gap-3">
             <a href="{% url 'vendors:detail' vendor_profile.store_slug %}" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200">
                 <i class="fas fa-store"></i> View Store
             </a>
@@ -108,8 +207,8 @@
     </div>
     {% endif %}
 
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
-        <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+    <div class="vendor-dashboard-metrics grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
+        <div class="vendor-dashboard-card bg-white rounded-xl shadow-md p-6 border border-gray-100">
             <div class="flex items-start justify-between gap-4">
                 <div>
                     <p class="text-sm text-gray-500">Vendor Score</p>
@@ -135,7 +234,7 @@
             </div>
         </div>
 
-        <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+        <div class="vendor-dashboard-card bg-white rounded-xl shadow-md p-6 border border-gray-100">
             <p class="text-sm text-gray-500">Fulfillment</p>
             <div class="flex items-end justify-between mt-1">
                 <h2 class="text-4xl font-bold text-green-700">{{ fulfillment_rate|floatformat:1 }}%</h2>
@@ -149,7 +248,7 @@
             </div>
         </div>
 
-        <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+        <div class="vendor-dashboard-card bg-white rounded-xl shadow-md p-6 border border-gray-100">
             <p class="text-sm text-gray-500">Subscription & Chat</p>
             <h2 class="text-3xl font-bold capitalize mt-1">{{ subscription_tier }}</h2>
             <div class="mt-4 rounded-lg {% if chat_enabled %}bg-green-50 text-green-800{% else %}bg-gray-100 text-gray-700{% endif %} p-4">
@@ -170,7 +269,7 @@
     </div>
     
     <!-- Approval Status Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+    <div class="vendor-dashboard-status-grid grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <div class="approval-card bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <div class="flex items-center justify-between">
                 <div>
@@ -225,7 +324,7 @@
     </div>
     
     <!-- Stats Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="vendor-dashboard-stats-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div class="stat-card bg-white rounded-lg shadow-md p-6">
             <div class="flex items-center justify-between">
                 <div>
@@ -283,20 +382,20 @@
     </div>
     
     <!-- Charts Section -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        <div class="bg-white rounded-lg shadow-md p-6">
+    <div class="vendor-dashboard-chart-grid grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div class="vendor-dashboard-chart-card bg-white rounded-lg shadow-md p-6">
             <h2 class="text-xl font-bold mb-4">Monthly Sales</h2>
             <canvas id="salesChart" height="200"></canvas>
         </div>
         
-        <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="vendor-dashboard-chart-card bg-white rounded-lg shadow-md p-6">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-bold">Top Products</h2>
                 <a href="{% url 'dashboard:vendor_products' %}" class="text-blue-600 hover:underline text-sm">View All →</a>
             </div>
             <div class="space-y-3">
                 {% for product in top_products %}
-                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div class="vendor-dashboard-product-row flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div class="flex items-center gap-3">
                         {% if product.main_image %}
                         <img src="{{ product.main_image.url }}" class="w-10 h-10 object-cover rounded">
@@ -341,7 +440,7 @@
         </div>
         
         {% if recent_orders %}
-        <div class="overflow-x-auto">
+        <div class="vendor-dashboard-table-wrap overflow-x-auto">
             <table class="w-full">
                 <thead class="bg-gray-50">
                     <tr>

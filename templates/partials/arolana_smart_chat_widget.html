@@ -64,7 +64,7 @@
             <span id="arolana-smartchat-typing-text">Arolana Admin is typing...</span>
         </div>
 
-        <div class="border-t bg-white p-3">
+        <div class="arolana-smartchat-compose border-t bg-white p-3">
             <div class="mb-3 flex flex-wrap gap-2">
                 <button type="button" class="arolana-smartchat-quick rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100" data-prompt="I need help with this product.">Product help</button>
                 <button type="button" class="arolana-smartchat-quick rounded-full bg-purple-50 px-3 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-100" data-prompt="I want to speak with an admin.">Talk to admin</button>
@@ -192,14 +192,81 @@
         40% { transform: translateY(-3px); opacity: 1; }
     }
 
-    @media (max-width: 480px) {
+    @media (max-width: 640px) {
         #arolana-smartchat-widget {
-            right: 1rem;
-            bottom: 1rem;
+            bottom: max(0.75rem, env(safe-area-inset-bottom));
+            left: 0.75rem;
+            right: 0.75rem;
         }
 
         #arolana-smartchat-panel {
-            max-width: calc(100vw - 2rem);
+            border-radius: 1.25rem;
+            margin-bottom: 0.75rem;
+            max-height: min(78vh, 660px);
+            max-width: none;
+            width: 100%;
+        }
+
+        #arolana-smartchat-messages {
+            height: min(52vh, 420px);
+            padding: 0.85rem;
+        }
+
+        .arolana-smartchat-compose {
+            padding: 0.75rem;
+        }
+
+        #arolana-smartchat-form {
+            align-items: stretch;
+        }
+
+        #arolana-smartchat-input {
+            min-height: 46px;
+            padding-left: 0.85rem;
+            padding-right: 0.85rem;
+        }
+
+        #arolana-smartchat-send {
+            height: 46px;
+            width: 46px;
+        }
+
+        #arolana-smartchat-admin-btn {
+            min-height: 42px;
+        }
+
+        #arolana-smartchat-widget > .group {
+            height: 3.75rem;
+            margin-left: auto;
+            width: 3.75rem;
+        }
+
+        #arolana-smartchat-toggle {
+            height: 3.75rem;
+            width: 3.75rem;
+        }
+
+        #arolana-smartchat-toggle-icon {
+            font-size: 1.35rem;
+        }
+
+        .arolana-smartchat-quick {
+            flex: 1 1 auto;
+            min-height: 34px;
+            text-align: center;
+        }
+
+        .arolana-chat-bubble,
+        .arolana-chat-user,
+        .arolana-chat-bot,
+        .arolana-chat-admin {
+            max-width: 92%;
+        }
+    }
+
+    @media (max-width: 380px) {
+        #arolana-smartchat-messages {
+            height: min(48vh, 360px);
         }
     }
 </style>

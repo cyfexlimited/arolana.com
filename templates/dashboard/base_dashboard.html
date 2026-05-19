@@ -3,53 +3,126 @@
 
 {% block title %}{% block dashboard_title %}Vendor Dashboard{% endblock %} - Arolana{% endblock %}
 
+{% block extra_css %}
+<style>
+    .vendor-dashboard-shell {
+        max-width: 1480px;
+    }
+
+    .vendor-dashboard-sidebar {
+        scrollbar-width: none;
+    }
+
+    .vendor-dashboard-sidebar::-webkit-scrollbar {
+        display: none;
+    }
+
+    .vendor-dashboard-nav-link {
+        min-height: 44px;
+        white-space: nowrap;
+    }
+
+    @media (max-width: 1023px) {
+        .vendor-dashboard-shell {
+            padding-left: 0.75rem;
+            padding-right: 0.75rem;
+        }
+
+        .vendor-dashboard-layout {
+            gap: 1rem;
+        }
+
+        .vendor-dashboard-sidebar-wrap {
+            width: 100%;
+        }
+
+        .vendor-dashboard-sidebar {
+            position: static;
+            overflow-x: auto;
+            padding: 0.75rem;
+        }
+
+        .vendor-dashboard-sidebar-header {
+            display: none;
+        }
+
+        .vendor-dashboard-nav {
+            display: flex;
+            gap: 0.5rem;
+            min-width: max-content;
+        }
+
+        .vendor-dashboard-nav li {
+            flex: 0 0 auto;
+        }
+
+        .vendor-dashboard-nav-link {
+            border: 1px solid #e5e7eb;
+            border-radius: 999px;
+            padding-left: 0.9rem;
+            padding-right: 0.9rem;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .vendor-dashboard-shell {
+            padding-top: 1rem;
+        }
+
+        .vendor-dashboard-main {
+            min-width: 0;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container mx-auto px-4 py-8">
-    <div class="flex flex-col lg:flex-row gap-8">
+<div class="vendor-dashboard-shell container mx-auto px-4 py-8">
+    <div class="vendor-dashboard-layout flex flex-col lg:flex-row gap-8">
         <!-- Sidebar -->
-        <div class="lg:w-64">
-            <div class="bg-white rounded-xl shadow-lg p-4 sticky top-24">
-                <div class="mb-6 pb-4 border-b">
+        <div class="vendor-dashboard-sidebar-wrap lg:w-64">
+            <div class="vendor-dashboard-sidebar bg-white rounded-xl shadow-lg p-4 sticky top-24">
+                <div class="vendor-dashboard-sidebar-header mb-6 pb-4 border-b">
                     <h3 class="font-bold text-lg">Vendor Dashboard</h3>
                     <p class="text-sm text-gray-500">{{ request.user.email }}</p>
                 </div>
-                <ul class="space-y-2">
+                <ul class="vendor-dashboard-nav space-y-2">
                     <!-- Dashboard -->
                     <li>
-                        <a href="{% url 'dashboard:vendor_home' %}" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition">
+                        <a href="{% url 'dashboard:vendor_home' %}" class="vendor-dashboard-nav-link flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition">
                             <i class="fas fa-tachometer-alt w-5"></i> Dashboard
                         </a>
                     </li>
                     
                     <!-- Products -->
                     <li>
-                        <a href="{% url 'dashboard:vendor_products' %}" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition">
+                        <a href="{% url 'dashboard:vendor_products' %}" class="vendor-dashboard-nav-link flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition">
                             <i class="fas fa-box w-5"></i> Products
                         </a>
                     </li>
                     
                     <!-- Orders -->
                     <li>
-                        <a href="{% url 'dashboard:vendor_orders' %}" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition">
+                        <a href="{% url 'dashboard:vendor_orders' %}" class="vendor-dashboard-nav-link flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition">
                             <i class="fas fa-shopping-cart w-5"></i> Orders
                         </a>
                     </li>
                     
                     <!-- Analytics -->
                     <li>
-                        <a href="{% url 'dashboard:vendor_analytics' %}" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition">
+                        <a href="{% url 'dashboard:vendor_analytics' %}" class="vendor-dashboard-nav-link flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition">
                             <i class="fas fa-chart-line w-5"></i> Analytics
                         </a>
                     </li>
 
                     <li>
-                        <a href="{% url 'dashboard:vendor_reviews' %}" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition">
+                        <a href="{% url 'dashboard:vendor_reviews' %}" class="vendor-dashboard-nav-link flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition">
                             <i class="fas fa-star w-5"></i> Reviews
                         </a>
                     </li>
 
                     <li>
-                        <a href="{% url 'chat:vendor_list' %}" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition">
+                        <a href="{% url 'chat:vendor_list' %}" class="vendor-dashboard-nav-link flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition">
                             <i class="fas fa-comments w-5"></i> Customer Chat
                             {% if customer_chat_unread %}
                             <span class="ml-auto bg-blue-600 text-white text-xs px-2 py-1 rounded-full">{{ customer_chat_unread }}</span>
@@ -62,7 +135,7 @@
                     <!-- Messages - Single link that works for both roles -->
                     <li>
                         <a href="{% if request.user.is_staff %}{% url 'dashboard:admin_messages' %}{% else %}{% url 'dashboard:vendor_messages' %}{% endif %}" 
-                           class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition">
+                           class="vendor-dashboard-nav-link flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition">
                             <i class="fas fa-envelope w-5"></i> Messages
                             {% if unread_count %}
                             <span class="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">{{ unread_count }}</span>
@@ -73,13 +146,13 @@
                     <!-- Admin Only Links -->
                     {% if request.user.is_staff or request.user.is_superuser %}
                     <li class="border-t pt-2 mt-2">
-                        <a href="{% url 'dashboard:admin_product_approvals' %}" class="flex items-center gap-3 px-3 py-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition">
+                        <a href="{% url 'dashboard:admin_product_approvals' %}" class="vendor-dashboard-nav-link flex items-center gap-3 px-3 py-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition">
                             <i class="fas fa-check-double w-5"></i> Product Approvals
                             <span class="ml-auto text-xs bg-red-500 text-white px-2 py-1 rounded-full">Admin</span>
                         </a>
                     </li>
                     <li>
-                        <a href="{% url 'admin:index' %}" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition">
+                        <a href="{% url 'admin:index' %}" class="vendor-dashboard-nav-link flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition">
                             <i class="fas fa-crown w-5"></i> Django Admin
                         </a>
                     </li>
@@ -89,7 +162,7 @@
         </div>
         
         <!-- Main Content -->
-        <div class="flex-1">
+        <div class="vendor-dashboard-main flex-1">
             {% block dashboard_content %}{% endblock %}
         </div>
     </div>
