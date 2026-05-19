@@ -3,7 +3,7 @@
 {% block content %}
 <div class="bg-white rounded-lg shadow-lg p-6">
     <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold">📈 Login Report</h1>
+        <h1 class="text-2xl font-bold">Login Report</h1>
         <a href="{% url 'reports:export_csv' report.id %}" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
             <i class="fas fa-download"></i> Export CSV
         </a>
@@ -23,9 +23,7 @@
             <p class="text-sm text-gray-600">Failed</p>
         </div>
         <div class="bg-purple-50 rounded-lg p-3 text-center">
-            <p class="text-2xl font-bold text-purple-600">
-                {% widthratio report.successful_logins report.total_logins 100 %}%
-            </p>
+            <p class="text-2xl font-bold text-purple-600">{{ success_rate }}%</p>
             <p class="text-sm text-gray-600">Success Rate</p>
         </div>
     </div>
@@ -35,6 +33,58 @@
         <p><strong>Unique Users:</strong> {{ report.unique_users }}</p>
         <p><strong>Unique IPs:</strong> {{ report.unique_ips }}</p>
         <p><strong>Generated:</strong> {{ report.generated_at }}</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        <div>
+            <h2 class="text-lg font-bold mb-3">Hourly Breakdown</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="px-3 py-2 text-left">Hour</th>
+                            <th class="px-3 py-2 text-left">Successful</th>
+                            <th class="px-3 py-2 text-left">Failed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in report.report_data.hourly_breakdown %}
+                        <tr class="border-b">
+                            <td class="px-3 py-2">{{ item.hour }}:00</td>
+                            <td class="px-3 py-2 text-green-700">{{ item.successful }}</td>
+                            <td class="px-3 py-2 text-red-700">{{ item.failed }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" class="text-center py-4 text-gray-500">No hourly data</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div>
+            <h2 class="text-lg font-bold mb-3">Suspicious IPs</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="px-3 py-2 text-left">IP Address</th>
+                            <th class="px-3 py-2 text-left">Failed Attempts</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ip in report.report_data.suspicious_ips %}
+                        <tr class="border-b">
+                            <td class="px-3 py-2">{{ ip.ip_address }}</td>
+                            <td class="px-3 py-2 text-red-700">{{ ip.count }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="2" class="text-center py-4 text-gray-500">No suspicious IPs in this report</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

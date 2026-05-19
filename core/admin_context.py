@@ -17,11 +17,14 @@ def admin_context(request):
 
     User = get_user_model()
     admin_appearance = None
+    site_settings = None
     try:
-        from core.models import AdminAppearance
+        from core.models import AdminAppearance, SiteSettings
         admin_appearance = AdminAppearance.objects.filter(is_active=True).first()
+        site_settings = SiteSettings.objects.first()
     except Exception:
         admin_appearance = None
+        site_settings = None
     
     # Import models inside function to avoid circular imports at startup
     from products.models import Product, ProductVariant
@@ -229,7 +232,8 @@ def admin_context(request):
         
         # Additional context
         'current_date': today.strftime('%B %d, %Y'),
-        'site_name': 'Arolana',
+        'site_name': site_settings.site_name if site_settings else 'Arolana',
+        'site_settings': site_settings,
         'admin_appearance': admin_appearance,
         'admin_pending_count': stats['pending_vendors'] + stats['pending_orders'] + stats['pending_products'] + stats['low_stock_products'],
     }

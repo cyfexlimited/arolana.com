@@ -2,6 +2,58 @@ from django.db import models
 from core.models import BaseModel
 from django.core.cache import cache
 import requests
+from decimal import Decimal, InvalidOperation
+
+
+def format_currency_amount(
+    amount,
+    symbol='',
+    decimal_places=2,
+    thousands_separator=',',
+    decimal_separator='.',
+    symbol_position='left',
+):
+    """Format an already-converted currency amount using admin settings."""
+    if amount is None:
+        amount = 0
+
+    try:
+        decimal_places = max(int(decimal_places or 0), 0)
+    except (TypeError, ValueError):
+        decimal_places = 2
+
+    try:
+        amount_dec = Decimal(str(amount))
+    except (InvalidOperation, TypeError, ValueError):
+        amount_dec = Decimal('0')
+
+    number = f"{amount_dec:.{decimal_places}f}"
+    integer_part, _, fraction = number.partition('.')
+
+    sign = ''
+    if integer_part.startswith('-'):
+        sign = '-'
+        integer_part = integer_part[1:]
+
+    if thousands_separator:
+        groups = []
+        while len(integer_part) > 3:
+            groups.insert(0, integer_part[-3:])
+            integer_part = integer_part[:-3]
+        groups.insert(0, integer_part or '0')
+        integer_part = thousands_separator.join(groups)
+
+    formatted = f"{sign}{integer_part}"
+    if decimal_places > 0:
+        formatted = f"{formatted}{decimal_separator}{fraction}"
+
+    if symbol_position == 'right':
+        return f"{formatted}{symbol}"
+    if symbol_position == 'space_left':
+        return f"{symbol} {formatted}"
+    if symbol_position == 'space_right':
+        return f"{formatted} {symbol}"
+    return f"{symbol}{formatted}"
 
 class Currency(BaseModel):
     """Currency model with exchange rates"""
@@ -31,31 +83,26 @@ class Currency(BaseModel):
         return f"{self.code} ({self.symbol})"
     
     def format_amount(self, amount):
-        """Format amount with proper currency formatting"""
-        if not amount:
-            return f"{self.symbol}0"
-        
-        # Convert amount to this currency
-        converted = float(amount) * float(self.exchange_rate)
-        
-        # Format with proper decimal places
-        formatted = f"{converted:.{self.decimal_places}f}"
-        
-        # Add thousands separators
-        if self.thousands_separator:
-            parts = formatted.split('.')
-            parts[0] = f"{int(float(parts[0])):{self.thousands_separator}d}"
-            formatted = '.'.join(parts)
-        
-        # Position the symbol
-        if self.symbol_position == 'left':
-            return f"{self.symbol}{formatted}"
-        elif self.symbol_position == 'right':
-            return f"{formatted}{self.symbol}"
-        elif self.symbol_position == 'space_left':
-            return f"{self.symbol} {formatted}"
-        else:
-            return f"{formatted} {self.symbol}"
+        """Format an amount that is already in this currency."""
+        return format_currency_amount(
+            amount,
+            symbol=self.symbol,
+            decimal_places=self.decimal_places,
+            thousands_separator=self.thousands_separator,
+            decimal_separator=self.decimal_separator,
+            symbol_position=self.symbol_position,
+        )
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        from core.local_cache import local_delete
+        local_delete('all_active_currencies')
+
+    def delete(self, *args, **kwargs):
+        result = super().delete(*args, **kwargs)
+        from core.local_cache import local_delete
+        local_delete('all_active_currencies')
+        return result
 
 class CountryCurrency(BaseModel):
     """Map countries to their local currencies"""

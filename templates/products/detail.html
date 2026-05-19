@@ -4,63 +4,7 @@
 {% load products_extras %}
 {% load ad_tags %}
 
-{% block title %}{{ product.name }} | Arolana.com
-<script>
-/*
-    Final global chat protection.
-    Runs after product detail script and guarantees customer chat uses the global widget.
-*/
-(function () {
-    function openGlobalSmartChat() {
-        if (window.ArolanaSmartChatNoRefresh && typeof window.ArolanaSmartChatNoRefresh.open === 'function') {
-            window.ArolanaSmartChatNoRefresh.open();
-            return;
-        }
-
-        if (window.ArolanaSmartChat && typeof window.ArolanaSmartChat.open === 'function') {
-            window.ArolanaSmartChat.open();
-            return;
-        }
-
-        const panel = document.getElementById('arolana-smartchat-panel');
-        const toggle = document.getElementById('arolana-smartchat-toggle');
-        const icon = document.getElementById('arolana-smartchat-toggle-icon');
-        const input = document.getElementById('arolana-smartchat-input');
-
-        if (!panel) return;
-
-        panel.classList.remove('hidden');
-        if (toggle) toggle.setAttribute('aria-expanded', 'true');
-        if (icon) icon.className = 'fas fa-times text-2xl relative z-10';
-        setTimeout(function () {
-            if (input) input.focus();
-        }, 80);
-    }
-
-    function closeGlobalSmartChat() {
-        if (window.ArolanaSmartChatNoRefresh && typeof window.ArolanaSmartChatNoRefresh.close === 'function') {
-            window.ArolanaSmartChatNoRefresh.close();
-            return;
-        }
-
-        const panel = document.getElementById('arolana-smartchat-panel');
-        const toggle = document.getElementById('arolana-smartchat-toggle');
-        const icon = document.getElementById('arolana-smartchat-toggle-icon');
-
-        if (!panel) return;
-
-        panel.classList.add('hidden');
-        if (toggle) toggle.setAttribute('aria-expanded', 'false');
-        if (icon) icon.className = 'fas fa-comment-dots text-2xl relative z-10';
-    }
-
-    window.openAIChat = openGlobalSmartChat;
-    window.startAIChat = openGlobalSmartChat;
-    window.closeAIChat = closeGlobalSmartChat;
-})();
-</script>
-
-{% endblock %}
+{% block title %}{{ product.name }} | Arolana.com{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -341,6 +285,117 @@
     .ai-chat-scroll {
         scrollbar-width: thin;
         scrollbar-color: #8b5cf6 #f1f5f9;
+    }
+
+
+    /* ============================================================
+       Mobile Lightbox Navigation Fix
+       ============================================================ */
+    .lightbox-close-btn {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        width: 46px;
+        height: 46px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100001;
+        transition: background 0.2s ease, transform 0.2s ease;
+    }
+
+    .lightbox-close-btn:hover {
+        background: rgba(255, 255, 255, 0.22);
+        transform: scale(1.05);
+    }
+
+    .lightbox-nav-btn {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 52px;
+        height: 52px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.14);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100001;
+        transition: background 0.2s ease, transform 0.2s ease;
+    }
+
+    .lightbox-nav-btn:hover {
+        background: rgba(255, 255, 255, 0.24);
+        transform: translateY(-50%) scale(1.05);
+    }
+
+    .lightbox-prev-btn {
+        left: 1rem;
+    }
+
+    .lightbox-next-btn {
+        right: 1rem;
+    }
+
+    .lightbox-mobile-controls {
+        display: none;
+    }
+
+    @media (max-width: 640px) {
+        .image-lightbox {
+            padding: 1rem;
+            padding-bottom: 5.5rem;
+        }
+
+        .image-lightbox img {
+            max-width: 100%;
+            max-height: 72vh;
+            object-fit: contain;
+        }
+
+        .lightbox-nav-btn {
+            display: none;
+        }
+
+        .lightbox-close-btn {
+            top: 0.75rem;
+            right: 0.75rem;
+            width: 42px;
+            height: 42px;
+            background: rgba(0, 0, 0, 0.55);
+        }
+
+        .lightbox-mobile-controls {
+            position: absolute;
+            left: 1rem;
+            right: 1rem;
+            bottom: 1rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+            z-index: 100001;
+        }
+
+        .lightbox-mobile-controls button {
+            min-height: 48px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.14);
+            color: white;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.45rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .lightbox-mobile-controls button:active {
+            transform: scale(0.97);
+        }
     }
 
 </style>
@@ -1164,20 +1219,58 @@
 </div>
 
 <!-- Product Image Lightbox -->
-<div id="image-lightbox" class="image-lightbox fixed inset-0 bg-black/90 hidden items-center justify-center p-4" style="z-index: 99999;" onclick="handleLightboxBackdrop(event)">
-    <button type="button" onclick="closeImageLightbox()" class="absolute top-4 right-4 w-11 h-11 rounded-full bg-white/10 text-white hover:bg-white/20 transition" aria-label="Close image viewer">
+<div id="image-lightbox"
+     class="image-lightbox fixed inset-0 bg-black/90 hidden items-center justify-center p-4"
+     style="z-index: 99999;"
+     onclick="handleLightboxBackdrop(event)">
+
+    <!-- Close -->
+    <button type="button"
+            onclick="closeImageLightbox()"
+            class="lightbox-close-btn"
+            aria-label="Close image viewer">
         <i class="fas fa-times text-xl"></i>
     </button>
-    <button type="button" onclick="showPreviousLightboxImage()" class="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 text-white hover:bg-white/20 transition" aria-label="Previous image">
+
+    <!-- Desktop Previous -->
+    <button type="button"
+            onclick="showPreviousLightboxImage()"
+            class="lightbox-nav-btn lightbox-prev-btn"
+            aria-label="Previous image">
         <i class="fas fa-chevron-left"></i>
     </button>
+
+    <!-- Image -->
     <figure class="w-full max-w-6xl text-center">
-        <img id="lightbox-image" src="" alt="{{ product.name }}" class="mx-auto rounded-lg shadow-2xl">
-        <figcaption id="lightbox-caption" class="text-white/80 text-sm mt-4"></figcaption>
+        <img id="lightbox-image"
+             src=""
+             alt="{{ product.name }}"
+             class="mx-auto rounded-lg shadow-2xl">
+
+        <figcaption id="lightbox-caption"
+                    class="text-white/80 text-sm mt-4"></figcaption>
     </figure>
-    <button type="button" onclick="showNextLightboxImage()" class="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 text-white hover:bg-white/20 transition" aria-label="Next image">
+
+    <!-- Desktop Next -->
+    <button type="button"
+            onclick="showNextLightboxImage()"
+            class="lightbox-nav-btn lightbox-next-btn"
+            aria-label="Next image">
         <i class="fas fa-chevron-right"></i>
     </button>
+
+    <!-- Mobile Bottom Controls -->
+    <div class="lightbox-mobile-controls">
+        <button type="button" onclick="showPreviousLightboxImage()" aria-label="Previous image">
+            <i class="fas fa-chevron-left"></i>
+            Prev
+        </button>
+
+        <button type="button" onclick="showNextLightboxImage()" aria-label="Next image">
+            Next
+            <i class="fas fa-chevron-right"></i>
+        </button>
+    </div>
 </div>
 
 <!-- Price Alert Modal -->
@@ -1855,17 +1948,41 @@
     async function requestAdminHandoff() {
         openAIChat();
 
-        if (window.ArolanaSmartChatNoRefresh && typeof window.ArolanaSmartChatNoRefresh.requestAdmin === 'function') {
-            window.ArolanaSmartChatNoRefresh.requestAdmin();
+        if (state.aiAdminRequested) {
+            appendAIMessage('Admin support has already been requested. Please keep this chat open.', 'bot');
             return;
         }
 
-        if (window.ArolanaSmartChat && typeof window.ArolanaSmartChat.requestAdmin === 'function') {
-            window.ArolanaSmartChat.requestAdmin();
-            return;
-        }
+        state.aiAdminRequested = true;
+        appendAIMessage('Please connect me with an Arolana admin.', 'user');
 
-        console.warn('Arolana global SmartChat admin handoff is not ready.');
+        try {
+            const response = await fetch('/smartchat/api/request-admin/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    conversation_id: state.aiConversationId || null,
+                    product_id: {{ product.id }},
+                    product_name: state.productName,
+                    sku: getEl('product-sku')?.innerText || state.productSku,
+                    selected_variants: state.selectedVariants,
+                    page_url: window.location.href,
+                    message: 'Customer requested admin support from product page.'
+                })
+            });
+
+            const data = response.ok ? await response.json() : {};
+            if (data.conversation_id) state.aiConversationId = data.conversation_id;
+            updateAIStatus(data.status || 'admin_requested');
+            appendAIMessage(data.reply || 'Admin support has been requested. Please keep this chat open.', 'bot');
+            startSmartChatPolling();
+        } catch (error) {
+            appendAIMessage('I could not alert admin right now. Please try again or use the support page.', 'bot');
+        }
     }
 
     async function sendAIMessage(message) {
@@ -1942,58 +2059,54 @@
 
     function openAIChat() {
         /*
-            Always use the global Arolana SmartChat widget from base.html.
-            This prevents product detail from falling back to old local AI chat IDs.
+            Always open the global Arolana SmartChat widget from base.html.
+            Do NOT fall back to the old product-local chat IDs.
         */
-        if (window.ArolanaSmartChatNoRefresh && typeof window.ArolanaSmartChatNoRefresh.open === 'function') {
-            window.ArolanaSmartChatNoRefresh.open();
+        const globalPanel = document.getElementById('arolana-smartchat-panel');
+        const globalToggle = document.getElementById('arolana-smartchat-toggle');
+        const globalIcon = document.getElementById('arolana-smartchat-toggle-icon');
+        const globalInput = document.getElementById('arolana-smartchat-input');
+
+        if (!globalPanel) {
+            console.warn('Arolana global SmartChat panel not found. Make sure base.html includes partials/arolana_smart_chat_widget.html once before </body>.');
             return;
         }
 
-        if (window.ArolanaSmartChat && typeof window.ArolanaSmartChat.open === 'function') {
-            window.ArolanaSmartChat.open();
-            return;
+        globalPanel.classList.remove('hidden');
+
+        if (globalToggle) {
+            globalToggle.setAttribute('aria-expanded', 'true');
         }
 
-        const panel = document.getElementById('arolana-smartchat-panel');
-        const toggle = document.getElementById('arolana-smartchat-toggle');
-        const icon = document.getElementById('arolana-smartchat-toggle-icon');
-        const input = document.getElementById('arolana-smartchat-input');
-
-        if (!panel) {
-            console.warn('Arolana global SmartChat panel not found. Make sure base.html includes partials/arolana_smart_chat_widget.html once.');
-            return;
+        if (globalIcon) {
+            globalIcon.className = 'fas fa-times text-2xl relative z-10';
         }
-
-        panel.classList.remove('hidden');
-        if (toggle) toggle.setAttribute('aria-expanded', 'true');
-        if (icon) icon.className = 'fas fa-times text-2xl relative z-10';
 
         setTimeout(function () {
-            if (input) input.focus();
+            if (globalInput) globalInput.focus();
         }, 80);
+
+        if (window.ArolanaSmartChat && typeof window.ArolanaSmartChat.poll === 'function') {
+            window.ArolanaSmartChat.poll();
+        }
     }
 
     function closeAIChat() {
-        if (window.ArolanaSmartChatNoRefresh && typeof window.ArolanaSmartChatNoRefresh.close === 'function') {
-            window.ArolanaSmartChatNoRefresh.close();
-            return;
+        const globalPanel = document.getElementById('arolana-smartchat-panel');
+        const globalToggle = document.getElementById('arolana-smartchat-toggle');
+        const globalIcon = document.getElementById('arolana-smartchat-toggle-icon');
+
+        if (!globalPanel) return;
+
+        globalPanel.classList.add('hidden');
+
+        if (globalToggle) {
+            globalToggle.setAttribute('aria-expanded', 'false');
         }
 
-        if (window.ArolanaSmartChat && typeof window.ArolanaSmartChat.close === 'function') {
-            window.ArolanaSmartChat.close();
-            return;
+        if (globalIcon) {
+            globalIcon.className = 'fas fa-comment-dots text-2xl relative z-10';
         }
-
-        const panel = document.getElementById('arolana-smartchat-panel');
-        const toggle = document.getElementById('arolana-smartchat-toggle');
-        const icon = document.getElementById('arolana-smartchat-toggle-icon');
-
-        if (!panel) return;
-
-        panel.classList.add('hidden');
-        if (toggle) toggle.setAttribute('aria-expanded', 'false');
-        if (icon) icon.className = 'fas fa-comment-dots text-2xl relative z-10';
     }
 
     function startAIChat() {
@@ -2175,7 +2288,7 @@
     }
 
 
-    // Product page guard: clicking global chat toggle must always open global SmartChat, not old local chat.
+    // Extra protection: ensure global Arolana AI chat button always opens on product pages.
     document.addEventListener('click', function (event) {
         const toggle = event.target.closest('#arolana-smartchat-toggle');
         if (!toggle) return;
@@ -2184,6 +2297,21 @@
         event.stopPropagation();
         openAIChat();
     }, true);
+
+    // Also catch any old product-local chat buttons and redirect them to global SmartChat.
+    document.addEventListener('click', function (event) {
+        const oldAiButton = event.target.closest('[onclick*="startAIChat"], [onclick*="openAIChat"]');
+        if (!oldAiButton) return;
+
+        const isGlobalToggle = oldAiButton.id === 'arolana-smartchat-toggle';
+        const isLightboxOrOther = oldAiButton.closest('#image-lightbox, #price-alert-modal');
+        if (isGlobalToggle || isLightboxOrOther) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        openAIChat();
+    }, true);
+
 
     document.addEventListener('DOMContentLoaded', function () {
         captureDefaultUI();
@@ -2247,11 +2375,26 @@
             quantity.addEventListener('change', syncCartQuantity);
         }
 
-        /*
-            Old product-local AI chat bindings removed.
-            The customer chat is now handled globally by:
-            templates/partials/arolana_smart_chat_widget.html
-        */
+        const aiForm = getEl('ai-chat-form');
+        const aiInput = getEl('ai-chat-input');
+        if (aiForm && aiInput) {
+            aiForm.addEventListener('submit', function (event) {
+                event.preventDefault();
+                const message = aiInput.value.trim();
+                if (!message) return;
+
+                aiInput.value = '';
+                sendAIMessage(message);
+            });
+        }
+
+        document.querySelectorAll('.ai-quick-reply').forEach(function (button) {
+            button.addEventListener('click', function () {
+                const prompt = this.dataset.aiPrompt || this.textContent.trim();
+                openAIChat();
+                sendAIMessage(prompt);
+            });
+        });
 
         document.addEventListener('keydown', function (event) {
             const lightbox = getEl('image-lightbox');
@@ -2276,6 +2419,35 @@
         }
     });
 
+
+    // Mobile lightbox swipe support
+    let lightboxTouchStartX = 0;
+    let lightboxTouchEndX = 0;
+
+    document.addEventListener('touchstart', function (event) {
+        const lightbox = getEl('image-lightbox');
+        if (!lightbox || lightbox.classList.contains('hidden')) return;
+
+        lightboxTouchStartX = event.changedTouches[0].screenX;
+    }, { passive: true });
+
+    document.addEventListener('touchend', function (event) {
+        const lightbox = getEl('image-lightbox');
+        if (!lightbox || lightbox.classList.contains('hidden')) return;
+
+        lightboxTouchEndX = event.changedTouches[0].screenX;
+
+        const diff = lightboxTouchStartX - lightboxTouchEndX;
+
+        if (Math.abs(diff) < 45) return;
+
+        if (diff > 0) {
+            showNextLightboxImage();
+        } else {
+            showPreviousLightboxImage();
+        }
+    }, { passive: true });
+
     window.openImageLightbox = openImageLightbox;
     window.closeImageLightbox = closeImageLightbox;
     window.showNextLightboxImage = showNextLightboxImage;
@@ -2293,6 +2465,9 @@
     window.startAIChat = startAIChat;
     window.openAIChat = openAIChat;
     window.closeAIChat = closeAIChat;
+    window.ArolanaSmartChat = window.ArolanaSmartChat || {};
+    window.ArolanaSmartChat.open = openAIChat;
+    window.ArolanaSmartChat.close = closeAIChat;
     window.requestAdminHandoff = requestAdminHandoff;
     window.addToCart = addToCart;
     window.addAccessoryToCart = addAccessoryToCart;

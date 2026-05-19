@@ -138,6 +138,32 @@ def has_active_otp(user, otp_type='email'):
         expires_at__gt=timezone.now(),
     ).exists()
 
+
+EMAIL_VERIFICATION_USER_SESSION_KEY = 'pending_email_verification_user_id'
+EMAIL_VERIFICATION_NEXT_SESSION_KEY = 'pending_email_verification_next'
+
+
+def set_pending_email_verification(request, user, next_url='home'):
+    request.session[EMAIL_VERIFICATION_USER_SESSION_KEY] = user.id
+    request.session[EMAIL_VERIFICATION_NEXT_SESSION_KEY] = next_url or 'home'
+
+
+def clear_pending_email_verification(request):
+    request.session.pop(EMAIL_VERIFICATION_USER_SESSION_KEY, None)
+    request.session.pop(EMAIL_VERIFICATION_NEXT_SESSION_KEY, None)
+    request.session.pop('email_verification_send_failed', None)
+
+
+def get_email_verification_user(request):
+    if request.user.is_authenticated:
+        return request.user
+
+    user_id = request.session.get(EMAIL_VERIFICATION_USER_SESSION_KEY)
+    if not user_id:
+        return None
+
+    return User.objects.filter(id=user_id, is_active=True).first()
+
 # ==================== NEWSLETTER ====================
 
 def newsletter_subscribe(request):
@@ -201,6 +227,17 @@ def login_view(request):
         
         if user and user.check_password(password):
             ip_address = get_client_ip(request)
+
+            if not user.email_verified and not user.is_staff:
+                next_url = request.POST.get('next') or request.GET.get('next') or 'home'
+                email_otp = create_otp(user, user.email, 'email')
+                set_pending_email_verification(request, user, next_url)
+                request.session['email_verification_send_failed'] = not bool(email_otp)
+                if email_otp:
+                    messages.info(request, f"Please enter the OTP sent to {user.email} before signing in.")
+                else:
+                    messages.error(request, "We could not send your verification email. Please try Resend Code or contact support.")
+                return redirect('accounts:verify_email')
             
             # Check if 2FA is enabled
             if getattr(user, 'two_factor_enabled', False):
@@ -362,17 +399,16 @@ def register_view(request):
         send_registration_messages(user, request)
         
         log_user_activity(user, 'register', request, {'method': 'email'})
-        
-        user.backend = 'django.contrib.auth.backends.ModelBackend'
-        login(request, user)
+
+        set_pending_email_verification(request, user, 'home')
         request.session['email_verification_send_failed'] = not bool(email_otp)
         
         if not email_otp:
             messages.error(request, 'Your account was created, but the verification email could not be sent. Please try Resend Code or contact support.')
         elif account_type in ['vendor', 'manufacturer']:
-            messages.success(request, f"Welcome to Arolana, {username}! Verify your email, then complete KYC before uploading products.")
+            messages.success(request, f"Account created for {username}. Enter your email OTP to sign in, then complete KYC before uploading products.")
         else:
-            messages.success(request, f"Welcome to Arolana, {username}! Verify your email to secure your account.")
+            messages.success(request, f"Account created for {username}. Enter your email OTP to sign in.")
         return redirect('accounts:verify_email')
     
     context = get_social_apps_context(request)
@@ -825,41 +861,70 @@ def verify_email_token(request, uidb64, token):
         else:
             messages.info(request, 'Your email is already verified.')
 
-        if not request.user.is_authenticated:
-            user.backend = 'django.contrib.auth.backends.ModelBackend'
-            login(request, user)
-        return redirect('accounts:security_settings')
+        if request.user.is_authenticated:
+            return redirect('accounts:security_settings')
+
+        if request.session.get(EMAIL_VERIFICATION_USER_SESSION_KEY) == user.id:
+            clear_pending_email_verification(request)
+        messages.success(request, 'Email verified successfully. Please sign in.')
+        return redirect('accounts:login')
 
     messages.error(request, 'The email verification link is invalid or expired. Please request a new verification email.')
     if request.user.is_authenticated:
         return redirect('accounts:security_settings')
     return redirect('accounts:login')
 
-@login_required
 def verify_email(request):
     """Verify email address with OTP"""
+    user = get_email_verification_user(request)
+    if not user:
+        messages.error(request, 'Please register or sign in before verifying your email.')
+        return redirect('accounts:login')
+
+    if user.email_verified:
+        clear_pending_email_verification(request)
+        if request.user.is_authenticated:
+            messages.info(request, 'Your email is already verified.')
+            return redirect('accounts:security_settings')
+        messages.success(request, 'Your email is already verified. Please sign in.')
+        return redirect('accounts:login')
+
     if request.method == 'POST':
         otp_code = request.POST.get('otp_code')
-        success, message = verify_otp(request.user, otp_code, 'email')
+        success, message = verify_otp(user, otp_code, 'email')
         
         if success:
-            request.user.email_verified = True
-            request.user.save()
-            create_notification(request.user, 'system', '✅ Email Verified', 'Your email address has been successfully verified!', '/accounts/profile/')
+            user.email_verified = True
+            user.save()
+            create_notification(user, 'system', '✅ Email Verified', 'Your email address has been successfully verified!', '/accounts/profile/')
             messages.success(request, "Email verified successfully!")
-            return redirect('accounts:security_settings')
+
+            if request.user.is_authenticated:
+                clear_pending_email_verification(request)
+                return redirect('accounts:security_settings')
+
+            next_url = request.session.get(EMAIL_VERIFICATION_NEXT_SESSION_KEY, 'home')
+            user.backend = 'django.contrib.auth.backends.ModelBackend'
+            login(request, user)
+            clear_pending_email_verification(request)
+            log_user_activity(user, 'login', request, {'method': 'email_otp_verification'})
+            messages.success(request, f"Welcome to Arolana, {user.get_full_name() or user.email}!")
+            return redirect(next_url)
         else:
             messages.error(request, message)
     else:
         send_failed_on_register = request.session.pop('email_verification_send_failed', False)
-        if not send_failed_on_register and not has_active_otp(request.user, 'email'):
-            otp = create_otp(request.user, request.user.email, 'email')
+        if not send_failed_on_register and not has_active_otp(user, 'email'):
+            otp = create_otp(user, user.email, 'email')
             if otp:
-                messages.info(request, f"Verification code sent to {request.user.email}")
+                messages.info(request, f"Verification code sent to {user.email}")
             else:
                 messages.error(request, 'We could not send your verification email. Please try again or contact support.')
     
-    return render(request, 'accounts/verify_email.html', {'user': request.user})
+    return render(request, 'accounts/verify_email.html', {
+        'user': user,
+        'verification_required': not request.user.is_authenticated,
+    })
 
 @login_required
 def verify_phone(request):
@@ -867,11 +932,16 @@ def verify_phone(request):
     messages.info(request, 'Phone verification is not required right now. Email verification is enough to secure your account.')
     return redirect('accounts:security_settings')
 
-@login_required
 @require_POST
 def resend_verification_email(request):
     """Resend email verification OTP"""
-    otp = create_otp(request.user, request.user.email, 'email')
+    user = get_email_verification_user(request)
+    if not user:
+        return JsonResponse({'success': False, 'error': 'Verification session expired. Please sign in again.'}, status=403)
+    if user.email_verified:
+        return JsonResponse({'success': False, 'error': 'Email is already verified.'}, status=400)
+
+    otp = create_otp(user, user.email, 'email')
     if otp:
         return JsonResponse({'success': True, 'message': 'Verification code resent successfully'})
     return JsonResponse({'success': False, 'error': 'Failed to send verification code'})

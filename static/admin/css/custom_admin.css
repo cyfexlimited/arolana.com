@@ -863,7 +863,7 @@ body.dark-mode .ar-admin-dashboard .ar-chart-fallback {
 
     .main-sidebar,
     .app-sidebar {
-        transform: translateX(-100%) !important;
+        transform: translateX(-100%);
     }
 
     .ar-admin-hero {
@@ -1133,11 +1133,30 @@ body,
         min-height: 100vh;
     }
 
+    .main-sidebar,
     .app-sidebar,
     #jazzy-sidebar {
-        display: none !important;
-        transform: none !important;
-        width: 0 !important;
+        display: block !important;
+        max-width: 82vw !important;
+        position: fixed !important;
+        transform: translateX(-105%);
+        transition: transform 0.2s ease;
+        width: 260px !important;
+        z-index: 1045 !important;
+    }
+
+    body.sidebar-open .main-sidebar,
+    body.sidebar-open .app-sidebar,
+    body.sidebar-open #jazzy-sidebar {
+        transform: translateX(0) !important;
+    }
+
+    body.sidebar-open::after {
+        background: rgba(15, 23, 42, 0.35);
+        content: "";
+        inset: 0;
+        position: fixed;
+        z-index: 1040;
     }
 
     .app-main,

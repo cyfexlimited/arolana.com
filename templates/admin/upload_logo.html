@@ -10,13 +10,13 @@
             <div style="margin-bottom: 20px; text-align: center;">
                 <label>Current Logo:</label><br>
                 <div style="margin: 15px 0; padding: 20px; background: #f8f9fa; border-radius: 8px;">
-                    {% if logo_exists %}
-                        <img src="{% static 'admin/images/arolana-logo.png' %}" style="max-width: 200px; height: auto;" alt="Current Logo">
+                    {% if site_settings.site_logo %}
+                        <img src="{{ site_settings.site_logo.url }}" style="max-width: 220px; max-height: 90px; height: auto; object-fit: contain;" alt="{{ site_settings.site_name }} Logo">
                     {% else %}
                         <div style="background: linear-gradient(135deg, #0066b3, #00a3ff); padding: 15px 30px; border-radius: 8px; display: inline-block;">
                             <span style="color: white; font-size: 24px; font-weight: bold;">Arolana</span>
                         </div>
-                        <p style="margin-top: 10px; color: #6b7280;">No custom logo uploaded</p>
+                        <p style="margin-top: 10px; color: #6b7280;">No uploaded logo yet</p>
                     {% endif %}
                 </div>
             </div>
@@ -33,6 +33,9 @@
                     <button type="submit" class="button" style="background: #0066b3; color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer;">
                         Upload Logo
                     </button>
+                    <a href="{{ site_settings_admin_url }}" class="button" style="background: #0f766e; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none;">
+                        Edit Site Settings
+                    </a>
                     <a href="/admin/" class="button" style="background: #6c757d; color: white; padding: 8px 16px; border-radius: 6px; text-decoration: none;">
                         Cancel
                     </a>
@@ -41,7 +44,7 @@
             
             <div style="margin-top: 20px; padding: 12px; background: #fef3c7; border-radius: 8px;">
                 <p style="margin: 0; font-size: 13px; color: #92400e;">
-                    <strong>Note:</strong> After uploading, you may need to clear your browser cache (Ctrl+Shift+R or Cmd+Shift+R) to see the new logo.
+                    <strong>Note:</strong> This saves to Core > Site Settings and updates the admin logo after saving.
                 </p>
             </div>
         </div>

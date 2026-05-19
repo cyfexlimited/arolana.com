@@ -395,7 +395,7 @@ else:
         }
     }
 
-CURRENCY_DEFAULT = 'USD'
+CURRENCY_DEFAULT = 'NGN'
 CURRENCY_SESSION_KEY = 'user_currency'
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = 'tailwind'

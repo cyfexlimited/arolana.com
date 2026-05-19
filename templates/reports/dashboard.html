@@ -2,64 +2,204 @@
 {% load static %}
 
 {% block content %}
-<div class="bg-white rounded-lg shadow-lg p-6">
-    <h1 class="text-2xl font-bold mb-6">📊 Login Reports Dashboard</h1>
-    
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div class="bg-blue-50 rounded-lg p-4">
-            <i class="fas fa-chart-line text-3xl text-blue-600 mb-2"></i>
-            <h3 class="font-semibold">Generate Report</h3>
-            <p class="text-sm text-gray-600 mb-3">Create a new login report</p>
-            <a href="#" class="block text-center bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
-                Generate Report
-            </a>
+<div class="space-y-6">
+    <div class="bg-white rounded-lg shadow-lg p-6">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Login Reports Dashboard</h1>
+                <p class="text-sm text-gray-600">Last 30 days security activity and saved login reports.</p>
+            </div>
+            <div class="flex flex-wrap gap-3">
+                <a href="{% url 'reports:realtime' %}" class="inline-flex items-center justify-center rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700">
+                    <i class="fas fa-eye mr-2"></i> Live Monitor
+                </a>
+                <a href="{% url 'reports:login_attempts' %}" class="inline-flex items-center justify-center rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700">
+                    <i class="fas fa-lock mr-2"></i> Failed Attempts
+                </a>
+            </div>
         </div>
-        
-        <div class="bg-green-50 rounded-lg p-4">
-            <i class="fas fa-eye text-3xl text-green-600 mb-2"></i>
-            <h3 class="font-semibold">Real-time Monitoring</h3>
-            <p class="text-sm text-gray-600 mb-3">Monitor login activities live</p>
-            <a href="{% url 'reports:realtime' %}" class="block text-center bg-green-600 text-white py-2 rounded-lg hover:bg-green-700">
-                View Live Monitor
-            </a>
-        </div>
-        
-        <div class="bg-red-50 rounded-lg p-4">
-            <i class="fas fa-exclamation-triangle text-3xl text-red-600 mb-2"></i>
-            <h3 class="font-semibold">Failed Attempts</h3>
-            <p class="text-sm text-gray-600 mb-3">View failed login attempts</p>
-            <a href="{% url 'reports:login_attempts' %}" class="block text-center bg-red-600 text-white py-2 rounded-lg hover:bg-red-700">
-                View Attempts
-            </a>
+
+        <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            <div class="rounded-lg border border-blue-100 bg-blue-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-wide text-blue-700">Total Logins</p>
+                <p class="mt-2 text-2xl font-bold text-blue-900">{{ stats.total_logins }}</p>
+            </div>
+            <div class="rounded-lg border border-green-100 bg-green-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-wide text-green-700">Successful</p>
+                <p class="mt-2 text-2xl font-bold text-green-900">{{ stats.successful_logins }}</p>
+            </div>
+            <div class="rounded-lg border border-red-100 bg-red-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-wide text-red-700">Failed</p>
+                <p class="mt-2 text-2xl font-bold text-red-900">{{ stats.failed_logins }}</p>
+            </div>
+            <div class="rounded-lg border border-indigo-100 bg-indigo-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-wide text-indigo-700">Success Rate</p>
+                <p class="mt-2 text-2xl font-bold text-indigo-900">{{ stats.success_rate }}%</p>
+            </div>
+            <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-wide text-slate-700">Unique IPs</p>
+                <p class="mt-2 text-2xl font-bold text-slate-900">{{ stats.unique_ips }}</p>
+            </div>
         </div>
     </div>
-    
-    <div class="border-t pt-6">
-        <h2 class="text-xl font-bold mb-4">Recent Login Activity</h2>
-        <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead class="bg-gray-100">
-                    <tr>
-                        <th class="px-4 py-2 text-left">User</th>
-                        <th class="px-4 py-2 text-left">Action</th>
-                        <th class="px-4 py-2 text-left">IP Address</th>
-                        <th class="px-4 py-2 text-left">Time</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for activity in recent_activities %}
-                    <tr class="border-b">
-                        <td class="px-4 py-2">{{ activity.user.email|default:"Anonymous" }}</td>
-                        <td class="px-4 py-2">{{ activity.get_action_display }}</td>
-                        <td class="px-4 py-2">{{ activity.ip_address }}</td>
-                        <td class="px-4 py-2">{{ activity.timestamp|date:"Y-m-d H:i:s" }}</td>
-                    </tr>
-                    {% empty %}
-                    <tr><td colspan="4" class="text-center py-4 text-gray-500">No recent activities</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div class="bg-white rounded-lg shadow-lg p-6 xl:col-span-1">
+            <h2 class="text-xl font-bold mb-1">Generate Report</h2>
+            <p class="text-sm text-gray-600 mb-4">Create a report for export or review.</p>
+
+            <form id="login-report-form" class="space-y-4">
+                {% csrf_token %}
+                <div>
+                    <label for="report_type" class="block text-sm font-medium text-gray-700 mb-1">Report Type</label>
+                    <select id="report_type" name="report_type" class="w-full rounded-lg border border-gray-300 px-3 py-2">
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+                </div>
+                <div id="custom-date-fields" class="grid grid-cols-1 sm:grid-cols-2 gap-3 hidden">
+                    <div>
+                        <label for="start_date" class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                        <input type="date" id="start_date" name="start_date" class="w-full rounded-lg border border-gray-300 px-3 py-2">
+                    </div>
+                    <div>
+                        <label for="end_date" class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                        <input type="date" id="end_date" name="end_date" class="w-full rounded-lg border border-gray-300 px-3 py-2">
+                    </div>
+                </div>
+                <button type="submit" class="w-full rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700">
+                    <i class="fas fa-chart-line mr-2"></i> Generate Report
+                </button>
+                <div id="report-result" class="hidden rounded-lg border p-3 text-sm"></div>
+            </form>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-lg p-6 xl:col-span-2">
+            <h2 class="text-xl font-bold mb-4">Recent Reports</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="px-4 py-2 text-left">Type</th>
+                            <th class="px-4 py-2 text-left">Period</th>
+                            <th class="px-4 py-2 text-left">Success</th>
+                            <th class="px-4 py-2 text-left">Failed</th>
+                            <th class="px-4 py-2 text-left">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for report in recent_reports %}
+                        <tr class="border-b">
+                            <td class="px-4 py-2 font-medium">{{ report.get_report_type_display }}</td>
+                            <td class="px-4 py-2">{{ report.start_date|date:"M j, H:i" }} - {{ report.end_date|date:"M j, H:i" }}</td>
+                            <td class="px-4 py-2 text-green-700">{{ report.successful_logins }}</td>
+                            <td class="px-4 py-2 text-red-700">{{ report.failed_logins }}</td>
+                            <td class="px-4 py-2">
+                                <a class="text-blue-600 hover:text-blue-800" href="{% url 'reports:view_report' report.id %}">View</a>
+                                <span class="mx-1 text-gray-300">|</span>
+                                <a class="text-green-700 hover:text-green-900" href="{% url 'reports:export_csv' report.id %}">CSV</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="text-center py-6 text-gray-500">No generated reports yet</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div class="bg-white rounded-lg shadow-lg p-6 xl:col-span-2">
+            <h2 class="text-xl font-bold mb-4">Recent Login Activity</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="px-4 py-2 text-left">User</th>
+                            <th class="px-4 py-2 text-left">Action</th>
+                            <th class="px-4 py-2 text-left">IP Address</th>
+                            <th class="px-4 py-2 text-left">Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for activity in recent_activities %}
+                        <tr class="border-b">
+                            <td class="px-4 py-2">{{ activity.user.email|default:"Anonymous" }}</td>
+                            <td class="px-4 py-2">{{ activity.get_action_display }}</td>
+                            <td class="px-4 py-2">{{ activity.ip_address|default:"-" }}</td>
+                            <td class="px-4 py-2">{{ activity.timestamp|date:"Y-m-d H:i:s" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center py-4 text-gray-500">No recent activities</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-xl font-bold mb-4">Active Alerts</h2>
+            <div class="space-y-3">
+                {% for alert in active_alerts %}
+                <div class="rounded-lg border border-red-100 bg-red-50 p-3">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <p class="font-semibold text-gray-900">{{ alert.get_alert_type_display }}</p>
+                            <p class="text-sm text-gray-700">{{ alert.ip_address }}{% if alert.email %} · {{ alert.email }}{% endif %}</p>
+                        </div>
+                        <span class="rounded-full px-2 py-1 text-xs font-semibold
+                            {% if alert.severity == 'critical' %}bg-red-600 text-white
+                            {% elif alert.severity == 'high' %}bg-orange-500 text-white
+                            {% else %}bg-yellow-400 text-yellow-950{% endif %}">
+                            {{ alert.get_severity_display }}
+                        </span>
+                    </div>
+                    <p class="mt-2 text-xs text-gray-500">{{ alert.created_at|date:"M j, Y H:i" }} · {{ alert.attempt_count }} attempts</p>
+                </div>
+                {% empty %}
+                <p class="text-center text-gray-500 py-6">No active alerts</p>
+                {% endfor %}
+            </div>
         </div>
     </div>
 </div>
+
+<script>
+const reportType = document.getElementById('report_type');
+const dateFields = document.getElementById('custom-date-fields');
+const form = document.getElementById('login-report-form');
+const result = document.getElementById('report-result');
+
+function toggleCustomDates() {
+    dateFields.classList.toggle('hidden', reportType.value !== 'custom');
+}
+
+reportType.addEventListener('change', toggleCustomDates);
+toggleCustomDates();
+
+form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    result.className = 'rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm text-blue-900';
+    result.textContent = 'Generating report...';
+
+    const response = await fetch("{% url 'reports:generate_report' %}", {
+        method: 'POST',
+        body: new FormData(form),
+        headers: {'X-Requested-With': 'XMLHttpRequest'}
+    });
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+        result.className = 'rounded-lg border border-red-100 bg-red-50 p-3 text-sm text-red-800';
+        result.textContent = data.error || 'Could not generate report.';
+        return;
+    }
+
+    result.className = 'rounded-lg border border-green-100 bg-green-50 p-3 text-sm text-green-800';
+    result.innerHTML = `Report generated. Total: ${data.stats.total_logins}, Successful: ${data.stats.successful}, Failed: ${data.stats.failed}. <a class="font-semibold underline" href="${data.report_url}">View report</a> or <a class="font-semibold underline" href="${data.export_url}">download CSV</a>.`;
+});
+</script>
 {% endblock %}

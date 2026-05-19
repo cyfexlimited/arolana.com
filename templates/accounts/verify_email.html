@@ -15,6 +15,11 @@
         <h2 class="text-3xl font-bold text-gray-900">Verify Your Email</h2>
         <p class="text-gray-600 mt-2">We've sent a verification code to</p>
         <p class="text-sm font-mono text-blue-600 mt-1">{{ user.email }}</p>
+        {% if verification_required %}
+            <p class="mt-4 rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800">
+                Enter this OTP before your account can sign in.
+            </p>
+        {% endif %}
     </div>
     
     <!-- Display messages -->
@@ -72,22 +77,6 @@
         <p class="text-xs text-gray-500">
             <i class="fas fa-envelope"></i> Check your spam folder if you don't see the email
         </p>
-        <div class="pt-4 border-t">
-            <a href="{% url 'home' %}" class="text-sm text-gray-500 hover:text-gray-700">
-                <i class="fas fa-home mr-1"></i> Go to Homepage
-            </a>
-        </div>
-    </div>
-    
-    <!-- Skip Verification Option -->
-    <div class="mt-4 pt-4 text-center border-t">
-        <p class="text-xs text-gray-500">
-            <i class="fas fa-info-circle"></i> 
-            You can verify your email later. Some features may be limited until verification.
-        </p>
-        <a href="{% url 'home' %}" class="text-xs text-blue-600 hover:underline mt-2 inline-block">
-            Skip for now →
-        </a>
     </div>
     
     <!-- Help Section -->

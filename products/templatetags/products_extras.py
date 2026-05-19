@@ -95,74 +95,9 @@ def get_thumbnail(video_url, size='hqdefault'):
 
 @register.filter
 def currency(value, request):
-    """Format price with currency symbol based on user's currency"""
-    if not value:
-        return '₦0'
-    
-    try:
-        # Get user currency from session or cookie
-        user_currency = None
-        if request and hasattr(request, 'session'):
-            user_currency = request.session.get('user_currency')
-        if not user_currency and request and hasattr(request, 'COOKIES'):
-            user_currency = request.COOKIES.get('user_currency')
-        if not user_currency:
-            user_currency = 'NGN'
-        
-        # Currency symbols mapping
-        currency_symbols = {
-            'NGN': '₦',
-            'USD': '$',
-            'EUR': '€',
-            'GBP': '£',
-            'JPY': '¥',
-            'INR': '₹',
-            'AUD': 'A$',
-            'CAD': 'C$',
-            'CNY': '¥',
-        }
-        
-        symbol = currency_symbols.get(user_currency, user_currency)
-        
-        # Try to convert price using database rates
-        try:
-            from currency.models import Currency
-            usd_currency = Currency.objects.filter(code='USD', is_active=True).first()
-            target_currency = Currency.objects.filter(code=user_currency, is_active=True).first()
-            
-            if usd_currency and target_currency and usd_currency != target_currency:
-                # Convert from USD to target currency
-                rate = float(target_currency.exchange_rate) / float(usd_currency.exchange_rate)
-                converted = float(value) * rate
-                
-                if user_currency == 'NGN':
-                    formatted_value = f"{converted:,.0f}"
-                else:
-                    formatted_value = f"{converted:,.2f}"
-                return f"{symbol}{formatted_value}"
-            else:
-                # Fallback to direct display with symbol
-                if isinstance(value, (int, float)):
-                    if user_currency == 'NGN':
-                        formatted_value = f"{value:,.0f}"
-                    else:
-                        formatted_value = f"{value:,.2f}"
-                    return f"{symbol}{formatted_value}"
-                return f"{symbol}{value}"
-        except Exception as e:
-            print(f"Currency conversion error: {e}")
-            # Fallback to direct display
-            if isinstance(value, (int, float)):
-                if user_currency == 'NGN':
-                    formatted_value = f"{value:,.0f}"
-                else:
-                    formatted_value = f"{value:,.2f}"
-                return f"{symbol}{formatted_value}"
-            return f"{symbol}{value}"
-            
-    except Exception as e:
-        print(f"Currency filter error: {e}")
-        return f"₦{value}"
+    """Format price through the central currency formatter."""
+    from currency.templatetags.currency_filters import currency as format_currency
+    return format_currency(value, request)
 
 
 @register.simple_tag(takes_context=True)

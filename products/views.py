@@ -6,6 +6,7 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.http import JsonResponse
 from django.urls import reverse
 from django.utils import timezone
+from django.conf import settings
 from django.views.decorators.http import require_http_methods
 from django.db import transaction
 import json
@@ -59,9 +60,31 @@ def get_user_currency(request):
         ).first()
     
     if not user_currency:
-        user_currency = Currency.objects.filter(is_base=True).first()
+        user_currency = get_base_currency()
     
     return user_currency
+
+
+def get_base_currency():
+    """Get the catalog currency prices are stored in."""
+    if not Currency:
+        return None
+
+    base_code = (
+        getattr(settings, 'AROLANA_BASE_CURRENCY', None)
+        or getattr(settings, 'AROLANA_DEFAULT_CURRENCY', None)
+        or getattr(settings, 'CURRENCY_DEFAULT', None)
+        or 'NGN'
+    )
+    currency = Currency.objects.filter(code=base_code.upper(), is_active=True).first()
+    if currency:
+        return currency
+
+    return (
+        Currency.objects.filter(is_base=True, is_active=True).first()
+        or Currency.objects.filter(code='NGN', is_active=True).first()
+        or Currency.objects.filter(code='USD', is_active=True).first()
+    )
 
 
 def convert_price(price, from_currency, to_currency):
@@ -309,7 +332,7 @@ def cart_view(request):
     
     # Get currencies
     user_currency = get_user_currency(request)
-    base_currency = Currency.objects.filter(is_base=True).first() if Currency else None
+    base_currency = get_base_currency()
     
     # Calculate converted totals
     subtotal_converted = Decimal('0.00')
@@ -559,7 +582,7 @@ def product_detail(request, slug):
 
     # ====== Currency ======
     user_currency = get_user_currency(request)
-    base_currency = Currency.objects.filter(is_base=True).first() if Currency else None
+    base_currency = get_base_currency()
 
     # ====== Small safe image helpers ======
     def safe_url(image_field):
@@ -1238,7 +1261,7 @@ def get_variant_details(request, variant_id):
 
         # ====== Currency Conversion ======
         user_currency = get_user_currency(request)
-        base_currency = Currency.objects.filter(is_base=True).first() if Currency else None
+        base_currency = get_base_currency()
 
         final_price_raw = product.price + variant.price_adjustment
         final_price = convert_price(final_price_raw, base_currency, user_currency)
@@ -1331,7 +1354,7 @@ def quick_view_api(request, product_id):
     
     # ====== Currency ======
     user_currency = get_user_currency(request)
-    base_currency = Currency.objects.filter(is_base=True).first() if Currency else None
+    base_currency = get_base_currency()
     
     converted_price = convert_price(
         product.price,
@@ -1474,4 +1497,3 @@ def debug_colors(request, product_id):
     </html>
     """
     return HttpResponse(html)
-

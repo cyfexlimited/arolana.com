@@ -132,14 +132,15 @@ class SiteSettingsAdmin(admin.ModelAdmin):
     list_editable = ('is_active',)
     list_filter = ('is_active',)
     search_fields = ('site_name',)
+    readonly_fields = ('admin_logo_preview',)
 
     fieldsets = (
         ('Basic Information', {
             'fields': ('site_name', 'site_tagline', 'site_description', 'site_keywords', 'is_active'),
         }),
         ('Branding', {
-            'fields': ('site_logo', 'site_favicon', 'footer_logo'),
-            'description': 'Upload branding assets',
+            'fields': ('admin_logo_preview', 'site_logo', 'site_favicon', 'footer_logo'),
+            'description': 'Upload the logo here to control the storefront and Jazzmin admin logo. Recommended admin logo size: 200x60 PNG or SVG.',
         }),
         ('Contact Information', {
             'fields': ('contact_email', 'contact_phone', 'address'),
@@ -170,6 +171,19 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         return mark_safe('<span style="color:#999;">No Logo</span>')
 
     logo_preview.short_description = "Logo"
+
+    def admin_logo_preview(self, obj):
+        if obj and obj.site_logo:
+            return format_html(
+                '<div style="display:flex;align-items:center;gap:14px;">'
+                '<img src="{}" style="max-width:220px;max-height:80px;border:1px solid #d0d7de;border-radius:10px;padding:10px;background:#fff;object-fit:contain;" />'
+                '<span style="color:#475569;">This image is used for the admin sidebar logo after you save.</span>'
+                '</div>',
+                obj.site_logo.url
+            )
+        return mark_safe('<span style="color:#64748b;">No uploaded logo yet. The admin will use the fallback static logo until you upload one here.</span>')
+
+    admin_logo_preview.short_description = "Current admin logo"
 
     def has_delete_permission(self, request, obj=None):
         return False

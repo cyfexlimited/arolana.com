@@ -8,6 +8,7 @@ from django.views.decorators.http import require_GET, require_POST
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.db.models import Q
+from django.core.cache import cache
 
 from products.models import Product
 from .models import SmartChatConversation, SmartChatMessage
@@ -19,6 +20,57 @@ def _json_body(request):
         return json.loads(request.body.decode("utf-8") or "{}")
     except Exception:
         return {}
+
+
+
+def _safe_int(value, default=0):
+    """Safely convert query/body values to int.
+
+    Prevents crashes when the browser sends values like:
+    - NaN
+    - undefined
+    - null
+    - empty string
+    """
+    try:
+        if value in (None, "", "NaN", "nan", "undefined", "null"):
+            return default
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+SMARTCHAT_TYPING_TIMEOUT = 6
+
+
+def _typing_key(conversation_id, actor):
+    return f"smartchat:typing:{conversation_id}:{actor}"
+
+
+def _set_typing(conversation_id, actor, is_typing=True):
+    key = _typing_key(conversation_id, actor)
+    if is_typing:
+        cache.set(key, True, timeout=SMARTCHAT_TYPING_TIMEOUT)
+    else:
+        cache.delete(key)
+
+
+def _typing_payload(conversation, actor):
+    name = "Customer"
+    if actor == "admin":
+        name = (
+            conversation.assigned_admin.get_full_name()
+            or conversation.assigned_admin.username
+            if conversation.assigned_admin else "Arolana Admin"
+        )
+    elif conversation.customer_display:
+        name = conversation.customer_display
+
+    return {
+        "is_typing": bool(cache.get(_typing_key(conversation.id, actor))),
+        "actor": actor,
+        "name": name,
+    }
 
 
 def _customer_identity(request):
@@ -51,9 +103,27 @@ def _message_payload(message):
     }
 
 
+def _get_customer_conversation(request, conversation_id):
+    if not conversation_id:
+        return None
+
+    if request.user.is_authenticated:
+        session_key = request.session.session_key or ""
+        owner_lookup = Q(user=request.user)
+        if session_key:
+            owner_lookup |= Q(session_key=session_key)
+        lookup = Q(id=conversation_id) & owner_lookup
+    else:
+        if not request.session.session_key:
+            request.session.create()
+        lookup = Q(id=conversation_id, session_key=request.session.session_key or "")
+
+    return SmartChatConversation.objects.select_related("assigned_admin", "user").filter(lookup).first()
+
+
 def _get_or_create_conversation(request, data, product=None):
     identity = _customer_identity(request)
-    conversation_id = data.get("conversation_id")
+    conversation_id = _safe_int(data.get("conversation_id"), default=0)
 
     conversation = None
     if conversation_id:
@@ -110,6 +180,11 @@ def api_message(request):
             "product_name": data.get("product_name", ""),
         },
     )
+    _set_typing(conversation.id, "customer", False)
+
+    if hasattr(conversation, "last_message_at"):
+        conversation.last_message_at = user_message.created_at
+        conversation.save(update_fields=["last_message_at", "updated_at"])
 
     handoff = should_handoff(message)
     if handoff:
@@ -184,17 +259,13 @@ def api_request_admin(request):
 
 @require_GET
 def api_poll(request):
-    conversation_id = request.GET.get("conversation_id")
-    after_id = int(request.GET.get("after_id") or 0)
+    conversation_id = _safe_int(request.GET.get("conversation_id"), default=0)
+    after_id = _safe_int(request.GET.get("after_id"), default=0)
+
     if not conversation_id:
         return JsonResponse({"success": False, "error": "conversation_id is required."}, status=400)
 
-    if request.user.is_authenticated:
-        lookup = Q(id=conversation_id) & (Q(user=request.user) | Q(session_key=request.session.session_key or ""))
-    else:
-        lookup = Q(id=conversation_id, session_key=request.session.session_key or "")
-
-    conversation = SmartChatConversation.objects.filter(lookup).first()
+    conversation = _get_customer_conversation(request, conversation_id)
     if not conversation:
         return JsonResponse({"success": False, "error": "Conversation not found."}, status=404)
 
@@ -204,8 +275,21 @@ def api_poll(request):
         "conversation_id": conversation.id,
         "status": conversation.status,
         "assigned_admin": conversation.assigned_admin.get_full_name() or conversation.assigned_admin.username if conversation.assigned_admin else "",
+        "typing": _typing_payload(conversation, "admin"),
         "messages": [_message_payload(m) for m in messages],
     })
+
+
+@require_POST
+def api_typing(request):
+    data = _json_body(request)
+    conversation_id = _safe_int(data.get("conversation_id"), default=0)
+    conversation = _get_customer_conversation(request, conversation_id)
+    if not conversation:
+        return JsonResponse({"success": False, "error": "Conversation not found."}, status=404)
+
+    _set_typing(conversation.id, "customer", bool(data.get("is_typing", True)))
+    return JsonResponse({"success": True, "typing": _typing_payload(conversation, "customer")})
 
 
 @staff_member_required
@@ -246,13 +330,19 @@ def admin_reply(request, conversation_id):
             conversation.status = SmartChatConversation.STATUS_ADMIN_ACTIVE
             conversation.save(update_fields=["status", "updated_at"])
 
-        SmartChatMessage.objects.create(
+        admin_message = SmartChatMessage.objects.create(
             conversation=conversation,
             sender_type=SmartChatMessage.SENDER_ADMIN,
             user=request.user,
             message=message,
             is_private_note=private_note,
         )
+        _set_typing(conversation.id, "admin", False)
+
+        # Keep conversation ordering fresh for inbox/polling.
+        if hasattr(conversation, "last_message_at"):
+            conversation.last_message_at = admin_message.created_at
+            conversation.save(update_fields=["last_message_at", "updated_at"])
     return redirect("smartchat:admin_conversation", conversation_id=conversation.id)
 
 
@@ -270,7 +360,7 @@ def admin_close(request, conversation_id):
 def admin_poll(request, conversation_id):
     conversation = get_object_or_404(SmartChatConversation, id=conversation_id)
 
-    after_id = int(request.GET.get("after_id") or 0)
+    after_id = _safe_int(request.GET.get("after_id"), default=0)
 
     messages = (
         conversation.messages
@@ -283,5 +373,15 @@ def admin_poll(request, conversation_id):
         "success": True,
         "conversation_id": conversation.id,
         "status": conversation.status,
+        "typing": _typing_payload(conversation, "customer"),
         "messages": [_message_payload(message) for message in messages],
     })
+
+
+@staff_member_required
+@require_POST
+def admin_typing(request, conversation_id):
+    conversation = get_object_or_404(SmartChatConversation.objects.select_related("user", "assigned_admin"), id=conversation_id)
+    data = _json_body(request)
+    _set_typing(conversation.id, "admin", bool(data.get("is_typing", True)))
+    return JsonResponse({"success": True, "typing": _typing_payload(conversation, "admin")})

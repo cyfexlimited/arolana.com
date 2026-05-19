@@ -1,40 +1,28 @@
 from django.shortcuts import render, redirect
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
-from django.core.files.storage import default_storage
-from django.core.files.base import ContentFile
-from django.conf import settings
+from django.urls import reverse
 from accounts.models import UserProfile
-import os
+from core.models import SiteSettings
 
 @staff_member_required
 def upload_logo(request):
+    site_settings = SiteSettings.objects.first() or SiteSettings.objects.create()
+
     if request.method == 'POST' and request.FILES.get('logo'):
         logo_file = request.FILES['logo']
-        
-        # Save logo to static directory (not staticfiles)
-        static_dir = os.path.join(settings.BASE_DIR, 'static', 'admin', 'images')
-        os.makedirs(static_dir, exist_ok=True)
-        
-        logo_path = os.path.join(static_dir, 'arolana-logo.png')
-        
-        # Save the file
-        with open(logo_path, 'wb+') as destination:
-            for chunk in logo_file.chunks():
-                destination.write(chunk)
-        
-        # Also copy to staticfiles if it exists
-        staticfiles_dir = os.path.join(settings.BASE_DIR, 'staticfiles', 'admin', 'images')
-        if os.path.exists(settings.BASE_DIR / 'staticfiles'):
-            os.makedirs(staticfiles_dir, exist_ok=True)
-            with open(os.path.join(staticfiles_dir, 'arolana-logo.png'), 'wb+') as dest:
-                for chunk in logo_file.chunks():
-                    dest.write(chunk)
-        
-        messages.success(request, 'Logo uploaded successfully!')
-        return redirect('/admin/')
-    
-    return render(request, 'admin/upload_logo.html')
+        if site_settings.site_logo:
+            site_settings.site_logo.delete(save=False)
+        site_settings.site_logo.save(logo_file.name, logo_file, save=True)
+
+        messages.success(request, 'Logo uploaded successfully. It now controls the storefront and admin logo.')
+        return redirect(reverse('admin:core_sitesettings_change', args=[site_settings.pk]))
+
+    context = {
+        'site_settings': site_settings,
+        'site_settings_admin_url': reverse('admin:core_sitesettings_change', args=[site_settings.pk]),
+    }
+    return render(request, 'admin/upload_logo.html', context)
 
 @staff_member_required
 def upload_user_avatar(request, user_id):

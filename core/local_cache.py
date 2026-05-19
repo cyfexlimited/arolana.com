@@ -27,6 +27,11 @@ def local_set(key, value, timeout):
         _CACHE[key] = (time.monotonic() + timeout, value)
 
 
+def local_delete(key):
+    with _LOCK:
+        _CACHE.pop(key, None)
+
+
 def local_get_or_set(key, builder, timeout):
     cached = local_get(key)
     if cached is not None:

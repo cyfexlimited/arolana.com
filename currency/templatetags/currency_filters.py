@@ -1,5 +1,6 @@
 from django import template
 from decimal import Decimal
+from django.conf import settings
 from core.local_cache import local_get_or_set
 
 register = template.Library()
@@ -18,7 +19,13 @@ def _build_currency_data():
 
     currencies = Currency.objects.filter(is_active=True)
     currency_data = {}
-    default_currency = None
+    configured_base = (
+        getattr(settings, 'AROLANA_BASE_CURRENCY', None)
+        or getattr(settings, 'AROLANA_DEFAULT_CURRENCY', None)
+        or getattr(settings, 'CURRENCY_DEFAULT', None)
+    )
+    configured_base = configured_base.upper() if configured_base else None
+    flagged_base = None
     
     for curr in currencies:
         currency_data[curr.code] = {
@@ -27,13 +34,24 @@ def _build_currency_data():
             'exchange_rate': float(curr.exchange_rate),
             'name': curr.name,
             'is_base': curr.is_base,
+            'decimal_places': curr.decimal_places,
+            'thousands_separator': curr.thousands_separator,
+            'decimal_separator': curr.decimal_separator,
+            'symbol_position': curr.symbol_position,
         }
-        if curr.is_base or curr.code == 'USD':
-            default_currency = curr.code
+        if curr.is_base:
+            flagged_base = curr.code
+
+    base_currency = configured_base if configured_base in currency_data else flagged_base
+    if not base_currency:
+        base_currency = 'NGN' if 'NGN' in currency_data else 'USD'
+    if base_currency not in currency_data and currency_data:
+        base_currency = next(iter(currency_data))
     
     result = {
         'currencies': currency_data,
-        'default': default_currency or 'USD',
+        'base': base_currency,
+        'default': base_currency or 'NGN',
         'symbols': {code: data['symbol'] for code, data in currency_data.items()},
         'rates': {code: data['exchange_rate'] for code, data in currency_data.items()},
     }
@@ -62,34 +80,36 @@ def currency(value, request=None):
             if not user_currency_code and hasattr(request, 'COOKIES'):
                 user_currency_code = request.COOKIES.get('user_currency')
         
-        # If no currency found, default to USD
-        if not user_currency_code:
-            user_currency_code = 'USD'
-        
         # Get currency data from cache
         currency_data = get_currency_data()
+
+        # If no currency found, use the catalog/default currency.
+        if not user_currency_code:
+            user_currency_code = currency_data['default']
         
         # Check if currency exists
         if user_currency_code not in currency_data['currencies']:
             user_currency_code = currency_data['default']
         
-        # Get exchange rate and symbol
-        rate = currency_data['rates'].get(user_currency_code, 1.0)
+        # Convert from the catalog base currency to the visitor currency.
+        base_currency_code = currency_data.get('base') or currency_data.get('default') or 'NGN'
+        base_rate = Decimal(str(currency_data['rates'].get(base_currency_code, 1.0) or 1.0))
+        target_rate = Decimal(str(currency_data['rates'].get(user_currency_code, 1.0) or 1.0))
         symbol = currency_data['symbols'].get(user_currency_code, '$')
-        
-        # Convert amount
-        converted_amount = amount * rate
-        
-        # Format with currency symbol
-        if user_currency_code == 'NGN':
-            # Nigerian Naira - no decimals
-            return f"{symbol}{converted_amount:,.0f}"
-        elif user_currency_code == 'JPY':
-            # Japanese Yen - no decimals
-            return f"{symbol}{converted_amount:,.0f}"
-        else:
-            # Most currencies - 2 decimals
-            return f"{symbol}{converted_amount:,.2f}"
+        currency_settings = currency_data['currencies'].get(user_currency_code, {})
+
+        amount_dec = Decimal(str(amount))
+        converted_amount = amount_dec if base_rate == target_rate else amount_dec * target_rate / base_rate
+
+        from currency.models import format_currency_amount
+        return format_currency_amount(
+            converted_amount,
+            symbol=symbol,
+            decimal_places=currency_settings.get('decimal_places', 2),
+            thousands_separator=currency_settings.get('thousands_separator', ','),
+            decimal_separator=currency_settings.get('decimal_separator', '.'),
+            symbol_position=currency_settings.get('symbol_position', 'left'),
+        )
             
     except (ValueError, TypeError, AttributeError, KeyError) as e:
         print(f"Currency filter error: {e}, value: {value}")
@@ -99,15 +119,15 @@ def currency(value, request=None):
 def current_currency_symbol(context):
     """Get current currency symbol"""
     request = context.get('request')
-    currency_code = 'USD'
+    currency_data = get_currency_data()
+    currency_code = currency_data.get('default') or 'NGN'
     
     if request and hasattr(request, 'session'):
-        currency_code = request.session.get('user_currency', 'USD')
+        currency_code = request.session.get('user_currency', currency_code)
     elif request and hasattr(request, 'COOKIES'):
-        currency_code = request.COOKIES.get('user_currency', 'USD')
+        currency_code = request.COOKIES.get('user_currency', currency_code)
     
     try:
-        currency_data = get_currency_data()
         return currency_data['symbols'].get(currency_code, '$')
     except:
         symbols = {'USD': '$', 'EUR': '€', 'GBP': '£', 'NGN': '₦', 'CAD': 'C$', 'AUD': 'A$'}
@@ -117,13 +137,15 @@ def current_currency_symbol(context):
 def current_currency_code(context):
     """Get current currency code"""
     request = context.get('request')
+    currency_data = get_currency_data()
+    default_currency = currency_data.get('default') or 'NGN'
     
     if request and hasattr(request, 'session'):
-        return request.session.get('user_currency', 'USD')
+        return request.session.get('user_currency', default_currency)
     elif request and hasattr(request, 'COOKIES'):
-        return request.COOKIES.get('user_currency', 'USD')
+        return request.COOKIES.get('user_currency', default_currency)
     
-    return 'USD'
+    return default_currency
 
 @register.filter
 def convert_currency(amount, target_code):
@@ -135,14 +157,25 @@ def convert_currency(amount, target_code):
             return f"${amount:,.2f}"
         
         currency_data = get_currency_data()
-        rate = currency_data['rates'].get(target_code.upper(), 1.0)
-        symbol = currency_data['symbols'].get(target_code.upper(), '$')
+        target_code = target_code.upper()
+        base_currency_code = currency_data.get('base') or currency_data.get('default') or 'NGN'
+        base_rate = Decimal(str(currency_data['rates'].get(base_currency_code, 1.0) or 1.0))
+        target_rate = Decimal(str(currency_data['rates'].get(target_code, 1.0) or 1.0))
+        symbol = currency_data['symbols'].get(target_code, '$')
+        currency_settings = currency_data['currencies'].get(target_code, {})
         
-        converted = amount * rate
-        
-        if target_code.upper() in ['NGN', 'JPY']:
-            return f"{symbol}{converted:,.0f}"
-        return f"{symbol}{converted:,.2f}"
+        amount_dec = Decimal(str(amount))
+        converted = amount_dec if base_rate == target_rate else amount_dec * target_rate / base_rate
+
+        from currency.models import format_currency_amount
+        return format_currency_amount(
+            converted,
+            symbol=symbol,
+            decimal_places=currency_settings.get('decimal_places', 2),
+            thousands_separator=currency_settings.get('thousands_separator', ','),
+            decimal_separator=currency_settings.get('decimal_separator', '.'),
+            symbol_position=currency_settings.get('symbol_position', 'left'),
+        )
     except Exception as e:
         print(f"Convert currency error: {e}")
         return f"${amount:,.2f}"

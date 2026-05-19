@@ -1,5 +1,6 @@
 from django.core.validators import RegexValidator
 from django.db import models
+from core.local_cache import local_delete
 
 
 hex_color_validator = RegexValidator(
@@ -64,6 +65,7 @@ class SiteSettings(BaseModel):
         if not self.pk and SiteSettings.objects.exists():
             raise ValueError("Only one SiteSettings instance can exist")
         super().save(*args, **kwargs)
+        local_delete('global_context:site_settings')
 
 class PromoBanner(BaseModel):
     """Promotional banner for homepage"""

@@ -18,5 +18,38 @@
         --ar-admin-sidebar-bg: {{ admin_appearance.sidebar_background_color|default:"#FFFFFF" }};
         --ar-admin-sidebar-text: {{ admin_appearance.sidebar_text_color|default:"#1F2937" }};
     }
+
+    #jazzy-logo .brand-image,
+    #jazzy-navbar .brand-link .brand-image {
+        max-height: 38px;
+        max-width: 46px;
+        object-fit: contain;
+        background: #fff;
+    }
 </style>
+{% endblock %}
+
+{% block extrajs %}
+{{ block.super }}
+{% if site_settings.site_logo %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const logoUrl = "{{ site_settings.site_logo.url|escapejs }}";
+    const siteName = "{{ site_settings.site_name|default:'Arolana'|escapejs }}";
+
+    document.querySelectorAll('#jazzy-logo img.brand-image, #jazzy-navbar .brand-link img.brand-image').forEach(function (image) {
+        image.src = logoUrl;
+        image.alt = siteName + ' Logo';
+        image.style.maxHeight = '38px';
+        image.style.maxWidth = '46px';
+        image.style.objectFit = 'contain';
+        image.style.background = '#fff';
+    });
+
+    document.querySelectorAll('#jazzy-logo .brand-text').forEach(function (label) {
+        label.textContent = siteName;
+    });
+});
+</script>
+{% endif %}
 {% endblock %}

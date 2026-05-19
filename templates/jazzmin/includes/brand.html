@@ -1,11 +1,18 @@
 {% load static %}
 {% load jazzmin %}
-{% get_jazzmin_settings as jazzmin_settings %}
+{% get_jazzmin_settings request as jazzmin_settings %}
 
 <div class="brand-link">
-    <img src="{% static 'admin/images/arolana-logo.png' %}" 
-         alt="{{ jazzmin_settings.site_header }}"
-         class="brand-image img-circle elevation-3"
-         style="opacity: .8; max-height: 33px; width: auto;">
-    <span class="brand-text font-weight-light">{{ jazzmin_settings.site_header }}</span>
+    {% if site_settings.site_logo %}
+        <img src="{{ site_settings.site_logo.url }}"
+             alt="{{ site_settings.site_name|default:jazzmin_settings.site_header }}"
+             class="brand-image img-circle elevation-3"
+             style="opacity:.95;max-height:36px;width:auto;max-width:42px;object-fit:contain;background:#fff;">
+    {% else %}
+        <img src="{% static 'admin/images/arolana-logo.png' %}"
+             alt="{{ jazzmin_settings.site_header }}"
+             class="brand-image img-circle elevation-3"
+             style="opacity:.85;max-height:36px;width:auto;max-width:42px;object-fit:contain;">
+    {% endif %}
+    <span class="brand-text font-weight-light">{{ site_settings.site_name|default:jazzmin_settings.site_header }}</span>
 </div>
