@@ -33,8 +33,12 @@
                         platinum: '#e8e8e8'
                     },
                     fontFamily: {
-                        luxury: ['Playfair Display', 'serif'],
-                        premium: ['Inter', 'sans-serif']
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        luxury: ['Montserrat', 'Inter', 'sans-serif'],
+                        premium: ['Inter', 'system-ui', 'sans-serif'],
+                        logo: ['Montserrat', 'Inter', 'sans-serif'],
+                        heading: ['Montserrat', 'Inter', 'sans-serif'],
+                        mega: ['Roboto Condensed', 'Inter', 'sans-serif']
                     },
                     boxShadow: {
                         luxury: '0 20px 60px rgba(0, 0, 0, 0.15)',
@@ -70,7 +74,7 @@
         };
     </script>
 
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Montserrat:wght@600;700;800;900&family=Roboto+Condensed:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
@@ -85,6 +89,10 @@
             --color-primary: {{ site_settings.primary_color|default:"#d4af37" }};
             --color-secondary: {{ site_settings.secondary_color|default:"#111827" }};
             --header-height: 0px;
+            --font-logo-hero: 'Montserrat', 'Inter', system-ui, sans-serif;
+            --font-heading: 'Montserrat', 'Inter', system-ui, sans-serif;
+            --font-body: 'Inter', system-ui, sans-serif;
+            --font-mega: 'Roboto Condensed', 'Inter', system-ui, sans-serif;
         }
 
         *,
@@ -104,9 +112,50 @@
         body {
             min-width: 320px;
             background: linear-gradient(135deg, #f5f5f5 0%, #ffffff 100%);
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-body);
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6 {
+            font-family: var(--font-heading);
+            font-weight: 800;
+            letter-spacing: 0;
+        }
+
+        h1.font-bold,
+        h2.font-bold,
+        h3.font-bold,
+        h4.font-bold,
+        h5.font-bold,
+        h6.font-bold,
+        h1.font-semibold,
+        h2.font-semibold,
+        h3.font-semibold,
+        h4.font-semibold,
+        h5.font-semibold,
+        h6.font-semibold {
+            font-weight: 800;
+        }
+
+        .font-luxury,
+        .font-heading {
+            font-family: var(--font-heading) !important;
+        }
+
+        .font-premium {
+            font-family: var(--font-body) !important;
+        }
+
+        .arolana-wordmark {
+            font-family: var(--font-logo-hero) !important;
+            font-weight: 900 !important;
+            letter-spacing: 0;
         }
 
         body.menu-open {
@@ -309,6 +358,8 @@
             position: relative;
             z-index: 1000;
             background: #f8fafc;
+            font-family: var(--font-mega);
+            font-weight: 700;
         }
 
         .desktop-nav .container {
@@ -366,7 +417,8 @@
             padding: 0.86rem 0.78rem !important;
             font-size: 0.94rem !important;
             line-height: 1;
-            font-weight: 750;
+            font-family: var(--font-mega);
+            font-weight: 700;
             white-space: nowrap;
             color: #1f2937;
             border-radius: 0.75rem 0.75rem 0 0;
@@ -393,6 +445,8 @@
             position: fixed !important;
             top: var(--mega-top, 150px);
             left: var(--mega-left, 16px);
+            font-family: var(--font-mega);
+            font-weight: 700;
 
             width: min(58rem, calc(100vw - 32px));
             max-width: calc(100vw - 32px);
@@ -478,7 +532,9 @@
         .mega-menu-dropdown h3,
         .mega-menu-dropdown .font-bold {
             color: #111827;
-            letter-spacing: -0.01em;
+            font-family: var(--font-mega);
+            font-weight: 700;
+            letter-spacing: 0;
         }
 
         .mega-menu-dropdown a {
@@ -601,7 +657,8 @@
             color: #fff;
             font-size: 1.2rem;
             line-height: 1.12;
-            font-weight: 900;
+            font-family: var(--font-mega);
+            font-weight: 700;
         }
 
         .mega-category-hero-body small {
@@ -700,7 +757,8 @@
         .mega-category-card-title strong {
             color: #111827;
             font-size: 0.88rem;
-            font-weight: 900;
+            font-family: var(--font-mega);
+            font-weight: 700;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -1322,9 +1380,9 @@
             padding-bottom: 12px;
             margin-bottom: 24px;
             color: #fff;
-            font-family: 'Playfair Display', serif;
+            font-family: var(--font-heading);
             font-size: 1.1rem;
-            font-weight: 700;
+            font-weight: 800;
         }
 
         .footer-title::after {
@@ -1741,7 +1799,7 @@
                     {% if site_settings.site_logo %}
                         <img src="{{ site_logo_url }}" alt="{{ site_settings.site_name }}" class="luxury-logo">
                     {% else %}
-                        <span class="block text-2xl sm:text-3xl font-bold font-luxury truncate" style="background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+                        <span class="arolana-wordmark block text-2xl sm:text-3xl truncate" style="background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
                             {{ site_settings.site_name }}<span style="opacity: 0.7;">.com</span>
                         </span>
                     {% endif %}
@@ -2355,7 +2413,7 @@
             <main class="flex-1 min-w-0">
                 {% block content %}
                 <div class="bg-white rounded-2xl shadow-luxury p-8 sm:p-12" data-aos="fade-up">
-                    <h1 class="text-4xl sm:text-5xl font-bold font-luxury mb-4 gradient-luxury bg-clip-text text-transparent">
+                    <h1 class="arolana-wordmark text-4xl sm:text-5xl mb-4 gradient-luxury bg-clip-text text-transparent">
                         Welcome to {{ site_settings.site_name }}
                     </h1>
                     <p class="text-lg text-gray-600">{{ site_settings.site_tagline }}</p>
@@ -2366,7 +2424,7 @@
             {% if request.path != '/products/cart/' and request.path != '/products/checkout/' %}
             <aside class="hidden lg:block lg:w-80 shrink-0">
                 <div class="bg-white rounded-2xl shadow-luxury p-6 sticky top-28" data-aos="fade-left">
-                    <h3 class="text-lg font-semibold font-luxury mb-4 text-gray-800 border-b border-gray-200 pb-3">Advertisement</h3>
+                    <h3 class="text-lg font-heading mb-4 text-gray-800 border-b border-gray-200 pb-3">Advertisement</h3>
                     <div class="ad-container">
                         {% render_ad_carousel 'sidebar' count=5 interval=5000 %}
                     </div>
@@ -2409,7 +2467,7 @@
                         {% optimized_image_url site_settings.footer_logo 'logo' as footer_logo_url %}
                         <img src="{{ footer_logo_url }}" alt="{{ site_settings.site_name }}" class="h-16 mb-6" loading="lazy">
                     {% else %}
-                        <h3 class="text-2xl font-bold font-luxury text-white mb-6">{{ site_settings.site_name }}</h3>
+                        <h3 class="arolana-wordmark text-2xl text-white mb-6">{{ site_settings.site_name }}</h3>
                     {% endif %}
                     <p class="text-sm text-gray-400 mb-6 leading-relaxed">{{ site_settings.site_description|truncatewords:20 }}</p>
 
