@@ -171,7 +171,7 @@ if DATABASE_URL:
     DATABASES = {
         'default': dj_database_url.config(
             default=DATABASE_URL,
-            conn_max_age=600,
+            conn_max_age=config('DATABASE_CONN_MAX_AGE', default=0, cast=int),
             ssl_require=not DEBUG,
         )
     }
