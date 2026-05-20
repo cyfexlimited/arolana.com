@@ -1,4 +1,5 @@
 from django.utils.deprecation import MiddlewareMixin
+from django.db import DatabaseError
 from currency.geo.ip_geolocation import COUNTRY_CURRENCY_MAP
 from currency.models import CountryCurrency, Currency
 import logging
@@ -54,6 +55,12 @@ class CurrencyMiddleware(MiddlewareMixin):
             return mapping.currency.code
         except CountryCurrency.DoesNotExist:
             return COUNTRY_CURRENCY_MAP.get(country_code)
+        except DatabaseError as exc:
+            logger.warning("Currency country lookup failed: %s", exc)
+            return COUNTRY_CURRENCY_MAP.get(country_code)
+        except Exception as exc:
+            logger.warning("Currency country lookup skipped: %s", exc)
+            return COUNTRY_CURRENCY_MAP.get(country_code)
     
     def detect_from_browser(self, request):
         accept_language = request.META.get('HTTP_ACCEPT_LANGUAGE', '')
@@ -75,6 +82,11 @@ class CurrencyMiddleware(MiddlewareMixin):
         return 'USD'
     
     def process_request(self, request):
+        if request.path == '/health/':
+            request.user_currency = 'USD'
+            request.currency_symbol = '$'
+            return
+
         # Manual choice always wins.
         session_manual = request.session.get('user_currency_set') and request.session.get('user_currency_source') != 'auto'
         if session_manual or request.COOKIES.get('currency_manual') == '1':
@@ -84,8 +96,10 @@ class CurrencyMiddleware(MiddlewareMixin):
                     currency = Currency.objects.get(code=currency_code, is_active=True)
                     request.user_currency = currency.code
                     request.currency_symbol = currency.symbol
-                except:
-                    pass
+                except Exception as exc:
+                    logger.warning("Manual currency lookup failed: %s", exc)
+                    request.user_currency = 'USD'
+                    request.currency_symbol = '$'
             return
         
         country_code = self.detect_country_code(request)
@@ -110,6 +124,10 @@ class CurrencyMiddleware(MiddlewareMixin):
             request.currency_callback = set_cookie
             
         except Currency.DoesNotExist:
+            request.user_currency = 'USD'
+            request.currency_symbol = '$'
+        except Exception as exc:
+            logger.warning("Automatic currency lookup failed: %s", exc)
             request.user_currency = 'USD'
             request.currency_symbol = '$'
 

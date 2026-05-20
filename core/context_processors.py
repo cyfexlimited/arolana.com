@@ -1,19 +1,55 @@
 from core.models import SiteSettings
 from django.db.models import Count, Prefetch, Q, Sum
+from types import SimpleNamespace
 from products.models import Category, Product
 from vendors.models import VendorProfile
 from manufacturers.models import Manufacturer, ManufacturerCategory
 from currency.models import Currency
 import random
+import logging
 from django.conf import settings
 from core.local_cache import local_get_or_set
 
 
 GLOBAL_CONTEXT_CACHE_TIMEOUT = 300
+logger = logging.getLogger(__name__)
 
 
 def _cached(key, builder, timeout=GLOBAL_CONTEXT_CACHE_TIMEOUT):
     return local_get_or_set(key, builder, timeout)
+
+
+def _safe_cached(key, builder, default, timeout=GLOBAL_CONTEXT_CACHE_TIMEOUT):
+    try:
+        return _cached(key, builder, timeout)
+    except Exception as exc:
+        logger.warning("Global context lookup failed for %s: %s", key, exc)
+        return default
+
+
+def _fallback_site_settings():
+    return SimpleNamespace(
+        site_name='Arolana',
+        site_tagline='Smart Global Marketplace',
+        site_description='Smart global marketplace for customers, vendors, and manufacturers.',
+        site_keywords='Arolana, marketplace, ecommerce',
+        meta_author='Arolana',
+        meta_robots='index,follow',
+        primary_color='#d4af37',
+        secondary_color='#111827',
+        site_logo=None,
+        site_favicon=None,
+        footer_logo=None,
+        facebook_url='',
+        twitter_url='',
+        instagram_url='',
+        youtube_url='',
+        contact_email='',
+        contact_phone='',
+        address='',
+        shipping_note='',
+        return_note='',
+    )
 
 
 def _main_categories():
@@ -41,10 +77,10 @@ def global_context(request):
             site_settings = SiteSettings.objects.create()
         return site_settings
 
-    site_settings = _cached('global_context:site_settings', build_site_settings)
+    site_settings = _safe_cached('global_context:site_settings', build_site_settings, _fallback_site_settings())
     
     # Get featured products (limit to 8)
-    featured_products = _cached(
+    featured_products = _safe_cached(
         'global_context:featured_products',
         lambda: list(
             Product.objects
@@ -52,47 +88,54 @@ def global_context(request):
             .select_related('category', 'brand')
             .order_by('-created_at')[:8]
         ),
+        [],
     )
     
     # Get verified vendors and SHUFFLE them for variety
-    vendors = _cached(
+    vendors = _safe_cached(
         'global_context:verified_vendors',
         lambda: list(VendorProfile.objects.filter(is_verified=True, is_active=True)),
+        [],
     )
     vendors = list(vendors)
     random.shuffle(vendors)
     vendors = vendors[:4]
     
     # Get ALL top-level categories for mega menu
-    main_categories = _cached('global_context:main_categories', _main_categories)
+    main_categories = _safe_cached('global_context:main_categories', _main_categories, [])
     
     # Top rated vendors for mega menu dropdown
-    top_vendors = _cached(
+    top_vendors = _safe_cached(
         'global_context:top_vendors',
         lambda: list(VendorProfile.objects.filter(is_verified=True, is_active=True).order_by('-rating_avg')[:5]),
+        [],
     )
     
     # Trending vendors for mega menu dropdown
-    trending_vendors = _cached(
+    trending_vendors = _safe_cached(
         'global_context:trending_vendors',
         lambda: list(VendorProfile.objects.filter(is_verified=True, is_active=True).order_by('-total_sales')[:5]),
+        [],
     )
     
     # Get manufacturer categories for mega menu and homepage
-    manufacturer_categories = _cached(
+    manufacturer_categories = _safe_cached(
         'global_context:manufacturer_categories',
         lambda: list(ManufacturerCategory.objects.filter(is_active=True).order_by('display_order', 'name')),
+        [],
     )
     
     # Get featured manufacturers
-    featured_manufacturers = _cached(
+    featured_manufacturers = _safe_cached(
         'global_context:featured_manufacturers',
         lambda: list(Manufacturer.objects.filter(is_featured=True, is_active=True)[:4]),
+        [],
     )
 
-    active_currencies = _cached(
+    active_currencies = _safe_cached(
         'global_context:active_currencies',
         lambda: list(Currency.objects.filter(is_active=True).order_by('code')),
+        [],
         3600,
     )
     
