@@ -1404,6 +1404,42 @@
             color: #fff;
         }
 
+        .site-footer-menu-toggle {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            color: #fff;
+            font-family: var(--font-heading);
+            font-size: 0.875rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-align: left;
+            text-transform: uppercase;
+            padding-bottom: 0.75rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid #1f2937;
+        }
+
+        .site-footer-menu-toggle i {
+            display: none;
+            transition: transform 0.2s ease;
+        }
+
+        .site-footer-menu-list {
+            display: block;
+        }
+
+        .site-footer-payment-icon {
+            transition: color 0.2s ease, background-color 0.2s ease;
+        }
+
+        .site-footer-payment-icon:hover {
+            color: #fff;
+            background: #374151;
+        }
+
         @media (max-width: 1023px) {
             .desktop-nav,
             .mega-menu-dropdown {
@@ -1527,6 +1563,188 @@
                 bottom: 24px;
                 width: 44px;
                 height: 44px;
+            }
+
+            .site-footer {
+                margin-top: 2rem !important;
+                padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+            }
+
+            .site-footer .container {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+
+            .site-footer-newsletter {
+                padding-top: 1.5rem !important;
+                padding-bottom: 1.5rem !important;
+            }
+
+            .site-footer-newsletter h3 {
+                font-size: 1.25rem;
+                line-height: 1.2;
+                margin-bottom: 0.35rem;
+            }
+
+            .site-footer-newsletter p {
+                font-size: 0.9rem;
+                line-height: 1.45;
+            }
+
+            #newsletter-form {
+                gap: 0.75rem;
+            }
+
+            #newsletter-email {
+                min-height: 48px;
+                border-radius: 12px;
+                font-size: 16px;
+            }
+
+            #newsletter-btn {
+                width: 100%;
+                min-height: 48px;
+                border-radius: 12px;
+            }
+
+            #newsletter-message {
+                width: 100%;
+                margin-top: 0.25rem;
+                text-align: center;
+            }
+
+            .site-footer-main {
+                display: block !important;
+                padding-top: 1.25rem !important;
+                padding-bottom: 0 !important;
+                margin-bottom: 0 !important;
+            }
+
+            .site-footer-brand {
+                text-align: center;
+                padding-bottom: 1.25rem;
+            }
+
+            .site-footer-brand img {
+                height: 52px;
+                margin-left: auto;
+                margin-right: auto;
+                margin-bottom: 1rem;
+            }
+
+            .site-footer-brand p {
+                max-width: 34ch;
+                margin-left: auto;
+                margin-right: auto;
+                margin-bottom: 1rem;
+            }
+
+            .site-footer-social {
+                justify-content: center;
+                gap: 0.75rem;
+                margin-bottom: 1rem;
+            }
+
+            .site-footer-social a {
+                width: 44px;
+                height: 44px;
+            }
+
+            .site-footer-trust {
+                padding-top: 1rem;
+            }
+
+            .site-footer-trust .flex {
+                justify-content: center;
+            }
+
+            .site-footer-menu-group {
+                border-top: 1px solid #1f2937;
+            }
+
+            .site-footer-menu-toggle {
+                min-height: 54px;
+                padding: 0;
+                margin: 0;
+                border-bottom: 0;
+                letter-spacing: 0.04em;
+            }
+
+            .site-footer-menu-toggle i {
+                display: inline-flex;
+                color: #6b7280;
+            }
+
+            .site-footer-menu-toggle[aria-expanded="true"] i {
+                transform: rotate(180deg);
+                color: #fff;
+            }
+
+            .site-footer-menu-group.is-collapsed .site-footer-menu-list {
+                display: none;
+            }
+
+            .site-footer-menu-list {
+                padding: 0 0 1rem;
+                margin: 0 !important;
+            }
+
+            .site-footer-menu-list li + li {
+                margin-top: 0.4rem;
+            }
+
+            .site-footer-menu-list a,
+            .site-footer-contact-list a,
+            .site-footer-contact-list span {
+                font-size: 0.92rem;
+                line-height: 1.45;
+            }
+
+            .site-footer-menu-list .w-1 {
+                display: none;
+            }
+
+            .site-footer-contact-list {
+                padding-top: 0.25rem;
+            }
+
+            .site-footer-bottom {
+                padding-top: 1.35rem !important;
+                padding-bottom: 0 !important;
+            }
+
+            .site-footer-bottom-grid {
+                display: flex !important;
+                flex-direction: column;
+                gap: 1rem;
+                margin-bottom: 0 !important;
+            }
+
+            .site-footer-legal {
+                justify-content: center;
+                gap: 0.65rem;
+                line-height: 1.6;
+                text-align: center;
+            }
+
+            .site-footer-legal span {
+                display: none;
+            }
+
+            .site-footer-copyright {
+                order: 3;
+            }
+
+            .site-footer-payments {
+                order: 2;
+                justify-content: center;
+            }
+
+            .site-footer-payment-icon {
+                width: 42px;
+                height: 28px;
+                border-radius: 8px;
+                font-size: 1rem;
             }
         }
 
@@ -2434,9 +2652,9 @@
         </div>
     </div>
 
-    <footer class="bg-gray-900 text-gray-300 mt-16 lg:mt-20">
+    <footer class="site-footer bg-gray-900 text-gray-300 mt-16 lg:mt-20">
         <div class="container mx-auto px-4">
-            <div class="border-b border-gray-800 py-10 lg:py-12">
+            <div class="site-footer-newsletter border-b border-gray-800 py-10 lg:py-12">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
                     <div>
                         <h3 class="text-2xl font-bold text-white mb-2">Subscribe to Our Newsletter</h3>
@@ -2461,8 +2679,8 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 lg:gap-12 mb-12 py-12 border-b border-gray-800">
-                <div class="lg:col-span-1">
+            <div class="site-footer-main grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 lg:gap-12 mb-12 py-12 border-b border-gray-800">
+                <div class="site-footer-brand lg:col-span-1">
                     {% if site_settings.footer_logo %}
                         {% optimized_image_url site_settings.footer_logo 'logo' as footer_logo_url %}
                         <img src="{{ footer_logo_url }}" alt="{{ site_settings.site_name }}" class="h-16 mb-6" loading="lazy">
@@ -2471,7 +2689,7 @@
                     {% endif %}
                     <p class="text-sm text-gray-400 mb-6 leading-relaxed">{{ site_settings.site_description|truncatewords:20 }}</p>
 
-                    <div class="flex gap-4 mb-8">
+                    <div class="site-footer-social flex gap-4 mb-8">
                         {% if site_settings.facebook_url %}
                             <a href="{{ site_settings.facebook_url }}" target="_blank" rel="noopener" class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center text-gray-400 hover:bg-blue-600 hover:text-white transition duration-300" aria-label="Facebook">
                                 <i class="fab fa-facebook-f"></i>
@@ -2494,7 +2712,7 @@
                         {% endif %}
                     </div>
 
-                    <div class="border-t border-gray-800 pt-6">
+                    <div class="site-footer-trust border-t border-gray-800 pt-6">
                         <p class="text-xs text-gray-500 mb-3">Safe & Secure</p>
                         <div class="flex flex-wrap gap-3 text-sm">
                             <div class="text-gray-400"><i class="fas fa-lock"></i> SSL Secure</div>
@@ -2505,9 +2723,12 @@
 
                 {% get_footer_menus as footer_menus %}
                 {% for menu in footer_menus %}
-                <div>
-                    <h4 class="text-white font-bold text-sm uppercase tracking-wider mb-6 pb-3 border-b border-gray-800">{{ menu.name }}</h4>
-                    <ul class="space-y-3">
+                <div class="site-footer-menu-group is-collapsed" data-footer-accordion>
+                    <button type="button" class="site-footer-menu-toggle" aria-expanded="false">
+                        <span>{{ menu.name }}</span>
+                        <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                    </button>
+                    <ul class="site-footer-menu-list space-y-3">
                         {% for item in menu.items %}
                         <li>
                             <a href="{{ item.url }}" class="footer-link text-sm flex items-center gap-2" {% if item.open_in_new_tab %}target="_blank" rel="noopener"{% endif %}>
@@ -2520,9 +2741,13 @@
                 </div>
                 {% endfor %}
 
-                <div>
-                    <h4 class="text-white font-bold text-sm uppercase tracking-wider mb-6 pb-3 border-b border-gray-800">Get In Touch</h4>
-                    <ul class="space-y-4 text-sm">
+                <div class="site-footer-menu-group site-footer-contact-group is-collapsed" data-footer-accordion>
+                    <button type="button" class="site-footer-menu-toggle" aria-expanded="false">
+                        <span>Get In Touch</span>
+                        <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                    </button>
+                    <div class="site-footer-menu-list">
+                    <ul class="site-footer-contact-list space-y-4 text-sm">
                         {% if site_settings.contact_email %}
                             <li class="flex items-start gap-3 group">
                                 <i class="fas fa-envelope text-blue-500 w-5 mt-0.5 shrink-0 group-hover:text-blue-400 transition"></i>
@@ -2557,12 +2782,13 @@
                         <p class="text-sm text-gray-300">Mon - Fri: 9:00 AM - 6:00 PM EST</p>
                         <p class="text-sm text-gray-300">Sat - Sun: 10:00 AM - 5:00 PM EST</p>
                     </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="py-8">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 text-sm text-gray-400 items-center">
-                    <div class="flex flex-wrap gap-3 justify-center md:justify-start">
+            <div class="site-footer-bottom py-8">
+                <div class="site-footer-bottom-grid grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 text-sm text-gray-400 items-center">
+                    <div class="site-footer-legal flex flex-wrap gap-3 justify-center md:justify-start">
                         <a href="/privacy/" class="hover:text-white transition">Privacy Policy</a>
                         <span class="text-gray-700">|</span>
                         <a href="/terms/" class="hover:text-white transition">Terms of Service</a>
@@ -2570,16 +2796,16 @@
                         <a href="/sitemap/" class="hover:text-white transition">Sitemap</a>
                     </div>
 
-                    <div class="text-center text-xs text-gray-500">
+                    <div class="site-footer-copyright text-center text-xs text-gray-500">
                         <p>&copy; 2018 - {% now "Y" %} <span class="text-white font-semibold">{{ site_settings.site_name }}</span>. All rights reserved.</p>
                         <p class="mt-2">Crafted for a premium shopping experience</p>
                     </div>
 
-                    <div class="flex gap-3 justify-center md:justify-end">
-                        <div class="w-8 h-5 bg-gray-800 rounded flex items-center justify-center text-xs text-gray-500" title="Visa"><i class="fab fa-cc-visa"></i></div>
-                        <div class="w-8 h-5 bg-gray-800 rounded flex items-center justify-center text-xs text-gray-500" title="Mastercard"><i class="fab fa-cc-mastercard"></i></div>
-                        <div class="w-8 h-5 bg-gray-800 rounded flex items-center justify-center text-xs text-gray-500" title="American Express"><i class="fab fa-cc-amex"></i></div>
-                        <div class="w-8 h-5 bg-gray-800 rounded flex items-center justify-center text-xs text-gray-500" title="PayPal"><i class="fab fa-cc-paypal"></i></div>
+                    <div class="site-footer-payments flex gap-3 justify-center md:justify-end">
+                        <div class="site-footer-payment-icon w-8 h-5 bg-gray-800 rounded flex items-center justify-center text-xs text-gray-500" title="Visa"><i class="fab fa-cc-visa"></i></div>
+                        <div class="site-footer-payment-icon w-8 h-5 bg-gray-800 rounded flex items-center justify-center text-xs text-gray-500" title="Mastercard"><i class="fab fa-cc-mastercard"></i></div>
+                        <div class="site-footer-payment-icon w-8 h-5 bg-gray-800 rounded flex items-center justify-center text-xs text-gray-500" title="American Express"><i class="fab fa-cc-amex"></i></div>
+                        <div class="site-footer-payment-icon w-8 h-5 bg-gray-800 rounded flex items-center justify-center text-xs text-gray-500" title="PayPal"><i class="fab fa-cc-paypal"></i></div>
                     </div>
                 </div>
             </div>
@@ -2950,9 +3176,49 @@
             document.querySelectorAll('img[loading="lazy"]').forEach(img => observer.observe(img));
         }
 
+        function setupMobileFooterAccordions() {
+            const groups = document.querySelectorAll('[data-footer-accordion]');
+            if (!groups.length) return;
+
+            const mediaQuery = window.matchMedia('(max-width: 768px)');
+
+            function syncFooterGroups() {
+                groups.forEach(group => {
+                    const button = group.querySelector('.site-footer-menu-toggle');
+                    const shouldOpen = !mediaQuery.matches || group.dataset.footerOpen === 'true';
+
+                    group.classList.toggle('is-collapsed', !shouldOpen);
+                    if (button) {
+                        button.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+                    }
+                });
+            }
+
+            groups.forEach(group => {
+                const button = group.querySelector('.site-footer-menu-toggle');
+                if (!button) return;
+
+                button.addEventListener('click', () => {
+                    if (!mediaQuery.matches) return;
+                    const isOpen = group.dataset.footerOpen === 'true';
+                    group.dataset.footerOpen = isOpen ? 'false' : 'true';
+                    syncFooterGroups();
+                });
+            });
+
+            if (typeof mediaQuery.addEventListener === 'function') {
+                mediaQuery.addEventListener('change', syncFooterGroups);
+            } else if (typeof mediaQuery.addListener === 'function') {
+                mediaQuery.addListener(syncFooterGroups);
+            }
+
+            syncFooterGroups();
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             setupNewsletterForm();
             setupLazyImageObserver();
+            setupMobileFooterAccordions();
             updateUnreadCount();
             updateNotificationCount();
             updateCartCount();
