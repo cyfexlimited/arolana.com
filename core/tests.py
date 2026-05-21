@@ -1,6 +1,6 @@
 from django.core.cache import cache
 from django.http import HttpResponse
-from django.test import RequestFactory, TestCase, override_settings
+from django.test import Client, RequestFactory, TestCase, override_settings
 
 from .middleware import ArolanaRateLimitMiddleware, ArolanaSecurityHeadersMiddleware
 
@@ -47,3 +47,14 @@ class ArolanaSecurityMiddlewareTests(TestCase):
         self.assertEqual(first.status_code, 200)
         self.assertEqual(second.status_code, 429)
         self.assertEqual(second["Retry-After"], "60")
+
+    @override_settings(
+        DEBUG=False,
+        SECURE_SSL_REDIRECT=True,
+        SECURE_REDIRECT_EXEMPT=[r"^health/$"],
+    )
+    def test_health_check_is_not_redirected_by_https_enforcement(self):
+        response = Client().get("/health/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "ok")
