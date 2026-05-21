@@ -123,6 +123,22 @@ urlpatterns = [
 
     # Health check for Railway
     path("health/", health_check, name="health"),
+    path(
+        "manifest.webmanifest",
+        TemplateView.as_view(
+            template_name="pwa/manifest.webmanifest",
+            content_type="application/manifest+json",
+        ),
+        name="web_manifest",
+    ),
+    path(
+        "service-worker.js",
+        TemplateView.as_view(
+            template_name="pwa/service-worker.js",
+            content_type="application/javascript",
+        ),
+        name="service_worker",
+    ),
 
     # Homepage
     path("", home_view, name="home"),

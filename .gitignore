@@ -40,5 +40,6 @@ static/
 *.key
 *.pem
 *.crt
+claim.json
 secrets/
 local-data.json

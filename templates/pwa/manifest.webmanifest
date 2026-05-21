@@ -1,0 +1,26 @@
+{% load static %}
+{
+  "name": "Arolana",
+  "short_name": "Arolana",
+  "description": "Arolana smart global marketplace",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "{% static 'admin/images/arolana-logo.png' %}",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "{% static 'admin/images/arolana-logo.png' %}",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

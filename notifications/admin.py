@@ -3,7 +3,7 @@ from django.utils.html import format_html
 from django.urls import reverse
 from django.utils import timezone
 from django.db.models import Count, Q
-from .models import Notification, NotificationPreference
+from .models import Notification, NotificationPreference, WebPushSubscription
 
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
@@ -295,3 +295,81 @@ class NotificationPreferenceAdmin(admin.ModelAdmin):
         css = {
             'all': ('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css',)
         }
+
+
+@admin.register(WebPushSubscription)
+class WebPushSubscriptionAdmin(admin.ModelAdmin):
+    list_display = [
+        'user_link',
+        'device_label',
+        'browser_name',
+        'is_active',
+        'failure_count',
+        'last_success_at',
+        'last_failure_at',
+        'updated_at',
+    ]
+    list_filter = ['is_active', 'browser_name', 'created_at', 'last_success_at']
+    search_fields = ['user__username', 'user__email', 'endpoint', 'device_name', 'browser_name']
+    readonly_fields = [
+        'user',
+        'endpoint',
+        'p256dh',
+        'auth',
+        'user_agent',
+        'last_success_at',
+        'last_failure_at',
+        'last_error',
+        'failure_count',
+        'created_at',
+        'updated_at',
+    ]
+    actions = ['activate_selected', 'deactivate_selected']
+    list_per_page = 40
+
+    fieldsets = (
+        ('Device', {
+            'fields': ('user', 'device_name', 'browser_name', 'is_active')
+        }),
+        ('Subscription', {
+            'fields': ('endpoint', 'p256dh', 'auth'),
+            'classes': ('collapse',),
+        }),
+        ('Delivery Health', {
+            'fields': ('last_success_at', 'last_failure_at', 'failure_count', 'last_error'),
+        }),
+        ('Context', {
+            'fields': ('user_agent', 'created_at', 'updated_at'),
+            'classes': ('collapse',),
+        }),
+    )
+
+    def user_link(self, obj):
+        return format_html(
+            '<a href="{}" target="_blank">{}</a>',
+            reverse('admin:accounts_user_change', args=[obj.user.id]),
+            obj.user.username,
+        )
+
+    user_link.short_description = 'User'
+    user_link.admin_order_field = 'user__username'
+
+    def device_label(self, obj):
+        return obj.device_name or obj.browser_name or 'Browser device'
+
+    device_label.short_description = 'Device'
+
+    def activate_selected(self, request, queryset):
+        count = queryset.update(is_active=True)
+        self.message_user(request, f"{count} web push subscription(s) activated.")
+
+    activate_selected.short_description = "Activate selected push subscriptions"
+
+    def deactivate_selected(self, request, queryset):
+        count = queryset.update(is_active=False)
+        self.message_user(request, f"{count} web push subscription(s) deactivated.")
+
+    deactivate_selected.short_description = "Deactivate selected push subscriptions"
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('user')

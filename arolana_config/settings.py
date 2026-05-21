@@ -26,6 +26,13 @@ ALLOWED_HOSTS = csv_config(
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 AROLANA_AI_MODEL = os.environ.get("AROLANA_AI_MODEL", "gpt-5.5")
 
+# ============ WEB PUSH / PWA NOTIFICATIONS ============
+WEB_PUSH_ENABLED = config('WEB_PUSH_ENABLED', default=True, cast=bool)
+WEB_PUSH_VAPID_PUBLIC_KEY = config('WEB_PUSH_VAPID_PUBLIC_KEY', default='')
+WEB_PUSH_VAPID_PRIVATE_KEY = config('WEB_PUSH_VAPID_PRIVATE_KEY', default='')
+WEB_PUSH_VAPID_SUBJECT = config('WEB_PUSH_VAPID_SUBJECT', default='mailto:contact@arolana.com')
+WEB_PUSH_TTL = config('WEB_PUSH_TTL', default=86400, cast=int)
+
 REQUIRED_ALLOWED_HOSTS = [
     'arolana.com',
     'www.arolana.com',

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils import timezone
@@ -246,7 +247,15 @@ class Notification(BaseModel):
                     metadata=metadata or {}
                 )
             )
-        return cls.objects.bulk_create(notifications)
+        created_notifications = cls.objects.bulk_create(notifications)
+        try:
+            from .webpush import send_web_push_notification
+
+            for notification in created_notifications:
+                send_web_push_notification(notification)
+        except Exception:
+            pass
+        return created_notifications
     
     @classmethod
     def cleanup_old_notifications(cls, days=30):
@@ -309,6 +318,49 @@ class NotificationPreference(BaseModel):
             return now >= self.quiet_hours_start or now <= self.quiet_hours_end
 
 
+class WebPushSubscription(BaseModel):
+    """Browser/device subscription used for phone and desktop web push alerts."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='web_push_subscriptions',
+    )
+    endpoint = models.URLField(max_length=700, unique=True)
+    p256dh = models.CharField(max_length=255)
+    auth = models.CharField(max_length=255)
+    user_agent = models.TextField(blank=True)
+    device_name = models.CharField(max_length=140, blank=True)
+    browser_name = models.CharField(max_length=80, blank=True)
+    last_success_at = models.DateTimeField(null=True, blank=True)
+    last_failure_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.TextField(blank=True)
+    failure_count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['-updated_at']
+        indexes = [
+            models.Index(fields=['user', 'is_active']),
+            models.Index(fields=['last_success_at']),
+        ]
+        verbose_name = 'Web Push Subscription'
+        verbose_name_plural = 'Web Push Subscriptions'
+
+    def __str__(self):
+        label = self.device_name or self.browser_name or 'Web push device'
+        return f'{self.user} - {label}'
+
+    @property
+    def subscription_info(self):
+        return {
+            'endpoint': self.endpoint,
+            'keys': {
+                'p256dh': self.p256dh,
+                'auth': self.auth,
+            },
+        }
+
+
 # Signal to create notification preferences for new users
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -319,3 +371,17 @@ def create_user_notification_preferences(sender, instance, created, raw=False, *
         return
     if created:
         NotificationPreference.objects.get_or_create(user=instance)
+
+
+@receiver(post_save, sender=Notification)
+def send_notification_web_push(sender, instance, created, raw=False, **kwargs):
+    if raw or not created:
+        return
+
+    try:
+        from .webpush import send_web_push_notification
+
+        send_web_push_notification(instance)
+    except Exception:
+        # Notification creation should never fail because a push provider is down.
+        return

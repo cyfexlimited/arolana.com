@@ -1,4 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
@@ -7,9 +8,39 @@ from django.views.decorators.csrf import csrf_exempt
 from django.core.paginator import Paginator
 from django.utils import timezone
 from django.db.models import Q, Count
-from .models import Notification, NotificationPreference
+from .models import Notification, NotificationPreference, WebPushSubscription
 from django.template.defaultfilters import timesince
 import json
+
+
+def _json_body(request):
+    try:
+        return json.loads(request.body.decode('utf-8') or '{}')
+    except Exception:
+        return {}
+
+
+def _push_supported_response(request):
+    public_key = getattr(settings, 'WEB_PUSH_VAPID_PUBLIC_KEY', '')
+    private_key = getattr(settings, 'WEB_PUSH_VAPID_PRIVATE_KEY', '')
+    enabled = bool(getattr(settings, 'WEB_PUSH_ENABLED', True) and public_key and private_key)
+    reason = ''
+
+    if not request.user.is_authenticated:
+        reason = 'Sign in to enable Arolana phone alerts.'
+    elif not public_key or not private_key:
+        reason = 'Arolana push notifications are not configured yet.'
+
+    return {
+        'enabled': enabled,
+        'authenticated': request.user.is_authenticated,
+        'public_key': public_key if enabled else '',
+        'service_worker_url': '/service-worker.js',
+        'subscribe_url': '/notifications/api/push/subscribe/',
+        'unsubscribe_url': '/notifications/api/push/unsubscribe/',
+        'test_url': '/notifications/api/push/test/',
+        'reason': reason,
+    }
 
 @login_required
 def notification_list(request):
@@ -217,6 +248,107 @@ def create_test_notification(request):
     
     return render(request, 'notifications/test_notification.html')
 
+
+@require_GET
+def push_config(request):
+    """Public push configuration used by the browser opt-in script."""
+    data = _push_supported_response(request)
+    if request.user.is_authenticated:
+        data['active_subscriptions'] = WebPushSubscription.objects.filter(
+            user=request.user,
+            is_active=True,
+        ).count()
+    else:
+        data['active_subscriptions'] = 0
+    return JsonResponse(data)
+
+
+@login_required
+@require_POST
+def push_subscribe(request):
+    """Store or refresh a browser Push API subscription."""
+    data = _json_body(request)
+    subscription = data.get('subscription') or data
+    endpoint = str(subscription.get('endpoint', '')).strip()
+    keys = subscription.get('keys') or {}
+    p256dh = str(keys.get('p256dh', '')).strip()
+    auth = str(keys.get('auth', '')).strip()
+
+    if not endpoint or not p256dh or not auth:
+        return JsonResponse({
+            'success': False,
+            'message': 'Subscription endpoint and keys are required.',
+        }, status=400)
+
+    device_name = str(data.get('device_name') or '').strip()[:140]
+    browser_name = str(data.get('browser_name') or '').strip()[:80]
+
+    subscription_obj, created = WebPushSubscription.objects.update_or_create(
+        endpoint=endpoint,
+        defaults={
+            'user': request.user,
+            'p256dh': p256dh,
+            'auth': auth,
+            'user_agent': request.META.get('HTTP_USER_AGENT', '')[:1200],
+            'device_name': device_name,
+            'browser_name': browser_name,
+            'is_active': True,
+            'last_error': '',
+        },
+    )
+
+    preferences, _ = NotificationPreference.objects.get_or_create(user=request.user)
+    if not preferences.push_notifications:
+        preferences.push_notifications = True
+        preferences.save(update_fields=['push_notifications', 'updated_at'])
+
+    return JsonResponse({
+        'success': True,
+        'created': created,
+        'subscription_id': subscription_obj.id,
+        'active_subscriptions': WebPushSubscription.objects.filter(
+            user=request.user,
+            is_active=True,
+        ).count(),
+    })
+
+
+@login_required
+@require_POST
+def push_unsubscribe(request):
+    data = _json_body(request)
+    endpoint = str(data.get('endpoint', '')).strip()
+
+    queryset = WebPushSubscription.objects.filter(user=request.user)
+    if endpoint:
+        queryset = queryset.filter(endpoint=endpoint)
+
+    updated = queryset.update(is_active=False)
+
+    return JsonResponse({
+        'success': True,
+        'deactivated': updated,
+    })
+
+
+@login_required
+@require_POST
+def push_test(request):
+    notification = Notification.objects.create(
+        user=request.user,
+        notification_type='info',
+        title='Arolana phone alerts are enabled',
+        message='You will now receive important Arolana alerts on this device.',
+        link='/notifications/',
+        priority=2,
+    )
+
+    return JsonResponse({
+        'success': True,
+        'notification_id': notification.id,
+        'push_sent': notification.push_sent,
+    })
+
 @require_GET
 def get_unread_count(request):
     """API endpoint to get unread notification count - FIXED: uses 'user' not 'recipient'"""
@@ -348,5 +480,6 @@ __all__ = [
     'notification_list', 'mark_as_read', 'mark_all_read', 'delete_notification',
     'delete_all_read', 'delete_all', 'preferences', 'create_test_notification',
     'get_unread_count', 'get_notifications_api', 'get_latest_notifications',
-    'bulk_action', 'notification_detail', 'notification_settings'
+    'bulk_action', 'notification_detail', 'notification_settings',
+    'push_config', 'push_subscribe', 'push_unsubscribe', 'push_test'
 ]

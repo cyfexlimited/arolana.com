@@ -80,6 +80,7 @@ Pygments==2.20.0
 PyJWT==2.12.1
 pyOpenSSL==26.2.0
 pyotp==2.9.0
+pywebpush>=2.0.0
 python-dateutil==2.9.0.post0
 python-decouple==3.8
 python-magic==0.4.27

@@ -23,6 +23,10 @@ urlpatterns = [
     path('api/unread-count/', views.get_unread_count, name='api_unread_count'),
     path('api/get/', views.get_notifications_api, name='api_get'),
     path('api/latest/', views.get_latest_notifications, name='api_latest'),
+    path('api/push/config/', views.push_config, name='push_config'),
+    path('api/push/subscribe/', views.push_subscribe, name='push_subscribe'),
+    path('api/push/unsubscribe/', views.push_unsubscribe, name='push_unsubscribe'),
+    path('api/push/test/', views.push_test, name='push_test'),
     
     # Test
     path('test/', views.create_test_notification, name='test'),
