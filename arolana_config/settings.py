@@ -160,8 +160,10 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'core.middleware.ArolanaRateLimitMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'core.middleware.ArolanaSecurityHeadersMiddleware',
     'django_htmx.middleware.HtmxMiddleware',
     'currency.middleware.CurrencyMiddleware',
     'currency.middleware.CurrencyContextMiddleware',
@@ -496,10 +498,10 @@ if DEBUG:
     CSRF_COOKIE_SAMESITE = 'Lax'
     SESSION_COOKIE_SAMESITE = 'Lax'
 else:
-    SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=False, cast=bool)
+    SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=True, cast=bool)
     SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', default=True, cast=bool)
     CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', default=True, cast=bool)
-    SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', default=0, cast=int)
+    SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', default=31536000, cast=int)
     SECURE_HSTS_INCLUDE_SUBDOMAINS = config('SECURE_HSTS_INCLUDE_SUBDOMAINS', default=False, cast=bool)
     SECURE_HSTS_PRELOAD = config('SECURE_HSTS_PRELOAD', default=False, cast=bool)
     CSRF_COOKIE_SAMESITE = config('CSRF_COOKIE_SAMESITE', default='Lax')
@@ -510,6 +512,112 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 SESSION_COOKIE_AGE = 86400
 SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = config('CSRF_COOKIE_HTTPONLY', default=False, cast=bool)
+
+AROLANA_SECURITY_HEADERS_ENABLED = config(
+    'AROLANA_SECURITY_HEADERS_ENABLED',
+    default=not DEBUG,
+    cast=bool,
+)
+AROLANA_CSP_REPORT_ONLY = config('AROLANA_CSP_REPORT_ONLY', default=False, cast=bool)
+AROLANA_CONTENT_SECURITY_POLICY = (
+    "default-src 'self' https: data: blob:; "
+    "base-uri 'self'; "
+    "object-src 'none'; "
+    "frame-ancestors 'none'; "
+    "form-action 'self' https://accounts.google.com; "
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; "
+    "style-src 'self' 'unsafe-inline' https:; "
+    "font-src 'self' https: data:; "
+    "img-src 'self' https: data: blob:; "
+    "media-src 'self' https: data: blob:; "
+    "connect-src 'self' https: wss:; "
+    "frame-src 'self' https:; "
+    "worker-src 'self' blob:; "
+    "manifest-src 'self'; "
+    "upgrade-insecure-requests"
+)
+AROLANA_SECURITY_HEADERS = {
+    'Content-Security-Policy-Report-Only' if AROLANA_CSP_REPORT_ONLY else 'Content-Security-Policy':
+        config('CONTENT_SECURITY_POLICY', default=AROLANA_CONTENT_SECURITY_POLICY),
+    'Permissions-Policy': config(
+        'PERMISSIONS_POLICY',
+        default=(
+            'accelerometer=(), autoplay=(self), camera=(), clipboard-read=(), '
+            'clipboard-write=(self), display-capture=(), encrypted-media=(self), '
+            'fullscreen=(self), geolocation=(self), gyroscope=(), magnetometer=(), '
+            'microphone=(self), midi=(), payment=(self), picture-in-picture=(self), '
+            'publickey-credentials-get=(self), screen-wake-lock=(), sync-xhr=(), usb=()'
+        ),
+    ),
+    'Cross-Origin-Opener-Policy': 'same-origin',
+    'X-Permitted-Cross-Domain-Policies': 'none',
+}
+
+AROLANA_RATE_LIMIT_ENABLED = config(
+    'AROLANA_RATE_LIMIT_ENABLED',
+    default=not DEBUG,
+    cast=bool,
+)
+AROLANA_RATE_LIMIT_RULES = [
+    {
+        'name': 'admin-login',
+        'paths': ['/admin/login/'],
+        'methods': ['POST'],
+        'limit': config('RATE_LIMIT_ADMIN_LOGIN_LIMIT', default=8, cast=int),
+        'window': config('RATE_LIMIT_ADMIN_LOGIN_WINDOW', default=300, cast=int),
+        'message': 'Too many admin login attempts. Please wait before trying again.',
+    },
+    {
+        'name': 'account-login',
+        'paths': ['/accounts/login/'],
+        'methods': ['POST'],
+        'limit': config('RATE_LIMIT_LOGIN_LIMIT', default=10, cast=int),
+        'window': config('RATE_LIMIT_LOGIN_WINDOW', default=300, cast=int),
+        'message': 'Too many login attempts. Please wait before trying again.',
+    },
+    {
+        'name': 'account-register',
+        'paths': ['/accounts/register/'],
+        'methods': ['POST'],
+        'limit': config('RATE_LIMIT_REGISTER_LIMIT', default=8, cast=int),
+        'window': config('RATE_LIMIT_REGISTER_WINDOW', default=3600, cast=int),
+        'message': 'Too many registration attempts. Please wait before trying again.',
+    },
+    {
+        'name': 'account-otp',
+        'paths': [
+            '/accounts/verify-email/',
+            '/accounts/verify-2fa/',
+            '/accounts/enable-2fa/',
+            '/accounts/resend-verification/',
+            '/accounts/resend-password-otp/',
+            '/accounts/resend-2fa-otp/',
+            '/accounts/resend-2fa-setup-otp/',
+            '/accounts/send-verification-email/',
+        ],
+        'methods': ['POST'],
+        'limit': config('RATE_LIMIT_OTP_LIMIT', default=6, cast=int),
+        'window': config('RATE_LIMIT_OTP_WINDOW', default=600, cast=int),
+        'message': 'Too many verification attempts. Please wait before trying again.',
+    },
+    {
+        'name': 'smartchat',
+        'paths': ['/smartchat/api/'],
+        'methods': ['POST'],
+        'limit': config('RATE_LIMIT_SMARTCHAT_LIMIT', default=60, cast=int),
+        'window': config('RATE_LIMIT_SMARTCHAT_WINDOW', default=300, cast=int),
+        'message': 'Too many chat requests. Please wait a moment before sending more messages.',
+    },
+    {
+        'name': 'ai-search',
+        'paths': ['/search/ai/', '/search/voice/', '/search/image/', '/search/upload-image/'],
+        'methods': ['POST'],
+        'limit': config('RATE_LIMIT_AI_SEARCH_LIMIT', default=30, cast=int),
+        'window': config('RATE_LIMIT_AI_SEARCH_WINDOW', default=300, cast=int),
+        'message': 'Too many search requests. Please wait a moment before searching again.',
+    },
+]
 
 
 # ============ PAYMENT GATEWAYS ============
