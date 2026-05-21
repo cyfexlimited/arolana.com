@@ -6,12 +6,14 @@ app_name = "smartchat"
 urlpatterns = [
     # Customer robot chat API - current names
     path("api/message/", views.api_message, name="api_message"),
+    path("api/guest-contact/", views.api_guest_contact, name="api_guest_contact"),
     path("api/request-admin/", views.api_request_admin, name="api_request_admin"),
     path("api/poll/", views.api_poll, name="api_poll"),
     path("api/typing/", views.api_typing, name="api_typing"),
 
     # Customer robot chat API - compatibility aliases
     path("api/message/", views.api_message, name="message"),
+    path("api/guest-contact/", views.api_guest_contact, name="guest_contact"),
     path("api/request-admin/", views.api_request_admin, name="request_admin_handoff"),
     path("api/poll/", views.api_poll, name="poll"),
     path("api/typing/", views.api_typing, name="typing"),

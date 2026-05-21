@@ -81,6 +81,16 @@ def fallback_reply(message, product=None, selected_variants=None):
     if should_handoff(text):
         return "I understand. I have alerted an Arolana admin so a real person can continue from this chat. Please keep this chat open."
 
+    if any(word in text for word in ["hello", "hi", "good morning", "good afternoon", "good evening"]):
+        if product:
+            return f"Hello, welcome to Arolana. I can help you compare {product_name}, confirm variants, explain price, stock, delivery, warranty, reviews, or help you add it to cart."
+        return "Hello, welcome to Arolana. I can help you search products, compare options, understand delivery and payments, or connect you with an admin when needed."
+
+    if any(word in text for word in ["recommend", "compare", "best", "which one", "difference"]):
+        if product:
+            return f"For {product_name}, I can compare variants, price, stock, warranty, delivery, and compatibility. Tell me what matters most: budget, performance, brand, size, color, or delivery speed."
+        return "I can help compare products across Arolana. Tell me the product type, your budget, preferred brand, and what matters most so I can guide you sensibly."
+
     if any(word in text for word in ["stock", "available", "quantity"]):
         if stock is not None:
             return f"{product_name} currently shows {stock} unit(s) available. Select a variant to confirm exact variant stock before adding to cart."
@@ -98,7 +108,8 @@ def fallback_reply(message, product=None, selected_variants=None):
     if any(word in text for word in ["cart", "buy", "purchase"]):
         return "Select your preferred variant and quantity, then click Add to Cart or Buy Now. I will pass the selected variant to checkout."
 
-    return f"I can help with {product_name}, SKU {sku}, including variants, price, stock, delivery, warranty, compatibility, reviews, and cart support."
+    sku_text = f", SKU {sku}" if sku else ""
+    return f"I can help with {product_name}{sku_text}, including variants, price, stock, delivery, warranty, compatibility, reviews, and cart support. Ask me what you want to know before buying."
 
 
 def openai_reply(conversation, user_message, product=None, selected_variants=None):
@@ -114,17 +125,29 @@ def openai_reply(conversation, user_message, product=None, selected_variants=Non
     model = getattr(settings, "AROLANA_AI_MODEL", "gpt-5.5")
     client = OpenAI(api_key=api_key)
 
+    customer_context = f"""
+Customer: {conversation.customer_display}
+Customer email: {conversation.customer_email or getattr(conversation.user, 'email', '') or 'Not provided'}
+Signed in: {'Yes' if conversation.user_id else 'No'}
+Conversation status: {conversation.status}
+""".strip()
+
     instructions = """
 You are Arolana AI Assistant, a smart marketplace product expert.
 Your job is to help customers make buying decisions and reduce support load.
-Be professional, concise, warm, and practical.
+Be professional, concise, warm, practical, and commercially useful.
 Use the product context provided. Do not invent stock, delivery times, policies, or payment confirmations.
 If the customer asks for a human/admin, complains about payment/order/refund, or needs account-specific help, tell them you are alerting admin and do not pretend to be human.
 For product questions: explain variants, price, stock, compatibility, warranty, delivery, reviews, and how to add to cart.
+For signed-in customers, use their current product/page context and chat history to answer naturally instead of giving generic support text.
+If details are missing, ask one precise follow-up question and suggest the next action on Arolana.
 Always ask one helpful follow-up only when needed.
 """.strip()
 
     input_text = f"""
+CUSTOMER CONTEXT:
+{customer_context}
+
 PRODUCT CONTEXT:
 {product_context(product)}
 

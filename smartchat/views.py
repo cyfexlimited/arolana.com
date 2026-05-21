@@ -1,6 +1,9 @@
 import json
+from django.contrib.auth import get_user_model
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from django.http import JsonResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -13,6 +16,8 @@ from django.core.cache import cache
 from products.models import Product
 from .models import SmartChatConversation, SmartChatMessage
 from .services import openai_reply, should_handoff, make_conversation_title, create_system_message
+
+User = get_user_model()
 
 
 def _json_body(request):
@@ -152,12 +157,154 @@ def _get_or_create_conversation(request, data, product=None):
     return conversation
 
 
+def _notify_staff_new_conversation(conversation, title, message):
+    try:
+        from notifications.models import Notification
+
+        link = reverse("smartchat:admin_conversation", args=[conversation.id])
+        staff_users = User.objects.filter(is_staff=True, is_active=True).only("id")[:25]
+        for staff_user in staff_users:
+            Notification.send(
+                user=staff_user,
+                notification_type="message",
+                title=title,
+                message=message,
+                link=link,
+                metadata={
+                    "smartchat_conversation_id": conversation.id,
+                    "customer_name": conversation.customer_name,
+                    "customer_email": conversation.customer_email,
+                    "subject": conversation.title,
+                    "page_url": conversation.page_url,
+                },
+                priority=3,
+            )
+    except Exception:
+        # Smart chat must keep working even if the optional notification app is unavailable.
+        return
+
+
+def _guest_thank_you_message(name):
+    return (
+        "Thank you for reaching out to Arolana support team. "
+        "We will reach out to you. "
+        "If you have any question, register on Arolana and chat with admin."
+    )
+
+
+@require_POST
+def api_guest_contact(request):
+    data = _json_body(request)
+    first_name = str(data.get("first_name", "")).strip()
+    last_name = str(data.get("last_name", "")).strip()
+    email = str(data.get("email", "")).strip().lower()
+    message_text = str(data.get("message", "")).strip()
+    full_name = f"{first_name} {last_name}".strip()
+
+    errors = {}
+    if not first_name:
+        errors["first_name"] = "First name is required."
+    if not last_name:
+        errors["last_name"] = "Last name is required."
+    try:
+        validate_email(email)
+    except ValidationError:
+        errors["email"] = "Enter a valid email address."
+    if not message_text:
+        errors["message"] = "Message is required."
+
+    if errors:
+        return JsonResponse({"success": False, "errors": errors, "error": "Please complete the form."}, status=400)
+
+    if not request.session.session_key:
+        request.session.create()
+
+    product = None
+    product_id = data.get("product_id")
+    if product_id:
+        product = Product.objects.filter(id=product_id).select_related("category", "brand", "vendor").first()
+
+    conversation = SmartChatConversation.objects.create(
+        user=request.user if request.user.is_authenticated else None,
+        session_key=request.session.session_key or "",
+        product=product,
+        status=SmartChatConversation.STATUS_ADMIN_REQUESTED,
+        title="Arolana support request",
+        customer_name=full_name[:160],
+        customer_email=email,
+        page_url=data.get("page_url", "")[:500],
+        user_agent=request.META.get("HTTP_USER_AGENT", "")[:1200],
+        selected_variants=data.get("selected_variants") or {},
+        admin_requested_at=timezone.now(),
+    )
+    create_system_message(conversation, f"Visitor details captured: {full_name} <{email}>.", {
+        "guest_contact": True,
+        "first_name": first_name,
+        "last_name": last_name,
+        "email": email,
+    })
+    user_message = SmartChatMessage.objects.create(
+        conversation=conversation,
+        sender_type=SmartChatMessage.SENDER_USER,
+        user=request.user if request.user.is_authenticated else None,
+        message=message_text,
+        metadata={
+            "guest_contact": True,
+            "first_name": first_name,
+            "last_name": last_name,
+            "email": email,
+            "page_url": data.get("page_url", ""),
+            "product_name": data.get("product_name", ""),
+            "sku": data.get("sku", ""),
+            "product_id": product_id or "",
+            "selected_variants": data.get("selected_variants") or {},
+            "source": "visitor_capture_form",
+        },
+    )
+    reply = _guest_thank_you_message(full_name)
+    ai_message = SmartChatMessage.objects.create(
+        conversation=conversation,
+        sender_type=SmartChatMessage.SENDER_AI,
+        message=reply,
+        metadata={"guest_contact_confirmation": True},
+    )
+    _notify_staff_new_conversation(
+        conversation,
+        "New Arolana guest chat",
+        (
+            f"Guest contact details:\n"
+            f"Name: {full_name}\n"
+            f"Email: {email}\n"
+            f"Message: {message_text[:500]}"
+        ),
+    )
+
+    return JsonResponse({
+        "success": True,
+        "conversation_id": conversation.id,
+        "status": conversation.status,
+        "handoff_requested": True,
+        "admin_inbox_url": reverse("smartchat:admin_inbox"),
+        "reply": reply,
+        "messages": [_message_payload(user_message), _message_payload(ai_message)],
+    })
+
+
 @require_POST
 def api_message(request):
     data = _json_body(request)
     message = str(data.get("message", "")).strip()
     if not message:
         return JsonResponse({"success": False, "error": "Message is required."}, status=400)
+
+    if not request.user.is_authenticated:
+        guest_conversation_id = _safe_int(data.get("conversation_id"), default=0)
+        if not guest_conversation_id or not _get_customer_conversation(request, guest_conversation_id):
+            return JsonResponse({
+                "success": False,
+                "requires_guest_contact": True,
+                "error": "Please submit your first name, last name, email, and message first so an Arolana admin can help you properly.",
+            }, status=403)
 
     product = None
     product_id = data.get("product_id")
@@ -186,10 +333,30 @@ def api_message(request):
         conversation.last_message_at = user_message.created_at
         conversation.save(update_fields=["last_message_at", "updated_at"])
 
+    if conversation.status in [SmartChatConversation.STATUS_ADMIN_REQUESTED, SmartChatConversation.STATUS_ADMIN_ACTIVE]:
+        return JsonResponse({
+            "success": True,
+            "conversation_id": conversation.id,
+            "status": conversation.status,
+            "admin_only": True,
+            "handoff_requested": conversation.status == SmartChatConversation.STATUS_ADMIN_REQUESTED,
+            "messages": [_message_payload(user_message)],
+        })
+
     handoff = should_handoff(message)
     if handoff:
+        was_already_waiting = conversation.status in [
+            SmartChatConversation.STATUS_ADMIN_REQUESTED,
+            SmartChatConversation.STATUS_ADMIN_ACTIVE,
+        ]
         conversation.mark_admin_requested()
-        create_system_message(conversation, "Customer requested admin support. Waiting for admin takeover.")
+        if not was_already_waiting:
+            create_system_message(conversation, "Customer requested admin support. Waiting for admin takeover.")
+            _notify_staff_new_conversation(
+                conversation,
+                "Customer requested Arolana admin",
+                f"{conversation.customer_display} requested admin support from Smart Chat.",
+            )
         reply = "I have alerted an Arolana admin. A real person can continue from this chat shortly."
         ai_message = SmartChatMessage.objects.create(
             conversation=conversation,
@@ -205,22 +372,6 @@ def api_message(request):
             "admin_inbox_url": reverse("smartchat:admin_inbox"),
             "reply": reply,
             "messages": [_message_payload(user_message), _message_payload(ai_message)],
-        })
-
-    if conversation.status in [SmartChatConversation.STATUS_ADMIN_REQUESTED, SmartChatConversation.STATUS_ADMIN_ACTIVE]:
-        reply = "Your message has been added to the admin support chat. Please wait for an Arolana admin to reply."
-        system_msg = SmartChatMessage.objects.create(
-            conversation=conversation,
-            sender_type=SmartChatMessage.SENDER_SYSTEM,
-            message=reply,
-        )
-        return JsonResponse({
-            "success": True,
-            "conversation_id": conversation.id,
-            "status": conversation.status,
-            "handoff_requested": conversation.status == SmartChatConversation.STATUS_ADMIN_REQUESTED,
-            "reply": reply,
-            "messages": [_message_payload(user_message), _message_payload(system_msg)],
         })
 
     reply = openai_reply(conversation, message, product=conversation.product or product, selected_variants=selected_variants)
@@ -244,15 +395,35 @@ def api_message(request):
 @require_POST
 def api_request_admin(request):
     data = _json_body(request)
+    if not request.user.is_authenticated:
+        guest_conversation_id = _safe_int(data.get("conversation_id"), default=0)
+        if not guest_conversation_id or not _get_customer_conversation(request, guest_conversation_id):
+            return JsonResponse({
+                "success": False,
+                "requires_guest_contact": True,
+                "error": "Please submit the guest contact form first so we know how to reach you.",
+            }, status=403)
+
     conversation = _get_or_create_conversation(request, data)
+    already_waiting = conversation.status in [
+        SmartChatConversation.STATUS_ADMIN_REQUESTED,
+        SmartChatConversation.STATUS_ADMIN_ACTIVE,
+    ]
     conversation.mark_admin_requested()
-    message = str(data.get("message", "Customer requested admin support.")).strip()
-    create_system_message(conversation, message)
+    if not already_waiting:
+        message = str(data.get("message", "Customer requested admin support.")).strip()
+        create_system_message(conversation, message)
+        _notify_staff_new_conversation(
+            conversation,
+            "Customer requested Arolana admin",
+            f"{conversation.customer_display} requested admin support from Smart Chat.",
+        )
     return JsonResponse({
         "success": True,
         "conversation_id": conversation.id,
         "status": conversation.status,
-        "reply": "Admin support has been requested. Please keep this chat open.",
+        "reply": "" if already_waiting else "Admin support has been requested. Please keep this chat open.",
+        "already_requested": already_waiting,
         "admin_inbox_url": reverse("smartchat:admin_inbox"),
     })
 

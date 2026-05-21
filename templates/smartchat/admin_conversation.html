@@ -588,6 +588,10 @@
                         <strong>{{ conversation.customer_email|default:"Not provided" }}</strong>
                     </div>
                     <div class="smartchat-info-item">
+                        <span>Subject</span>
+                        <strong>{{ conversation.title|default:"Smart chat" }}</strong>
+                    </div>
+                    <div class="smartchat-info-item">
                         <span>Status</span>
                         <strong id="smartchat-side-status">{{ conversation.status }}</strong>
                     </div>
