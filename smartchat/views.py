@@ -192,6 +192,12 @@ def _guest_thank_you_message(name):
     )
 
 
+GUEST_CONTACT_PROMPT = (
+    "Please submit your first name, last name, email, and message first so an "
+    "Arolana admin can help you properly."
+)
+
+
 @require_POST
 def api_guest_contact(request):
     data = _json_body(request)
@@ -230,9 +236,11 @@ def api_guest_contact(request):
         product=product,
         status=SmartChatConversation.STATUS_ADMIN_REQUESTED,
         title="Arolana support request",
-        customer_name=full_name[:160],
+        customer_first_name=first_name[:100],
+        customer_last_name=last_name[:100],
+        customer_name=full_name[:200],
         customer_email=email,
-        page_url=data.get("page_url", "")[:500],
+        page_url=data.get("page_url", "")[:700],
         user_agent=request.META.get("HTTP_USER_AGENT", "")[:1200],
         selected_variants=data.get("selected_variants") or {},
         admin_requested_at=timezone.now(),
@@ -303,7 +311,7 @@ def api_message(request):
             return JsonResponse({
                 "success": False,
                 "requires_guest_contact": True,
-                "error": "Please submit your first name, last name, email, and message first so an Arolana admin can help you properly.",
+                "error": GUEST_CONTACT_PROMPT,
             }, status=403)
 
     product = None
@@ -401,7 +409,7 @@ def api_request_admin(request):
             return JsonResponse({
                 "success": False,
                 "requires_guest_contact": True,
-                "error": "Please submit the guest contact form first so we know how to reach you.",
+                "error": GUEST_CONTACT_PROMPT,
             }, status=403)
 
     conversation = _get_or_create_conversation(request, data)
@@ -438,7 +446,11 @@ def api_poll(request):
 
     conversation = _get_customer_conversation(request, conversation_id)
     if not conversation:
-        return JsonResponse({"success": False, "error": "Conversation not found."}, status=404)
+        payload = {"success": False, "error": "Conversation not found."}
+        if not request.user.is_authenticated:
+            payload["requires_guest_contact"] = True
+            payload["error"] = GUEST_CONTACT_PROMPT
+        return JsonResponse(payload, status=404)
 
     messages = conversation.messages.filter(id__gt=after_id, is_private_note=False).order_by("id")
     return JsonResponse({

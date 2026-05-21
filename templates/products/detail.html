@@ -2064,6 +2064,11 @@
     }
 
     function openAIChat() {
+        if (window.ArolanaSmartChatNoRefresh && typeof window.ArolanaSmartChatNoRefresh.open === 'function') {
+            window.ArolanaSmartChatNoRefresh.open();
+            return;
+        }
+
         /*
             Always open the global Arolana SmartChat widget from base.html.
             Do NOT fall back to the old product-local chat IDs.
@@ -2098,6 +2103,11 @@
     }
 
     function closeAIChat() {
+        if (window.ArolanaSmartChatNoRefresh && typeof window.ArolanaSmartChatNoRefresh.close === 'function') {
+            window.ArolanaSmartChatNoRefresh.close();
+            return;
+        }
+
         const globalPanel = document.getElementById('arolana-smartchat-panel');
         const globalToggle = document.getElementById('arolana-smartchat-toggle');
         const globalIcon = document.getElementById('arolana-smartchat-toggle-icon');

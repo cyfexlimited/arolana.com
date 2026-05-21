@@ -23,7 +23,14 @@ class SmartChatConversation(models.Model):
         blank=True,
         related_name="smart_chat_conversations",
     )
-    session_key = models.CharField(max_length=80, blank=True, db_index=True)
+
+    session_key = models.CharField(
+        max_length=120,
+        blank=True,
+        db_index=True,
+        help_text="Visitor session key for guests.",
+    )
+
     product = models.ForeignKey(
         "products.Product",
         on_delete=models.SET_NULL,
@@ -31,6 +38,7 @@ class SmartChatConversation(models.Model):
         blank=True,
         related_name="smart_chat_conversations",
     )
+
     assigned_admin = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -39,16 +47,32 @@ class SmartChatConversation(models.Model):
         related_name="assigned_smart_chat_conversations",
         limit_choices_to={"is_staff": True},
     )
-    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default=STATUS_AI, db_index=True)
-    title = models.CharField(max_length=180, blank=True)
-    customer_name = models.CharField(max_length=160, blank=True)
+
+    status = models.CharField(
+        max_length=30,
+        choices=STATUS_CHOICES,
+        default=STATUS_AI,
+        db_index=True,
+    )
+
+    # Visitor / customer captured details
+    customer_first_name = models.CharField(max_length=100, blank=True)
+    customer_last_name = models.CharField(max_length=100, blank=True)
+    customer_name = models.CharField(max_length=200, blank=True)
     customer_email = models.EmailField(blank=True)
+    customer_phone = models.CharField(max_length=40, blank=True)
+
+    title = models.CharField(max_length=220, blank=True)
     selected_variants = models.JSONField(default=dict, blank=True)
-    page_url = models.URLField(blank=True)
+
+    page_url = models.URLField(max_length=700, blank=True)
     user_agent = models.TextField(blank=True)
+
     ai_summary = models.TextField(blank=True)
     admin_requested_at = models.DateTimeField(null=True, blank=True)
+
     last_message_at = models.DateTimeField(default=timezone.now, db_index=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -57,32 +81,81 @@ class SmartChatConversation(models.Model):
         indexes = [
             models.Index(fields=["status", "-last_message_at"]),
             models.Index(fields=["session_key", "-last_message_at"]),
+            models.Index(fields=["customer_email"]),
+            models.Index(fields=["created_at"]),
         ]
+        verbose_name = "Smart Chat Conversation"
+        verbose_name_plural = "Smart Chat Conversations"
 
     def __str__(self):
         product_name = self.product.name if self.product else "General chat"
         return f"#{self.id} - {product_name} - {self.get_status_display()}"
 
     @property
+    def full_customer_name(self):
+        name = f"{self.customer_first_name} {self.customer_last_name}".strip()
+        return name or self.customer_name
+
+    @property
     def customer_display(self):
         if self.user:
             return self.user.get_full_name() or self.user.username or self.user.email
-        return self.customer_name or self.customer_email or "Guest customer"
+
+        return (
+            self.full_customer_name
+            or self.customer_email
+            or "Guest customer"
+        )
+
+    @property
+    def is_guest(self):
+        return self.user_id is None
 
     @property
     def is_waiting_for_admin(self):
         return self.status == self.STATUS_ADMIN_REQUESTED
 
+    @property
+    def is_admin_active(self):
+        return self.status == self.STATUS_ADMIN_ACTIVE
+
+    @property
+    def is_closed(self):
+        return self.status == self.STATUS_CLOSED
+
+    @property
+    def unread_for_admin_count(self):
+        return self.messages.filter(
+            sender_type=SmartChatMessage.SENDER_USER,
+            is_private_note=False,
+        ).count()
+
     def mark_admin_requested(self):
         if self.status != self.STATUS_ADMIN_ACTIVE:
             self.status = self.STATUS_ADMIN_REQUESTED
             self.admin_requested_at = timezone.now()
-            self.save(update_fields=["status", "admin_requested_at", "updated_at"])
+            self.save(
+                update_fields=[
+                    "status",
+                    "admin_requested_at",
+                    "updated_at",
+                ]
+            )
 
     def assign_admin(self, admin_user):
         self.assigned_admin = admin_user
         self.status = self.STATUS_ADMIN_ACTIVE
-        self.save(update_fields=["assigned_admin", "status", "updated_at"])
+        self.save(
+            update_fields=[
+                "assigned_admin",
+                "status",
+                "updated_at",
+            ]
+        )
+
+    def close(self):
+        self.status = self.STATUS_CLOSED
+        self.save(update_fields=["status", "updated_at"])
 
     def touch(self):
         self.last_message_at = timezone.now()
@@ -107,7 +180,13 @@ class SmartChatMessage(models.Model):
         on_delete=models.CASCADE,
         related_name="messages",
     )
-    sender_type = models.CharField(max_length=20, choices=SENDER_CHOICES, db_index=True)
+
+    sender_type = models.CharField(
+        max_length=20,
+        choices=SENDER_CHOICES,
+        db_index=True,
+    )
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -115,24 +194,48 @@ class SmartChatMessage(models.Model):
         blank=True,
         related_name="smart_chat_messages",
     )
+
     message = models.TextField()
     metadata = models.JSONField(default=dict, blank=True)
+
     is_private_note = models.BooleanField(default=False)
+
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
         ordering = ["created_at"]
         indexes = [
             models.Index(fields=["conversation", "created_at"]),
+            models.Index(fields=["conversation", "id"]),
             models.Index(fields=["sender_type", "created_at"]),
         ]
+        verbose_name = "Smart Chat Message"
+        verbose_name_plural = "Smart Chat Messages"
 
     def __str__(self):
         return f"{self.get_sender_type_display()} - {self.created_at:%Y-%m-%d %H:%M}"
 
+    @property
+    def sender_display(self):
+        if self.sender_type == self.SENDER_USER:
+            return "Customer"
+
+        if self.sender_type == self.SENDER_AI:
+            return "Arolana AI"
+
+        if self.sender_type == self.SENDER_ADMIN:
+            if self.user:
+                return self.user.get_full_name() or self.user.username or "Arolana Admin"
+            return "Arolana Admin"
+
+        return "System"
+
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        SmartChatConversation.objects.filter(pk=self.conversation_id).update(
+
+        SmartChatConversation.objects.filter(
+            pk=self.conversation_id
+        ).update(
             last_message_at=self.created_at,
             updated_at=timezone.now(),
         )
