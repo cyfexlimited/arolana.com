@@ -157,31 +157,58 @@ def _get_or_create_conversation(request, data, product=None):
     return conversation
 
 
-def _notify_staff_new_conversation(conversation, title, message):
+def _staff_notification_recipients(conversation):
+    if conversation.assigned_admin_id and conversation.assigned_admin and conversation.assigned_admin.is_active:
+        return [conversation.assigned_admin]
+
+    return list(User.objects.filter(is_staff=True, is_active=True).only("id")[:25])
+
+
+def _notify_staff_new_conversation(conversation, title, message, priority=3, metadata=None):
     try:
         from notifications.models import Notification
 
         link = reverse("smartchat:admin_conversation", args=[conversation.id])
-        staff_users = User.objects.filter(is_staff=True, is_active=True).only("id")[:25]
-        for staff_user in staff_users:
+        base_metadata = {
+            "smartchat_conversation_id": conversation.id,
+            "customer_name": conversation.customer_name,
+            "customer_email": conversation.customer_email,
+            "subject": conversation.title,
+            "page_url": conversation.page_url,
+        }
+        if metadata:
+            base_metadata.update(metadata)
+
+        for staff_user in _staff_notification_recipients(conversation):
             Notification.send(
                 user=staff_user,
                 notification_type="message",
                 title=title,
                 message=message,
                 link=link,
-                metadata={
-                    "smartchat_conversation_id": conversation.id,
-                    "customer_name": conversation.customer_name,
-                    "customer_email": conversation.customer_email,
-                    "subject": conversation.title,
-                    "page_url": conversation.page_url,
-                },
-                priority=3,
+                metadata=base_metadata,
+                priority=priority,
             )
     except Exception:
         # Smart chat must keep working even if the optional notification app is unavailable.
         return
+
+
+def _notify_staff_customer_message(conversation, message):
+    snippet = (message.message or "").strip()
+    if len(snippet) > 240:
+        snippet = f"{snippet[:237]}..."
+
+    _notify_staff_new_conversation(
+        conversation,
+        "New Arolana AI Assistant message",
+        f"{conversation.customer_display} sent a Smart Chat message: {snippet}",
+        priority=3,
+        metadata={
+            "smartchat_message_id": message.id,
+            "event": "customer_message",
+        },
+    )
 
 
 def _guest_thank_you_message(name):
@@ -342,6 +369,7 @@ def api_message(request):
         conversation.save(update_fields=["last_message_at", "updated_at"])
 
     if conversation.status in [SmartChatConversation.STATUS_ADMIN_REQUESTED, SmartChatConversation.STATUS_ADMIN_ACTIVE]:
+        _notify_staff_customer_message(conversation, user_message)
         return JsonResponse({
             "success": True,
             "conversation_id": conversation.id,
