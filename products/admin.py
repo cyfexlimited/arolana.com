@@ -440,10 +440,12 @@ class CategoryAdmin(OptionalColorFieldAdminMixin, admin.ModelAdmin):
             'fields': (
                 'hero_title',
                 'hero_subtitle',
+                ('show_hero_eyebrow', 'show_hero_title', 'show_hero_subtitle'),
+                ('show_hero_stats', 'show_hero_cta', 'show_hero_side_image'),
                 ('hero_background_color', 'hero_text_color', 'hero_accent_color'),
                 ('hero_button_background_color', 'hero_button_text_color'),
             ),
-            'description': 'Customize the hero section on the category landing page. Color fields are optional hex values like #0f172a.',
+            'description': 'Customize the hero section on the category landing page. Turn off text/metrics when your uploaded design already includes them.',
             'classes': ('wide',)
         }),
         ('SEO & Description', {
@@ -1057,7 +1059,15 @@ class ProductListingBannerAdmin(OptionalColorFieldAdminMixin, admin.ModelAdmin):
 
     fieldsets = (
         ("Banner Content", {
-            "fields": ("placement", "eyebrow", "title", "subtitle")
+            "fields": (
+                "placement",
+                "eyebrow",
+                "title",
+                "subtitle",
+                ("show_eyebrow", "show_title", "show_subtitle"),
+                ("show_metrics", "show_cta", "show_side_image"),
+            ),
+            "description": "Turn off text/metrics/CTA when the uploaded banner artwork already contains them."
         }),
         ("Images", {
             "fields": ("background_image", "side_image", "banner_preview"),

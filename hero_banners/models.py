@@ -43,6 +43,10 @@ class HeroBanner(BaseModel):
     title = models.CharField(max_length=200, help_text="Main headline text")
     subtitle = models.CharField(max_length=500, blank=True, help_text="Secondary text")
     description = models.TextField(blank=True, help_text="Additional description")
+    show_content = models.BooleanField(default=True, help_text="Show the text/content layer over the banner.")
+    show_title = models.BooleanField(default=True, help_text="Show the title on the banner.")
+    show_subtitle = models.BooleanField(default=True, help_text="Show the subtitle on the banner.")
+    show_description = models.BooleanField(default=True, help_text="Show the description on the banner.")
     
     # Media
     image_desktop = models.ImageField(upload_to='hero_banners/desktop/', blank=True, null=True, help_text="Desktop image (1920x1080 recommended)")
@@ -70,6 +74,11 @@ class HeroBanner(BaseModel):
     ]
     animation_effect = models.CharField(max_length=20, choices=EFFECTS_CHOICES, default='fade')
     animation_duration = models.FloatField(default=0.8, help_text="Animation duration in seconds")
+
+    # Whole banner click
+    enable_slide_link = models.BooleanField(default=False, help_text="Make the whole banner clickable when customers tap/click the image area.")
+    slide_link_url = models.CharField(max_length=500, blank=True, default='', help_text="Optional whole-banner URL. Useful when the uploaded design already contains button artwork.")
+    slide_open_behavior = models.CharField(max_length=20, choices=OPEN_BEHAVIOR_CHOICES, default='same_page')
     
     # Buttons & CTA
     BUTTON_STYLE_CHOICES = [
@@ -98,6 +107,7 @@ class HeroBanner(BaseModel):
     button3_background_color = models.CharField(max_length=20, blank=True, default='', help_text="Optional custom button background color.")
     button3_text_color = models.CharField(max_length=20, blank=True, default='', help_text="Optional custom button text color.")
     button3_border_color = models.CharField(max_length=20, blank=True, default='', help_text="Optional custom border color.")
+    show_buttons = models.BooleanField(default=True, help_text="Show CTA buttons. Turn off when the uploaded design already includes button text.")
 
     linked_article = models.ForeignKey(
         'blog.BlogPost',
@@ -153,19 +163,23 @@ class HeroBanner(BaseModel):
 
     @property
     def show_button1(self):
-        return bool(self.button1_text and self.button1_url and self.button1_url != '#')
+        return bool(self.show_buttons and self.button1_text and self.button1_url and self.button1_url != '#')
 
     @property
     def show_button2(self):
-        return bool(self.button2_text and self.button2_url and self.button2_url != '#')
+        return bool(self.show_buttons and self.button2_text and self.button2_url and self.button2_url != '#')
 
     @property
     def show_button3(self):
-        return bool(self.button3_text and self.button3_url and self.button3_url != '#')
+        return bool(self.show_buttons and self.button3_text and self.button3_url and self.button3_url != '#')
 
     @property
     def show_article_button(self):
-        return bool(self.linked_article and self.article_button_text)
+        return bool(self.show_buttons and self.linked_article and self.article_button_text)
+
+    @property
+    def has_slide_link(self):
+        return bool(self.enable_slide_link and self.slide_link_url)
 
     @property
     def article_url(self):

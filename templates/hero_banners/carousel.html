@@ -17,6 +17,24 @@
         width: 100%;
         height: 100%;
     }
+    .hero-slide {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateX(0) scale(1);
+        will-change: opacity, transform;
+    }
+    .hero-slide.active {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        z-index: 10;
+    }
+    .hero-slide[data-banner-clickable="true"] {
+        cursor: pointer;
+    }
     .hero-background picture {
         display: block;
     }
@@ -213,7 +231,18 @@
          data-height-tablet="{{ banner.tablet_height|default:460 }}"
          data-height-mobile="{{ banner.mobile_height|default:380 }}"
          data-mobile-content-layout="{{ banner.mobile_content_layout|default:'image_only' }}"
-         style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: {% if forloop.first %}1{% else %}0{% endif %}; transition: opacity 0.8s ease-in-out; z-index: {% if forloop.first %}10{% else %}1{% endif %}; --hero-fit-desktop: {{ banner.image_fit_desktop|default:'cover' }}; --hero-fit-tablet: {{ banner.image_fit_tablet|default:'cover' }}; --hero-fit-mobile: {{ banner.image_fit_mobile|default:'cover' }}; --hero-pos-desktop: {{ banner.image_position_desktop|default:'center center' }}; --hero-pos-tablet: {{ banner.image_position_tablet|default:'center center' }}; --hero-pos-mobile: {{ banner.image_position_mobile|default:'center center' }};">
+         data-animation-effect="{{ banner.animation_effect|default:'fade' }}"
+         data-animation-duration="{{ banner.animation_duration|default:0.8 }}"
+         {% if banner.has_slide_link %}
+         data-banner-clickable="true"
+         data-banner-click-url="{{ banner.slide_link_url }}"
+         data-banner-click-behavior="{{ banner.slide_open_behavior|default:'same_page' }}"
+         role="link"
+         tabindex="0"
+         {% else %}
+         data-banner-clickable="false"
+         {% endif %}
+         style="opacity: {% if forloop.first %}1{% else %}0{% endif %}; visibility: {% if forloop.first %}visible{% else %}hidden{% endif %}; z-index: {% if forloop.first %}10{% else %}1{% endif %}; --hero-fit-desktop: {{ banner.image_fit_desktop|default:'cover' }}; --hero-fit-tablet: {{ banner.image_fit_tablet|default:'cover' }}; --hero-fit-mobile: {{ banner.image_fit_mobile|default:'cover' }}; --hero-pos-desktop: {{ banner.image_position_desktop|default:'center center' }}; --hero-pos-tablet: {{ banner.image_position_tablet|default:'center center' }}; --hero-pos-mobile: {{ banner.image_position_mobile|default:'center center' }};">
         
         <!-- Background Image -->
         <div class="hero-background" style="position: absolute; top: 0; left: 0;">
@@ -239,15 +268,18 @@
         </div>
         
         <!-- Content -->
+        {% if banner.show_content %}
         <div class="hero-content" style="align-items: {% if banner.content_position == 'top' %}flex-start{% elif banner.content_position == 'bottom' %}flex-end{% else %}center{% endif %}; justify-content: {% if banner.text_alignment == 'left' %}flex-start{% elif banner.text_alignment == 'right' %}flex-end{% else %}center{% endif %}; color: {{ banner.text_color|default:'#ffffff' }};">
             <div class="hero-content-inner" style="text-align: {{ banner.text_alignment|default:'center' }};">
+                {% if banner.show_title %}
                 <h1 class="hero-title">{{ banner.title }}</h1>
+                {% endif %}
                 
-                {% if banner.subtitle %}
+                {% if banner.show_subtitle and banner.subtitle %}
                 <p class="hero-subtitle">{{ banner.subtitle }}</p>
                 {% endif %}
                 
-                {% if banner.description %}
+                {% if banner.show_description and banner.description %}
                 <p class="hero-description">{{ banner.description }}</p>
                 {% endif %}
                 
@@ -289,6 +321,7 @@
                 {% endif %}
             </div>
         </div>
+        {% endif %}
     </div>
     {% endfor %}
     
@@ -319,8 +352,9 @@
     const totalSlides = {{ banners|length }};
     const heroContainer = document.querySelector('.hero-carousel-container');
     const firstSlide = document.querySelector('.hero-slide');
-    const autoplayDelay = parseInt(firstSlide?.dataset.autoplayDelay || '5000', 10);
+    const defaultAutoplayDelay = parseInt(firstSlide?.dataset.autoplayDelay || '5000', 10);
     let autoSlideInterval;
+    let slideTransitionTimer;
     let isHovering = false;
 
     function getSlideHeight(slide) {
@@ -330,6 +364,12 @@
         return height > 0 ? `${height}px` : (window.innerWidth <= 767 ? '380px' : window.innerWidth <= 1023 ? '460px' : '560px');
     }
 
+    function getAutoplayDelay(index = currentSlide) {
+        const slide = document.querySelector(`.hero-slide[data-slide-index="${index}"]`);
+        const delay = parseInt(slide?.dataset.autoplayDelay || `${defaultAutoplayDelay}`, 10);
+        return Number.isFinite(delay) ? delay : 5000;
+    }
+
     function applySlideSizing(index) {
         const slide = document.querySelector(`.hero-slide[data-slide-index="${index}"]`);
         if (heroContainer && slide) {
@@ -337,15 +377,135 @@
         }
     }
     
+    function animationDurationMs(slide) {
+        const seconds = parseFloat(slide?.dataset.animationDuration || '0.8');
+        return Math.max(0, Number.isFinite(seconds) ? seconds : 0.8) * 1000;
+    }
+
+    function resetSlideVisual(slide) {
+        if (!slide) return;
+        slide.style.transition = 'none';
+        slide.style.transform = 'translateX(0) scale(1)';
+    }
+
+    function setSlideHidden(slide) {
+        if (!slide) return;
+        slide.classList.remove('active');
+        slide.style.opacity = '0';
+        slide.style.visibility = 'hidden';
+        slide.style.pointerEvents = 'none';
+        slide.style.zIndex = '1';
+        resetSlideVisual(slide);
+    }
+
+    function openBannerUrl(slide) {
+        if (!slide || slide.dataset.bannerClickable !== 'true' || !slide.dataset.bannerClickUrl) return;
+        const url = slide.dataset.bannerClickUrl;
+        const behavior = slide.dataset.bannerClickBehavior || 'same_page';
+        const bannerId = slide.dataset.bannerId;
+        if (bannerId) trackClick(bannerId);
+
+        if (behavior === 'new_page' || behavior === 'popup') {
+            window.open(url, '_blank', 'noopener,noreferrer');
+        } else {
+            window.location.href = url;
+        }
+    }
+
     function showSlide(index) {
         const slides = document.querySelectorAll('.hero-slide');
         const dots = document.querySelectorAll('.hero-dot');
+        if (!slides.length || index < 0 || index >= slides.length) return;
+
+        const previousIndex = currentSlide;
+        const previousSlide = slides[previousIndex];
+        const nextSlideElement = slides[index];
+        const effect = nextSlideElement.dataset.animationEffect || 'fade';
+        const duration = animationDurationMs(nextSlideElement);
+        const direction = index >= previousIndex ? 1 : -1;
+
         applySlideSizing(index);
+
+        clearTimeout(slideTransitionTimer);
         
         slides.forEach((slide, i) => {
-            slide.style.opacity = i === index ? '1' : '0';
-            slide.style.zIndex = i === index ? '10' : '1';
+            if (i !== previousIndex && i !== index) setSlideHidden(slide);
         });
+
+        if (effect === 'none' || duration === 0 || previousIndex === index) {
+            slides.forEach((slide, i) => {
+                if (i === index) {
+                    slide.classList.add('active');
+                    slide.style.transition = 'none';
+                    slide.style.opacity = '1';
+                    slide.style.visibility = 'visible';
+                    slide.style.pointerEvents = 'auto';
+                    slide.style.zIndex = '10';
+                    slide.style.transform = 'translateX(0) scale(1)';
+                } else {
+                    setSlideHidden(slide);
+                }
+            });
+        } else {
+            nextSlideElement.classList.add('active');
+            nextSlideElement.style.transition = 'none';
+            nextSlideElement.style.visibility = 'visible';
+            nextSlideElement.style.pointerEvents = 'auto';
+            nextSlideElement.style.zIndex = '10';
+
+            if (effect === 'slide') {
+                nextSlideElement.style.opacity = '1';
+                nextSlideElement.style.transform = `translateX(${direction * 100}%) scale(1)`;
+            } else if (effect === 'zoom') {
+                nextSlideElement.style.opacity = '0';
+                nextSlideElement.style.transform = 'translateX(0) scale(1.08)';
+            } else {
+                nextSlideElement.style.opacity = '0';
+                nextSlideElement.style.transform = 'translateX(0) scale(1)';
+            }
+
+            if (previousSlide && previousSlide !== nextSlideElement) {
+                previousSlide.style.transition = `opacity ${duration}ms ease, transform ${duration}ms ease`;
+                previousSlide.style.visibility = 'visible';
+                previousSlide.style.pointerEvents = 'none';
+                previousSlide.style.zIndex = '5';
+            }
+
+            requestAnimationFrame(() => {
+                nextSlideElement.style.transition = `opacity ${duration}ms ease, transform ${duration}ms ease`;
+                nextSlideElement.style.opacity = '1';
+                nextSlideElement.style.transform = 'translateX(0) scale(1)';
+
+                if (previousSlide && previousSlide !== nextSlideElement) {
+                    if (effect === 'slide') {
+                        previousSlide.style.opacity = '1';
+                        previousSlide.style.transform = `translateX(${direction * -100}%) scale(1)`;
+                    } else if (effect === 'zoom') {
+                        previousSlide.style.opacity = '0';
+                        previousSlide.style.transform = 'translateX(0) scale(0.98)';
+                    } else {
+                        previousSlide.style.opacity = '0';
+                        previousSlide.style.transform = 'translateX(0) scale(1)';
+                    }
+                }
+            });
+
+            slideTransitionTimer = setTimeout(() => {
+                slides.forEach((slide, i) => {
+                    if (i === index) {
+                        slide.classList.add('active');
+                        slide.style.transition = '';
+                        slide.style.opacity = '1';
+                        slide.style.visibility = 'visible';
+                        slide.style.pointerEvents = 'auto';
+                        slide.style.zIndex = '10';
+                        slide.style.transform = 'translateX(0) scale(1)';
+                    } else {
+                        setSlideHidden(slide);
+                    }
+                });
+            }, duration + 80);
+        }
         
         dots.forEach((dot, i) => {
             if (i === index) {
@@ -415,7 +575,8 @@
     }
     
     function startAutoSlide() {
-        if (totalSlides <= 1 || autoplayDelay <= 0) {
+        const delay = getAutoplayDelay();
+        if (totalSlides <= 1 || delay <= 0) {
             return;
         }
 
@@ -423,22 +584,23 @@
             if (!isHovering) {
                 nextSlide();
             }
-        }, autoplayDelay);
+        }, delay);
         
         startProgress();
     }
     
     function startProgress() {
         const progressBar = document.querySelector('.hero-progress-bar');
-        if (progressBar && totalSlides > 1 && autoplayDelay > 0) {
-            progressBar.style.transition = `width ${autoplayDelay}ms linear`;
+        const delay = getAutoplayDelay();
+        if (progressBar && totalSlides > 1 && delay > 0) {
+            progressBar.style.transition = `width ${delay}ms linear`;
             progressBar.style.width = '100%';
             setTimeout(() => {
                 if (progressBar) {
                     progressBar.style.transition = '';
                     progressBar.style.width = '0%';
                 }
-            }, autoplayDelay);
+            }, delay);
         }
     }
     
@@ -469,6 +631,17 @@
         btn.addEventListener('click', () => {
             const bannerId = btn.dataset.bannerId;
             if (bannerId) trackClick(bannerId);
+        });
+    });
+    document.querySelectorAll('.hero-slide[data-banner-clickable="true"]').forEach(slide => {
+        slide.addEventListener('click', event => {
+            if (event.target.closest('a, button, .hero-btn, .hero-arrow, .hero-dot')) return;
+            openBannerUrl(slide);
+        });
+        slide.addEventListener('keydown', event => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            openBannerUrl(slide);
         });
     });
     

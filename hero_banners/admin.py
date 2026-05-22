@@ -54,7 +54,15 @@ class HeroBannerAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Basic Information', {
-            'fields': ('title', 'subtitle', 'description', 'display_order', 'is_active')
+            'fields': (
+                'title',
+                'subtitle',
+                'description',
+                ('show_content', 'show_title', 'show_subtitle', 'show_description'),
+                'display_order',
+                'is_active',
+            ),
+            'description': 'Content switches let you hide overlay text when the uploaded banner image already contains its own design/text.'
         }),
         ('Media', {
             'fields': ('image_desktop', 'image_tablet', 'image_mobile'),
@@ -72,10 +80,14 @@ class HeroBannerAdmin(admin.ModelAdmin):
         }),
         ('Animation', {
             'fields': ('animation_effect', 'animation_duration', 'autoplay_delay'),
-            'classes': ('collapse',)
+        }),
+        ('Whole Banner Click', {
+            'fields': ('enable_slide_link', 'slide_link_url', 'slide_open_behavior'),
+            'description': 'Optional: make the whole banner image clickable, useful when there are no separate CTA buttons.'
         }),
         ('Buttons', {
             'fields': (
+                'show_buttons',
                 ('button1_text', 'button1_url', 'button1_style'),
                 ('button1_background_color', 'button1_text_color', 'button1_border_color'),
                 ('button2_text', 'button2_url', 'button2_style'),

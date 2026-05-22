@@ -723,13 +723,20 @@
 
             <div class="category-hero-content">
                 <div>
+                    {% if category.show_hero_eyebrow %}
                     <span class="category-eyebrow">
                         <i class="fas fa-layer-group"></i>
                         Arolana Department
                     </span>
+                    {% endif %}
+                    {% if category.show_hero_title %}
                     <h1>{{ category.hero_title|default:category.name }}</h1>
+                    {% endif %}
+                    {% if category.show_hero_subtitle %}
                     <p>{{ category.hero_subtitle|default:category.description|default:"Discover a curated collection of trusted products, verified vendors, and premium deals in this category." }}</p>
+                    {% endif %}
 
+                    {% if category.show_hero_stats %}
                     <div class="category-stats">
                         <span class="category-stat"><i class="fas fa-box-open"></i> {{ products.paginator.count }} Products</span>
                         <span class="category-stat"><i class="fas fa-store"></i> {{ vendors_count }} Vendors</span>
@@ -737,12 +744,15 @@
                             <span class="category-stat"><i class="fas fa-folder-tree"></i> {{ subcategories|length }} Subcategories</span>
                         {% endif %}
                     </div>
+                    {% endif %}
 
+                    {% if category.show_hero_cta %}
                     <a href="#category-products" class="category-hero-cta">
                         Start shopping <i class="fas fa-arrow-down"></i>
                     </a>
+                    {% endif %}
                 </div>
-                {% if category.image %}
+                {% if category.show_hero_side_image and category.image %}
                 <div class="category-side-image" aria-hidden="true">
                     {% optimized_image_url category.image 'category_card' as category_side_image_url %}
                     <img src="{{ category_side_image_url }}" alt="">

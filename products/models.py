@@ -127,6 +127,12 @@ class Category(BaseModel):
         null=True, 
         help_text="Hero subtitle text displayed on category landing page"
     )
+    show_hero_eyebrow = models.BooleanField(default=True, help_text="Show the small category hero eyebrow label.")
+    show_hero_title = models.BooleanField(default=True, help_text="Show the category hero title.")
+    show_hero_subtitle = models.BooleanField(default=True, help_text="Show the category hero subtitle/description.")
+    show_hero_stats = models.BooleanField(default=True, help_text="Show product/vendor/subcategory metrics on the category hero.")
+    show_hero_cta = models.BooleanField(default=True, help_text="Show the category hero CTA button.")
+    show_hero_side_image = models.BooleanField(default=True, help_text="Show the optional category side image.")
     hero_background_color = models.CharField(
         max_length=20,
         blank=True,
@@ -1348,6 +1354,12 @@ class ProductListingBanner(BaseModel):
     cta_link = models.CharField(max_length=255, blank=True, default="#products-section")
     cta_background_color = models.CharField(max_length=20, blank=True, default="", help_text="Optional CTA button background color.")
     cta_text_color = models.CharField(max_length=20, blank=True, default="", help_text="Optional CTA button text color.")
+    show_eyebrow = models.BooleanField(default=True, help_text="Show the banner eyebrow label.")
+    show_title = models.BooleanField(default=True, help_text="Show the banner title.")
+    show_subtitle = models.BooleanField(default=True, help_text="Show the banner subtitle.")
+    show_metrics = models.BooleanField(default=True, help_text="Show the metric chips on the banner.")
+    show_cta = models.BooleanField(default=True, help_text="Show the CTA button.")
+    show_side_image = models.BooleanField(default=True, help_text="Show the optional floating side image.")
 
     metric_one_icon = models.CharField(max_length=50, default="box")
     metric_one_text = models.CharField(max_length=80, default="Products")

@@ -1081,13 +1081,18 @@
         >
             <div class="arolana-shop-hero-content">
                 <div>
+                    {% if not shop_banner or shop_banner.show_eyebrow %}
                     <span class="arolana-shop-eyebrow">
                         <i class="fas fa-sparkles"></i>
                         {% if shop_banner %}{{ shop_banner.eyebrow }}{% else %}Arolana Marketplace{% endif %}
                     </span>
+                    {% endif %}
 
+                    {% if not shop_banner or shop_banner.show_title %}
                     <h1>{% if shop_banner %}{{ shop_banner.title }}{% else %}Discover the future of shopping{% endif %}</h1>
+                    {% endif %}
 
+                    {% if not shop_banner or shop_banner.show_subtitle %}
                     <p>
                         {% if shop_banner %}
                             {{ shop_banner.subtitle }}
@@ -1096,7 +1101,9 @@
                             and shop with a premium marketplace experience built for every screen.
                         {% endif %}
                     </p>
+                    {% endif %}
 
+                    {% if not shop_banner or shop_banner.show_metrics %}
                     <div class="arolana-hero-metrics">
                         {% if shop_banner %}
                             <span class="arolana-hero-metric">
@@ -1117,19 +1124,20 @@
                             <span class="arolana-hero-metric"><i class="fas fa-truck"></i> Fast Delivery</span>
                         {% endif %}
                     </div>
+                    {% endif %}
 
-                    {% if shop_banner and shop_banner.cta_text %}
+                    {% if shop_banner and shop_banner.show_cta and shop_banner.cta_text %}
                         <a href="{{ shop_banner.cta_link|default:'#products-section' }}" class="arolana-hero-cta">
                             {{ shop_banner.cta_text }} <i class="fas fa-arrow-right"></i>
                         </a>
-                    {% else %}
+                    {% elif not shop_banner %}
                         <a href="#products-section" class="arolana-hero-cta">
                             Start shopping <i class="fas fa-arrow-right"></i>
                         </a>
                     {% endif %}
                 </div>
 
-                {% if shop_banner and shop_banner.side_image %}
+                {% if shop_banner and shop_banner.show_side_image and shop_banner.side_image %}
                 <div class="arolana-hero-orb" aria-hidden="true">
                     <img src="{{ shop_banner.side_image.url }}" alt="">
                 </div>
