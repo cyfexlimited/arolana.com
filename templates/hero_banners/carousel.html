@@ -70,6 +70,7 @@
         min-height: 48px;
         padding: 12px 28px;
         border-radius: 8px;
+        border: 1px solid transparent;
         text-decoration: none;
         font-weight: 800;
         transition: all 0.3s;
@@ -250,10 +251,11 @@
                 <p class="hero-description">{{ banner.description }}</p>
                 {% endif %}
                 
-                {% if banner.show_button1 or banner.show_button2 or banner.show_button3 %}
+                {% if banner.show_button1 or banner.show_button2 or banner.show_button3 or banner.show_article_button %}
                 <div class="hero-actions" style="justify-content: {% if banner.text_alignment == 'left' %}flex-start{% elif banner.text_alignment == 'right' %}flex-end{% else %}center{% endif %};">
                     {% if banner.show_button1 %}
                     <a href="{{ banner.button1_url }}" class="hero-btn hero-btn--{{ banner.button1_style }}"
+                       style="{% if banner.button1_background_color %}background: {{ banner.button1_background_color }};{% endif %}{% if banner.button1_text_color %}color: {{ banner.button1_text_color }};{% endif %}{% if banner.button1_border_color %}border-color: {{ banner.button1_border_color }};{% endif %}"
                        data-banner-id="{{ banner.id }}">
                         {{ banner.button1_text }}
                     </a>
@@ -261,6 +263,7 @@
                     
                     {% if banner.show_button2 %}
                     <a href="{{ banner.button2_url }}" class="hero-btn hero-btn--{{ banner.button2_style }}"
+                       style="{% if banner.button2_background_color %}background: {{ banner.button2_background_color }};{% endif %}{% if banner.button2_text_color %}color: {{ banner.button2_text_color }};{% endif %}{% if banner.button2_border_color %}border-color: {{ banner.button2_border_color }};{% endif %}"
                        data-banner-id="{{ banner.id }}">
                         {{ banner.button2_text }}
                     </a>
@@ -268,8 +271,18 @@
 
                     {% if banner.show_button3 %}
                     <a href="{{ banner.button3_url }}" class="hero-btn hero-btn--{{ banner.button3_style }}"
+                       style="{% if banner.button3_background_color %}background: {{ banner.button3_background_color }};{% endif %}{% if banner.button3_text_color %}color: {{ banner.button3_text_color }};{% endif %}{% if banner.button3_border_color %}border-color: {{ banner.button3_border_color }};{% endif %}"
                        data-banner-id="{{ banner.id }}">
                         {{ banner.button3_text }}
+                    </a>
+                    {% endif %}
+
+                    {% if banner.show_article_button %}
+                    <a href="{{ banner.article_url }}" class="hero-btn hero-btn--primary"
+                       style="{% if banner.article_button_background_color %}background: {{ banner.article_button_background_color }};{% endif %}{% if banner.article_button_text_color %}color: {{ banner.article_button_text_color }};{% endif %}{% if banner.article_button_border_color %}border-color: {{ banner.article_button_border_color }};{% endif %}"
+                       data-banner-id="{{ banner.id }}"
+                       {% if banner.article_open_behavior == 'new_page' %}target="_blank" rel="noopener noreferrer"{% endif %}>
+                        {{ banner.article_button_text }}
                     </a>
                     {% endif %}
                 </div>

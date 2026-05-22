@@ -6,7 +6,9 @@
     <div class="flex justify-between items-center mb-8">
         <div>
             <h1 class="text-3xl font-bold">My Wishlist</h1>
-            <p class="text-gray-600 mt-1">Products you've saved for later</p>
+            <p class="text-gray-600 mt-1">
+                Products you've saved for later{% if is_guest_wishlist %} in this browser{% endif %}
+            </p>
         </div>
         {% if wishlist_items %}
             <button onclick="clearWishlist()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition flex items-center gap-2">
@@ -108,14 +110,14 @@
                     
                     <!-- Action Buttons -->
                     <div class="mt-4 flex gap-2">
-                        <form method="POST" action="{% url 'products:add_to_cart' item.product.slug %}" class="flex-1">
+                        <form method="POST" action="{% url 'products:add_to_cart' item.product.slug %}" class="flex-1 arolana-ajax-cart-form" data-cart-ajax="true">
                             {% csrf_token %}
                             <input type="hidden" name="quantity" value="1">
-                            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-1">
+                            <button type="submit" data-cart-button class="add-to-cart-btn w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-1">
                                 <i class="fas fa-cart-plus"></i> Add to Cart
                             </button>
                         </form>
-                        <button onclick="removeFromWishlist({{ item.product.id }})" 
+                        <button onclick="removeFromWishlist('{{ item.product.slug|escapejs }}')"
                                 class="px-3 py-2 bg-gray-100 text-red-600 rounded-lg hover:bg-red-100 transition">
                             <i class="fas fa-trash-alt"></i>
                         </button>
@@ -219,8 +221,8 @@ function closeClearModal() {
     modal.classList.remove('flex');
 }
 
-function removeFromWishlist(productId) {
-    fetch(`/products/toggle-wishlist/${productId}/`, {
+function removeFromWishlist(productSlug) {
+    fetch(`/products/${productSlug}/toggle-wishlist/`, {
         method: 'POST',
         headers: {
             'X-CSRFToken': '{{ csrf_token }}',
@@ -280,13 +282,13 @@ function quickView(productId) {
                         <p class="text-gray-600 mb-2">${data.category}</p>
                         <p class="text-gray-600 mb-4">${data.description}</p>
                         <p class="text-2xl font-bold text-blue-600 mb-4">${data.price}</p>
-                        <form method="POST" action="${data.add_to_cart_url}">
-                            <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
-                            <input type="hidden" name="quantity" value="1">
-                            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
-                                Add to Cart
-                            </button>
-                        </form>
+	                        <form method="POST" action="${data.add_to_cart_url}" class="arolana-ajax-cart-form" data-cart-ajax="true">
+	                            <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+	                            <input type="hidden" name="quantity" value="1">
+	                            <button type="submit" data-cart-button class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
+	                                <i class="fas fa-cart-plus mr-2"></i> Add to Cart
+	                            </button>
+	                        </form>
                     </div>
                 </div>
             `;

@@ -1,5 +1,5 @@
 
-% for ad in ads %}
+{% for ad in ads %}
     <div class="footer-ad bg-gray-800 rounded-lg p-4 mb-4">
         {% if ad.image %}
             <a href="{{ ad.url }}" target="_blank" rel="noopener noreferrer">
@@ -10,7 +10,8 @@
             <div class="text-center">
                 <p class="text-sm text-gray-400 mb-1">Special Offer</p>
                 <p class="font-semibold">{{ ad.title }}</p>
-                <a href="{{ ad.url }}" target="_blank" class="text-blue-400 hover:underline text-sm">
+                <a href="{{ ad.url }}" target="_blank" class="text-blue-400 hover:underline text-sm"
+                   style="{% if ad.button_background_color %}background: {{ ad.button_background_color }}; padding: .35rem .65rem; border-radius: .5rem; text-decoration: none;{% endif %}{% if ad.button_text_color %}color: {{ ad.button_text_color }};{% endif %}">
                     {{ ad.button_text }} →
                 </a>
             </div>

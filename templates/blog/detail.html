@@ -1,6 +1,7 @@
 {% extends 'base/base.html' %}
 {% load static %}
 {% load ad_tags %}
+{% load media_optimization %}
 
 {% block title %}{{ post.title }} | Arolana Blog{% endblock %}
 
@@ -167,10 +168,11 @@
             {% endif %}
             
             <!-- Featured Image -->
-            {% if post.featured_image %}
+            {% if post.show_featured_image and post.display_image %}
             <div class="mb-8">
-                <img src="{{ post.featured_image.url }}" alt="{{ post.title }}" 
-                     class="w-full rounded-xl shadow-lg">
+                {% optimized_image_url post.display_image 'hero' as post_image_url %}
+                <img src="{{ post_image_url }}" alt="{{ post.title }}" 
+                     class="w-full rounded-xl shadow-lg object-cover">
             </div>
             {% endif %}
             
@@ -392,8 +394,9 @@
                 <div class="space-y-4">
                     {% for popular in popular_posts %}
                     <a href="{{ popular.get_absolute_url }}" class="flex gap-3 group">
-                        {% if popular.featured_image %}
-                            <img src="{{ popular.featured_image.url }}" class="w-16 h-16 object-cover rounded-lg">
+                        {% if popular.display_image %}
+                            {% optimized_image_url popular.display_image 'avatar' as popular_image_url %}
+                            <img src="{{ popular_image_url }}" alt="{{ popular.title }}" class="w-16 h-16 object-cover rounded-lg">
                         {% else %}
                             <div class="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
                                 <i class="fas fa-image text-gray-400"></i>
@@ -488,8 +491,9 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {% for related in related_posts %}
             <a href="{{ related.get_absolute_url }}" class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition group">
-                {% if related.featured_image %}
-                    <img src="{{ related.featured_image.url }}" class="w-full h-40 object-cover group-hover:scale-105 transition duration-300">
+                {% if related.display_image %}
+                    {% optimized_image_url related.display_image 'category_card' as related_image_url %}
+                    <img src="{{ related_image_url }}" alt="{{ related.title }}" class="w-full h-40 object-cover group-hover:scale-105 transition duration-300">
                 {% else %}
                     <div class="w-full h-40 bg-gray-200 flex items-center justify-center">
                         <i class="fas fa-image text-gray-400 text-4xl"></i>

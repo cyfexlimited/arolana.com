@@ -910,10 +910,10 @@
                         {% endif %}
                     </div>
 
-                    <form method="POST" action="{% url 'products:add_to_cart' product.slug %}" class="vendor-cart-form">
+                    <form method="POST" action="{% url 'products:add_to_cart' product.slug %}" class="vendor-cart-form arolana-ajax-cart-form" data-cart-ajax="true">
                         {% csrf_token %}
                         <input type="hidden" name="quantity" value="1">
-                        <button type="submit" class="vendor-cart-btn">
+                        <button type="submit" class="vendor-cart-btn" data-cart-button>
                             <i class="fas fa-cart-plus"></i>
                             Add to Cart
                         </button>

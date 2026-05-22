@@ -189,8 +189,8 @@
     margin-top: 1.2rem;
     padding: .88rem 1.15rem;
     border-radius: 999px;
-    color: #0f172a;
-    background: #fff;
+    color: var(--banner-cta-text, #0f172a);
+    background: var(--banner-cta-bg, #fff);
     font-weight: 950;
     box-shadow: 0 18px 40px rgba(0,0,0,.20);
     transition: transform .18s ease, box-shadow .18s ease;
@@ -1074,9 +1074,9 @@
         <section
             class="arolana-shop-hero {% if shop_banner and shop_banner.background_image %}has-image{% endif %}"
             {% if shop_banner and shop_banner.background_image %}
-                style="background-image: url('{{ shop_banner.background_image.url }}'); --banner-primary: {{ shop_banner.primary_color|default:'#2563eb' }}; --banner-secondary: {{ shop_banner.secondary_color|default:'#7c3aed' }};"
+                style="background-image: url('{{ shop_banner.background_image.url }}'); --banner-primary: {{ shop_banner.primary_color|default:'#2563eb' }}; --banner-secondary: {{ shop_banner.secondary_color|default:'#7c3aed' }};{% if shop_banner.cta_background_color %} --banner-cta-bg: {{ shop_banner.cta_background_color }};{% endif %}{% if shop_banner.cta_text_color %} --banner-cta-text: {{ shop_banner.cta_text_color }};{% endif %}"
             {% elif shop_banner %}
-                style="--banner-primary: {{ shop_banner.primary_color|default:'#2563eb' }}; --banner-secondary: {{ shop_banner.secondary_color|default:'#7c3aed' }};"
+                style="--banner-primary: {{ shop_banner.primary_color|default:'#2563eb' }}; --banner-secondary: {{ shop_banner.secondary_color|default:'#7c3aed' }};{% if shop_banner.cta_background_color %} --banner-cta-bg: {{ shop_banner.cta_background_color }};{% endif %}{% if shop_banner.cta_text_color %} --banner-cta-text: {{ shop_banner.cta_text_color }};{% endif %}"
             {% endif %}
         >
             <div class="arolana-shop-hero-content">
@@ -1286,29 +1286,7 @@
                     {% include 'products/product_grid.html' with products=products user_currency=user_currency %}
                 </div>
 
-                {% if products.has_other_pages %}
-                <div class="pagination">
-                    {% if products.has_previous %}
-                        <a href="#" data-page="{{ products.previous_page_number }}" class="page-link pagination-link">
-                            <i class="fas fa-chevron-left"></i>
-                        </a>
-                    {% endif %}
-
-                    {% for num in products.paginator.page_range %}
-                        {% if num == products.number %}
-                            <span class="page-link active">{{ num }}</span>
-                        {% elif num > products.number|add:'-3' and num < products.number|add:'3' %}
-                            <a href="#" data-page="{{ num }}" class="page-link pagination-link">{{ num }}</a>
-                        {% endif %}
-                    {% endfor %}
-
-                    {% if products.has_next %}
-                        <a href="#" data-page="{{ products.next_page_number }}" class="page-link pagination-link">
-                            <i class="fas fa-chevron-right"></i>
-                        </a>
-                    {% endif %}
-                </div>
-                {% endif %}
+	                {% include 'products/partials/ajax_pagination.html' with page_obj=products pagination_id='products-pagination' wrapper_class='pagination' %}
             </main>
         </div>
     </div>
@@ -1388,8 +1366,12 @@ async function applyFilters(page = 1) {
 
         const data = await response.json();
 
-        const container = document.getElementById('products-container');
-        if (container) container.innerHTML = data.html;
+	        const container = document.getElementById('products-container');
+	        if (container) container.innerHTML = data.html;
+	        const pagination = document.getElementById('products-pagination');
+	        if (pagination && typeof data.pagination_html !== 'undefined') {
+	            pagination.outerHTML = data.pagination_html;
+	        }
 
         const showingFrom = document.getElementById('showing-from');
         const showingTo = document.getElementById('showing-to');
@@ -1532,14 +1514,18 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-document.addEventListener('submit', async function(event) {
-    const form = event.target.closest('.arolana-ajax-cart-form');
+	document.addEventListener('submit', async function(event) {
+	    const form = event.target.closest('.arolana-ajax-cart-form');
 
-    if (!form) {
-        return;
-    }
+	    if (!form) {
+	        return;
+	    }
 
-    event.preventDefault();
+	    if (window.ArolanaCartUI) {
+	        return;
+	    }
+
+	    event.preventDefault();
 
     const button = form.querySelector('button[type="submit"]');
     const original = button ? button.innerHTML : '';
@@ -1616,6 +1602,10 @@ document.addEventListener('click', async function(event) {
             if (icon) {
                 icon.classList.toggle('far', !data.in_wishlist);
                 icon.classList.toggle('fas', !!data.in_wishlist);
+            }
+            const wishlistCountEl = document.getElementById('wishlist-count');
+            if (wishlistCountEl && typeof data.wishlist_count !== 'undefined') {
+                wishlistCountEl.innerText = data.wishlist_count || 0;
             }
 
             showArolanaToast(data.message || 'Wishlist updated', 'success');

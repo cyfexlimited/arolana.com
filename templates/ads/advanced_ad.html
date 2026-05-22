@@ -25,6 +25,7 @@
                     {% endif %}
                     <a href="{{ ad.clickthrough_url }}" target="_blank" rel="noopener noreferrer"
                        class="inline-flex items-center gap-2 bg-white text-purple-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-100 transition-colors"
+                       style="{% if ad.cta_background_color %}background: {{ ad.cta_background_color }};{% endif %}{% if ad.cta_text_color %}color: {{ ad.cta_text_color }};{% endif %}"
                        onclick="trackAdClick({{ ad.id }})">
                         {{ ad.cta_text }}
                         <i class="fas fa-arrow-right text-xs"></i>
@@ -57,6 +58,7 @@
                         {% endif %}
                         <a href="{{ ad.cta_url }}" target="_blank" rel="noopener noreferrer"
                            class="inline-flex items-center gap-2 bg-white text-blue-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-100 transition-colors"
+                           style="{% if ad.cta_background_color %}background: {{ ad.cta_background_color }};{% endif %}{% if ad.cta_text_color %}color: {{ ad.cta_text_color }};{% endif %}"
                            onclick="trackAdClick({{ ad.id }})">
                             {{ ad.cta_text }}
                             <i class="fas fa-arrow-right text-xs"></i>
@@ -91,6 +93,7 @@
                     {% endif %}
                     <a href="{{ ad.url }}" target="_blank" rel="noopener noreferrer"
                        class="inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors"
+                       style="{% if ad.button_background_color %}background: {{ ad.button_background_color }};{% endif %}{% if ad.button_text_color %}color: {{ ad.button_text_color }};{% endif %}"
                        onclick="trackAdClick({{ ad.id }})">
                         {{ ad.button_text }}
                         <i class="fas fa-arrow-right text-xs"></i>
@@ -180,12 +183,12 @@ document.addEventListener('DOMContentLoaded', function() {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
                 const adElement = entry.target;
-                const adId = adElement.dataset.adId;
+                const adId = Number.parseInt(adElement.dataset.adId, 10);
                 
-                if (adId && !adElement.dataset.tracked) {
+                if (Number.isFinite(adId) && adId > 0 && !adElement.dataset.tracked) {
                     adElement.dataset.tracked = 'true';
                     
-                    fetch('/ads/track-view/', {
+                    fetch('{% url "ads:track_view" %}', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',

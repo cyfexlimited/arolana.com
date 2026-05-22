@@ -81,14 +81,23 @@ class HeroBanner(BaseModel):
     button1_text = models.CharField(max_length=50, blank=True, default='')
     button1_url = models.CharField(max_length=500, blank=True, default='')
     button1_style = models.CharField(max_length=20, choices=BUTTON_STYLE_CHOICES, default='primary')
+    button1_background_color = models.CharField(max_length=20, blank=True, default='', help_text="Optional custom button background color, e.g. #2563eb.")
+    button1_text_color = models.CharField(max_length=20, blank=True, default='', help_text="Optional custom button text color, e.g. #ffffff.")
+    button1_border_color = models.CharField(max_length=20, blank=True, default='', help_text="Optional custom border color.")
     
     button2_text = models.CharField(max_length=50, blank=True, default='')
     button2_url = models.CharField(max_length=500, blank=True, default='#')
     button2_style = models.CharField(max_length=20, choices=BUTTON_STYLE_CHOICES, default='outline')
+    button2_background_color = models.CharField(max_length=20, blank=True, default='', help_text="Optional custom button background color.")
+    button2_text_color = models.CharField(max_length=20, blank=True, default='', help_text="Optional custom button text color.")
+    button2_border_color = models.CharField(max_length=20, blank=True, default='', help_text="Optional custom border color.")
 
     button3_text = models.CharField(max_length=50, blank=True, default='')
     button3_url = models.CharField(max_length=500, blank=True, default='')
     button3_style = models.CharField(max_length=20, choices=BUTTON_STYLE_CHOICES, default='secondary')
+    button3_background_color = models.CharField(max_length=20, blank=True, default='', help_text="Optional custom button background color.")
+    button3_text_color = models.CharField(max_length=20, blank=True, default='', help_text="Optional custom button text color.")
+    button3_border_color = models.CharField(max_length=20, blank=True, default='', help_text="Optional custom border color.")
 
     linked_article = models.ForeignKey(
         'blog.BlogPost',
@@ -100,6 +109,9 @@ class HeroBanner(BaseModel):
     )
     article_button_text = models.CharField(max_length=60, blank=True, default='Read Article')
     article_open_behavior = models.CharField(max_length=20, choices=OPEN_BEHAVIOR_CHOICES, default='same_page')
+    article_button_background_color = models.CharField(max_length=20, blank=True, default='', help_text="Optional custom article button background color.")
+    article_button_text_color = models.CharField(max_length=20, blank=True, default='', help_text="Optional custom article button text color.")
+    article_button_border_color = models.CharField(max_length=20, blank=True, default='', help_text="Optional custom article button border color.")
     
     # Advanced Styling
     overlay_color = models.CharField(max_length=20, default='#000000')

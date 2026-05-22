@@ -187,6 +187,8 @@ class AdCreative(BaseModel):
     headline = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     cta_text = models.CharField(max_length=50, default='Learn More')
+    cta_background_color = models.CharField(max_length=20, blank=True, default='', help_text="Optional CTA button background color.")
+    cta_text_color = models.CharField(max_length=20, blank=True, default='', help_text="Optional CTA button text color.")
     
     # Media
     image = models.ImageField(upload_to='ads/creatives/', null=True, blank=True)
@@ -258,6 +260,8 @@ class AdBanner(BaseModel):
     # Interactive Elements
     cta_text = models.CharField(max_length=50, default='Learn More')
     cta_url = models.URLField(blank=True)
+    cta_background_color = models.CharField(max_length=20, blank=True, default='', help_text="Optional CTA button background color.")
+    cta_text_color = models.CharField(max_length=20, blank=True, default='', help_text="Optional CTA button text color.")
     alt_text = models.CharField(max_length=200, blank=True)
     linked_article = models.ForeignKey(
         'blog.BlogPost',
@@ -444,6 +448,8 @@ class Advertisement(BaseModel):
     image = models.ImageField(upload_to='advertisements/', null=True, blank=True)
     url = models.URLField(blank=True)
     button_text = models.CharField(max_length=100, default='Learn More')
+    button_background_color = models.CharField(max_length=20, blank=True, default='', help_text="Optional button background color.")
+    button_text_color = models.CharField(max_length=20, blank=True, default='', help_text="Optional button text color.")
     linked_article = models.ForeignKey(
         'blog.BlogPost',
         on_delete=models.SET_NULL,

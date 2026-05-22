@@ -17,6 +17,7 @@
                     <a href="{% if ad_type == 'creative' %}{{ ad.clickthrough_url }}{% elif ad_type == 'banner' %}{{ ad.cta_url }}{% else %}{{ ad.url }}{% endif %}" 
                        target="_blank" rel="noopener noreferrer"
                        class="inline-flex items-center gap-1 mt-2 text-xs font-semibold hover:underline"
+                       style="{% if ad.cta_background_color %}background: {{ ad.cta_background_color }}; padding: .35rem .65rem; border-radius: .5rem; text-decoration: none;{% elif ad.button_background_color %}background: {{ ad.button_background_color }}; padding: .35rem .65rem; border-radius: .5rem; text-decoration: none;{% endif %}{% if ad.cta_text_color %}color: {{ ad.cta_text_color }};{% elif ad.button_text_color %}color: {{ ad.button_text_color }};{% endif %}"
                        onclick="trackAdClick({{ ad.id }}, '{{ ad_type }}')">
                         {{ ad.cta_text|default:ad.button_text|default:'Learn More' }} →
                     </a>
@@ -40,6 +41,7 @@
                     <a href="{% if ad_type == 'creative' %}{{ ad.clickthrough_url }}{% elif ad_type == 'banner' %}{{ ad.cta_url }}{% else %}{{ ad.url }}{% endif %}" 
                        target="_blank" rel="noopener noreferrer"
                        class="inline-flex items-center gap-1 mt-2 text-xs font-semibold hover:underline"
+                       style="{% if ad.cta_background_color %}background: {{ ad.cta_background_color }}; padding: .35rem .65rem; border-radius: .5rem; text-decoration: none;{% elif ad.button_background_color %}background: {{ ad.button_background_color }}; padding: .35rem .65rem; border-radius: .5rem; text-decoration: none;{% endif %}{% if ad.cta_text_color %}color: {{ ad.cta_text_color }};{% elif ad.button_text_color %}color: {{ ad.button_text_color }};{% endif %}"
                        onclick="trackAdClick({{ ad.id }}, '{{ ad_type }}')">
                         {{ ad.cta_text|default:ad.button_text|default:'Learn More' }}
                         <i class="fas fa-arrow-right text-xs"></i>
@@ -58,6 +60,7 @@
                 <a href="{% if ad_type == 'creative' %}{{ ad.clickthrough_url }}{% elif ad_type == 'banner' %}{{ ad.cta_url }}{% else %}{{ ad.url }}{% endif %}" 
                    target="_blank" rel="noopener noreferrer"
                    class="inline-flex items-center gap-2 bg-white text-pink-600 px-4 py-1.5 rounded-lg text-xs font-semibold hover:bg-gray-100 transition"
+                   style="{% if ad.cta_background_color %}background: {{ ad.cta_background_color }};{% elif ad.button_background_color %}background: {{ ad.button_background_color }};{% endif %}{% if ad.cta_text_color %}color: {{ ad.cta_text_color }};{% elif ad.button_text_color %}color: {{ ad.button_text_color }};{% endif %}"
                    onclick="trackAdClick({{ ad.id }}, '{{ ad_type }}')">
                     {{ ad.cta_text|default:ad.button_text|default:'Subscribe' }}
                     <i class="fas fa-arrow-right"></i>
@@ -82,6 +85,7 @@
                     <a href="{% if ad_type == 'creative' %}{{ ad.clickthrough_url }}{% elif ad_type == 'banner' %}{{ ad.cta_url }}{% else %}{{ ad.url }}{% endif %}" 
                        target="_blank" rel="noopener noreferrer"
                        class="inline-flex items-center gap-1 mt-2 text-xs font-semibold hover:underline"
+                       style="{% if ad.cta_background_color %}background: {{ ad.cta_background_color }}; padding: .35rem .65rem; border-radius: .5rem; text-decoration: none;{% elif ad.button_background_color %}background: {{ ad.button_background_color }}; padding: .35rem .65rem; border-radius: .5rem; text-decoration: none;{% endif %}{% if ad.cta_text_color %}color: {{ ad.cta_text_color }};{% elif ad.button_text_color %}color: {{ ad.button_text_color }};{% endif %}"
                        onclick="trackAdClick({{ ad.id }}, '{{ ad_type }}')">
                         {{ ad.cta_text|default:ad.button_text|default:'Learn More' }} →
                     </a>

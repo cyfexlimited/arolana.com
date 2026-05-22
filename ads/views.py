@@ -12,6 +12,36 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
+def _json_tracking_body(request):
+    try:
+        return json.loads(request.body.decode("utf-8") or "{}")
+    except (TypeError, ValueError, UnicodeDecodeError):
+        return {}
+
+
+def _tracking_ad(data):
+    ad_id = data.get('ad_id')
+
+    try:
+        ad_id = int(ad_id)
+    except (TypeError, ValueError):
+        return None
+
+    if ad_id <= 0:
+        return None
+
+    return AdBanner.objects.select_related('campaign').filter(id=ad_id).first()
+
+
+def _ignored_tracking_response(message='Tracking ping ignored'):
+    return JsonResponse({
+        'success': True,
+        'ignored': True,
+        'message': message,
+    })
+
+
 def test_ads(request):
     """Test page for ads"""
     banners = AdBanner.objects.filter(is_active=True).select_related('campaign', 'placement')
@@ -40,11 +70,11 @@ def test_ads(request):
 def track_click(request):
     """Track ad clicks"""
     try:
-        data = json.loads(request.body)
-        ad_id = data.get('ad_id')
-        campaign_id = data.get('campaign_id')
-        
-        ad = AdBanner.objects.select_related('campaign').get(id=ad_id)
+        data = _json_tracking_body(request)
+        ad = _tracking_ad(data)
+        if not ad:
+            return _ignored_tracking_response('Ad click ignored: missing or invalid ad')
+
         campaign = ad.campaign
         
         # Create click record
@@ -68,8 +98,6 @@ def track_click(request):
         logger.info(f"Ad click tracked: {ad.title} - Campaign: {campaign.name}")
         
         return JsonResponse({'success': True, 'message': 'Click tracked'})
-    except AdBanner.DoesNotExist:
-        return JsonResponse({'success': False, 'error': 'Ad not found'}, status=404)
     except Exception as e:
         logger.error(f"Error tracking ad click: {e}")
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
@@ -79,11 +107,11 @@ def track_click(request):
 def track_view(request):
     """Track ad views (impressions)"""
     try:
-        data = json.loads(request.body)
-        ad_id = data.get('ad_id')
-        campaign_id = data.get('campaign_id')
-        
-        ad = AdBanner.objects.select_related('campaign').get(id=ad_id)
+        data = _json_tracking_body(request)
+        ad = _tracking_ad(data)
+        if not ad:
+            return _ignored_tracking_response('Ad impression ignored: missing or invalid ad')
+
         campaign = ad.campaign
         
         # Check if already tracked for this session (avoid duplicates)
@@ -119,8 +147,6 @@ def track_view(request):
         logger.info(f"Ad impression tracked: {ad.title}")
         
         return JsonResponse({'success': True, 'message': 'Impression tracked'})
-    except AdBanner.DoesNotExist:
-        return JsonResponse({'success': False, 'error': 'Ad not found'}, status=404)
     except Exception as e:
         logger.error(f"Error tracking ad impression: {e}")
         return JsonResponse({'success': False, 'error': str(e)}, status=500)

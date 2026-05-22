@@ -2,6 +2,7 @@ import re
 import logging
 import random
 import string
+from types import SimpleNamespace
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
@@ -20,7 +21,7 @@ from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
 
 from .models import User, UserProfile, UserOTP, UserActivityLog, NewsletterSubscriber, Address
-from products.models import RecentlyViewed, Wishlist
+from products.models import Product, RecentlyViewed, Wishlist
 from .utils.otp_utils import create_otp, verify_otp
 from .utils.messaging import send_registration_messages, sync_newsletter_subscriber
 from .tokens import account_activation_token
@@ -605,16 +606,80 @@ def set_default_address(request, pk):
 
 # ==================== WISHLIST & HISTORY ====================
 
-@login_required
+GUEST_WISHLIST_SESSION_KEY = 'guest_wishlist'
+
+
+def _guest_wishlist_ids(request):
+    ids = request.session.get(GUEST_WISHLIST_SESSION_KEY, [])
+    if not isinstance(ids, list):
+        return []
+    return [str(product_id) for product_id in ids if str(product_id).strip()]
+
+
+def _save_guest_wishlist(request, product_ids):
+    unique_ids = []
+    for product_id in product_ids:
+        product_id = str(product_id)
+        if product_id not in unique_ids:
+            unique_ids.append(product_id)
+    request.session[GUEST_WISHLIST_SESSION_KEY] = unique_ids
+    request.session.modified = True
+    return unique_ids
+
+
+def _merge_guest_wishlist_into_user_account(request):
+    if not request.user.is_authenticated:
+        return
+
+    product_ids = _guest_wishlist_ids(request)
+    if not product_ids:
+        return
+
+    products = Product.objects.filter(
+        id__in=product_ids,
+        is_active=True,
+        approval_status='approved',
+    )
+    for product in products:
+        Wishlist.objects.get_or_create(user=request.user, product=product)
+
+    _save_guest_wishlist(request, [])
+
+
 def wishlist_view(request):
     """User wishlist page"""
-    wishlist_items = Wishlist.objects.filter(user=request.user).select_related('product')
-    return render(request, 'accounts/wishlist.html', {'wishlist_items': wishlist_items})
+    if request.user.is_authenticated:
+        _merge_guest_wishlist_into_user_account(request)
+        wishlist_items = Wishlist.objects.filter(user=request.user).select_related('product')
+        return render(request, 'accounts/wishlist.html', {'wishlist_items': wishlist_items})
 
-@login_required
+    product_ids = _guest_wishlist_ids(request)
+    products = Product.objects.filter(
+        id__in=product_ids,
+        is_active=True,
+        approval_status='approved',
+    ).select_related('category')
+    products_by_id = {str(product.id): product for product in products}
+    now = timezone.now()
+    wishlist_items = [
+        SimpleNamespace(product=products_by_id[product_id], created_at=now, added_at=now)
+        for product_id in product_ids
+        if product_id in products_by_id
+    ]
+    if len(wishlist_items) != len(product_ids):
+        _save_guest_wishlist(request, [item.product.id for item in wishlist_items])
+
+    return render(request, 'accounts/wishlist.html', {
+        'wishlist_items': wishlist_items,
+        'is_guest_wishlist': True,
+    })
+
 def clear_wishlist(request):
     """Clear all wishlist items"""
-    Wishlist.objects.filter(user=request.user).delete()
+    if request.user.is_authenticated:
+        Wishlist.objects.filter(user=request.user).delete()
+    else:
+        _save_guest_wishlist(request, [])
     messages.success(request, 'Wishlist cleared successfully!')
     return redirect('accounts:wishlist')
 
@@ -656,6 +721,12 @@ def subscriptions_view(request):
         profile.order_updates = request.POST.get('order_updates') == 'on'
         profile.marketing_emails = request.POST.get('marketing_emails') == 'on'
         profile.save()
+
+        sync_newsletter_subscriber(
+            request.user,
+            subscribe=profile.newsletter_subscription or profile.promo_emails or profile.marketing_emails,
+            source='preferences',
+        )
         
         create_notification(request.user, 'system', '📧 Email Preferences Updated', 'Your email subscription preferences have been updated.', '/accounts/subscriptions/')
         messages.success(request, 'Your email preferences have been updated!')
@@ -665,11 +736,14 @@ def subscriptions_view(request):
 
 # ==================== API ENDPOINTS ====================
 
-@login_required
 def wishlist_count(request):
     """Return wishlist count as JSON"""
     from django.http import JsonResponse
-    count = request.user.wishlist_items.count()
+    if request.user.is_authenticated:
+        _merge_guest_wishlist_into_user_account(request)
+        count = request.user.wishlist_items.count()
+    else:
+        count = len(_guest_wishlist_ids(request))
     return JsonResponse({'count': count})
 
 @require_GET

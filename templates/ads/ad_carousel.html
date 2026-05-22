@@ -24,6 +24,7 @@
                         <p class="text-sm opacity-95 mb-6 leading-relaxed">{{ ad.description|truncatewords:25 }}</p>
                         <a href="{{ ad.url }}" target="_blank" rel="noopener noreferrer"
                            class="inline-flex items-center gap-2 bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition transform hover:scale-105"
+                           style="{% if ad.cta_background_color %}background: {{ ad.cta_background_color }};{% endif %}{% if ad.cta_text_color %}color: {{ ad.cta_text_color }};{% endif %}"
                            onclick="trackAdClick({{ ad.object.id }}, 'creative')">
                             {{ ad.cta_text }}
                             <i class="fas fa-arrow-right"></i>
@@ -51,6 +52,7 @@
                         <p class="text-sm opacity-95 mb-6 leading-relaxed">{{ ad.description|truncatewords:25 }}</p>
                         <a href="{{ ad.url }}" target="_blank" rel="noopener noreferrer"
                            class="inline-flex items-center gap-2 bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition transform hover:scale-105"
+                           style="{% if ad.cta_background_color %}background: {{ ad.cta_background_color }};{% endif %}{% if ad.cta_text_color %}color: {{ ad.cta_text_color }};{% endif %}"
                            onclick="trackAdClick({{ ad.object.id }}, 'banner')">
                             {{ ad.cta_text }}
                             <i class="fas fa-arrow-right"></i>
@@ -78,6 +80,7 @@
                         <p class="text-sm opacity-95 mb-6 leading-relaxed">{{ ad.description|truncatewords:25 }}</p>
                         <a href="{{ ad.url }}" target="_blank" rel="noopener noreferrer"
                            class="inline-flex items-center gap-2 bg-white text-indigo-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition transform hover:scale-105"
+                           style="{% if ad.cta_background_color %}background: {{ ad.cta_background_color }};{% endif %}{% if ad.cta_text_color %}color: {{ ad.cta_text_color }};{% endif %}"
                            onclick="trackAdClick({{ ad.object.id }}, 'simple')">
                             {{ ad.cta_text }}
                             <i class="fas fa-arrow-right"></i>

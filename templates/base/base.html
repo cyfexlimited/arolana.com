@@ -3386,7 +3386,7 @@
         }
 
         function updateWishlistCount() {
-            fetch('/accounts/wishlist/count/')
+            fetch('{% url "accounts:wishlist_count" %}')
                 .then(r => r.json())
                 .then(d => {
                     const el = document.getElementById('wishlist-count');
@@ -3694,6 +3694,155 @@
             } else {
                 bindMegaMenus();
             }
+        })();
+    </script>
+
+    <script>
+        (function () {
+            const CART_URL = "{% url 'products:cart' %}";
+            const CART_COUNT_URL = "{% url 'products:cart_count' %}";
+
+            function getCookie(name) {
+                const value = `; ${document.cookie}`;
+                const parts = value.split(`; ${name}=`);
+                if (parts.length === 2) return decodeURIComponent(parts.pop().split(';').shift());
+                return '';
+            }
+
+            function showCartToast(message, type) {
+                if (typeof window.showArolanaToast === 'function') {
+                    window.showArolanaToast(message, type || 'success');
+                    return;
+                }
+
+                const toast = document.createElement('div');
+                toast.className = `fixed bottom-6 right-6 z-[99999] px-5 py-3 rounded-2xl text-white shadow-2xl font-bold text-sm ${type === 'error' ? 'bg-red-600' : 'bg-green-600'}`;
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                setTimeout(function () {
+                    toast.remove();
+                }, 2800);
+            }
+
+            function updateCartCount(count) {
+                const cartCountEl = document.getElementById('cart-count');
+
+                if (typeof count !== 'undefined') {
+                    if (cartCountEl) cartCountEl.innerText = count || 0;
+                    return Promise.resolve(count || 0);
+                }
+
+                return fetch(CART_COUNT_URL, {
+                    credentials: 'same-origin',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                    .then(function (response) { return response.json(); })
+                    .then(function (data) {
+                        if (cartCountEl) cartCountEl.innerText = data.count || 0;
+                        return data.count || 0;
+                    })
+                    .catch(function () { return 0; });
+            }
+
+            function setButtonLoading(button) {
+                if (!button) return;
+                if (!button.dataset.cartOriginalHtml) {
+                    button.dataset.cartOriginalHtml = button.innerHTML;
+                }
+                button.disabled = true;
+                button.classList.add('opacity-70');
+                button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Adding...';
+            }
+
+            function setButtonAdd(button) {
+                if (!button) return;
+                button.disabled = false;
+                button.dataset.cartState = 'add';
+                button.classList.remove('opacity-70');
+                button.innerHTML = button.dataset.cartOriginalHtml || '<i class="fas fa-cart-plus mr-2"></i> Add to Cart';
+            }
+
+            function setButtonViewCart(button) {
+                if (!button) return;
+                button.disabled = false;
+                button.dataset.cartState = 'view-cart';
+                button.classList.remove('opacity-70');
+                button.innerHTML = '<i class="fas fa-shopping-cart mr-2"></i> View Cart';
+            }
+
+            function requestAddToCart(url, body, button) {
+                if (button && button.dataset.cartState === 'view-cart') {
+                    window.location.href = CART_URL;
+                    return Promise.resolve(false);
+                }
+
+                setButtonLoading(button);
+
+                return fetch(url, {
+                    method: 'POST',
+                    body: body,
+                    credentials: 'same-origin',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken'),
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                    .then(function (response) {
+                        return response.json().then(function (data) {
+                            return { ok: response.ok, data: data };
+                        });
+                    })
+                    .then(function (result) {
+                        if (!result.ok || !result.data.success) {
+                            throw new Error(result.data.message || 'Could not add to cart.');
+                        }
+
+                        updateCartCount(result.data.cart_count);
+                        setButtonViewCart(button);
+                        showCartToast(result.data.message || 'Added to cart.', 'success');
+                        return true;
+                    })
+                    .catch(function (error) {
+                        setButtonAdd(button);
+                        showCartToast(error.message || 'Could not add to cart.', 'error');
+                        return false;
+                    });
+            }
+
+            function addForm(form) {
+                const button = form.querySelector('[data-cart-button], button[type="submit"]');
+                return requestAddToCart(form.action, new FormData(form), button);
+            }
+
+            function addProductBySlug(slug, button, quantity) {
+                const body = new URLSearchParams();
+                body.set('quantity', quantity || '1');
+                return requestAddToCart(`/products/${encodeURIComponent(slug)}/add-to-cart/`, body, button);
+            }
+
+            document.addEventListener('submit', function (event) {
+                const form = event.target.closest('.arolana-ajax-cart-form, [data-cart-ajax="true"]');
+                if (!form) return;
+
+                event.preventDefault();
+                addForm(form);
+            });
+
+            document.addEventListener('click', function (event) {
+                const button = event.target.closest('[data-cart-state="view-cart"]');
+                if (!button) return;
+
+                event.preventDefault();
+                window.location.href = CART_URL;
+            });
+
+            window.ArolanaCartUI = {
+                addForm,
+                addProductBySlug,
+                setButtonViewCart,
+                updateCartCount,
+                viewCartUrl: CART_URL
+            };
         })();
     </script>
 

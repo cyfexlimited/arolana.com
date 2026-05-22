@@ -4,29 +4,26 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.core.paginator import Paginator
 from django.db.models import Avg
+from django.template.loader import render_to_string
 from .models import VendorProfile, VendorFollow, VendorReview
 from products.models import Product
 from orders.models import OrderItem
 from subscriptions.models import user_has_paid_subscription, user_subscription_limits, user_subscription_tier
-import random
 
 def vendor_list(request):
     """List all vendors with sorting options"""
     # Get all verified and active vendors
-    all_vendors = list(VendorProfile.objects.filter(is_verified=True, is_active=True))
-    
-    # Shuffle for all vendors
-    vendors_shuffled = all_vendors.copy()
-    random.shuffle(vendors_shuffled)
+    all_vendors = VendorProfile.objects.filter(is_verified=True, is_active=True)
+    vendors_ranked = all_vendors.order_by('-is_top_rated', '-rating_avg', '-total_sales', 'store_name')
     
     # Top rated vendors (sorted by rating)
-    top_rated_vendors = sorted(all_vendors, key=lambda x: x.rating_avg, reverse=True)[:4]
+    top_rated_vendors = list(all_vendors.order_by('-rating_avg', 'store_name')[:4])
     
     # Trending vendors (sorted by sales)
-    trending_vendors = sorted(all_vendors, key=lambda x: x.total_sales, reverse=True)[:4]
+    trending_vendors = list(all_vendors.order_by('-total_sales', 'store_name')[:4])
     
     # Pagination
-    paginator = Paginator(vendors_shuffled, 12)
+    paginator = Paginator(vendors_ranked, 12)
     page = request.GET.get('page', 1)
     vendors_page = paginator.get_page(page)
     
@@ -34,8 +31,23 @@ def vendor_list(request):
         'vendors_shuffled': vendors_page,
         'top_rated_vendors': top_rated_vendors,
         'trending_vendors': trending_vendors,
-        'total_vendors': len(all_vendors),
+        'total_vendors': all_vendors.count(),
     }
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({
+            'html': render_to_string('vendors/partials/vendor_grid.html', context, request=request),
+            'pagination_html': render_to_string(
+                'products/partials/ajax_pagination.html',
+                {
+                    'page_obj': vendors_page,
+                    'pagination_id': 'vendors-pagination',
+                    'wrapper_class': 'mt-8 flex justify-center',
+                },
+                request=request,
+            ),
+        })
+
     return render(request, 'vendors/list.html', context)
 
 def vendor_detail(request, slug):

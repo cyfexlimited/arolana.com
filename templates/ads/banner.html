@@ -33,7 +33,8 @@
                     <h3 class="text-xl font-bold mb-2">{{ ad.title }}</h3>
                     <p class="mb-4">{{ ad.description|truncatewords:20 }}</p>
                     {% if ad.cta_text %}
-                    <span class="inline-block bg-white text-blue-700 px-4 py-2 rounded-lg font-semibold">
+                    <span class="inline-block bg-white text-blue-700 px-4 py-2 rounded-lg font-semibold"
+                          style="{% if ad.cta_background_color %}background: {{ ad.cta_background_color }};{% endif %}{% if ad.cta_text_color %}color: {{ ad.cta_text_color }};{% endif %}">
                         {{ ad.cta_text }}
                     </span>
                     {% endif %}
@@ -49,29 +50,34 @@
 
 <script>
 function trackBannerClick(adId, campaignId) {
-    fetch('/ads/track-click/', {
+    const numericAdId = Number.parseInt(adId, 10);
+    if (!Number.isFinite(numericAdId) || numericAdId <= 0) {
+        return;
+    }
+
+    const payload = { ad_id: numericAdId };
+    const numericCampaignId = Number.parseInt(campaignId, 10);
+    if (Number.isFinite(numericCampaignId) && numericCampaignId > 0) {
+        payload.campaign_id = numericCampaignId;
+    }
+
+    fetch('{% url "ads:track_click" %}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': getCookie('csrftoken')
         },
-        body: JSON.stringify({
-            ad_id: adId,
-            campaign_id: campaignId
-        })
+        body: JSON.stringify(payload)
     }).catch(error => console.error('Error tracking banner click:', error));
     
     // Track impression as well
-    fetch('/ads/track-view/', {
+    fetch('{% url "ads:track_view" %}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': getCookie('csrftoken')
         },
-        body: JSON.stringify({
-            ad_id: adId,
-            campaign_id: campaignId
-        })
+        body: JSON.stringify(payload)
     }).catch(error => console.error('Error tracking impression:', error));
 }
 

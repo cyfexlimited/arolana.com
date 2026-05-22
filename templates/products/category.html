@@ -30,10 +30,10 @@
                             <span class="text-gray-400 line-through ml-2 text-sm">{{ product.compare_price|currency:request }}</span>
                         {% endif %}
                     </div>
-                    <form method="POST" action="{% url 'products:add_to_cart' product.slug %}" class="mt-3">
+                    <form method="POST" action="{% url 'products:add_to_cart' product.slug %}" class="mt-3 arolana-ajax-cart-form" data-cart-ajax="true">
                         {% csrf_token %}
                         <input type="hidden" name="quantity" value="1">
-                        <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
+                        <button type="submit" data-cart-button class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
                             Add to Cart
                         </button>
                     </form>

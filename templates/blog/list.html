@@ -1,4 +1,5 @@
 {% extends 'base/base.html' %}
+{% load media_optimization %}
 
 {% block title %}Blog | Arolana.com{% endblock %}
 
@@ -16,8 +17,9 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             {% for post in featured_posts %}
             <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition">
-                {% if post.featured_image %}
-                    <img src="{{ post.featured_image.url }}" class="w-full h-48 object-cover">
+                {% if post.display_image %}
+                    {% optimized_image_url post.display_image 'category_card' as post_image_url %}
+                    <img src="{{ post_image_url }}" alt="{{ post.title }}" class="w-full h-48 object-cover">
                 {% else %}
                     <div class="w-full h-48 bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
                         <i class="fas fa-newspaper text-5xl text-white opacity-50"></i>
@@ -43,8 +45,9 @@
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {% for post in posts %}
         <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition">
-            {% if post.featured_image %}
-                <img src="{{ post.featured_image.url }}" class="w-full h-48 object-cover">
+            {% if post.display_image %}
+                {% optimized_image_url post.display_image 'category_card' as post_image_url %}
+                <img src="{{ post_image_url }}" alt="{{ post.title }}" class="w-full h-48 object-cover">
             {% else %}
                 <div class="w-full h-48 bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
                     <i class="fas fa-newspaper text-5xl text-white opacity-50"></i>

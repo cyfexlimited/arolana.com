@@ -4,6 +4,23 @@ from django.utils.html import format_html
 from .models import HeroBanner, HeroBannerAnalytics
 
 class HeroBannerAdminForm(forms.ModelForm):
+    COLOR_FIELDS = (
+        'overlay_color',
+        'text_color',
+        'button1_background_color',
+        'button1_text_color',
+        'button1_border_color',
+        'button2_background_color',
+        'button2_text_color',
+        'button2_border_color',
+        'button3_background_color',
+        'button3_text_color',
+        'button3_border_color',
+        'article_button_background_color',
+        'article_button_text_color',
+        'article_button_border_color',
+    )
+
     class Meta:
         model = HeroBanner
         fields = '__all__'
@@ -14,6 +31,18 @@ class HeroBannerAdminForm(forms.ModelForm):
                 'step': '0.05',
             }),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field_name in self.COLOR_FIELDS:
+            if field_name in self.fields:
+                attrs = {
+                    'placeholder': '#2563eb',
+                    'style': 'max-width: 9rem;',
+                }
+                if field_name in {'overlay_color', 'text_color'}:
+                    attrs.update({'type': 'color', 'style': 'width: 5rem; padding: 0.15rem;'})
+                self.fields[field_name].widget = forms.TextInput(attrs=attrs)
 
 @admin.register(HeroBanner)
 class HeroBannerAdmin(admin.ModelAdmin):
@@ -46,10 +75,24 @@ class HeroBannerAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
         ('Buttons', {
-            'fields': (('button1_text', 'button1_url', 'button1_style'), 
-                      ('button2_text', 'button2_url', 'button2_style'),
-                      ('button3_text', 'button3_url', 'button3_style')),
-            'description': 'Leave the button text or URL empty to hide that button. A # URL is treated as hidden.'
+            'fields': (
+                ('button1_text', 'button1_url', 'button1_style'),
+                ('button1_background_color', 'button1_text_color', 'button1_border_color'),
+                ('button2_text', 'button2_url', 'button2_style'),
+                ('button2_background_color', 'button2_text_color', 'button2_border_color'),
+                ('button3_text', 'button3_url', 'button3_style'),
+                ('button3_background_color', 'button3_text_color', 'button3_border_color'),
+            ),
+            'description': 'Leave the button text or URL empty to hide that button. A # URL is treated as hidden. Color fields are optional; leave them empty to use the selected button style.'
+        }),
+        ('Article Button', {
+            'fields': (
+                'linked_article',
+                ('article_button_text', 'article_open_behavior'),
+                ('article_button_background_color', 'article_button_text_color', 'article_button_border_color'),
+            ),
+            'description': 'Optional article button and colors for banners that link to a blog article.',
+            'classes': ('collapse',)
         }),
         ('Styling', {
             'fields': ('overlay_color', 'overlay_opacity', 'text_color', 'text_alignment', 'content_position'),

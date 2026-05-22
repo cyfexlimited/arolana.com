@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from django.core.cache import cache
 from currency.models import Currency
 
@@ -28,32 +28,33 @@ class ExchangeRateService:
 
 class CurrencyConverter:
     """Handle currency conversions"""
+
+    @staticmethod
+    def _as_decimal(value):
+        try:
+            return Decimal(str(value or '0'))
+        except (InvalidOperation, TypeError, ValueError):
+            return Decimal('0')
     
     @staticmethod
     def convert(amount, from_currency, to_currency):
         """Convert amount from one currency to another"""
         if not from_currency or not to_currency:
-            return amount
+            return CurrencyConverter._as_decimal(amount)
         
         if from_currency.code == to_currency.code:
-            return amount
+            return CurrencyConverter._as_decimal(amount)
         
         try:
-            # Convert to Decimal
-            amount_dec = Decimal(str(amount))
-            
-            # Convert to USD first (base currency)
-            usd = Currency.objects.filter(is_base=True).first()
-            if not usd:
-                usd = Currency.objects.filter(code='USD').first()
-            
-            # Convert from source to USD
-            amount_in_usd = amount_dec / Decimal(str(from_currency.exchange_rate))
-            
-            # Convert from USD to target
-            converted = amount_in_usd * Decimal(str(to_currency.exchange_rate))
-            
-            return float(converted)
+            amount_dec = CurrencyConverter._as_decimal(amount)
+            from_rate = CurrencyConverter._as_decimal(from_currency.exchange_rate)
+            to_rate = CurrencyConverter._as_decimal(to_currency.exchange_rate)
+
+            if from_rate == 0:
+                return amount_dec
+
+            amount_in_base = amount_dec / from_rate
+            return amount_in_base * to_rate
         except Exception as e:
             print(f"Conversion error: {e}")
-            return amount
+            return CurrencyConverter._as_decimal(amount)

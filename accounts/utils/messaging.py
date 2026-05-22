@@ -37,7 +37,7 @@ def registration_message_context(user, request=None):
 
 
 def sync_newsletter_subscriber(user, subscribe=True, source='registration'):
-    if not subscribe or not user.email:
+    if not user.email:
         return None
 
     try:
@@ -45,28 +45,39 @@ def sync_newsletter_subscriber(user, subscribe=True, source='registration'):
     except Exception:
         return None
 
-    subscriber, created = NewsletterSubscriber.objects.get_or_create(
-        email=user.email,
-        defaults={
-            'name': user.get_full_name() or user.username,
-            'source': source,
-            'is_active': True,
-        },
-    )
-    if not created:
-        subscriber.name = subscriber.name or user.get_full_name() or user.username
-        subscriber.is_active = True
-        subscriber.unsubscribed_at = None
-        subscriber.save(update_fields=['name', 'is_active', 'unsubscribed_at', 'updated_at'])
+    subscriber = None
+
+    if subscribe:
+        subscriber, created = NewsletterSubscriber.objects.get_or_create(
+            email=user.email,
+            defaults={
+                'name': user.get_full_name() or user.username,
+                'source': source,
+                'is_active': True,
+            },
+        )
+        if not created:
+            subscriber.name = subscriber.name or user.get_full_name() or user.username
+            subscriber.is_active = True
+            subscriber.unsubscribed_at = None
+            subscriber.save(update_fields=['name', 'is_active', 'unsubscribed_at', 'updated_at'])
+    else:
+        subscriber = NewsletterSubscriber.objects.filter(email=user.email).first()
+        if subscriber and subscriber.is_active:
+            from django.utils import timezone
+            subscriber.is_active = False
+            subscriber.unsubscribed_at = timezone.now()
+            subscriber.save(update_fields=['is_active', 'unsubscribed_at', 'updated_at'])
+
     try:
         from newsletter.emailing import upsert_email_audience
         upsert_email_audience(
             user.email,
             name=user.get_full_name() or user.username,
-            source='newsletter',
+            source='newsletter' if subscribe else 'registered',
             user=user,
             subscriber=subscriber,
-            accepts_promos=True,
+            accepts_promos=subscribe,
         )
     except Exception:
         pass

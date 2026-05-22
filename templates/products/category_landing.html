@@ -394,8 +394,8 @@
         min-height: clamp(360px, 44vw, 560px);
         border-radius: 2.25rem;
         margin-bottom: 1.6rem;
-        color: #fff;
-        background: #0f172a;
+        color: var(--category-hero-text, #fff);
+        background: var(--category-hero-bg, #0f172a);
         box-shadow: 0 34px 100px rgba(15,23,42,.20);
     }
 
@@ -439,7 +439,7 @@
         padding: .48rem .8rem;
         border-radius: 999px;
         background: rgba(15,23,42,.30);
-        border: 1px solid rgba(255,255,255,.24);
+        border: 1px solid color-mix(in srgb, var(--category-hero-accent, #ffffff) 34%, transparent);
         backdrop-filter: blur(8px);
         font-size: .72rem;
         font-weight: 950;
@@ -458,7 +458,7 @@
 
     .category-hero-content p {
         max-width: 760px;
-        color: rgba(255,255,255,.92);
+        color: color-mix(in srgb, var(--category-hero-text, #fff) 92%, transparent);
         font-size: clamp(.96rem, 1.45vw, 1.2rem);
         line-height: 1.72;
     }
@@ -477,9 +477,9 @@
         padding: .75rem .95rem;
         border-radius: 1rem;
         background: rgba(15,23,42,.28);
-        border: 1px solid rgba(255,255,255,.22);
+        border: 1px solid color-mix(in srgb, var(--category-hero-accent, #ffffff) 32%, transparent);
         font-weight: 900;
-        color: rgba(255,255,255,.94);
+        color: color-mix(in srgb, var(--category-hero-text, #fff) 94%, transparent);
         backdrop-filter: blur(8px);
     }
 
@@ -490,8 +490,8 @@
         margin-top: 1.25rem;
         padding: .85rem 1rem;
         border-radius: 999px;
-        background: #fff;
-        color: #0f172a;
+        background: var(--category-hero-cta-bg, #fff);
+        color: var(--category-hero-cta-text, #0f172a);
         font-weight: 950;
         text-shadow: none;
         box-shadow: 0 18px 40px rgba(0,0,0,.18);
@@ -624,8 +624,8 @@
         margin-bottom: 1rem;
     }
 
-    .category-toolbar select {
-        min-height: 42px;
+	    .category-toolbar select {
+	        min-height: 42px;
         border: 1px solid #e2e8f0;
         border-radius: .95rem;
         background: #fff;
@@ -633,8 +633,13 @@
         font-weight: 850;
         font-size: .84rem;
         padding: 0 .85rem;
-        outline: none;
-    }
+	        outline: none;
+	    }
+
+	    #category-products.is-loading {
+	        opacity: .58;
+	        pointer-events: none;
+	    }
 
     .category-count {
         color: #64748b;
@@ -652,11 +657,18 @@
         .subcategories-grid-future { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     }
 
-    @media (max-width: 640px) {
-        .category-future-container { padding-left: .75rem; padding-right: .75rem; }
-        .category-hero-future { border-radius: 1.45rem; }
-        .category-stats { gap: .5rem; }
-        .category-stat { padding: .6rem .72rem; font-size: .78rem; }
+	    @media (max-width: 640px) {
+	        .category-future-container { padding-left: .75rem; padding-right: .75rem; }
+	        .category-hero-future { border-radius: 1.45rem; }
+	        .category-hero-content h1 {
+	            font-size: 2.25rem;
+	            line-height: 1;
+	        }
+	        .category-hero-content p {
+	            font-size: .95rem;
+	        }
+	        .category-stats { gap: .5rem; }
+	        .category-stat { padding: .6rem .72rem; font-size: .78rem; }
         .subcategories-grid-future {
             display: flex;
             overflow-x: auto;
@@ -667,8 +679,17 @@
             min-width: 158px;
             scroll-snap-align: start;
         }
-        .category-toolbar { border-radius: 1rem; }
-    }
+	        .category-toolbar {
+	            border-radius: 1rem;
+	            align-items: stretch;
+	        }
+	        .category-toolbar > div {
+	            width: 100%;
+	        }
+	        .category-toolbar select {
+	            width: 100%;
+	        }
+	    }
 </style>
 {% endblock %}
 
@@ -688,11 +709,14 @@
             {% endfor %}
         </nav>
 
-        <section class="category-hero-future">
+        <section class="category-hero-future"
+                 style="{% if category.hero_background_color %}--category-hero-bg: {{ category.hero_background_color }};{% endif %}{% if category.hero_text_color %}--category-hero-text: {{ category.hero_text_color }};{% endif %}{% if category.hero_accent_color %}--category-hero-accent: {{ category.hero_accent_color }};{% endif %}{% if category.hero_button_background_color %}--category-hero-cta-bg: {{ category.hero_button_background_color }};{% endif %}{% if category.hero_button_text_color %}--category-hero-cta-text: {{ category.hero_button_text_color }};{% endif %}">
             {% if category.background_image %}
-                <img src="{{ category.background_image.url }}" alt="{{ category.name }}" class="category-hero-bg">
+                {% optimized_image_url category.background_image 'hero' as category_hero_image_url %}
+                <img src="{{ category_hero_image_url }}" alt="{{ category.name }}" class="category-hero-bg">
             {% elif category.image %}
-                <img src="{{ category.image.url }}" alt="{{ category.name }}" class="category-hero-bg">
+                {% optimized_image_url category.image 'category_card' as category_hero_image_url %}
+                <img src="{{ category_hero_image_url }}" alt="{{ category.name }}" class="category-hero-bg">
             {% else %}
                 <img src="https://images.unsplash.com/photo-1498049794561-7780e7231661?w=1920&h=900&fit=crop" alt="{{ category.name }}" class="category-hero-bg">
             {% endif %}
@@ -720,7 +744,8 @@
                 </div>
                 {% if category.image %}
                 <div class="category-side-image" aria-hidden="true">
-                    <img src="{{ category.image.url }}" alt="">
+                    {% optimized_image_url category.image 'category_card' as category_side_image_url %}
+                    <img src="{{ category_side_image_url }}" alt="">
                 </div>
                 {% endif %}
             </div>
@@ -774,37 +799,65 @@
                 </div>
             </div>
 
-            {% include 'products/product_grid.html' with products=products user_currency=user_currency %}
+	            <div id="category-products-grid">
+	                {% include 'products/product_grid.html' with products=products user_currency=user_currency %}
+	            </div>
 
-            {% if products.has_other_pages %}
-            <div class="flex justify-center mt-8">
-                <div class="flex gap-2 flex-wrap justify-center">
-                    {% if products.has_previous %}
-                        <a href="?page={{ products.previous_page_number }}{% if current_sort %}&sort={{ current_sort }}{% endif %}"
-                           class="px-4 py-2 bg-white border rounded-xl hover:bg-gray-50 font-bold transition">&laquo; Previous</a>
-                    {% endif %}
-
-                    <span class="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold">{{ products.number }}</span>
-
-                    {% if products.has_next %}
-                        <a href="?page={{ products.next_page_number }}{% if current_sort %}&sort={{ current_sort }}{% endif %}"
-                           class="px-4 py-2 bg-white border rounded-xl hover:bg-gray-50 font-bold transition">Next &raquo;</a>
-                    {% endif %}
-                </div>
-            </div>
-            {% endif %}
+	            {% include 'products/partials/ajax_pagination.html' with page_obj=products pagination_id='category-pagination' wrapper_class='mt-8 flex justify-center' %}
         </section>
     </div>
 </div>
 
-<script>
-document.getElementById('sort-select')?.addEventListener('change', function() {
-    const url = new URL(window.location.href);
-    url.searchParams.set('sort', this.value);
-    url.searchParams.delete('page');
-    window.location.href = url.toString();
-});
-</script>
+	<script>
+	async function loadCategoryProducts(page = 1) {
+	    const url = new URL(window.location.href);
+	    const sort = document.getElementById('sort-select')?.value || 'featured';
+	    url.searchParams.set('sort', sort);
+	    if (page && Number(page) > 1) {
+	        url.searchParams.set('page', page);
+	    } else {
+	        url.searchParams.delete('page');
+	    }
+
+	    const section = document.getElementById('category-products');
+	    section?.classList.add('is-loading');
+
+	    try {
+	        const response = await fetch(url.toString(), {
+	            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+	        });
+	        if (!response.ok) throw new Error('Could not load products.');
+	        const data = await response.json();
+	        const grid = document.getElementById('category-products-grid');
+	        if (grid) grid.innerHTML = data.html;
+	        const pagination = document.getElementById('category-pagination');
+	        if (pagination && typeof data.pagination_html !== 'undefined') {
+	            pagination.outerHTML = data.pagination_html;
+	        }
+	        const count = document.querySelector('.category-count');
+	        if (count) {
+	            count.textContent = `Showing ${data.start_index || 0} - ${data.end_index || 0} of ${data.total_count || 0} products`;
+	        }
+	        window.history.replaceState({}, '', url.toString());
+	        section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+	    } catch (error) {
+	        showArolanaToast(error.message || 'Could not refresh products.', 'error');
+	    } finally {
+	        section?.classList.remove('is-loading');
+	    }
+	}
+
+	document.getElementById('sort-select')?.addEventListener('change', function() {
+	    loadCategoryProducts(1);
+	});
+
+	document.addEventListener('click', function(event) {
+	    const link = event.target.closest('#category-pagination .pagination-link');
+	    if (!link || !link.dataset.page) return;
+	    event.preventDefault();
+	    loadCategoryProducts(link.dataset.page);
+	});
+	</script>
 
 <script>
 function getCookie(name) {
@@ -843,6 +896,10 @@ function updateCartCount() {
 document.addEventListener('submit', async function(event) {
     const form = event.target.closest('.arolana-ajax-cart-form');
     if (!form) return;
+
+    if (window.ArolanaCartUI) {
+        return;
+    }
 
     event.preventDefault();
 
@@ -907,6 +964,10 @@ document.addEventListener('click', async function(event) {
                 if (icon) {
                     icon.classList.toggle('far', !data.in_wishlist);
                     icon.classList.toggle('fas', !!data.in_wishlist);
+                }
+                const wishlistCountEl = document.getElementById('wishlist-count');
+                if (wishlistCountEl && typeof data.wishlist_count !== 'undefined') {
+                    wishlistCountEl.innerText = data.wishlist_count || 0;
                 }
                 showArolanaToast(data.message || 'Wishlist updated', 'success');
             }

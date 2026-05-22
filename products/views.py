@@ -11,7 +11,7 @@ from django.views.decorators.http import require_http_methods
 from django.db import transaction
 import json
 from django.http import HttpResponse
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from django.template.loader import render_to_string
 from .models import (
     Product, Category, ProductReview, Wishlist, RecentlyViewed, 
@@ -90,16 +90,21 @@ def get_base_currency():
 
 def convert_price(price, from_currency, to_currency):
     """Convert price between currencies safely"""
-    if not price or not from_currency or not to_currency or not CurrencyConverter:
-        return price
+    try:
+        price_decimal = Decimal(str(price or '0'))
+    except (InvalidOperation, TypeError, ValueError):
+        price_decimal = Decimal('0')
+
+    if not from_currency or not to_currency or not CurrencyConverter:
+        return price_decimal
     
     if from_currency.code == to_currency.code:
-        return price
+        return price_decimal
     
     try:
-        return CurrencyConverter.convert(price, from_currency, to_currency)
+        return Decimal(str(CurrencyConverter.convert(price_decimal, from_currency, to_currency)))
     except Exception:
-        return price
+        return price_decimal
 
 
 def get_paginated_items(queryset, page_num, per_page=24):
@@ -194,28 +199,247 @@ def get_filter_counts(queryset):
 # 🔥 CART VIEWS (Optional)
 # ================================
 
-@login_required
+GUEST_CART_SESSION_KEY = 'guest_cart'
+GUEST_WISHLIST_SESSION_KEY = 'guest_wishlist'
+
+
+class GuestCartItems:
+    def __init__(self, items):
+        self._items = items
+
+    def all(self):
+        return self._items
+
+    def exists(self):
+        return bool(self._items)
+
+    def count(self):
+        return len(self._items)
+
+
+class GuestCartItem:
+    def __init__(self, item_id, product=None, variant=None, accessory=None, quantity=1, price_at_add=Decimal('0.00')):
+        self.id = item_id
+        self.product = product
+        self.variant = variant
+        self.accessory = accessory
+        self.quantity = quantity
+        self.price_at_add = price_at_add
+
+    @property
+    def subtotal(self):
+        return self.price_at_add * self.quantity
+
+    @property
+    def item_name(self):
+        if self.product:
+            return self.product.name
+        if self.variant:
+            return f"{self.variant.product.name} - {self.variant.value}"
+        if self.accessory:
+            return self.accessory.name
+        return "Item"
+
+
+class GuestCart:
+    def __init__(self, items):
+        self.items = GuestCartItems(items)
+
+    @property
+    def total_items(self):
+        return sum(item.quantity for item in self.items.all())
+
+    @property
+    def subtotal(self):
+        return sum((item.subtotal for item in self.items.all()), Decimal('0.00'))
+
+    @property
+    def total(self):
+        return self.subtotal
+
+
+def _safe_quantity(value, default=1):
+    try:
+        quantity = int(value)
+    except (TypeError, ValueError):
+        quantity = default
+
+    if quantity < 1:
+        return 1
+    if quantity > 999:
+        return 999
+    return quantity
+
+
+def _guest_cart_data(request):
+    data = request.session.get(GUEST_CART_SESSION_KEY)
+    return data if isinstance(data, dict) else {}
+
+
+def _guest_cart_count(cart_data):
+    count = 0
+    for line in cart_data.values():
+        try:
+            count += int(line.get('quantity') or 0)
+        except (TypeError, ValueError):
+            continue
+    return count
+
+
+def _save_guest_cart(request, cart_data):
+    cleaned = {}
+    for key, value in cart_data.items():
+        try:
+            quantity = int(value.get('quantity') or 0)
+        except (TypeError, ValueError):
+            continue
+        if quantity > 0:
+            cleaned[key] = {**value, 'quantity': min(quantity, 999)}
+    request.session[GUEST_CART_SESSION_KEY] = cleaned
+    request.session['cart_count'] = _guest_cart_count(cleaned)
+    request.session.modified = True
+    return cleaned
+
+
+def _guest_cart_key(product=None, variant=None, accessory=None):
+    if accessory:
+        return f"accessory:{accessory.id}"
+    variant_id = variant.id if variant else ''
+    return f"product:{product.id}:variant:{variant_id}"
+
+
+def _build_guest_cart(request):
+    cart_data = _guest_cart_data(request)
+    if not cart_data:
+        request.session['cart_count'] = 0
+        return GuestCart([])
+
+    product_ids = set()
+    variant_ids = set()
+    accessory_ids = set()
+
+    for line in cart_data.values():
+        if line.get('accessory_id'):
+            accessory_ids.add(line.get('accessory_id'))
+        elif line.get('product_id'):
+            product_ids.add(line.get('product_id'))
+            if line.get('variant_id'):
+                variant_ids.add(line.get('variant_id'))
+
+    products = {
+        str(product.id): product
+        for product in Product.objects.filter(id__in=product_ids, is_active=True, approval_status='approved')
+    }
+    variants = {
+        str(variant.id): variant
+        for variant in ProductVariant.objects.select_related('product').filter(
+            id__in=variant_ids,
+            is_active=True,
+            product__is_active=True,
+            product__approval_status='approved',
+        )
+    }
+    accessories = {
+        str(accessory.id): accessory
+        for accessory in Accessory.objects.filter(id__in=accessory_ids, is_active=True)
+    }
+
+    items = []
+    valid_cart_data = {}
+
+    for key, line in cart_data.items():
+        quantity = _safe_quantity(line.get('quantity'), default=1)
+        try:
+            price = Decimal(str(line.get('price_at_add') or '0'))
+        except (InvalidOperation, TypeError, ValueError):
+            price = Decimal('0.00')
+
+        if line.get('accessory_id'):
+            accessory = accessories.get(str(line.get('accessory_id')))
+            if not accessory:
+                continue
+            if not price:
+                price = accessory.price
+            items.append(GuestCartItem(key, accessory=accessory, quantity=quantity, price_at_add=price))
+            valid_cart_data[key] = {**line, 'quantity': quantity, 'price_at_add': str(price)}
+            continue
+
+        product = products.get(str(line.get('product_id')))
+        variant = variants.get(str(line.get('variant_id'))) if line.get('variant_id') else None
+        if not product:
+            continue
+        if line.get('variant_id') and not variant:
+            continue
+        if not price:
+            price = variant.final_price if variant else product.price
+
+        items.append(GuestCartItem(key, product=product, variant=variant, quantity=quantity, price_at_add=price))
+        valid_cart_data[key] = {**line, 'quantity': quantity, 'price_at_add': str(price)}
+
+    if valid_cart_data != cart_data:
+        _save_guest_cart(request, valid_cart_data)
+    else:
+        request.session['cart_count'] = _guest_cart_count(valid_cart_data)
+
+    return GuestCart(items)
+
+
+def _merge_guest_cart_into_user_cart(request):
+    if not request.user.is_authenticated or not Cart or not CartItem:
+        return None
+
+    guest_cart = _build_guest_cart(request)
+    cart, _ = Cart.objects.get_or_create(user=request.user, is_active=True)
+
+    for item in guest_cart.items.all():
+        if item.accessory:
+            cart_item, created = CartItem.objects.get_or_create(
+                cart=cart,
+                product=None,
+                accessory=item.accessory,
+                defaults={'quantity': item.quantity, 'price_at_add': item.price_at_add}
+            )
+            if not created:
+                cart_item.quantity = min(cart_item.quantity + item.quantity, 999)
+                cart_item.save(update_fields=['quantity'])
+            continue
+
+        stock = item.variant.stock_quantity if item.variant else item.product.get_available_stock()
+        quantity = min(item.quantity, max(stock, 0))
+        if quantity <= 0:
+            continue
+
+        cart_item, created = CartItem.objects.get_or_create(
+            cart=cart,
+            product=item.product,
+            variant=item.variant,
+            defaults={'quantity': quantity, 'price_at_add': item.price_at_add}
+        )
+        if not created:
+            cart_item.quantity = min(cart_item.quantity + quantity, stock, 999)
+            cart_item.save(update_fields=['quantity'])
+
+    if guest_cart.items.exists():
+        _save_guest_cart(request, {})
+        request.session['cart_count'] = getattr(cart, 'total_items', 0)
+
+    return cart
+
+
 @transaction.atomic
 def add_to_cart(request, slug):
     """Add product to cart with variant and accessory support"""
     if not Cart or not CartItem:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'message': 'Cart feature is not available.'}, status=400)
         return redirect('products:detail', slug=slug)
     
     product = get_object_or_404(Product, slug=slug, is_active=True, approval_status='approved')
     
     # Get parameters
-    quantity = int(request.POST.get('quantity', request.GET.get('quantity', 1)))
+    quantity = _safe_quantity(request.POST.get('quantity', request.GET.get('quantity', 1)))
     variant_id = request.POST.get('variant_id') or request.GET.get('variant_id')
     accessory_ids = request.POST.getlist('accessories') or request.GET.getlist('accessories')
-    
-    # Validate quantity
-    if quantity < 1:
-        quantity = 1
-    elif quantity > 999:
-        quantity = 999
-    
-    # Get or create cart
-    cart, created = Cart.objects.get_or_create(user=request.user, is_active=True)
     
     # ====== Handle Product ======
     price = product.price
@@ -232,82 +456,123 @@ def add_to_cart(request, slug):
             
             # Check variant stock
             if variant.stock_quantity < quantity:
-                messages.error(
-                    request, 
-                    f"Only {variant.stock_quantity} {variant.value} available!"
-                )
+                message = f"Only {variant.stock_quantity} {variant.value} available!"
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'message': message}, status=400)
+                messages.error(request, message)
                 return redirect('products:detail', slug=product.slug)
         except ProductVariant.DoesNotExist:
-            messages.error(request, 'Selected variant not found.')
+            message = 'Selected variant not found.'
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'message': message}, status=400)
+            messages.error(request, message)
             return redirect('products:detail', slug=product.slug)
     else:
         # Check product stock
         available = product.get_available_stock()
         if available < quantity:
-            messages.error(
-                request,
-                f"Only {available} items available!"
-            )
+            message = f"Only {available} items available!"
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'message': message}, status=400)
+            messages.error(request, message)
             return redirect('products:detail', slug=product.slug)
-    
-    # Get or create cart item
-    cart_item, created = CartItem.objects.get_or_create(
-        cart=cart,
-        product=product,
-        variant=variant,
-        defaults={
-            'quantity': quantity,
-            'price_at_add': price
-        }
-    )
-    
-    if not created:
-        # Check if new total exceeds stock
-        stock = variant.stock_quantity if variant else product.get_available_stock()
-        if cart_item.quantity + quantity > stock:
-            messages.error(
-                request,
-                f"Cannot add more than {stock} items!"
-            )
-            return redirect('products:detail', slug=product.slug)
-        
-        cart_item.quantity += quantity
-        cart_item.save(update_fields=['quantity'])
-        message = f'Updated {product.name} quantity in cart!'
-    else:
-        message = f'Added {product.name} to cart!'
-    
-    # ====== Handle Accessories ======
-    if accessory_ids:
-        accessories = Accessory.objects.filter(
-            id__in=accessory_ids,
-            is_active=True
+
+    if request.user.is_authenticated:
+        cart, created = Cart.objects.get_or_create(user=request.user, is_active=True)
+
+        # Get or create cart item
+        cart_item, created = CartItem.objects.get_or_create(
+            cart=cart,
+            product=product,
+            variant=variant,
+            defaults={
+                'quantity': quantity,
+                'price_at_add': price
+            }
         )
-        
-        for accessory in accessories:
-            acc_item, created = CartItem.objects.get_or_create(
-                cart=cart,
-                product=None,
-                accessory=accessory,
-                defaults={
-                    'quantity': 1,
-                    'price_at_add': accessory.price
-                }
+
+        if not created:
+            # Check if new total exceeds stock
+            stock = variant.stock_quantity if variant else product.get_available_stock()
+            if cart_item.quantity + quantity > stock:
+                message = f"Cannot add more than {stock} items!"
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'message': message}, status=400)
+                messages.error(request, message)
+                return redirect('products:detail', slug=product.slug)
+
+            cart_item.quantity += quantity
+            cart_item.save(update_fields=['quantity'])
+            message = f'Updated {product.name} quantity in cart!'
+        else:
+            message = f'Added {product.name} to cart!'
+
+        # ====== Handle Accessories ======
+        if accessory_ids:
+            accessories = Accessory.objects.filter(
+                id__in=accessory_ids,
+                is_active=True
             )
-            
-            if not created:
-                acc_item.quantity += 1
-                acc_item.save(update_fields=['quantity'])
-    
+
+            for accessory in accessories:
+                acc_item, created = CartItem.objects.get_or_create(
+                    cart=cart,
+                    product=None,
+                    accessory=accessory,
+                    defaults={
+                        'quantity': 1,
+                        'price_at_add': accessory.price
+                    }
+                )
+
+                if not created:
+                    acc_item.quantity += 1
+                    acc_item.save(update_fields=['quantity'])
+
+        cart_count = getattr(cart, 'total_items', 0)
+    else:
+        cart_data = _guest_cart_data(request)
+        key = _guest_cart_key(product=product, variant=variant)
+        current_quantity = int(cart_data.get(key, {}).get('quantity') or 0)
+        stock = variant.stock_quantity if variant else product.get_available_stock()
+
+        if current_quantity + quantity > stock:
+            message = f"Cannot add more than {stock} items!"
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'message': message}, status=400)
+            messages.error(request, message)
+            return redirect('products:detail', slug=product.slug)
+
+        cart_data[key] = {
+            'product_id': product.id,
+            'variant_id': variant.id if variant else '',
+            'quantity': current_quantity + quantity,
+            'price_at_add': str(price),
+        }
+        message = f'Added {product.name} to cart!'
+
+        accessories = Accessory.objects.filter(id__in=accessory_ids, is_active=True) if accessory_ids else []
+        for accessory in accessories:
+            acc_key = _guest_cart_key(accessory=accessory)
+            acc_quantity = int(cart_data.get(acc_key, {}).get('quantity') or 0)
+            cart_data[acc_key] = {
+                'accessory_id': accessory.id,
+                'quantity': min(acc_quantity + 1, 999),
+                'price_at_add': str(accessory.price),
+            }
+
+        cart_data = _save_guest_cart(request, cart_data)
+        cart_count = _guest_cart_count(cart_data)
+
     messages.success(request, message)
-    request.session['cart_count'] = cart.total_items if hasattr(cart, 'total_items') else 0
+    request.session['cart_count'] = cart_count
     
     # ====== AJAX Response ======
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({
             'success': True,
             'message': message,
-            'cart_count': getattr(cart, 'total_items', 0),
+            'cart_count': cart_count,
             'variant_selected': variant.value if variant else None
         })
     
@@ -319,16 +584,19 @@ def add_to_cart(request, slug):
     return redirect('products:cart')
 
 
-@login_required
 def cart_view(request):
     """Display shopping cart with currency conversion"""
     if not Cart or not CartItem:
         return render(request, 'products/cart.html', {'cart': None, 'error': 'Cart feature not available'})
-    
-    cart, created = Cart.objects.get_or_create(
-        user=request.user,
-        is_active=True
-    )
+
+    if request.user.is_authenticated:
+        cart = _merge_guest_cart_into_user_cart(request) or Cart.objects.get_or_create(
+            user=request.user,
+            is_active=True
+        )[0]
+    else:
+        cart = _build_guest_cart(request)
+
     request.session['cart_count'] = getattr(cart, 'total_items', 0)
     
     # Get currencies
@@ -360,22 +628,35 @@ def cart_view(request):
     })
 
 
-@login_required
 @require_http_methods(["POST"])
 def update_cart(request):
     """Update cart item quantity"""
-    if not CartItem:
+    if request.user.is_authenticated and not CartItem:
         return JsonResponse({'success': False, 'error': 'Cart feature not available'}, status=400)
     
     try:
         item_id = request.POST.get('item_id')
         quantity = int(request.POST.get('quantity', 1))
-        
+
         if quantity < 0:
             quantity = 0
         elif quantity > 999:
             quantity = 999
-        
+
+        if not request.user.is_authenticated:
+            cart_data = _guest_cart_data(request)
+            if item_id not in cart_data:
+                return JsonResponse({'success': False, 'error': 'Cart item not found'}, status=404)
+
+            if quantity <= 0:
+                cart_data.pop(item_id, None)
+                _save_guest_cart(request, cart_data)
+                return JsonResponse({'success': True, 'deleted': True, 'cart_count': _guest_cart_count(cart_data)})
+
+            cart_data[item_id]['quantity'] = quantity
+            cart_data = _save_guest_cart(request, cart_data)
+            return JsonResponse({'success': True, 'cart_count': _guest_cart_count(cart_data)})
+
         cart_item = get_object_or_404(CartItem, id=item_id, cart__user=request.user)
         
         if quantity <= 0:
@@ -390,23 +671,29 @@ def update_cart(request):
         return JsonResponse({'success': False, 'error': 'Invalid quantity'}, status=400)
 
 
-@login_required
 def remove_from_cart(request, item_id):
     """Remove item from cart"""
-    if not CartItem:
+    if request.user.is_authenticated and not CartItem:
         return redirect('products:cart')
-    
-    cart_item = get_object_or_404(CartItem, id=item_id, cart__user=request.user)
-    cart = cart_item.cart
-    cart_item.delete()
-    
-    request.session['cart_count'] = getattr(cart, 'total_items', 0)
+
+    if request.user.is_authenticated:
+        cart_item = get_object_or_404(CartItem, id=item_id, cart__user=request.user)
+        cart = cart_item.cart
+        cart_item.delete()
+        cart_count = getattr(cart, 'total_items', 0)
+    else:
+        cart_data = _guest_cart_data(request)
+        cart_data.pop(str(item_id), None)
+        cart_data = _save_guest_cart(request, cart_data)
+        cart_count = _guest_cart_count(cart_data)
+
+    request.session['cart_count'] = cart_count
     messages.success(request, 'Item removed from cart')
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({
             'success': True,
-            'cart_count': getattr(cart, 'total_items', 0)
+            'cart_count': cart_count
         })
     
     return redirect('products:cart')
@@ -507,9 +794,19 @@ def product_list(request):
             },
             request=request,
         )
+        pagination_html = render_to_string(
+            "products/partials/ajax_pagination.html",
+            {
+                "page_obj": products_page,
+                "pagination_id": "products-pagination",
+                "wrapper_class": "pagination",
+            },
+            request=request,
+        )
 
         return JsonResponse({
             "html": html,
+            "pagination_html": pagination_html,
             "total_count": paginator.count,
             "start_index": products_page.start_index(),
             "end_index": products_page.end_index(),
@@ -798,6 +1095,9 @@ def product_detail(request, slug):
             user=request.user,
             product=product
         ).exists()
+    else:
+        guest_wishlist = {str(product_id) for product_id in request.session.get(GUEST_WISHLIST_SESSION_KEY, [])}
+        in_wishlist = str(product.id) in guest_wishlist
 
     context = {
         'product': product,
@@ -898,6 +1198,32 @@ def category_view(request, slug):
         breadcrumbs.insert(0, current)
         current = current.parent
     
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        html = render_to_string(
+            "products/product_grid.html",
+            {
+                "products": products_page,
+                "user_currency": user_currency,
+            },
+            request=request,
+        )
+        pagination_html = render_to_string(
+            "products/partials/ajax_pagination.html",
+            {
+                "page_obj": products_page,
+                "pagination_id": "category-pagination",
+                "wrapper_class": "mt-8 flex justify-center",
+            },
+            request=request,
+        )
+        return JsonResponse({
+            "html": html,
+            "pagination_html": pagination_html,
+            "total_count": products_page.paginator.count,
+            "start_index": products_page.start_index() if products_page.paginator.count else 0,
+            "end_index": products_page.end_index() if products_page.paginator.count else 0,
+        })
+
     return render(request, 'products/category_landing.html', {
         'category': category,
         'subcategories': subcategories,
@@ -967,29 +1293,52 @@ def add_review(request, slug):
 # 🔥 WISHLIST VIEWS
 # ================================
 
-@login_required
 def toggle_wishlist(request, slug):
     """Toggle product in wishlist"""
     product = get_object_or_404(Product, slug=slug, is_active=True, approval_status='approved')
-    
-    wishlist_item = Wishlist.objects.filter(
-        user=request.user,
-        product=product
-    )
-    
-    if wishlist_item.exists():
-        wishlist_item.delete()
-        in_wishlist = False
-        message = f'{product.name} removed from wishlist'
+
+    if request.user.is_authenticated:
+        wishlist_item = Wishlist.objects.filter(
+            user=request.user,
+            product=product
+        )
+
+        if wishlist_item.exists():
+            wishlist_item.delete()
+            in_wishlist = False
+            message = f'{product.name} removed from wishlist'
+        else:
+            Wishlist.objects.create(user=request.user, product=product)
+            in_wishlist = True
+            message = f'{product.name} added to wishlist'
+
+        wishlist_count = request.user.wishlist_items.count()
     else:
-        Wishlist.objects.create(user=request.user, product=product)
-        in_wishlist = True
-        message = f'{product.name} added to wishlist'
+        wishlist_ids = [str(product_id) for product_id in request.session.get(GUEST_WISHLIST_SESSION_KEY, [])]
+        product_id = str(product.id)
+
+        if product_id in wishlist_ids:
+            wishlist_ids = [saved_id for saved_id in wishlist_ids if saved_id != product_id]
+            in_wishlist = False
+            message = f'{product.name} removed from wishlist'
+        else:
+            wishlist_ids.append(product_id)
+            in_wishlist = True
+            message = f'{product.name} added to wishlist'
+
+        request.session[GUEST_WISHLIST_SESSION_KEY] = wishlist_ids
+        request.session.modified = True
+        wishlist_count = len(wishlist_ids)
     
     messages.success(request, message)
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return JsonResponse({'in_wishlist': in_wishlist, 'message': message})
+        return JsonResponse({
+            'success': True,
+            'in_wishlist': in_wishlist,
+            'message': message,
+            'wishlist_count': wishlist_count,
+        })
     
     return redirect('products:detail', slug=product.slug)
 
@@ -1411,8 +1760,14 @@ def quick_view_api(request, product_id):
 
 def cart_count(request):
     """API: Get current cart count"""
-    if not request.user.is_authenticated or not Cart:
+    if not request.user.is_authenticated:
+        return JsonResponse({'count': _guest_cart_count(_guest_cart_data(request))})
+
+    if not Cart:
         return JsonResponse({'count': 0})
+
+    if _guest_cart_data(request):
+        _merge_guest_cart_into_user_cart(request)
     
     cart = Cart.objects.filter(user=request.user, is_active=True).first()
     count = getattr(cart, 'total_items', 0) if cart else 0
@@ -1423,13 +1778,15 @@ def cart_count(request):
 def checkout(request):
     """Checkout page"""
     if not request.user.is_authenticated:
-        return redirect('account_login')
+        messages.info(request, 'Please sign in or create an account to continue checkout.')
+        login_url = f"{reverse('account_login')}?next={request.get_full_path()}"
+        return redirect(login_url)
     
     if not Cart or not CartItem:
         messages.error(request, 'Checkout feature not available')
         return redirect('products:list')
     
-    cart = Cart.objects.filter(user=request.user, is_active=True).first()
+    cart = _merge_guest_cart_into_user_cart(request) or Cart.objects.filter(user=request.user, is_active=True).first()
     
     if not cart or cart.items.count() == 0:
         messages.info(request, 'Your cart is empty.')
@@ -1441,39 +1798,47 @@ def checkout(request):
     })
 
 
-@login_required
 def add_accessory_to_cart(request, accessory_id):
     """Add accessory directly to cart"""
     if not Cart or not CartItem:
         return redirect('products:list')
     
     accessory = get_object_or_404(Accessory, id=accessory_id, is_active=True)
-    quantity = int(request.POST.get('quantity', 1))
-    
-    if quantity < 1:
-        quantity = 1
-    elif quantity > 999:
-        quantity = 999
-    
-    cart, created = Cart.objects.get_or_create(user=request.user, is_active=True)
-    
-    cart_item, created = CartItem.objects.get_or_create(
-        cart=cart,
-        product=None,
-        accessory=accessory,
-        defaults={'quantity': quantity, 'price_at_add': accessory.price}
-    )
-    
-    if not created:
-        cart_item.quantity += quantity
-        cart_item.save(update_fields=['quantity'])
+    quantity = _safe_quantity(request.POST.get('quantity', 1))
+
+    if request.user.is_authenticated:
+        cart, created = Cart.objects.get_or_create(user=request.user, is_active=True)
+
+        cart_item, created = CartItem.objects.get_or_create(
+            cart=cart,
+            product=None,
+            accessory=accessory,
+            defaults={'quantity': quantity, 'price_at_add': accessory.price}
+        )
+
+        if not created:
+            cart_item.quantity = min(cart_item.quantity + quantity, 999)
+            cart_item.save(update_fields=['quantity'])
+
+        cart_count = getattr(cart, 'total_items', 0)
+    else:
+        cart_data = _guest_cart_data(request)
+        key = _guest_cart_key(accessory=accessory)
+        current_quantity = int(cart_data.get(key, {}).get('quantity') or 0)
+        cart_data[key] = {
+            'accessory_id': accessory.id,
+            'quantity': min(current_quantity + quantity, 999),
+            'price_at_add': str(accessory.price),
+        }
+        cart_data = _save_guest_cart(request, cart_data)
+        cart_count = _guest_cart_count(cart_data)
     
     messages.success(request, f'{accessory.name} added to cart!')
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({
             'success': True,
-            'cart_count': getattr(cart, 'total_items', 0),
+            'cart_count': cart_count,
             'message': f'{accessory.name} added to cart'
         })
     

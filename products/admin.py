@@ -82,6 +82,19 @@ class InventoryStatusFilter(admin.SimpleListFilter):
         return queryset
 
 
+class OptionalColorFieldAdminMixin:
+    optional_color_fields = set()
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        formfield = super().formfield_for_dbfield(db_field, request, **kwargs)
+        if db_field.name in self.optional_color_fields and formfield:
+            formfield.widget.attrs.update({
+                'placeholder': '#2563eb',
+                'style': 'max-width: 9rem;',
+            })
+        return formfield
+
+
 class VariantStockStatusFilter(admin.SimpleListFilter):
     title = 'variant stock'
     parameter_name = 'variant_stock_status'
@@ -401,7 +414,14 @@ class ProductAdmin(admin.ModelAdmin):
 # =================================
 
 @admin.register(Category)
-class CategoryAdmin(admin.ModelAdmin):
+class CategoryAdmin(OptionalColorFieldAdminMixin, admin.ModelAdmin):
+    optional_color_fields = {
+        'hero_background_color',
+        'hero_text_color',
+        'hero_accent_color',
+        'hero_button_background_color',
+        'hero_button_text_color',
+    }
     list_display = ['name', 'parent', 'order', 'is_active', 'image_preview', 'has_background_status', 'product_count_display']
     list_filter = ['is_active', 'parent']
     search_fields = ['name', 'slug', 'description']
@@ -417,8 +437,13 @@ class CategoryAdmin(admin.ModelAdmin):
             'description': 'Image for category card (thumbnail) and hero background image for landing page'
         }),
         ('Hero Section', {
-            'fields': ('hero_title', 'hero_subtitle'),
-            'description': 'Customize the hero section on the category landing page',
+            'fields': (
+                'hero_title',
+                'hero_subtitle',
+                ('hero_background_color', 'hero_text_color', 'hero_accent_color'),
+                ('hero_button_background_color', 'hero_button_text_color'),
+            ),
+            'description': 'Customize the hero section on the category landing page. Color fields are optional hex values like #0f172a.',
             'classes': ('wide',)
         }),
         ('SEO & Description', {
@@ -1010,7 +1035,13 @@ class RecentlyViewedAdmin(admin.ModelAdmin):
     product_name.short_description = 'Product'
 
 @admin.register(ProductListingBanner)
-class ProductListingBannerAdmin(admin.ModelAdmin):
+class ProductListingBannerAdmin(OptionalColorFieldAdminMixin, admin.ModelAdmin):
+    optional_color_fields = {
+        "primary_color",
+        "secondary_color",
+        "cta_background_color",
+        "cta_text_color",
+    }
     list_display = [
         "title",
         "placement",
@@ -1033,7 +1064,8 @@ class ProductListingBannerAdmin(admin.ModelAdmin):
             "description": "Recommended background image size: 1920x700."
         }),
         ("Call To Action", {
-            "fields": ("cta_text", "cta_link")
+            "fields": ("cta_text", "cta_link", ("cta_background_color", "cta_text_color")),
+            "description": "CTA colors are optional hex values like #2563eb and #ffffff."
         }),
         ("Metrics", {
             "fields": (

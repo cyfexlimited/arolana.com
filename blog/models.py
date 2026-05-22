@@ -130,6 +130,17 @@ class BlogPost(BaseModel):
     def get_absolute_url(self):
         from django.urls import reverse
         return reverse('blog:detail', args=[self.slug])
+
+    @property
+    def display_image(self):
+        """Best available image for article cards and article detail pages."""
+        if self.featured_image:
+            return self.featured_image
+        if self.thumbnail_image:
+            return self.thumbnail_image
+        if self.category and self.category.featured_image:
+            return self.category.featured_image
+        return None
     
     def increment_views(self):
         self.views += 1

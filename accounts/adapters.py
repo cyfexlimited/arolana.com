@@ -111,12 +111,12 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
         UserProfile.objects.get_or_create(
             user=user,
             defaults={
-                'newsletter_subscription': True,
-                'promo_emails': True,
-                'marketing_emails': True,
+                'newsletter_subscription': False,
+                'promo_emails': False,
+                'marketing_emails': False,
             }
         )
-        sync_newsletter_subscriber(user, subscribe=True, source=provider or 'social')
+        sync_newsletter_subscriber(user, subscribe=False, source=provider or 'social')
         send_registration_messages(user, request)
         return user
     

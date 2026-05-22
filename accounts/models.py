@@ -85,8 +85,8 @@ class UserProfile(BaseModel):
     avatar = models.ImageField(upload_to='avatars/', null=True, blank=True, default='avatars/default.png')
     bio = models.TextField(max_length=500, blank=True)
     birth_date = models.DateField(null=True, blank=True)
-    newsletter_subscription = models.BooleanField(default=True)
-    promo_emails = models.BooleanField(default=True)
+    newsletter_subscription = models.BooleanField(default=False)
+    promo_emails = models.BooleanField(default=False)
     order_updates = models.BooleanField(default=True)
     marketing_emails = models.BooleanField(default=False)
     

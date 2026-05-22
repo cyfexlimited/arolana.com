@@ -70,7 +70,7 @@
                 <a href="{{ product.get_absolute_url }}" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-center">
                     <i class="fas fa-eye"></i> View Details
                 </a>
-                <button onclick="addToCartFromQuickView({{ product.id }})" class="flex-1 border border-blue-600 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50 transition">
+                <button type="button" onclick="addToCartFromQuickView('{{ product.slug|escapejs }}', this)" class="flex-1 border border-blue-600 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50 transition">
                     <i class="fas fa-cart-plus"></i> Add to Cart
                 </button>
             </div>
@@ -89,35 +89,38 @@
 </style>
 
 <script>
-function addToCartFromQuickView(productId) {
-    fetch(`/products/${productId}/add-to-cart/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-            'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: 'quantity=1'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Update cart count
-            const cartCount = document.getElementById('cart-count');
-            if (cartCount && data.cart_count) {
-                cartCount.innerText = data.cart_count;
-            }
-            // Show success message
-            alert('Product added to cart!');
-            // Close modal if exists
-            const modal = document.querySelector('[x-show="quickViewOpen"]');
-            if (modal && typeof closeQuickView === 'function') {
-                closeQuickView();
-            }
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Failed to add to cart');
-    });
-}
-</script>
+	function addToCartFromQuickView(productSlug, button) {
+	    if (window.ArolanaCartUI && typeof window.ArolanaCartUI.addProductBySlug === 'function') {
+	        window.ArolanaCartUI.addProductBySlug(productSlug, button);
+	        return;
+	    }
+
+	    fetch(`/products/${encodeURIComponent(productSlug)}/add-to-cart/`, {
+	        method: 'POST',
+	        headers: {
+	            'X-CSRFToken': '{{ csrf_token }}',
+	            'Content-Type': 'application/x-www-form-urlencoded',
+	            'X-Requested-With': 'XMLHttpRequest'
+	        },
+	        body: 'quantity=1'
+	    })
+	    .then(response => response.json())
+	    .then(data => {
+	        if (!data.success) throw new Error(data.message || 'Failed to add to cart');
+	        const cartCount = document.getElementById('cart-count');
+	        if (cartCount && typeof data.cart_count !== 'undefined') {
+	            cartCount.innerText = data.cart_count || 0;
+	        }
+	        if (button) {
+	            button.dataset.cartState = 'view-cart';
+	            button.innerHTML = '<i class="fas fa-shopping-cart"></i> View Cart';
+	        }
+	    })
+	    .catch(error => {
+	        console.error('Error:', error);
+	        if (typeof window.showArolanaToast === 'function') {
+	            window.showArolanaToast(error.message || 'Failed to add to cart', 'error');
+	        }
+	    });
+	}
+	</script>

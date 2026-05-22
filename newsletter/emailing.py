@@ -7,7 +7,7 @@ from accounts.models import User
 from .models import EmailAudienceMember, NewsletterSubscriber
 
 
-def upsert_email_audience(email, name='', source='manual', user=None, subscriber=None, accepts_promos=True):
+def upsert_email_audience(email, name='', source='manual', user=None, subscriber=None, accepts_promos=None):
     if not email:
         return None
 
@@ -18,7 +18,7 @@ def upsert_email_audience(email, name='', source='manual', user=None, subscriber
             'source': source,
             'user': user,
             'subscriber': subscriber,
-            'accepts_promos': accepts_promos,
+            'accepts_promos': bool(accepts_promos),
             'last_synced_at': timezone.now(),
         },
     )
@@ -31,7 +31,8 @@ def upsert_email_audience(email, name='', source='manual', user=None, subscriber
         member.name = member.name or name
         member.user = member.user or user
         member.subscriber = member.subscriber or subscriber
-        member.accepts_promos = member.accepts_promos or accepts_promos
+        if accepts_promos is not None:
+            member.accepts_promos = bool(accepts_promos)
         member.is_active = True
         member.last_synced_at = timezone.now()
         member.save()
@@ -45,7 +46,11 @@ def sync_email_audience():
             profile = user.profile
         except Exception:
             profile = None
-        accepts_promos = bool(getattr(profile, 'promo_emails', True))
+        accepts_promos = bool(
+            getattr(profile, 'newsletter_subscription', False)
+            or getattr(profile, 'promo_emails', False)
+            or getattr(profile, 'marketing_emails', False)
+        )
         if upsert_email_audience(
             user.email,
             name=user.get_full_name() or user.username,
@@ -69,7 +74,7 @@ def sync_email_audience():
 
 def campaign_recipient_emails(campaign):
     sync_email_audience()
-    audience = EmailAudienceMember.objects.filter(is_active=True)
+    audience = EmailAudienceMember.objects.filter(is_active=True, accepts_promos=True)
     if campaign.recipient_scope == 'subscribers':
         audience = audience.filter(source__in=['newsletter', 'both'])
     elif campaign.recipient_scope == 'registered':

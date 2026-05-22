@@ -6,6 +6,20 @@ from .models import (
     AdImpression, AdClick, AdConversion, AdAnalytics, Advertisement
 )
 
+
+class OptionalColorFieldAdminMixin:
+    optional_color_fields = set()
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        formfield = super().formfield_for_dbfield(db_field, request, **kwargs)
+        if db_field.name in self.optional_color_fields and formfield:
+            formfield.widget.attrs.update({
+                'placeholder': '#2563eb',
+                'style': 'max-width: 9rem;',
+            })
+        return formfield
+
+
 @admin.register(AdPlacement)
 class AdPlacementAdmin(admin.ModelAdmin):
     list_display = ['name', 'placement_type', 'width', 'height', 'is_active', 'priority']
@@ -52,18 +66,30 @@ class AdCampaignAdmin(admin.ModelAdmin):
     performance_metrics.short_description = 'Performance'
 
 @admin.register(AdCreative)
-class AdCreativeAdmin(admin.ModelAdmin):
+class AdCreativeAdmin(OptionalColorFieldAdminMixin, admin.ModelAdmin):
+    optional_color_fields = {'cta_background_color', 'cta_text_color'}
     list_display = ['name', 'campaign', 'creative_type', 'headline', 'ctr_display', 'is_active']
     list_filter = ['creative_type', 'is_active']
     search_fields = ['name', 'headline']
     readonly_fields = ['impressions', 'clicks', 'ctr', 'created_at', 'updated_at']
+    fieldsets = (
+        ('Campaign', {'fields': ('campaign', 'name', 'creative_type')}),
+        ('Content', {'fields': ('headline', 'description', 'cta_text', ('cta_background_color', 'cta_text_color'))}),
+        ('Media', {'fields': ('image', 'image_mobile', 'video_url', 'html_content')}),
+        ('Carousel & Dynamic', {'fields': ('carousel_items', 'dynamic_fields'), 'classes': ('collapse',)}),
+        ('Tracking', {'fields': ('clickthrough_url', 'tracking_url')}),
+        ('A/B Testing', {'fields': ('ab_variant', 'ab_weight')}),
+        ('Performance', {'fields': ('impressions', 'clicks', 'ctr'), 'classes': ('collapse',)}),
+        ('Publishing', {'fields': ('is_active',)}),
+    )
     
     def ctr_display(self, obj):
         return f"{float(obj.ctr):.2f}%" if float(obj.ctr) > 0 else "0%"
     ctr_display.short_description = 'CTR'
 
 @admin.register(AdBanner)
-class AdBannerAdmin(admin.ModelAdmin):
+class AdBannerAdmin(OptionalColorFieldAdminMixin, admin.ModelAdmin):
+    optional_color_fields = {'cta_background_color', 'cta_text_color'}
     list_display = ['title', 'campaign', 'placement', 'banner_size', 'priority', 'performance', 'is_active']
     list_filter = ['is_active', 'priority', 'placement', 'animation']
     search_fields = ['title', 'description']
@@ -74,7 +100,7 @@ class AdBannerAdmin(admin.ModelAdmin):
             'fields': ('campaign', 'creative', 'placement')
         }),
         ('Content', {
-            'fields': ('title', 'description', 'cta_text', 'cta_url', 'alt_text')
+            'fields': ('title', 'description', 'cta_text', 'cta_url', ('cta_background_color', 'cta_text_color'), 'alt_text')
         }),
         ('Media', {
             'fields': ('image', 'image_mobile', 'video_url')
@@ -166,14 +192,15 @@ class AdAnalyticsAdmin(admin.ModelAdmin):
     roi_display.short_description = 'ROI'
 
 @admin.register(Advertisement)
-class AdvertisementAdmin(admin.ModelAdmin):
+class AdvertisementAdmin(OptionalColorFieldAdminMixin, admin.ModelAdmin):
+    optional_color_fields = {'button_background_color', 'button_text_color'}
     list_display = ['title', 'placement', 'views', 'clicks', 'ctr_display', 'is_active', 'is_featured']
     list_filter = ['placement', 'is_featured', 'is_active', 'show_to_logged_in', 'show_to_guests']
     search_fields = ['title', 'description', 'target_audience']
     readonly_fields = ['views', 'clicks', 'ctr', 'created_at', 'updated_at']
     fieldsets = (
         ('Content', {
-            'fields': ('title', 'description', 'image', 'url', 'button_text')
+            'fields': ('title', 'description', 'image', 'url', 'button_text', ('button_background_color', 'button_text_color'))
         }),
         ('Placement', {
             'fields': ('placement', 'is_featured')

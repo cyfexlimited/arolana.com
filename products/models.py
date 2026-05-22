@@ -127,6 +127,36 @@ class Category(BaseModel):
         null=True, 
         help_text="Hero subtitle text displayed on category landing page"
     )
+    hero_background_color = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        help_text="Optional category hero background color, used behind or instead of an image. Example: #0f172a"
+    )
+    hero_text_color = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        help_text="Optional category hero text color. Example: #ffffff"
+    )
+    hero_accent_color = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        help_text="Optional category hero accent color for badges and stats."
+    )
+    hero_button_background_color = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        help_text="Optional category hero button background color."
+    )
+    hero_button_text_color = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        help_text="Optional category hero button text color."
+    )
     meta_title = models.CharField(max_length=200, blank=True, help_text="SEO title")
     meta_description = models.TextField(blank=True, help_text="SEO description (160 chars)")
     meta_keywords = models.CharField(max_length=200, blank=True)
@@ -1316,6 +1346,8 @@ class ProductListingBanner(BaseModel):
 
     cta_text = models.CharField(max_length=80, blank=True, default="Start shopping")
     cta_link = models.CharField(max_length=255, blank=True, default="#products-section")
+    cta_background_color = models.CharField(max_length=20, blank=True, default="", help_text="Optional CTA button background color.")
+    cta_text_color = models.CharField(max_length=20, blank=True, default="", help_text="Optional CTA button text color.")
 
     metric_one_icon = models.CharField(max_length=50, default="box")
     metric_one_text = models.CharField(max_length=80, default="Products")

@@ -68,6 +68,7 @@ path('password/reset/', RedirectView.as_view(url='/accounts/forgot-password/', p
     
     # APIs
     path('wishlist-count/', views.wishlist_count, name='wishlist_count'),
+    path('wishlist/count/', views.wishlist_count, name='wishlist_count_legacy'),
     path('recent-activity-api/', views.recent_activity_api, name='recent_activity_api'),
     path('social-apps-status/', views.social_apps_status, name='social_apps_status'),
     path('check-username/', views.check_username, name='check_username'),

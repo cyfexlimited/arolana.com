@@ -42,9 +42,13 @@
             {% endif %}
         </div>
         {% if show_actions|default:True %}
-        <button onclick="addToCart({{ product.id }})" class="mt-2 w-full bg-gray-100 text-gray-700 py-1.5 rounded-lg text-sm hover:bg-blue-600 hover:text-white transition duration-200">
-            <i class="fas fa-cart-plus mr-1"></i> Add to Cart
-        </button>
+        <form method="POST" action="{% url 'products:add_to_cart' product.slug %}" class="mt-2 arolana-ajax-cart-form" data-cart-ajax="true">
+            {% csrf_token %}
+            <input type="hidden" name="quantity" value="1">
+            <button type="submit" data-cart-button class="w-full bg-gray-100 text-gray-700 py-1.5 rounded-lg text-sm hover:bg-blue-600 hover:text-white transition duration-200">
+                <i class="fas fa-cart-plus mr-1"></i> Add to Cart
+            </button>
+        </form>
         {% endif %}
     </div>
 </div>

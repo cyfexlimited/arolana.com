@@ -98,7 +98,7 @@ class EmailAudienceMember(BaseModel):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='email_audience_memberships')
     subscriber = models.ForeignKey(NewsletterSubscriber, on_delete=models.SET_NULL, null=True, blank=True, related_name='audience_memberships')
     is_active = models.BooleanField(default=True)
-    accepts_promos = models.BooleanField(default=True)
+    accepts_promos = models.BooleanField(default=False)
     last_synced_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:

@@ -287,6 +287,82 @@
         scrollbar-color: #8b5cf6 #f1f5f9;
     }
 
+    @media (max-width: 640px) {
+        .gallery-3d > .bg-white,
+        .space-y-6 > .bg-white.rounded-2xl {
+            border-radius: 1rem;
+            padding: .85rem;
+            box-shadow: 0 14px 36px rgba(15, 23, 42, .08);
+        }
+
+        #main-product-image,
+        .gallery-item .w-full.h-96,
+        .gallery-item > div.w-full.h-96 {
+            height: min(76vw, 300px) !important;
+        }
+
+        #product-image-thumbnails {
+            gap: .5rem;
+        }
+
+        .thumbnail-img,
+        .thumbnail-item img,
+        .thumbnail-item .w-20.h-20 {
+            width: 64px !important;
+            height: 64px !important;
+            border-radius: .75rem;
+        }
+
+        .sticky.top-24 {
+            position: static;
+        }
+
+        .space-y-6 > .bg-white.rounded-2xl h1 {
+            font-size: 1.45rem;
+            line-height: 1.2;
+        }
+
+        #product-price {
+            font-size: 1.8rem;
+            line-height: 1.15;
+        }
+
+        .variant-option {
+            min-height: 42px;
+            padding: .55rem .7rem;
+            font-size: .86rem;
+        }
+
+        .product-action-row {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: .65rem;
+        }
+
+        .product-action-row > form,
+        .product-action-row > button,
+        .product-action-row > .relative {
+            min-width: 0;
+            width: 100%;
+        }
+
+        .product-action-row > .relative > button,
+        .product-action-row .wishlist-btn {
+            width: 100%;
+            padding-left: .75rem;
+            padding-right: .75rem;
+        }
+
+        #product-share-menu {
+            left: auto;
+            right: 0;
+            width: min(86vw, 16rem);
+        }
+
+        .product-video-frame {
+            border-radius: 1rem;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -487,23 +563,46 @@
 
                 <!-- Smart Actions -->
                 <div class="flex flex-col gap-3 mb-4">
-                    <div class="flex gap-3">
+                    <div class="product-action-row flex gap-3">
                         <form method="POST" action="{% url 'products:add_to_cart' product.slug %}" class="flex-1" id="add-to-cart-form" autocomplete="off">
                             {% csrf_token %}
                             <input type="hidden" name="quantity" id="cart_quantity" value="1">
                             <input type="hidden" name="variant_id" id="selected_variant_id" value="" autocomplete="off">
                             <input type="hidden" name="variant_ids" id="selected_variant_ids" value="">
                             <input type="hidden" name="variant_payload" id="selected_variant_payload" value="">
-                            <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-lg">
+                            <input type="hidden" name="next" id="cart_next" value="">
+                            <button type="submit" id="add-to-cart-submit" class="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-lg" data-action="add">
                                 <i class="fas fa-cart-plus mr-2"></i> Add to Cart
                             </button>
                         </form>
-                        <button type="button" onclick="buyNow()" class="flex-1 bg-gradient-to-r from-green-600 to-green-700 text-white py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-lg">
-                            <i class="fas fa-bolt mr-2"></i> Buy Now
+                        <button type="button" onclick="checkoutNow()" class="flex-1 bg-gradient-to-r from-green-600 to-green-700 text-white py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-lg">
+                            <i class="fas fa-credit-card mr-2"></i> Checkout
                         </button>
                         <button type="button" onclick="toggleWishlist()" class="wishlist-btn px-6 py-3 border-2 rounded-xl hover:bg-red-50 transition-all hover:scale-105" aria-label="Toggle wishlist">
                             <i class="{% if in_wishlist %}fas{% else %}far{% endif %} fa-heart text-red-500 text-xl"></i>
                         </button>
+                        <div class="relative">
+                            <button type="button" onclick="openProductShare(event)" class="px-6 py-3 border-2 rounded-xl hover:bg-blue-50 transition-all hover:scale-105" aria-label="Share product">
+                                <i class="fas fa-share-alt text-blue-600 text-xl"></i>
+                            </button>
+                            <div id="product-share-menu" class="hidden absolute right-0 top-full mt-2 w-56 rounded-xl border border-gray-200 bg-white shadow-2xl z-40 overflow-hidden">
+                                <button type="button" onclick="copyProductLink()" class="w-full px-4 py-3 text-left text-sm font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-3">
+                                    <i class="fas fa-link text-blue-600 w-5"></i> Copy link
+                                </button>
+                                <a id="share-whatsapp" href="#" target="_blank" rel="noopener" class="px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-3">
+                                    <i class="fab fa-whatsapp text-green-600 w-5"></i> WhatsApp
+                                </a>
+                                <a id="share-facebook" href="#" target="_blank" rel="noopener" class="px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-3">
+                                    <i class="fab fa-facebook text-blue-700 w-5"></i> Facebook
+                                </a>
+                                <a id="share-twitter" href="#" target="_blank" rel="noopener" class="px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-3">
+                                    <i class="fab fa-twitter text-sky-500 w-5"></i> X / Twitter
+                                </a>
+                                <a id="share-email" href="#" class="px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-3">
+                                    <i class="fas fa-envelope text-gray-600 w-5"></i> Email
+                                </a>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- AI Price Alert -->
@@ -854,7 +953,7 @@
                                 <span class="text-gray-400 line-through text-xs ml-1">{{ item.compare_price|currency:request }}</span>
                             {% endif %}
                         </div>
-	                        <button onclick="addToCart('{{ item.slug|escapejs }}')" class="mt-2 w-full bg-gray-100 text-gray-700 py-1 rounded-lg text-sm hover:bg-blue-600 hover:text-white transition">Add to Cart</button>
+	                        <button type="button" onclick="event.preventDefault(); event.stopPropagation(); addToCart('{{ item.slug|escapejs }}', this)" class="mt-2 w-full bg-gray-100 text-gray-700 py-1 rounded-lg text-sm hover:bg-blue-600 hover:text-white transition">Add to Cart</button>
                     </div>
                 </a>
             </div>
@@ -895,7 +994,7 @@
                         <div class="mt-2">
                             <span class="font-bold text-blue-600">{{ related.price|currency:request }}</span>
                         </div>
-	                        <button onclick="addToCart('{{ related.slug|escapejs }}')" class="mt-2 w-full bg-gray-100 text-gray-700 py-1 rounded-lg text-sm hover:bg-blue-600 hover:text-white transition">Add to Cart</button>
+	                        <button type="button" onclick="event.preventDefault(); event.stopPropagation(); addToCart('{{ related.slug|escapejs }}', this)" class="mt-2 w-full bg-gray-100 text-gray-700 py-1 rounded-lg text-sm hover:bg-blue-600 hover:text-white transition">Add to Cart</button>
                     </div>
                 </a>
             </div>
@@ -933,7 +1032,7 @@
                         <div class="mt-2">
                             <span class="font-bold text-blue-600">{{ item.price|currency:request }}</span>
                         </div>
-	                        <button onclick="addToCart('{{ item.slug|escapejs }}')" class="mt-2 w-full bg-gray-100 text-gray-700 py-1 rounded-lg text-sm hover:bg-blue-600 hover:text-white transition">Add to Cart</button>
+	                        <button type="button" onclick="event.preventDefault(); event.stopPropagation(); addToCart('{{ item.slug|escapejs }}', this)" class="mt-2 w-full bg-gray-100 text-gray-700 py-1 rounded-lg text-sm hover:bg-blue-600 hover:text-white transition">Add to Cart</button>
                     </div>
                 </a>
             </div>
@@ -974,7 +1073,7 @@
                         <div class="mt-2">
                             <span class="font-bold text-blue-600">{{ item.price|currency:request }}</span>
                         </div>
-	                        <button onclick="addToCart('{{ item.slug|escapejs }}')" class="mt-2 w-full bg-gray-100 text-gray-700 py-1 rounded-lg text-sm hover:bg-blue-600 hover:text-white transition">Add to Cart</button>
+	                        <button type="button" onclick="event.preventDefault(); event.stopPropagation(); addToCart('{{ item.slug|escapejs }}', this)" class="mt-2 w-full bg-gray-100 text-gray-700 py-1 rounded-lg text-sm hover:bg-blue-600 hover:text-white transition">Add to Cart</button>
                     </div>
                 </a>
             </div>
@@ -1098,7 +1197,7 @@
                         <span class="text-sm font-bold text-blue-600">{{ item.price|currency:request }}</span>
                         <div class="flex text-yellow-400 text-xs">{{ item.rating_avg|rating_stars|safe }}</div>
                     </div>
-	                    <button onclick="addToCart('{{ item.slug|escapejs }}')" class="mt-2 w-full bg-gray-100 text-gray-700 py-1 rounded-lg text-xs hover:bg-blue-600 hover:text-white transition">Add to Cart</button>
+	                    <button type="button" onclick="event.preventDefault(); event.stopPropagation(); addToCart('{{ item.slug|escapejs }}', this)" class="mt-2 w-full bg-gray-100 text-gray-700 py-1 rounded-lg text-xs hover:bg-blue-600 hover:text-white transition">Add to Cart</button>
                 </div>
             </div>
             {% endfor %}
@@ -1350,15 +1449,37 @@
     }
 
     function setAddToCartState(isAvailable) {
-        const submitBtn = document.querySelector('#add-to-cart-form button[type="submit"]');
+        const submitBtn = getEl('add-to-cart-submit');
         if (!submitBtn) return;
 
         submitBtn.disabled = !isAvailable;
+        submitBtn.dataset.action = isAvailable ? 'add' : 'disabled';
         submitBtn.classList.toggle('opacity-50', !isAvailable);
         submitBtn.classList.toggle('cursor-not-allowed', !isAvailable);
         submitBtn.innerHTML = isAvailable
             ? '<i class="fas fa-cart-plus mr-2"></i> Add to Cart'
             : '<i class="fas fa-ban mr-2"></i> Out of Stock';
+    }
+
+    function setAddToCartLoading(isLoading) {
+        const submitBtn = getEl('add-to-cart-submit');
+        if (!submitBtn) return;
+
+        submitBtn.disabled = isLoading;
+        submitBtn.classList.toggle('opacity-70', isLoading);
+        if (isLoading) {
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Adding...';
+        }
+    }
+
+    function setAddToCartViewCart() {
+        const submitBtn = getEl('add-to-cart-submit');
+        if (!submitBtn) return;
+
+        submitBtn.disabled = false;
+        submitBtn.dataset.action = 'view-cart';
+        submitBtn.classList.remove('opacity-50', 'opacity-70', 'cursor-not-allowed');
+        submitBtn.innerHTML = '<i class="fas fa-shopping-cart mr-2"></i> View Cart';
     }
 
     function updateHiddenVariantInputs() {
@@ -1728,15 +1849,144 @@
                 'X-CSRFToken': '{{ csrf_token }}',
                 'X-Requested-With': 'XMLHttpRequest'
             }
-        }).then(function () {
-            location.reload();
+        }).then(function (response) {
+            return response.json();
+        }).then(function (data) {
+            const icon = document.querySelector('.wishlist-btn i');
+            if (icon) {
+                icon.classList.toggle('far', !data.in_wishlist);
+                icon.classList.toggle('fas', !!data.in_wishlist);
+            }
+            const count = getEl('wishlist-count');
+            if (count && typeof data.wishlist_count !== 'undefined') {
+                count.innerText = data.wishlist_count || 0;
+            }
+            showToast(data.message || 'Wishlist updated', 'success');
+        }).catch(function () {
+            showToast('Wishlist update failed. Please try again.', 'error');
         });
     }
 
-    function buyNow() {
-        syncCartQuantity();
+    function submitProductToCart(options) {
+        options = options || {};
         const form = getEl('add-to-cart-form');
-        if (form) form.submit();
+        const submitBtn = getEl('add-to-cart-submit');
+
+        if (!form || !submitBtn) return Promise.resolve(false);
+
+        if (submitBtn.dataset.action === 'view-cart' && !options.redirectToCheckout) {
+            window.location.href = "{% url 'products:cart' %}";
+            return Promise.resolve(false);
+        }
+
+        syncCartQuantity();
+        const nextInput = getEl('cart_next');
+        if (nextInput) nextInput.value = '';
+
+        setAddToCartLoading(true);
+
+        return fetch(form.action, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        }).then(function (response) {
+            return response.json().then(function (data) {
+                return { ok: response.ok, data: data };
+            });
+        }).then(function (result) {
+            if (!result.ok || !result.data.success) {
+                throw new Error(result.data.message || 'Unable to add product to cart.');
+            }
+
+            const cartCountEl = getEl('cart-count');
+            if (cartCountEl && typeof result.data.cart_count !== 'undefined') {
+                cartCountEl.innerText = result.data.cart_count || 0;
+            } else {
+                updateCartCount();
+            }
+
+            if (options.redirectToCheckout) {
+                window.location.href = "{% url 'products:checkout' %}";
+                return true;
+            }
+
+            setAddToCartViewCart();
+            showToast(result.data.message || 'Product added to cart.', 'success');
+            return true;
+        }).catch(function (error) {
+            setAddToCartState(true);
+            showToast(error.message || 'Unable to add product to cart.', 'error');
+            return false;
+        });
+    }
+
+    function checkoutNow() {
+        submitProductToCart({ redirectToCheckout: true });
+    }
+
+    function setupProductShareLinks() {
+        const productUrl = window.location.href;
+        const productTitle = "{{ product.name|escapejs }}";
+        const encodedUrl = encodeURIComponent(productUrl);
+        const encodedTitle = encodeURIComponent(productTitle);
+        const shareText = encodeURIComponent(`${productTitle} - Arolana`);
+
+        const whatsapp = getEl('share-whatsapp');
+        const facebook = getEl('share-facebook');
+        const twitter = getEl('share-twitter');
+        const email = getEl('share-email');
+
+        if (whatsapp) whatsapp.href = `https://wa.me/?text=${shareText}%20${encodedUrl}`;
+        if (facebook) facebook.href = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`;
+        if (twitter) twitter.href = `https://twitter.com/intent/tweet?text=${shareText}&url=${encodedUrl}`;
+        if (email) email.href = `mailto:?subject=${encodedTitle}&body=${shareText}%0A%0A${encodedUrl}`;
+    }
+
+    function toggleProductShareMenu(forceOpen) {
+        const menu = getEl('product-share-menu');
+        if (!menu) return;
+
+        const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : menu.classList.contains('hidden');
+        menu.classList.toggle('hidden', !shouldOpen);
+    }
+
+    function openProductShare(event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        if (navigator.share) {
+            navigator.share({
+                title: "{{ product.name|escapejs }}",
+                text: "Check out {{ product.name|escapejs }} on Arolana.",
+                url: window.location.href
+            }).catch(function () {
+                toggleProductShareMenu(true);
+            });
+            return;
+        }
+
+        toggleProductShareMenu();
+    }
+
+    function copyProductLink() {
+        const url = window.location.href;
+        const done = function () {
+            toggleProductShareMenu(false);
+            showToast('Product link copied.', 'success');
+        };
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(done).catch(function () {
+                window.prompt('Copy this product link:', url);
+            });
+            return;
+        }
+
+        window.prompt('Copy this product link:', url);
     }
 
     function startExpertChat() {
@@ -1782,7 +2032,7 @@
         }
 
         if (text.includes('cart') || text.includes('buy')) {
-            return 'Select your preferred variant, choose quantity, then click Add to Cart or Buy Now.';
+            return 'Select your preferred variant, choose quantity, then click Add to Cart or Checkout.';
         }
 
         return 'I can help with stock, variants, product images, price, delivery, warranty, and Add to Cart.';
@@ -1893,22 +2143,36 @@
         openAIChat();
     }
 
-    function addToCart(productSlug) {
-        fetch(`/products/${productSlug}/add-to-cart/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}',
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: 'quantity=1'
-        }).then(function () {
-            showToast('Product added to cart!', 'success');
-            updateCartCount();
-        }).catch(function () {
-            showToast('Unable to add product to cart.', 'error');
-        });
-    }
+	    function addToCart(productSlug, button) {
+	        const trigger = button || (window.event && window.event.currentTarget) || null;
+
+	        if (window.ArolanaCartUI && typeof window.ArolanaCartUI.addProductBySlug === 'function') {
+	            window.ArolanaCartUI.addProductBySlug(productSlug, trigger);
+	            return;
+	        }
+
+	        fetch(`/products/${encodeURIComponent(productSlug)}/add-to-cart/`, {
+	            method: 'POST',
+	            headers: {
+	                'X-CSRFToken': '{{ csrf_token }}',
+	                'Content-Type': 'application/x-www-form-urlencoded',
+	                'X-Requested-With': 'XMLHttpRequest'
+	            },
+	            body: 'quantity=1'
+	        }).then(function (response) {
+	            return response.json();
+	        }).then(function (data) {
+	            if (!data.success) throw new Error(data.message || 'Unable to add product to cart.');
+	            showToast(data.message || 'Product added to cart!', 'success');
+	            updateCartCount();
+	            if (trigger) {
+	                trigger.dataset.cartState = 'view-cart';
+	                trigger.innerHTML = '<i class="fas fa-shopping-cart mr-2"></i> View Cart';
+	            }
+	        }).catch(function () {
+	            showToast('Unable to add product to cart.', 'error');
+	        });
+	    }
 
     function addAccessoryToCart(accessoryId) {
         fetch(`/products/api/accessory/${accessoryId}/add/`, {
@@ -2125,9 +2389,33 @@
 
         const quantity = getEl('quantity');
         if (quantity) {
-            quantity.addEventListener('input', syncCartQuantity);
-            quantity.addEventListener('change', syncCartQuantity);
+            quantity.addEventListener('input', function () {
+                syncCartQuantity();
+                const submitBtn = getEl('add-to-cart-submit');
+                if (submitBtn && submitBtn.dataset.action === 'view-cart') setAddToCartState(true);
+            });
+            quantity.addEventListener('change', function () {
+                syncCartQuantity();
+                const submitBtn = getEl('add-to-cart-submit');
+                if (submitBtn && submitBtn.dataset.action === 'view-cart') setAddToCartState(true);
+            });
         }
+
+        const addToCartForm = getEl('add-to-cart-form');
+        if (addToCartForm) {
+            addToCartForm.addEventListener('submit', function (event) {
+                event.preventDefault();
+                submitProductToCart();
+            });
+        }
+
+        setupProductShareLinks();
+        document.addEventListener('click', function (event) {
+            const menu = getEl('product-share-menu');
+            if (!menu || menu.classList.contains('hidden')) return;
+            if (event.target.closest('#product-share-menu') || event.target.closest('[aria-label="Share product"]')) return;
+            toggleProductShareMenu(false);
+        });
 
         const aiForm = getEl('ai-chat-form');
         const aiInput = getEl('ai-chat-input');
@@ -2185,7 +2473,9 @@
     window.showVideoPlayer = showVideoPlayer;
     window.closeVideoPlayer = closeVideoPlayer;
     window.toggleWishlist = toggleWishlist;
-    window.buyNow = buyNow;
+    window.checkoutNow = checkoutNow;
+    window.openProductShare = openProductShare;
+    window.copyProductLink = copyProductLink;
     window.startExpertChat = startExpertChat;
     window.startAIChat = startAIChat;
     window.openAIChat = openAIChat;

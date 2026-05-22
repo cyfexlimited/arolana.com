@@ -105,13 +105,15 @@ def blog_detail(request, slug):
         heading_id = slugify(h)
         toc.append({'title': h, 'id': heading_id})
     
+    article_image = post.display_image
+
     # JSON-LD Schema for article
     schema = {
         "@context": "https://schema.org",
         "@type": "Article",
         "headline": post.title,
         "description": post.excerpt[:200],
-        "image": post.featured_image.url if post.featured_image else None,
+        "image": request.build_absolute_uri(article_image.url) if article_image else None,
         "author": {
             "@type": "Person",
             "name": post.author.get_full_name() or post.author.username
