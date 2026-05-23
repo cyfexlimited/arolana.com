@@ -13,11 +13,14 @@
         {% if product.discount_percent > 0 %}
             <span class="product-grid-badge">-{{ product.discount_percent }}%</span>
         {% endif %}
+        {% if product.condition != "brand_new" %}
+            <span class="absolute top-2 left-2 bg-slate-900/90 text-white text-xs px-2 py-1 rounded-md font-semibold z-10">{{ product.get_condition_display }}</span>
+        {% endif %}
         {% if product.is_new %}
-            <span class="absolute top-2 left-2 bg-emerald-500 text-white text-xs px-2 py-1 rounded-md font-medium z-10">New</span>
+            <span class="absolute {% if product.condition != "brand_new" %}top-9{% else %}top-2{% endif %} left-2 bg-emerald-500 text-white text-xs px-2 py-1 rounded-md font-medium z-10">New</span>
         {% endif %}
         {% if product.is_bestseller %}
-            <span class="absolute top-2 left-2 bg-amber-500 text-white text-xs px-2 py-1 rounded-md font-medium z-10">🏆 Bestseller</span>
+            <span class="absolute {% if product.condition != "brand_new" or product.is_new %}top-9{% else %}top-2{% endif %} left-2 bg-amber-500 text-white text-xs px-2 py-1 rounded-md font-medium z-10">Bestseller</span>
         {% endif %}
     </div>
     <div class="p-3">

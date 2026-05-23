@@ -267,6 +267,26 @@ class Brand(BaseModel):
 # =========================
 class Product(BaseModel):
     """Enhanced product model with comprehensive features and approval system"""
+
+    CONDITION_BRAND_NEW = 'brand_new'
+    CONDITION_OPEN_BOX = 'open_box'
+    CONDITION_UK_USED = 'uk_used'
+    CONDITION_FOREIGN_USED = 'foreign_used'
+    CONDITION_LOCALLY_USED = 'locally_used'
+    CONDITION_REFURBISHED = 'refurbished'
+    CONDITION_FAIRLY_USED = 'fairly_used'
+    CONDITION_CERTIFIED_PRE_OWNED = 'certified_pre_owned'
+
+    PRODUCT_CONDITION_CHOICES = [
+        (CONDITION_BRAND_NEW, 'Brand New'),
+        (CONDITION_OPEN_BOX, 'Open Box'),
+        (CONDITION_UK_USED, 'UK Used'),
+        (CONDITION_FOREIGN_USED, 'Foreign Used'),
+        (CONDITION_LOCALLY_USED, 'Locally Used'),
+        (CONDITION_REFURBISHED, 'Refurbished'),
+        (CONDITION_FAIRLY_USED, 'Fairly Used'),
+        (CONDITION_CERTIFIED_PRE_OWNED, 'Certified Pre-Owned'),
+    ]
     
     # Basic Info
     sku = models.CharField(
@@ -283,6 +303,13 @@ class Product(BaseModel):
     )
     name = models.CharField(max_length=200, db_index=True)
     slug = models.SlugField(max_length=255, unique=True, db_index=True)
+    condition = models.CharField(
+        max_length=30,
+        choices=PRODUCT_CONDITION_CHOICES,
+        default=CONDITION_BRAND_NEW,
+        db_index=True,
+        help_text="Clearly disclose whether this item is brand new, used, open box, or refurbished."
+    )
     description = CKEditor5Field()
     specifications = CKEditor5Field(
         blank=True,
@@ -452,6 +479,12 @@ class Product(BaseModel):
         blank=True
     )
     video_title = models.CharField(max_length=200, blank=True)
+    manual_pdf = models.FileField(
+        upload_to='products/manuals/%Y/%m/',
+        null=True,
+        blank=True,
+        help_text="Optional PDF manual, brochure, or specification sheet for customer download."
+    )
     
     # SEO
     meta_title = models.CharField(max_length=200, blank=True, help_text="SEO title (60 chars)")
@@ -532,6 +565,8 @@ class Product(BaseModel):
             raise ValidationError("Compare price must be greater than price")
         if self.stock_quantity < 0:
             raise ValidationError("Stock quantity cannot be negative")
+        if self.manual_pdf and not str(self.manual_pdf.name).lower().endswith('.pdf'):
+            raise ValidationError({"manual_pdf": "Only PDF manuals or brochures are allowed."})
     
     def save(self, *args, **kwargs):
         self.clean()

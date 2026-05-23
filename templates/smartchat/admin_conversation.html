@@ -305,6 +305,23 @@
         font-weight: 800;
     }
 
+    .smartchat-attachment {
+        display: block;
+        margin-top: 10px;
+        max-width: min(100%, 360px);
+        overflow: hidden;
+        border-radius: 14px;
+        border: 1px solid rgba(15, 23, 42, .08);
+        background: #fff;
+    }
+
+    .smartchat-attachment img {
+        display: block;
+        max-height: 320px;
+        object-fit: contain;
+        width: 100%;
+    }
+
     .smartchat-reply-area {
         border-top: 1px solid #e5e7eb;
         padding: 14px;
@@ -537,7 +554,12 @@
                                 </span>
                                 <span>{{ message.created_at|date:"M d, H:i" }}</span>
                             </div>
-                            {{ message.message|linebreaksbr }}
+                            {% if message.message %}{{ message.message|linebreaksbr }}{% endif %}
+                            {% if message.image %}
+                                <a href="{{ message.image.url }}" target="_blank" rel="noopener" class="smartchat-attachment">
+                                    <img src="{{ message.image.url }}" alt="Smart chat image attachment" loading="lazy">
+                                </a>
+                            {% endif %}
                         </div>
                     </div>
                 {% empty %}
@@ -714,10 +736,21 @@
         meta.innerHTML = '<span>' + escapeHtml(senderLabel(message)) + '</span><span>' + escapeHtml(formatDate(message.created_at)) + '</span>';
 
         const text = document.createElement('div');
-        text.innerHTML = escapeHtml(message.message).replace(/\n/g, '<br>');
+        text.innerHTML = escapeHtml(message.message || '').replace(/\n/g, '<br>');
 
         bubble.appendChild(meta);
-        bubble.appendChild(text);
+        if ((message.message || '').trim()) {
+            bubble.appendChild(text);
+        }
+        if (message.image_url) {
+            const attachment = document.createElement('a');
+            attachment.className = 'smartchat-attachment';
+            attachment.href = message.image_url;
+            attachment.target = '_blank';
+            attachment.rel = 'noopener';
+            attachment.innerHTML = '<img src="' + escapeHtml(message.image_url) + '" alt="' + escapeHtml(message.image_name || 'Smart chat image attachment') + '" loading="lazy">';
+            bubble.appendChild(attachment);
+        }
         row.appendChild(bubble);
         messageList.appendChild(row);
 

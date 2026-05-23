@@ -71,6 +71,11 @@
                     NEW
                 </div>
                 {% endif %}
+                {% if product.condition != "brand_new" %}
+                <div class="absolute {% if product.is_new %}top-10{% else %}top-3{% endif %} left-3 bg-slate-900/90 text-white text-xs font-bold px-2 py-1 rounded-full">
+                    {{ product.get_condition_display }}
+                </div>
+                {% endif %}
                 
                 {% if product.is_bestseller %}
                 <div class="absolute bottom-3 left-3 bg-yellow-500 text-white text-xs font-bold px-2 py-1 rounded-full">

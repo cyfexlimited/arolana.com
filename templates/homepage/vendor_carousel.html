@@ -141,6 +141,17 @@
             }
         }
 
+        @media (min-width: 641px) and (max-width: 767px) {
+            .homepage-vendor-slide {
+                flex-basis: 50%;
+                padding: 0 .6rem;
+            }
+
+            .homepage-vendor-body {
+                min-height: 12rem;
+            }
+        }
+
         @media (min-width: 1024px) {
             .homepage-vendor-slide {
                 flex-basis: 33.3333%;
@@ -295,6 +306,8 @@ function vendorCarousel() {
             } else if (window.innerWidth >= 1024) {
                 this.slidesPerView = 3;
             } else if (window.innerWidth >= 768) {
+                this.slidesPerView = 2;
+            } else if (window.innerWidth >= 641) {
                 this.slidesPerView = 2;
             } else {
                 this.slidesPerView = 1;

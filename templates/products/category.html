@@ -13,13 +13,16 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {% for product in products %}
             <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-2xl transition">
-                <a href="{{ product.get_absolute_url }}">
+                <a href="{{ product.get_absolute_url }}" class="relative block">
                     {% if product.main_image %}
                         <img src="{{ product.main_image.url }}" class="w-full h-48 object-cover">
                     {% else %}
                         <div class="w-full h-48 bg-gray-100 flex items-center justify-center">
                             <i class="fas fa-image text-4xl text-gray-400"></i>
                         </div>
+                    {% endif %}
+                    {% if product.condition != "brand_new" %}
+                        <span class="absolute top-2 left-2 rounded-full bg-slate-900/90 px-2 py-1 text-xs font-bold text-white">{{ product.get_condition_display }}</span>
                     {% endif %}
                 </a>
                 <div class="p-4">

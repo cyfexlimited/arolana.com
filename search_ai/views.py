@@ -30,6 +30,79 @@ def _clean_query(value):
     return re.sub(r'\s+', ' ', (value or '').strip())
 
 
+SEARCH_STOP_WORDS = {
+    'a', 'an', 'and', 'any', 'are', 'available', 'bring', 'buy', 'can', 'carry',
+    'could', 'do', 'does', 'find', 'for', 'from', 'get', 'give', 'got', 'have',
+    'help', 'i', 'in', 'is', 'it', 'me', 'need', 'of', 'on', 'please', 'price',
+    'product', 'products', 'search', 'sell', 'show', 'shop', 'stock', 'that',
+    'the', 'there', 'this', 'to', 'want', 'with', 'you', 'your'
+}
+
+
+def _query_terms(query, limit=10):
+    """Extract product-bearing words from natural search sentences."""
+    clean = _clean_query(query).lower()
+    words = [
+        word for word in re.findall(r"[a-z0-9][a-z0-9+.-]*", clean)
+        if len(word) > 1 and word not in SEARCH_STOP_WORDS
+    ]
+
+    terms = []
+    for word in words:
+        if word not in terms:
+            terms.append(word)
+
+    return terms[:limit]
+
+
+def _icontains_any(fields, query, terms=None):
+    terms = terms if terms is not None else _query_terms(query)
+    search_q = Q()
+
+    if query:
+        for field in fields:
+            search_q |= Q(**{f'{field}__icontains': query})
+
+    for term in terms:
+        for field in fields:
+            search_q |= Q(**{f'{field}__icontains': term})
+
+    return search_q
+
+
+def _product_search_q(query, terms=None):
+    return _icontains_any(
+        ['name', 'description', 'manufacturer_sku', 'sku', 'category__name', 'brand__name'],
+        query,
+        terms,
+    )
+
+
+def _product_relevance_case(query, terms=None):
+    terms = terms if terms is not None else _query_terms(query)
+    whens = [
+        When(name__iexact=query, then=Value(120)),
+        When(name__istartswith=query, then=Value(110)),
+        When(name__icontains=query, then=Value(100)),
+        When(brand__name__istartswith=query, then=Value(92)),
+        When(category__name__istartswith=query, then=Value(88)),
+        When(sku__icontains=query, then=Value(86)),
+        When(manufacturer_sku__icontains=query, then=Value(86)),
+    ]
+
+    for index, term in enumerate(terms[:8]):
+        score = max(62, 84 - index)
+        whens.extend([
+            When(name__icontains=term, then=Value(score)),
+            When(brand__name__icontains=term, then=Value(score - 4)),
+            When(category__name__icontains=term, then=Value(score - 6)),
+            When(sku__icontains=term, then=Value(score - 8)),
+            When(manufacturer_sku__icontains=term, then=Value(score - 8)),
+        ])
+
+    return Case(*whens, default=Value(50), output_field=IntegerField())
+
+
 def _search_suggestions(query, categories, products):
     words = [word for word in re.split(r'\W+', query.lower()) if len(word) > 1]
     suggestions = []
@@ -60,60 +133,29 @@ def ai_search(request):
         return JsonResponse({'results': [], 'suggestions': []})
 
     try:
+        terms = _query_terms(query)
         product_matches = (
             Product.objects
-            .filter(
-                Q(name__icontains=query) |
-                Q(description__icontains=query) |
-                Q(category__name__icontains=query) |
-                Q(brand__name__icontains=query),
-                is_active=True,
-                approval_status='approved',
-            )
+            .filter(_product_search_q(query, terms), is_active=True, approval_status='approved')
             .select_related('category', 'brand')
-            .annotate(
-                relevance=Case(
-                    When(name__iexact=query, then=Value(100)),
-                    When(name__istartswith=query, then=Value(90)),
-                    When(brand__name__istartswith=query, then=Value(82)),
-                    When(category__name__istartswith=query, then=Value(78)),
-                    default=Value(60),
-                    output_field=IntegerField(),
-                )
-            )
+            .annotate(relevance=_product_relevance_case(query, terms))
+            .distinct()
             .order_by('-relevance', '-rating_avg', '-sales_count')[:8]
         )
     except Exception:
+        terms = _query_terms(query)
         product_matches = (
             Product.objects
-            .filter(
-                Q(name__icontains=query) |
-                Q(description__icontains=query) |
-                Q(category__name__icontains=query) |
-                Q(brand__name__icontains=query),
-                is_active=True,
-                approval_status='approved',
-            )
+            .filter(_product_search_q(query, terms), is_active=True, approval_status='approved')
             .select_related('category', 'brand')
-            .annotate(
-                relevance=Case(
-                    When(name__iexact=query, then=Value(100)),
-                    When(name__istartswith=query, then=Value(90)),
-                    When(brand__name__istartswith=query, then=Value(82)),
-                    When(category__name__istartswith=query, then=Value(78)),
-                    default=Value(60),
-                    output_field=IntegerField(),
-                )
-            )
+            .annotate(relevance=_product_relevance_case(query, terms))
+            .distinct()
             .order_by('-relevance', '-rating_avg', '-sales_count')[:8]
         )
 
     categories = (
         Category.objects
-        .filter(
-            Q(name__icontains=query) | Q(description__icontains=query),
-            is_active=True,
-        )
+        .filter(_icontains_any(['name', 'description'], query), is_active=True)
         .annotate(
             product_total=Count(
                 'products',
@@ -125,22 +167,14 @@ def ai_search(request):
 
     vendors = (
         VendorProfile.objects
-        .filter(
-            Q(store_name__icontains=query) |
-            Q(description__icontains=query) |
-            Q(user__email__icontains=query),
-            is_active=True,
-        )
+        .filter(_icontains_any(['store_name', 'description', 'user__email'], query), is_active=True)
         .select_related('user')
         .order_by('-is_verified', '-rating_avg', '-total_sales')[:4]
     )
 
     manufacturers = (
         Manufacturer.objects
-        .filter(
-            Q(name__icontains=query) | Q(description__icontains=query),
-            is_active=True,
-        )
+        .filter(_icontains_any(['name', 'description'], query), is_active=True)
         .order_by('-is_featured', '-rating_avg', '-total_sales')[:4]
     )
 
@@ -248,21 +282,23 @@ def advanced_search(request):
 
     query = _clean_query(request.GET.get('q', ''))
     category = request.GET.get('category')
+    condition = request.GET.get('condition')
     min_price = request.GET.get('min_price')
     max_price = request.GET.get('max_price')
     rating = request.GET.get('rating')
-    sort = request.GET.get('sort', '-created_at')
+    sort = request.GET.get('sort') or ('-relevance' if query else '-created_at')
 
     if query:
-        products = products.filter(
-            Q(name__icontains=query) |
-            Q(description__icontains=query) |
-            Q(category__name__icontains=query) |
-            Q(brand__name__icontains=query)
-        )
+        terms = _query_terms(query)
+        products = products.filter(_product_search_q(query, terms)).annotate(
+            relevance=_product_relevance_case(query, terms)
+        ).distinct()
 
     if category:
         products = products.filter(category__slug=category)
+
+    if condition:
+        products = products.filter(condition=condition)
 
     if min_price:
         try:
@@ -282,7 +318,9 @@ def advanced_search(request):
         except:
             pass
 
-    allowed_sorts = {'-created_at', 'created_at', 'price', '-price', '-rating_avg', '-sales_count', 'name'}
+    allowed_sorts = {'-created_at', 'created_at', 'price', '-price', '-rating_avg', '-sales_count', 'name', '-relevance'}
+    if sort == '-relevance' and not query:
+        sort = '-created_at'
     if sort not in allowed_sorts:
         sort = '-created_at'
     products = products.order_by(sort)
@@ -294,6 +332,8 @@ def advanced_search(request):
         'categories': Category.objects.filter(is_active=True, parent=None),
         'query': query,
         'selected_category': category,
+        'selected_condition': condition,
+        'condition_choices': Product.PRODUCT_CONDITION_CHOICES,
         'min_price': min_price,
         'max_price': max_price,
         'selected_rating': rating,
@@ -337,25 +377,15 @@ def voice_search(request):
         if not voice_text:
             return JsonResponse({'success': False, 'error': 'No voice input detected'}, status=400)
 
+        terms = _query_terms(voice_text)
         products = Product.objects.filter(
             is_active=True,
             approval_status='approved',
         ).select_related('category', 'brand')
 
-        products = products.filter(
-            Q(name__icontains=voice_text) |
-            Q(description__icontains=voice_text) |
-            Q(category__name__icontains=voice_text) |
-            Q(brand__name__icontains=voice_text)
-        ).annotate(
-            relevance=Case(
-                When(name__icontains=voice_text, then=Value(100)),
-                When(brand__name__icontains=voice_text, then=Value(85)),
-                When(category__name__icontains=voice_text, then=Value(75)),
-                default=Value(60),
-                output_field=IntegerField(),
-            )
-        ).order_by('-relevance', '-rating_avg', '-sales_count')[:12]
+        products = products.filter(_product_search_q(voice_text, terms)).annotate(
+            relevance=_product_relevance_case(voice_text, terms)
+        ).distinct().order_by('-relevance', '-rating_avg', '-sales_count')[:12]
 
         result_count = products.count()
 
@@ -395,6 +425,7 @@ def voice_search(request):
         return JsonResponse({
             'success': True,
             'query': voice_text,
+            'terms': terms,
             'results': results_data,
             'count': result_count,
             'ai_message': ai_message,

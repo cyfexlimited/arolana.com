@@ -330,6 +330,64 @@
             animation: slideDownLuxury 0.25s ease;
         }
 
+        .arolana-live-search-dropdown.hidden {
+            display: none !important;
+        }
+
+        .arolana-live-search-result {
+            align-items: center;
+            border-bottom: 1px solid #eef2f7;
+            border-radius: 12px;
+            display: flex;
+            gap: .75rem;
+            padding: .7rem;
+            transition: background .18s ease, transform .18s ease;
+        }
+
+        .arolana-live-search-result:hover {
+            background: #f8fafc;
+            transform: translateY(-1px);
+        }
+
+        .arolana-live-search-image {
+            align-items: center;
+            background: linear-gradient(135deg, #eef2ff, #f8fafc);
+            border-radius: 12px;
+            display: flex;
+            flex: 0 0 auto;
+            height: 3rem;
+            justify-content: center;
+            overflow: hidden;
+            width: 3rem;
+        }
+
+        .arolana-live-search-image img {
+            height: 100%;
+            object-fit: cover;
+            width: 100%;
+        }
+
+        .arolana-live-search-empty {
+            color: #64748b;
+            font-size: .9rem;
+            padding: .85rem;
+            text-align: center;
+        }
+
+        @media (max-width: 1023px) {
+            .arolana-live-search-dropdown {
+                left: 0;
+                right: 0;
+                z-index: 10050;
+                max-height: min(430px, 62vh);
+            }
+
+            .mobile-drawer-search .arolana-live-search-dropdown {
+                border-color: rgba(255, 255, 255, .18);
+                box-shadow: 0 18px 40px rgba(15, 23, 42, .25);
+            }
+        }
+
         @keyframes slideDownLuxury {
             from {
                 opacity: 0;
@@ -2325,13 +2383,21 @@
                 </div>
             </div>
 
-            <form action="{% url 'search_ai:advanced_search' %}" method="get" class="lg:hidden mt-3 luxury-search flex">
-                <input id="mobile-search-input" name="q" type="search" placeholder="Search products, brands, vendors..." class="w-full focus:outline-none">
-                <button type="button" class="voice-search-button" aria-label="Voice search" title="Voice search" onclick="startArolanaVoiceSearch('#mobile-search-input', this)">
-                    <i class="fas fa-microphone"></i>
-                </button>
-                <button type="submit" aria-label="Search"><i class="fas fa-search"></i></button>
-            </form>
+            <div class="lg:hidden mt-3 relative" data-live-search-wrapper>
+                <form action="{% url 'search_ai:advanced_search' %}" method="get" class="luxury-search flex" data-live-search-form>
+                    <input id="mobile-search-input" name="q" type="search" placeholder="Search products, brands, vendors..." class="w-full focus:outline-none" data-live-search-input>
+                    <button type="button" class="voice-search-button" aria-label="Voice search" title="Voice search" onclick="startArolanaVoiceSearch('#mobile-search-input', this)">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                    <button type="submit" aria-label="Search"><i class="fas fa-search"></i></button>
+                </form>
+                <div class="search-dropdown arolana-live-search-dropdown hidden p-3" data-live-search-dropdown>
+                    <div class="arolana-live-search-empty hidden" data-live-search-loading>
+                        <i class="fas fa-spinner fa-spin mr-2"></i>Searching Arolana...
+                    </div>
+                    <div data-live-search-results></div>
+                </div>
+            </div>
         </div>
 
         <nav class="desktop-nav hidden lg:block bg-gray-50 border-t border-gray-200">
@@ -2594,18 +2660,25 @@
             </div>
 
             <!-- Search -->
-            <div class="mobile-drawer-search">
-                <form action="{% url 'search_ai:advanced_search' %}" method="get" class="luxury-search flex">
+            <div class="mobile-drawer-search relative" data-live-search-wrapper>
+                <form action="{% url 'search_ai:advanced_search' %}" method="get" class="luxury-search flex" data-live-search-form>
                     <input id="mobile-drawer-search-input"
                            name="q"
                            type="search"
                            placeholder="Search Arolana..."
-                           class="w-full text-sm bg-transparent outline-none">
+                           class="w-full text-sm bg-transparent outline-none"
+                           data-live-search-input>
                     <button type="button" class="voice-search-button" aria-label="Voice search" title="Voice search" onclick="startArolanaVoiceSearch('#mobile-drawer-search-input', this)">
                         <i class="fas fa-microphone"></i>
                     </button>
                     <button type="submit" aria-label="Search"><i class="fas fa-search"></i></button>
                 </form>
+                <div class="search-dropdown arolana-live-search-dropdown hidden p-3" data-live-search-dropdown>
+                    <div class="arolana-live-search-empty hidden" data-live-search-loading>
+                        <i class="fas fa-spinner fa-spin mr-2"></i>Searching Arolana...
+                    </div>
+                    <div data-live-search-results></div>
+                </div>
             </div>
 
             <!-- Quick Actions -->
@@ -3170,6 +3243,102 @@
             })[char]);
         }
 
+        function initArolanaLiveSearch() {
+            document.querySelectorAll('[data-live-search-wrapper]').forEach((wrapper) => {
+                if (wrapper.dataset.liveSearchReady === 'true') return;
+                wrapper.dataset.liveSearchReady = 'true';
+
+                const input = wrapper.querySelector('[data-live-search-input]');
+                const dropdown = wrapper.querySelector('[data-live-search-dropdown]');
+                const resultsBox = wrapper.querySelector('[data-live-search-results]');
+                const loading = wrapper.querySelector('[data-live-search-loading]');
+                let searchTimer = null;
+                let controller = null;
+
+                if (!input || !dropdown || !resultsBox) return;
+
+                const hide = () => {
+                    dropdown.classList.add('hidden');
+                    if (loading) loading.classList.add('hidden');
+                };
+
+                const show = () => {
+                    dropdown.classList.remove('hidden');
+                };
+
+                const render = (items) => {
+                    if (!items.length) {
+                        resultsBox.innerHTML = '<div class="arolana-live-search-empty">No quick matches yet. Press search to see full results.</div>';
+                        show();
+                        return;
+                    }
+
+                    resultsBox.innerHTML = items.map((item) => {
+                        const image = item.image
+                            ? `<img src="${escapeHtml(item.image)}" alt="" loading="lazy">`
+                            : '<i class="fas fa-search text-blue-500"></i>';
+                        const label = item.label || item.category || item.type || 'Result';
+                        const meta = [label, item.brand].filter(Boolean).join(' · ');
+                        const price = item.price_display || item.price || '';
+                        return `
+                            <a href="${escapeHtml(item.url || '#')}" class="arolana-live-search-result">
+                                <span class="arolana-live-search-image">${image}</span>
+                                <span class="min-w-0 flex-1">
+                                    <span class="block font-extrabold text-gray-900 truncate">${escapeHtml(item.name)}</span>
+                                    <span class="block text-xs text-gray-500 truncate">${escapeHtml(meta)}</span>
+                                    ${price ? `<span class="block text-sm font-black text-blue-600">${escapeHtml(price)}</span>` : ''}
+                                </span>
+                            </a>
+                        `;
+                    }).join('');
+                    show();
+                };
+
+                const runSearch = () => {
+                    const query = input.value.trim();
+                    if (query.length < 2) {
+                        hide();
+                        return;
+                    }
+
+                    if (controller) controller.abort();
+                    controller = new AbortController();
+                    if (loading) loading.classList.remove('hidden');
+                    resultsBox.innerHTML = '';
+                    show();
+
+                    fetch('/search/ai/?q=' + encodeURIComponent(query), {
+                        signal: controller.signal,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                        .then((response) => response.ok ? response.json() : Promise.reject(response))
+                        .then((data) => render(data.results || []))
+                        .catch((error) => {
+                            if (error.name !== 'AbortError') {
+                                resultsBox.innerHTML = '<div class="arolana-live-search-empty">Search suggestions are unavailable. Press search to continue.</div>';
+                                show();
+                            }
+                        })
+                        .finally(() => {
+                            if (loading) loading.classList.add('hidden');
+                        });
+                };
+
+                input.addEventListener('input', () => {
+                    window.clearTimeout(searchTimer);
+                    searchTimer = window.setTimeout(runSearch, 240);
+                });
+
+                input.addEventListener('focus', () => {
+                    if (input.value.trim().length >= 2 && resultsBox.innerHTML.trim()) show();
+                });
+
+                document.addEventListener('click', (event) => {
+                    if (!wrapper.contains(event.target)) hide();
+                });
+            });
+        }
+
         function startArolanaVoiceSearch(targetSelector, button) {
             const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             const input = document.querySelector(targetSelector);
@@ -3453,6 +3622,7 @@
             setupNewsletterForm();
             setupLazyImageObserver();
             setupMobileFooterAccordions();
+            initArolanaLiveSearch();
             updateUnreadCount();
             updateNotificationCount();
             updateCartCount();

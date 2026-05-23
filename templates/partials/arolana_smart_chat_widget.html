@@ -4,6 +4,7 @@
     id="arolana-smartchat-widget"
     class="fixed bottom-6 right-6 z-[99999]"
     data-message-url="{% url 'smartchat:api_message' %}"
+    data-upload-image-url="{% url 'smartchat:api_upload_image' %}"
     data-guest-contact-url="{% url 'smartchat:api_guest_contact' %}"
     data-poll-url="{% url 'smartchat:api_poll' %}"
     data-typing-url="{% url 'smartchat:api_typing' %}"
@@ -152,6 +153,21 @@
                     class="min-w-0 flex-1 rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                     onkeydown="if(event.key === 'Enter'){event.preventDefault(); window.ArolanaSmartChatNoRefresh.sendFromInput();}"
                 >
+                <input
+                    id="arolana-smartchat-image-input"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    class="hidden"
+                >
+                <button
+                    type="button"
+                    id="arolana-smartchat-upload"
+                    class="flex h-11 w-11 items-center justify-center rounded-xl bg-gray-100 text-gray-700 shadow-sm transition hover:bg-blue-50 hover:text-blue-700 shrink-0"
+                    aria-label="Upload product or support image"
+                    title="Upload image"
+                >
+                    <i class="fas fa-image"></i>
+                </button>
                 <button
                     type="button"
                     id="arolana-smartchat-send"
@@ -228,6 +244,28 @@
 
     .arolana-chat-message-text {
         white-space: pre-wrap;
+    }
+
+    .arolana-chat-attachment {
+        display: block;
+        margin-top: 0.5rem;
+        overflow: hidden;
+        border-radius: 0.85rem;
+        background: rgba(255, 255, 255, 0.16);
+    }
+
+    .arolana-chat-attachment img {
+        display: block;
+        max-height: 13rem;
+        object-fit: cover;
+        width: 100%;
+    }
+
+    .arolana-chat-bot .arolana-chat-attachment,
+    .arolana-chat-admin .arolana-chat-attachment,
+    .arolana-chat-system .arolana-chat-attachment {
+        background: #fff;
+        border: 1px solid rgba(15, 23, 42, 0.08);
     }
 
     .arolana-chat-user {
@@ -440,7 +478,7 @@
             align-items: stretch;
             display: grid !important;
             gap: 0.5rem;
-            grid-template-columns: minmax(0, 1fr) 48px;
+            grid-template-columns: minmax(0, 1fr) 46px 46px;
             overflow: hidden;
             width: 100%;
         }
@@ -458,7 +496,8 @@
             -webkit-text-size-adjust: 100%;
         }
 
-        #arolana-smartchat-send {
+        #arolana-smartchat-send,
+        #arolana-smartchat-upload {
             height: 46px;
             max-width: 46px;
             min-width: 46px;
@@ -699,9 +738,19 @@
             bubble.dataset.arolanaMessageId = String(numericId);
         }
 
+        const text = escapeHtml(message.message || message.reply || "");
+        const imageUrl = message.image_url || "";
+        const imageName = message.image_name || "Uploaded image";
+        const attachment = imageUrl
+            ? `<a class="arolana-chat-attachment" href="${escapeHtml(imageUrl)}" target="_blank" rel="noopener">
+                    <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(imageName)}" loading="lazy">
+               </a>`
+            : "";
+
         bubble.innerHTML =
             `<div class="text-[11px] font-bold opacity-70 mb-1">${escapeHtml(senderName)}</div>` +
-            `<div class="arolana-chat-message-text">${escapeHtml(message.message || message.reply || "")}</div>`;
+            `${text ? `<div class="arolana-chat-message-text">${text}</div>` : ""}` +
+            attachment;
 
         box.appendChild(bubble);
         scrollMessages();
@@ -713,6 +762,7 @@
         state.busy = isBusy;
 
         const send = getEl("arolana-smartchat-send");
+        const upload = getEl("arolana-smartchat-upload");
         const input = getEl("arolana-smartchat-input");
         const guestSubmit = getEl("arolana-smartchat-guest-submit");
 
@@ -721,6 +771,13 @@
             send.innerHTML = isBusy
                 ? '<i class="fas fa-spinner fa-spin"></i>'
                 : '<i class="fas fa-paper-plane"></i>';
+        }
+
+        if (upload) {
+            upload.disabled = isBusy;
+            upload.innerHTML = isBusy
+                ? '<i class="fas fa-spinner fa-spin"></i>'
+                : '<i class="fas fa-image"></i>';
         }
 
         if (input) input.disabled = isBusy;
@@ -1093,6 +1150,94 @@
         }
     }
 
+    async function uploadImage(file) {
+        const w = widget();
+        if (!w || !file || state.busy) return;
+
+        if (isGuestIntakeRequired()) {
+            syncChatMode();
+            promptGuestContact(GUEST_CONTACT_PROMPT);
+            return;
+        }
+
+        if (!file.type || !file.type.startsWith("image/")) {
+            renderMessage({
+                sender_type: "system",
+                sender_name: "System",
+                message: "Please choose a JPG, PNG, WebP, or GIF image."
+            });
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            renderMessage({
+                sender_type: "system",
+                sender_name: "System",
+                message: "Please upload an image smaller than 5MB."
+            });
+            return;
+        }
+
+        const context = productContext();
+        const formData = new FormData();
+        formData.append("image", file);
+        formData.append("conversation_id", state.conversationId || "");
+        formData.append("message", "Image uploaded.");
+        formData.append("product_id", context.product_id || "");
+        formData.append("product_name", context.product_name || "");
+        formData.append("sku", context.sku || "");
+        formData.append("page_url", context.page_url || window.location.href);
+        formData.append("selected_variants", JSON.stringify(context.selected_variants || {}));
+
+        setBusy(true);
+
+        try {
+            const response = await fetch(w.dataset.uploadImageUrl || "/smartchat/api/upload-image/", {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "X-CSRFToken": getCookie("csrftoken"),
+                    "X-Requested-With": "XMLHttpRequest"
+                },
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                if (data.requires_guest_contact) {
+                    requireGuestContact(data.error);
+                    return;
+                }
+                throw new Error(data.error || data.message || "Image could not be uploaded.");
+            }
+
+            if (data.conversation_id) {
+                state.conversationId = String(data.conversation_id);
+                localStorage.setItem("arolanaSmartChatConversationId", state.conversationId);
+            }
+
+            updateConversationStatus(data.status || state.status);
+
+            if (Array.isArray(data.messages)) {
+                data.messages.forEach(function (msg) {
+                    renderMessage(msg);
+                });
+            }
+
+            startPolling();
+            setTimeout(poll, 700);
+        } catch (error) {
+            renderMessage({
+                sender_type: "system",
+                sender_name: "System",
+                message: error.message || "I could not upload that image. Please try again."
+            });
+        } finally {
+            setBusy(false);
+        }
+    }
+
     async function requestAdmin() {
         const w = widget();
         if (!w || state.busy) return;
@@ -1225,6 +1370,8 @@
     function bind() {
         const input = getEl("arolana-smartchat-input");
         const sendButton = getEl("arolana-smartchat-send");
+        const uploadButton = getEl("arolana-smartchat-upload");
+        const imageInput = getEl("arolana-smartchat-image-input");
         const adminBtn = getEl("arolana-smartchat-admin-btn");
         const guestForm = getEl("arolana-smartchat-guest-form");
 
@@ -1245,6 +1392,25 @@
                     sendFromInput();
                 }
             }, true);
+        }
+
+        if (uploadButton && imageInput) {
+            uploadButton.addEventListener("click", function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                if (isGuestIntakeRequired()) {
+                    syncChatMode();
+                    promptGuestContact(GUEST_CONTACT_PROMPT);
+                    return;
+                }
+                imageInput.click();
+            }, true);
+
+            imageInput.addEventListener("change", function () {
+                const file = imageInput.files && imageInput.files[0];
+                if (file) uploadImage(file);
+                imageInput.value = "";
+            });
         }
 
         if (guestForm) {
@@ -1309,6 +1475,7 @@
         close,
         send,
         sendFromInput,
+        uploadImage,
         submitGuestContact,
         requestAdmin,
         poll,

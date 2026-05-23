@@ -196,6 +196,12 @@ class SmartChatMessage(models.Model):
     )
 
     message = models.TextField()
+    image = models.ImageField(
+        upload_to="smartchat/images/%Y/%m/",
+        null=True,
+        blank=True,
+        help_text="Optional customer/admin image attachment.",
+    )
     metadata = models.JSONField(default=dict, blank=True)
 
     is_private_note = models.BooleanField(default=False)

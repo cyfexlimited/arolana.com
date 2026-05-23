@@ -1,518 +1,657 @@
 {% extends 'base/base.html' %}
+{% load currency_filters media_optimization %}
 
 {% block extra_css %}
 <style>
-    /* Voice search button animation */
-    .voice-btn {
-        transition: all 0.3s ease;
-        cursor: pointer;
+    .advanced-search-shell {
+        background:
+            radial-gradient(circle at top left, rgba(37, 99, 235, .12), transparent 30rem),
+            radial-gradient(circle at 85% 10%, rgba(124, 58, 237, .1), transparent 28rem),
+            linear-gradient(180deg, #f8fafc 0%, #fff 42%);
+        min-height: 100vh;
     }
 
-    .voice-btn.recording {
-        background: linear-gradient(135deg, #ef4444, #dc2626);
-        animation: pulse 1.5s infinite;
-        box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+    .advanced-search-hero {
+        color: #0f172a;
+        padding: clamp(1.6rem, 4vw, 3.25rem) 0 1.25rem;
     }
 
-    @keyframes pulse {
-        0% {
-            transform: scale(1);
-            opacity: 1;
-        }
-        50% {
-            transform: scale(1.05);
-            opacity: 0.9;
-        }
-        100% {
-            transform: scale(1);
-            opacity: 1;
-        }
+    .advanced-search-bar {
+        background: rgba(255, 255, 255, .96);
+        border: 1px solid #e5e7eb;
+        border-radius: 18px;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, .08);
+        display: grid;
+        gap: .75rem;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        padding: .65rem;
     }
 
-    .voice-wave {
+    .advanced-search-bar input {
+        border: 0;
+        font-size: 16px;
+        min-height: 3rem;
+        min-width: 0;
+        outline: 0;
+        padding: 0 .9rem;
+        width: 100%;
+    }
+
+    .advanced-search-icon-btn,
+    .advanced-search-submit {
+        align-items: center;
+        border: 0;
+        border-radius: 14px;
         display: inline-flex;
-        align-items: center;
-        gap: 3px;
-        height: 20px;
+        font-weight: 900;
+        justify-content: center;
+        min-height: 3rem;
+        transition: transform .18s ease, background .18s ease;
     }
 
-    .voice-wave span {
-        width: 3px;
+    .advanced-search-icon-btn {
+        background: #eef2ff;
+        color: #2563eb;
+        width: 3rem;
+    }
+
+    .advanced-search-submit {
+        background: linear-gradient(135deg, #2563eb, #7c3aed);
+        color: #fff;
+        gap: .45rem;
+        padding: 0 1.1rem;
+    }
+
+    .advanced-search-icon-btn:hover,
+    .advanced-search-submit:hover {
+        transform: translateY(-1px);
+    }
+
+    .advanced-search-layout {
+        align-items: start;
+        display: grid;
+        gap: 1.25rem;
+        grid-template-columns: 19rem minmax(0, 1fr);
+    }
+
+    .advanced-search-panel,
+    .advanced-search-results {
+        background: rgba(255, 255, 255, .97);
+        border: 1px solid #e5e7eb;
+        border-radius: 20px;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, .07);
+    }
+
+    .advanced-search-panel {
+        padding: 1.1rem;
+        position: sticky;
+        top: 6.5rem;
+    }
+
+    .advanced-search-panel-title {
+        align-items: center;
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+    }
+
+    .advanced-search-field {
+        border-top: 1px solid #eef2f7;
+        display: grid;
+        gap: .55rem;
+        padding: 1rem 0;
+    }
+
+    .advanced-search-field:first-of-type {
+        border-top: 0;
+        padding-top: 0;
+    }
+
+    .advanced-search-field label {
+        color: #334155;
+        font-size: .84rem;
+        font-weight: 900;
+    }
+
+    .advanced-search-field input,
+    .advanced-search-field select {
+        background: #fff;
+        border: 1px solid #dbe3ef;
+        border-radius: 12px;
+        color: #0f172a;
+        min-height: 2.75rem;
+        padding: 0 .8rem;
+        width: 100%;
+    }
+
+    .advanced-search-apply {
+        background: #0f172a;
+        border: 0;
+        border-radius: 14px;
+        color: #fff;
+        font-weight: 900;
+        min-height: 2.9rem;
+        width: 100%;
+    }
+
+    .advanced-search-results {
+        overflow: hidden;
+    }
+
+    .advanced-search-results-head {
+        align-items: center;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        gap: 1rem;
+        justify-content: space-between;
+        padding: 1rem 1.1rem;
+    }
+
+    .advanced-search-grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        padding: 1.1rem;
+    }
+
+    .advanced-search-card {
+        background: #fff;
+        border: 1px solid #e8edf5;
+        border-radius: 18px;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, .07);
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        overflow: hidden;
+        transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+    }
+
+    .advanced-search-card:hover {
+        border-color: #c7d7fe;
+        box-shadow: 0 22px 42px rgba(37, 99, 235, .14);
+        transform: translateY(-3px);
+    }
+
+    .advanced-search-media {
+        background: linear-gradient(180deg, #f8fafc, #eef4ff);
+        display: block;
+        position: relative;
+    }
+
+    .advanced-search-media-box {
+        align-items: center;
+        aspect-ratio: 1 / 1;
+        display: flex;
+        justify-content: center;
+        padding: .75rem;
+    }
+
+    .advanced-search-media img {
         height: 100%;
-        background-color: white;
-        animation: wave 1s ease-in-out infinite;
+        object-fit: contain;
+        transition: transform .35s ease;
+        width: 100%;
     }
 
-    .voice-wave span:nth-child(2) { animation-delay: 0.1s; }
-    .voice-wave span:nth-child(3) { animation-delay: 0.2s; }
-    .voice-wave span:nth-child(4) { animation-delay: 0.3s; }
-    .voice-wave span:nth-child(5) { animation-delay: 0.4s; }
-
-    @keyframes wave {
-        0%, 100% { height: 5px; }
-        50% { height: 20px; }
+    .advanced-search-card:hover .advanced-search-media img {
+        transform: scale(1.04);
     }
 
-    /* Voice search modal */
-    .voice-modal {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.9);
-        z-index: 10000;
+    .advanced-search-badge {
+        border-radius: 999px;
+        font-size: .68rem;
+        font-weight: 900;
+        line-height: 1;
+        padding: .42rem .55rem;
+        position: absolute;
+        top: .65rem;
+        z-index: 2;
+    }
+
+    .advanced-search-discount {
+        background: #ef4444;
+        color: #fff;
+        right: .65rem;
+    }
+
+    .advanced-search-condition {
+        background: rgba(15, 23, 42, .88);
+        color: #fff;
+        left: .65rem;
+    }
+
+    .advanced-search-body {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        padding: .95rem;
+    }
+
+    .advanced-search-brand {
+        color: #64748b;
+        font-size: .78rem;
+        line-height: 1;
+        margin-bottom: .45rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .advanced-search-title {
+        color: #0f172a;
+        display: -webkit-box;
+        font-size: 1rem;
+        font-weight: 900;
+        line-height: 1.3;
+        min-height: 2.6rem;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+    }
+
+    .advanced-search-rating {
+        align-items: center;
+        color: #facc15;
+        display: flex;
+        font-size: .82rem;
+        gap: .1rem;
+        margin-top: .65rem;
+        min-height: 1.25rem;
+    }
+
+    .advanced-search-price {
+        align-items: baseline;
+        display: flex;
+        flex-wrap: wrap;
+        gap: .25rem .55rem;
+        margin-top: .7rem;
+        min-height: 2.8rem;
+    }
+
+    .advanced-search-price strong {
+        color: #2563eb;
+        font-size: 1.23rem;
+        font-weight: 950;
+        overflow-wrap: anywhere;
+    }
+
+    .advanced-search-price span {
+        color: #94a3b8;
+        font-size: .8rem;
+        text-decoration: line-through;
+    }
+
+    .advanced-search-card-link {
+        align-items: center;
+        background: #2563eb;
+        border-radius: 12px;
+        color: #fff;
+        display: inline-flex;
+        font-size: .88rem;
+        font-weight: 900;
+        justify-content: center;
+        margin-top: auto;
+        min-height: 2.65rem;
+        width: 100%;
+    }
+
+    .advanced-search-mobile-filter {
         display: none;
-        align-items: center;
-        justify-content: center;
-        animation: fadeIn 0.3s ease;
     }
 
-    .voice-modal.active {
-        display: flex;
+    .advanced-search-drawer {
+        display: none;
     }
 
-    .voice-modal-content {
-        text-align: center;
-        color: white;
-        max-width: 500px;
-        padding: 40px;
+    @media (max-width: 1100px) {
+        .advanced-search-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .advanced-search-panel {
+            display: none;
+        }
+
+        .advanced-search-mobile-filter {
+            align-items: center;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, .08);
+            color: #0f172a;
+            display: inline-flex;
+            font-weight: 900;
+            gap: .5rem;
+            min-height: 2.8rem;
+            padding: 0 1rem;
+        }
+
+        .advanced-search-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .advanced-search-drawer {
+            background: rgba(15, 23, 42, .42);
+            bottom: 0;
+            display: block;
+            left: 0;
+            position: fixed;
+            right: 0;
+            top: 0;
+            z-index: 10060;
+        }
+
+        .advanced-search-drawer-panel {
+            background: #fff;
+            border-radius: 22px 22px 0 0;
+            bottom: 0;
+            left: 0;
+            max-height: min(84vh, 44rem);
+            overflow-y: auto;
+            padding: 1.1rem;
+            position: absolute;
+            right: 0;
+        }
     }
 
-    .voice-visualizer {
-        width: 200px;
-        height: 200px;
-        margin: 0 auto 30px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        animation: rotate 3s linear infinite;
-    }
+    @media (max-width: 767px) {
+        .advanced-search-hero {
+            padding-top: 1.35rem;
+        }
 
-    @keyframes rotate {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-    }
+        .advanced-search-hero h1 {
+            font-size: 1.8rem;
+            line-height: 1.1;
+        }
 
-    .voice-text {
-        font-size: 24px;
-        margin: 20px 0;
-        min-height: 80px;
-        padding: 20px;
-        background: rgba(255,255,255,0.1);
-        border-radius: 15px;
-    }
+        .advanced-search-bar {
+            grid-template-columns: minmax(0, 1fr) 3rem 3rem;
+        }
 
-    @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
+        .advanced-search-submit span {
+            display: none;
+        }
+
+        .advanced-search-grid {
+            gap: .75rem;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            padding: .75rem;
+        }
+
+        .advanced-search-results-head {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .advanced-search-body {
+            padding: .78rem .7rem .82rem;
+        }
+
+        .advanced-search-title {
+            font-size: .9rem;
+            min-height: 2.35rem;
+        }
+
+        .advanced-search-price strong {
+            font-size: 1.02rem;
+        }
+
+        .advanced-search-card-link {
+            font-size: .78rem;
+            min-height: 2.4rem;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="bg-gradient-to-b from-slate-50 to-white min-h-screen">
-    <!-- Header Section -->
-    <div class="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-12">
+<div class="advanced-search-shell" x-data="{ filtersOpen: false }">
+    <section class="advanced-search-hero">
         <div class="max-w-7xl mx-auto px-4">
-            <h1 class="text-4xl md:text-5xl font-bold mb-2">Advanced Search</h1>
-            <p class="text-blue-100 text-lg">Discover exactly what you're looking for</p>
-        </div>
-    </div>
-
-    <div class="max-w-7xl mx-auto px-4 py-12">
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            <!-- Filters Sidebar -->
-            <div class="lg:col-span-1">
-                <div class="bg-white rounded-2xl shadow-lg p-8 sticky top-24 border border-gray-100">
-                    <div class="flex items-center justify-between mb-6">
-                        <h2 class="text-2xl font-bold text-gray-900">Filters</h2>
-                        <a href="{% url 'search_ai:advanced_search' %}?q={{ query }}" class="text-sm text-blue-600 hover:text-blue-800 font-semibold">
-                            Reset
-                        </a>
-                    </div>
-
-                    <form method="GET" action="{% url 'search_ai:advanced_search' %}" class="space-y-6">
-                        <!-- Search Input with Voice Button -->
-                        <div class="border-b pb-6">
-                            <label class="block font-bold text-gray-900 mb-3 flex items-center gap-2">
-                                <i class="fas fa-microphone text-red-500"></i>
-                                Voice Search
-                            </label>
-                            <div class="relative">
-                                <input type="text" id="voice-search-input" name="q" value="{{ query }}" placeholder="Speak or type your search..." class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition pr-12">
-                                <button type="button" id="voice-search-btn" class="voice-btn absolute right-3 top-1/2 -translate-y-1/2 bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition">
-                                    <i class="fas fa-microphone"></i>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Category Filter -->
-                        <div class="border-b pb-6">
-                            <label class="block font-bold text-gray-900 mb-3 flex items-center gap-2">
-                                <i class="fas fa-list text-blue-600"></i>
-                                Category
-                            </label>
-                            <select name="category" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition text-gray-700 font-medium">
-                                <option value="">All Categories</option>
-                                {% for cat in categories %}
-                                    <option value="{{ cat.slug }}" {% if selected_category == cat.slug %}selected{% endif %}>
-                                        {{ cat.name }}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-
-                        <!-- Price Range -->
-                        <div class="border-b pb-6">
-                            <label class="block font-bold text-gray-900 mb-3 flex items-center gap-2">
-                                <i class="fas fa-dollar-sign text-green-600"></i>
-                                Price Range
-                            </label>
-                            <div class="space-y-3">
-                                <input type="number" name="min_price" placeholder="Min Price" value="{{ min_price }}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition">
-                                <input type="number" name="max_price" placeholder="Max Price" value="{{ max_price }}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition">
-                            </div>
-                        </div>
-
-                        <!-- Rating Filter -->
-                        <div class="border-b pb-6">
-                            <label class="block font-bold text-gray-900 mb-3 flex items-center gap-2">
-                                <i class="fas fa-star text-yellow-400"></i>
-                                Minimum Rating
-                            </label>
-                            <select name="rating" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition text-gray-700 font-medium">
-                                <option value="">Any Rating</option>
-                                <option value="4" {% if selected_rating == "4" %}selected{% endif %}>⭐⭐⭐⭐ & above</option>
-                                <option value="3" {% if selected_rating == "3" %}selected{% endif %}>⭐⭐⭐ & above</option>
-                                <option value="2" {% if selected_rating == "2" %}selected{% endif %}>⭐⭐ & above</option>
-                            </select>
-                        </div>
-
-                        <!-- Sort -->
-                        <div class="pb-6">
-                            <label class="block font-bold text-gray-900 mb-3 flex items-center gap-2">
-                                <i class="fas fa-arrow-down-up text-purple-600"></i>
-                                Sort By
-                            </label>
-                            <select name="sort" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition text-gray-700 font-medium">
-                                <option value="-created_at" {% if sort == "-created_at" %}selected{% endif %}>✨ Newest First</option>
-                                <option value="-price" {% if sort == "-price" %}selected{% endif %}>💎 Price: High to Low</option>
-                                <option value="price" {% if sort == "price" %}selected{% endif %}>💰 Price: Low to High</option>
-                                <option value="-sales_count" {% if sort == "-sales_count" %}selected{% endif %}>🔥 Best Selling</option>
-                                <option value="-rating_avg" {% if sort == "-rating_avg" %}selected{% endif %}>⭐ Top Rated</option>
-                            </select>
-                        </div>
-
-                        <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-xl hover:from-blue-700 hover:to-blue-800 font-bold transition transform hover:scale-105 shadow-lg flex items-center justify-center gap-2">
-                            <i class="fas fa-filter"></i>
-                            Apply Filters
-                        </button>
-                    </form>
+            <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                <div>
+                    <p class="text-sm font-black uppercase tracking-[0.16em] text-blue-600">Arolana search</p>
+                    <h1 class="text-4xl md:text-5xl font-black mt-2">Find products faster</h1>
+                    <p class="mt-3 max-w-2xl text-slate-600">Search by product name, brand, SKU, category, or natural sentences like “show me Samsung flip phones”.</p>
                 </div>
+
+                <button type="button" class="advanced-search-mobile-filter" @click="filtersOpen = true">
+                    <i class="fas fa-sliders-h"></i>
+                    Filters
+                </button>
             </div>
 
-            <!-- Results -->
-            <div class="lg:col-span-3">
-                <div class="bg-white rounded-2xl shadow-lg p-8 border border-gray-100">
-                    <!-- Results Header -->
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 pb-6 border-b-2">
-                        <div>
-                            <h2 class="text-3xl font-bold text-gray-900 mb-2">Search Results</h2>
-                            <p class="text-gray-500">
-                                {% if products %}
-                                    Showing <span class="font-bold text-blue-600">{{ products.count }}</span> amazing products
-                                {% endif %}
-                            </p>
-                        </div>
-                        <div class="mt-4 md:mt-0 text-right">
-                            <div class="inline-block bg-blue-50 rounded-lg px-4 py-2 border border-blue-200">
-                                <p class="text-sm text-gray-600">Total Results</p>
-                                <p class="text-3xl font-bold text-blue-600">{{ products.count }}</p>
-                            </div>
-                        </div>
-                    </div>
+            <form method="get" action="{% url 'search_ai:advanced_search' %}" class="advanced-search-bar mt-6">
+                <input id="advanced-search-input" type="search" name="q" value="{{ query }}" placeholder="Search products, brands, SKUs, categories...">
+                <button type="button" class="advanced-search-icon-btn" aria-label="Voice search" onclick="startArolanaVoiceSearch('#advanced-search-input', this)">
+                    <i class="fas fa-microphone"></i>
+                </button>
+                <button type="submit" class="advanced-search-submit">
+                    <i class="fas fa-search"></i>
+                    <span>Search</span>
+                </button>
+            </form>
+        </div>
+    </section>
 
-                    {% if products %}
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" id="search-results">
-                            {% for product in products %}
-                            <div class="group product-card bg-white border-2 border-gray-100 rounded-2xl overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
-                                <!-- Product Image -->
-                                <div class="relative overflow-hidden bg-gray-100 h-56">
-                                    <a href="{{ product.get_absolute_url }}" class="block h-full">
-                                        {% if product.main_image %}
-                                            <img src="{{ product.main_image.url }}" alt="{{ product.name }}" class="w-full h-full object-cover group-hover:scale-110 transition duration-300">
-                                        {% else %}
-                                            <div class="w-full h-full flex items-center justify-center">
-                                                <i class="fas fa-image text-5xl text-gray-300"></i>
-                                            </div>
-                                        {% endif %}
-                                    </a>
-                                    {% if product.discount_percent > 0 %}
-                                    <div class="absolute top-3 right-3 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold">
-                                        -{{ product.discount_percent }}%
-                                    </div>
-                                    {% endif %}
-                                </div>
+    <div class="max-w-7xl mx-auto px-4 pb-12">
+        <div class="advanced-search-layout">
+            <aside class="advanced-search-panel">
+                <div class="advanced-search-panel-title">
+                    <h2 class="text-xl font-black text-slate-900">Filters</h2>
+                    <a href="{% url 'search_ai:advanced_search' %}{% if query %}?q={{ query|urlencode }}{% endif %}" class="text-sm font-black text-blue-600">Reset</a>
+                </div>
 
-                                <!-- Product Info -->
-                                <div class="p-5">
-                                    <a href="{{ product.get_absolute_url }}" class="font-bold text-gray-900 text-lg group-hover:text-blue-600 transition line-clamp-2 block mb-3">
-                                        {{ product.name }}
-                                    </a>
+                <form method="get" action="{% url 'search_ai:advanced_search' %}">
+                    <input type="hidden" name="q" value="{{ query }}">
 
-                                    <div class="flex items-center gap-2 mb-4">
-                                        <div class="flex text-yellow-400 gap-1">
-                                            {% for i in "12345"|make_list %}
-                                                {% if forloop.counter <= product.rating_avg|add:"0" %}
-                                                    <i class="fas fa-star"></i>
-                                                {% elif forloop.counter <= product.rating_avg|add:"0.5" %}
-                                                    <i class="fas fa-star-half-alt"></i>
-                                                {% else %}
-                                                    <i class="far fa-star"></i>
-                                                {% endif %}
-                                            {% endfor %}
-                                        </div>
-                                        <span class="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded-lg">
-                                            ({{ product.rating_count }})
-                                        </span>
-                                    </div>
-
-                                    <div class="flex items-baseline gap-2 mb-4">
-                                        <span class="text-2xl font-bold text-blue-600">${{ product.price }}</span>
-                                        {% if product.compare_price %}
-                                        <span class="text-sm text-gray-400 line-through">${{ product.compare_price }}</span>
-                                        {% endif %}
-                                    </div>
-
-                                    <a href="{{ product.get_absolute_url }}" class="w-full block text-center bg-gradient-to-r from-blue-600 to-blue-700 text-white py-2 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition">
-                                        View Details
-                                    </a>
-                                </div>
-                            </div>
+                    <div class="advanced-search-field">
+                        <label for="desktop-category-filter">Category</label>
+                        <select id="desktop-category-filter" name="category">
+                            <option value="">All categories</option>
+                            {% for cat in categories %}
+                                <option value="{{ cat.slug }}" {% if selected_category == cat.slug %}selected{% endif %}>{{ cat.name }}</option>
                             {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="advanced-search-field">
+                        <label for="desktop-condition-filter">Product condition</label>
+                        <select id="desktop-condition-filter" name="condition">
+                            <option value="">All conditions</option>
+                            {% for value,label in condition_choices %}
+                                <option value="{{ value }}" {% if selected_condition == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="advanced-search-field">
+                        <label>Price range</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="number" name="min_price" value="{{ min_price }}" placeholder="Min">
+                            <input type="number" name="max_price" value="{{ max_price }}" placeholder="Max">
                         </div>
-                    {% else %}
-                        <div class="text-center py-16">
-                            <div class="mb-6">
-                                <i class="fas fa-search text-8xl text-gray-200"></i>
-                            </div>
-                            <p class="text-2xl font-bold text-gray-900 mb-2">No products found</p>
-                            <p class="text-gray-500 text-lg mb-6">Try adjusting your filters or search terms</p>
-                            <a href="{% url 'products:list' %}" class="inline-block bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-blue-700 transition">
-                                <i class="fas fa-shopping-bag mr-2"></i>
-                                Browse All Products
-                            </a>
-                        </div>
-                    {% endif %}
+                    </div>
+
+                    <div class="advanced-search-field">
+                        <label for="desktop-rating-filter">Minimum rating</label>
+                        <select id="desktop-rating-filter" name="rating">
+                            <option value="">Any rating</option>
+                            <option value="4" {% if selected_rating == "4" %}selected{% endif %}>4 stars and above</option>
+                            <option value="3" {% if selected_rating == "3" %}selected{% endif %}>3 stars and above</option>
+                            <option value="2" {% if selected_rating == "2" %}selected{% endif %}>2 stars and above</option>
+                        </select>
+                    </div>
+
+                    <div class="advanced-search-field">
+                        <label for="desktop-sort-filter">Sort by</label>
+                        <select id="desktop-sort-filter" name="sort">
+                            <option value="-relevance" {% if sort == "-relevance" %}selected{% endif %}>Best match</option>
+                            <option value="-created_at" {% if sort == "-created_at" %}selected{% endif %}>Newest first</option>
+                            <option value="-price" {% if sort == "-price" %}selected{% endif %}>Price high to low</option>
+                            <option value="price" {% if sort == "price" %}selected{% endif %}>Price low to high</option>
+                            <option value="-sales_count" {% if sort == "-sales_count" %}selected{% endif %}>Best selling</option>
+                            <option value="-rating_avg" {% if sort == "-rating_avg" %}selected{% endif %}>Top rated</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="advanced-search-apply">Apply filters</button>
+                </form>
+            </aside>
+
+            <main class="advanced-search-results">
+                <div class="advanced-search-results-head">
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-900">Search results</h2>
+                        <p class="text-sm text-slate-500">
+                            {% if query %}For “{{ query }}” · {% endif %}{{ products.count }} product{{ products.count|pluralize }}
+                        </p>
+                    </div>
+                    <button type="button" class="advanced-search-mobile-filter" @click="filtersOpen = true">
+                        <i class="fas fa-sliders-h"></i>
+                        Refine
+                    </button>
                 </div>
-            </div>
+
+                {% if products %}
+                    <div class="advanced-search-grid" id="search-results">
+                        {% for product in products %}
+                            <article class="advanced-search-card">
+                                <a href="{{ product.get_absolute_url }}" class="advanced-search-media">
+                                    <div class="advanced-search-media-box">
+                                        {% if product.main_image %}
+                                            {% optimized_image_url product.main_image 'product_card' as product_image_url %}
+                                            <img src="{{ product_image_url }}" alt="{{ product.name }}" loading="lazy" decoding="async">
+                                        {% else %}
+                                            <i class="fas fa-image text-5xl text-slate-300"></i>
+                                        {% endif %}
+                                    </div>
+                                    {% if product.condition != "brand_new" %}
+                                        <span class="advanced-search-badge advanced-search-condition">{{ product.get_condition_display }}</span>
+                                    {% endif %}
+                                    {% if product.discount_percent > 0 %}
+                                        <span class="advanced-search-badge advanced-search-discount">-{{ product.discount_percent }}%</span>
+                                    {% endif %}
+                                </a>
+
+                                <div class="advanced-search-body">
+                                    <div class="advanced-search-brand">{{ product.brand.name|default:product.category.name }}</div>
+                                    <a href="{{ product.get_absolute_url }}" class="advanced-search-title">{{ product.name }}</a>
+                                    <div class="advanced-search-rating">
+                                        {% for i in "12345"|make_list %}
+                                            {% if forloop.counter <= product.rating_avg|add:"0" %}
+                                                <i class="fas fa-star"></i>
+                                            {% elif forloop.counter <= product.rating_avg|add:"0.5" %}
+                                                <i class="fas fa-star-half-alt"></i>
+                                            {% else %}
+                                                <i class="far fa-star"></i>
+                                            {% endif %}
+                                        {% endfor %}
+                                        <span class="text-xs text-slate-500 ml-1">({{ product.rating_count }})</span>
+                                    </div>
+                                    <div class="advanced-search-price">
+                                        <strong>{{ product.price|currency:request }}</strong>
+                                        {% if product.compare_price %}
+                                            <span>{{ product.compare_price|currency:request }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <a href="{{ product.get_absolute_url }}" class="advanced-search-card-link">View details</a>
+                                </div>
+                            </article>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-16 px-4">
+                        <div class="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+                            <i class="fas fa-search text-2xl"></i>
+                        </div>
+                        <h3 class="text-2xl font-black text-slate-900">No products found</h3>
+                        <p class="mt-2 text-slate-500">Try fewer filters, a brand name, SKU, or a simpler phrase.</p>
+                        <a href="{% url 'products:list' %}" class="mt-6 inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-600 px-5 font-black text-white">Browse all products</a>
+                    </div>
+                {% endif %}
+            </main>
         </div>
 
-        <!-- Popular Searches -->
         {% if popular_searches %}
-        <div class="mt-12 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-200 p-8">
-            <h3 class="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                <i class="fas fa-fire text-orange-500"></i>
-                Popular Searches
-            </h3>
-            <div class="flex flex-wrap gap-3">
-                {% for search in popular_searches %}
-                    <a href="{% url 'search_ai:advanced_search' %}?q={{ search.query }}" class="px-4 py-2 bg-white rounded-full hover:bg-blue-600 hover:text-white text-gray-700 font-semibold transition duration-300 border-2 border-gray-200 hover:border-blue-600 shadow-sm hover:shadow-md">
-                        <i class="fas fa-search text-sm mr-2"></i>
-                        {{ search.query }}
-                    </a>
-                {% endfor %}
-            </div>
-        </div>
+            <section class="mt-8 rounded-2xl border border-blue-100 bg-blue-50/70 p-5">
+                <h3 class="text-lg font-black text-slate-900">Popular searches</h3>
+                <div class="mt-4 flex flex-wrap gap-2">
+                    {% for search in popular_searches %}
+                        <a href="{% url 'search_ai:advanced_search' %}?q={{ search.query|urlencode }}" class="rounded-full bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm hover:text-blue-600">
+                            {{ search.query }}
+                        </a>
+                    {% endfor %}
+                </div>
+            </section>
         {% endif %}
     </div>
-</div>
 
-<!-- Voice Search Modal -->
-<div id="voice-modal" class="voice-modal">
-    <div class="voice-modal-content">
-        <div class="voice-visualizer">
-            <i class="fas fa-microphone-alt text-6xl text-white"></i>
+    <div class="advanced-search-drawer" x-show="filtersOpen" x-cloak @click.self="filtersOpen = false">
+        <div class="advanced-search-drawer-panel" x-transition>
+            <div class="advanced-search-panel-title">
+                <h2 class="text-xl font-black text-slate-900">Refine search</h2>
+                <button type="button" class="h-10 w-10 rounded-full bg-slate-100 text-slate-700" @click="filtersOpen = false" aria-label="Close filters">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <form method="get" action="{% url 'search_ai:advanced_search' %}">
+                <input type="hidden" name="q" value="{{ query }}">
+
+                <div class="advanced-search-field">
+                    <label for="mobile-category-filter">Category</label>
+                    <select id="mobile-category-filter" name="category">
+                        <option value="">All categories</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat.slug }}" {% if selected_category == cat.slug %}selected{% endif %}>{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="advanced-search-field">
+                    <label for="mobile-condition-filter">Product condition</label>
+                    <select id="mobile-condition-filter" name="condition">
+                        <option value="">All conditions</option>
+                        {% for value,label in condition_choices %}
+                            <option value="{{ value }}" {% if selected_condition == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="advanced-search-field">
+                    <label>Price range</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="number" name="min_price" value="{{ min_price }}" placeholder="Min">
+                        <input type="number" name="max_price" value="{{ max_price }}" placeholder="Max">
+                    </div>
+                </div>
+
+                <div class="advanced-search-field">
+                    <label for="mobile-rating-filter">Minimum rating</label>
+                    <select id="mobile-rating-filter" name="rating">
+                        <option value="">Any rating</option>
+                        <option value="4" {% if selected_rating == "4" %}selected{% endif %}>4 stars and above</option>
+                        <option value="3" {% if selected_rating == "3" %}selected{% endif %}>3 stars and above</option>
+                        <option value="2" {% if selected_rating == "2" %}selected{% endif %}>2 stars and above</option>
+                    </select>
+                </div>
+
+                <div class="advanced-search-field">
+                    <label for="mobile-sort-filter">Sort by</label>
+                    <select id="mobile-sort-filter" name="sort">
+                        <option value="-relevance" {% if sort == "-relevance" %}selected{% endif %}>Best match</option>
+                        <option value="-created_at" {% if sort == "-created_at" %}selected{% endif %}>Newest first</option>
+                        <option value="-price" {% if sort == "-price" %}selected{% endif %}>Price high to low</option>
+                        <option value="price" {% if sort == "price" %}selected{% endif %}>Price low to high</option>
+                        <option value="-sales_count" {% if sort == "-sales_count" %}selected{% endif %}>Best selling</option>
+                        <option value="-rating_avg" {% if sort == "-rating_avg" %}selected{% endif %}>Top rated</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="advanced-search-apply">Show results</button>
+            </form>
         </div>
-        <div class="voice-wave" style="justify-content: center; gap: 8px;">
-            <span></span><span></span><span></span><span></span><span></span>
-        </div>
-        <div id="voice-text" class="voice-text text-2xl text-white">
-            Listening...
-        </div>
-        <p class="text-gray-400 mb-4">Speak clearly into your microphone</p>
-        <button onclick="closeVoiceModal()" class="px-6 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition">
-            Cancel
-        </button>
     </div>
 </div>
-
-<script>
-// Voice Search Functionality
-let recognition = null;
-let isRecording = false;
-
-function initSpeechRecognition(showUnsupportedMessage = true) {
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-        const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
-        recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = false;
-        recognition.lang = document.documentElement.lang || navigator.language || 'en-US';
-
-        recognition.onstart = function() {
-            console.log('Voice recognition started');
-            document.getElementById('voice-modal').classList.add('active');
-            isRecording = true;
-        };
-
-        recognition.onend = function() {
-            console.log('Voice recognition ended');
-            setTimeout(() => {
-                if (!isRecording) {
-                    document.getElementById('voice-modal').classList.remove('active');
-                }
-            }, 500);
-        };
-
-        recognition.onresult = function(event) {
-            const transcript = event.results[0][0].transcript;
-            document.getElementById('voice-text').innerHTML = `<i class="fas fa-check-circle text-green-500 mr-2"></i> "${transcript}"`;
-
-            // Submit the voice search
-            submitVoiceSearch(transcript);
-            setTimeout(() => {
-                document.getElementById('voice-modal').classList.remove('active');
-                isRecording = false;
-            }, 1500);
-        };
-
-        recognition.onerror = function(event) {
-            console.error('Speech recognition error', event.error);
-            const messages = {
-                'not-allowed': 'Microphone access was blocked. Allow microphone permission in your browser, then try again.',
-                'audio-capture': 'No microphone was found. Check your input device and try again.',
-                'no-speech': 'I did not hear anything. Please tap the mic and speak clearly.',
-                'network': 'Voice recognition could not reach the browser speech service. Please try again.',
-            };
-            document.getElementById('voice-text').innerHTML = `<i class="fas fa-exclamation-circle text-red-500 mr-2"></i> ${messages[event.error] || 'Voice recognition failed. Please try again.'}`;
-            setTimeout(() => {
-                document.getElementById('voice-modal').classList.remove('active');
-                isRecording = false;
-            }, 2000);
-        };
-
-        return true;
-    } else {
-        if (showUnsupportedMessage) {
-            showToast('Voice search needs Chrome, Edge, or Safari. Firefox does not support browser voice recognition yet.', 'error');
-        }
-        return false;
-    }
-}
-
-function startVoiceSearch() {
-    if (!recognition) {
-        if (!initSpeechRecognition()) {
-            return;
-        }
-    }
-
-    try {
-        document.getElementById('voice-text').innerHTML = 'Listening...';
-        if (recognition) {
-            recognition.start();
-        }
-    } catch (error) {
-        console.error('Error starting recognition:', error);
-        recognition = null;
-        if (initSpeechRecognition() && recognition) {
-            recognition.start();
-        }
-    }
-}
-
-function closeVoiceModal() {
-    if (recognition) {
-        recognition.stop();
-    }
-    document.getElementById('voice-modal').classList.remove('active');
-    isRecording = false;
-}
-
-async function submitVoiceSearch(query) {
-    const searchInput = document.getElementById('voice-search-input');
-    if (searchInput) {
-        searchInput.value = query;
-    }
-
-    // Show loading state
-    const resultsContainer = document.getElementById('search-results');
-    if (resultsContainer) {
-        resultsContainer.innerHTML = '<div class="col-span-full text-center py-12"><i class="fas fa-spinner fa-spin text-4xl text-blue-600"></i><p class="mt-4 text-gray-500">Searching...</p></div>';
-    }
-
-    try {
-        const response = await fetch('{% url "search_ai:voice_search" %}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCsrfToken()
-            },
-            body: JSON.stringify({ voice_text: query })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            // Update URL with query parameter
-            const url = new URL(window.location.href);
-            url.searchParams.set('q', query);
-            window.history.pushState({}, '', url);
-
-            // Reload the page to show results
-            window.location.reload();
-        } else {
-            showToast(data.error || 'Search failed', 'error');
-        }
-    } catch (error) {
-        console.error('Voice search error:', error);
-        showToast('Network error. Please try again.', 'error');
-    }
-}
-
-function getCsrfToken() {
-    const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
-    if (csrfInput) {
-        return csrfInput.value;
-    }
-
-    const tokenCookie = document.cookie
-        .split('; ')
-        .find((row) => row.startsWith('csrftoken='));
-
-    return tokenCookie ? decodeURIComponent(tokenCookie.split('=')[1]) : '';
-}
-
-function showToast(message, type) {
-    const toast = document.createElement('div');
-    toast.className = `fixed bottom-20 right-4 z-50 px-4 py-2 rounded-lg text-white shadow-lg ${
-        type === 'success' ? 'bg-green-500' : 'bg-red-500'
-    }`;
-    toast.innerHTML = message;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
-}
-
-// Initialize voice button
-document.addEventListener('DOMContentLoaded', function() {
-    const voiceBtn = document.getElementById('voice-search-btn');
-    if (voiceBtn) {
-        voiceBtn.addEventListener('click', startVoiceSearch);
-    }
-});
-</script>
 {% endblock %}

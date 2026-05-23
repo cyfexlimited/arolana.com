@@ -4,6 +4,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
+from django.utils.text import get_valid_filename
 from django.http import JsonResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -99,11 +100,24 @@ def _message_payload(message):
     elif message.sender_type == SmartChatMessage.SENDER_SYSTEM:
         display_name = "System"
 
+    image_url = ""
+    image_name = ""
+    if getattr(message, "image", None):
+        try:
+            image_url = message.image.url
+            image_name = message.image.name.rsplit("/", 1)[-1]
+        except Exception:
+            image_url = ""
+            image_name = ""
+
     return {
         "id": message.id,
         "sender_type": message.sender_type,
         "sender_name": display_name,
         "message": message.message,
+        "image_url": image_url,
+        "image_name": image_name,
+        "has_image": bool(image_url),
         "created_at": message.created_at.isoformat(),
     }
 
@@ -196,6 +210,8 @@ def _notify_staff_new_conversation(conversation, title, message, priority=3, met
 
 def _notify_staff_customer_message(conversation, message):
     snippet = (message.message or "").strip()
+    if getattr(message, "image", None):
+        snippet = f"{snippet} [Image attachment]".strip()
     if len(snippet) > 240:
         snippet = f"{snippet[:237]}..."
 
@@ -216,7 +232,34 @@ def _guest_thank_you_message(name):
         "Thank you for reaching out to Arolana support team. "
         "We will reach out to you. "
         "If you have any question, register on Arolana and chat with admin."
-    )
+)
+
+
+ALLOWED_SMARTCHAT_IMAGE_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+}
+ALLOWED_SMARTCHAT_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+MAX_SMARTCHAT_IMAGE_SIZE = 5 * 1024 * 1024
+
+
+def _validate_chat_image(uploaded_file):
+    if not uploaded_file:
+        return "Please choose an image to upload."
+
+    if uploaded_file.size > MAX_SMARTCHAT_IMAGE_SIZE:
+        return "Please upload an image smaller than 5MB."
+
+    content_type = (getattr(uploaded_file, "content_type", "") or "").lower()
+    filename = get_valid_filename(uploaded_file.name or "").lower()
+    has_valid_extension = any(filename.endswith(ext) for ext in ALLOWED_SMARTCHAT_IMAGE_EXTENSIONS)
+
+    if content_type not in ALLOWED_SMARTCHAT_IMAGE_TYPES or not has_valid_extension:
+        return "Only JPG, PNG, WebP, or GIF images are allowed."
+
+    return ""
 
 
 GUEST_CONTACT_PROMPT = (
@@ -425,6 +468,94 @@ def api_message(request):
         "handoff_requested": False,
         "reply": reply,
         "messages": [_message_payload(user_message), _message_payload(ai_message)],
+    })
+
+
+@require_POST
+def api_upload_image(request):
+    if not request.user.is_authenticated:
+        guest_conversation_id = _safe_int(request.POST.get("conversation_id"), default=0)
+        if not guest_conversation_id or not _get_customer_conversation(request, guest_conversation_id):
+            return JsonResponse({
+                "success": False,
+                "requires_guest_contact": True,
+                "error": GUEST_CONTACT_PROMPT,
+            }, status=403)
+
+    uploaded_file = request.FILES.get("image")
+    image_error = _validate_chat_image(uploaded_file)
+    if image_error:
+        return JsonResponse({"success": False, "error": image_error}, status=400)
+
+    selected_variants = {}
+    raw_variants = request.POST.get("selected_variants", "")
+    if raw_variants:
+        try:
+            selected_variants = json.loads(raw_variants)
+        except Exception:
+            selected_variants = {}
+
+    product = None
+    product_id = request.POST.get("product_id")
+    if product_id:
+        product = Product.objects.filter(id=product_id).select_related("category", "brand", "vendor").first()
+
+    data = {
+        "conversation_id": request.POST.get("conversation_id", ""),
+        "message": request.POST.get("message", "Customer uploaded an image."),
+        "page_url": request.POST.get("page_url", "")[:700],
+        "selected_variants": selected_variants,
+    }
+    conversation = _get_or_create_conversation(request, data, product=product)
+    conversation.selected_variants = selected_variants
+    conversation.save(update_fields=["selected_variants", "updated_at"])
+
+    user_message = SmartChatMessage.objects.create(
+        conversation=conversation,
+        sender_type=SmartChatMessage.SENDER_USER,
+        user=request.user if request.user.is_authenticated else None,
+        message=request.POST.get("message", "Image uploaded."),
+        image=uploaded_file,
+        metadata={
+            "attachment_type": "image",
+            "selected_variants": selected_variants,
+            "sku": request.POST.get("sku", ""),
+            "product_name": request.POST.get("product_name", ""),
+            "content_type": uploaded_file.content_type,
+            "file_size": uploaded_file.size,
+        },
+    )
+    _set_typing(conversation.id, "customer", False)
+
+    already_waiting = conversation.status in [
+        SmartChatConversation.STATUS_ADMIN_REQUESTED,
+        SmartChatConversation.STATUS_ADMIN_ACTIVE,
+    ]
+    if not already_waiting:
+        conversation.mark_admin_requested()
+        create_system_message(conversation, "Customer uploaded an image. Waiting for admin review.")
+
+    _notify_staff_customer_message(conversation, user_message)
+
+    messages = [_message_payload(user_message)]
+    reply = ""
+    if not already_waiting:
+        reply = "I received your image. An Arolana admin can review it and continue from this chat shortly."
+        ai_message = SmartChatMessage.objects.create(
+            conversation=conversation,
+            sender_type=SmartChatMessage.SENDER_AI,
+            message=reply,
+            metadata={"image_upload_confirmation": True},
+        )
+        messages.append(_message_payload(ai_message))
+
+    return JsonResponse({
+        "success": True,
+        "conversation_id": conversation.id,
+        "status": conversation.status,
+        "handoff_requested": conversation.status == SmartChatConversation.STATUS_ADMIN_REQUESTED,
+        "reply": reply,
+        "messages": messages,
     })
 
 

@@ -6,6 +6,7 @@ app_name = "smartchat"
 urlpatterns = [
     # Customer / Visitor Chat API
     path("api/message/", views.api_message, name="api_message"),
+    path("api/upload-image/", views.api_upload_image, name="api_upload_image"),
     path("api/guest-contact/", views.api_guest_contact, name="api_guest_contact"),
     path("api/request-admin/", views.api_request_admin, name="api_request_admin"),
     path("api/poll/", views.api_poll, name="api_poll"),
@@ -13,6 +14,7 @@ urlpatterns = [
 
     # Compatibility aliases
     path("api/message/", views.api_message, name="message"),
+    path("api/upload-image/", views.api_upload_image, name="upload_image"),
     path("api/guest-contact/", views.api_guest_contact, name="guest_contact"),
     path("api/request-admin/", views.api_request_admin, name="request_admin_handoff"),
     path("api/poll/", views.api_poll, name="poll"),

@@ -222,9 +222,9 @@ class ReviewVideoInline(admin.TabularInline):
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     form = ProductAdminForm
-    list_display = ['sku', 'manufacturer_sku', 'name', 'price', 'stock_quantity', 'available_stock_display', 'stock_status_badge', 'approval_status_badge', 'is_featured', 'is_active', 'image_preview']
+    list_display = ['sku', 'manufacturer_sku', 'name', 'condition', 'price', 'stock_quantity', 'available_stock_display', 'stock_status_badge', 'approval_status_badge', 'is_featured', 'is_active', 'image_preview']
     list_editable = ['price', 'stock_quantity', 'is_featured', 'is_active']
-    list_filter = [InventoryStatusFilter, 'is_active', 'is_featured', 'is_new', 'is_bestseller', 'category', 'brand', 'approval_status', 'allow_backorder', 'created_at']
+    list_filter = [InventoryStatusFilter, 'condition', 'is_active', 'is_featured', 'is_new', 'is_bestseller', 'category', 'brand', 'approval_status', 'allow_backorder', 'created_at']
     search_fields = ['sku', 'manufacturer_sku', 'name', 'description']
     prepopulated_fields = {'slug': ['name']}
     readonly_fields = ['views_count', 'sales_count', 'rating_avg', 'rating_count', 'created_at', 'updated_at', 'sku', 'submitted_for_review_at', 'approved_at']
@@ -235,7 +235,7 @@ class ProductAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Basic Information', {
-            'fields': ('sku', 'manufacturer_sku', 'name', 'slug', 'category', 'brand', 'vendor')
+            'fields': ('sku', 'manufacturer_sku', 'name', 'slug', 'condition', 'category', 'brand', 'vendor')
         }),
         ('Description & Specifications', {
             'fields': ('description', 'specifications'),
@@ -257,8 +257,8 @@ class ProductAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
         ('Media', {
-            'fields': ('main_image', 'video_type', 'video_url', 'local_video', 'video_thumbnail', 'video_title'),
-            'description': 'Add product images and videos (YouTube, Vimeo, or local MP4)'
+            'fields': ('main_image', 'manual_pdf', 'video_type', 'video_url', 'local_video', 'video_thumbnail', 'video_title'),
+            'description': 'Add product images, optional PDF manual/brochure, and videos (YouTube, Vimeo, or local MP4).'
         }),
         ('SEO', {
             'fields': ('meta_title', 'meta_description', 'meta_keywords'),

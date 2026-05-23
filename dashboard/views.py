@@ -430,6 +430,7 @@ def vendor_add_product(request):
             stock_quantity = request.POST.get('stock_quantity', 0)
             sku = request.POST.get('sku', '')
             manufacturer_sku = request.POST.get('manufacturer_sku', '').strip()
+            condition = request.POST.get('condition') or Product.CONDITION_BRAND_NEW
             category_id = request.POST.get('category')
             brand_id = request.POST.get('brand')
             is_featured = request.POST.get('is_featured') == 'on'
@@ -455,6 +456,9 @@ def vendor_add_product(request):
             if not category_id:
                 messages.error(request, 'Category is required.')
                 return redirect('dashboard:vendor_add_product')
+
+            if condition not in dict(Product.PRODUCT_CONDITION_CHOICES):
+                condition = Product.CONDITION_BRAND_NEW
             
             # Generate SKU if not provided
             if not sku:
@@ -475,6 +479,7 @@ def vendor_add_product(request):
                     stock_quantity=int(stock_quantity or 0),
                     sku=sku,
                     manufacturer_sku=manufacturer_sku,
+                    condition=condition,
                     category_id=category_id,
                     brand_id=brand_id if brand_id else None,
                     vendor=request.user,
@@ -498,6 +503,11 @@ def vendor_add_product(request):
                 if main_image:
                     product.main_image = main_image
                     product.save(update_fields=['main_image'])
+
+                manual_pdf = request.FILES.get('manual_pdf')
+                if manual_pdf:
+                    product.manual_pdf = manual_pdf
+                    product.save(update_fields=['manual_pdf'])
 
                 additional_images = request.FILES.getlist('additional_images')
                 max_images = subscription_limits['max_images_per_product']
@@ -568,6 +578,7 @@ def vendor_add_product(request):
     context = {
         'categories': categories,
         'brands': brands,
+        'condition_choices': Product.PRODUCT_CONDITION_CHOICES,
         'subscription_limits': subscription_limits,
         'current_product_count': current_product_count,
         'current_featured_count': current_featured_count,
@@ -596,6 +607,9 @@ def vendor_product_detail(request, product_id):
             product.stock_quantity = int(request.POST.get('stock_quantity', product.stock_quantity))
             product.sku = request.POST.get('sku', product.sku)
             product.manufacturer_sku = request.POST.get('manufacturer_sku', '').strip()
+            product.condition = request.POST.get('condition') or Product.CONDITION_BRAND_NEW
+            if product.condition not in dict(Product.PRODUCT_CONDITION_CHOICES):
+                product.condition = Product.CONDITION_BRAND_NEW
             product.category_id = request.POST.get('category', product.category_id)
             product.brand_id = request.POST.get('brand') if request.POST.get('brand') else None
             product.is_featured = request.POST.get('is_featured') == 'on'
@@ -606,6 +620,10 @@ def vendor_product_detail(request, product_id):
             main_image = request.FILES.get('main_image')
             if main_image:
                 product.main_image = main_image
+
+            manual_pdf = request.FILES.get('manual_pdf')
+            if manual_pdf:
+                product.manual_pdf = manual_pdf
 
             video_type = request.POST.get('video_type')
             product.video_type = video_type or ''
@@ -642,6 +660,7 @@ def vendor_product_detail(request, product_id):
         'product': product,
         'categories': categories,
         'brands': brands,
+        'condition_choices': Product.PRODUCT_CONDITION_CHOICES,
         'product_images': product_images,
         'variants': variants,
         'reviews': reviews,
