@@ -3,6 +3,7 @@ import re
 import logging
 
 from django.db.models import Case, Count, IntegerField, Q, Value, When
+from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
@@ -325,10 +326,38 @@ def advanced_search(request):
         sort = '-created_at'
     products = products.order_by(sort)
 
-    popular_searches = SearchHistory.objects.values('query').annotate(count=Count('id')).order_by('-count')[:10]
+    also_search_products = Product.objects.filter(
+        is_active=True,
+        approval_status='approved',
+    ).select_related('category', 'brand')
+
+    if query:
+        also_terms = _query_terms(query)
+        also_search_products = also_search_products.filter(_product_search_q(query, also_terms))
+    else:
+        search_terms_q = Q()
+        for item in SearchHistory.objects.values('query').annotate(count=Count('id')).order_by('-count')[:16]:
+            term_query = _clean_query(item.get('query'))
+            if term_query:
+                search_terms_q |= _product_search_q(term_query, _query_terms(term_query, limit=5))
+        if search_terms_q:
+            also_search_products = also_search_products.filter(search_terms_q)
+
+    also_search_products = (
+        also_search_products
+        .distinct()
+        .order_by('-sales_count', '-rating_avg', '-created_at')[:10]
+    )
+
+    paginator = Paginator(products, 24)
+    page_obj = paginator.get_page(request.GET.get('page'))
+    pagination_params = request.GET.copy()
+    pagination_params.pop('page', None)
 
     context = {
-        'products': products,
+        'products': page_obj,
+        'page_obj': page_obj,
+        'result_count': paginator.count,
         'categories': Category.objects.filter(is_active=True, parent=None),
         'query': query,
         'selected_category': category,
@@ -338,7 +367,8 @@ def advanced_search(request):
         'max_price': max_price,
         'selected_rating': rating,
         'sort': sort,
-        'popular_searches': popular_searches,
+        'also_search_products': also_search_products,
+        'pagination_query': pagination_params.urlencode(),
     }
 
     return render(request, 'search_ai/advanced_search.html', context)

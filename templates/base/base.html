@@ -163,6 +163,55 @@
             letter-spacing: 0;
         }
 
+        .product-grid-card {
+            background: #fff;
+            border: 1px solid #e8edf5;
+            border-radius: 1rem;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, .07);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .product-grid-image {
+            align-items: center;
+            aspect-ratio: 1 / 1;
+            background: linear-gradient(180deg, #f8fafc, #eef4ff);
+            display: flex;
+            justify-content: center;
+            position: relative;
+        }
+
+        .product-grid-image a {
+            display: block;
+            height: 100%;
+            width: 100%;
+        }
+
+        .product-grid-image img {
+            height: 100%;
+            object-fit: contain;
+            padding: .75rem;
+            width: 100%;
+        }
+
+        .product-grid-card > .p-3 {
+            display: flex;
+            flex: 1;
+            flex-direction: column;
+        }
+
+        .product-grid-card .line-clamp-2 {
+            min-height: 2.45rem;
+        }
+
+        .product-grid-card form[data-cart-ajax] {
+            margin-top: auto;
+            padding-top: .7rem;
+        }
+
         body.menu-open {
             overflow: hidden;
             touch-action: none;
@@ -1098,6 +1147,42 @@
 
         .mobile-quick-action:active {
             transform: scale(0.97);
+        }
+
+        .mobile-currency-switcher {
+            align-items: center;
+            background: #fff;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            gap: 0.75rem;
+            justify-content: space-between;
+            padding: 0 1rem 0.95rem;
+        }
+
+        .mobile-currency-switcher label {
+            align-items: center;
+            color: #111827;
+            display: inline-flex;
+            font-size: 0.82rem;
+            font-weight: 900;
+            gap: 0.45rem;
+            min-width: 0;
+        }
+
+        .mobile-currency-switcher label i {
+            color: var(--color-primary);
+        }
+
+        .mobile-currency-switcher select {
+            background: #f8fafc;
+            border: 1px solid #dbe3ef;
+            border-radius: 999px;
+            color: #0f172a;
+            font-size: 16px;
+            font-weight: 900;
+            min-height: 2.55rem;
+            min-width: 8.5rem;
+            padding: 0 0.85rem;
         }
 
         .mobile-menu-title {
@@ -2704,6 +2789,22 @@
                     {% endif %}
                 </a>
             </div>
+
+            <form method="POST" action="{% url 'currency:switch' %}" class="mobile-currency-switcher">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.path }}">
+                <label for="mobile-currency-code">
+                    <i class="fas fa-coins"></i>
+                    Currency
+                </label>
+                <select id="mobile-currency-code" name="code" onchange="this.form.submit()" aria-label="Choose currency">
+                    {% for currency in all_currencies %}
+                        <option value="{{ currency.code }}" {% if current_currency_code == currency.code %}selected{% endif %}>{{ currency.code }} {{ currency.symbol }}</option>
+                    {% empty %}
+                        <option value="USD">USD $</option>
+                    {% endfor %}
+                </select>
+            </form>
 
             <!-- Main Links -->
             <div>

@@ -27,6 +27,14 @@ def format_currency_amount(
     except (InvalidOperation, TypeError, ValueError):
         amount_dec = Decimal('0')
 
+    # Arolana storefront uses comma grouping consistently so prices read like
+    # ₦598,500.00 instead of ₦598.500.00 even if older currency rows still
+    # have a dot saved as the thousands separator.
+    if thousands_separator == '.':
+        thousands_separator = ','
+    if not decimal_separator or decimal_separator == thousands_separator:
+        decimal_separator = '.'
+
     number = f"{amount_dec:.{decimal_places}f}"
     integer_part, _, fraction = number.partition('.')
 

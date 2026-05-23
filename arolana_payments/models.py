@@ -9,7 +9,7 @@ from django.utils import timezone
 class PaymentMethod(models.TextChoices):
     FLUTTERWAVE = "flutterwave", "Flutterwave"
     PAYPAL = "paypal", "PayPal"
-    STRIPE = "stripe", "Stripe / Card"
+    PAYSTACK = "paystack", "Paystack"
     COINBASE = "coinbase", "Coinbase Commerce Crypto"
     MANUAL_CRYPTO = "manual_crypto", "Manual Crypto Wallet Transfer"
 

@@ -295,6 +295,121 @@
         width: 100%;
     }
 
+    .people-also-search {
+        border-bottom: 1px solid #e5e7eb;
+        padding: 1rem 1.1rem 0;
+    }
+
+    .people-also-search-head {
+        align-items: center;
+        display: flex;
+        gap: 1rem;
+        justify-content: space-between;
+        margin-bottom: .85rem;
+    }
+
+    .people-also-search-row {
+        display: grid;
+        grid-auto-columns: minmax(10.5rem, 12rem);
+        grid-auto-flow: column;
+        gap: .85rem;
+        overflow-x: auto;
+        padding: 0 0 1rem;
+        scroll-snap-type: x proximity;
+        scrollbar-width: thin;
+    }
+
+    .people-also-card {
+        background: #fff;
+        border: 1px solid #e8edf5;
+        border-radius: 16px;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, .06);
+        display: grid;
+        grid-template-rows: auto 1fr;
+        min-width: 0;
+        overflow: hidden;
+        scroll-snap-align: start;
+    }
+
+    .people-also-media {
+        align-items: center;
+        aspect-ratio: 1 / .78;
+        background: linear-gradient(180deg, #f8fafc, #eef4ff);
+        display: flex;
+        justify-content: center;
+        padding: .55rem;
+    }
+
+    .people-also-media img {
+        height: 100%;
+        object-fit: contain;
+        width: 100%;
+    }
+
+    .people-also-body {
+        display: flex;
+        flex-direction: column;
+        padding: .7rem;
+    }
+
+    .people-also-title {
+        color: #0f172a;
+        display: -webkit-box;
+        font-size: .82rem;
+        font-weight: 950;
+        line-height: 1.25;
+        min-height: 2.05rem;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+    }
+
+    .people-also-price {
+        color: #2563eb;
+        font-size: .9rem;
+        font-weight: 950;
+        margin-top: .55rem;
+        overflow-wrap: anywhere;
+    }
+
+    .advanced-search-pagination {
+        align-items: center;
+        border-top: 1px solid #e5e7eb;
+        display: flex;
+        flex-wrap: wrap;
+        gap: .7rem;
+        justify-content: center;
+        padding: 1rem 1.1rem 1.25rem;
+    }
+
+    .advanced-search-page-link,
+    .advanced-search-page-current {
+        align-items: center;
+        border-radius: 999px;
+        display: inline-flex;
+        font-size: .9rem;
+        font-weight: 950;
+        justify-content: center;
+        min-height: 2.6rem;
+        padding: 0 1rem;
+    }
+
+    .advanced-search-page-link {
+        background: #fff;
+        border: 1px solid #dbe3ef;
+        color: #0f172a;
+    }
+
+    .advanced-search-page-link:hover {
+        border-color: #2563eb;
+        color: #2563eb;
+    }
+
+    .advanced-search-page-current {
+        background: #eff6ff;
+        color: #2563eb;
+    }
+
     .advanced-search-mobile-filter {
         display: none;
     }
@@ -400,6 +515,21 @@
             font-size: .78rem;
             min-height: 2.4rem;
         }
+
+        .people-also-search {
+            padding: .85rem .75rem 0;
+        }
+
+        .people-also-search-head {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: .35rem;
+        }
+
+        .people-also-search-row {
+            grid-auto-columns: minmax(8.8rem, 9.8rem);
+            gap: .65rem;
+        }
     }
 </style>
 {% endblock %}
@@ -504,7 +634,7 @@
                     <div>
                         <h2 class="text-2xl font-black text-slate-900">Search results</h2>
                         <p class="text-sm text-slate-500">
-                            {% if query %}For “{{ query }}” · {% endif %}{{ products.count }} product{{ products.count|pluralize }}
+                            {% if query %}For “{{ query }}” · {% endif %}{{ result_count }} product{{ result_count|pluralize }}
                         </p>
                     </div>
                     <button type="button" class="advanced-search-mobile-filter" @click="filtersOpen = true">
@@ -513,7 +643,40 @@
                     </button>
                 </div>
 
-                {% if products %}
+                {% if also_search_products %}
+                    <section class="people-also-search" aria-label="People also search for">
+                        <div class="people-also-search-head">
+                            <div>
+                                <h3 class="text-lg font-black text-slate-900">People also search for</h3>
+                                <p class="text-sm text-slate-500">Products shoppers are searching and comparing now.</p>
+                            </div>
+                            <a href="{% url 'search_ai:advanced_search' %}{% if query %}?q={{ query|urlencode }}{% endif %}" class="text-sm font-black text-blue-600 hover:text-blue-700">
+                                View all <i class="fas fa-arrow-right ml-1"></i>
+                            </a>
+                        </div>
+
+                        <div class="people-also-search-row">
+                            {% for item in also_search_products %}
+                                <a href="{{ item.get_absolute_url }}" class="people-also-card">
+                                    <span class="people-also-media">
+                                        {% if item.main_image %}
+                                            {% optimized_image_url item.main_image 'product_card' as also_image_url %}
+                                            <img src="{{ also_image_url }}" alt="{{ item.name }}" loading="lazy" decoding="async">
+                                        {% else %}
+                                            <i class="fas fa-image text-3xl text-slate-300"></i>
+                                        {% endif %}
+                                    </span>
+                                    <span class="people-also-body">
+                                        <span class="people-also-title">{{ item.name }}</span>
+                                        <span class="people-also-price">{{ item.price|currency:request }}</span>
+                                    </span>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    </section>
+                {% endif %}
+
+                {% if result_count %}
                     <div class="advanced-search-grid" id="search-results">
                         {% for product in products %}
                             <article class="advanced-search-card">
@@ -560,6 +723,26 @@
                             </article>
                         {% endfor %}
                     </div>
+
+                    {% if page_obj.has_other_pages %}
+                        <nav class="advanced-search-pagination" aria-label="Search result pages">
+                            {% if page_obj.has_previous %}
+                                <a class="advanced-search-page-link" href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.previous_page_number }}">
+                                    <i class="fas fa-chevron-left mr-2"></i>Previous
+                                </a>
+                            {% endif %}
+
+                            <span class="advanced-search-page-current">
+                                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                            </span>
+
+                            {% if page_obj.has_next %}
+                                <a class="advanced-search-page-link" href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.next_page_number }}">
+                                    Next<i class="fas fa-chevron-right ml-2"></i>
+                                </a>
+                            {% endif %}
+                        </nav>
+                    {% endif %}
                 {% else %}
                     <div class="text-center py-16 px-4">
                         <div class="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 text-blue-600">
@@ -572,19 +755,6 @@
                 {% endif %}
             </main>
         </div>
-
-        {% if popular_searches %}
-            <section class="mt-8 rounded-2xl border border-blue-100 bg-blue-50/70 p-5">
-                <h3 class="text-lg font-black text-slate-900">Popular searches</h3>
-                <div class="mt-4 flex flex-wrap gap-2">
-                    {% for search in popular_searches %}
-                        <a href="{% url 'search_ai:advanced_search' %}?q={{ search.query|urlencode }}" class="rounded-full bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm hover:text-blue-600">
-                            {{ search.query }}
-                        </a>
-                    {% endfor %}
-                </div>
-            </section>
-        {% endif %}
     </div>
 
     <div class="advanced-search-drawer" x-show="filtersOpen" x-cloak @click.self="filtersOpen = false">

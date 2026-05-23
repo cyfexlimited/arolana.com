@@ -1,6 +1,5 @@
 import json
 
-import stripe
 from django.conf import settings
 from django.contrib import messages
 from django.core.mail import send_mail
@@ -16,14 +15,17 @@ from .services import (
     init_coinbase_checkout,
     init_flutterwave_checkout,
     init_paypal_checkout,
-    init_stripe_checkout,
+    init_paystack_checkout,
     gateway_is_available,
     get_gateway_options,
     update_order_after_payment,
     verify_coinbase_signature,
     verify_flutterwave_transaction,
     verify_flutterwave_webhook,
+    verify_paystack_transaction,
 )
+
+from orders.models import DeliveryProvider
 
 
 def checkout(request):
@@ -34,16 +36,62 @@ def checkout(request):
     amount, currency, order_id, email, name, phone
     """
     wallets = ManualCryptoWallet.objects.filter(is_active=True)
+    delivery_options = [
+        {
+            "value": "standard",
+            "label": "Standard Delivery",
+            "description": "Reliable delivery calculated by your location.",
+            "icon": "fa-truck",
+            "provider_type": "manual_dispatch",
+        },
+        {
+            "value": "express",
+            "label": "Express Delivery",
+            "description": "Faster dispatch where available.",
+            "icon": "fa-bolt",
+            "provider_type": "arolana_driver",
+        },
+        {
+            "value": "arolana_dispatch",
+            "label": "Arolana Dispatch",
+            "description": "Arolana riders or approved local dispatch riders.",
+            "icon": "fa-motorcycle",
+            "provider_type": "arolana_driver",
+        },
+        {
+            "value": "uber_direct",
+            "label": "Uber Direct",
+            "description": "Shown when Uber Direct is available in your area.",
+            "icon": "fa-route",
+            "provider_type": "uber_direct",
+        },
+        {
+            "value": "pickup_from_vendor",
+            "label": "Pickup from Vendor",
+            "description": "Collect from the vendor after confirmation.",
+            "icon": "fa-store",
+            "provider_type": "vendor_pickup",
+        },
+    ]
 
     context = {
         "wallets": wallets,
         "payment_options": get_gateway_options(),
+        "delivery_options": delivery_options,
+        "delivery_providers": DeliveryProvider.objects.filter(is_active=True),
         "amount": request.GET.get("amount", request.POST.get("amount", "")),
         "currency": request.GET.get("currency", request.POST.get("currency", getattr(settings, "AROLANA_DEFAULT_CURRENCY", "NGN"))),
         "order_id": request.GET.get("order_id", request.POST.get("order_id", "")),
         "email": request.GET.get("email", request.POST.get("email", "")),
         "name": request.GET.get("name", request.POST.get("name", "")),
         "phone": request.GET.get("phone", request.POST.get("phone", "")),
+        "address": request.GET.get("address", request.POST.get("address", "")),
+        "city": request.GET.get("city", request.POST.get("city", "")),
+        "state": request.GET.get("state", request.POST.get("state", "")),
+        "postal_code": request.GET.get("postal_code", request.POST.get("postal_code", "")),
+        "country": request.GET.get("country", request.POST.get("country", "")),
+        "delivery_service_level": request.GET.get("delivery_service_level", request.POST.get("delivery_service_level", "standard")),
+        "delivery_provider": request.GET.get("delivery_provider", request.POST.get("delivery_provider", "")),
     }
     return render(request, "arolana_payments/checkout.html", context)
 
@@ -65,8 +113,8 @@ def start_payment(request, gateway):
             url = init_flutterwave_checkout(request, payment)
         elif gateway == PaymentMethod.PAYPAL:
             url = init_paypal_checkout(request, payment)
-        elif gateway == PaymentMethod.STRIPE:
-            url = init_stripe_checkout(request, payment)
+        elif gateway == PaymentMethod.PAYSTACK:
+            url = init_paystack_checkout(request, payment)
         elif gateway == PaymentMethod.COINBASE:
             url = init_coinbase_checkout(request, payment)
         elif gateway == PaymentMethod.MANUAL_CRYPTO:
@@ -170,14 +218,15 @@ def callback(request, reference):
         else:
             payment.mark_failed(data)
 
-    elif payment.gateway == PaymentMethod.STRIPE:
-        session_id = request.GET.get("session_id")
-        if session_id:
-            stripe.api_key = settings.STRIPE_SECRET_KEY
-            session = stripe.checkout.Session.retrieve(session_id)
-            if session.payment_status == "paid":
-                payment.mark_success(session_id, dict(session))
+    elif payment.gateway == PaymentMethod.PAYSTACK:
+        reference_to_verify = request.GET.get("reference") or payment.gateway_reference or payment.reference
+        if reference_to_verify:
+            data = verify_paystack_transaction(reference_to_verify)
+            if data.get("status") and data.get("data", {}).get("status") == "success":
+                payment.mark_success(str(data.get("data", {}).get("reference", reference_to_verify)), data)
                 update_order_after_payment(payment)
+            else:
+                payment.mark_failed(data)
 
     elif payment.gateway == PaymentMethod.COINBASE:
         # Coinbase final confirmation should happen through webhook.
@@ -199,29 +248,6 @@ def cancel(request, reference):
 def status(request, reference):
     payment = get_object_or_404(PaymentTransaction, reference=reference)
     return render(request, "arolana_payments/status.html", {"payment": payment})
-
-
-@csrf_exempt
-def stripe_webhook(request):
-    payload = request.body
-    sig_header = request.META.get("HTTP_STRIPE_SIGNATURE")
-    endpoint_secret = getattr(settings, "STRIPE_WEBHOOK_SECRET", "")
-
-    try:
-        event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
-    except Exception:
-        return HttpResponseBadRequest("Invalid Stripe webhook.")
-
-    if event["type"] == "checkout.session.completed":
-        session = event["data"]["object"]
-        reference = session.get("metadata", {}).get("reference")
-        if reference:
-            payment = PaymentTransaction.objects.filter(reference=reference).first()
-            if payment:
-                payment.mark_success(session.get("id", ""), event)
-                update_order_after_payment(payment)
-
-    return JsonResponse({"received": True})
 
 
 @csrf_exempt

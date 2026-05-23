@@ -6,7 +6,6 @@ from decimal import Decimal
 from decimal import InvalidOperation
 
 import requests
-import stripe
 from django.conf import settings
 from django.urls import reverse
 from django.utils import timezone
@@ -21,10 +20,10 @@ GATEWAY_DEFAULTS = {
         "icon_class": "fas fa-bolt text-orange-500",
         "display_order": 10,
     },
-    PaymentMethod.STRIPE: {
-        "display_name": "Stripe / Card",
-        "description": "International card checkout",
-        "icon_class": "fab fa-stripe-s text-indigo-600",
+    PaymentMethod.PAYSTACK: {
+        "display_name": "Paystack",
+        "description": "Cards, bank transfer, USSD, and Nigerian payment methods",
+        "icon_class": "fas fa-credit-card text-emerald-600",
         "display_order": 20,
     },
     PaymentMethod.PAYPAL: {
@@ -60,9 +59,9 @@ def gateway_credentials_status(gateway):
     if gateway == PaymentMethod.FLUTTERWAVE:
         ok = _configured_secret(getattr(settings, "FLUTTERWAVE_SECRET_KEY", ""))
         return ok, "" if ok else "Add FLUTTERWAVE_SECRET_KEY to enable Flutterwave."
-    if gateway == PaymentMethod.STRIPE:
-        ok = _configured_secret(getattr(settings, "STRIPE_SECRET_KEY", ""))
-        return ok, "" if ok else "Add STRIPE_SECRET_KEY to enable Stripe."
+    if gateway == PaymentMethod.PAYSTACK:
+        ok = _configured_secret(getattr(settings, "PAYSTACK_SECRET_KEY", ""))
+        return ok, "" if ok else "Add PAYSTACK_SECRET_KEY to enable Paystack."
     if gateway == PaymentMethod.PAYPAL:
         ok = (
             _configured_secret(getattr(settings, "PAYPAL_CLIENT_ID", ""))
@@ -147,6 +146,9 @@ def create_transaction(request, gateway):
         "state": request.POST.get("state", ""),
         "postal_code": request.POST.get("postal_code", ""),
         "country": request.POST.get("country", ""),
+        "delivery_service_level": request.POST.get("delivery_service_level", "standard"),
+        "delivery_provider": request.POST.get("delivery_provider", ""),
+        "delivery_fee": request.POST.get("delivery_fee", "0.00"),
     }
 
     payment = PaymentTransaction.objects.create(
@@ -296,40 +298,53 @@ def capture_paypal_order(payment):
     return response.json()
 
 
-def init_stripe_checkout(request, payment):
-    stripe.api_key = settings.STRIPE_SECRET_KEY
+def init_paystack_checkout(request, payment):
+    secret_key = settings.PAYSTACK_SECRET_KEY
+    callback_url = absolute_url(request, reverse("arolana_payments:callback", args=[payment.reference]))
 
-    success_url = absolute_url(request, reverse("arolana_payments:callback", args=[payment.reference])) + "?session_id={CHECKOUT_SESSION_ID}"
-    cancel_url = absolute_url(request, reverse("arolana_payments:cancel", args=[payment.reference]))
-
-    session = stripe.checkout.Session.create(
-        mode="payment",
-        payment_method_types=["card"],
-        line_items=[{
-            "price_data": {
-                "currency": payment.currency.lower(),
-                "product_data": {
-                    "name": f"Arolana order {payment.order_id or payment.reference}",
-                },
-                "unit_amount": int(payment.amount * 100),
-            },
-            "quantity": 1,
-        }],
-        customer_email=payment.customer_email or None,
-        metadata={
-            "reference": payment.reference,
+    payload = {
+        "email": payment.customer_email,
+        "amount": int(payment.amount * 100),
+        "currency": payment.currency,
+        "reference": payment.reference,
+        "callback_url": callback_url,
+        "metadata": {
             "order_id": payment.order_id,
+            "reference": payment.reference,
+            "customer_name": payment.customer_name,
+            "customer_phone": payment.customer_phone,
+            "delivery": payment.checkout_data or {},
         },
-        success_url=success_url,
-        cancel_url=cancel_url,
-    )
+    }
 
-    payment.gateway_reference = session.id
-    payment.gateway_checkout_url = session.url
-    payment.gateway_response = dict(session)
+    response = requests.post(
+        "https://api.paystack.co/transaction/initialize",
+        json=payload,
+        headers={
+            "Authorization": f"Bearer {secret_key}",
+            "Content-Type": "application/json",
+        },
+        timeout=30,
+    )
+    data = response.json()
+    paystack_data = data.get("data", {})
+
+    payment.gateway_reference = paystack_data.get("reference", payment.reference)
+    payment.gateway_checkout_url = paystack_data.get("authorization_url", "")
+    payment.gateway_response = data
     payment.status = PaymentStatus.PROCESSING
     payment.save(update_fields=["gateway_reference", "gateway_checkout_url", "gateway_response", "status", "updated_at"])
-    return session.url
+    return payment.gateway_checkout_url
+
+
+def verify_paystack_transaction(reference):
+    secret_key = settings.PAYSTACK_SECRET_KEY
+    response = requests.get(
+        f"https://api.paystack.co/transaction/verify/{reference}",
+        headers={"Authorization": f"Bearer {secret_key}"},
+        timeout=30,
+    )
+    return response.json()
 
 
 def init_coinbase_checkout(request, payment):

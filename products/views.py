@@ -30,10 +30,11 @@ except ImportError:
 
 # Note: Adjust import based on your actual orders app structure
 try:
-    from orders.models import Cart, CartItem
+    from orders.models import Cart, CartItem, DeliveryProvider
 except ImportError:
     Cart = None
     CartItem = None
+    DeliveryProvider = None
 
 try:
     from currency.models import Currency
@@ -1792,9 +1793,53 @@ def checkout(request):
         messages.info(request, 'Your cart is empty.')
         return redirect('products:list')
     
+    delivery_providers = []
+    if DeliveryProvider:
+        delivery_providers = list(DeliveryProvider.objects.filter(is_active=True).order_by('name'))
+
+    delivery_options = [
+        {
+            'value': 'standard',
+            'label': 'Standard Delivery',
+            'description': 'Reliable delivery calculated by your location.',
+            'icon': 'fa-truck',
+            'provider_type': 'manual_dispatch',
+        },
+        {
+            'value': 'express',
+            'label': 'Express Delivery',
+            'description': 'Faster dispatch where available.',
+            'icon': 'fa-bolt',
+            'provider_type': 'arolana_driver',
+        },
+        {
+            'value': 'arolana_dispatch',
+            'label': 'Arolana Dispatch',
+            'description': 'Arolana riders or approved local dispatch riders.',
+            'icon': 'fa-motorcycle',
+            'provider_type': 'arolana_driver',
+        },
+        {
+            'value': 'uber_direct',
+            'label': 'Uber Direct',
+            'description': 'Shown when Uber Direct is available in your area.',
+            'icon': 'fa-route',
+            'provider_type': 'uber_direct',
+        },
+        {
+            'value': 'pickup_from_vendor',
+            'label': 'Pickup from Vendor',
+            'description': 'Collect from the vendor after confirmation.',
+            'icon': 'fa-store',
+            'provider_type': 'vendor_pickup',
+        },
+    ]
+
     return render(request, 'products/checkout.html', {
         'cart': cart,
         'payment_options': get_gateway_options(),
+        'delivery_options': delivery_options,
+        'delivery_providers': delivery_providers,
     })
 
 

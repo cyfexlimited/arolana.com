@@ -10,6 +10,7 @@ from django.contrib.sitemaps.views import sitemap
 
 from pages.views import page_detail, help_center, faq_page, article_detail, careers_page
 from products import views as products_views
+from orders import views as orders_views
 import currency.views as currency_views
 import core.views as core_views
 from core import admin_views as core_admin_views
@@ -204,7 +205,7 @@ urlpatterns = [
     path("terms/", TemplateView.as_view(template_name="support/terms.html"), name="terms"),
     path("returns/", TemplateView.as_view(template_name="support/returns.html"), name="returns"),
     re_path(r"^returns/.*$", returns_redirect, name="returns_catchall"),
-    path("orders/track/", TemplateView.as_view(template_name="support/track_order.html"), name="track_order"),
+    path("orders/track/", orders_views.track_order, name="track_order"),
 
     # Help & Debug
     path("color-test/", TemplateView.as_view(template_name="products/color_test.html"), name="color_test"),

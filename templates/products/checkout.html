@@ -43,7 +43,7 @@
                         <input type="text" name="address" id="address" required class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                         <div>
                             <label class="block font-semibold mb-2">City</label>
                             <input type="text" name="city" id="city" required class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -55,67 +55,86 @@
                         </div>
                     </div>
 
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                        <div>
+                            <label class="block font-semibold mb-2">State</label>
+                            <input type="text" name="state" id="state" class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+
+                        <div>
+                            <label class="block font-semibold mb-2">Country</label>
+                            <input type="text" name="country" id="country" value="Nigeria" class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+
+                    <div class="mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
+                        <div class="flex items-start gap-3">
+                            <i class="fas fa-location-dot mt-1 text-blue-600"></i>
+                            <div>
+                                <strong class="block text-gray-900">Delivery cost depends on your location.</strong>
+                                <span>We calculate the final delivery fee from your delivery address, selected provider, package size, and rider availability before dispatch.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h2 class="text-xl font-black mt-6 mb-4 text-gray-900">Delivery Method</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+                        {% for option in delivery_options %}
+                        <label class="arolana-delivery-option">
+                            <input type="radio" name="delivery_service_level" value="{{ option.value }}" data-provider-type="{{ option.provider_type }}" {% if forloop.first %}checked{% endif %}>
+                            <span class="arolana-delivery-card">
+                                <span class="arolana-delivery-icon"><i class="fas {{ option.icon }}"></i></span>
+                                <span>
+                                    <strong>{{ option.label }}</strong>
+                                    <small>{{ option.description }}</small>
+                                </span>
+                            </span>
+                        </label>
+                        {% endfor %}
+                    </div>
+
+                    {% if delivery_providers %}
+                    <div class="mb-6">
+                        <label class="block font-semibold mb-2">Preferred delivery provider</label>
+                        <select name="delivery_provider" id="delivery_provider" class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">Let Arolana choose the best provider</option>
+                            {% for provider in delivery_providers %}
+                                <option value="{{ provider.id }}" data-provider-type="{{ provider.provider_type }}">{{ provider.name }}{% if provider.base_fee %} · from {{ provider.base_fee|currency:request }}{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+
                     <!-- Payment Data -->
                     <!-- Do not reference total_converted/subtotal_converted here unless the view passes them. -->
                     <div
                         id="arolana-payment-data"
                         data-amount="{{ cart.total|default:cart.subtotal|default:'0' }}"
+                        data-subtotal="{{ cart.subtotal|default:'0' }}"
                         data-currency="NGN"
                         data-order-id="{{ cart.id|default:'' }}"
+                        data-delivery-quote-url="{% url 'orders:delivery_quote' %}"
                     ></div>
 
                     <h2 class="text-xl font-black mt-6 mb-4 text-gray-900">Choose Payment Method</h2>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+                        {% for option in payment_options %}
                         <button type="button"
-                                onclick="startArolanaPayment('flutterwave')"
-                                class="arolana-payment-option">
-                            <i class="fas fa-bolt text-2xl text-orange-500"></i>
+                                onclick="startArolanaPayment('{{ option.gateway }}')"
+                                class="arolana-payment-option {% if not option.available %}arolana-payment-option-disabled{% endif %}"
+                                {% if not option.available %}disabled title="{{ option.disabled_reason }}"{% endif %}>
+                            <i class="{{ option.icon_class }} text-2xl"></i>
                             <span>
-                                <strong>Flutterwave</strong>
-                                <small>Cards, bank transfer, USSD and local methods</small>
+                                <strong>{{ option.display_name }}</strong>
+                                <small>{% if option.available %}{{ option.description }}{% else %}{{ option.disabled_reason }}{% endif %}</small>
                             </span>
                         </button>
-
-                        <button type="button"
-                                onclick="startArolanaPayment('stripe')"
-                                class="arolana-payment-option">
-                            <i class="fab fa-stripe-s text-2xl text-indigo-600"></i>
-                            <span>
-                                <strong>Stripe / Card</strong>
-                                <small>International card checkout</small>
-                            </span>
-                        </button>
-
-                        <button type="button"
-                                onclick="startArolanaPayment('paypal')"
-                                class="arolana-payment-option">
-                            <i class="fab fa-paypal text-2xl text-blue-600"></i>
-                            <span>
-                                <strong>PayPal</strong>
-                                <small>PayPal wallet and supported cards</small>
-                            </span>
-                        </button>
-
-                        <button type="button"
-                                onclick="startArolanaPayment('coinbase')"
-                                class="arolana-payment-option">
-                            <i class="fab fa-bitcoin text-2xl text-yellow-500"></i>
-                            <span>
-                                <strong>Coinbase Commerce</strong>
-                                <small>Hosted crypto checkout</small>
-                            </span>
-                        </button>
-
-                        <button type="button"
-                                onclick="startArolanaPayment('manual_crypto')"
-                                class="arolana-payment-option md:col-span-2">
-                            <i class="fas fa-wallet text-2xl text-green-600"></i>
-                            <span>
-                                <strong>Manual Crypto Wallet Transfer</strong>
-                                <small>Transfer manually and upload proof after payment</small>
-                            </span>
-                        </button>
+                        {% empty %}
+                        <div class="rounded-2xl border border-yellow-200 bg-yellow-50 p-5 text-yellow-900 md:col-span-2">
+                            No payment gateways are active yet. Enable one in the admin payment gateway settings.
+                        </div>
+                        {% endfor %}
                     </div>
 
                     <p class="text-sm text-gray-500 text-center">
@@ -149,13 +168,14 @@
 
                     <div class="flex justify-between">
                         <span>Shipping</span>
-                        <span class="text-green-600">Free</span>
+                        <span id="checkout-shipping-cost" class="text-blue-600 font-semibold">Calculating...</span>
                     </div>
+                    <p id="checkout-delivery-message" class="text-xs text-gray-500 leading-relaxed"></p>
 
                     <div class="border-t pt-3 mt-3">
                         <div class="flex justify-between text-lg font-black">
                             <span>Total</span>
-                            <span class="text-green-600">{{ cart.total|default:cart.subtotal|currency:request }}</span>
+                            <span id="checkout-total" class="text-green-600">{{ cart.total|default:cart.subtotal|currency:request }}</span>
                         </div>
                     </div>
                 </div>
@@ -191,6 +211,16 @@
         box-shadow: 0 18px 40px rgba(37, 99, 235, 0.12);
     }
 
+    .arolana-payment-option-disabled,
+    .arolana-payment-option-disabled:hover {
+        cursor: not-allowed;
+        opacity: .62;
+        transform: none;
+        border-color: #e5e7eb;
+        background: #fff;
+        box-shadow: none;
+    }
+
     .arolana-payment-option strong {
         display: block;
         color: #0f172a;
@@ -203,6 +233,62 @@
         line-height: 1.35;
         margin-top: 0.15rem;
     }
+
+    .arolana-delivery-option {
+        cursor: pointer;
+        display: block;
+    }
+
+    .arolana-delivery-option input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .arolana-delivery-card {
+        align-items: center;
+        border: 1px solid #e5e7eb;
+        border-radius: 1rem;
+        display: flex;
+        gap: .9rem;
+        min-height: 86px;
+        padding: 1rem;
+        transition: border-color .18s ease, background .18s ease, box-shadow .18s ease, transform .18s ease;
+    }
+
+    .arolana-delivery-option input:checked + .arolana-delivery-card {
+        background: #eff6ff;
+        border-color: #2563eb;
+        box-shadow: 0 14px 34px rgba(37, 99, 235, .12);
+    }
+
+    .arolana-delivery-icon {
+        align-items: center;
+        background: #eef2ff;
+        border-radius: 999px;
+        color: #2563eb;
+        display: inline-flex;
+        height: 2.75rem;
+        justify-content: center;
+        width: 2.75rem;
+        flex: 0 0 auto;
+    }
+
+    .arolana-delivery-card strong,
+    .arolana-delivery-card small {
+        display: block;
+    }
+
+    .arolana-delivery-card strong {
+        color: #0f172a;
+        font-weight: 950;
+    }
+
+    .arolana-delivery-card small {
+        color: #64748b;
+        line-height: 1.35;
+        margin-top: .15rem;
+    }
 </style>
 
 <script>
@@ -210,7 +296,117 @@ function getCheckoutValue(selector) {
     return document.querySelector(selector)?.value?.trim() || "";
 }
 
-function startArolanaPayment(gateway) {
+let currentDeliveryFee = 0;
+let deliveryProviderTouched = false;
+
+function formatCheckoutMoney(value) {
+    const amount = Number(value || 0);
+    try {
+        return new Intl.NumberFormat("en-NG", {
+            style: "currency",
+            currency: "NGN",
+            maximumFractionDigits: 2
+        }).format(amount);
+    } catch (error) {
+        return `NGN ${amount.toLocaleString()}`;
+    }
+}
+
+function checkoutDeliveryPayload() {
+    const dataBox = document.getElementById("arolana-payment-data");
+    return {
+        subtotal: dataBox?.dataset.subtotal || dataBox?.dataset.amount || "0",
+        delivery_service_level: document.querySelector('[name="delivery_service_level"]:checked')?.value || "standard",
+        delivery_provider: getCheckoutValue('[name="delivery_provider"]'),
+        address: getCheckoutValue('[name="address"]'),
+        city: getCheckoutValue('[name="city"]'),
+        state: getCheckoutValue('[name="state"]'),
+        postal_code: getCheckoutValue('[name="postal_code"]'),
+        country: getCheckoutValue('[name="country"]')
+    };
+}
+
+async function refreshDeliveryQuote(requireLocation = false) {
+    const dataBox = document.getElementById("arolana-payment-data");
+    const shippingEl = document.getElementById("checkout-shipping-cost");
+    const totalEl = document.getElementById("checkout-total");
+    const messageEl = document.getElementById("checkout-delivery-message");
+
+    if (!dataBox) return true;
+
+    const payload = checkoutDeliveryPayload();
+    const subtotal = Number(String(payload.subtotal || "0").replace(/,/g, ""));
+
+    if (requireLocation && (!payload.address || !payload.city)) {
+        return false;
+    }
+
+    const params = new URLSearchParams(payload);
+    const url = `${dataBox.dataset.deliveryQuoteUrl}?${params.toString()}`;
+
+    if (shippingEl) shippingEl.textContent = "Calculating...";
+
+    try {
+        const response = await fetch(url, {
+            credentials: "same-origin",
+            headers: { "X-Requested-With": "XMLHttpRequest" }
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.error || "Delivery quote failed.");
+
+        currentDeliveryFee = Number(data.fee_float || data.fee || 0);
+        if (shippingEl) shippingEl.textContent = formatCheckoutMoney(currentDeliveryFee);
+        if (totalEl) totalEl.textContent = formatCheckoutMoney(subtotal + currentDeliveryFee);
+        if (messageEl) messageEl.textContent = data.message || "";
+        return true;
+    } catch (error) {
+        currentDeliveryFee = 0;
+        if (shippingEl) shippingEl.textContent = "By location";
+        if (totalEl) totalEl.textContent = formatCheckoutMoney(subtotal);
+        if (messageEl) messageEl.textContent = "We could not calculate delivery yet. Arolana will confirm the final fee before dispatch.";
+        return !requireLocation;
+    }
+}
+
+function syncPreferredProviderToDelivery(radio) {
+    const providerSelect = document.querySelector('[name="delivery_provider"]');
+    const preferredType = radio?.dataset?.providerType || "";
+    if (!providerSelect || !preferredType || deliveryProviderTouched) return;
+
+    const match = Array.from(providerSelect.options).find((option) => option.dataset.providerType === preferredType);
+    if (match) providerSelect.value = match.value;
+}
+
+document.querySelectorAll(".arolana-delivery-option").forEach((option) => {
+    option.addEventListener("click", () => {
+        const radio = option.querySelector('input[type="radio"]');
+        if (radio) {
+            radio.checked = true;
+            syncPreferredProviderToDelivery(radio);
+        }
+        refreshDeliveryQuote(false);
+    });
+
+    option.querySelector('input[type="radio"]')?.addEventListener("change", (event) => {
+        syncPreferredProviderToDelivery(event.target);
+        refreshDeliveryQuote(false);
+    });
+});
+
+["address", "city", "state", "postal_code", "country", "delivery_provider"].forEach((name) => {
+    document.querySelector(`[name="${name}"]`)?.addEventListener("change", () => {
+        if (name === "delivery_provider") deliveryProviderTouched = true;
+        refreshDeliveryQuote(false);
+    });
+    document.querySelector(`[name="${name}"]`)?.addEventListener("blur", () => refreshDeliveryQuote(false));
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+    syncPreferredProviderToDelivery(document.querySelector('[name="delivery_service_level"]:checked'));
+    refreshDeliveryQuote(false);
+});
+
+async function startArolanaPayment(gateway) {
     const dataBox = document.getElementById("arolana-payment-data");
 
     if (!dataBox) {
@@ -218,7 +414,7 @@ function startArolanaPayment(gateway) {
         return;
     }
 
-    const amount = dataBox.dataset.amount || "0";
+    const amount = dataBox.dataset.amount || dataBox.dataset.subtotal || "0";
     const currency = dataBox.dataset.currency || "NGN";
     const orderId = dataBox.dataset.orderId || "";
 
@@ -228,7 +424,11 @@ function startArolanaPayment(gateway) {
     const phone = getCheckoutValue('[name="phone"]');
     const address = getCheckoutValue('[name="address"]');
     const city = getCheckoutValue('[name="city"]');
+    const state = getCheckoutValue('[name="state"]');
     const postalCode = getCheckoutValue('[name="postal_code"]');
+    const country = getCheckoutValue('[name="country"]');
+    const deliveryService = document.querySelector('[name="delivery_service_level"]:checked')?.value || "standard";
+    const deliveryProvider = getCheckoutValue('[name="delivery_provider"]');
 
     if (!firstName) {
         alert("Please enter your first name.");
@@ -260,6 +460,12 @@ function startArolanaPayment(gateway) {
         return;
     }
 
+    const quoted = await refreshDeliveryQuote(true);
+    if (!quoted) {
+        alert("Please enter your delivery address and city so we can calculate your delivery cost.");
+        return;
+    }
+
     const amountNumber = Number(String(amount).replace(/,/g, ""));
 
     if (!amountNumber || amountNumber <= 0) {
@@ -278,7 +484,7 @@ function startArolanaPayment(gateway) {
     form.appendChild(csrfInput);
 
     const fields = {
-        amount: amountNumber.toString(),
+        amount: (amountNumber + currentDeliveryFee).toFixed(2),
         currency: currency,
         order_id: orderId,
         name: `${firstName} ${lastName}`.trim(),
@@ -286,7 +492,12 @@ function startArolanaPayment(gateway) {
         phone: phone,
         address: address,
         city: city,
-        postal_code: postalCode
+        state: state,
+        postal_code: postalCode,
+        country: country,
+        delivery_service_level: deliveryService,
+        delivery_provider: deliveryProvider,
+        delivery_fee: currentDeliveryFee.toFixed(2)
     };
 
     Object.entries(fields).forEach(([key, value]) => {

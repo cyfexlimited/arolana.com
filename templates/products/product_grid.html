@@ -1,6 +1,62 @@
 {% load currency_filters media_optimization %}
 
 <style>
+    .arolana-product-grid {
+        align-items: stretch;
+    }
+
+    .arolana-product-grid .product-card {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-width: 0;
+    }
+
+    .arolana-product-grid .product-card .p-4 {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+    }
+
+    .arolana-product-grid .product-card h3 {
+        display: -webkit-box;
+        min-height: 2.45rem;
+        overflow: hidden;
+        white-space: normal;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+    }
+
+    .arolana-product-grid .product-card .mt-3:has(.text-lg) {
+        min-height: 2.55rem;
+    }
+
+    .arolana-product-grid .product-card form[data-cart-ajax] {
+        margin-top: auto;
+        padding-top: .8rem;
+    }
+
+    @media (min-width: 641px) and (max-width: 1023px) {
+        .arolana-product-grid {
+            gap: 1rem !important;
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        }
+
+        .arolana-product-grid .product-card .relative.h-56 {
+            height: 12rem;
+        }
+
+        .arolana-product-grid .product-card .p-4 {
+            padding: .9rem;
+        }
+    }
+
+    @media (min-width: 1024px) {
+        .arolana-product-grid .product-card .relative.h-56 {
+            height: 13.5rem;
+        }
+    }
+
     @media (max-width: 640px) {
         .arolana-product-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;

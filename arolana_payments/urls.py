@@ -12,7 +12,6 @@ urlpatterns = [
     path("cancel/<str:reference>/", views.cancel, name="cancel"),
     path("status/<str:reference>/", views.status, name="status"),
 
-    path("webhooks/stripe/", views.stripe_webhook, name="stripe_webhook"),
     path("webhooks/flutterwave/", views.flutterwave_webhook, name="flutterwave_webhook"),
     path("webhooks/coinbase/", views.coinbase_webhook, name="coinbase_webhook"),
 ]

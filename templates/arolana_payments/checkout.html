@@ -19,8 +19,9 @@
                 {% endfor %}
             {% endif %}
 
-            <form id="paymentBaseForm" class="grid gap-4 mb-8">
+            <form id="paymentBaseForm" class="grid gap-6 mb-8">
                 <input type="hidden" name="order_id" value="{{ order_id }}">
+                <input type="hidden" name="delivery_fee" id="delivery_fee" value="0.00">
                 <div class="grid md:grid-cols-2 gap-4">
                     <label class="grid gap-1">
                         <span class="text-sm font-bold text-gray-700">Amount</span>
@@ -43,41 +44,112 @@
                         <input name="phone" value="{{ phone }}" class="border rounded-xl px-4 py-3">
                     </label>
                 </div>
+
+                <div class="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
+                    <div class="flex items-start gap-3">
+                        <i class="fas fa-location-dot mt-1 text-blue-600"></i>
+                        <div>
+                            <strong class="block text-gray-900">Delivery cost depends on your location.</strong>
+                            <span>Choose a delivery method now. Arolana can confirm the final delivery fee from your address, selected provider, package size, and rider availability.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h2 class="text-xl font-black mb-4 text-gray-900">Delivery Method</h2>
+                    <div class="grid md:grid-cols-2 gap-3">
+                        {% for option in delivery_options %}
+                        <label class="arolana-delivery-option">
+                            <input type="radio" name="delivery_service_level" value="{{ option.value }}" data-provider-type="{{ option.provider_type }}" {% if delivery_service_level == option.value or not delivery_service_level and forloop.first %}checked{% endif %}>
+                            <span class="arolana-delivery-card">
+                                <span class="arolana-delivery-icon"><i class="fas {{ option.icon }}"></i></span>
+                                <span>
+                                    <strong>{{ option.label }}</strong>
+                                    <small>{{ option.description }}</small>
+                                </span>
+                            </span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                {% if delivery_providers %}
+                <label class="grid gap-1">
+                    <span class="text-sm font-bold text-gray-700">Preferred delivery provider</span>
+                    <select name="delivery_provider" class="border rounded-xl px-4 py-3">
+                        <option value="">Let Arolana choose the best provider</option>
+                        {% for provider in delivery_providers %}
+                            <option value="{{ provider.id }}" data-provider-type="{{ provider.provider_type }}" {% if delivery_provider|stringformat:"s" == provider.id|stringformat:"s" %}selected{% endif %}>{{ provider.name }}{% if provider.base_fee %} · from {{ provider.base_fee }}{% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                {% endif %}
+
+                <div>
+                    <h2 class="text-xl font-black mb-4 text-gray-900">Delivery Address</h2>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <label class="grid gap-1 md:col-span-2">
+                            <span class="text-sm font-bold text-gray-700">Address</span>
+                            <input name="address" value="{{ address }}" class="border rounded-xl px-4 py-3">
+                        </label>
+                        <label class="grid gap-1">
+                            <span class="text-sm font-bold text-gray-700">City</span>
+                            <input name="city" value="{{ city }}" class="border rounded-xl px-4 py-3">
+                        </label>
+                        <label class="grid gap-1">
+                            <span class="text-sm font-bold text-gray-700">State</span>
+                            <input name="state" value="{{ state }}" class="border rounded-xl px-4 py-3">
+                        </label>
+                        <label class="grid gap-1">
+                            <span class="text-sm font-bold text-gray-700">Postal Code</span>
+                            <input name="postal_code" value="{{ postal_code }}" class="border rounded-xl px-4 py-3">
+                        </label>
+                        <label class="grid gap-1">
+                            <span class="text-sm font-bold text-gray-700">Country</span>
+                            <input name="country" value="{{ country }}" class="border rounded-xl px-4 py-3">
+                        </label>
+                    </div>
+                </div>
+
+                <div
+                    id="arolana-payment-quote"
+                    class="rounded-2xl border border-gray-200 bg-gray-50 p-4"
+                    data-delivery-quote-url="{% url 'orders:delivery_quote' %}"
+                    data-starting-amount="{{ amount|default:'0' }}"
+                >
+                    <div class="grid gap-3 sm:grid-cols-3">
+                        <div>
+                            <span class="block text-xs font-bold uppercase tracking-wide text-gray-500">Items</span>
+                            <strong id="payment-items-total" class="text-gray-950">{{ currency|default:'NGN' }} {{ amount|default:'0.00' }}</strong>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-bold uppercase tracking-wide text-gray-500">Delivery</span>
+                            <strong id="payment-delivery-fee" class="text-blue-700">Calculating...</strong>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-bold uppercase tracking-wide text-gray-500">Pay now</span>
+                            <strong id="payment-grand-total" class="text-green-700">{{ currency|default:'NGN' }} {{ amount|default:'0.00' }}</strong>
+                        </div>
+                    </div>
+                    <p id="payment-delivery-message" class="mt-3 text-xs leading-relaxed text-gray-600"></p>
+                </div>
             </form>
 
             <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {% for gateway, label, icon, note in payment_options %}
+                {% for option in payment_options %}
+                <button type="button"
+                        onclick="submitGateway('{{ option.gateway }}')"
+                        class="payment-card {% if not option.available %}payment-card-disabled{% endif %}"
+                        {% if not option.available %}disabled title="{{ option.disabled_reason }}"{% endif %}>
+                    <i class="{{ option.icon_class }}"></i>
+                    <strong>{{ option.display_name }}</strong>
+                    <span>{% if option.available %}{{ option.description }}{% else %}{{ option.disabled_reason }}{% endif %}</span>
+                </button>
+                {% empty %}
+                <div class="rounded-2xl border border-yellow-200 bg-yellow-50 p-5 text-yellow-900 md:col-span-2 lg:col-span-3">
+                    No payment gateways are active yet. Enable one in the admin payment gateway settings.
+                </div>
                 {% endfor %}
-
-                <button onclick="submitGateway('flutterwave')" class="payment-card">
-                    <i class="fas fa-bolt text-orange-500"></i>
-                    <strong>Flutterwave</strong>
-                    <span>Cards, bank transfer, local methods</span>
-                </button>
-
-                <button onclick="submitGateway('stripe')" class="payment-card">
-                    <i class="fab fa-stripe-s text-indigo-600"></i>
-                    <strong>Stripe / Card</strong>
-                    <span>International card checkout</span>
-                </button>
-
-                <button onclick="submitGateway('paypal')" class="payment-card">
-                    <i class="fab fa-paypal text-blue-600"></i>
-                    <strong>PayPal</strong>
-                    <span>PayPal wallet and supported cards</span>
-                </button>
-
-                <button onclick="submitGateway('coinbase')" class="payment-card">
-                    <i class="fab fa-bitcoin text-yellow-500"></i>
-                    <strong>Coinbase Commerce</strong>
-                    <span>Hosted crypto checkout</span>
-                </button>
-
-                <button onclick="submitGateway('manual_crypto')" class="payment-card">
-                    <i class="fas fa-wallet text-green-600"></i>
-                    <strong>Manual Crypto Transfer</strong>
-                    <span>Upload proof after sending crypto</span>
-                </button>
             </div>
         </div>
     </div>
@@ -101,6 +173,14 @@
     box-shadow: 0 28px 70px rgba(15,23,42,.12);
     border-color: #2563eb;
 }
+.payment-card-disabled,
+.payment-card-disabled:hover {
+    cursor: not-allowed;
+    opacity: .62;
+    transform: none;
+    box-shadow: 0 12px 30px rgba(15,23,42,.04);
+    border-color: #e5e7eb;
+}
 .payment-card i {
     font-size: 2rem;
 }
@@ -113,11 +193,189 @@
     color: #64748b;
     font-size: .9rem;
 }
+.arolana-delivery-option {
+    cursor: pointer;
+    display: block;
+}
+.arolana-delivery-option input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+.arolana-delivery-card {
+    align-items: center;
+    border: 1px solid #e5e7eb;
+    border-radius: 1rem;
+    display: flex;
+    gap: .9rem;
+    min-height: 86px;
+    padding: 1rem;
+    transition: border-color .18s ease, background .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+.arolana-delivery-option:hover .arolana-delivery-card {
+    border-color: #93c5fd;
+    transform: translateY(-1px);
+}
+.arolana-delivery-option input:checked + .arolana-delivery-card {
+    background: #eff6ff;
+    border-color: #2563eb;
+    box-shadow: 0 14px 34px rgba(37, 99, 235, .12);
+}
+.arolana-delivery-icon {
+    align-items: center;
+    background: #eef2ff;
+    border-radius: 999px;
+    color: #2563eb;
+    display: inline-flex;
+    flex: 0 0 auto;
+    height: 2.75rem;
+    justify-content: center;
+    width: 2.75rem;
+}
+.arolana-delivery-card strong,
+.arolana-delivery-card small {
+    display: block;
+}
+.arolana-delivery-card strong {
+    color: #0f172a;
+    font-weight: 950;
+}
+.arolana-delivery-card small {
+    color: #64748b;
+    line-height: 1.35;
+    margin-top: .15rem;
+}
 </style>
 
 <script>
-function submitGateway(gateway) {
+let paymentDeliveryFee = 0;
+let paymentProviderTouched = false;
+
+function paymentFormValue(name) {
+    return document.querySelector(`#paymentBaseForm [name="${name}"]`)?.value?.trim() || "";
+}
+
+function paymentBaseAmount() {
+    return Number(String(paymentFormValue("amount") || "0").replace(/,/g, "")) || 0;
+}
+
+function paymentCurrency() {
+    return (paymentFormValue("currency") || "NGN").toUpperCase();
+}
+
+function formatPaymentMoney(value) {
+    const amount = Number(value || 0);
+    const currency = paymentCurrency();
+    try {
+        return new Intl.NumberFormat("en-NG", {
+            style: "currency",
+            currency,
+            maximumFractionDigits: 2
+        }).format(amount);
+    } catch (error) {
+        return `${currency} ${amount.toLocaleString()}`;
+    }
+}
+
+function paymentDeliveryPayload() {
+    return {
+        subtotal: paymentBaseAmount().toFixed(2),
+        delivery_service_level: document.querySelector('#paymentBaseForm [name="delivery_service_level"]:checked')?.value || "standard",
+        delivery_provider: paymentFormValue("delivery_provider"),
+        address: paymentFormValue("address"),
+        city: paymentFormValue("city"),
+        state: paymentFormValue("state"),
+        postal_code: paymentFormValue("postal_code"),
+        country: paymentFormValue("country")
+    };
+}
+
+function updatePaymentTotals(message) {
+    const base = paymentBaseAmount();
+    document.getElementById("delivery_fee").value = paymentDeliveryFee.toFixed(2);
+    document.getElementById("payment-items-total").textContent = formatPaymentMoney(base);
+    document.getElementById("payment-delivery-fee").textContent = formatPaymentMoney(paymentDeliveryFee);
+    document.getElementById("payment-grand-total").textContent = formatPaymentMoney(base + paymentDeliveryFee);
+    document.getElementById("payment-delivery-message").textContent = message || "";
+}
+
+async function refreshPaymentDeliveryQuote(requireLocation = false) {
+    const quoteBox = document.getElementById("arolana-payment-quote");
+    if (!quoteBox) return true;
+
+    const payload = paymentDeliveryPayload();
+    if (requireLocation && (!payload.address || !payload.city)) {
+        return false;
+    }
+
+    document.getElementById("payment-delivery-fee").textContent = "Calculating...";
+    try {
+        const params = new URLSearchParams(payload);
+        const response = await fetch(`${quoteBox.dataset.deliveryQuoteUrl}?${params.toString()}`, {
+            credentials: "same-origin",
+            headers: { "X-Requested-With": "XMLHttpRequest" }
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.error || "Delivery quote failed.");
+        paymentDeliveryFee = Number(data.fee_float || data.fee || 0);
+        updatePaymentTotals(data.message || "");
+        return true;
+    } catch (error) {
+        paymentDeliveryFee = 0;
+        updatePaymentTotals("We could not calculate delivery yet. Arolana will confirm the final fee before dispatch.");
+        return !requireLocation;
+    }
+}
+
+function syncPaymentProviderToDelivery(radio) {
+    const providerSelect = document.querySelector('#paymentBaseForm [name="delivery_provider"]');
+    const preferredType = radio?.dataset?.providerType || "";
+    if (!providerSelect || !preferredType || paymentProviderTouched) return;
+    const match = Array.from(providerSelect.options).find((option) => option.dataset.providerType === preferredType);
+    if (match) providerSelect.value = match.value;
+}
+
+document.querySelectorAll(".arolana-delivery-option").forEach((option) => {
+    option.addEventListener("click", () => {
+        const radio = option.querySelector('input[type="radio"]');
+        if (radio) {
+            radio.checked = true;
+            syncPaymentProviderToDelivery(radio);
+        }
+        refreshPaymentDeliveryQuote(false);
+    });
+
+    option.querySelector('input[type="radio"]')?.addEventListener("change", (event) => {
+        syncPaymentProviderToDelivery(event.target);
+        refreshPaymentDeliveryQuote(false);
+    });
+});
+
+["amount", "currency", "address", "city", "state", "postal_code", "country", "delivery_provider"].forEach((name) => {
+    const field = document.querySelector(`#paymentBaseForm [name="${name}"]`);
+    if (!field) return;
+    field.addEventListener("change", () => {
+        if (name === "delivery_provider") paymentProviderTouched = true;
+        refreshPaymentDeliveryQuote(false);
+    });
+    field.addEventListener("blur", () => refreshPaymentDeliveryQuote(false));
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+    syncPaymentProviderToDelivery(document.querySelector('#paymentBaseForm [name="delivery_service_level"]:checked'));
+    refreshPaymentDeliveryQuote(false);
+});
+
+async function submitGateway(gateway) {
     const baseForm = document.getElementById("paymentBaseForm");
+    const quoted = await refreshPaymentDeliveryQuote(true);
+    if (!quoted) {
+        alert("Please enter your delivery address and city so we can calculate your delivery cost.");
+        return;
+    }
+
+    const amountField = baseForm.querySelector('[name="amount"]');
+    const originalAmount = paymentBaseAmount();
     const form = document.createElement("form");
     form.method = "POST";
     form.action = `/payments/start/${gateway}/`;
@@ -128,7 +386,12 @@ function submitGateway(gateway) {
     csrf.value = "{{ csrf_token }}";
     form.appendChild(csrf);
 
-    new FormData(baseForm).forEach((value, key) => {
+    const submitData = new FormData(baseForm);
+    submitData.set("amount", (originalAmount + paymentDeliveryFee).toFixed(2));
+    submitData.set("delivery_fee", paymentDeliveryFee.toFixed(2));
+    if (amountField) amountField.value = originalAmount.toFixed(2);
+
+    submitData.forEach((value, key) => {
         const input = document.createElement("input");
         input.type = "hidden";
         input.name = key;

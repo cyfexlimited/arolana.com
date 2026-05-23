@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Cart, CartItem, Order, OrderItem
+from .models import Cart, CartItem, DeliveryProvider, DeliveryRequest, Order, OrderItem
 
 class CartItemInline(admin.TabularInline):
     model = CartItem
@@ -43,3 +43,73 @@ class OrderItemAdmin(admin.ModelAdmin):
     list_display = ['order', 'product', 'quantity', 'price', 'subtotal']
     search_fields = ['order__order_number', 'product__name']
     readonly_fields = ['subtotal']
+
+
+@admin.register(DeliveryProvider)
+class DeliveryProviderAdmin(admin.ModelAdmin):
+    list_display = ['name', 'provider_type', 'base_fee', 'is_active', 'supports_tracking', 'supports_driver_assignment']
+    list_filter = ['provider_type', 'is_active', 'supports_tracking', 'supports_driver_assignment']
+    search_fields = ['name', 'code', 'contact_phone', 'contact_email']
+    prepopulated_fields = {'code': ('name',)}
+    fieldsets = (
+        ('Provider', {
+            'fields': ('name', 'code', 'provider_type', 'description', 'is_active')
+        }),
+        ('Delivery Settings', {
+            'fields': ('base_fee', 'supports_tracking', 'supports_driver_assignment')
+        }),
+        ('Contact', {
+            'fields': ('contact_phone', 'contact_email')
+        }),
+    )
+
+
+@admin.register(DeliveryRequest)
+class DeliveryRequestAdmin(admin.ModelAdmin):
+    list_display = ['tracking_code', 'order', 'service_level', 'provider', 'tracking_status', 'driver_name', 'delivery_fee', 'created_at']
+    list_filter = ['tracking_status', 'service_level', 'provider', 'created_at']
+    search_fields = ['tracking_code', 'order__order_number', 'driver_name', 'driver_phone', 'dropoff_address']
+    readonly_fields = ['tracking_code', 'created_at', 'updated_at', 'accepted_at', 'picked_up_at', 'delivered_at']
+    autocomplete_fields = ['order', 'provider', 'driver_user']
+    actions = ['mark_assigned', 'mark_picked_up', 'mark_in_transit', 'mark_delivered']
+    fieldsets = (
+        ('Delivery Request', {
+            'fields': ('tracking_code', 'order', 'provider', 'service_level', 'tracking_status', 'provider_reference')
+        }),
+        ('Addresses and Fee', {
+            'fields': ('pickup_address', 'dropoff_address', 'delivery_fee')
+        }),
+        ('Driver Assignment', {
+            'fields': ('driver_user', 'driver_name', 'driver_phone')
+        }),
+        ('Tracking Location', {
+            'fields': ('latest_location', 'latest_latitude', 'latest_longitude')
+        }),
+        ('Timeline', {
+            'fields': ('accepted_at', 'picked_up_at', 'delivered_at', 'created_at', 'updated_at')
+        }),
+        ('Admin Notes', {
+            'fields': ('admin_notes',)
+        }),
+    )
+
+    @admin.action(description='Mark selected deliveries as assigned')
+    def mark_assigned(self, request, queryset):
+        for delivery in queryset:
+            delivery.tracking_status = DeliveryRequest.STATUS_ASSIGNED
+            delivery.save(update_fields=['tracking_status', 'updated_at'])
+
+    @admin.action(description='Mark selected deliveries as picked up')
+    def mark_picked_up(self, request, queryset):
+        for delivery in queryset:
+            delivery.mark_picked_up()
+
+    @admin.action(description='Mark selected deliveries as in transit')
+    def mark_in_transit(self, request, queryset):
+        for delivery in queryset:
+            delivery.mark_in_transit()
+
+    @admin.action(description='Mark selected deliveries as delivered')
+    def mark_delivered(self, request, queryset):
+        for delivery in queryset:
+            delivery.mark_delivered()
