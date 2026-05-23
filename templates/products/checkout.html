@@ -4,6 +4,11 @@
 {% block title %}Checkout | Arolana{% endblock %}
 
 {% block content %}
+{% current_currency_code as checkout_currency_code %}
+{% current_currency_symbol as checkout_currency_symbol %}
+{% get_exchange_rate checkout_currency_code as checkout_currency_rate %}
+{% base_currency_code as checkout_base_currency_code %}
+{% get_exchange_rate checkout_base_currency_code as checkout_base_currency_rate %}
 <div class="max-w-5xl mx-auto px-4 py-10">
     <h1 class="text-3xl font-black mb-8 text-gray-900">Checkout</h1>
 
@@ -111,7 +116,11 @@
                         id="arolana-payment-data"
                         data-amount="{{ cart.total|default:cart.subtotal|default:'0' }}"
                         data-subtotal="{{ cart.subtotal|default:'0' }}"
-                        data-currency="NGN"
+                        data-base-currency="{{ checkout_base_currency_code }}"
+                        data-base-rate="{{ checkout_base_currency_rate }}"
+                        data-display-currency="{{ checkout_currency_code }}"
+                        data-display-symbol="{{ checkout_currency_symbol }}"
+                        data-display-rate="{{ checkout_currency_rate }}"
                         data-order-id="{{ cart.id|default:'' }}"
                         data-delivery-quote-url="{% url 'orders:delivery_quote' %}"
                     ></div>
@@ -301,15 +310,25 @@ let deliveryProviderTouched = false;
 
 function formatCheckoutMoney(value) {
     const amount = Number(value || 0);
+    const dataBox = document.getElementById("arolana-payment-data");
+    const currency = dataBox?.dataset.displayCurrency || "NGN";
+    const symbol = dataBox?.dataset.displaySymbol || currency;
     try {
         return new Intl.NumberFormat("en-NG", {
             style: "currency",
-            currency: "NGN",
+            currency: currency,
             maximumFractionDigits: 2
         }).format(amount);
     } catch (error) {
-        return `NGN ${amount.toLocaleString()}`;
+        return `${symbol}${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
+}
+
+function convertCheckoutAmount(baseAmount) {
+    const dataBox = document.getElementById("arolana-payment-data");
+    const baseRate = Number(dataBox?.dataset.baseRate || 1) || 1;
+    const displayRate = Number(dataBox?.dataset.displayRate || 1) || 1;
+    return Number(baseAmount || 0) * displayRate / baseRate;
 }
 
 function checkoutDeliveryPayload() {
@@ -355,14 +374,14 @@ async function refreshDeliveryQuote(requireLocation = false) {
         if (!response.ok || !data.success) throw new Error(data.error || "Delivery quote failed.");
 
         currentDeliveryFee = Number(data.fee_float || data.fee || 0);
-        if (shippingEl) shippingEl.textContent = formatCheckoutMoney(currentDeliveryFee);
-        if (totalEl) totalEl.textContent = formatCheckoutMoney(subtotal + currentDeliveryFee);
+        if (shippingEl) shippingEl.textContent = formatCheckoutMoney(convertCheckoutAmount(currentDeliveryFee));
+        if (totalEl) totalEl.textContent = formatCheckoutMoney(convertCheckoutAmount(subtotal + currentDeliveryFee));
         if (messageEl) messageEl.textContent = data.message || "";
         return true;
     } catch (error) {
         currentDeliveryFee = 0;
         if (shippingEl) shippingEl.textContent = "By location";
-        if (totalEl) totalEl.textContent = formatCheckoutMoney(subtotal);
+        if (totalEl) totalEl.textContent = formatCheckoutMoney(convertCheckoutAmount(subtotal));
         if (messageEl) messageEl.textContent = "We could not calculate delivery yet. Arolana will confirm the final fee before dispatch.";
         return !requireLocation;
     }
@@ -415,7 +434,7 @@ async function startArolanaPayment(gateway) {
     }
 
     const amount = dataBox.dataset.amount || dataBox.dataset.subtotal || "0";
-    const currency = dataBox.dataset.currency || "NGN";
+    const currency = dataBox.dataset.baseCurrency || "NGN";
     const orderId = dataBox.dataset.orderId || "";
 
     const firstName = getCheckoutValue('[name="first_name"]');

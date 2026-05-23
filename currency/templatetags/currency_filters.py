@@ -121,8 +121,10 @@ def current_currency_symbol(context):
     request = context.get('request')
     currency_data = get_currency_data()
     currency_code = currency_data.get('default') or 'NGN'
-    
-    if request and hasattr(request, 'session'):
+
+    if request and getattr(request, 'user_currency', None):
+        currency_code = request.user_currency
+    elif request and hasattr(request, 'session'):
         currency_code = request.session.get('user_currency', currency_code)
     elif request and hasattr(request, 'COOKIES'):
         currency_code = request.COOKIES.get('user_currency', currency_code)
@@ -139,7 +141,9 @@ def current_currency_code(context):
     request = context.get('request')
     currency_data = get_currency_data()
     default_currency = currency_data.get('default') or 'NGN'
-    
+
+    if request and getattr(request, 'user_currency', None):
+        return request.user_currency
     if request and hasattr(request, 'session'):
         return request.session.get('user_currency', default_currency)
     elif request and hasattr(request, 'COOKIES'):
@@ -204,3 +208,13 @@ def get_exchange_rate(currency_code):
         return currency_data['rates'].get(currency_code.upper(), 1.0)
     except:
         return 1.0
+
+
+@register.simple_tag
+def base_currency_code():
+    """Get the catalog/base currency code used for stored prices."""
+    try:
+        currency_data = get_currency_data()
+        return currency_data.get('base') or currency_data.get('default') or 'NGN'
+    except Exception:
+        return 'NGN'
