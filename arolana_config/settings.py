@@ -127,6 +127,7 @@ INSTALLED_APPS = [
     'vendors',
     'products',
     'orders',
+    'deliveries',
     'blog',
     'chat',
     'notifications',

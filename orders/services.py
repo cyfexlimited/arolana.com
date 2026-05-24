@@ -298,6 +298,16 @@ def mark_order_paid(payment):
         delivery_fee=delivery_fee,
         tracking_status=DeliveryRequest.STATUS_PENDING_ASSIGNMENT,
     )
+    try:
+        from deliveries.services import create_live_delivery_for_order
+        create_live_delivery_for_order(
+            order,
+            legacy_delivery=delivery,
+            checkout_data=checkout_data,
+            service_level=service_level,
+        )
+    except Exception:
+        pass
 
     cart.is_active = False
     cart.save(update_fields=['is_active', 'updated_at'])

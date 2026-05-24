@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Rider Dashboard{% endblock %}
+
+{% block content %}
+<main class="max-w-6xl mx-auto px-4 py-8">
+    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+            <h1 class="text-3xl font-extrabold text-gray-900">Rider Dashboard</h1>
+            <p class="text-gray-600">Accept jobs, update live delivery status, and track earnings.</p>
+        </div>
+        <div class="flex gap-3">
+            {% if rider.is_online %}
+                <form method="post" action="{% url 'deliveries:rider_go_offline' %}">{% csrf_token %}<button class="rounded-xl bg-gray-900 px-4 py-2 font-bold text-white">Go Offline</button></form>
+            {% else %}
+                <form method="post" action="{% url 'deliveries:rider_go_online' %}">{% csrf_token %}<button class="rounded-xl bg-green-600 px-4 py-2 font-bold text-white">Go Online</button></form>
+            {% endif %}
+        </div>
+    </div>
+
+    <section class="mt-6 grid gap-4 md:grid-cols-4">
+        <div class="rounded-2xl bg-white p-5 shadow-sm border"><p class="text-sm text-gray-500">KYC</p><strong>{{ rider.get_kyc_status_display }}</strong></div>
+        <div class="rounded-2xl bg-white p-5 shadow-sm border"><p class="text-sm text-gray-500">Online</p><strong>{{ rider.is_online|yesno:"Yes,No" }}</strong></div>
+        <div class="rounded-2xl bg-white p-5 shadow-sm border"><p class="text-sm text-gray-500">Completed</p><strong>{{ rider.completed_deliveries }}</strong></div>
+        <div class="rounded-2xl bg-white p-5 shadow-sm border"><p class="text-sm text-gray-500">Rating</p><strong>{{ rider.rating_avg }}</strong></div>
+    </section>
+
+    <section class="mt-8">
+        <h2 class="text-xl font-extrabold text-gray-900">Active Deliveries</h2>
+        <div class="mt-4 grid gap-4">
+            {% for delivery in active_deliveries %}
+                <article class="rounded-2xl border bg-white p-5 shadow-sm">
+                    <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div>
+                            <h3 class="font-extrabold">{{ delivery.tracking_code }}</h3>
+                            <p class="text-sm text-gray-600">{{ delivery.pickup_address|linebreaksbr }}</p>
+                            <p class="mt-2 text-sm text-gray-600">{{ delivery.dropoff_address|linebreaksbr }}</p>
+                        </div>
+                        <span class="rounded-full bg-blue-50 px-3 py-1 text-sm font-bold text-blue-700">{{ delivery.get_status_display }}</span>
+                    </div>
+                    <form method="post" action="{% url 'deliveries:rider_update_status' delivery.id %}" class="mt-4 flex flex-col gap-3 md:flex-row">
+                        {% csrf_token %}
+                        <select name="status" class="rounded-xl border px-3 py-2">
+                            {% for value,label in delivery.STATUS_CHOICES %}
+                                <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        <input name="note" placeholder="Optional note" class="min-w-0 flex-1 rounded-xl border px-3 py-2">
+                        <button class="rounded-xl bg-blue-600 px-4 py-2 font-bold text-white">Update Status</button>
+                    </form>
+                </article>
+            {% empty %}
+                <p class="rounded-2xl bg-gray-50 p-5 text-gray-600">No active deliveries yet.</p>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="mt-8">
+        <h2 class="text-xl font-extrabold text-gray-900">Available Deliveries</h2>
+        <div class="mt-4 grid gap-4 md:grid-cols-2">
+            {% for delivery in available_deliveries %}
+                <article class="rounded-2xl border bg-white p-5 shadow-sm">
+                    <h3 class="font-extrabold">{{ delivery.tracking_code }}</h3>
+                    <p class="mt-2 text-sm text-gray-600">Fee: {{ delivery.delivery_fee }} | Rider earning: {{ delivery.rider_earning }}</p>
+                    <p class="mt-2 text-sm text-gray-600">{{ delivery.dropoff_address|truncatechars:120 }}</p>
+                    <form method="post" action="{% url 'deliveries:rider_accept_delivery' delivery.id %}" class="mt-4">
+                        {% csrf_token %}
+                        <button class="rounded-xl bg-green-600 px-4 py-2 font-bold text-white">Accept Delivery</button>
+                    </form>
+                </article>
+            {% empty %}
+                <p class="rounded-2xl bg-gray-50 p-5 text-gray-600">No deliveries available right now.</p>
+            {% endfor %}
+        </div>
+    </section>
+</main>
+{% endblock %}

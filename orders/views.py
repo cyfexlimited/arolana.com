@@ -101,6 +101,24 @@ def delivery_quote(request):
         country=request.GET.get('country', ''),
         subtotal=request.GET.get('subtotal', '0'),
     )
+    live_quote = None
+    try:
+        from deliveries.services import calculate_live_delivery_quote
+        live_quote = calculate_live_delivery_quote(
+            pickup_latitude=request.GET.get('pickup_latitude'),
+            pickup_longitude=request.GET.get('pickup_longitude'),
+            dropoff_latitude=request.GET.get('dropoff_latitude'),
+            dropoff_longitude=request.GET.get('dropoff_longitude'),
+            service_level=service_level,
+            fallback_fee=quote['fee'],
+        )
+    except Exception:
+        live_quote = None
+
+    if live_quote:
+        quote['fee'] = live_quote['fee']
+        quote['message'] = live_quote['message']
+
     provider = quote.get('provider')
     return JsonResponse({
         'success': True,
@@ -110,4 +128,7 @@ def delivery_quote(request):
         'provider_name': provider.name if provider else 'Arolana delivery partner',
         'service_level': quote['service_level'],
         'message': quote['message'],
+        'distance_km': str(live_quote['distance_km']) if live_quote else '',
+        'estimated_duration_minutes': live_quote['estimated_duration_minutes'] if live_quote else '',
+        'is_distance_based': live_quote['is_distance_based'] if live_quote else False,
     })

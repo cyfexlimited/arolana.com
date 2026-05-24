@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Track Delivery {{ delivery.tracking_code }}{% endblock %}
+
+{% block content %}
+<main class="max-w-5xl mx-auto px-4 py-10">
+    <h1 class="text-3xl font-extrabold text-gray-900">Track Delivery</h1>
+    <p class="text-gray-600">Tracking code: <strong>{{ delivery.tracking_code }}</strong></p>
+
+    {% if needs_email %}
+        <form method="get" class="mt-6 grid gap-3 rounded-2xl border bg-white p-6 shadow-sm md:grid-cols-[1fr_auto]">
+            <input type="email" name="email" value="{{ email }}" placeholder="Enter order email to view tracking" class="rounded-xl border px-4 py-3">
+            <button class="rounded-xl bg-blue-600 px-5 py-3 font-extrabold text-white">View Tracking</button>
+        </form>
+    {% else %}
+        <section class="mt-6 grid gap-4 md:grid-cols-3">
+            <div class="rounded-2xl border bg-white p-5 shadow-sm md:col-span-2">
+                <h2 class="font-extrabold text-gray-900">Delivery Map</h2>
+                <div class="mt-4 flex h-72 items-center justify-center rounded-2xl bg-slate-100 text-center text-sm text-slate-600">
+                    {% if latest_location %}
+                        Rider location: {{ latest_location.latitude }}, {{ latest_location.longitude }}<br>
+                        Last update: {{ latest_location.created_at }}
+                    {% else %}
+                        Live rider location will appear here when the rider starts location sharing.
+                    {% endif %}
+                </div>
+            </div>
+            <div class="rounded-2xl border bg-white p-5 shadow-sm">
+                <h2 class="font-extrabold text-gray-900">Rider</h2>
+                {% if delivery.rider %}
+                    <p class="mt-3">{{ delivery.rider }}</p>
+                    <p class="text-sm text-gray-600">{{ delivery.rider.phone }}</p>
+                    <p class="text-sm text-gray-600">{{ delivery.rider.vehicle }}</p>
+                {% else %}
+                    <p class="mt-3 text-gray-600">A rider has not been assigned yet.</p>
+                {% endif %}
+                <div class="mt-5 border-t pt-4">
+                    <p class="text-sm text-gray-500">Status</p>
+                    <strong>{{ delivery.get_status_display }}</strong>
+                    <p class="mt-3 text-sm text-gray-500">Delivery fee</p>
+                    <strong>{{ delivery.delivery_fee }}</strong>
+                </div>
+            </div>
+        </section>
+
+        <section class="mt-8 rounded-2xl border bg-white p-6 shadow-sm">
+            <h2 class="font-extrabold text-gray-900">Tracking Timeline</h2>
+            <ol class="mt-4 space-y-4">
+                {% for item in history %}
+                    <li class="border-l-4 border-blue-500 pl-4">
+                        <strong>{{ item.get_status_display }}</strong>
+                        <p class="text-sm text-gray-600">{{ item.created_at }}{% if item.location_label %} - {{ item.location_label }}{% endif %}</p>
+                        {% if item.note %}<p class="text-sm text-gray-700">{{ item.note }}</p>{% endif %}
+                    </li>
+                {% empty %}
+                    <li class="text-gray-600">No tracking updates yet.</li>
+                {% endfor %}
+            </ol>
+        </section>
+    {% endif %}
+</main>
+{% endblock %}
