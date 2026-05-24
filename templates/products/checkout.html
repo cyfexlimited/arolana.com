@@ -138,6 +138,7 @@
                         data-pickup-vendor-id="{{ delivery_origin.pickup_vendor_id|default:'' }}"
                         data-pickup-vendor-name="{{ delivery_origin.pickup_vendor_name|default:''|escape }}"
                         data-pickup-is-multi-vendor="{% if delivery_origin.pickup_is_multi_vendor %}true{% else %}false{% endif %}"
+                        data-package-weight-kg="{{ package_weight_kg|default:'0.00' }}"
                     ></div>
 
                     <h2 class="text-xl font-black mt-6 mb-4 text-gray-900">Choose Payment Method</h2>
@@ -425,6 +426,7 @@ function checkoutDeliveryPayload() {
         pickup_longitude: dataBox?.dataset.pickupLongitude || "",
         pickup_vendor_id: dataBox?.dataset.pickupVendorId || "",
         pickup_vendor_name: dataBox?.dataset.pickupVendorName || "",
+        package_weight_kg: dataBox?.dataset.packageWeightKg || "0.00",
         dropoff_latitude: getCheckoutValue('[name="dropoff_latitude"]'),
         dropoff_longitude: getCheckoutValue('[name="dropoff_longitude"]'),
         address: getCheckoutValue('[name="address"]'),
@@ -649,6 +651,7 @@ async function startArolanaPayment(gateway) {
         pickup_longitude: dataBox.dataset.pickupLongitude || "",
         pickup_vendor_id: dataBox.dataset.pickupVendorId || "",
         pickup_vendor_name: dataBox.dataset.pickupVendorName || "",
+        package_weight_kg: dataBox.dataset.packageWeightKg || "0.00",
         dropoff_latitude: getCheckoutValue('[name="dropoff_latitude"]'),
         dropoff_longitude: getCheckoutValue('[name="dropoff_longitude"]'),
         delivery_service_level: deliveryService,

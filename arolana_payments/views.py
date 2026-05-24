@@ -39,12 +39,14 @@ def checkout(request):
     wallets = ManualCryptoWallet.objects.filter(is_active=True)
     order_id = request.GET.get("order_id", request.POST.get("order_id", ""))
     delivery_origin = {}
+    package_weight_kg = "0.00"
     if request.user.is_authenticated and str(order_id).isdigit():
         cart = Cart.objects.filter(id=int(order_id), user=request.user, is_active=True).prefetch_related("items__product__vendor").first()
         if cart:
             try:
-                from deliveries.services import cart_pickup_context
+                from deliveries.services import cart_package_weight_kg, cart_pickup_context
                 delivery_origin = cart_pickup_context(cart)
+                package_weight_kg = str(cart_package_weight_kg(cart))
             except Exception:
                 delivery_origin = {}
     delivery_options = [
@@ -97,6 +99,7 @@ def checkout(request):
         "delivery_service_level": request.GET.get("delivery_service_level", request.POST.get("delivery_service_level", "standard")),
         "delivery_provider": request.GET.get("delivery_provider", request.POST.get("delivery_provider", "")),
         "delivery_origin": delivery_origin,
+        "package_weight_kg": package_weight_kg,
     }
     return render(request, "arolana_payments/checkout.html", context)
 

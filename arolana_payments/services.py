@@ -155,6 +155,7 @@ def create_transaction(request, gateway):
         "pickup_vendor_name": request.POST.get("pickup_vendor_name", ""),
         "dropoff_latitude": request.POST.get("dropoff_latitude", ""),
         "dropoff_longitude": request.POST.get("dropoff_longitude", ""),
+        "package_weight_kg": request.POST.get("package_weight_kg", "0.00"),
         "delivery_service_level": request.POST.get("delivery_service_level", "standard"),
         "delivery_provider": request.POST.get("delivery_provider", ""),
         "delivery_fee": request.POST.get("delivery_fee", "0.00"),

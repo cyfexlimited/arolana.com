@@ -4,20 +4,21 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from django.db import transaction
 from django.utils import timezone
 
-from .models import (
+from ..models import (
     DeliveryLocationPing,
     DeliveryPricingRule,
     DeliveryRequest,
     DeliveryVehicle,
+    RiderProfile,
     RiderWallet,
 )
+from .pricing import calculate_delivery_price
 
 
 SERVICE_LEVEL_MULTIPLIERS = {
     "standard": Decimal("1.00"),
-    "express": Decimal("1.35"),
-    "arolana_dispatch": Decimal("1.15"),
-    "uber_direct": Decimal("1.55"),
+    "express": Decimal("1.00"),
+    "arolana_dispatch": Decimal("1.00"),
     "pickup_vendor": Decimal("0.00"),
     "pickup_from_vendor": Decimal("0.00"),
 }
@@ -83,6 +84,9 @@ def calculate_live_delivery_quote(
     service_level="standard",
     vehicle=None,
     fallback_fee=None,
+    package_weight_kg=0,
+    weather_bad=False,
+    is_rainy=False,
 ):
     """Distance-based delivery quote. Uses Haversine when map pins exist."""
     if service_level in {"pickup_vendor", "pickup_from_vendor"}:
@@ -90,6 +94,15 @@ def calculate_live_delivery_quote(
             "fee": Decimal("0.00"),
             "distance_km": Decimal("0.00"),
             "estimated_duration_minutes": 0,
+            "package_weight_kg": Decimal("0.00"),
+            "base_fare": Decimal("0.00"),
+            "distance_fee": Decimal("0.00"),
+            "time_fee": Decimal("0.00"),
+            "weight_fee": Decimal("0.00"),
+            "service_fee": Decimal("0.00"),
+            "express_fee": Decimal("0.00"),
+            "surge_multiplier": Decimal("1.00"),
+            "pricing_subtotal": Decimal("0.00"),
             "rider_earning": Decimal("0.00"),
             "is_distance_based": False,
             "message": "Pickup from vendor is free after vendor confirmation.",
@@ -105,27 +118,42 @@ def calculate_live_delivery_quote(
         per_km_fee = money(rule.per_km_fee)
         minimum_fee = money(rule.minimum_fee)
         maximum_fee = money(rule.maximum_fee) if rule.maximum_fee else None
-        surge = money(rule.surge_multiplier, "1.00")
         commission_percent = money(rule.rider_commission_percent, "70.00")
     elif vehicle:
         base_fee = money(vehicle.base_fee, "1000.00")
         per_km_fee = money(vehicle.per_km_fee, "250.00")
         minimum_fee = Decimal("1500.00")
         maximum_fee = None
-        surge = Decimal("1.00")
         commission_percent = money(vehicle.rider_commission_percent, "70.00")
     else:
         base_fee = Decimal("1000.00")
         per_km_fee = Decimal("250.00")
         minimum_fee = Decimal("1500.00")
         maximum_fee = None
-        surge = Decimal("1.00")
         commission_percent = Decimal("70.00")
+
+    speed = money(getattr(vehicle, "base_speed_kmph", None), "30.00") if vehicle else Decimal("30.00")
+    duration = 0
+    if distance and distance > 0 and speed > 0:
+        duration = int(((distance / speed) * Decimal("60")).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+
+    pricing = {
+        "base_fare": base_fee,
+        "distance_fee": Decimal("0.00"),
+        "time_fee": Decimal("0.00"),
+        "weight_fee": Decimal("0.00"),
+        "service_fee": Decimal("0.00"),
+        "express_fee": Decimal("0.00"),
+        "surge_multiplier": Decimal("1.00"),
+        "subtotal": Decimal("0.00"),
+        "final_price": Decimal("0.00"),
+    }
 
     if not is_distance_based:
         fallback = money(fallback_fee, "2500.00")
         fee = max(minimum_fee, fallback)
         distance = Decimal("0.00")
+        duration = 0
         has_pickup = all(decimal_or_none(value) is not None for value in (pickup_latitude, pickup_longitude))
         has_dropoff = all(decimal_or_none(value) is not None for value in (dropoff_latitude, dropoff_longitude))
         if has_dropoff and not has_pickup:
@@ -135,23 +163,54 @@ def calculate_live_delivery_quote(
         else:
             message = "Add pickup and drop-off map pins for exact distance pricing. This is the zone minimum for now."
     else:
+        active_delivery_requests = DeliveryRequest.objects.filter(
+            status__in=[
+                DeliveryRequest.STATUS_PENDING,
+                DeliveryRequest.STATUS_ASSIGNED,
+                DeliveryRequest.STATUS_ACCEPTED,
+                DeliveryRequest.STATUS_PICKED_UP,
+                DeliveryRequest.STATUS_IN_TRANSIT,
+            ]
+        ).count()
+        available_riders = RiderProfile.objects.filter(
+            is_online=True,
+            is_available=True,
+            is_suspended=False,
+            kyc_status=RiderProfile.KYC_APPROVED,
+        ).count()
+        pricing = calculate_delivery_price(
+            distance_km=distance,
+            estimated_minutes=duration,
+            package_weight_kg=package_weight_kg,
+            active_delivery_requests=active_delivery_requests,
+            available_riders=available_riders,
+            weather_bad=weather_bad,
+            is_rainy=is_rainy,
+            express=service_level == "express",
+            base_fare=base_fee,
+            per_km_rate=per_km_fee,
+        )
         multiplier = SERVICE_LEVEL_MULTIPLIERS.get(service_level, Decimal("1.00"))
-        fee = (base_fee + (distance * per_km_fee)) * surge * multiplier
+        fee = (pricing["final_price"] * multiplier).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         fee = max(minimum_fee, fee).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         if maximum_fee:
             fee = min(maximum_fee, fee)
-        message = "Delivery fee calculated from pickup to drop-off distance."
-
-    speed = money(getattr(vehicle, "base_speed_kmph", None), "30.00") if vehicle else Decimal("30.00")
-    duration = 0
-    if distance > 0 and speed > 0:
-        duration = int(((distance / speed) * Decimal("60")).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+        message = "Delivery fee calculated from pickup to drop-off distance, travel time, package weight, service fee, and live rider demand."
 
     rider_earning = (fee * (commission_percent / Decimal("100"))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     return {
         "fee": fee,
         "distance_km": distance,
         "estimated_duration_minutes": duration,
+        "package_weight_kg": money(package_weight_kg),
+        "base_fare": money(pricing["base_fare"]),
+        "distance_fee": money(pricing["distance_fee"]),
+        "time_fee": money(pricing["time_fee"]),
+        "weight_fee": money(pricing["weight_fee"]),
+        "service_fee": money(pricing["service_fee"]),
+        "express_fee": money(pricing["express_fee"]),
+        "surge_multiplier": money(pricing["surge_multiplier"], "1.00"),
+        "pricing_subtotal": money(pricing["subtotal"]),
         "rider_earning": rider_earning,
         "is_distance_based": is_distance_based,
         "message": message,
@@ -200,6 +259,32 @@ def cart_pickup_context(cart):
     return context
 
 
+def product_weight_kg(product):
+    if not product or not getattr(product, "weight", None):
+        return Decimal("0.00")
+
+    weight = money(product.weight)
+    unit = (getattr(product, "weight_unit", "kg") or "kg").lower()
+    if unit == "g":
+        return (weight / Decimal("1000")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    if unit == "lbs":
+        return (weight * Decimal("0.45359237")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    if unit == "oz":
+        return (weight * Decimal("0.0283495231")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    return weight
+
+
+def cart_package_weight_kg(cart):
+    if not cart:
+        return Decimal("0.00")
+
+    total = Decimal("0.00")
+    for item in cart.items.select_related("product", "variant__product").all():
+        product = getattr(item, "product", None) or getattr(getattr(item, "variant", None), "product", None)
+        total += product_weight_kg(product) * Decimal(str(getattr(item, "quantity", 1) or 1))
+    return total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
 def create_live_delivery_for_order(order, legacy_delivery=None, checkout_data=None, service_level="standard"):
     checkout_data = checkout_data or {}
     existing = DeliveryRequest.objects.filter(order=order).order_by("-created_at").first()
@@ -215,6 +300,7 @@ def create_live_delivery_for_order(order, legacy_delivery=None, checkout_data=No
         dropoff_longitude=checkout_data.get("dropoff_longitude"),
         service_level=service_level,
         fallback_fee=getattr(order, "shipping_cost", None),
+        package_weight_kg=checkout_data.get("package_weight_kg", 0),
     )
     delivery = DeliveryRequest.objects.create(
         order=order,
@@ -231,6 +317,14 @@ def create_live_delivery_for_order(order, legacy_delivery=None, checkout_data=No
         dropoff_longitude=decimal_or_none(checkout_data.get("dropoff_longitude")),
         distance_km=quote["distance_km"],
         estimated_duration_minutes=quote["estimated_duration_minutes"],
+        package_weight_kg=quote["package_weight_kg"],
+        base_fare=quote["base_fare"],
+        distance_fee=quote["distance_fee"],
+        time_fee=quote["time_fee"],
+        weight_fee=quote["weight_fee"],
+        service_fee=quote["service_fee"],
+        express_fee=quote["express_fee"],
+        surge_multiplier=quote["surge_multiplier"],
         delivery_fee=quote["fee"],
         rider_earning=quote["rider_earning"],
         customer_note=checkout_data.get("delivery_note", ""),

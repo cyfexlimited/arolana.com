@@ -85,7 +85,21 @@ class DeliveryRequestAdmin(admin.ModelAdmin):
     list_display = ("tracking_code", "order", "status", "rider", "delivery_fee", "rider_earning", "distance_km", "created_at")
     list_filter = ("status", "zone", "requested_vehicle", "rider")
     search_fields = ("tracking_code", "order__order_number", "dropoff_name", "dropoff_phone", "dropoff_address")
-    readonly_fields = ("tracking_code", "distance_km", "estimated_duration_minutes", "created_at", "updated_at")
+    readonly_fields = (
+        "tracking_code",
+        "distance_km",
+        "estimated_duration_minutes",
+        "package_weight_kg",
+        "base_fare",
+        "distance_fee",
+        "time_fee",
+        "weight_fee",
+        "service_fee",
+        "express_fee",
+        "surge_multiplier",
+        "created_at",
+        "updated_at",
+    )
     autocomplete_fields = ("order", "legacy_delivery", "rider", "zone", "requested_vehicle")
     inlines = (DeliveryStatusHistoryInline, DeliveryLocationPingInline)
     actions = ("mark_assigned", "mark_picked_up", "mark_in_transit", "mark_delivered", "mark_failed")
@@ -94,7 +108,20 @@ class DeliveryRequestAdmin(admin.ModelAdmin):
         ("Delivery", {"fields": ("order", "legacy_delivery", "tracking_code", "status", "zone", "rider", "requested_vehicle")}),
         ("Pickup", {"fields": ("pickup_name", "pickup_phone", "pickup_address", "pickup_latitude", "pickup_longitude")}),
         ("Drop-off", {"fields": ("dropoff_name", "dropoff_phone", "dropoff_address", "dropoff_latitude", "dropoff_longitude")}),
-        ("Pricing", {"fields": ("distance_km", "estimated_duration_minutes", "delivery_fee", "rider_earning")}),
+        ("Pricing", {"fields": (
+            "distance_km",
+            "estimated_duration_minutes",
+            "package_weight_kg",
+            "base_fare",
+            "distance_fee",
+            "time_fee",
+            "weight_fee",
+            "service_fee",
+            "express_fee",
+            "surge_multiplier",
+            "delivery_fee",
+            "rider_earning",
+        )}),
         ("Proof and notes", {"fields": ("customer_note", "rider_note", "proof_of_delivery", "proof_note", "failed_reason")}),
         ("Timestamps", {"fields": ("accepted_at", "picked_up_at", "delivered_at", "created_at", "updated_at")}),
     )

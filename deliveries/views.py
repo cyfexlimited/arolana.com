@@ -163,6 +163,7 @@ def api_delivery_quote(request):
         dropoff_longitude=request.GET.get("dropoff_longitude"),
         service_level=request.GET.get("delivery_service_level") or "standard",
         fallback_fee=request.GET.get("fallback_fee"),
+        package_weight_kg=request.GET.get("package_weight_kg", 0),
     )
     return JsonResponse({
         "success": True,
@@ -170,6 +171,15 @@ def api_delivery_quote(request):
         "fee_float": float(quote["fee"]),
         "distance_km": str(quote["distance_km"]),
         "estimated_duration_minutes": quote["estimated_duration_minutes"],
+        "package_weight_kg": str(quote["package_weight_kg"]),
+        "base_fare": str(quote["base_fare"]),
+        "distance_fee": str(quote["distance_fee"]),
+        "time_fee": str(quote["time_fee"]),
+        "weight_fee": str(quote["weight_fee"]),
+        "service_fee": str(quote["service_fee"]),
+        "express_fee": str(quote["express_fee"]),
+        "surge_multiplier": str(quote["surge_multiplier"]),
+        "pricing_subtotal": str(quote["pricing_subtotal"]),
         "rider_earning": str(quote["rider_earning"]),
         "is_distance_based": quote["is_distance_based"],
         "message": quote["message"],

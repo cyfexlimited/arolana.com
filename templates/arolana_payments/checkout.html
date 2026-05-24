@@ -141,6 +141,7 @@
                     data-pickup-longitude="{{ delivery_origin.pickup_longitude|default:'' }}"
                     data-pickup-vendor-id="{{ delivery_origin.pickup_vendor_id|default:'' }}"
                     data-pickup-vendor-name="{{ delivery_origin.pickup_vendor_name|default:''|escape }}"
+                    data-package-weight-kg="{{ package_weight_kg|default:'0.00' }}"
                 >
                     <div class="grid gap-3 sm:grid-cols-3">
                         <div>
@@ -383,6 +384,7 @@ function paymentDeliveryPayload() {
         pickup_longitude: quoteBox?.dataset.pickupLongitude || "",
         pickup_vendor_id: quoteBox?.dataset.pickupVendorId || "",
         pickup_vendor_name: quoteBox?.dataset.pickupVendorName || "",
+        package_weight_kg: quoteBox?.dataset.packageWeightKg || "0.00",
         dropoff_latitude: paymentFormValue("dropoff_latitude"),
         dropoff_longitude: paymentFormValue("dropoff_longitude"),
         address: paymentFormValue("address"),
@@ -538,6 +540,7 @@ async function submitGateway(gateway) {
     submitData.set("pickup_longitude", quoteBox?.dataset.pickupLongitude || "");
     submitData.set("pickup_vendor_id", quoteBox?.dataset.pickupVendorId || "");
     submitData.set("pickup_vendor_name", quoteBox?.dataset.pickupVendorName || "");
+    submitData.set("package_weight_kg", quoteBox?.dataset.packageWeightKg || "0.00");
     submitData.set("dropoff_latitude", paymentFormValue("dropoff_latitude"));
     submitData.set("dropoff_longitude", paymentFormValue("dropoff_longitude"));
     if (amountField) amountField.value = originalAmount.toFixed(2);

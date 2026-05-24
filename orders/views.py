@@ -111,6 +111,7 @@ def delivery_quote(request):
             dropoff_longitude=request.GET.get('dropoff_longitude'),
             service_level=service_level,
             fallback_fee=quote['fee'],
+            package_weight_kg=request.GET.get('package_weight_kg', '0'),
         )
     except Exception:
         live_quote = None
@@ -130,5 +131,14 @@ def delivery_quote(request):
         'message': quote['message'],
         'distance_km': str(live_quote['distance_km']) if live_quote else '',
         'estimated_duration_minutes': live_quote['estimated_duration_minutes'] if live_quote else '',
+        'package_weight_kg': str(live_quote['package_weight_kg']) if live_quote else '',
+        'base_fare': str(live_quote['base_fare']) if live_quote else '',
+        'distance_fee': str(live_quote['distance_fee']) if live_quote else '',
+        'time_fee': str(live_quote['time_fee']) if live_quote else '',
+        'weight_fee': str(live_quote['weight_fee']) if live_quote else '',
+        'service_fee': str(live_quote['service_fee']) if live_quote else '',
+        'express_fee': str(live_quote['express_fee']) if live_quote else '',
+        'surge_multiplier': str(live_quote['surge_multiplier']) if live_quote else '',
+        'pricing_subtotal': str(live_quote['pricing_subtotal']) if live_quote else '',
         'is_distance_based': live_quote['is_distance_based'] if live_quote else False,
     })

@@ -1802,9 +1802,11 @@ def checkout(request):
             .order_by('name')
         )
     delivery_origin = {}
+    package_weight_kg = Decimal('0.00')
     try:
-        from deliveries.services import cart_pickup_context
+        from deliveries.services import cart_package_weight_kg, cart_pickup_context
         delivery_origin = cart_pickup_context(cart)
+        package_weight_kg = cart_package_weight_kg(cart)
     except Exception:
         delivery_origin = {}
 
@@ -1845,6 +1847,7 @@ def checkout(request):
         'delivery_options': delivery_options,
         'delivery_providers': delivery_providers,
         'delivery_origin': delivery_origin,
+        'package_weight_kg': package_weight_kg,
     })
 
 
