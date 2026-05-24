@@ -346,6 +346,72 @@ function convertCheckoutAmount(baseAmount) {
     return Number(baseAmount || 0) * displayRate / baseRate;
 }
 
+function setCheckoutField(name, value) {
+    const field = document.querySelector(`[name="${name}"]`);
+    if (field && value) field.value = value;
+}
+
+async function reverseGeocodeCheckout(latitude, longitude) {
+    const url = new URL("https://nominatim.openstreetmap.org/reverse");
+    url.searchParams.set("format", "jsonv2");
+    url.searchParams.set("lat", latitude);
+    url.searchParams.set("lon", longitude);
+    url.searchParams.set("zoom", "18");
+    url.searchParams.set("addressdetails", "1");
+
+    const response = await fetch(url.toString(), {
+        headers: { "Accept": "application/json" }
+    });
+    if (!response.ok) throw new Error("Reverse geocoding failed.");
+    const data = await response.json();
+    const address = data.address || {};
+    const roadParts = [
+        address.house_number,
+        address.road || address.pedestrian || address.neighbourhood || address.suburb,
+        address.city_district || address.county
+    ].filter(Boolean);
+
+    return {
+        address: roadParts.join(" ") || data.display_name || "",
+        city: address.city || address.town || address.village || address.municipality || address.county || "",
+        state: address.state || "",
+        postal_code: address.postcode || "",
+        country: address.country || "Nigeria"
+    };
+}
+
+async function geocodeCheckoutAddress(addressText) {
+    if (!addressText) return null;
+    const url = new URL("https://nominatim.openstreetmap.org/search");
+    url.searchParams.set("format", "jsonv2");
+    url.searchParams.set("q", addressText);
+    url.searchParams.set("limit", "1");
+
+    const response = await fetch(url.toString(), {
+        headers: { "Accept": "application/json" }
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    if (!Array.isArray(data) || !data.length) return null;
+    return {
+        latitude: Number(data[0].lat).toFixed(7),
+        longitude: Number(data[0].lon).toFixed(7)
+    };
+}
+
+async function ensureCheckoutPickupCoordinates(statusEl) {
+    const dataBox = document.getElementById("arolana-payment-data");
+    if (!dataBox || (dataBox.dataset.pickupLatitude && dataBox.dataset.pickupLongitude)) return true;
+    if (!dataBox.dataset.pickupAddress) return false;
+
+    if (statusEl) statusEl.textContent = "Finding vendor pickup location...";
+    const result = await geocodeCheckoutAddress(dataBox.dataset.pickupAddress);
+    if (!result) return false;
+    dataBox.dataset.pickupLatitude = result.latitude;
+    dataBox.dataset.pickupLongitude = result.longitude;
+    return true;
+}
+
 function checkoutDeliveryPayload() {
     const dataBox = document.getElementById("arolana-payment-data");
     return {
@@ -400,7 +466,12 @@ async function refreshDeliveryQuote(requireLocation = false) {
         currentDeliveryFee = Number(data.fee_float || data.fee || 0);
         if (shippingEl) shippingEl.textContent = formatCheckoutMoney(convertCheckoutAmount(currentDeliveryFee));
         if (totalEl) totalEl.textContent = formatCheckoutMoney(convertCheckoutAmount(subtotal + currentDeliveryFee));
-        if (messageEl) messageEl.textContent = data.message || "";
+        if (messageEl) {
+            const meta = data.is_distance_based && data.distance_km
+                ? ` Distance: ${data.distance_km} km${data.estimated_duration_minutes ? `, ETA: ${data.estimated_duration_minutes} min` : ""}.`
+                : "";
+            messageEl.textContent = `${data.message || ""}${meta}`;
+        }
         return true;
     } catch (error) {
         currentDeliveryFee = 0;
@@ -451,10 +522,26 @@ document.getElementById("checkout-use-location")?.addEventListener("click", () =
         return;
     }
     if (statusEl) statusEl.textContent = "Getting your location...";
-    navigator.geolocation.getCurrentPosition((position) => {
+    navigator.geolocation.getCurrentPosition(async (position) => {
         document.getElementById("dropoff_latitude").value = position.coords.latitude.toFixed(7);
         document.getElementById("dropoff_longitude").value = position.coords.longitude.toFixed(7);
-        if (statusEl) statusEl.textContent = "Location added. Delivery fee is now calculated from vendor pickup to your location.";
+        try {
+            if (statusEl) statusEl.textContent = "Filling your address from live location...";
+            const location = await reverseGeocodeCheckout(position.coords.latitude, position.coords.longitude);
+            setCheckoutField("address", location.address);
+            setCheckoutField("city", location.city);
+            setCheckoutField("state", location.state);
+            setCheckoutField("postal_code", location.postal_code);
+            setCheckoutField("country", location.country);
+        } catch (error) {
+            if (statusEl) statusEl.textContent = "Location added. Address lookup failed, but pricing can still use your coordinates.";
+        }
+        const hasPickup = await ensureCheckoutPickupCoordinates(statusEl);
+        if (statusEl) {
+            statusEl.textContent = hasPickup
+                ? "Live location added. Delivery fee is calculated from vendor pickup to your location."
+                : "Live location added. Add vendor pickup coordinates/address in admin for exact vendor-to-customer pricing.";
+        }
         refreshDeliveryQuote(false);
     }, () => {
         if (statusEl) statusEl.textContent = "Location was not allowed. We will use address-based delivery pricing.";

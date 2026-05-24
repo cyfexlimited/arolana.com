@@ -126,7 +126,14 @@ def calculate_live_delivery_quote(
         fallback = money(fallback_fee, "2500.00")
         fee = max(minimum_fee, fallback)
         distance = Decimal("0.00")
-        message = "Add pickup and drop-off map pins for exact distance pricing. This is the zone minimum for now."
+        has_pickup = all(decimal_or_none(value) is not None for value in (pickup_latitude, pickup_longitude))
+        has_dropoff = all(decimal_or_none(value) is not None for value in (dropoff_latitude, dropoff_longitude))
+        if has_dropoff and not has_pickup:
+            message = "Vendor pickup map pin is missing. Add vendor pickup coordinates in admin for exact vendor-to-customer delivery pricing."
+        elif has_pickup and not has_dropoff:
+            message = "Use your current location or choose a drop-off map pin for exact vendor-to-customer delivery pricing."
+        else:
+            message = "Add pickup and drop-off map pins for exact distance pricing. This is the zone minimum for now."
     else:
         multiplier = SERVICE_LEVEL_MULTIPLIERS.get(service_level, Decimal("1.00"))
         fee = (base_fee + (distance * per_km_fee)) * surge * multiplier
