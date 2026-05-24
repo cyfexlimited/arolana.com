@@ -8,7 +8,7 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from django.contrib.sitemaps.views import sitemap
 
-from pages.views import page_detail, help_center, faq_page, article_detail, careers_page
+from pages.views import page_by_slug, page_detail, help_center, faq_page, article_detail, careers_page, contact_page
 from products import views as products_views
 from orders import views as orders_views
 import currency.views as currency_views
@@ -199,12 +199,13 @@ urlpatterns = [
     # Support Pages
     path("shipping/", TemplateView.as_view(template_name="support/shipping.html"), name="shipping"),
     path("youtube-embed-test/", TemplateView.as_view(template_name="youtube_embed_test.html"), name="youtube_embed_test"),
-    path("support/", TemplateView.as_view(template_name="support/contact.html"), name="support"),
-    path("contact/", TemplateView.as_view(template_name="support/contact.html"), name="contact"),
-    path("about/", TemplateView.as_view(template_name="support/about.html"), name="about"),
-    path("privacy/", TemplateView.as_view(template_name="support/privacy.html"), name="privacy"),
-    path("terms/", TemplateView.as_view(template_name="support/terms.html"), name="terms"),
-    path("returns/", TemplateView.as_view(template_name="support/returns.html"), name="returns"),
+    path("support/", contact_page, name="support"),
+    path("contact/", contact_page, name="contact"),
+    path("about/", page_by_slug, {"slug": "about"}, name="about"),
+    path("privacy/", page_by_slug, {"slug": "privacy"}, name="privacy"),
+    path("terms/", page_by_slug, {"slug": "terms"}, name="terms"),
+    path("returns/", page_by_slug, {"slug": "returns"}, name="returns"),
+    path("faq/", faq_page, name="faq"),
     re_path(r"^returns/.*$", returns_redirect, name="returns_catchall"),
     path("orders/track/", orders_views.track_order, name="track_order"),
 

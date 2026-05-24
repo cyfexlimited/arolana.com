@@ -1,157 +1,80 @@
 {% extends 'base/base.html' %}
 
-{% block title %}Careers at {{ site_settings.site_name }}{% endblock %}
+{% block title %}Careers at Arolana{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto">
-    <!-- Hero Section -->
-    <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-12 text-white text-center mb-12">
-        <h1 class="text-4xl md:text-5xl font-bold mb-4">Join Our Team</h1>
-        <p class="text-xl opacity-90">Build the future of e-commerce with us</p>
-    </div>
-    
-    <!-- Why Join Us -->
-    <div class="mb-12">
-        <h2 class="text-3xl font-bold mb-8 text-center">Why Join Arolana?</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div class="bg-white rounded-xl shadow-md p-6 text-center">
-                <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-rocket text-2xl text-blue-600"></i>
+<main class="bg-slate-50">
+    <section class="bg-slate-950 text-white">
+        <div class="mx-auto max-w-7xl px-4 py-14 md:py-20">
+            <div class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-end">
+                <div>
+                    <p class="text-sm font-black uppercase tracking-[0.28em] text-blue-300">Careers</p>
+                    <h1 class="mt-4 text-4xl font-black leading-tight md:text-6xl">Build Commerce For Africa And The World</h1>
+                    {% if page %}
+                        <div class="prose prose-invert mt-5 max-w-3xl">{{ page.content|safe }}</div>
+                    {% else %}
+                        <p class="mt-5 max-w-3xl text-lg leading-8 text-slate-300">Join a team building marketplace, delivery, payments, vendor tools, and trusted shopping infrastructure for modern commerce.</p>
+                    {% endif %}
                 </div>
-                <h3 class="font-bold text-xl mb-2">Innovation</h3>
-                <p class="text-gray-600">Work on cutting-edge technology and shape the future of online marketplaces.</p>
-            </div>
-            <div class="bg-white rounded-xl shadow-md p-6 text-center">
-                <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-users text-2xl text-green-600"></i>
-                </div>
-                <h3 class="font-bold text-xl mb-2">Great Culture</h3>
-                <p class="text-gray-600">Collaborative environment with talented colleagues from around the world.</p>
-            </div>
-            <div class="bg-white rounded-xl shadow-md p-6 text-center">
-                <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-chart-line text-2xl text-purple-600"></i>
-                </div>
-                <h3 class="font-bold text-xl mb-2">Growth</h3>
-                <p class="text-gray-600">Competitive compensation, benefits, and opportunities for advancement.</p>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Open Positions -->
-    <div class="mb-12">
-        <h2 class="text-3xl font-bold mb-8">Open Positions</h2>
-        
-        {% if open_positions %}
-            <div class="space-y-6">
-                {% for position in open_positions %}
-                <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition">
-                    <div class="p-6">
-                        <div class="flex flex-wrap justify-between items-start mb-4">
-                            <div>
-                                <h3 class="text-2xl font-bold text-blue-600">{{ position.title }}</h3>
-                                <div class="flex flex-wrap gap-3 mt-2">
-                                    <span class="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">
-                                        <i class="fas fa-building"></i> {{ position.category.name }}
-                                    </span>
-                                    <span class="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">
-                                        <i class="fas fa-map-marker-alt"></i> {{ position.location }}
-                                    </span>
-                                    <span class="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">
-                                        <i class="fas fa-clock"></i> {{ position.get_job_type_display }}
-                                    </span>
-                                    <span class="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">
-                                        <i class="fas fa-chart-line"></i> {{ position.get_experience_level_display }}
-                                    </span>
-                                </div>
-                            </div>
-                            <div class="flex gap-2">
-                                <a href="{% url 'pages:job_detail' position.slug %}" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
-                                    View Details
-                                </a>
-                                <a href="javascript:void(0)" onclick="applyForJob({{ position.id }}, '{{ position.title|escapejs }}')" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition">
-                                    Apply Now
-                                </a>
-                            </div>
-                        </div>
-                        
-                        {% if position.salary_range %}
-                        <div class="mb-3">
-                            <span class="text-green-600 font-semibold">💰 {{ position.salary_range }}</span>
-                        </div>
-                        {% endif %}
-                        
-                        <p class="text-gray-600 mb-4">{{ position.description }}</p>
-                        
-                        <details class="mt-4">
-                            <summary class="cursor-pointer font-semibold text-blue-600 hover:text-blue-700">View Requirements & Responsibilities</summary>
-                            <div class="mt-3 pt-3 border-t">
-                                <div class="mb-3">
-                                    <h4 class="font-semibold mb-2">Key Responsibilities:</h4>
-                                    <div class="prose max-w-none">{{ position.responsibilities|safe }}</div>
-                                </div>
-                                <div class="mb-3">
-                                    <h4 class="font-semibold mb-2">Requirements:</h4>
-                                    <div class="prose max-w-none">{{ position.requirements|safe }}</div>
-                                </div>
-                                {% if position.benefits %}
-                                <div>
-                                    <h4 class="font-semibold mb-2">Benefits:</h4>
-                                    <div class="prose max-w-none">{{ position.benefits|safe }}</div>
-                                </div>
-                                {% endif %}
-                            </div>
-                        </details>
+                <div class="rounded-3xl border border-white/10 bg-white/10 p-6 backdrop-blur">
+                    <strong class="text-4xl font-black">{{ total_positions }}</strong>
+                    <p class="mt-1 text-slate-300">Open roles</p>
+                    <div class="mt-5 grid gap-3 text-sm text-slate-200">
+                        <span><i class="fas fa-location-dot mr-2 text-blue-300"></i>Lagos, remote, hybrid, and global roles</span>
+                        <span><i class="fas fa-users mr-2 text-blue-300"></i>Product, operations, support, engineering</span>
                     </div>
                 </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="mx-auto max-w-7xl px-4 py-10">
+        <div class="grid gap-5 md:grid-cols-3">
+            <div class="rounded-3xl bg-white p-6 shadow-sm"><i class="fas fa-rocket text-2xl text-blue-600"></i><h2 class="mt-4 font-black">Move Fast With Care</h2><p class="mt-2 text-sm leading-6 text-slate-600">Build practical tools that improve shopping, vendor growth, and delivery operations.</p></div>
+            <div class="rounded-3xl bg-white p-6 shadow-sm"><i class="fas fa-earth-africa text-2xl text-emerald-600"></i><h2 class="mt-4 font-black">Africa-First, Global-Ready</h2><p class="mt-2 text-sm leading-6 text-slate-600">Solve local logistics and payments challenges with global product discipline.</p></div>
+            <div class="rounded-3xl bg-white p-6 shadow-sm"><i class="fas fa-shield-halved text-2xl text-orange-600"></i><h2 class="mt-4 font-black">Trust Matters</h2><p class="mt-2 text-sm leading-6 text-slate-600">Work on identity, KYC, marketplace safety, and customer protection.</p></div>
+        </div>
+    </section>
+
+    <section class="mx-auto max-w-7xl px-4 pb-12">
+        <div class="mb-6 flex flex-col justify-between gap-3 md:flex-row md:items-end">
+            <div>
+                <h2 class="text-3xl font-black text-slate-950">Open Positions</h2>
+                <p class="mt-2 text-slate-600">All roles are editable in admin under Career Categories and Job Positions.</p>
+            </div>
+        </div>
+
+        {% if open_positions %}
+            <div class="grid gap-5">
+                {% for position in open_positions %}
+                <article class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-xl">
+                    <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                        <div>
+                            <h3 class="text-2xl font-black text-slate-950">{{ position.title }}</h3>
+                            <div class="mt-3 flex flex-wrap gap-2 text-sm font-bold text-slate-700">
+                                <span class="rounded-full bg-slate-100 px-3 py-1"><i class="fas fa-building mr-1"></i>{{ position.category.name }}</span>
+                                <span class="rounded-full bg-slate-100 px-3 py-1"><i class="fas fa-location-dot mr-1"></i>{{ position.location }}</span>
+                                <span class="rounded-full bg-slate-100 px-3 py-1"><i class="fas fa-clock mr-1"></i>{{ position.get_job_type_display }}</span>
+                                <span class="rounded-full bg-slate-100 px-3 py-1"><i class="fas fa-chart-line mr-1"></i>{{ position.get_experience_level_display }}</span>
+                            </div>
+                            <p class="mt-4 max-w-3xl leading-7 text-slate-600">{{ position.description }}</p>
+                            {% if position.salary_range %}<p class="mt-3 font-black text-emerald-700">{{ position.salary_range }}</p>{% endif %}
+                        </div>
+                        <div class="flex shrink-0 gap-2">
+                            <a href="{% url 'pages:job_detail' position.slug %}" class="rounded-2xl bg-slate-100 px-5 py-3 text-sm font-black text-slate-900 hover:bg-slate-200">Details</a>
+                            <a href="{% url 'pages:apply_job' position.id %}" class="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white hover:bg-blue-700">Apply</a>
+                        </div>
+                    </div>
+                </article>
                 {% endfor %}
             </div>
         {% else %}
-            <div class="bg-white rounded-xl shadow-md p-12 text-center">
-                <i class="fas fa-briefcase text-6xl text-gray-400 mb-4"></i>
-                <p class="text-gray-500 text-lg">No open positions at the moment.</p>
-                <p class="text-gray-400 mt-2">Please check back later for opportunities.</p>
+            <div class="rounded-3xl bg-white p-12 text-center shadow-sm">
+                <i class="fas fa-briefcase text-6xl text-slate-300"></i>
+                <h3 class="mt-4 text-xl font-black text-slate-950">No open roles today</h3>
+                <p class="mt-2 text-slate-500">Check back soon or send your profile to careers@arolana.com.</p>
             </div>
         {% endif %}
-    </div>
-    
-    <!-- Benefits -->
-    <div class="bg-gray-50 rounded-2xl p-8 mb-12">
-        <h2 class="text-2xl font-bold mb-6 text-center">Benefits & Perks</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div class="flex items-center gap-3">
-                <i class="fas fa-laptop-house text-2xl text-blue-600"></i>
-                <span>Remote Work Options</span>
-            </div>
-            <div class="flex items-center gap-3">
-                <i class="fas fa-medkit text-2xl text-blue-600"></i>
-                <span>Health Insurance</span>
-            </div>
-            <div class="flex items-center gap-3">
-                <i class="fas fa-chart-line text-2xl text-blue-600"></i>
-                <span>Stock Options</span>
-            </div>
-            <div class="flex items-center gap-3">
-                <i class="fas fa-graduation-cap text-2xl text-blue-600"></i>
-                <span>Learning Budget</span>
-            </div>
-        </div>
-    </div>
-    
-    <!-- How to Apply -->
-    <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-8 text-center">
-        <h2 class="text-2xl font-bold mb-4">Ready to Join?</h2>
-        <p class="text-gray-600 mb-6">Send your resume and cover letter to <strong>careers@arolana.com</strong></p>
-        <a href="mailto:careers@arolana.com" class="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
-            <i class="fas fa-envelope"></i> Apply Now
-        </a>
-    </div>
-</div>
-
-<script>
-function applyForJob(positionId, positionTitle) {
-    // Open a modal or redirect to application form
-    window.location.href = `/pages/apply/${positionId}/`;
-}
-</script>
+    </section>
+</main>
 {% endblock %}

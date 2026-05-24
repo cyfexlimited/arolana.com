@@ -1795,7 +1795,12 @@ def checkout(request):
     
     delivery_providers = []
     if DeliveryProvider:
-        delivery_providers = list(DeliveryProvider.objects.filter(is_active=True).order_by('name'))
+        delivery_providers = list(
+            DeliveryProvider.objects
+            .filter(is_active=True)
+            .exclude(provider_type='uber_direct')
+            .order_by('name')
+        )
     delivery_origin = {}
     try:
         from deliveries.services import cart_pickup_context
@@ -1824,13 +1829,6 @@ def checkout(request):
             'description': 'Arolana riders or approved local dispatch riders.',
             'icon': 'fa-motorcycle',
             'provider_type': 'arolana_driver',
-        },
-        {
-            'value': 'uber_direct',
-            'label': 'Uber Direct',
-            'description': 'Shown when Uber Direct is available in your area.',
-            'icon': 'fa-route',
-            'provider_type': 'uber_direct',
         },
         {
             'value': 'pickup_from_vendor',

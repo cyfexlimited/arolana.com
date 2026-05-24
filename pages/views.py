@@ -62,6 +62,12 @@ def page_detail(request, slug):
     page = get_object_or_404(Page, slug=slug, is_active=True)
     return render(request, 'pages/page_detail.html', {'page': page})
 
+
+def page_by_slug(request, slug):
+    """Render a public editable page by slug for root site URLs."""
+    page = get_object_or_404(Page, slug=slug, is_active=True)
+    return render(request, 'pages/page_detail.html', {'page': page, 'public_slug': slug})
+
 def support_redirect(request):
     """Redirect support to help center"""
     return HttpResponseRedirect(reverse('pages:help_center'))
@@ -84,6 +90,7 @@ def article_helpful(request, article_id):
 
 def contact_page(request):
     """Contact page with form handling"""
+    page = Page.objects.filter(slug='contact', is_active=True).first()
     if request.method == 'POST':
         name = request.POST.get('name')
         email = request.POST.get('email')
@@ -94,7 +101,7 @@ def contact_page(request):
         messages.success(request, 'Thank you for your message. We will get back to you soon!')
         return redirect('contact')
     
-    return render(request, 'support/contact.html')
+    return render(request, 'support/contact.html', {'page': page})
 
 def careers_page(request):
     """Careers page - Dynamic from database"""
@@ -116,6 +123,7 @@ def careers_page(request):
     
     context = {
         'page_title': 'Careers at Arolana',
+        'page': Page.objects.filter(slug='careers', is_active=True).first(),
         'open_positions': open_positions,
         'featured_positions': featured_positions,
         'positions_by_category': positions_by_category,

@@ -26,9 +26,7 @@ from .services import (
     verify_paystack_transaction,
 )
 
-from orders.models import DeliveryProvider
-from orders.models import Cart
-from orders.models import Order
+from orders.models import Cart, DeliveryProvider, Order
 
 
 def checkout(request):
@@ -72,13 +70,6 @@ def checkout(request):
             "provider_type": "arolana_driver",
         },
         {
-            "value": "uber_direct",
-            "label": "Uber Direct",
-            "description": "Shown when Uber Direct is available in your area.",
-            "icon": "fa-route",
-            "provider_type": "uber_direct",
-        },
-        {
             "value": "pickup_from_vendor",
             "label": "Pickup from Vendor",
             "description": "Collect from the vendor after confirmation.",
@@ -91,7 +82,7 @@ def checkout(request):
         "wallets": wallets,
         "payment_options": get_gateway_options(),
         "delivery_options": delivery_options,
-        "delivery_providers": DeliveryProvider.objects.filter(is_active=True),
+        "delivery_providers": DeliveryProvider.objects.filter(is_active=True).exclude(provider_type="uber_direct"),
         "amount": request.GET.get("amount", request.POST.get("amount", "")),
         "currency": request.GET.get("currency", request.POST.get("currency", getattr(settings, "AROLANA_DEFAULT_CURRENCY", "NGN"))),
         "order_id": order_id,
