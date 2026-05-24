@@ -2,7 +2,17 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.contrib import messages
-from .models import Page, FAQ, SupportTopic, HelpCenterHero, SupportArticle, JobPosition, CareerCategory
+from .models import (
+    CareerCategory,
+    ContactPageSettings,
+    ContactQuickAction,
+    FAQ,
+    HelpCenterHero,
+    JobPosition,
+    Page,
+    SupportArticle,
+    SupportTopic,
+)
 
 def help_center(request):
     """Help Center page"""
@@ -91,6 +101,9 @@ def article_helpful(request, article_id):
 def contact_page(request):
     """Contact page with form handling"""
     page = Page.objects.filter(slug='contact', is_active=True).first()
+    contact_settings = ContactPageSettings.objects.filter(is_active=True).first()
+    quick_actions = ContactQuickAction.objects.filter(is_active=True).order_by('order', 'label')
+
     if request.method == 'POST':
         name = request.POST.get('name')
         email = request.POST.get('email')
@@ -101,7 +114,11 @@ def contact_page(request):
         messages.success(request, 'Thank you for your message. We will get back to you soon!')
         return redirect('contact')
     
-    return render(request, 'support/contact.html', {'page': page})
+    return render(request, 'support/contact.html', {
+        'page': page,
+        'contact_settings': contact_settings,
+        'quick_actions': quick_actions,
+    })
 
 def careers_page(request):
     """Careers page - Dynamic from database"""

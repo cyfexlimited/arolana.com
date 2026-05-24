@@ -1,6 +1,39 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import SupportTopic, FAQ, HelpCenterHero, SupportArticle, CareerCategory, JobPosition, JobApplication, Page
+from .models import (
+    CareerCategory,
+    ContactPageSettings,
+    ContactQuickAction,
+    FAQ,
+    HelpCenterHero,
+    JobApplication,
+    JobPosition,
+    Page,
+    SupportArticle,
+    SupportTopic,
+)
+
+
+@admin.register(ContactPageSettings)
+class ContactPageSettingsAdmin(admin.ModelAdmin):
+    list_display = ['title', 'support_email', 'support_phone', 'is_active', 'updated_at']
+    list_filter = ['is_active']
+    search_fields = ['title', 'support_email', 'support_phone', 'coverage_text', 'protection_text']
+    fieldsets = (
+        ('Support Channels', {
+            'fields': ('title', 'support_email', 'support_phone', 'coverage_text', 'is_active')
+        }),
+        ('Protection Message', {
+            'fields': ('protection_title', 'protection_text')
+        }),
+    )
+
+
+@admin.register(ContactQuickAction)
+class ContactQuickActionAdmin(admin.ModelAdmin):
+    list_display = ['label', 'url', 'order', 'is_active', 'updated_at']
+    list_editable = ['order', 'is_active']
+    search_fields = ['label', 'url']
 
 @admin.register(SupportTopic)
 class SupportTopicAdmin(admin.ModelAdmin):

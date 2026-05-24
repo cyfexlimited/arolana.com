@@ -26,6 +26,44 @@ class Page(BaseModel):
         from django.urls import reverse
         return reverse('pages:detail', args=[self.slug])
 
+
+class ContactPageSettings(BaseModel):
+    """Editable contact page support panel and customer guidance."""
+    title = models.CharField(max_length=120, default='Arolana Contact Settings')
+    support_email = models.EmailField(default='contact@arolana.com')
+    support_phone = models.CharField(max_length=50, default='+2349132924620')
+    coverage_text = models.CharField(
+        max_length=255,
+        default='Nigeria, Africa, and global marketplace support',
+    )
+    protection_title = models.CharField(max_length=120, default='Marketplace Protection')
+    protection_text = models.TextField(
+        default='For order issues, include your order number, delivery tracking code, vendor name, and screenshots where possible.'
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Contact Page Setting"
+        verbose_name_plural = "Contact Page Settings"
+        ordering = ['-is_active', '-updated_at']
+
+    def __str__(self):
+        return self.title
+
+
+class ContactQuickAction(BaseModel):
+    """Editable quick links for the contact page sidebar."""
+    label = models.CharField(max_length=80)
+    url = models.CharField(max_length=300, help_text="Use a path like /help/ or a full URL.")
+    order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['order', 'label']
+
+    def __str__(self):
+        return self.label
+
 class SupportTopic(BaseModel):
     """Support topics with images"""
     title = models.CharField(max_length=200)
