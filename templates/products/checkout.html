@@ -46,6 +46,13 @@
                     <div class="mb-4">
                         <label class="block font-semibold mb-2">Address</label>
                         <input type="text" name="address" id="address" required class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <input type="hidden" name="dropoff_latitude" id="dropoff_latitude">
+                        <input type="hidden" name="dropoff_longitude" id="dropoff_longitude">
+                        <button type="button" id="checkout-use-location" class="mt-3 inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100">
+                            <i class="fas fa-location-crosshairs"></i>
+                            Use my current location for accurate delivery fee
+                        </button>
+                        <p id="checkout-location-status" class="mt-2 text-xs text-gray-500"></p>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
@@ -123,6 +130,14 @@
                         data-display-rate="{{ checkout_currency_rate }}"
                         data-order-id="{{ cart.id|default:'' }}"
                         data-delivery-quote-url="{% url 'orders:delivery_quote' %}"
+                        data-pickup-name="{{ delivery_origin.pickup_name|default:''|escape }}"
+                        data-pickup-phone="{{ delivery_origin.pickup_phone|default:''|escape }}"
+                        data-pickup-address="{{ delivery_origin.pickup_address|default:''|escape }}"
+                        data-pickup-latitude="{{ delivery_origin.pickup_latitude|default:'' }}"
+                        data-pickup-longitude="{{ delivery_origin.pickup_longitude|default:'' }}"
+                        data-pickup-vendor-id="{{ delivery_origin.pickup_vendor_id|default:'' }}"
+                        data-pickup-vendor-name="{{ delivery_origin.pickup_vendor_name|default:''|escape }}"
+                        data-pickup-is-multi-vendor="{% if delivery_origin.pickup_is_multi_vendor %}true{% else %}false{% endif %}"
                     ></div>
 
                     <h2 class="text-xl font-black mt-6 mb-4 text-gray-900">Choose Payment Method</h2>
@@ -337,6 +352,15 @@ function checkoutDeliveryPayload() {
         subtotal: dataBox?.dataset.subtotal || dataBox?.dataset.amount || "0",
         delivery_service_level: document.querySelector('[name="delivery_service_level"]:checked')?.value || "standard",
         delivery_provider: getCheckoutValue('[name="delivery_provider"]'),
+        pickup_name: dataBox?.dataset.pickupName || "",
+        pickup_phone: dataBox?.dataset.pickupPhone || "",
+        pickup_address: dataBox?.dataset.pickupAddress || "",
+        pickup_latitude: dataBox?.dataset.pickupLatitude || "",
+        pickup_longitude: dataBox?.dataset.pickupLongitude || "",
+        pickup_vendor_id: dataBox?.dataset.pickupVendorId || "",
+        pickup_vendor_name: dataBox?.dataset.pickupVendorName || "",
+        dropoff_latitude: getCheckoutValue('[name="dropoff_latitude"]'),
+        dropoff_longitude: getCheckoutValue('[name="dropoff_longitude"]'),
         address: getCheckoutValue('[name="address"]'),
         city: getCheckoutValue('[name="city"]'),
         state: getCheckoutValue('[name="state"]'),
@@ -418,6 +442,23 @@ document.querySelectorAll(".arolana-delivery-option").forEach((option) => {
         refreshDeliveryQuote(false);
     });
     document.querySelector(`[name="${name}"]`)?.addEventListener("blur", () => refreshDeliveryQuote(false));
+});
+
+document.getElementById("checkout-use-location")?.addEventListener("click", () => {
+    const statusEl = document.getElementById("checkout-location-status");
+    if (!navigator.geolocation) {
+        if (statusEl) statusEl.textContent = "Your browser does not support location sharing.";
+        return;
+    }
+    if (statusEl) statusEl.textContent = "Getting your location...";
+    navigator.geolocation.getCurrentPosition((position) => {
+        document.getElementById("dropoff_latitude").value = position.coords.latitude.toFixed(7);
+        document.getElementById("dropoff_longitude").value = position.coords.longitude.toFixed(7);
+        if (statusEl) statusEl.textContent = "Location added. Delivery fee is now calculated from vendor pickup to your location.";
+        refreshDeliveryQuote(false);
+    }, () => {
+        if (statusEl) statusEl.textContent = "Location was not allowed. We will use address-based delivery pricing.";
+    }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
 });
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -514,6 +555,15 @@ async function startArolanaPayment(gateway) {
         state: state,
         postal_code: postalCode,
         country: country,
+        pickup_name: dataBox.dataset.pickupName || "",
+        pickup_phone: dataBox.dataset.pickupPhone || "",
+        pickup_address: dataBox.dataset.pickupAddress || "",
+        pickup_latitude: dataBox.dataset.pickupLatitude || "",
+        pickup_longitude: dataBox.dataset.pickupLongitude || "",
+        pickup_vendor_id: dataBox.dataset.pickupVendorId || "",
+        pickup_vendor_name: dataBox.dataset.pickupVendorName || "",
+        dropoff_latitude: getCheckoutValue('[name="dropoff_latitude"]'),
+        dropoff_longitude: getCheckoutValue('[name="dropoff_longitude"]'),
         delivery_service_level: deliveryService,
         delivery_provider: deliveryProvider,
         delivery_fee: currentDeliveryFee.toFixed(2)

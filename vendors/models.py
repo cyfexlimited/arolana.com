@@ -40,6 +40,36 @@ class VendorProfile(BaseModel):
     response_time = models.CharField(max_length=50, default='< 1 hour', blank=True)
     fulfillment_rate = models.DecimalField(max_digits=5, decimal_places=2, default=99.5)
     return_rate = models.DecimalField(max_digits=5, decimal_places=2, default=2.5)
+
+    # Delivery pickup location
+    pickup_contact_name = models.CharField(
+        max_length=160,
+        blank=True,
+        help_text="Name riders should ask for at pickup. Defaults to store name when blank."
+    )
+    pickup_phone = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Phone number riders should call at pickup."
+    )
+    pickup_address = models.TextField(
+        blank=True,
+        help_text="Exact store/warehouse pickup address used for checkout delivery pricing."
+    )
+    pickup_latitude = models.DecimalField(
+        max_digits=10,
+        decimal_places=7,
+        null=True,
+        blank=True,
+        help_text="Pickup map latitude for exact rider distance pricing."
+    )
+    pickup_longitude = models.DecimalField(
+        max_digits=10,
+        decimal_places=7,
+        null=True,
+        blank=True,
+        help_text="Pickup map longitude for exact rider distance pricing."
+    )
     
     # Badges
     is_top_rated = models.BooleanField(default=False)

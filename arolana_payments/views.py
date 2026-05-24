@@ -27,6 +27,7 @@ from .services import (
 )
 
 from orders.models import DeliveryProvider
+from orders.models import Cart
 from orders.models import Order
 
 
@@ -38,6 +39,16 @@ def checkout(request):
     amount, currency, order_id, email, name, phone
     """
     wallets = ManualCryptoWallet.objects.filter(is_active=True)
+    order_id = request.GET.get("order_id", request.POST.get("order_id", ""))
+    delivery_origin = {}
+    if request.user.is_authenticated and str(order_id).isdigit():
+        cart = Cart.objects.filter(id=int(order_id), user=request.user, is_active=True).prefetch_related("items__product__vendor").first()
+        if cart:
+            try:
+                from deliveries.services import cart_pickup_context
+                delivery_origin = cart_pickup_context(cart)
+            except Exception:
+                delivery_origin = {}
     delivery_options = [
         {
             "value": "standard",
@@ -83,7 +94,7 @@ def checkout(request):
         "delivery_providers": DeliveryProvider.objects.filter(is_active=True),
         "amount": request.GET.get("amount", request.POST.get("amount", "")),
         "currency": request.GET.get("currency", request.POST.get("currency", getattr(settings, "AROLANA_DEFAULT_CURRENCY", "NGN"))),
-        "order_id": request.GET.get("order_id", request.POST.get("order_id", "")),
+        "order_id": order_id,
         "email": request.GET.get("email", request.POST.get("email", "")),
         "name": request.GET.get("name", request.POST.get("name", "")),
         "phone": request.GET.get("phone", request.POST.get("phone", "")),
@@ -94,6 +105,7 @@ def checkout(request):
         "country": request.GET.get("country", request.POST.get("country", "")),
         "delivery_service_level": request.GET.get("delivery_service_level", request.POST.get("delivery_service_level", "standard")),
         "delivery_provider": request.GET.get("delivery_provider", request.POST.get("delivery_provider", "")),
+        "delivery_origin": delivery_origin,
     }
     return render(request, "arolana_payments/checkout.html", context)
 

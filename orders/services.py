@@ -293,7 +293,7 @@ def mark_order_paid(payment):
         order=order,
         provider=provider,
         service_level=service_level,
-        pickup_address='Vendor pickup address to be assigned by admin',
+        pickup_address=checkout_data.get('pickup_address') or 'Vendor pickup address to be assigned by admin',
         dropoff_address=shipping_address,
         delivery_fee=delivery_fee,
         tracking_status=DeliveryRequest.STATUS_PENDING_ASSIGNMENT,

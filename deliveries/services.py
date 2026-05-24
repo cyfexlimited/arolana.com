@@ -151,6 +151,48 @@ def calculate_live_delivery_quote(
     }
 
 
+def vendor_pickup_context_from_user(vendor_user):
+    profile = getattr(vendor_user, "vendor_profile", None)
+    if not profile:
+        return {}
+
+    return {
+        "pickup_name": profile.pickup_contact_name or profile.store_name,
+        "pickup_phone": profile.pickup_phone or "",
+        "pickup_address": profile.pickup_address or "",
+        "pickup_latitude": str(profile.pickup_latitude or ""),
+        "pickup_longitude": str(profile.pickup_longitude or ""),
+        "pickup_vendor_id": str(profile.id),
+        "pickup_vendor_name": profile.store_name,
+    }
+
+
+def cart_pickup_context(cart):
+    """Return a single vendor pickup context for checkout.
+
+    If a cart has products from multiple vendors, use the first vendor for now and
+    flag the response. A later multi-vendor checkout should split the cart into
+    per-vendor delivery requests.
+    """
+    if not cart:
+        return {}
+
+    vendor_users = []
+    for item in cart.items.select_related("product__vendor", "accessory").all():
+        product = getattr(item, "product", None)
+        if product and product.vendor_id and product.vendor not in vendor_users:
+            vendor_users.append(product.vendor)
+
+    if not vendor_users:
+        return {}
+
+    context = vendor_pickup_context_from_user(vendor_users[0])
+    context["pickup_is_multi_vendor"] = len(vendor_users) > 1
+    if context.get("pickup_is_multi_vendor"):
+        context["pickup_warning"] = "This cart has multiple vendors. Delivery is calculated from the first vendor for now."
+    return context
+
+
 def create_live_delivery_for_order(order, legacy_delivery=None, checkout_data=None, service_level="standard"):
     checkout_data = checkout_data or {}
     existing = DeliveryRequest.objects.filter(order=order).order_by("-created_at").first()

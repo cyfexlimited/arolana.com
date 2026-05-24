@@ -97,6 +97,13 @@
                         <label class="grid gap-1 md:col-span-2">
                             <span class="text-sm font-bold text-gray-700">Address</span>
                             <input name="address" value="{{ address }}" class="border rounded-xl px-4 py-3">
+                            <input type="hidden" name="dropoff_latitude">
+                            <input type="hidden" name="dropoff_longitude">
+                            <button type="button" id="payment-use-location" class="mt-2 inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100">
+                                <i class="fas fa-location-crosshairs"></i>
+                                Use my current location for accurate delivery fee
+                            </button>
+                            <span id="payment-location-status" class="text-xs text-gray-500"></span>
                         </label>
                         <label class="grid gap-1">
                             <span class="text-sm font-bold text-gray-700">City</span>
@@ -127,6 +134,13 @@
                     data-display-currency="{{ payment_currency_code }}"
                     data-display-symbol="{{ payment_currency_symbol }}"
                     data-display-rate="{{ payment_currency_rate }}"
+                    data-pickup-name="{{ delivery_origin.pickup_name|default:''|escape }}"
+                    data-pickup-phone="{{ delivery_origin.pickup_phone|default:''|escape }}"
+                    data-pickup-address="{{ delivery_origin.pickup_address|default:''|escape }}"
+                    data-pickup-latitude="{{ delivery_origin.pickup_latitude|default:'' }}"
+                    data-pickup-longitude="{{ delivery_origin.pickup_longitude|default:'' }}"
+                    data-pickup-vendor-id="{{ delivery_origin.pickup_vendor_id|default:'' }}"
+                    data-pickup-vendor-name="{{ delivery_origin.pickup_vendor_name|default:''|escape }}"
                 >
                     <div class="grid gap-3 sm:grid-cols-3">
                         <div>
@@ -299,10 +313,20 @@ function convertPaymentAmount(baseAmount) {
 }
 
 function paymentDeliveryPayload() {
+    const quoteBox = document.getElementById("arolana-payment-quote");
     return {
         subtotal: paymentBaseAmount().toFixed(2),
         delivery_service_level: document.querySelector('#paymentBaseForm [name="delivery_service_level"]:checked')?.value || "standard",
         delivery_provider: paymentFormValue("delivery_provider"),
+        pickup_name: quoteBox?.dataset.pickupName || "",
+        pickup_phone: quoteBox?.dataset.pickupPhone || "",
+        pickup_address: quoteBox?.dataset.pickupAddress || "",
+        pickup_latitude: quoteBox?.dataset.pickupLatitude || "",
+        pickup_longitude: quoteBox?.dataset.pickupLongitude || "",
+        pickup_vendor_id: quoteBox?.dataset.pickupVendorId || "",
+        pickup_vendor_name: quoteBox?.dataset.pickupVendorName || "",
+        dropoff_latitude: paymentFormValue("dropoff_latitude"),
+        dropoff_longitude: paymentFormValue("dropoff_longitude"),
         address: paymentFormValue("address"),
         city: paymentFormValue("city"),
         state: paymentFormValue("state"),
@@ -382,6 +406,25 @@ document.querySelectorAll(".arolana-delivery-option").forEach((option) => {
     field.addEventListener("blur", () => refreshPaymentDeliveryQuote(false));
 });
 
+document.getElementById("payment-use-location")?.addEventListener("click", () => {
+    const statusEl = document.getElementById("payment-location-status");
+    if (!navigator.geolocation) {
+        if (statusEl) statusEl.textContent = "Your browser does not support location sharing.";
+        return;
+    }
+    if (statusEl) statusEl.textContent = "Getting your location...";
+    navigator.geolocation.getCurrentPosition((position) => {
+        const lat = document.querySelector('#paymentBaseForm [name="dropoff_latitude"]');
+        const lon = document.querySelector('#paymentBaseForm [name="dropoff_longitude"]');
+        if (lat) lat.value = position.coords.latitude.toFixed(7);
+        if (lon) lon.value = position.coords.longitude.toFixed(7);
+        if (statusEl) statusEl.textContent = "Location added. Delivery fee is now calculated from vendor pickup to your location.";
+        refreshPaymentDeliveryQuote(false);
+    }, () => {
+        if (statusEl) statusEl.textContent = "Location was not allowed. We will use address-based delivery pricing.";
+    }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+});
+
 document.addEventListener("DOMContentLoaded", () => {
     syncPaymentProviderToDelivery(document.querySelector('#paymentBaseForm [name="delivery_service_level"]:checked'));
     refreshPaymentDeliveryQuote(false);
@@ -408,8 +451,18 @@ async function submitGateway(gateway) {
     form.appendChild(csrf);
 
     const submitData = new FormData(baseForm);
+    const quoteBox = document.getElementById("arolana-payment-quote");
     submitData.set("amount", (originalAmount + paymentDeliveryFee).toFixed(2));
     submitData.set("delivery_fee", paymentDeliveryFee.toFixed(2));
+    submitData.set("pickup_name", quoteBox?.dataset.pickupName || "");
+    submitData.set("pickup_phone", quoteBox?.dataset.pickupPhone || "");
+    submitData.set("pickup_address", quoteBox?.dataset.pickupAddress || "");
+    submitData.set("pickup_latitude", quoteBox?.dataset.pickupLatitude || "");
+    submitData.set("pickup_longitude", quoteBox?.dataset.pickupLongitude || "");
+    submitData.set("pickup_vendor_id", quoteBox?.dataset.pickupVendorId || "");
+    submitData.set("pickup_vendor_name", quoteBox?.dataset.pickupVendorName || "");
+    submitData.set("dropoff_latitude", paymentFormValue("dropoff_latitude"));
+    submitData.set("dropoff_longitude", paymentFormValue("dropoff_longitude"));
     if (amountField) amountField.value = originalAmount.toFixed(2);
 
     submitData.forEach((value, key) => {

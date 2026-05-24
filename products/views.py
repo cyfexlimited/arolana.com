@@ -1796,6 +1796,12 @@ def checkout(request):
     delivery_providers = []
     if DeliveryProvider:
         delivery_providers = list(DeliveryProvider.objects.filter(is_active=True).order_by('name'))
+    delivery_origin = {}
+    try:
+        from deliveries.services import cart_pickup_context
+        delivery_origin = cart_pickup_context(cart)
+    except Exception:
+        delivery_origin = {}
 
     delivery_options = [
         {
@@ -1840,6 +1846,7 @@ def checkout(request):
         'payment_options': get_gateway_options(),
         'delivery_options': delivery_options,
         'delivery_providers': delivery_providers,
+        'delivery_origin': delivery_origin,
     })
 
 

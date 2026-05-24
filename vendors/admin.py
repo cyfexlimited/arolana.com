@@ -24,6 +24,10 @@ class VendorProfileAdmin(admin.ModelAdmin):
         ('Performance', {
             'fields': ('rating_avg', 'total_sales', 'total_reviews', 'followers_count', 'response_time', 'fulfillment_rate', 'return_rate')
         }),
+        ('Delivery Pickup Location', {
+            'fields': ('pickup_contact_name', 'pickup_phone', 'pickup_address', 'pickup_latitude', 'pickup_longitude'),
+            'description': 'Used to calculate checkout delivery from this vendor/store to the customer address.'
+        }),
         ('Badges', {
             'fields': ('is_top_rated', 'is_best_seller', 'is_trusted')
         }),
