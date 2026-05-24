@@ -303,8 +303,9 @@
 
         .luxury-logo {
             height: var(--arolana-logo-height-desktop);
-            max-height: 96px;
+            max-height: none;
             width: auto;
+            max-width: min(44vw, 720px);
             object-fit: contain;
             transition: transform 0.25s ease, filter 0.25s ease;
             filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.08));
@@ -1606,7 +1607,8 @@
 
             .luxury-logo {
                 height: var(--arolana-logo-height-mobile);
-                max-height: 68px;
+                max-height: none;
+                max-width: min(42vw, 340px);
             }
 
             .cart-wishlist-container {
