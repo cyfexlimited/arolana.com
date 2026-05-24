@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load currency_filters %}
 
 {% block title %}Payment Status | Arolana{% endblock %}
 
@@ -20,14 +21,38 @@
 
         <div class="mt-6 grid gap-2 text-left bg-gray-50 rounded-2xl p-4">
             <p><strong>Gateway:</strong> {{ payment.get_gateway_display }}</p>
-            <p><strong>Amount:</strong> {{ payment.amount }} {{ payment.currency }}</p>
+            <p><strong>Amount:</strong> {{ payment.amount|currency:request }}</p>
             {% if payment.order_id %}<p><strong>Order:</strong> {{ payment.order_id }}</p>{% endif %}
             {% if payment.gateway_reference %}<p><strong>Gateway Ref:</strong> {{ payment.gateway_reference }}</p>{% endif %}
         </div>
 
-        <a href="/" class="inline-flex mt-6 bg-blue-600 text-white rounded-xl px-6 py-3 font-black">
-            Continue Shopping
-        </a>
+        {% if order %}
+            <div class="mt-6 grid gap-3 text-left rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                <p><strong>Order Total:</strong> {{ order.total|currency:request }}</p>
+                <p><strong>Delivery Cost:</strong> {{ order.shipping_cost|currency:request }}</p>
+                {% if delivery %}
+                    <p><strong>Delivery Method:</strong> {{ delivery.get_service_level_display }}{% if delivery.provider %} via {{ delivery.provider.name }}{% endif %}</p>
+                    <p><strong>Tracking Code:</strong> {{ delivery.tracking_code }}</p>
+                    <p><strong>Status:</strong> {{ delivery.get_tracking_status_display }}</p>
+                {% endif %}
+            </div>
+        {% endif %}
+
+        <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+            {% if order %}
+                <a href="{% url 'orders:detail' order.order_number %}" class="inline-flex justify-center bg-blue-600 text-white rounded-xl px-6 py-3 font-black">
+                    View Order & Tracking
+                </a>
+                {% if delivery %}
+                    <a href="{% url 'orders:track' %}?q={{ delivery.tracking_code }}&email={{ payment.customer_email|urlencode }}" class="inline-flex justify-center bg-gray-100 text-gray-900 rounded-xl px-6 py-3 font-black">
+                        Track Delivery
+                    </a>
+                {% endif %}
+            {% endif %}
+            <a href="/" class="inline-flex justify-center bg-white border border-gray-200 text-gray-900 rounded-xl px-6 py-3 font-black">
+                Continue Shopping
+            </a>
+        </div>
     </div>
 </div>
 {% endblock %}

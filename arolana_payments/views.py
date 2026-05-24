@@ -26,6 +26,7 @@ from .services import (
 )
 
 from orders.models import DeliveryProvider
+from orders.models import Order
 
 
 def checkout(request):
@@ -247,7 +248,22 @@ def cancel(request, reference):
 
 def status(request, reference):
     payment = get_object_or_404(PaymentTransaction, reference=reference)
-    return render(request, "arolana_payments/status.html", {"payment": payment})
+    order = None
+    delivery = None
+    if payment.order_id:
+        order = (
+            Order.objects
+            .filter(order_number=payment.order_id)
+            .prefetch_related('delivery_requests__provider')
+            .first()
+        )
+        if order:
+            delivery = order.delivery_requests.order_by('-created_at').first()
+    return render(request, "arolana_payments/status.html", {
+        "payment": payment,
+        "order": order,
+        "delivery": delivery,
+    })
 
 
 @csrf_exempt

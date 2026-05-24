@@ -1,6 +1,8 @@
 from decimal import Decimal, InvalidOperation
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.mail import send_mail
 from django.db import transaction
 from django.urls import reverse
 
@@ -135,6 +137,78 @@ def notify_staff_delivery(title, message, link='', metadata=None, priority=3):
         )
 
 
+def _site_url():
+    return str(getattr(settings, 'SITE_URL', 'https://arolana.com') or 'https://arolana.com').rstrip('/')
+
+
+def _absolute_site_link(path):
+    if not path:
+        return _site_url()
+    if str(path).startswith(('http://', 'https://')):
+        return str(path)
+    return f"{_site_url()}{path}"
+
+
+def send_paid_order_emails(order, delivery):
+    from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None)
+    customer_email = getattr(order.user, 'email', '')
+    order_url = _absolute_site_link(_order_link(order))
+    tracking_url = _absolute_site_link('/orders/track/')
+    delivery_label = delivery.get_service_level_display() if delivery else 'Delivery'
+    tracking_code = delivery.tracking_code if delivery else ''
+    delivery_fee = delivery.delivery_fee if delivery else order.shipping_cost
+
+    customer_subject = f'Arolana order confirmed - {order.order_number}'
+    customer_message = (
+        f'Thank you for buying from Arolana.\n\n'
+        f'Your payment was successful and your order is now being prepared.\n\n'
+        f'Order number: {order.order_number}\n'
+        f'Order total: {order.total}\n'
+        f'Delivery method: {delivery_label}\n'
+        f'Delivery fee: {delivery_fee}\n'
+        f'Tracking code: {tracking_code or "Pending"}\n\n'
+        f'View your order: {order_url}\n'
+        f'Track delivery: {tracking_url}\n\n'
+        f'You will receive updates when delivery is assigned, picked up, in transit, and delivered.'
+    )
+
+    if customer_email:
+        send_mail(
+            customer_subject,
+            customer_message,
+            from_email,
+            [customer_email],
+            fail_silently=True,
+        )
+
+    recipients = [
+        email for email in [
+            getattr(settings, 'PAYMENT_ADMIN_EMAIL', ''),
+            getattr(settings, 'DEFAULT_FROM_EMAIL', ''),
+        ]
+        if email
+    ]
+    if recipients:
+        admin_subject = f'Paid Arolana order ready for delivery - {order.order_number}'
+        admin_message = (
+            f'Order {order.order_number} has been paid and needs delivery handling.\n\n'
+            f'Customer: {getattr(order.user, "email", "")}\n'
+            f'Total: {order.total}\n'
+            f'Delivery method: {delivery_label}\n'
+            f'Delivery fee: {delivery_fee}\n'
+            f'Tracking code: {tracking_code or "Pending"}\n'
+            f'Drop-off address:\n{order.shipping_address}\n\n'
+            f'Admin/order link: {order_url}'
+        )
+        send_mail(
+            admin_subject,
+            admin_message,
+            from_email,
+            recipients,
+            fail_silently=True,
+        )
+
+
 @transaction.atomic
 def mark_order_paid(payment):
     """
@@ -237,4 +311,5 @@ def mark_order_paid(payment):
         metadata={'order_number': order.order_number, 'tracking_code': delivery.tracking_code},
         priority=3,
     )
+    send_paid_order_emails(order, delivery)
     return order
