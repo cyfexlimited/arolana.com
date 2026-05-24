@@ -139,8 +139,16 @@ class SiteSettingsAdmin(admin.ModelAdmin):
             'fields': ('site_name', 'site_tagline', 'site_description', 'site_keywords', 'is_active'),
         }),
         ('Branding', {
-            'fields': ('admin_logo_preview', 'site_logo', 'site_favicon', 'footer_logo'),
-            'description': 'Upload the logo here to control the storefront and Jazzmin admin logo. Recommended admin logo size: 200x60 PNG or SVG.',
+            'fields': (
+                'admin_logo_preview',
+                'site_logo',
+                'site_favicon',
+                'footer_logo',
+                'logo_height_desktop',
+                'logo_height_mobile',
+                'footer_logo_height',
+            ),
+            'description': 'Upload the logo here to control the storefront and Jazzmin admin logo. Use the height fields to make the homepage/header/footer logo larger or smaller without code changes.',
         }),
         ('Contact Information', {
             'fields': ('contact_email', 'contact_phone', 'address'),

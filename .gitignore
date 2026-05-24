@@ -19,9 +19,33 @@ venv.bak/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+db.sqlite3.*
+*.sqlite3
+*.sqlite3-journal
+*.dump
+*.sql
 media/
+media/products/
+media/categories/
+media/optimized/products/
+media/optimized/categories/
 staticfiles/
 static/
+
+# Arolana production data guards
+fixtures/products*.json
+fixtures/categories*.json
+fixtures/*product*.json
+fixtures/*category*.json
+exports/
+export/
+dumpdata/
+*products*.csv
+*categories*.csv
+*product-data*.json
+*category-data*.json
+*product_export*
+*category_export*
 
 # Environment variables
 .env

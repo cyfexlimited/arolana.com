@@ -1,0 +1,23 @@
+name: Block Product Data Files
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  block-data-files:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Block database dumps and product/category data exports
+        run: |
+          set -euo pipefail
+          blocked_pattern='(^|/)(db\.sqlite3|db\.sqlite3\.|.*\.sqlite3|.*\.dump|.*\.sql|fixtures/.*(product|category).*\.json|exports?/|dumpdata/|media/(products|categories)/|.*products.*\.csv|.*categories.*\.csv|.*product-data.*\.json|.*category-data.*\.json|.*product_export.*|.*category_export.*)'
+          files="$(git ls-files | grep -Ev '^(venv|venv[0-9]*|\.venv|env|ENV)/' | grep -E "$blocked_pattern" || true)"
+          if [ -n "$files" ]; then
+            echo "Blocked product/category data or database files in git:"
+            echo "$files"
+            exit 1
+          fi

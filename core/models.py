@@ -27,6 +27,9 @@ class SiteSettings(BaseModel):
     site_logo = models.ImageField(upload_to='settings/', null=True, blank=True, help_text="Main logo (recommended size: 200x60)")
     site_favicon = models.ImageField(upload_to='settings/', null=True, blank=True, help_text="Browser favicon (recommended size: 32x32)")
     footer_logo = models.ImageField(upload_to='settings/', null=True, blank=True, help_text="Footer logo")
+    logo_height_desktop = models.PositiveIntegerField(default=88, help_text="Storefront logo height on desktop in pixels")
+    logo_height_mobile = models.PositiveIntegerField(default=58, help_text="Storefront logo height on mobile/tablet in pixels")
+    footer_logo_height = models.PositiveIntegerField(default=76, help_text="Footer logo height in pixels")
     
     # Contact Information
     contact_email = models.EmailField(default='contact@arolana.com')

@@ -275,6 +275,10 @@ GOOGLE_OAUTH_CLIENT_SECRET = config(
     'GOOGLE_OAUTH_CLIENT_SECRET',
     default=config('GOOGLE_CLIENT_SECRET', default='')
 )
+GOOGLE_MAPS_API_KEY = config(
+    'GOOGLE_MAPS_API_KEY',
+    default=config('GOOGLE_MAPS_BROWSER_KEY', default='')
+)
 
 GOOGLE_SOCIALACCOUNT_PROVIDER = {
     'SCOPE': ['profile', 'email'],

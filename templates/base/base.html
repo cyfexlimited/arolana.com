@@ -98,6 +98,9 @@
             --font-heading: 'Montserrat', 'Inter', system-ui, sans-serif;
             --font-body: 'Inter', system-ui, sans-serif;
             --font-mega: 'Roboto Condensed', 'Inter', system-ui, sans-serif;
+            --arolana-logo-height-desktop: {{ site_settings.logo_height_desktop|default:88 }}px;
+            --arolana-logo-height-mobile: {{ site_settings.logo_height_mobile|default:58 }}px;
+            --arolana-footer-logo-height: {{ site_settings.footer_logo_height|default:76 }}px;
         }
 
         *,
@@ -299,7 +302,8 @@
         }
 
         .luxury-logo {
-            max-height: 68px;
+            height: var(--arolana-logo-height-desktop);
+            max-height: 96px;
             width: auto;
             object-fit: contain;
             transition: transform 0.25s ease, filter 0.25s ease;
@@ -1601,7 +1605,8 @@
             }
 
             .luxury-logo {
-                max-height: 46px;
+                height: var(--arolana-logo-height-mobile);
+                max-height: 68px;
             }
 
             .cart-wishlist-container {
@@ -3091,7 +3096,7 @@
                 <div class="site-footer-brand lg:col-span-1">
                     {% if site_settings.footer_logo %}
                         {% optimized_image_url site_settings.footer_logo 'logo' as footer_logo_url %}
-                        <img src="{{ footer_logo_url }}" alt="{{ site_settings.site_name }}" class="h-16 mb-6" loading="lazy">
+                        <img src="{{ footer_logo_url }}" alt="{{ site_settings.site_name }}" class="mb-6 w-auto object-contain" style="height: var(--arolana-footer-logo-height);" loading="lazy">
                     {% else %}
                         <h3 class="arolana-wordmark text-2xl text-white mb-6">{{ site_settings.site_name }}</h3>
                     {% endif %}

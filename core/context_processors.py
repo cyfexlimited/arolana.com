@@ -176,6 +176,7 @@ def global_context(request):
         'featured_manufacturers': featured_manufacturers,
         'DEBUG': settings.DEBUG,
         'SITE_URL': getattr(settings, 'SITE_URL', 'http://localhost:8000'),
+        'GOOGLE_MAPS_API_KEY': getattr(settings, 'GOOGLE_MAPS_API_KEY', ''),
         'notification_unread_count': notification_unread_count,
         'recent_user_notifications': recent_user_notifications,
         'chat_unread_count': chat_unread_count,

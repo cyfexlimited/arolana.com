@@ -142,6 +142,7 @@
                     data-pickup-vendor-id="{{ delivery_origin.pickup_vendor_id|default:'' }}"
                     data-pickup-vendor-name="{{ delivery_origin.pickup_vendor_name|default:''|escape }}"
                     data-package-weight-kg="{{ package_weight_kg|default:'0.00' }}"
+                    data-google-maps-api-key="{{ GOOGLE_MAPS_API_KEY|default:'' }}"
                 >
                     <div class="grid gap-3 sm:grid-cols-3">
                         <div>
@@ -318,7 +319,61 @@ function setPaymentField(name, value) {
     if (field && value) field.value = value;
 }
 
+function paymentGoogleMapsKey() {
+    return document.getElementById("arolana-payment-quote")?.dataset.googleMapsApiKey || "";
+}
+
+function loadArolanaGoogleMaps(key) {
+    if (!key) return Promise.resolve(false);
+    if (window.google?.maps?.Geocoder) return Promise.resolve(true);
+    if (window.__arolanaGoogleMapsPromise) return window.__arolanaGoogleMapsPromise;
+
+    window.__arolanaGoogleMapsPromise = new Promise((resolve, reject) => {
+        window.__arolanaGoogleMapsReady = () => resolve(true);
+        const script = document.createElement("script");
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=places&callback=__arolanaGoogleMapsReady`;
+        script.async = true;
+        script.defer = true;
+        script.onerror = () => reject(new Error("Google Maps could not load."));
+        document.head.appendChild(script);
+    });
+    return window.__arolanaGoogleMapsPromise;
+}
+
+function parseGooglePaymentAddress(result) {
+    const components = result?.address_components || [];
+    const pick = (types) => {
+        const item = components.find((component) => types.every((type) => component.types.includes(type)));
+        return item?.long_name || "";
+    };
+    const street = [pick(["street_number"]), pick(["route"])].filter(Boolean).join(" ");
+    const neighbourhood = pick(["neighborhood"]) || pick(["sublocality"]) || pick(["sublocality_level_1"]);
+    return {
+        address: street || neighbourhood || result?.formatted_address || "",
+        city: pick(["locality"]) || pick(["administrative_area_level_2"]) || pick(["postal_town"]) || neighbourhood || "",
+        state: pick(["administrative_area_level_1"]) || "",
+        postal_code: pick(["postal_code"]) || "",
+        country: pick(["country"]) || "Nigeria"
+    };
+}
+
+async function googleReverseGeocodePayment(latitude, longitude) {
+    const key = paymentGoogleMapsKey();
+    if (!await loadArolanaGoogleMaps(key)) return null;
+    const geocoder = new google.maps.Geocoder();
+    const response = await geocoder.geocode({ location: { lat: Number(latitude), lng: Number(longitude) } });
+    if (!response.results?.length) return null;
+    return parseGooglePaymentAddress(response.results[0]);
+}
+
 async function reverseGeocodePayment(latitude, longitude) {
+    try {
+        const googleLocation = await googleReverseGeocodePayment(latitude, longitude);
+        if (googleLocation) return googleLocation;
+    } catch (error) {
+        console.warn("Google reverse geocoding failed, using fallback:", error);
+    }
+
     const url = new URL("https://nominatim.openstreetmap.org/reverse");
     url.searchParams.set("format", "jsonv2");
     url.searchParams.set("lat", latitude);
@@ -345,6 +400,23 @@ async function reverseGeocodePayment(latitude, longitude) {
 
 async function geocodePaymentAddress(addressText) {
     if (!addressText) return null;
+    try {
+        const key = paymentGoogleMapsKey();
+        if (await loadArolanaGoogleMaps(key)) {
+            const geocoder = new google.maps.Geocoder();
+            const response = await geocoder.geocode({ address: addressText });
+            const location = response.results?.[0]?.geometry?.location;
+            if (location) {
+                return {
+                    latitude: Number(location.lat()).toFixed(7),
+                    longitude: Number(location.lng()).toFixed(7)
+                };
+            }
+        }
+    } catch (error) {
+        console.warn("Google pickup geocoding failed, using fallback:", error);
+    }
+
     const url = new URL("https://nominatim.openstreetmap.org/search");
     url.searchParams.set("format", "jsonv2");
     url.searchParams.set("q", addressText);
