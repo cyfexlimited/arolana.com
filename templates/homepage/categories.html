@@ -11,12 +11,12 @@
         </a>
     </div>
     
-    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-5">
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-6 gap-4 xl:gap-5">
         {% for hp_category in categories %}
         <a href="{% url 'products:category' hp_category.category.slug %}" class="group">
             <div class="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
                 <!-- Category Image -->
-                <div class="relative h-44 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
+                <div class="relative aspect-square overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
                     {% if hp_category.category.image or hp_category.image_url %}
                         {% if hp_category.category.image %}
                             {% optimized_image_url hp_category.category.image 'category_card' as hp_category_image_url %}

@@ -237,7 +237,7 @@
 
         .container {
             width: 100%;
-            max-width: 1450px;
+            max-width: min(96vw, 1800px);
         }
 
         .text-brand {
@@ -254,6 +254,26 @@
 
         .gradient-luxury {
             background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+        }
+
+        .arolana-following-ad {
+            align-self: flex-start;
+            max-height: calc(100dvh - 7rem);
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            position: sticky;
+            scrollbar-width: thin;
+            top: clamp(5rem, 9vh, 7rem);
+            z-index: 20;
+        }
+
+        .arolana-following-ad::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .arolana-following-ad::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, .6);
+            border-radius: 999px;
         }
 
         .luxury-header {
@@ -3055,8 +3075,8 @@
             </main>
 
             {% if request.path != '/products/cart/' and request.path != '/products/checkout/' %}
-            <aside class="hidden lg:block lg:w-80 shrink-0">
-                <div class="bg-white rounded-2xl shadow-luxury p-6 sticky top-28" data-aos="fade-left">
+            <aside class="arolana-following-ad hidden lg:block lg:w-72 xl:w-80 shrink-0">
+                <div class="bg-white rounded-2xl shadow-luxury p-6" data-aos="fade-left">
                     <h3 class="text-lg font-heading mb-4 text-gray-800 border-b border-gray-200 pb-3">Advertisement</h3>
                     <div class="ad-container">
                         {% render_ad_carousel 'sidebar' count=5 interval=5000 %}

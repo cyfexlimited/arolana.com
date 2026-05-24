@@ -43,7 +43,7 @@
     .arolana-shop-container {
         position: relative;
         z-index: 1;
-        max-width: 1480px;
+        max-width: min(98vw, 1840px);
         margin: 0 auto;
         padding: 1.25rem 1rem 3rem;
     }
@@ -268,8 +268,8 @@
 
     .arolana-layout {
         display: grid;
-        grid-template-columns: 292px minmax(0, 1fr);
-        gap: 1.25rem;
+        grid-template-columns: 280px minmax(0, 1fr);
+        gap: 1.35rem;
         align-items: start;
     }
 
@@ -480,6 +480,7 @@
         animation: spin .8s linear infinite;
     }
 
+
     @keyframes spin {
         to { transform: rotate(360deg); }
     }
@@ -491,7 +492,7 @@
     .arolana-products-grid {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 1rem;
+        gap: 1.25rem;
     }
 
     .arolana-product-card {
@@ -850,6 +851,12 @@
         border-radius: 1.5rem;
         background: #fff;
         box-shadow: 0 30px 90px rgba(15,23,42,.26);
+    }
+
+    @media (min-width: 1536px) {
+        .arolana-products-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
     }
 
     @media (max-width: 1180px) {

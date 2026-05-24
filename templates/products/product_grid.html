@@ -52,8 +52,25 @@
     }
 
     @media (min-width: 1024px) {
+        .arolana-product-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+            gap: 1.25rem !important;
+        }
+
         .arolana-product-grid .product-card .relative.h-56 {
-            height: 13.5rem;
+            height: auto;
+            aspect-ratio: 1 / 1;
+        }
+    }
+
+    @media (min-width: 1536px) {
+        .arolana-product-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        }
+
+        .arolana-product-grid .product-card .relative.h-56 {
+            height: auto;
+            aspect-ratio: 1 / 1;
         }
     }
 
@@ -106,7 +123,7 @@
     }
 </style>
 
-<div class="arolana-product-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+<div class="arolana-product-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
     {% for product in products %}
     <div class="product-card bg-white rounded-xl shadow-md overflow-hidden hover:shadow-2xl transition-all duration-300 group">
         <a href="{{ product.get_absolute_url }}" class="block bg-gray-50 relative overflow-hidden">
