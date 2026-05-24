@@ -219,6 +219,17 @@ def verify_flutterwave_transaction(transaction_id):
     return response.json()
 
 
+def verify_flutterwave_transaction_by_reference(tx_ref):
+    secret_key = settings.FLUTTERWAVE_SECRET_KEY
+    response = requests.get(
+        "https://api.flutterwave.com/v3/transactions/verify_by_reference",
+        params={"tx_ref": tx_ref},
+        headers={"Authorization": f"Bearer {secret_key}"},
+        timeout=30,
+    )
+    return response.json()
+
+
 def paypal_access_token():
     base = settings.PAYPAL_BASE_URL.rstrip("/")
     auth = (settings.PAYPAL_CLIENT_ID, settings.PAYPAL_CLIENT_SECRET)

@@ -21,6 +21,7 @@ from .services import (
     update_order_after_payment,
     verify_coinbase_signature,
     verify_flutterwave_transaction,
+    verify_flutterwave_transaction_by_reference,
     verify_flutterwave_webhook,
     verify_paystack_transaction,
 )
@@ -264,6 +265,37 @@ def status(request, reference):
         "order": order,
         "delivery": delivery,
     })
+
+
+@require_POST
+def verify_payment(request, reference):
+    payment = get_object_or_404(PaymentTransaction, reference=reference)
+
+    if payment.status == PaymentStatus.SUCCESS:
+        messages.info(request, "This payment is already confirmed.")
+        return redirect("arolana_payments:status", reference=payment.reference)
+
+    if payment.gateway == PaymentMethod.FLUTTERWAVE:
+        data = verify_flutterwave_transaction_by_reference(payment.reference)
+        transaction = data.get("data", {}) if isinstance(data, dict) else {}
+        transaction_status = transaction.get("status")
+        transaction_id = transaction.get("id") or transaction.get("tx_ref") or payment.reference
+
+        if data.get("status") == "success" and transaction_status == "successful":
+            payment.mark_success(str(transaction_id), data)
+            update_order_after_payment(payment)
+            messages.success(request, "Flutterwave payment confirmed. Your order and tracking are ready.")
+        elif transaction_status in ["failed", "cancelled"]:
+            payment.mark_failed(data)
+            messages.error(request, "Flutterwave reported this payment as failed or cancelled.")
+        else:
+            payment.gateway_response = data
+            payment.save(update_fields=["gateway_response", "updated_at"])
+            messages.info(request, "Flutterwave has not confirmed this payment yet. Please wait a moment and try again.")
+        return redirect("arolana_payments:status", reference=payment.reference)
+
+    messages.info(request, "Manual verification is only available for Flutterwave on this page.")
+    return redirect("arolana_payments:status", reference=payment.reference)
 
 
 @csrf_exempt

@@ -19,6 +19,13 @@
         <h1 class="text-3xl font-black text-gray-900">Payment {{ payment.get_status_display }}</h1>
         <p class="text-gray-600 mt-2">Reference: <strong>{{ payment.reference }}</strong></p>
 
+        {% if payment.status == "processing" and payment.gateway == "flutterwave" %}
+            <div class="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-left text-sm text-blue-900">
+                <strong class="block text-gray-950">Waiting for Flutterwave confirmation</strong>
+                <p class="mt-1">If you already completed the test payment, click verify below. Arolana will check Flutterwave and create your order tracking when the payment is confirmed.</p>
+            </div>
+        {% endif %}
+
         <div class="mt-6 grid gap-2 text-left bg-gray-50 rounded-2xl p-4">
             <p><strong>Gateway:</strong> {{ payment.get_gateway_display }}</p>
             <p><strong>Amount:</strong> {{ payment.amount|currency:request }}</p>
@@ -39,6 +46,19 @@
         {% endif %}
 
         <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+            {% if payment.status == "processing" and payment.gateway == "flutterwave" %}
+                <form method="post" action="{% url 'arolana_payments:verify' payment.reference %}">
+                    {% csrf_token %}
+                    <button class="inline-flex w-full justify-center bg-green-600 text-white rounded-xl px-6 py-3 font-black">
+                        Verify Flutterwave Payment
+                    </button>
+                </form>
+                {% if payment.gateway_checkout_url %}
+                    <a href="{{ payment.gateway_checkout_url }}" class="inline-flex justify-center bg-orange-500 text-white rounded-xl px-6 py-3 font-black">
+                        Return to Flutterwave
+                    </a>
+                {% endif %}
+            {% endif %}
             {% if order %}
                 <a href="{% url 'orders:detail' order.order_number %}" class="inline-flex justify-center bg-blue-600 text-white rounded-xl px-6 py-3 font-black">
                     View Order & Tracking

@@ -11,6 +11,7 @@ urlpatterns = [
     path("callback/<str:reference>/", views.callback, name="callback"),
     path("cancel/<str:reference>/", views.cancel, name="cancel"),
     path("status/<str:reference>/", views.status, name="status"),
+    path("verify/<str:reference>/", views.verify_payment, name="verify"),
 
     path("webhooks/flutterwave/", views.flutterwave_webhook, name="flutterwave_webhook"),
     path("webhooks/coinbase/", views.coinbase_webhook, name="coinbase_webhook"),
