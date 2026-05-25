@@ -140,6 +140,8 @@ def create_transaction(request, gateway):
     if not customer["email"]:
         raise ValueError("Customer email is required before payment.")
 
+    from orders.services import normalize_checkout_service_level
+
     checkout_data = {
         "address": request.POST.get("address", ""),
         "city": request.POST.get("city", ""),
@@ -156,8 +158,8 @@ def create_transaction(request, gateway):
         "dropoff_latitude": request.POST.get("dropoff_latitude", ""),
         "dropoff_longitude": request.POST.get("dropoff_longitude", ""),
         "package_weight_kg": request.POST.get("package_weight_kg", "0.00"),
-        "delivery_service_level": request.POST.get("delivery_service_level", "standard"),
-        "delivery_provider": request.POST.get("delivery_provider", ""),
+        "delivery_service_level": normalize_checkout_service_level(request.POST.get("delivery_service_level", "standard")),
+        "delivery_provider": "",
         "delivery_fee": request.POST.get("delivery_fee", "0.00"),
     }
 

@@ -26,7 +26,8 @@ from .services import (
     verify_paystack_transaction,
 )
 
-from orders.models import Cart, DeliveryProvider, Order
+from orders.models import Cart, Order
+from orders.services import normalize_checkout_service_level
 
 
 def checkout(request):
@@ -64,27 +65,17 @@ def checkout(request):
             "icon": "fa-bolt",
             "provider_type": "arolana_driver",
         },
-        {
-            "value": "arolana_dispatch",
-            "label": "Arolana Dispatch",
-            "description": "Arolana riders or approved local dispatch riders.",
-            "icon": "fa-motorcycle",
-            "provider_type": "arolana_driver",
-        },
-        {
-            "value": "pickup_from_vendor",
-            "label": "Pickup from Vendor",
-            "description": "Collect from the vendor after confirmation.",
-            "icon": "fa-store",
-            "provider_type": "vendor_pickup",
-        },
     ]
+
+    delivery_service_level = normalize_checkout_service_level(
+        request.GET.get("delivery_service_level", request.POST.get("delivery_service_level", "standard"))
+    )
 
     context = {
         "wallets": wallets,
         "payment_options": get_gateway_options(),
         "delivery_options": delivery_options,
-        "delivery_providers": DeliveryProvider.objects.filter(is_active=True).exclude(provider_type="uber_direct"),
+        "delivery_providers": [],
         "amount": request.GET.get("amount", request.POST.get("amount", "")),
         "currency": request.GET.get("currency", request.POST.get("currency", getattr(settings, "AROLANA_DEFAULT_CURRENCY", "NGN"))),
         "order_id": order_id,
@@ -96,8 +87,8 @@ def checkout(request):
         "state": request.GET.get("state", request.POST.get("state", "")),
         "postal_code": request.GET.get("postal_code", request.POST.get("postal_code", "")),
         "country": request.GET.get("country", request.POST.get("country", "")),
-        "delivery_service_level": request.GET.get("delivery_service_level", request.POST.get("delivery_service_level", "standard")),
-        "delivery_provider": request.GET.get("delivery_provider", request.POST.get("delivery_provider", "")),
+        "delivery_service_level": delivery_service_level,
+        "delivery_provider": "",
         "delivery_origin": delivery_origin,
         "package_weight_kg": package_weight_kg,
     }

@@ -6,10 +6,10 @@
 <div class="mx-auto max-w-6xl px-4 py-10">
     <section class="rounded-3xl bg-gradient-to-r from-slate-950 via-blue-950 to-indigo-900 p-6 text-white shadow-xl md:p-10">
         <p class="text-sm font-black uppercase tracking-[0.16em] text-blue-200">Arolana Delivery Engine</p>
-        <h1 class="mt-3 max-w-4xl text-3xl font-black md:text-5xl">Shipping fees are calculated by your location, route, provider, and package.</h1>
+        <h1 class="mt-3 max-w-4xl text-3xl font-black md:text-5xl">Shipping fees are calculated by your location, route, speed, and package.</h1>
         <p class="mt-4 max-w-3xl text-white/80">
-            Arolana supports standard delivery, express delivery, Arolana dispatch riders, approved local dispatch partners,
-            vendor riders, independent dispatch riders, DHL/GIG-style logistics partners, and pickup from vendor after confirmation.
+            Arolana checkout now keeps delivery simple: choose Standard Delivery for reliable dispatch or Express Delivery for faster handling where available.
+            Our system calculates the fee from pickup to drop-off distance, package weight, live rider demand, and service level.
         </p>
         <div class="mt-6 flex flex-wrap gap-3">
             <a href="/orders/track/" class="inline-flex min-h-11 items-center rounded-xl bg-white px-5 font-black text-blue-700">Track order</a>
@@ -17,7 +17,7 @@
         </div>
     </section>
 
-    <section class="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <section class="mt-8 grid gap-4 md:grid-cols-2">
         <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <i class="fas fa-truck text-2xl text-blue-600"></i>
             <h2 class="mt-3 font-black text-gray-950">Standard Delivery</h2>
@@ -27,21 +27,6 @@
             <i class="fas fa-bolt text-2xl text-blue-600"></i>
             <h2 class="mt-3 font-black text-gray-950">Express Delivery</h2>
             <p class="mt-2 text-sm text-gray-600">Faster dispatch where available. Express may cost more depending on rider/provider availability.</p>
-        </div>
-        <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-            <i class="fas fa-motorcycle text-2xl text-blue-600"></i>
-            <h2 class="mt-3 font-black text-gray-950">Arolana Dispatch</h2>
-            <p class="mt-2 text-sm text-gray-600">Arolana riders or approved local riders assigned by admin for flexible local delivery.</p>
-        </div>
-        <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-            <i class="fas fa-route text-2xl text-blue-600"></i>
-            <h2 class="mt-3 font-black text-gray-950">Provider Delivery</h2>
-            <p class="mt-2 text-sm text-gray-600">Approved Arolana, vendor, independent, and logistics partners can be used based on route availability.</p>
-        </div>
-        <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-            <i class="fas fa-store text-2xl text-blue-600"></i>
-            <h2 class="mt-3 font-black text-gray-950">Pickup from Vendor</h2>
-            <p class="mt-2 text-sm text-gray-600">Collect directly from the vendor after Arolana and the vendor confirm pickup readiness.</p>
         </div>
     </section>
 
@@ -53,14 +38,14 @@
                     <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600"><i class="fas fa-receipt"></i></span>
                     <div>
                         <h3 class="font-black text-gray-950">Delivery fee before payment</h3>
-                        <p class="text-gray-600">Checkout estimates delivery cost from your selected method, provider, address, city, state, country, and current provider rules.</p>
+                        <p class="text-gray-600">Checkout estimates delivery cost from your selected method, address, city, state, country, map distance, package weight, and current rider demand.</p>
                     </div>
                 </div>
                 <div class="flex gap-4">
                     <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600"><i class="fas fa-user-check"></i></span>
                     <div>
                         <h3 class="font-black text-gray-950">Assignment notification</h3>
-                        <p class="text-gray-600">You are notified when admin assigns a rider, driver, vendor pickup, or logistics provider.</p>
+                        <p class="text-gray-600">You are notified when Arolana assigns the best available rider or approved delivery partner for your Standard or Express delivery.</p>
                     </div>
                 </div>
                 <div class="flex gap-4">
@@ -90,11 +75,11 @@
         <aside class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
             <h2 class="text-xl font-black text-gray-950">Delivery cost rule</h2>
             <p class="mt-3 text-gray-600">
-                Final delivery cost depends on location, package size, delivery method, provider route, rider availability, and whether the order needs special handling.
+                Final delivery cost depends on location, package size, delivery method, pickup-to-drop-off distance, rider availability, and whether the order needs special handling.
             </p>
             <div class="mt-5 rounded-2xl bg-blue-50 p-4 text-sm text-blue-900">
                 <strong class="block text-gray-950">Important</strong>
-                If a provider changes the final cost after checkout because of route or package constraints, Arolana support will confirm before dispatch.
+                If the final dispatch cost changes because of route or package constraints, Arolana support will confirm before dispatch.
             </div>
         </aside>
     </section>
@@ -107,12 +92,12 @@
                 <p class="mt-2 text-sm text-gray-600">Open <a href="/orders/track/" class="font-bold text-blue-600">Track Order</a> and enter your order number or tracking code plus the order email if you are not signed in.</p>
             </div>
             <div class="rounded-2xl bg-gray-50 p-5">
-                <h3 class="font-black text-gray-950">Can I choose a provider?</h3>
-                <p class="mt-2 text-sm text-gray-600">Yes. Checkout lets you choose a preferred provider, or you can let Arolana pick the best available provider for your route.</p>
+                <h3 class="font-black text-gray-950">Who handles delivery?</h3>
+                <p class="mt-2 text-sm text-gray-600">Checkout uses Standard and Express delivery only. Arolana picks the best available delivery partner behind the scenes for your route.</p>
             </div>
             <div class="rounded-2xl bg-gray-50 p-5">
-                <h3 class="font-black text-gray-950">When is pickup from vendor available?</h3>
-                <p class="mt-2 text-sm text-gray-600">Pickup is available only after vendor confirmation. Arolana will notify you when pickup is ready.</p>
+                <h3 class="font-black text-gray-950">What is the difference between Standard and Express?</h3>
+                <p class="mt-2 text-sm text-gray-600">Standard is the reliable default route. Express prioritizes faster dispatch where riders and delivery partners are available.</p>
             </div>
             <div class="rounded-2xl bg-gray-50 p-5">
                 <h3 class="font-black text-gray-950">Do notifications work on phone?</h3>

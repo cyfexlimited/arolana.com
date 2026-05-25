@@ -84,7 +84,7 @@
                             <i class="fas fa-location-dot mt-1 text-blue-600"></i>
                             <div>
                                 <strong class="block text-gray-900">Delivery cost depends on your location.</strong>
-                                <span>We calculate the final delivery fee from your delivery address, selected provider, package size, and rider availability before dispatch.</span>
+                                <span>We calculate the final delivery fee from your delivery address, map distance, package size, delivery speed, and rider availability before dispatch.</span>
                             </div>
                         </div>
                     </div>
@@ -104,18 +104,6 @@
                         </label>
                         {% endfor %}
                     </div>
-
-                    {% if delivery_providers %}
-                    <div class="mb-6">
-                        <label class="block font-semibold mb-2">Preferred delivery provider</label>
-                        <select name="delivery_provider" id="delivery_provider" class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="">Let Arolana choose the best provider</option>
-                            {% for provider in delivery_providers %}
-                                <option value="{{ provider.id }}" data-provider-type="{{ provider.provider_type }}">{{ provider.name }}{% if provider.base_fee %} · from {{ provider.base_fee|currency:request }}{% endif %}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    {% endif %}
 
                     <!-- Payment Data -->
                     <!-- Do not reference total_converted/subtotal_converted here unless the view passes them. -->
@@ -323,7 +311,6 @@ function getCheckoutValue(selector) {
 }
 
 let currentDeliveryFee = 0;
-let deliveryProviderTouched = false;
 
 function formatCheckoutMoney(value) {
     const amount = Number(value || 0);
@@ -497,7 +484,7 @@ function checkoutDeliveryPayload() {
     return {
         subtotal: dataBox?.dataset.subtotal || dataBox?.dataset.amount || "0",
         delivery_service_level: document.querySelector('[name="delivery_service_level"]:checked')?.value || "standard",
-        delivery_provider: getCheckoutValue('[name="delivery_provider"]'),
+        delivery_provider: "",
         pickup_name: dataBox?.dataset.pickupName || "",
         pickup_phone: dataBox?.dataset.pickupPhone || "",
         pickup_address: dataBox?.dataset.pickupAddress || "",
@@ -563,34 +550,22 @@ async function refreshDeliveryQuote(requireLocation = false) {
     }
 }
 
-function syncPreferredProviderToDelivery(radio) {
-    const providerSelect = document.querySelector('[name="delivery_provider"]');
-    const preferredType = radio?.dataset?.providerType || "";
-    if (!providerSelect || !preferredType || deliveryProviderTouched) return;
-
-    const match = Array.from(providerSelect.options).find((option) => option.dataset.providerType === preferredType);
-    if (match) providerSelect.value = match.value;
-}
-
 document.querySelectorAll(".arolana-delivery-option").forEach((option) => {
     option.addEventListener("click", () => {
         const radio = option.querySelector('input[type="radio"]');
         if (radio) {
             radio.checked = true;
-            syncPreferredProviderToDelivery(radio);
         }
         refreshDeliveryQuote(false);
     });
 
     option.querySelector('input[type="radio"]')?.addEventListener("change", (event) => {
-        syncPreferredProviderToDelivery(event.target);
         refreshDeliveryQuote(false);
     });
 });
 
-["address", "city", "state", "postal_code", "country", "delivery_provider"].forEach((name) => {
+["address", "city", "state", "postal_code", "country"].forEach((name) => {
     document.querySelector(`[name="${name}"]`)?.addEventListener("change", () => {
-        if (name === "delivery_provider") deliveryProviderTouched = true;
         refreshDeliveryQuote(false);
     });
     document.querySelector(`[name="${name}"]`)?.addEventListener("blur", () => refreshDeliveryQuote(false));
@@ -630,7 +605,6 @@ document.getElementById("checkout-use-location")?.addEventListener("click", () =
 });
 
 document.addEventListener("DOMContentLoaded", () => {
-    syncPreferredProviderToDelivery(document.querySelector('[name="delivery_service_level"]:checked'));
     refreshDeliveryQuote(false);
 });
 
@@ -656,7 +630,6 @@ async function startArolanaPayment(gateway) {
     const postalCode = getCheckoutValue('[name="postal_code"]');
     const country = getCheckoutValue('[name="country"]');
     const deliveryService = document.querySelector('[name="delivery_service_level"]:checked')?.value || "standard";
-    const deliveryProvider = getCheckoutValue('[name="delivery_provider"]');
 
     if (!firstName) {
         alert("Please enter your first name.");
@@ -734,7 +707,7 @@ async function startArolanaPayment(gateway) {
         dropoff_latitude: getCheckoutValue('[name="dropoff_latitude"]'),
         dropoff_longitude: getCheckoutValue('[name="dropoff_longitude"]'),
         delivery_service_level: deliveryService,
-        delivery_provider: deliveryProvider,
+        delivery_provider: "",
         delivery_fee: currentDeliveryFee.toFixed(2)
     };
 

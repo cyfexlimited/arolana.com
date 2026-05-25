@@ -235,6 +235,68 @@ class DeliveryRequest(BaseModel):
     def __str__(self):
         return f"{self.tracking_code} - {self.order.order_number}"
 
+
+class DeliveryQuoteRequest(BaseModel):
+    """Admin-negotiated delivery quote for DHL, GIG, and special routes."""
+
+    STATUS_PENDING = 'pending'
+    STATUS_REVIEWING = 'reviewing'
+    STATUS_QUOTED = 'quoted'
+    STATUS_ACCEPTED = 'accepted'
+    STATUS_DECLINED = 'declined'
+    STATUS_CANCELLED = 'cancelled'
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending Admin Review'),
+        (STATUS_REVIEWING, 'Admin Reviewing'),
+        (STATUS_QUOTED, 'Quote Sent'),
+        (STATUS_ACCEPTED, 'Customer Accepted'),
+        (STATUS_DECLINED, 'Customer Declined'),
+        (STATUS_CANCELLED, 'Cancelled'),
+    ]
+
+    ROUTE_DOMESTIC = 'domestic'
+    ROUTE_BULKY = 'bulky'
+    ROUTE_IMPORT = 'international_import'
+    ROUTE_EXPORT = 'international_export'
+    ROUTE_OTHER = 'other'
+
+    ROUTE_TYPE_CHOICES = [
+        (ROUTE_DOMESTIC, 'Domestic / Interstate'),
+        (ROUTE_BULKY, 'Bulky or Fragile Item'),
+        (ROUTE_IMPORT, 'International Import'),
+        (ROUTE_EXPORT, 'International Export'),
+        (ROUTE_OTHER, 'Other Special Route'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='delivery_quote_requests')
+    order = models.ForeignKey(Order, on_delete=models.SET_NULL, null=True, blank=True, related_name='delivery_quote_requests')
+    provider = models.ForeignKey(DeliveryProvider, on_delete=models.SET_NULL, null=True, blank=True, related_name='quote_requests')
+    session_key = models.CharField(max_length=120, blank=True)
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    service_level = models.CharField(max_length=30, choices=DeliveryRequest.SERVICE_LEVEL_CHOICES, default=DeliveryRequest.SERVICE_STANDARD)
+    route_type = models.CharField(max_length=40, choices=ROUTE_TYPE_CHOICES, default=ROUTE_DOMESTIC)
+    customer_name = models.CharField(max_length=160, blank=True)
+    customer_email = models.EmailField(blank=True)
+    customer_phone = models.CharField(max_length=50, blank=True)
+    pickup_address = models.TextField(blank=True)
+    dropoff_address = models.TextField(blank=True)
+    package_weight_kg = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    package_details = models.TextField(blank=True)
+    admin_quote_fee = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    admin_notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status', '-created_at']),
+            models.Index(fields=['route_type', '-created_at']),
+        ]
+
+    def __str__(self):
+        provider_name = self.provider.name if self.provider else 'Delivery provider'
+        return f"{provider_name} quote for {self.customer_email or self.customer_name or 'customer'}"
+
 class OrderItem(BaseModel):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
     product = models.ForeignKey(Product, on_delete=models.CASCADE, null=True, blank=True)

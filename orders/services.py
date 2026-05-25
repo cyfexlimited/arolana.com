@@ -9,6 +9,23 @@ from django.urls import reverse
 from .models import Cart, DeliveryProvider, DeliveryRequest, Order, OrderItem
 
 
+NEGOTIATED_DELIVERY_PROVIDER_TYPES = {
+    DeliveryProvider.PROVIDER_DHL,
+    DeliveryProvider.PROVIDER_GIG_LOGISTICS,
+}
+
+CUSTOMER_CHECKOUT_SERVICE_LEVELS = {
+    DeliveryRequest.SERVICE_STANDARD,
+    DeliveryRequest.SERVICE_EXPRESS,
+}
+
+
+def normalize_checkout_service_level(service_level):
+    if service_level in CUSTOMER_CHECKOUT_SERVICE_LEVELS:
+        return service_level
+    return DeliveryRequest.SERVICE_STANDARD
+
+
 def _as_money(value, default='0.00'):
     try:
         return Decimal(str(value if value not in (None, '') else default)).quantize(Decimal('0.01'))
@@ -27,20 +44,23 @@ def _format_address(checkout_data):
     return "\n".join(part for part in parts if part).strip()
 
 
-def select_delivery_provider(service_level, provider_id=None):
-    if provider_id:
-        provider = DeliveryProvider.objects.filter(id=provider_id, is_active=True).first()
-        if provider:
-            return provider
+def requires_delivery_admin_quote(provider):
+    return bool(provider and provider.provider_type in NEGOTIATED_DELIVERY_PROVIDER_TYPES)
 
+
+def select_delivery_provider(service_level, provider_id=None):
+    service_level = normalize_checkout_service_level(service_level)
     provider_type_map = {
         DeliveryRequest.SERVICE_STANDARD: DeliveryProvider.PROVIDER_MANUAL_DISPATCH,
         DeliveryRequest.SERVICE_EXPRESS: DeliveryProvider.PROVIDER_AROLANA_DRIVER,
-        DeliveryRequest.SERVICE_AROLANA_DISPATCH: DeliveryProvider.PROVIDER_AROLANA_DRIVER,
-        DeliveryRequest.SERVICE_UBER_DIRECT: DeliveryProvider.PROVIDER_UBER_DIRECT,
-        DeliveryRequest.SERVICE_PICKUP_VENDOR: DeliveryProvider.PROVIDER_VENDOR_PICKUP,
     }
     provider_type = provider_type_map.get(service_level)
+
+    if provider_id and provider_type:
+        provider = DeliveryProvider.objects.filter(id=provider_id, provider_type=provider_type, is_active=True).first()
+        if provider:
+            return provider
+
     if provider_type:
         return DeliveryProvider.objects.filter(provider_type=provider_type, is_active=True).first()
     return DeliveryProvider.objects.filter(is_active=True).order_by('name').first()
@@ -48,29 +68,30 @@ def select_delivery_provider(service_level, provider_id=None):
 
 def calculate_delivery_quote(service_level='standard', provider=None, address='', city='', state='', postal_code='', country='', subtotal=None):
     """Return a conservative delivery estimate that admin can override later."""
-    service_level = service_level or DeliveryRequest.SERVICE_STANDARD
-    valid_service_levels = {choice[0] for choice in DeliveryRequest.SERVICE_LEVEL_CHOICES}
-    if service_level not in valid_service_levels:
-        service_level = DeliveryRequest.SERVICE_STANDARD
+    service_level = normalize_checkout_service_level(service_level or DeliveryRequest.SERVICE_STANDARD)
 
     if provider and not isinstance(provider, DeliveryProvider):
-        provider = DeliveryProvider.objects.filter(id=provider, is_active=True).first()
+        selected_provider = DeliveryProvider.objects.filter(id=provider, is_active=True).first()
+        provider = selected_provider if selected_provider and selected_provider == select_delivery_provider(service_level, provider_id=provider) else None
     if not provider:
         provider = select_delivery_provider(service_level)
 
-    if service_level == DeliveryRequest.SERVICE_PICKUP_VENDOR:
+    if requires_delivery_admin_quote(provider):
+        provider_name = provider.name if provider else 'Selected carrier'
         return {
             'fee': Decimal('0.00'),
             'provider': provider,
             'service_level': service_level,
-            'message': 'Pickup from vendor is free. We will notify you when the vendor confirms pickup readiness.',
+            'requires_admin_quote': True,
+            'message': (
+                f'{provider_name} requires an Arolana admin quote. Submit the delivery details and '
+                'our team will negotiate the best carrier rate for bulky, interstate, import, or export delivery.'
+            ),
         }
 
     default_fee_by_service = {
         DeliveryRequest.SERVICE_STANDARD: Decimal('2500.00'),
         DeliveryRequest.SERVICE_EXPRESS: Decimal('4500.00'),
-        DeliveryRequest.SERVICE_AROLANA_DISPATCH: Decimal('3500.00'),
-        DeliveryRequest.SERVICE_UBER_DIRECT: Decimal('6000.00'),
     }
     base_fee = _as_money(getattr(provider, 'base_fee', None)) if provider else Decimal('0.00')
     if base_fee <= 0:
@@ -96,8 +117,6 @@ def calculate_delivery_quote(service_level='standard', provider=None, address=''
     service_surcharge = {
         DeliveryRequest.SERVICE_STANDARD: Decimal('0.00'),
         DeliveryRequest.SERVICE_EXPRESS: Decimal('2000.00'),
-        DeliveryRequest.SERVICE_AROLANA_DISPATCH: Decimal('1000.00'),
-        DeliveryRequest.SERVICE_UBER_DIRECT: Decimal('3000.00'),
     }.get(service_level, Decimal('0.00'))
 
     fee = (base_fee + service_surcharge + location_surcharge).quantize(Decimal('0.01'))
@@ -106,6 +125,7 @@ def calculate_delivery_quote(service_level='standard', provider=None, address=''
         'fee': fee,
         'provider': provider,
         'service_level': service_level,
+        'requires_admin_quote': False,
         'message': f'{provider_name}: {location_note} Final fee may be adjusted if package size or provider availability changes.',
     }
 
@@ -157,6 +177,7 @@ def send_paid_order_emails(order, delivery):
     delivery_label = delivery.get_service_level_display() if delivery else 'Delivery'
     tracking_code = delivery.tracking_code if delivery else ''
     delivery_fee = delivery.delivery_fee if delivery else order.shipping_cost
+    delivery_fee_label = 'Pending Arolana admin quote' if requires_delivery_admin_quote(getattr(delivery, 'provider', None)) else delivery_fee
 
     customer_subject = f'Arolana order confirmed - {order.order_number}'
     customer_message = (
@@ -165,7 +186,7 @@ def send_paid_order_emails(order, delivery):
         f'Order number: {order.order_number}\n'
         f'Order total: {order.total}\n'
         f'Delivery method: {delivery_label}\n'
-        f'Delivery fee: {delivery_fee}\n'
+        f'Delivery fee: {delivery_fee_label}\n'
         f'Tracking code: {tracking_code or "Pending"}\n\n'
         f'View your order: {order_url}\n'
         f'Track delivery: {tracking_url}\n\n'
@@ -195,7 +216,7 @@ def send_paid_order_emails(order, delivery):
             f'Customer: {getattr(order.user, "email", "")}\n'
             f'Total: {order.total}\n'
             f'Delivery method: {delivery_label}\n'
-            f'Delivery fee: {delivery_fee}\n'
+            f'Delivery fee: {delivery_fee_label}\n'
             f'Tracking code: {tracking_code or "Pending"}\n'
             f'Drop-off address:\n{order.shipping_address}\n\n'
             f'Admin/order link: {order_url}'
@@ -246,7 +267,7 @@ def mark_order_paid(payment):
     checkout_data = payment.checkout_data or {}
     shipping_address = _format_address(checkout_data) or 'Address submitted during payment'
     provider_id = checkout_data.get('delivery_provider')
-    service_level = checkout_data.get('delivery_service_level') or DeliveryRequest.SERVICE_STANDARD
+    service_level = normalize_checkout_service_level(checkout_data.get('delivery_service_level') or DeliveryRequest.SERVICE_STANDARD)
     provider = select_delivery_provider(service_level, provider_id=provider_id)
     quote = calculate_delivery_quote(
         service_level=service_level,
@@ -258,7 +279,8 @@ def mark_order_paid(payment):
         country=checkout_data.get('country', ''),
         subtotal=cart.subtotal,
     )
-    delivery_fee = _as_money(checkout_data.get('delivery_fee'), default=str(quote['fee']))
+    is_admin_quote_delivery = requires_delivery_admin_quote(provider) or quote.get('requires_admin_quote')
+    delivery_fee = Decimal('0.00') if is_admin_quote_delivery else _as_money(checkout_data.get('delivery_fee'), default=str(quote['fee']))
     order_total = (cart.subtotal + delivery_fee).quantize(Decimal('0.01'))
 
     order = Order.objects.create(
@@ -285,9 +307,19 @@ def mark_order_paid(payment):
             subtotal=item.subtotal,
         )
 
-    valid_service_levels = {choice[0] for choice in DeliveryRequest.SERVICE_LEVEL_CHOICES}
-    if service_level not in valid_service_levels:
-        service_level = DeliveryRequest.SERVICE_STANDARD
+    quote_details = (checkout_data.get('delivery_quote_details') or '').strip()
+    quote_route_type = (checkout_data.get('delivery_route_type') or '').strip()
+    admin_notes = ''
+    if is_admin_quote_delivery:
+        provider_name = provider.name if provider else 'Selected carrier'
+        admin_notes = (
+            f'Admin delivery quote required for {provider_name}.\n'
+            f'Route type: {quote_route_type or "Not specified"}\n'
+            f'Customer/provider details: {quote_details or "No extra details supplied."}\n'
+            f'Package weight: {checkout_data.get("package_weight_kg", "0.00")} kg\n'
+            f'Pickup contact: {checkout_data.get("pickup_name", "")} {checkout_data.get("pickup_phone", "")}\n'
+            f'Customer phone: {checkout_data.get("phone", "")}'
+        )
 
     delivery = DeliveryRequest.objects.create(
         order=order,
@@ -297,6 +329,7 @@ def mark_order_paid(payment):
         dropoff_address=shipping_address,
         delivery_fee=delivery_fee,
         tracking_status=DeliveryRequest.STATUS_PENDING_ASSIGNMENT,
+        admin_notes=admin_notes,
     )
     try:
         from deliveries.services import create_live_delivery_for_order
@@ -315,11 +348,20 @@ def mark_order_paid(payment):
     payment.order_id = order.order_number
     payment.save(update_fields=['order_id', 'updated_at'])
     notify_staff_delivery(
-        title='New delivery needs assignment',
-        message=f'Order {order.order_number} is paid and ready for delivery assignment.',
+        title='Delivery quote needed' if is_admin_quote_delivery else 'New delivery needs assignment',
+        message=(
+            f'Order {order.order_number} is paid and needs an admin-negotiated carrier quote.'
+            if is_admin_quote_delivery else
+            f'Order {order.order_number} is paid and ready for delivery assignment.'
+        ),
         link=_order_link(order),
-        metadata={'order_number': order.order_number, 'tracking_code': delivery.tracking_code},
-        priority=3,
+        metadata={
+            'order_number': order.order_number,
+            'tracking_code': delivery.tracking_code,
+            'provider_type': provider.provider_type if provider else '',
+            'requires_admin_quote': is_admin_quote_delivery,
+        },
+        priority=4 if is_admin_quote_delivery else 3,
     )
     send_paid_order_emails(order, delivery)
     return order

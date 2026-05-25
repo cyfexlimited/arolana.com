@@ -30,11 +30,10 @@ except ImportError:
 
 # Note: Adjust import based on your actual orders app structure
 try:
-    from orders.models import Cart, CartItem, DeliveryProvider
+    from orders.models import Cart, CartItem
 except ImportError:
     Cart = None
     CartItem = None
-    DeliveryProvider = None
 
 try:
     from currency.models import Currency
@@ -1793,14 +1792,10 @@ def checkout(request):
         messages.info(request, 'Your cart is empty.')
         return redirect('products:list')
     
+    # Checkout now exposes only service levels. Arolana chooses the matching
+    # delivery provider behind the scenes so customers do not see confusing
+    # pickup/dispatch provider choices.
     delivery_providers = []
-    if DeliveryProvider:
-        delivery_providers = list(
-            DeliveryProvider.objects
-            .filter(is_active=True)
-            .exclude(provider_type='uber_direct')
-            .order_by('name')
-        )
     delivery_origin = {}
     package_weight_kg = Decimal('0.00')
     try:
@@ -1824,20 +1819,6 @@ def checkout(request):
             'description': 'Faster dispatch where available.',
             'icon': 'fa-bolt',
             'provider_type': 'arolana_driver',
-        },
-        {
-            'value': 'arolana_dispatch',
-            'label': 'Arolana Dispatch',
-            'description': 'Arolana riders or approved local dispatch riders.',
-            'icon': 'fa-motorcycle',
-            'provider_type': 'arolana_driver',
-        },
-        {
-            'value': 'pickup_from_vendor',
-            'label': 'Pickup from Vendor',
-            'description': 'Collect from the vendor after confirmation.',
-            'icon': 'fa-store',
-            'provider_type': 'vendor_pickup',
         },
     ]
 

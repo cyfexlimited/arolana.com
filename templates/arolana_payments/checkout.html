@@ -56,7 +56,7 @@
                         <i class="fas fa-location-dot mt-1 text-blue-600"></i>
                         <div>
                             <strong class="block text-gray-900">Delivery cost depends on your location.</strong>
-                            <span>Choose a delivery method now. Arolana can confirm the final delivery fee from your address, selected provider, package size, and rider availability.</span>
+                            <span>Choose Standard or Express delivery. Arolana calculates the fee from your address, map distance, package size, delivery speed, and rider availability.</span>
                         </div>
                     </div>
                 </div>
@@ -78,18 +78,6 @@
                         {% endfor %}
                     </div>
                 </div>
-
-                {% if delivery_providers %}
-                <label class="grid gap-1">
-                    <span class="text-sm font-bold text-gray-700">Preferred delivery provider</span>
-                    <select name="delivery_provider" class="border rounded-xl px-4 py-3">
-                        <option value="">Let Arolana choose the best provider</option>
-                        {% for provider in delivery_providers %}
-                            <option value="{{ provider.id }}" data-provider-type="{{ provider.provider_type }}" {% if delivery_provider|stringformat:"s" == provider.id|stringformat:"s" %}selected{% endif %}>{{ provider.name }}{% if provider.base_fee %} · from {{ provider.base_fee }}{% endif %}</option>
-                        {% endfor %}
-                    </select>
-                </label>
-                {% endif %}
 
                 <div>
                     <h2 class="text-xl font-black mb-4 text-gray-900">Delivery Address</h2>
@@ -276,7 +264,6 @@
 
 <script>
 let paymentDeliveryFee = 0;
-let paymentProviderTouched = false;
 
 function paymentFormValue(name) {
     return document.querySelector(`#paymentBaseForm [name="${name}"]`)?.value?.trim() || "";
@@ -448,7 +435,7 @@ function paymentDeliveryPayload() {
     return {
         subtotal: paymentBaseAmount().toFixed(2),
         delivery_service_level: document.querySelector('#paymentBaseForm [name="delivery_service_level"]:checked')?.value || "standard",
-        delivery_provider: paymentFormValue("delivery_provider"),
+        delivery_provider: "",
         pickup_name: quoteBox?.dataset.pickupName || "",
         pickup_phone: quoteBox?.dataset.pickupPhone || "",
         pickup_address: quoteBox?.dataset.pickupAddress || "",
@@ -507,35 +494,24 @@ async function refreshPaymentDeliveryQuote(requireLocation = false) {
     }
 }
 
-function syncPaymentProviderToDelivery(radio) {
-    const providerSelect = document.querySelector('#paymentBaseForm [name="delivery_provider"]');
-    const preferredType = radio?.dataset?.providerType || "";
-    if (!providerSelect || !preferredType || paymentProviderTouched) return;
-    const match = Array.from(providerSelect.options).find((option) => option.dataset.providerType === preferredType);
-    if (match) providerSelect.value = match.value;
-}
-
 document.querySelectorAll(".arolana-delivery-option").forEach((option) => {
     option.addEventListener("click", () => {
         const radio = option.querySelector('input[type="radio"]');
         if (radio) {
             radio.checked = true;
-            syncPaymentProviderToDelivery(radio);
         }
         refreshPaymentDeliveryQuote(false);
     });
 
     option.querySelector('input[type="radio"]')?.addEventListener("change", (event) => {
-        syncPaymentProviderToDelivery(event.target);
         refreshPaymentDeliveryQuote(false);
     });
 });
 
-["amount", "currency", "address", "city", "state", "postal_code", "country", "delivery_provider"].forEach((name) => {
+["amount", "currency", "address", "city", "state", "postal_code", "country"].forEach((name) => {
     const field = document.querySelector(`#paymentBaseForm [name="${name}"]`);
     if (!field) return;
     field.addEventListener("change", () => {
-        if (name === "delivery_provider") paymentProviderTouched = true;
         refreshPaymentDeliveryQuote(false);
     });
     field.addEventListener("blur", () => refreshPaymentDeliveryQuote(false));
@@ -577,7 +553,6 @@ document.getElementById("payment-use-location")?.addEventListener("click", () =>
 });
 
 document.addEventListener("DOMContentLoaded", () => {
-    syncPaymentProviderToDelivery(document.querySelector('#paymentBaseForm [name="delivery_service_level"]:checked'));
     refreshPaymentDeliveryQuote(false);
 });
 

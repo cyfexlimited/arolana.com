@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Cart, CartItem, DeliveryProvider, DeliveryRequest, Order, OrderItem
+from .models import Cart, CartItem, DeliveryProvider, DeliveryQuoteRequest, DeliveryRequest, Order, OrderItem
 
 class CartItemInline(admin.TabularInline):
     model = CartItem
@@ -113,3 +113,38 @@ class DeliveryRequestAdmin(admin.ModelAdmin):
     def mark_delivered(self, request, queryset):
         for delivery in queryset:
             delivery.mark_delivered()
+
+
+@admin.register(DeliveryQuoteRequest)
+class DeliveryQuoteRequestAdmin(admin.ModelAdmin):
+    list_display = ['id', 'provider', 'route_type', 'customer_email', 'customer_phone', 'status', 'admin_quote_fee', 'created_at']
+    list_filter = ['status', 'route_type', 'provider', 'created_at']
+    search_fields = ['customer_name', 'customer_email', 'customer_phone', 'pickup_address', 'dropoff_address', 'package_details']
+    readonly_fields = ['created_at', 'updated_at']
+    autocomplete_fields = ['user', 'order', 'provider']
+    actions = ['mark_reviewing', 'mark_quoted']
+    fieldsets = (
+        ('Quote Request', {
+            'fields': ('status', 'provider', 'route_type', 'service_level', 'order', 'user', 'session_key')
+        }),
+        ('Customer', {
+            'fields': ('customer_name', 'customer_email', 'customer_phone')
+        }),
+        ('Route and Package', {
+            'fields': ('pickup_address', 'dropoff_address', 'package_weight_kg', 'package_details')
+        }),
+        ('Admin Quote', {
+            'fields': ('admin_quote_fee', 'admin_notes')
+        }),
+        ('Timeline', {
+            'fields': ('created_at', 'updated_at')
+        }),
+    )
+
+    @admin.action(description='Mark selected quote requests as reviewing')
+    def mark_reviewing(self, request, queryset):
+        queryset.update(status=DeliveryQuoteRequest.STATUS_REVIEWING)
+
+    @admin.action(description='Mark selected quote requests as quoted')
+    def mark_quoted(self, request, queryset):
+        queryset.update(status=DeliveryQuoteRequest.STATUS_QUOTED)
