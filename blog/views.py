@@ -1,15 +1,18 @@
-from django.shortcuts import render, get_object_or_404, redirect
-from django.http import JsonResponse
-from django.contrib import messages
-from django.core.paginator import Paginator
-from django.db.models import Q, Count
-from django.contrib.auth.decorators import login_required
-from django.contrib.admin.views.decorators import staff_member_required
-from django.utils import timezone
-from django.utils.text import slugify
-from .models import BlogPost, BlogCategory, BlogTag, BlogComment, NewsletterSubscriber
 import json
 import re
+
+from django.conf import settings
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.contrib.admin.views.decorators import staff_member_required
+from django.core.paginator import Paginator
+from django.db.models import Q, Count
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.utils.text import slugify
+
+from .models import BlogPost, BlogCategory, BlogTag, BlogComment, NewsletterSubscriber
 
 def blog_list(request):
     """Blog listing page with B&H style layout"""
