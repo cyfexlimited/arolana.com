@@ -8,11 +8,7 @@
 {% block title %}{% product_seo_title product %}{% endblock %}
 
 {% block extra_css %}
-{# ============================================================
-   AROLANA PRODUCT SEO / GOOGLE MERCHANT HEAD
-   For Google launch, force structured data currency to NGN.
-   This prevents Google from reading USD from auto currency detection.
-   ============================================================ #}
+
 <meta name="description" content="{% product_seo_description product %}">
 <link rel="canonical" href="{% product_canonical_url product %}">
 <meta property="og:type" content="product">
