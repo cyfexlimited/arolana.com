@@ -16,7 +16,8 @@ from django.template.loader import render_to_string
 from .models import (
     Product, Category, ProductReview, Wishlist, RecentlyViewed, 
     ProductVariant, ProductQuestion, Accessory, AccessoryProduct,
-    ProductImage, ProductVideo, ProductVariantImage, Brand, ProductListingBanner
+    ProductImage, ProductVideo, ProductVariantImage, Brand, ProductListingBanner,
+    ProductArticleLink
 )
 from accounts.models import User
 from currency.templatetags.currency_filters import currency as format_currency
@@ -856,6 +857,14 @@ def product_detail(request, slug):
             ),
             Prefetch('reviews', queryset=ProductReview.objects.select_related('user').order_by('-created_at')),
             Prefetch('product_accessories__accessory', queryset=Accessory.objects.filter(is_active=True)),
+            Prefetch(
+                'article_links',
+                queryset=ProductArticleLink.objects.filter(
+                    is_active=True,
+                    article__is_published=True,
+                ).select_related('article', 'article__category', 'article__author').order_by('sort_order', '-article__published_at'),
+                to_attr='active_article_links'
+            ),
             'additional_videos',
             Prefetch(
                 'questions',
@@ -1037,6 +1046,12 @@ def product_detail(request, slug):
     # ====== Videos ======
     videos = product.additional_videos.order_by('display_order')
 
+    # ====== Editorial articles attached from admin ======
+    product_article_links = list(getattr(product, 'active_article_links', []))
+    product_article_links_hero = [link for link in product_article_links if link.placement == 'hero']
+    product_article_links_overview = [link for link in product_article_links if link.placement in {'overview', 'description'}]
+    product_article_links_tab = [link for link in product_article_links if link.placement == 'articles_tab']
+
     # ====== Related Products (APPROVED ONLY) ======
     related_products = Product.objects.filter(
         category=product.category,
@@ -1127,6 +1142,10 @@ def product_detail(request, slug):
         'product_accessories': accessories,
         'videos': videos,
         'product_videos': videos,
+        'product_article_links': product_article_links,
+        'product_article_links_hero': product_article_links_hero,
+        'product_article_links_overview': product_article_links_overview,
+        'product_article_links_tab': product_article_links_tab,
         'related_products': related_products,
         'top_rated_similar': top_rated,
         'best_sellers': bestsellers,

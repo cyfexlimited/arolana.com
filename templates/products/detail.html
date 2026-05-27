@@ -663,6 +663,29 @@
                         {% endif %}
                 </div>
 
+                {% if product_article_links_hero %}
+                <div class="grid gap-3 mb-4">
+                    {% for article_link in product_article_links_hero %}
+                    <a href="{{ article_link.article_url }}"
+                       class="group flex gap-3 rounded-xl border border-blue-100 bg-blue-50/70 p-3 transition hover:-translate-y-0.5 hover:border-blue-300 hover:bg-white hover:shadow-lg"
+                       {% if article_link.open_behavior == 'new_page' %}target="_blank" rel="noopener noreferrer"{% endif %}>
+                        <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white text-blue-600">
+                            {% if article_link.article.display_image %}
+                                <img src="{{ article_link.article.display_image.url }}" alt="{{ article_link.display_label }}" class="h-full w-full object-cover">
+                            {% else %}
+                                <i class="fas fa-newspaper text-xl"></i>
+                            {% endif %}
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-[11px] font-black uppercase tracking-[0.14em] text-blue-600">Product guide</p>
+                            <h3 class="line-clamp-2 font-black text-gray-950 group-hover:text-blue-700">{{ article_link.display_label }}</h3>
+                            <p class="mt-1 line-clamp-2 text-xs text-gray-600">{{ article_link.display_teaser }}</p>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
 	                <!-- Smart Variants Selection -->
 	                {% if variant_groups %}
 	                <div class="mb-4 space-y-4" id="variant-selector">
@@ -813,6 +836,9 @@
             <button @click="tab='reviews'" :class="{'modern-tab active': tab=='reviews'}" class="px-6 py-3 font-semibold transition-all">Reviews ({{ product.reviews.count }})</button>
 	            <button @click="tab='qa'" :class="{'modern-tab active': tab=='qa'}" class="px-6 py-3 font-semibold transition-all">Q&A ({{ product.questions.count }})</button>
             <button data-product-videos-tab @click="tab='videos'" :class="{'modern-tab active': tab=='videos'}" class="px-6 py-3 font-semibold transition-all">Videos</button>
+            {% if product_article_links_tab %}
+            <button @click="tab='articles'" :class="{'modern-tab active': tab=='articles'}" class="px-6 py-3 font-semibold transition-all">Articles</button>
+            {% endif %}
             <button @click="tab='accessories'" :class="{'modern-tab active': tab=='accessories'}" class="px-6 py-3 font-semibold transition-all">Accessories</button>
         </div>
 
@@ -839,6 +865,44 @@
                         {% endfor %}
                     </ul>
                 </div>
+
+                {% if product_article_links_overview %}
+                <div class="mt-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                    <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+                        <div>
+                            <p class="text-xs font-black uppercase tracking-[0.18em] text-blue-600">Arolana articles</p>
+                            <h3 class="mt-1 text-xl font-black text-gray-950">Helpful product information</h3>
+                        </div>
+                        {% if product_article_links_tab %}
+                        <button type="button" @click="tab='articles'" class="inline-flex items-center gap-2 rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white hover:bg-blue-700">
+                            View all articles <i class="fas fa-arrow-right text-xs"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                    <div class="mt-4 grid gap-4 md:grid-cols-2">
+                        {% for article_link in product_article_links_overview %}
+                        <a href="{{ article_link.article_url }}"
+                           class="group overflow-hidden rounded-xl border border-gray-100 bg-gray-50 transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-white hover:shadow-xl"
+                           {% if article_link.open_behavior == 'new_page' %}target="_blank" rel="noopener noreferrer"{% endif %}>
+                            <div class="aspect-[16/9] bg-gradient-to-br from-blue-100 to-slate-100">
+                                {% if article_link.article.display_image %}
+                                    <img src="{{ article_link.article.display_image.url }}" alt="{{ article_link.display_label }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105">
+                                {% else %}
+                                    <div class="flex h-full items-center justify-center text-blue-500">
+                                        <i class="fas fa-newspaper text-4xl"></i>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="p-4">
+                                <p class="text-[11px] font-black uppercase tracking-[0.14em] text-blue-600">{{ article_link.article.category.name|default:"Article" }}</p>
+                                <h4 class="mt-1 line-clamp-2 text-lg font-black text-gray-950 group-hover:text-blue-700">{{ article_link.display_label }}</h4>
+                                <p class="mt-2 line-clamp-3 text-sm text-gray-600">{{ article_link.display_teaser }}</p>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
             </div>
 
             <!-- Specifications Tab -->
@@ -1040,6 +1104,41 @@
                     {% endfor %}
                 </div>
             </div>
+
+            {% if product_article_links_tab %}
+            <!-- Articles Tab -->
+            <div x-show="tab=='articles'" x-transition.duration.300ms>
+                <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                    {% for article_link in product_article_links_tab %}
+                    <a href="{{ article_link.article_url }}"
+                       class="group overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-1 hover:border-blue-200 hover:shadow-2xl"
+                       {% if article_link.open_behavior == 'new_page' %}target="_blank" rel="noopener noreferrer"{% endif %}>
+                        <div class="aspect-[16/10] bg-gradient-to-br from-blue-100 to-slate-100">
+                            {% if article_link.article.display_image %}
+                                <img src="{{ article_link.article.display_image.url }}" alt="{{ article_link.display_label }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105">
+                            {% else %}
+                                <div class="flex h-full items-center justify-center text-blue-500">
+                                    <i class="fas fa-newspaper text-5xl"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="p-5">
+                            <div class="flex flex-wrap items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-blue-600">
+                                <span>{{ article_link.article.category.name|default:"Article" }}</span>
+                                <span class="text-gray-300">•</span>
+                                <span>{{ article_link.article.get_reading_time_display }}</span>
+                            </div>
+                            <h3 class="mt-2 line-clamp-2 text-lg font-black text-gray-950 group-hover:text-blue-700">{{ article_link.display_label }}</h3>
+                            <p class="mt-2 line-clamp-3 text-sm text-gray-600">{{ article_link.display_teaser }}</p>
+                            <span class="mt-4 inline-flex items-center gap-2 text-sm font-black text-blue-600">
+                                Read article <i class="fas fa-arrow-right text-xs"></i>
+                            </span>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
 
             <!-- Accessories Tab -->
             <div x-show="tab=='accessories'" x-transition.duration.300ms>

@@ -235,7 +235,7 @@
          data-animation-duration="{{ banner.animation_duration|default:0.8 }}"
          {% if banner.has_slide_link %}
          data-banner-clickable="true"
-         data-banner-click-url="{{ banner.slide_link_url }}"
+         data-banner-click-url="{{ banner.effective_slide_link_url }}"
          data-banner-click-behavior="{{ banner.slide_open_behavior|default:'same_page' }}"
          role="link"
          tabindex="0"

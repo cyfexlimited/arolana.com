@@ -59,10 +59,17 @@ def rider_register(request):
     if request.method == "POST":
         rider_type = request.POST.get("rider_type") or RiderProfile.RIDER_INDEPENDENT
         vehicle = DeliveryVehicle.objects.filter(id=request.POST.get("vehicle")).first()
+        phone = request.POST.get("phone", "").strip()
+        if not vehicle:
+            messages.error(request, "Please choose your delivery vehicle.")
+            return render(request, "deliveries/rider_register.html", {"vehicles": vehicles, "rider": rider})
+        if not phone:
+            messages.error(request, "Please enter your phone number.")
+            return render(request, "deliveries/rider_register.html", {"vehicles": vehicles, "rider": rider})
         rider, _created = RiderProfile.objects.get_or_create(user=request.user)
         rider.rider_type = rider_type
         rider.vehicle = vehicle
-        rider.phone = request.POST.get("phone", "").strip()
+        rider.phone = phone
         rider.emergency_phone = request.POST.get("emergency_phone", "").strip()
         if request.FILES.get("id_document"):
             rider.id_document = request.FILES["id_document"]

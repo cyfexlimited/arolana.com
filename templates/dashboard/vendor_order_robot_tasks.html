@@ -63,10 +63,20 @@
                         </span>
                     </div>
 
-                    <dl class="mt-4 grid gap-3 text-sm text-gray-600 md:grid-cols-3">
+                    <dl class="mt-4 grid gap-3 text-sm text-gray-600 md:grid-cols-2 xl:grid-cols-4">
                         <div>
                             <dt class="font-black text-gray-900">Customer</dt>
                             <dd>{{ task.process.order.user.get_full_name|default:task.process.order.user.email }}</dd>
+                        </div>
+                        <div>
+                            <dt class="font-black text-gray-900">Customer Phone</dt>
+                            <dd>
+                                {% if task.process.live_delivery and task.process.live_delivery.dropoff_phone %}
+                                    {{ task.process.live_delivery.dropoff_phone }}
+                                {% else %}
+                                    Phone pending
+                                {% endif %}
+                            </dd>
                         </div>
                         <div>
                             <dt class="font-black text-gray-900">Order Total</dt>
@@ -86,6 +96,19 @@
                         </div>
                     </dl>
 
+                    {% if task.process.live_delivery %}
+                    <div class="mt-4 grid gap-3 text-sm md:grid-cols-2">
+                        <div class="rounded-xl bg-blue-50 p-4 text-blue-950">
+                            <dt class="font-black text-gray-900">Pickup Address</dt>
+                            <dd class="mt-1">{{ task.process.live_delivery.pickup_address|linebreaksbr }}</dd>
+                        </div>
+                        <div class="rounded-xl bg-green-50 p-4 text-green-950">
+                            <dt class="font-black text-gray-900">Customer Drop-off</dt>
+                            <dd class="mt-1">{{ task.process.live_delivery.dropoff_address|linebreaksbr }}</dd>
+                        </div>
+                    </div>
+                    {% endif %}
+
                     <div class="mt-4 rounded-xl bg-gray-50 p-4">
                         <h3 class="text-sm font-black text-gray-950">Items</h3>
                         <ul class="mt-2 grid gap-1 text-sm text-gray-700">
@@ -104,19 +127,22 @@
 
                 <div class="w-full shrink-0 lg:w-80">
                     {% if task.status == 'pending' or task.status == 'confirmed' %}
+                    <div class="mb-3 rounded-2xl border border-blue-100 bg-blue-50 p-3 text-xs font-bold leading-5 text-blue-900">
+                        Confirm stock first. Riders only see this delivery after you mark it ready for pickup.
+                    </div>
                     <form method="post" action="{% url 'dashboard:vendor_order_robot_task_action' task.id 'confirm' %}" class="mb-3">
                         {% csrf_token %}
                         <textarea name="note" rows="2" placeholder="Optional note to Arolana admin" class="mb-2 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"></textarea>
                         <button type="submit" class="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-black text-white hover:bg-blue-700">
                             <i class="fas fa-check"></i>
-                            Confirm Order
+                            Confirm Stock
                         </button>
                     </form>
                     <form method="post" action="{% url 'dashboard:vendor_order_robot_task_action' task.id 'ready' %}" class="mb-3">
                         {% csrf_token %}
                         <button type="submit" class="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-2 text-sm font-black text-white hover:bg-green-700">
                             <i class="fas fa-box-open"></i>
-                            Mark Ready for Pickup
+                            Mark Ready & Release Rider
                         </button>
                     </form>
                     <form method="post" action="{% url 'dashboard:vendor_order_robot_task_action' task.id 'reject' %}">

@@ -179,7 +179,15 @@ class HeroBanner(BaseModel):
 
     @property
     def has_slide_link(self):
-        return bool(self.enable_slide_link and self.slide_link_url)
+        return bool(self.enable_slide_link and self.effective_slide_link_url)
+
+    @property
+    def effective_slide_link_url(self):
+        if self.slide_link_url:
+            return self.slide_link_url
+        if self.linked_article:
+            return self.linked_article.get_absolute_url()
+        return ''
 
     @property
     def article_url(self):
