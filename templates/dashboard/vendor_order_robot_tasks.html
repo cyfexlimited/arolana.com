@@ -1,0 +1,160 @@
+{% extends 'dashboard/base_dashboard.html' %}
+
+{% block dashboard_title %}Order Robot Tasks{% endblock %}
+
+{% block dashboard_content %}
+<div class="max-w-6xl">
+    <div class="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+            <p class="text-sm font-black uppercase tracking-[0.16em] text-blue-600">Arolana Order Robot</p>
+            <h1 class="mt-2 text-3xl font-black text-gray-950">Vendor Fulfillment Tasks</h1>
+            <p class="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
+                Confirm paid orders, mark packages ready for pickup, or escalate stock issues to Arolana admin.
+            </p>
+        </div>
+        <a href="{% url 'dashboard:vendor_pickup_location' %}" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-gray-950 px-5 py-2.5 text-sm font-black text-white hover:bg-gray-800">
+            <i class="fas fa-map-location-dot"></i>
+            Pickup Location
+        </a>
+    </div>
+
+    <div class="mb-6 flex gap-2 overflow-x-auto pb-1">
+        <a href="{% url 'dashboard:vendor_order_robot_tasks' %}" class="whitespace-nowrap rounded-full px-4 py-2 text-sm font-black {% if not current_status %}bg-blue-600 text-white{% else %}bg-white text-gray-700 ring-1 ring-gray-200{% endif %}">
+            All
+        </a>
+        {% for value, label in status_choices %}
+        <a href="{% url 'dashboard:vendor_order_robot_tasks' %}?status={{ value }}" class="whitespace-nowrap rounded-full px-4 py-2 text-sm font-black {% if current_status == value %}bg-blue-600 text-white{% else %}bg-white text-gray-700 ring-1 ring-gray-200{% endif %}">
+            {{ label }}
+        </a>
+        {% endfor %}
+    </div>
+
+    {% if pending_count %}
+    <div class="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
+        <div class="flex items-center gap-3">
+            <span class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-amber-500 text-white">
+                <i class="fas fa-bell"></i>
+            </span>
+            <div>
+                <h2 class="font-black">{{ pending_count }} order{{ pending_count|pluralize }} waiting for your confirmation</h2>
+                <p class="text-sm">Respond quickly so Arolana can assign delivery and keep the customer updated.</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="grid gap-4">
+        {% for task in tasks %}
+        <article class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <h2 class="text-xl font-black text-gray-950">{{ task.process.order.order_number }}</h2>
+                        <span class="rounded-full px-3 py-1 text-xs font-black
+                            {% if task.status == 'pending' %}bg-amber-100 text-amber-800
+                            {% elif task.status == 'confirmed' %}bg-blue-100 text-blue-800
+                            {% elif task.status == 'ready_for_pickup' %}bg-green-100 text-green-800
+                            {% elif task.status == 'rejected' %}bg-red-100 text-red-800
+                            {% else %}bg-gray-100 text-gray-700{% endif %}">
+                            {{ task.get_status_display }}
+                        </span>
+                        <span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-600">
+                            Robot: {{ task.process.get_current_status_display }}
+                        </span>
+                    </div>
+
+                    <dl class="mt-4 grid gap-3 text-sm text-gray-600 md:grid-cols-3">
+                        <div>
+                            <dt class="font-black text-gray-900">Customer</dt>
+                            <dd>{{ task.process.order.user.get_full_name|default:task.process.order.user.email }}</dd>
+                        </div>
+                        <div>
+                            <dt class="font-black text-gray-900">Order Total</dt>
+                            <dd>{{ task.process.order.total }}</dd>
+                        </div>
+                        <div>
+                            <dt class="font-black text-gray-900">Delivery</dt>
+                            <dd>
+                                {% if task.process.live_delivery %}
+                                    {{ task.process.live_delivery.tracking_code }} - {{ task.process.live_delivery.get_status_display }}
+                                {% elif task.process.legacy_delivery %}
+                                    {{ task.process.legacy_delivery.tracking_code }} - {{ task.process.legacy_delivery.get_tracking_status_display }}
+                                {% else %}
+                                    Waiting for delivery setup
+                                {% endif %}
+                            </dd>
+                        </div>
+                    </dl>
+
+                    <div class="mt-4 rounded-xl bg-gray-50 p-4">
+                        <h3 class="text-sm font-black text-gray-950">Items</h3>
+                        <ul class="mt-2 grid gap-1 text-sm text-gray-700">
+                            {% for item in task.process.order.items.all %}
+                                {% if item.product.vendor_id == request.user.id or item.variant.product.vendor_id == request.user.id %}
+                                <li>{{ item.quantity }} x {{ item.item_name }}</li>
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                    {% if task.note %}
+                    <p class="mt-3 rounded-xl bg-blue-50 p-3 text-sm font-semibold text-blue-900">{{ task.note }}</p>
+                    {% endif %}
+                </div>
+
+                <div class="w-full shrink-0 lg:w-80">
+                    {% if task.status == 'pending' or task.status == 'confirmed' %}
+                    <form method="post" action="{% url 'dashboard:vendor_order_robot_task_action' task.id 'confirm' %}" class="mb-3">
+                        {% csrf_token %}
+                        <textarea name="note" rows="2" placeholder="Optional note to Arolana admin" class="mb-2 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"></textarea>
+                        <button type="submit" class="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-black text-white hover:bg-blue-700">
+                            <i class="fas fa-check"></i>
+                            Confirm Order
+                        </button>
+                    </form>
+                    <form method="post" action="{% url 'dashboard:vendor_order_robot_task_action' task.id 'ready' %}" class="mb-3">
+                        {% csrf_token %}
+                        <button type="submit" class="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-2 text-sm font-black text-white hover:bg-green-700">
+                            <i class="fas fa-box-open"></i>
+                            Mark Ready for Pickup
+                        </button>
+                    </form>
+                    <form method="post" action="{% url 'dashboard:vendor_order_robot_task_action' task.id 'reject' %}">
+                        {% csrf_token %}
+                        <input name="note" placeholder="Reason required: stock issue, damaged item..." class="mb-2 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-red-500 focus:outline-none" required>
+                        <button type="submit" class="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-red-50 px-4 py-2 text-sm font-black text-red-700 hover:bg-red-100">
+                            <i class="fas fa-triangle-exclamation"></i>
+                            Escalate Issue
+                        </button>
+                    </form>
+                    {% else %}
+                    <div class="rounded-2xl bg-gray-50 p-4 text-sm text-gray-600">
+                        <p class="font-black text-gray-950">No action needed right now</p>
+                        <p class="mt-1">This task is already {{ task.get_status_display|lower }}.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </article>
+        {% empty %}
+        <div class="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center">
+            <i class="fas fa-robot text-4xl text-gray-300"></i>
+            <h2 class="mt-4 text-xl font-black text-gray-950">No robot tasks yet</h2>
+            <p class="mt-2 text-sm text-gray-600">Paid orders that need your confirmation will appear here automatically.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if tasks.has_other_pages %}
+    <div class="mt-8 flex justify-center gap-2">
+        {% if tasks.has_previous %}
+        <a href="?page={{ tasks.previous_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}" class="rounded-full bg-white px-4 py-2 text-sm font-black text-gray-700 ring-1 ring-gray-200">Previous</a>
+        {% endif %}
+        <span class="rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white">{{ tasks.number }} / {{ tasks.paginator.num_pages }}</span>
+        {% if tasks.has_next %}
+        <a href="?page={{ tasks.next_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}" class="rounded-full bg-white px-4 py-2 text-sm font-black text-gray-700 ring-1 ring-gray-200">Next</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

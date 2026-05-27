@@ -170,6 +170,7 @@ urlpatterns = [
     path("products/", include("products.urls")),
     path("orders/", include("orders.urls")),
     path("deliveries/", include("deliveries.urls")),
+    path("order-robot/", include("order_robot.urls")),
     path("dashboard/", include("dashboard.urls")),
     path("search/", include("search_ai.urls")),
     path("hero-banners/", include("hero_banners.urls")),

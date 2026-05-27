@@ -5,6 +5,7 @@ from django.contrib import messages
 from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from .models import DeliveryProvider, DeliveryQuoteRequest, DeliveryRequest, Order
@@ -29,18 +30,65 @@ def orders_home(request):
 def order_detail(request, order_number):
     queryset = (
         Order.objects
-        .prefetch_related('items__product', 'delivery_requests__provider')
+        .prefetch_related('items__product__vendor', 'items__variant__product__vendor', 'delivery_requests__provider', 'live_delivery_requests__rider__user')
     )
-    if not request.user.is_staff:
+    is_staff = request.user.is_staff
+    if not is_staff:
         queryset = queryset.filter(user=request.user)
+        involved_order = (
+            Order.objects
+            .filter(order_number=order_number)
+            .filter(
+                Q(items__product__vendor=request.user)
+                | Q(items__variant__product__vendor=request.user)
+                | Q(delivery_requests__driver_user=request.user)
+                | Q(live_delivery_requests__rider__user=request.user)
+            )
+            .distinct()
+            .exists()
+        )
+        if involved_order:
+            queryset = (
+                Order.objects
+                .prefetch_related('items__product__vendor', 'items__variant__product__vendor', 'delivery_requests__provider', 'live_delivery_requests__rider__user')
+                .filter(order_number=order_number)
+                .filter(
+                    Q(user=request.user)
+                    | Q(items__product__vendor=request.user)
+                    | Q(items__variant__product__vendor=request.user)
+                    | Q(delivery_requests__driver_user=request.user)
+                    | Q(live_delivery_requests__rider__user=request.user)
+                )
+                .distinct()
+            )
 
     order = get_object_or_404(queryset, order_number=order_number)
     delivery = order.delivery_requests.order_by('-created_at').first()
     delivery_steps = DeliveryRequest.TRACKING_STATUS_CHOICES
+    is_customer = order.user_id == request.user.id
+    is_vendor = order.items.filter(Q(product__vendor=request.user) | Q(variant__product__vendor=request.user)).exists()
+    is_rider = (
+        order.delivery_requests.filter(driver_user=request.user).exists()
+        or order.live_delivery_requests.filter(rider__user=request.user).exists()
+    )
+    visible_items = order.items.all()
+    if is_vendor and not (is_staff or is_customer or is_rider):
+        visible_items = visible_items.filter(Q(product__vendor=request.user) | Q(variant__product__vendor=request.user))
+
+    if is_vendor and not is_customer and not is_staff:
+        back_url = reverse('dashboard:vendor_order_robot_tasks')
+        back_label = 'Back to Order Robot'
+    else:
+        back_url = reverse('orders:list')
+        back_label = 'Back to orders'
+
     return render(request, 'orders/detail.html', {
         'order': order,
         'delivery': delivery,
         'delivery_steps': delivery_steps,
+        'visible_items': visible_items,
+        'back_url': back_url,
+        'back_label': back_label,
     })
 
 

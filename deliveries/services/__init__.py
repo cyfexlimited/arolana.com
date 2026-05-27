@@ -285,7 +285,108 @@ def cart_package_weight_kg(cart):
     return total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
-def create_live_delivery_for_order(order, legacy_delivery=None, checkout_data=None, service_level="standard"):
+def nearby_available_riders(pickup_latitude, pickup_longitude, max_distance_km=50, limit=10):
+    """Return approved online riders sorted by distance to the pickup pin."""
+    pickup_lat = decimal_or_none(pickup_latitude)
+    pickup_lon = decimal_or_none(pickup_longitude)
+    if pickup_lat is None or pickup_lon is None:
+        return []
+
+    candidates = (
+        RiderProfile.objects
+        .filter(
+            kyc_status=RiderProfile.KYC_APPROVED,
+            is_online=True,
+            is_available=True,
+            is_suspended=False,
+            current_latitude__isnull=False,
+            current_longitude__isnull=False,
+        )
+        .exclude(
+            deliveries__status__in=[
+                DeliveryRequest.STATUS_ASSIGNED,
+                DeliveryRequest.STATUS_ACCEPTED,
+                DeliveryRequest.STATUS_ARRIVED_PICKUP,
+                DeliveryRequest.STATUS_PICKED_UP,
+                DeliveryRequest.STATUS_IN_TRANSIT,
+                DeliveryRequest.STATUS_ARRIVED_CUSTOMER,
+            ]
+        )
+        .select_related("user", "vehicle", "zone")
+        .distinct()
+    )
+
+    ranked = []
+    max_distance = money(max_distance_km, "50.00")
+    for rider in candidates:
+        distance = haversine_km(pickup_lat, pickup_lon, rider.current_latitude, rider.current_longitude)
+        if distance is None:
+            continue
+        if max_distance and distance > max_distance:
+            continue
+        ranked.append((rider, distance))
+
+    ranked.sort(key=lambda item: item[1])
+    return ranked[:limit]
+
+
+@transaction.atomic
+def assign_nearest_rider(delivery, max_distance_km=50):
+    """Assign the closest online approved rider to a new delivery, if one exists."""
+    if not delivery or delivery.rider_id:
+        return None
+    if not getattr(delivery, "is_ready_for_rider", True):
+        return None
+    if delivery.status not in {DeliveryRequest.STATUS_PENDING, DeliveryRequest.STATUS_ASSIGNED}:
+        return None
+
+    ranked = nearby_available_riders(
+        delivery.pickup_latitude,
+        delivery.pickup_longitude,
+        max_distance_km=max_distance_km,
+        limit=1,
+    )
+    if not ranked:
+        return None
+
+    rider, distance = ranked[0]
+    delivery.rider = rider
+    if rider.vehicle_id and not delivery.requested_vehicle_id:
+        delivery.requested_vehicle = rider.vehicle
+        delivery.save(update_fields=["rider", "requested_vehicle", "updated_at"])
+    else:
+        delivery.save(update_fields=["rider", "updated_at"])
+
+    delivery.set_status(
+        DeliveryRequest.STATUS_ASSIGNED,
+        note=f"Auto-assigned to nearest online rider {distance} km from pickup.",
+    )
+    try:
+        from notifications.models import Notification
+
+        Notification.send(
+            user=rider.user,
+            notification_type="shipping",
+            title="New Arolana delivery assigned",
+            message=(
+                f"Delivery {delivery.tracking_code} is ready. "
+                f"Pickup: {delivery.pickup_name or 'Vendor'} ({delivery.pickup_phone or 'phone pending'}). "
+                f"Customer: {delivery.dropoff_name or 'Customer'} ({delivery.dropoff_phone or 'phone pending'})."
+            ),
+            link="/deliveries/rider/dashboard/",
+            metadata={
+                "delivery_id": delivery.id,
+                "tracking_code": delivery.tracking_code,
+                "order_number": delivery.order.order_number,
+            },
+            priority=4,
+        )
+    except Exception:
+        pass
+    return rider
+
+
+def create_live_delivery_for_order(order, legacy_delivery=None, checkout_data=None, service_level="standard", defer_assignment=False):
     checkout_data = checkout_data or {}
     existing = DeliveryRequest.objects.filter(order=order).order_by("-created_at").first()
     if existing:
@@ -327,10 +428,13 @@ def create_live_delivery_for_order(order, legacy_delivery=None, checkout_data=No
         surge_multiplier=quote["surge_multiplier"],
         delivery_fee=quote["fee"],
         rider_earning=quote["rider_earning"],
+        is_ready_for_rider=not defer_assignment,
         customer_note=checkout_data.get("delivery_note", ""),
     )
     DeliveryRequest.objects.filter(pk=delivery.pk).update(updated_at=timezone.now())
     delivery.set_status(DeliveryRequest.STATUS_PENDING, note="Delivery created after payment.")
+    if not defer_assignment:
+        assign_nearest_rider(delivery)
     return delivery
 
 
@@ -338,6 +442,8 @@ def create_live_delivery_for_order(order, legacy_delivery=None, checkout_data=No
 def accept_delivery(delivery, rider):
     if not rider.can_accept_deliveries:
         raise ValueError("Rider must be approved, online, available, and not suspended.")
+    if not getattr(delivery, "is_ready_for_rider", True):
+        raise ValueError("This delivery is waiting for vendor/admin confirmation before riders can accept it.")
     if delivery.status not in {DeliveryRequest.STATUS_PENDING, DeliveryRequest.STATUS_ASSIGNED}:
         raise ValueError("This delivery is no longer available.")
     delivery.rider = rider
@@ -347,7 +453,7 @@ def accept_delivery(delivery, rider):
     return delivery
 
 
-def update_rider_location(delivery, rider, latitude, longitude, heading=None, speed_kmph=None, accuracy_meters=None):
+def update_rider_current_location(rider, latitude, longitude):
     lat = decimal_or_none(latitude)
     lon = decimal_or_none(longitude)
     if lat is None or lon is None:
@@ -356,11 +462,16 @@ def update_rider_location(delivery, rider, latitude, longitude, heading=None, sp
     rider.current_longitude = lon
     rider.last_location_at = timezone.now()
     rider.save(update_fields=["current_latitude", "current_longitude", "last_location_at", "updated_at"])
+    return rider
+
+
+def update_rider_location(delivery, rider, latitude, longitude, heading=None, speed_kmph=None, accuracy_meters=None):
+    update_rider_current_location(rider, latitude, longitude)
     return DeliveryLocationPing.objects.create(
         delivery=delivery,
         rider=rider,
-        latitude=lat,
-        longitude=lon,
+        latitude=rider.current_latitude,
+        longitude=rider.current_longitude,
         heading=decimal_or_none(heading),
         speed_kmph=decimal_or_none(speed_kmph),
         accuracy_meters=decimal_or_none(accuracy_meters),

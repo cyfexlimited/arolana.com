@@ -53,6 +53,9 @@ urlpatterns = [
     path("vendor/orders/", views.vendor_orders, name="vendor_orders"),
     path("vendor/order/<int:order_id>/", views.vendor_order_detail, name="vendor_order_detail"),
     path("vendor/order/<int:order_id>/update-status/", views.vendor_update_order_status, name="update_order_status"),
+    path("vendor/pickup-location/", views.vendor_pickup_location, name="vendor_pickup_location"),
+    path("vendor/order-robot/", views.vendor_order_robot_tasks, name="vendor_order_robot_tasks"),
+    path("vendor/order-robot/<int:task_id>/<str:action>/", views.vendor_order_robot_task_action, name="vendor_order_robot_task_action"),
 
     # Vendor products
     path("vendor/products/", views.vendor_products, name="vendor_products"),

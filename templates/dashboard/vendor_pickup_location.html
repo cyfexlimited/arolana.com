@@ -1,0 +1,288 @@
+{% extends 'dashboard/base_dashboard.html' %}
+{% load static %}
+
+{% block dashboard_title %}Pickup Location{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+    .vendor-pickup-page {
+        max-width: 1100px;
+    }
+
+    .vendor-pickup-map {
+        min-height: 420px;
+        width: 100%;
+        border-radius: 1.25rem;
+        border: 1px solid #dbe4f0;
+        overflow: hidden;
+        background: #eef4ff;
+    }
+
+    .vendor-pickup-map-empty {
+        align-items: center;
+        color: #64748b;
+        display: flex;
+        font-weight: 800;
+        height: 100%;
+        justify-content: center;
+        min-height: 420px;
+        text-align: center;
+    }
+
+    .vendor-pickup-field {
+        border: 1px solid #d8e1ee;
+        border-radius: 0.9rem;
+        min-height: 46px;
+        padding: 0.75rem 0.9rem;
+        width: 100%;
+    }
+
+    .vendor-pickup-field:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+        outline: none;
+    }
+
+    @media (max-width: 768px) {
+        .vendor-pickup-map,
+        .vendor-pickup-map-empty {
+            min-height: 330px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="vendor-pickup-page mx-auto">
+    <div class="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+            <p class="text-sm font-black uppercase tracking-[0.18em] text-blue-600">Delivery setup</p>
+            <h1 class="mt-2 text-3xl font-black text-gray-950">Pickup Location</h1>
+            <p class="mt-2 max-w-2xl text-gray-600">
+                Save the exact store or warehouse point riders should navigate to. Checkout delivery fees and nearby rider assignment use this pin.
+            </p>
+        </div>
+        {% if vendor_profile.pickup_location_is_ready %}
+        <a
+            href="https://www.google.com/maps/search/?api=1&query={{ vendor_profile.pickup_latitude }},{{ vendor_profile.pickup_longitude }}"
+            target="_blank"
+            rel="noopener"
+            class="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-gray-950 px-5 py-2.5 text-sm font-black text-white hover:bg-gray-800"
+        >
+            <i class="fas fa-map-location-dot"></i>
+            Open in Google Maps
+        </a>
+        {% endif %}
+    </div>
+
+    {% if messages %}
+    <div class="mb-6 space-y-3">
+        {% for message in messages %}
+        <div class="rounded-2xl border px-4 py-3 text-sm font-bold {% if message.tags == 'success' %}border-green-200 bg-green-50 text-green-800{% elif message.tags == 'error' %}border-red-200 bg-red-50 text-red-800{% else %}border-blue-200 bg-blue-50 text-blue-800{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+        <form method="post" class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            {% csrf_token %}
+            <div class="mb-5 rounded-2xl border {% if vendor_profile.pickup_location_is_ready %}border-green-200 bg-green-50 text-green-900{% else %}border-amber-200 bg-amber-50 text-amber-900{% endif %} p-4">
+                <div class="flex items-start gap-3">
+                    <span class="inline-flex h-10 w-10 flex-none items-center justify-center rounded-full {% if vendor_profile.pickup_location_is_ready %}bg-green-600{% else %}bg-amber-500{% endif %} text-white">
+                        <i class="fas {% if vendor_profile.pickup_location_is_ready %}fa-check{% else %}fa-location-crosshairs{% endif %}"></i>
+                    </span>
+                    <div>
+                        <h2 class="font-black">{% if vendor_profile.pickup_location_is_ready %}Pickup pin is ready{% else %}Pickup pin required{% endif %}</h2>
+                        <p class="mt-1 text-sm leading-6">
+                            {% if vendor_profile.pickup_location_is_ready %}
+                            Riders can locate your pickup point and the checkout can calculate distance-based delivery fees.
+                            {% else %}
+                            Add your exact pickup address and set the map pin before delivery pricing can be fully accurate.
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid gap-4">
+                <label class="grid gap-2">
+                    <span class="text-sm font-black text-gray-800">Pickup contact name</span>
+                    <input
+                        class="vendor-pickup-field"
+                        type="text"
+                        name="pickup_contact_name"
+                        value="{{ vendor_profile.pickup_contact_name }}"
+                        placeholder="{{ vendor_profile.store_name }}"
+                        autocomplete="name"
+                    >
+                </label>
+
+                <label class="grid gap-2">
+                    <span class="text-sm font-black text-gray-800">Pickup phone</span>
+                    <input
+                        class="vendor-pickup-field"
+                        type="tel"
+                        name="pickup_phone"
+                        value="{{ vendor_profile.pickup_phone }}"
+                        placeholder="+234..."
+                        autocomplete="tel"
+                    >
+                </label>
+
+                <label class="grid gap-2">
+                    <span class="text-sm font-black text-gray-800">Exact pickup address <span class="text-red-500">*</span></span>
+                    <textarea
+                        id="vendor-pickup-address"
+                        class="vendor-pickup-field min-h-32 resize-y"
+                        name="pickup_address"
+                        required
+                        placeholder="Shop number, building, street, area, city, state, country"
+                    >{{ vendor_profile.pickup_address }}</textarea>
+                </label>
+
+                <input id="vendor-pickup-latitude" type="hidden" name="pickup_latitude" value="{{ vendor_profile.pickup_latitude|default_if_none:'' }}" required>
+                <input id="vendor-pickup-longitude" type="hidden" name="pickup_longitude" value="{{ vendor_profile.pickup_longitude|default_if_none:'' }}" required>
+
+                <div class="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
+                    <div class="flex items-start gap-3">
+                        <i class="fas fa-circle-info mt-1 text-blue-600"></i>
+                        <p class="leading-6">
+                            Use the map pin for the exact gate, store entrance, warehouse door, or pickup desk. A clear pin helps the nearest online rider find you quickly.
+                        </p>
+                    </div>
+                </div>
+
+                <button
+                    id="vendor-pickup-current-location"
+                    type="button"
+                    class="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-blue-200 bg-white px-4 py-2.5 text-sm font-black text-blue-700 hover:bg-blue-50"
+                >
+                    <i class="fas fa-location-crosshairs"></i>
+                    Use my current location
+                </button>
+
+                <p id="vendor-pickup-status" class="text-sm font-bold text-gray-500"></p>
+
+                <button type="submit" class="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-blue-600 px-5 py-3 font-black text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700">
+                    <i class="fas fa-floppy-disk"></i>
+                    Save Pickup Location
+                </button>
+            </div>
+        </form>
+
+        <section class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div class="mb-4 flex items-start justify-between gap-3">
+                <div>
+                    <h2 class="text-xl font-black text-gray-950">Map Pin</h2>
+                    <p class="mt-1 text-sm text-gray-600">Drag the marker to the exact rider pickup point.</p>
+                </div>
+                <span class="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs font-black text-gray-600">
+                    <i class="fas fa-map"></i>
+                    Live map
+                </span>
+            </div>
+            <div
+                id="vendor-pickup-map"
+                class="vendor-pickup-map"
+                data-latitude="{{ vendor_profile.pickup_latitude|default_if_none:'' }}"
+                data-longitude="{{ vendor_profile.pickup_longitude|default_if_none:'' }}"
+                data-address="{{ vendor_profile.pickup_address|default:'' }}"
+            >
+                <div class="vendor-pickup-map-empty">Loading pickup map...</div>
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function () {
+    "use strict";
+
+    const mapEl = document.getElementById("vendor-pickup-map");
+    if (!mapEl || !window.L) return;
+
+    const latInput = document.getElementById("vendor-pickup-latitude");
+    const lngInput = document.getElementById("vendor-pickup-longitude");
+    const statusEl = document.getElementById("vendor-pickup-status");
+    const currentButton = document.getElementById("vendor-pickup-current-location");
+
+    function numberOrNull(value) {
+        const number = Number(value);
+        return Number.isFinite(number) ? number : null;
+    }
+
+    function setStatus(message, kind) {
+        if (!statusEl) return;
+        statusEl.textContent = message || "";
+        statusEl.className = "text-sm font-bold " + (kind === "error" ? "text-red-600" : kind === "success" ? "text-green-700" : "text-gray-500");
+    }
+
+    const savedLat = numberOrNull(mapEl.dataset.latitude);
+    const savedLng = numberOrNull(mapEl.dataset.longitude);
+    const start = savedLat !== null && savedLng !== null ? [savedLat, savedLng] : [6.5244, 3.3792];
+    const map = L.map(mapEl, { scrollWheelZoom: false }).setView(start, savedLat !== null ? 16 : 11);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap contributors"
+    }).addTo(map);
+
+    const marker = L.marker(start, { draggable: true }).addTo(map);
+    marker.bindPopup("Pickup point").openPopup();
+
+    function setPin(latitude, longitude, message) {
+        const lat = Number(latitude);
+        const lng = Number(longitude);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+        const next = [lat, lng];
+        marker.setLatLng(next);
+        map.setView(next, 17);
+        if (latInput) latInput.value = lat.toFixed(7);
+        if (lngInput) lngInput.value = lng.toFixed(7);
+        if (message) setStatus(message, "success");
+    }
+
+    document.addEventListener("arolana:address-selected", function (event) {
+        const detail = event.detail || {};
+        if (detail.field && detail.field.name === "pickup_address" && detail.latitude && detail.longitude) {
+            setPin(detail.latitude, detail.longitude, "Pickup pin set from the selected address. Save to apply it.");
+        }
+    });
+
+    marker.on("dragend", function () {
+        const point = marker.getLatLng();
+        setPin(point.lat, point.lng, "Pickup pin updated. Save to apply it.");
+    });
+
+    currentButton?.addEventListener("click", function () {
+        if (!navigator.geolocation) {
+            setStatus("Your browser does not support current location.", "error");
+            return;
+        }
+
+        setStatus("Finding your current location...", "info");
+        navigator.geolocation.getCurrentPosition(
+            function (position) {
+                setPin(position.coords.latitude, position.coords.longitude, "Current location added. Move the pin if the entrance is slightly different.");
+            },
+            function () {
+                setStatus("We could not read your location. Allow location access or drag the map pin manually.", "error");
+            },
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
+        );
+    });
+
+    setTimeout(function () {
+        map.invalidateSize();
+    }, 180);
+})();
+</script>
+{% endblock %}

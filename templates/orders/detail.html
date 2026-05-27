@@ -5,9 +5,9 @@
 
 {% block content %}
 <div class="max-w-6xl mx-auto px-4 py-10">
-    <a href="{% url 'orders:list' %}" class="mb-6 inline-flex items-center gap-2 text-sm font-black text-blue-600">
+    <a href="{{ back_url|default:'/orders/' }}" class="mb-6 inline-flex items-center gap-2 text-sm font-black text-blue-600">
         <i class="fas fa-arrow-left"></i>
-        Back to orders
+        {{ back_label|default:"Back to orders" }}
     </a>
 
     <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
@@ -83,7 +83,7 @@
         <aside class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm md:p-6">
             <h2 class="text-xl font-black text-gray-950">Items</h2>
             <div class="mt-4 space-y-3">
-                {% for item in order.items.all %}
+                {% for item in visible_items %}
                     <div class="rounded-2xl bg-gray-50 p-3">
                         <p class="font-black text-gray-900">{{ item.item_name }}</p>
                         <p class="text-sm text-gray-500">Qty {{ item.quantity }}</p>

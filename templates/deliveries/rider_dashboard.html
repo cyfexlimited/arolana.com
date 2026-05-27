@@ -1,77 +1,703 @@
 {% extends "base/base.html" %}
 
-{% block title %}Rider Dashboard{% endblock %}
+{% block title %}Rider Dashboard | Arolana{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+    .rider-shell {
+        max-width: 1180px;
+    }
+
+    .rider-card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 1.25rem;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+    }
+
+    .rider-pill {
+        align-items: center;
+        border-radius: 999px;
+        display: inline-flex;
+        font-size: 0.78rem;
+        font-weight: 900;
+        gap: 0.4rem;
+        padding: 0.38rem 0.7rem;
+    }
+
+    .rider-action-btn {
+        align-items: center;
+        border-radius: 0.9rem;
+        color: #fff;
+        display: inline-flex;
+        font-weight: 900;
+        gap: 0.45rem;
+        justify-content: center;
+        min-height: 42px;
+        padding: 0.65rem 0.9rem;
+        transition: transform 0.18s ease, filter 0.18s ease;
+    }
+
+    .rider-action-btn:hover {
+        filter: brightness(0.96);
+        transform: translateY(-1px);
+    }
+
+    .rider-action-btn:disabled {
+        cursor: not-allowed;
+        filter: grayscale(1);
+        opacity: 0.55;
+        transform: none;
+    }
+
+    .rider-timeline {
+        border-left: 2px solid #dbeafe;
+        margin-left: 0.55rem;
+        padding-left: 1rem;
+    }
+
+    .rider-timeline-item {
+        position: relative;
+    }
+
+    .rider-timeline-item::before {
+        background: #2563eb;
+        border: 3px solid #fff;
+        border-radius: 999px;
+        box-shadow: 0 0 0 2px #bfdbfe;
+        content: "";
+        height: 0.72rem;
+        left: -1.43rem;
+        position: absolute;
+        top: 0.3rem;
+        width: 0.72rem;
+    }
+
+    .rider-location-live {
+        animation: riderLivePulse 1.8s ease-in-out infinite;
+    }
+
+    .rider-map {
+        background: #eff6ff;
+        border: 1px solid #dbeafe;
+        border-radius: 1.15rem;
+        height: 280px;
+        overflow: hidden;
+        width: 100%;
+    }
+
+    .rider-map-empty {
+        align-items: center;
+        background: linear-gradient(135deg, #eff6ff, #f8fafc);
+        color: #475569;
+        display: flex;
+        font-size: 0.9rem;
+        font-weight: 800;
+        height: 100%;
+        justify-content: center;
+        padding: 1rem;
+        text-align: center;
+    }
+
+    .rider-map-links a {
+        align-items: center;
+        border-radius: 999px;
+        display: inline-flex;
+        font-size: 0.78rem;
+        font-weight: 900;
+        gap: 0.35rem;
+        min-height: 34px;
+        padding: 0.45rem 0.75rem;
+    }
+
+    @keyframes riderLivePulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.28); }
+        50% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<main class="max-w-6xl mx-auto px-4 py-8">
-    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+<main
+    class="rider-shell mx-auto px-4 py-8"
+    data-rider-dashboard
+    data-current-location-url="{% url 'deliveries:api_rider_current_location' %}"
+    data-rider-is-online="{% if rider.is_online %}true{% else %}false{% endif %}"
+>
+    <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
-            <h1 class="text-3xl font-extrabold text-gray-900">Rider Dashboard</h1>
-            <p class="text-gray-600">Accept jobs, update live delivery status, and track earnings.</p>
+            <div class="text-xs font-black uppercase tracking-[0.18em] text-blue-600">Arolana Delivery</div>
+            <h1 class="mt-2 text-3xl font-black text-gray-950 md:text-4xl">Rider Dashboard</h1>
+            <p class="mt-2 max-w-2xl text-gray-600">Go online, accept delivery jobs, share live location, update delivery progress, and track your earnings.</p>
         </div>
-        <div class="flex gap-3">
+        <div class="flex flex-wrap gap-2">
+            <a href="/" class="rounded-xl border border-gray-200 bg-white px-4 py-2 font-black text-gray-800 shadow-sm hover:bg-gray-50">
+                <i class="fas fa-home mr-1"></i> Storefront
+            </a>
+            <a href="{% url 'deliveries:rider_register' %}" class="rounded-xl border border-blue-100 bg-blue-50 px-4 py-2 font-black text-blue-700 hover:bg-blue-100">
+                <i class="fas fa-id-card mr-1"></i> Rider Profile
+            </a>
             {% if rider.is_online %}
-                <form method="post" action="{% url 'deliveries:rider_go_offline' %}">{% csrf_token %}<button class="rounded-xl bg-gray-900 px-4 py-2 font-bold text-white">Go Offline</button></form>
+                <button type="button" data-share-location-global class="rounded-xl border border-green-200 bg-green-50 px-4 py-2 font-black text-green-700 hover:bg-green-100">
+                    <i class="fas fa-location-crosshairs mr-1"></i> Share Rider Location
+                </button>
+            {% endif %}
+            {% if rider.is_online %}
+                <form method="post" action="{% url 'deliveries:rider_go_offline' %}">
+                    {% csrf_token %}
+                    <button class="rounded-xl bg-gray-950 px-4 py-2 font-black text-white hover:bg-gray-800">
+                        <i class="fas fa-power-off mr-1"></i> Go Offline
+                    </button>
+                </form>
             {% else %}
-                <form method="post" action="{% url 'deliveries:rider_go_online' %}">{% csrf_token %}<button class="rounded-xl bg-green-600 px-4 py-2 font-bold text-white">Go Online</button></form>
+                <form method="post" action="{% url 'deliveries:rider_go_online' %}">
+                    {% csrf_token %}
+                    <button class="rounded-xl bg-green-600 px-4 py-2 font-black text-white hover:bg-green-700">
+                        <i class="fas fa-signal mr-1"></i> Go Online
+                    </button>
+                </form>
             {% endif %}
         </div>
     </div>
 
-    <section class="mt-6 grid gap-4 md:grid-cols-4">
-        <div class="rounded-2xl bg-white p-5 shadow-sm border"><p class="text-sm text-gray-500">KYC</p><strong>{{ rider.get_kyc_status_display }}</strong></div>
-        <div class="rounded-2xl bg-white p-5 shadow-sm border"><p class="text-sm text-gray-500">Online</p><strong>{{ rider.is_online|yesno:"Yes,No" }}</strong></div>
-        <div class="rounded-2xl bg-white p-5 shadow-sm border"><p class="text-sm text-gray-500">Completed</p><strong>{{ rider.completed_deliveries }}</strong></div>
-        <div class="rounded-2xl bg-white p-5 shadow-sm border"><p class="text-sm text-gray-500">Rating</p><strong>{{ rider.rating_avg }}</strong></div>
+    {% if messages %}
+        <div class="mt-5 grid gap-3">
+            {% for message in messages %}
+                <div class="rounded-2xl border px-4 py-3 text-sm font-bold {% if message.tags == 'error' %}border-red-200 bg-red-50 text-red-700{% elif message.tags == 'success' %}border-green-200 bg-green-50 text-green-700{% else %}border-blue-200 bg-blue-50 text-blue-700{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if rider.kyc_status != 'approved' or rider.is_suspended %}
+        <section class="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900">
+            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <h2 class="font-black">Admin approval required before accepting jobs</h2>
+                    <p class="mt-1 text-sm">Your rider status is {{ rider.get_kyc_status_display }}. Upload complete documents, then wait for admin approval.</p>
+                </div>
+                <a href="{% url 'deliveries:rider_register' %}" class="rounded-xl bg-amber-500 px-4 py-2 text-sm font-black text-white hover:bg-amber-600">Update profile</a>
+            </div>
+        </section>
+    {% elif not rider.is_online %}
+        <section class="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-5 text-blue-900">
+            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <h2 class="font-black">You are offline</h2>
+                    <p class="mt-1 text-sm">Go online first before accepting available deliveries. Once online, your location can be shared for live tracking.</p>
+                </div>
+                <form method="post" action="{% url 'deliveries:rider_go_online' %}">
+                    {% csrf_token %}
+                    <button class="rounded-xl bg-blue-600 px-4 py-2 text-sm font-black text-white hover:bg-blue-700">Go online now</button>
+                </form>
+            </div>
+        </section>
+    {% endif %}
+
+    {% if rider.is_online %}
+    <section class="mt-6 rounded-2xl border border-green-200 bg-green-50 p-4 text-green-900">
+        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+                <h2 class="font-black">Nearby matching is active</h2>
+                <p class="mt-1 text-sm" data-global-location-status>
+                    Keep this dashboard open and allow location access so new orders can be assigned to riders closest to pickup.
+                </p>
+            </div>
+            <span class="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-black text-green-700 ring-1 ring-green-200">
+                <i class="fas fa-satellite-dish"></i>
+                Live rider location
+            </span>
+        </div>
+    </section>
+    {% endif %}
+
+    <section class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <div class="rider-card p-5">
+            <p class="text-sm font-bold text-gray-500">KYC</p>
+            <strong class="mt-1 block text-lg text-gray-950">{{ rider.get_kyc_status_display }}</strong>
+        </div>
+        <div class="rider-card p-5">
+            <p class="text-sm font-bold text-gray-500">Availability</p>
+            <strong class="mt-1 block text-lg {% if rider.can_accept_deliveries %}text-green-600{% else %}text-gray-950{% endif %}">
+                {% if rider.can_accept_deliveries %}Ready for jobs{% elif rider.is_online %}Online{% else %}Offline{% endif %}
+            </strong>
+        </div>
+        <div class="rider-card p-5">
+            <p class="text-sm font-bold text-gray-500">Completed</p>
+            <strong class="mt-1 block text-lg text-gray-950">{{ rider.completed_deliveries }}</strong>
+        </div>
+        <div class="rider-card p-5">
+            <p class="text-sm font-bold text-gray-500">Wallet Balance</p>
+            <strong class="mt-1 block text-lg text-green-600">NGN {{ wallet.balance }}</strong>
+        </div>
+        <div class="rider-card p-5">
+            <p class="text-sm font-bold text-gray-500">Rating</p>
+            <strong class="mt-1 block text-lg text-gray-950">{{ rider.rating_avg }}</strong>
+        </div>
     </section>
 
     <section class="mt-8">
-        <h2 class="text-xl font-extrabold text-gray-900">Active Deliveries</h2>
-        <div class="mt-4 grid gap-4">
+        <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div>
+                <h2 class="text-2xl font-black text-gray-950">Active Deliveries</h2>
+                <p class="text-sm text-gray-500">Use these steps as the delivery moves from pickup to customer drop-off.</p>
+            </div>
+            {% if rider.is_online %}
+                <span class="rider-pill rider-location-live bg-green-50 text-green-700"><i class="fas fa-circle text-[8px]"></i> Online</span>
+            {% else %}
+                <span class="rider-pill bg-gray-100 text-gray-700"><i class="fas fa-circle text-[8px]"></i> Offline</span>
+            {% endif %}
+        </div>
+
+        <div class="mt-4 grid gap-5">
             {% for delivery in active_deliveries %}
-                <article class="rounded-2xl border bg-white p-5 shadow-sm">
-                    <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                        <div>
-                            <h3 class="font-extrabold">{{ delivery.tracking_code }}</h3>
-                            <p class="text-sm text-gray-600">{{ delivery.pickup_address|linebreaksbr }}</p>
-                            <p class="mt-2 text-sm text-gray-600">{{ delivery.dropoff_address|linebreaksbr }}</p>
+                <article
+                    class="rider-card p-5"
+                    data-rider-delivery-card
+                    data-location-url="{% url 'deliveries:api_rider_location' delivery.id %}"
+                    data-pickup-lat="{{ delivery.pickup_latitude|default_if_none:'' }}"
+                    data-pickup-lng="{{ delivery.pickup_longitude|default_if_none:'' }}"
+                    data-pickup-label="{{ delivery.pickup_name|default:'Vendor pickup'|escape }}"
+                    data-dropoff-lat="{{ delivery.dropoff_latitude|default_if_none:'' }}"
+                    data-dropoff-lng="{{ delivery.dropoff_longitude|default_if_none:'' }}"
+                    data-dropoff-label="{{ delivery.dropoff_name|default:'Customer drop-off'|escape }}"
+                >
+                    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div class="min-w-0">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <h3 class="text-lg font-black text-gray-950">{{ delivery.tracking_code }}</h3>
+                                <span class="rider-pill bg-blue-50 text-blue-700">{{ delivery.get_status_display }}</span>
+                            </div>
+                            <div class="mt-4 grid gap-3 md:grid-cols-2">
+                                <div class="rounded-2xl bg-gray-50 p-4">
+                                    <p class="text-xs font-black uppercase tracking-[0.14em] text-gray-500">Pickup</p>
+                                    <p class="mt-2 text-sm font-bold text-gray-800">{{ delivery.pickup_name|default:"Vendor pickup" }}</p>
+                                    <p class="mt-1 text-sm font-black text-blue-700">
+                                        <i class="fas fa-phone mr-1"></i>{{ delivery.pickup_phone|default:"Vendor phone pending" }}
+                                    </p>
+                                    <p class="mt-1 text-sm text-gray-600">{{ delivery.pickup_address|linebreaksbr }}</p>
+                                </div>
+                                <div class="rounded-2xl bg-gray-50 p-4">
+                                    <p class="text-xs font-black uppercase tracking-[0.14em] text-gray-500">Drop-off</p>
+                                    <p class="mt-2 text-sm font-bold text-gray-800">{{ delivery.dropoff_name|default:"Customer" }}</p>
+                                    <p class="mt-1 text-sm font-black text-green-700">
+                                        <i class="fas fa-phone mr-1"></i>{{ delivery.dropoff_phone|default:"Customer phone pending" }}
+                                    </p>
+                                    <p class="mt-1 text-sm text-gray-600">{{ delivery.dropoff_address|linebreaksbr }}</p>
+                                </div>
+                            </div>
+                            <div class="mt-3 flex flex-wrap gap-2 text-xs font-black text-gray-600">
+                                <span class="rounded-full bg-gray-100 px-3 py-1">Fee: NGN {{ delivery.delivery_fee }}</span>
+                                <span class="rounded-full bg-green-50 px-3 py-1 text-green-700">Earning: NGN {{ delivery.rider_earning }}</span>
+                                <span class="rounded-full bg-blue-50 px-3 py-1 text-blue-700">{{ delivery.distance_km }} km</span>
+                            </div>
                         </div>
-                        <span class="rounded-full bg-blue-50 px-3 py-1 text-sm font-bold text-blue-700">{{ delivery.get_status_display }}</span>
+
+                        <div class="w-full lg:w-72">
+                            <button type="button" class="w-full rounded-xl border border-green-200 bg-green-50 px-4 py-2 text-sm font-black text-green-700 hover:bg-green-100" data-share-location>
+                                <i class="fas fa-location-crosshairs mr-1"></i> Share live location
+                            </button>
+                            <p class="mt-2 text-xs text-gray-500" data-location-status>Location is shared while this dashboard remains open.</p>
+                        </div>
                     </div>
-                    <form method="post" action="{% url 'deliveries:rider_update_status' delivery.id %}" class="mt-4 flex flex-col gap-3 md:flex-row">
-                        {% csrf_token %}
-                        <select name="status" class="rounded-xl border px-3 py-2">
-                            {% for value,label in delivery.STATUS_CHOICES %}
-                                <option value="{{ value }}">{{ label }}</option>
-                            {% endfor %}
-                        </select>
-                        <input name="note" placeholder="Optional note" class="min-w-0 flex-1 rounded-xl border px-3 py-2">
-                        <button class="rounded-xl bg-blue-600 px-4 py-2 font-bold text-white">Update Status</button>
-                    </form>
+
+                    <div class="mt-5">
+                        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <div>
+                                <h4 class="font-black text-gray-950">Live delivery map</h4>
+                                <p class="text-sm text-gray-500">Use this to locate the vendor pickup and customer drop-off.</p>
+                            </div>
+                            <div class="rider-map-links flex flex-wrap gap-2">
+                                {% if delivery.pickup_latitude and delivery.pickup_longitude %}
+                                    <a href="https://www.google.com/maps/dir/?api=1&destination={{ delivery.pickup_latitude }},{{ delivery.pickup_longitude }}" target="_blank" rel="noopener" class="bg-blue-50 text-blue-700 hover:bg-blue-100">
+                                        <i class="fas fa-store"></i> Navigate to vendor
+                                    </a>
+                                {% endif %}
+                                {% if delivery.dropoff_latitude and delivery.dropoff_longitude %}
+                                    <a href="https://www.google.com/maps/dir/?api=1&destination={{ delivery.dropoff_latitude }},{{ delivery.dropoff_longitude }}" target="_blank" rel="noopener" class="bg-green-50 text-green-700 hover:bg-green-100">
+                                        <i class="fas fa-location-dot"></i> Navigate to customer
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="rider-map mt-3" data-rider-map>
+                            <div class="rider-map-empty">Map loads when pickup/drop-off coordinates are available.</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-5 grid gap-5 lg:grid-cols-[1fr_20rem]">
+                        <div>
+                            <h4 class="font-black text-gray-950">Next action</h4>
+                            <div class="mt-3 flex flex-wrap gap-2">
+                                {% for status,label,icon,color in delivery.rider_actions %}
+                                    <form method="post" action="{% url 'deliveries:rider_update_status' delivery.id %}" class="rider-status-form">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="status" value="{{ status }}">
+                                        <input type="hidden" name="latitude" data-rider-latitude>
+                                        <input type="hidden" name="longitude" data-rider-longitude>
+                                        <button class="rider-action-btn {{ color }}">
+                                            <i class="fas {{ icon }}"></i> {{ label }}
+                                        </button>
+                                    </form>
+                                {% empty %}
+                                    <span class="rounded-xl bg-gray-100 px-4 py-2 text-sm font-bold text-gray-600">No next action needed.</span>
+                                {% endfor %}
+                            </div>
+
+                            <form method="post" enctype="multipart/form-data" action="{% url 'deliveries:rider_update_status' delivery.id %}" class="mt-4 grid gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                                {% csrf_token %}
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <label class="grid gap-1">
+                                        <span class="text-xs font-black uppercase tracking-[0.12em] text-gray-500">Manual status</span>
+                                        <select name="status" class="rounded-xl border border-gray-200 px-3 py-2 text-sm">
+                                            {% for value,label in delivery.STATUS_CHOICES %}
+                                                <option value="{{ value }}" {% if value == delivery.status %}selected{% endif %}>{{ label }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </label>
+                                    <label class="grid gap-1">
+                                        <span class="text-xs font-black uppercase tracking-[0.12em] text-gray-500">Proof image</span>
+                                        <input type="file" name="proof_of_delivery" accept="image/*" class="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm">
+                                    </label>
+                                </div>
+                                <input name="note" placeholder="Optional rider note" class="rounded-xl border border-gray-200 px-3 py-2 text-sm">
+                                <input name="proof_note" placeholder="Proof / delivery note" class="rounded-xl border border-gray-200 px-3 py-2 text-sm">
+                                <input name="failed_reason" placeholder="Failed or returned reason, if needed" class="rounded-xl border border-gray-200 px-3 py-2 text-sm">
+                                <input type="hidden" name="latitude" data-rider-latitude>
+                                <input type="hidden" name="longitude" data-rider-longitude>
+                                <button class="rounded-xl bg-gray-950 px-4 py-2 text-sm font-black text-white hover:bg-gray-800">Save manual update</button>
+                            </form>
+                        </div>
+
+                        <div>
+                            <h4 class="font-black text-gray-950">Timeline</h4>
+                            <div class="rider-timeline mt-3 grid gap-3">
+                                {% for item in delivery.status_history.all|slice:":5" %}
+                                    <div class="rider-timeline-item">
+                                        <p class="text-sm font-black text-gray-800">{{ item.get_status_display }}</p>
+                                        <p class="text-xs text-gray-500">{{ item.created_at|date:"M j, Y H:i" }}</p>
+                                        {% if item.note %}<p class="mt-1 text-xs text-gray-600">{{ item.note }}</p>{% endif %}
+                                    </div>
+                                {% empty %}
+                                    <p class="text-sm text-gray-500">Timeline starts after the first update.</p>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
                 </article>
             {% empty %}
-                <p class="rounded-2xl bg-gray-50 p-5 text-gray-600">No active deliveries yet.</p>
+                <div class="rider-card p-8 text-center">
+                    <i class="fas fa-route text-4xl text-gray-300"></i>
+                    <p class="mt-3 font-black text-gray-800">No active deliveries yet.</p>
+                    <p class="mt-1 text-sm text-gray-500">Accepted jobs will appear here with live status controls.</p>
+                </div>
             {% endfor %}
         </div>
     </section>
 
     <section class="mt-8">
-        <h2 class="text-xl font-extrabold text-gray-900">Available Deliveries</h2>
+        <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div>
+                <h2 class="text-2xl font-black text-gray-950">Available Deliveries</h2>
+                <p class="text-sm text-gray-500">New dispatch jobs available to approved online riders.</p>
+            </div>
+            <span class="text-sm font-bold text-gray-500">{{ available_deliveries|length }} visible</span>
+        </div>
+
         <div class="mt-4 grid gap-4 md:grid-cols-2">
             {% for delivery in available_deliveries %}
-                <article class="rounded-2xl border bg-white p-5 shadow-sm">
-                    <h3 class="font-extrabold">{{ delivery.tracking_code }}</h3>
-                    <p class="mt-2 text-sm text-gray-600">Fee: {{ delivery.delivery_fee }} | Rider earning: {{ delivery.rider_earning }}</p>
-                    <p class="mt-2 text-sm text-gray-600">{{ delivery.dropoff_address|truncatechars:120 }}</p>
+                <article class="rider-card p-5">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <h3 class="font-black text-gray-950">{{ delivery.tracking_code }}</h3>
+                            <p class="mt-1 text-sm text-gray-500">Order {{ delivery.order.order_number }}</p>
+                        </div>
+                        <span class="rider-pill bg-gray-100 text-gray-700">{{ delivery.get_status_display }}</span>
+                    </div>
+                    <div class="mt-4 grid gap-2 text-sm text-gray-600">
+                        <p><strong class="text-gray-900">Pickup:</strong> {{ delivery.pickup_address|truncatechars:110 }}</p>
+                        <p><strong class="text-gray-900">Vendor phone:</strong> {{ delivery.pickup_phone|default:"Pending" }}</p>
+                        <p><strong class="text-gray-900">Drop-off:</strong> {{ delivery.dropoff_address|truncatechars:110 }}</p>
+                        <p><strong class="text-gray-900">Customer phone:</strong> {{ delivery.dropoff_phone|default:"Pending" }}</p>
+                    </div>
+                    <div class="mt-3 flex flex-wrap gap-2 text-xs font-black">
+                        <span class="rounded-full bg-blue-50 px-3 py-1 text-blue-700">{{ delivery.distance_km }} km</span>
+                        <span class="rounded-full bg-gray-100 px-3 py-1 text-gray-700">Fee: NGN {{ delivery.delivery_fee }}</span>
+                        <span class="rounded-full bg-green-50 px-3 py-1 text-green-700">Earn: NGN {{ delivery.rider_earning }}</span>
+                    </div>
                     <form method="post" action="{% url 'deliveries:rider_accept_delivery' delivery.id %}" class="mt-4">
                         {% csrf_token %}
-                        <button class="rounded-xl bg-green-600 px-4 py-2 font-bold text-white">Accept Delivery</button>
+                        <button class="rider-action-btn bg-green-600 w-full" {% if not rider.can_accept_deliveries %}disabled{% endif %}>
+                            <i class="fas fa-check"></i>
+                            {% if rider.can_accept_deliveries %}Accept Delivery{% elif rider.kyc_status != 'approved' %}Awaiting approval{% else %}Go online to accept{% endif %}
+                        </button>
                     </form>
                 </article>
             {% empty %}
-                <p class="rounded-2xl bg-gray-50 p-5 text-gray-600">No deliveries available right now.</p>
+                <div class="rider-card p-8 text-center md:col-span-2">
+                    <i class="fas fa-box-open text-4xl text-gray-300"></i>
+                    <p class="mt-3 font-black text-gray-800">No deliveries available right now.</p>
+                    <p class="mt-1 text-sm text-gray-500">Keep your dashboard open while online to see new dispatch jobs.</p>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="mt-8">
+        <h2 class="text-2xl font-black text-gray-950">Recent Completed Deliveries</h2>
+        <div class="mt-4 grid gap-3">
+            {% for delivery in completed_deliveries %}
+                <div class="rider-card flex flex-col gap-2 p-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <p class="font-black text-gray-950">{{ delivery.tracking_code }}</p>
+                        <p class="text-sm text-gray-500">{{ delivery.dropoff_address|truncatechars:120 }}</p>
+                    </div>
+                    <span class="font-black text-green-600">NGN {{ delivery.rider_earning }}</span>
+                </div>
+            {% empty %}
+                <p class="rider-card p-5 text-gray-600">Completed deliveries will show here.</p>
             {% endfor %}
         </div>
     </section>
 </main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    "use strict";
+
+    const dashboard = document.querySelector("[data-rider-dashboard]");
+    const cards = Array.from(document.querySelectorAll("[data-rider-delivery-card]"));
+    if (!dashboard) return;
+
+    let latestPosition = null;
+    let watchId = null;
+    let pingTimer = null;
+    let leafletReady = null;
+    const mapState = new Map();
+    const currentLocationUrl = dashboard.dataset.currentLocationUrl || "";
+    const riderIsOnline = dashboard.dataset.riderIsOnline === "true";
+
+    function loadLeaflet() {
+        if (window.L) return Promise.resolve(window.L);
+        if (leafletReady) return leafletReady;
+        leafletReady = new Promise((resolve, reject) => {
+            const script = document.createElement("script");
+            script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+            script.onload = () => resolve(window.L);
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+        return leafletReady;
+    }
+
+    function numberOrNull(value) {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(";").shift();
+        return "";
+    }
+
+    function setStatus(card, message, isError) {
+        const status = card.querySelector("[data-location-status]");
+        if (!status) return;
+        status.textContent = message;
+        status.classList.toggle("text-red-600", Boolean(isError));
+        status.classList.toggle("text-green-600", !isError && message.toLowerCase().includes("shared"));
+    }
+
+    function setGlobalStatus(message, isError) {
+        const status = document.querySelector("[data-global-location-status]");
+        if (!status) return;
+        status.textContent = message;
+        status.classList.toggle("text-red-700", Boolean(isError));
+        status.classList.toggle("text-green-800", !isError);
+    }
+
+    function markerIcon(color) {
+        return window.L.divIcon({
+            className: "",
+            html: `<span style="display:block;width:18px;height:18px;border-radius:999px;background:${color};border:3px solid #fff;box-shadow:0 6px 18px rgba(15,23,42,.25);"></span>`,
+            iconSize: [18, 18],
+            iconAnchor: [9, 9]
+        });
+    }
+
+    async function initMap(card) {
+        const mapEl = card.querySelector("[data-rider-map]");
+        if (!mapEl || mapState.has(card)) return;
+
+        const pickupLat = numberOrNull(card.dataset.pickupLat);
+        const pickupLng = numberOrNull(card.dataset.pickupLng);
+        const dropoffLat = numberOrNull(card.dataset.dropoffLat);
+        const dropoffLng = numberOrNull(card.dataset.dropoffLng);
+        if ([pickupLat, pickupLng, dropoffLat, dropoffLng].some((value) => value === null)) return;
+
+        const L = await loadLeaflet();
+        mapEl.innerHTML = "";
+        const map = L.map(mapEl, { scrollWheelZoom: false });
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            attribution: "OpenStreetMap"
+        }).addTo(map);
+
+        const pickup = L.marker([pickupLat, pickupLng], { icon: markerIcon("#2563eb") })
+            .addTo(map)
+            .bindPopup(card.dataset.pickupLabel || "Vendor pickup");
+        const dropoff = L.marker([dropoffLat, dropoffLng], { icon: markerIcon("#16a34a") })
+            .addTo(map)
+            .bindPopup(card.dataset.dropoffLabel || "Customer drop-off");
+        const bounds = L.latLngBounds([pickup.getLatLng(), dropoff.getLatLng()]);
+        map.fitBounds(bounds.pad(0.24));
+
+        mapState.set(card, { map, riderMarker: null, bounds });
+    }
+
+    function updateRiderMarkers() {
+        if (!latestPosition || !window.L) return;
+        cards.forEach((card) => {
+            const state = mapState.get(card);
+            if (!state) return;
+            const latLng = [latestPosition.coords.latitude, latestPosition.coords.longitude];
+            if (!state.riderMarker) {
+                state.riderMarker = window.L.marker(latLng, { icon: markerIcon("#f97316") })
+                    .addTo(state.map)
+                    .bindPopup("Your live location");
+            } else {
+                state.riderMarker.setLatLng(latLng);
+            }
+            state.bounds.extend(latLng);
+            state.map.fitBounds(state.bounds.pad(0.22), { animate: true, duration: 0.35 });
+        });
+    }
+
+    function fillHiddenCoordinates() {
+        if (!latestPosition) return;
+        document.querySelectorAll("[data-rider-latitude]").forEach((input) => {
+            input.value = latestPosition.coords.latitude;
+        });
+        document.querySelectorAll("[data-rider-longitude]").forEach((input) => {
+            input.value = latestPosition.coords.longitude;
+        });
+    }
+
+    async function pingDelivery(card) {
+        if (!latestPosition) return;
+        const url = card.dataset.locationUrl;
+        if (!url) return;
+        try {
+            const payload = {
+                latitude: latestPosition.coords.latitude,
+                longitude: latestPosition.coords.longitude,
+                accuracy_meters: latestPosition.coords.accuracy || "",
+                heading: latestPosition.coords.heading || "",
+                speed_kmph: latestPosition.coords.speed ? latestPosition.coords.speed * 3.6 : ""
+            };
+            const response = await fetch(url, {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCookie("csrftoken"),
+                    "X-Requested-With": "XMLHttpRequest"
+                },
+                body: JSON.stringify(payload)
+            });
+            if (!response.ok) throw new Error("Location was not saved.");
+            setStatus(card, "Live location shared just now.", false);
+        } catch (error) {
+            setStatus(card, error.message || "Could not share live location.", true);
+        }
+    }
+
+    async function pingCurrentLocation() {
+        if (!latestPosition || !currentLocationUrl) return;
+        try {
+            const payload = {
+                latitude: latestPosition.coords.latitude,
+                longitude: latestPosition.coords.longitude
+            };
+            const response = await fetch(currentLocationUrl, {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCookie("csrftoken"),
+                    "X-Requested-With": "XMLHttpRequest"
+                },
+                body: JSON.stringify(payload)
+            });
+            if (!response.ok) throw new Error("Rider location was not saved.");
+            setGlobalStatus("Rider location shared just now. Nearby order matching can use this position.", false);
+        } catch (error) {
+            setGlobalStatus(error.message || "Could not update rider location.", true);
+        }
+    }
+
+    function pingAll() {
+        pingCurrentLocation();
+        cards.forEach(pingDelivery);
+    }
+
+    function startLocationSharing() {
+        if (!navigator.geolocation) {
+            cards.forEach((card) => setStatus(card, "This browser does not support live location.", true));
+            setGlobalStatus("This browser does not support live location.", true);
+            return;
+        }
+        if (watchId !== null) {
+            pingAll();
+            return;
+        }
+        setGlobalStatus("Waiting for browser location permission...", false);
+        watchId = navigator.geolocation.watchPosition((position) => {
+            latestPosition = position;
+            fillHiddenCoordinates();
+            updateRiderMarkers();
+            pingAll();
+        }, () => {
+            cards.forEach((card) => setStatus(card, "Location permission is needed for live tracking.", true));
+            setGlobalStatus("Location permission is needed for nearby rider matching.", true);
+        }, {
+            enableHighAccuracy: true,
+            maximumAge: 10000,
+            timeout: 15000
+        });
+        if (!pingTimer) {
+            pingTimer = window.setInterval(pingAll, 30000);
+        }
+    }
+
+    document.querySelectorAll("[data-share-location], [data-share-location-global]").forEach((button) => {
+        button.addEventListener("click", startLocationSharing);
+    });
+
+    document.querySelectorAll(".rider-status-form").forEach((form) => {
+        form.addEventListener("submit", () => {
+            fillHiddenCoordinates();
+        });
+    });
+
+    if (cards.length) {
+        Promise.all(cards.map((card) => initMap(card))).catch(() => {
+            cards.forEach((card) => {
+                const mapEl = card.querySelector("[data-rider-map]");
+                if (mapEl) mapEl.innerHTML = '<div class="rider-map-empty">Map could not load. Use the Google Maps navigation buttons.</div>';
+            });
+        });
+    }
+
+    if (riderIsOnline) {
+        window.setTimeout(startLocationSharing, 700);
+    }
+})();
+</script>
 {% endblock %}

@@ -5,10 +5,20 @@ from django.http import JsonResponse
 from django.core.paginator import Paginator
 from django.db.models import Avg
 from django.template.loader import render_to_string
+from decimal import Decimal, InvalidOperation
 from .models import VendorProfile, VendorFollow, VendorReview
 from products.models import Product
 from orders.models import OrderItem
 from subscriptions.models import user_has_paid_subscription, user_subscription_limits, user_subscription_tier
+
+
+def _decimal_or_none(value):
+    try:
+        if value in (None, ""):
+            return None
+        return Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        return None
 
 def vendor_list(request):
     """List all vendors with sorting options"""
@@ -197,9 +207,14 @@ def become_vendor(request):
         store_name = request.POST.get("store_name", "").strip()
         store_slug = request.POST.get("store_slug", "").strip()
         description = request.POST.get("description", "").strip()
+        pickup_contact_name = request.POST.get("pickup_contact_name", "").strip()
+        pickup_phone = request.POST.get("pickup_phone", "").strip()
+        pickup_address = request.POST.get("pickup_address", "").strip()
+        pickup_latitude = _decimal_or_none(request.POST.get("pickup_latitude"))
+        pickup_longitude = _decimal_or_none(request.POST.get("pickup_longitude"))
 
-        if not store_name or not store_slug or not description:
-            messages.error(request, "Please fill in all fields.")
+        if not store_name or not store_slug or not description or not pickup_address or pickup_latitude is None or pickup_longitude is None:
+            messages.error(request, "Please fill in all required fields and set an accurate pickup map pin.")
             return render(request, "vendors/become.html")
 
         if VendorProfile.objects.filter(store_slug=store_slug).exists():
@@ -211,6 +226,11 @@ def become_vendor(request):
             store_name=store_name,
             store_slug=store_slug,
             description=description,
+            pickup_contact_name=pickup_contact_name,
+            pickup_phone=pickup_phone,
+            pickup_address=pickup_address,
+            pickup_latitude=pickup_latitude,
+            pickup_longitude=pickup_longitude,
             is_verified=True,
             is_active=True,
         )

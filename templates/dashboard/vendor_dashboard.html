@@ -150,6 +150,91 @@
             </a>
         </div>
     </div>
+
+    {% if not vendor_profile.pickup_location_is_ready %}
+    <div class="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-950">
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div class="flex items-start gap-3">
+                <span class="inline-flex h-11 w-11 flex-none items-center justify-center rounded-full bg-amber-500 text-white">
+                    <i class="fas fa-location-crosshairs"></i>
+                </span>
+                <div>
+                    <h2 class="text-lg font-black">Add your exact pickup location</h2>
+                    <p class="mt-1 text-sm leading-6">
+                        Delivery pricing and nearby rider assignment need your exact store or warehouse map pin.
+                    </p>
+                </div>
+            </div>
+            <a href="{% url 'dashboard:vendor_pickup_location' %}" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-amber-600 px-5 py-2.5 text-sm font-black text-white hover:bg-amber-700">
+                <i class="fas fa-map-location-dot"></i>
+                Set Pickup Pin
+            </a>
+        </div>
+    </div>
+    {% else %}
+    <div class="mb-6 rounded-2xl border border-green-200 bg-green-50 p-4 text-green-900">
+        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div class="flex items-center gap-3">
+                <span class="inline-flex h-10 w-10 flex-none items-center justify-center rounded-full bg-green-600 text-white">
+                    <i class="fas fa-check"></i>
+                </span>
+                <div>
+                    <h2 class="font-black">Pickup pin ready</h2>
+                    <p class="text-sm">Riders can navigate to your pickup location, and checkout can calculate distance-based delivery.</p>
+                </div>
+            </div>
+            <a href="{% url 'dashboard:vendor_pickup_location' %}" class="inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-black text-green-700 ring-1 ring-green-200 hover:bg-green-100">
+                <i class="fas fa-pen"></i>
+                Edit Location
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="mb-6 rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div class="flex items-start gap-3">
+                <span class="inline-flex h-11 w-11 flex-none items-center justify-center rounded-full bg-blue-600 text-white">
+                    <i class="fas fa-robot"></i>
+                </span>
+                <div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <h2 class="text-lg font-black text-gray-950">Arolana Order Robot</h2>
+                        {% if robot_pending_count %}
+                        <span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">{{ robot_pending_count }} pending</span>
+                        {% endif %}
+                    </div>
+                    <p class="mt-1 text-sm leading-6 text-gray-600">
+                        Confirm paid orders, mark packages ready for pickup, and let Arolana coordinate delivery automatically.
+                    </p>
+                </div>
+            </div>
+            <a href="{% url 'dashboard:vendor_order_robot_tasks' %}" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-black text-white hover:bg-blue-700">
+                <i class="fas fa-list-check"></i>
+                Open Tasks
+            </a>
+        </div>
+
+        {% if robot_tasks %}
+        <div class="mt-4 grid gap-3 md:grid-cols-2">
+            {% for task in robot_tasks|slice:":2" %}
+            <a href="{% url 'dashboard:vendor_order_robot_tasks' %}" class="rounded-xl border border-gray-100 bg-gray-50 p-4 transition hover:border-blue-200 hover:bg-blue-50">
+                <div class="flex items-center justify-between gap-3">
+                    <strong class="text-sm text-gray-950">{{ task.process.order.order_number }}</strong>
+                    <span class="rounded-full px-2.5 py-1 text-[11px] font-black
+                        {% if task.status == 'pending' %}bg-amber-100 text-amber-800
+                        {% elif task.status == 'ready_for_pickup' %}bg-green-100 text-green-800
+                        {% elif task.status == 'rejected' %}bg-red-100 text-red-800
+                        {% else %}bg-blue-100 text-blue-800{% endif %}">
+                        {{ task.get_status_display }}
+                    </span>
+                </div>
+                <p class="mt-2 text-xs font-semibold text-gray-600">Robot status: {{ task.process.get_current_status_display }}</p>
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
     
     <!-- Notifications Section on Dashboard -->
     {% if notifications %}

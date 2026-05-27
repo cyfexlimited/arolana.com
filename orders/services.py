@@ -230,6 +230,22 @@ def send_paid_order_emails(order, delivery):
         )
 
 
+def start_order_robot(order, payment=None):
+    try:
+        from order_robot.services import process_paid_order
+
+        return process_paid_order(order, payment=payment)
+    except Exception as error:
+        notify_staff_delivery(
+            title='Order Robot could not start',
+            message=f'Order {order.order_number} was paid, but the robot could not start automatically: {error}',
+            link=_order_link(order),
+            metadata={'order_number': order.order_number, 'error': str(error)},
+            priority=4,
+        )
+        return None
+
+
 @transaction.atomic
 def mark_order_paid(payment):
     """
@@ -249,6 +265,7 @@ def mark_order_paid(payment):
         if existing_order.status == 'pending':
             existing_order.status = 'processing'
         existing_order.save(update_fields=['payment_status', 'payment_method', 'status', 'updated_at'])
+        start_order_robot(existing_order, payment=payment)
         return existing_order
 
     if not payment.user or not str(payment.order_id).isdigit():
@@ -338,6 +355,7 @@ def mark_order_paid(payment):
             legacy_delivery=delivery,
             checkout_data=checkout_data,
             service_level=service_level,
+            defer_assignment=True,
         )
     except Exception:
         pass
@@ -364,4 +382,5 @@ def mark_order_paid(payment):
         priority=4 if is_admin_quote_delivery else 3,
     )
     send_paid_order_emails(order, delivery)
+    start_order_robot(order, payment=payment)
     return order

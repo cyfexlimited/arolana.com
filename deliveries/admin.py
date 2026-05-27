@@ -1,6 +1,10 @@
 from django.contrib import admin
+from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import format_html, format_html_join
+from django.utils.safestring import mark_safe
 
+from .services import assign_nearest_rider, nearby_available_riders
 from .models import (
     DeliveryLocationPing,
     DeliveryPricingRule,
@@ -12,6 +16,188 @@ from .models import (
     RiderProfile,
     RiderWallet,
 )
+
+
+ADMIN_DELIVERY_LIVE_MAP_ASSETS = mark_safe("""
+<style>
+    .arolana-admin-live-map {
+        border: 1px solid #dbe3ef;
+        border-radius: 14px;
+        overflow: hidden;
+        background: #f8fafc;
+        max-width: 920px;
+    }
+
+    .arolana-admin-live-map-canvas {
+        height: 360px;
+        min-height: 280px;
+        width: 100%;
+    }
+
+    .arolana-admin-live-map-status {
+        align-items: center;
+        border-top: 1px solid #e5e7eb;
+        color: #475569;
+        display: flex;
+        flex-wrap: wrap;
+        font-size: 12px;
+        font-weight: 700;
+        gap: 8px;
+        justify-content: space-between;
+        padding: 10px 12px;
+    }
+
+    .arolana-admin-map-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .arolana-admin-map-links a {
+        background: #eff6ff;
+        border-radius: 999px;
+        color: #1d4ed8;
+        font-size: 12px;
+        font-weight: 800;
+        padding: 6px 10px;
+        text-decoration: none;
+    }
+
+    .arolana-admin-map-empty {
+        align-items: center;
+        color: #64748b;
+        display: flex;
+        font-weight: 800;
+        height: 100%;
+        justify-content: center;
+        padding: 20px;
+        text-align: center;
+    }
+</style>
+<script>
+(function () {
+    "use strict";
+    if (window.ArolanaAdminDeliveryMapBooted) return;
+    window.ArolanaAdminDeliveryMapBooted = true;
+
+    function numberOrNull(value) {
+        var parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    function markerIcon(color) {
+        return window.L.divIcon({
+            className: "",
+            html: '<span style="display:block;width:18px;height:18px;border-radius:999px;background:' + color + ';border:3px solid #fff;box-shadow:0 6px 18px rgba(15,23,42,.25);"></span>',
+            iconSize: [18, 18],
+            iconAnchor: [9, 9]
+        });
+    }
+
+    function setStatus(root, message) {
+        var status = root.querySelector("[data-admin-map-status]");
+        if (status) status.textContent = message;
+    }
+
+    function mapLink(lat, lng, label) {
+        if (lat === null || lng === null) return "";
+        return '<a target="_blank" rel="noopener" href="https://www.google.com/maps?q=' + encodeURIComponent(lat + "," + lng) + '">' + label + '</a>';
+    }
+
+    function fetchLocation(root) {
+        return fetch(root.dataset.locationUrl, {
+            credentials: "same-origin",
+            headers: { "X-Requested-With": "XMLHttpRequest" }
+        }).then(function (response) {
+            if (!response.ok) throw new Error("Could not load live location.");
+            return response.json();
+        });
+    }
+
+    function addOrMoveMarker(state, key, lat, lng, label, color) {
+        if (lat === null || lng === null) return null;
+        var point = [lat, lng];
+        if (!state[key]) {
+            state[key] = window.L.marker(point, { icon: markerIcon(color) }).addTo(state.map).bindPopup(label);
+        } else {
+            state[key].setLatLng(point);
+            state[key].bindPopup(label);
+        }
+        return state[key].getLatLng();
+    }
+
+    function initAdminMap(root) {
+        if (!window.L || root.dataset.mapReady === "true") return;
+        root.dataset.mapReady = "true";
+
+        var canvas = root.querySelector("[data-admin-map-canvas]");
+        if (!canvas) return;
+
+        var map = window.L.map(canvas, { scrollWheelZoom: false });
+        window.L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            attribution: "OpenStreetMap"
+        }).addTo(map);
+
+        var state = { map: map, pickup: null, dropoff: null, rider: null };
+
+        function refresh() {
+            fetchLocation(root).then(function (data) {
+                var bounds = [];
+                var pickupLat = numberOrNull(data.pickup.latitude);
+                var pickupLng = numberOrNull(data.pickup.longitude);
+                var dropoffLat = numberOrNull(data.dropoff.latitude);
+                var dropoffLng = numberOrNull(data.dropoff.longitude);
+                var riderLat = numberOrNull(data.rider.latitude);
+                var riderLng = numberOrNull(data.rider.longitude);
+
+                var pickup = addOrMoveMarker(state, "pickup", pickupLat, pickupLng, "Pickup: " + (data.pickup.label || data.pickup.address || ""), "#2563eb");
+                var dropoff = addOrMoveMarker(state, "dropoff", dropoffLat, dropoffLng, "Drop-off: " + (data.dropoff.label || data.dropoff.address || ""), "#16a34a");
+                var rider = addOrMoveMarker(state, "rider", riderLat, riderLng, "Rider: " + (data.rider.name || "No rider name"), "#f97316");
+
+                [pickup, dropoff, rider].forEach(function (item) {
+                    if (item) bounds.push(item);
+                });
+                if (bounds.length) {
+                    map.fitBounds(window.L.latLngBounds(bounds).pad(0.22));
+                } else {
+                    map.setView([6.5244, 3.3792], 11);
+                }
+
+                var links = root.querySelector("[data-admin-map-links]");
+                if (links) {
+                    links.innerHTML = [
+                        mapLink(pickupLat, pickupLng, "Open pickup"),
+                        mapLink(dropoffLat, dropoffLng, "Open drop-off"),
+                        mapLink(riderLat, riderLng, "Open rider")
+                    ].filter(Boolean).join("");
+                }
+                setStatus(root, data.rider.last_location_at ? "Last rider ping: " + data.rider.last_location_at : "Waiting for rider live location.");
+            }).catch(function (error) {
+                setStatus(root, error.message || "Could not refresh live location.");
+            });
+        }
+
+        refresh();
+        window.setInterval(refresh, 15000);
+    }
+
+    function boot() {
+        if (!window.L) {
+            window.setTimeout(boot, 250);
+            return;
+        }
+        document.querySelectorAll("[data-admin-delivery-live-map]").forEach(initAdminMap);
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", boot);
+    } else {
+        boot();
+    }
+})();
+</script>
+""")
 
 
 @admin.register(DeliveryZone)
@@ -82,11 +268,13 @@ class DeliveryLocationPingInline(admin.TabularInline):
 
 @admin.register(DeliveryRequest)
 class DeliveryRequestAdmin(admin.ModelAdmin):
-    list_display = ("tracking_code", "order", "status", "rider", "delivery_fee", "rider_earning", "distance_km", "created_at")
-    list_filter = ("status", "zone", "requested_vehicle", "rider")
+    list_display = ("tracking_code", "order", "status", "is_ready_for_rider", "rider", "delivery_fee", "rider_earning", "distance_km", "created_at")
+    list_filter = ("status", "is_ready_for_rider", "zone", "requested_vehicle", "rider")
     search_fields = ("tracking_code", "order__order_number", "dropoff_name", "dropoff_phone", "dropoff_address")
     readonly_fields = (
         "tracking_code",
+        "admin_live_map",
+        "nearby_online_riders",
         "distance_km",
         "estimated_duration_minutes",
         "package_weight_kg",
@@ -102,10 +290,11 @@ class DeliveryRequestAdmin(admin.ModelAdmin):
     )
     autocomplete_fields = ("order", "legacy_delivery", "rider", "zone", "requested_vehicle")
     inlines = (DeliveryStatusHistoryInline, DeliveryLocationPingInline)
-    actions = ("mark_assigned", "mark_picked_up", "mark_in_transit", "mark_delivered", "mark_failed")
+    actions = ("release_to_riders", "hold_from_riders", "mark_assigned", "mark_picked_up", "mark_in_transit", "mark_delivered", "mark_failed")
 
     fieldsets = (
-        ("Delivery", {"fields": ("order", "legacy_delivery", "tracking_code", "status", "zone", "rider", "requested_vehicle")}),
+        ("Delivery", {"fields": ("order", "legacy_delivery", "tracking_code", "status", "is_ready_for_rider", "zone", "rider", "requested_vehicle")}),
+        ("Live Map", {"fields": ("admin_live_map", "nearby_online_riders")}),
         ("Pickup", {"fields": ("pickup_name", "pickup_phone", "pickup_address", "pickup_latitude", "pickup_longitude")}),
         ("Drop-off", {"fields": ("dropoff_name", "dropoff_phone", "dropoff_address", "dropoff_latitude", "dropoff_longitude")}),
         ("Pricing", {"fields": (
@@ -126,13 +315,91 @@ class DeliveryRequestAdmin(admin.ModelAdmin):
         ("Timestamps", {"fields": ("accepted_at", "picked_up_at", "delivered_at", "created_at", "updated_at")}),
     )
 
+    class Media:
+        css = {
+            "all": (
+                "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
+            )
+        }
+        js = (
+            "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
+        )
+
+    @admin.display(description="Live rider map")
+    def admin_live_map(self, obj):
+        if not obj or not obj.pk:
+            return "Save this delivery first to view the live map."
+        return format_html(
+            '<div class="arolana-admin-live-map" data-admin-delivery-live-map data-location-url="{}">'
+            '<div class="arolana-admin-live-map-canvas" data-admin-map-canvas>'
+            '<div class="arolana-admin-map-empty">Loading delivery map...</div>'
+            '</div>'
+            '<div class="arolana-admin-live-map-status">'
+            '<span data-admin-map-status>Waiting for rider live location.</span>'
+            '<span class="arolana-admin-map-links" data-admin-map-links></span>'
+            '</div>'
+            '</div>{}',
+            reverse("deliveries:api_admin_delivery_location", args=[obj.pk]),
+            ADMIN_DELIVERY_LIVE_MAP_ASSETS,
+        )
+
+    @admin.display(description="Nearby online riders")
+    def nearby_online_riders(self, obj):
+        if not obj or not obj.pickup_latitude or not obj.pickup_longitude:
+            return "Add pickup coordinates to rank nearby riders."
+        ranked = nearby_available_riders(obj.pickup_latitude, obj.pickup_longitude, limit=5)
+        if not ranked:
+            return "No approved online riders with live location near this pickup."
+        return format_html_join(
+            "",
+            "{} - {} km - {}<br>",
+            ((rider, distance, rider.vehicle or "No vehicle") for rider, distance in ranked),
+        )
+
     def _set_status(self, request, queryset, status):
         for delivery in queryset:
             delivery.set_status(status, actor=request.user)
+            try:
+                from order_robot.services import sync_from_live_delivery
+
+                sync_from_live_delivery(delivery)
+            except Exception:
+                pass
 
     @admin.action(description="Mark assigned")
     def mark_assigned(self, request, queryset):
         self._set_status(request, queryset, DeliveryRequest.STATUS_ASSIGNED)
+
+    @admin.action(description="Release selected deliveries to online riders")
+    def release_to_riders(self, request, queryset):
+        released = 0
+        assigned = 0
+        for delivery in queryset:
+            if delivery.status not in {DeliveryRequest.STATUS_PENDING, DeliveryRequest.STATUS_ASSIGNED}:
+                continue
+            if not delivery.is_ready_for_rider:
+                delivery.is_ready_for_rider = True
+                delivery.save(update_fields=["is_ready_for_rider", "updated_at"])
+                delivery.status_history.create(
+                    status=delivery.status,
+                    actor=request.user,
+                    note="Admin released this delivery to riders.",
+                )
+                released += 1
+            if not delivery.rider_id and assign_nearest_rider(delivery):
+                assigned += 1
+            try:
+                from order_robot.services import sync_from_live_delivery
+
+                sync_from_live_delivery(delivery)
+            except Exception:
+                pass
+        self.message_user(request, f"{released} delivery request(s) released. {assigned} nearest rider assignment(s) made.")
+
+    @admin.action(description="Hold selected deliveries from riders")
+    def hold_from_riders(self, request, queryset):
+        updated = queryset.update(is_ready_for_rider=False)
+        self.message_user(request, f"{updated} delivery request(s) hidden from riders.")
 
     @admin.action(description="Mark picked up")
     def mark_picked_up(self, request, queryset):

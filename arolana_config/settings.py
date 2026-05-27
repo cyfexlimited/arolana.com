@@ -128,6 +128,7 @@ INSTALLED_APPS = [
     'products',
     'orders',
     'deliveries',
+    'order_robot',
     'blog',
     'chat',
     'notifications',
@@ -152,6 +153,12 @@ INSTALLED_APPS = [
     'arolana_payments',
 ]
 AROLANA_BASE_CURRENCY = "NGN"
+AROLANA_DEFAULT_CURRENCY = "NGN"
+
+GOOGLE_MERCHANT_COUNTRY = "NG"
+GOOGLE_MERCHANT_LANGUAGE = "en"
+GOOGLE_MERCHANT_CURRENCY = "NGN"
+GOOGLE_MERCHANT_FEED_LABEL = "NG"
 # ============ MIDDLEWARE ============
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -628,7 +635,6 @@ AROLANA_RATE_LIMIT_RULES = [
 
 # ============ PAYMENT GATEWAYS ============
 
-AROLANA_DEFAULT_CURRENCY = "NGN"
 PAYMENT_ADMIN_EMAIL = config("PAYMENT_ADMIN_EMAIL", default="")
 
 # Flutterwave

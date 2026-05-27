@@ -11,7 +11,7 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_http_methods
 from django.db import transaction
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 import json
 import random
 import string
@@ -23,6 +23,9 @@ from orders.models import Order, OrderItem
 from .models import AdminActivityLog, SystemAlert, VendorAdminMessage, VendorNotification
 from subscriptions.models import VendorSubscription, user_has_paid_subscription, user_subscription_limits, user_subscription_tier
 from django.core.exceptions import ObjectDoesNotExist
+
+from order_robot.models import OrderRobotVendorTask
+from order_robot.services import vendor_mark_confirmed, vendor_mark_rejected
 
 try:
     from chat.models import VendorChatRoom
@@ -51,6 +54,15 @@ def require_verified_kyc(request):
         return None
     messages.error(request, 'KYC verification must be approved before you can upload or manage products.')
     return redirect('kyc:dashboard')
+
+
+def _decimal_or_none(value):
+    try:
+        if value in (None, ""):
+            return None
+        return Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        return None
 
 
 def _percent(part, total, fallback=0):
@@ -269,6 +281,12 @@ def vendor_dashboard(request):
     
     # Get unread message count
     unread_messages_count = _vendor_unread_admin_count(request.user)
+    robot_tasks = (
+        OrderRobotVendorTask.objects
+        .filter(vendor=request.user)
+        .select_related('process__order', 'process__live_delivery')
+        .order_by('-created_at')[:5]
+    )
     
     # Monthly sales data for chart
     monthly_sales = []
@@ -311,11 +329,116 @@ def vendor_dashboard(request):
         'notifications': notifications,
         'unread_count': unread_messages_count,
         'monthly_sales': monthly_sales,
+        'robot_tasks': robot_tasks,
+        'robot_pending_count': OrderRobotVendorTask.objects.filter(vendor=request.user, status=OrderRobotVendorTask.STATUS_PENDING).count(),
     }
     context.update(subscription_context)
     context.update(performance_context)
     context.update(chat_context)
     return render(request, 'dashboard/vendor_dashboard.html', context)
+
+
+@login_required
+def vendor_pickup_location(request):
+    if not hasattr(request.user, 'vendor_profile') and request.user.user_type != 'vendor':
+        return render(request, 'dashboard/access_denied.html', {
+            'message': 'You are not registered as a vendor. Please become a vendor first.'
+        })
+
+    try:
+        vendor_profile = request.user.vendor_profile
+    except VendorProfile.DoesNotExist:
+        return render(request, 'dashboard/access_denied.html', {
+            'message': 'Your vendor profile is not set up. Please contact support.'
+        })
+
+    if request.method == 'POST':
+        pickup_address = request.POST.get('pickup_address', '').strip()
+        pickup_latitude = _decimal_or_none(request.POST.get('pickup_latitude'))
+        pickup_longitude = _decimal_or_none(request.POST.get('pickup_longitude'))
+        if not pickup_address or pickup_latitude is None or pickup_longitude is None:
+            messages.error(request, 'Add an exact pickup address and set the map pin so riders can locate you.')
+        else:
+            vendor_profile.pickup_contact_name = request.POST.get('pickup_contact_name', '').strip()
+            vendor_profile.pickup_phone = request.POST.get('pickup_phone', '').strip()
+            vendor_profile.pickup_address = pickup_address
+            vendor_profile.pickup_latitude = pickup_latitude
+            vendor_profile.pickup_longitude = pickup_longitude
+            vendor_profile.save(update_fields=[
+                'pickup_contact_name',
+                'pickup_phone',
+                'pickup_address',
+                'pickup_latitude',
+                'pickup_longitude',
+                'updated_at',
+            ])
+            messages.success(request, 'Pickup location saved. Delivery fees and rider assignment will now use this map pin.')
+            return redirect('dashboard:vendor_pickup_location')
+
+    context = {
+        'vendor_profile': vendor_profile,
+        'unread_count': _vendor_unread_admin_count(request.user),
+    }
+    context.update(_vendor_subscription_context(request.user))
+    context.update(_vendor_customer_chat_stats(request.user))
+    return render(request, 'dashboard/vendor_pickup_location.html', context)
+
+
+@login_required
+def vendor_order_robot_tasks(request):
+    if not hasattr(request.user, 'vendor_profile') and request.user.user_type != 'vendor':
+        return render(request, 'dashboard/access_denied.html', {
+            'message': 'You are not registered as a vendor. Please become a vendor first.'
+        })
+
+    status = request.GET.get('status', '')
+    tasks = (
+        OrderRobotVendorTask.objects
+        .filter(vendor=request.user)
+        .select_related('process__order', 'process__legacy_delivery', 'process__live_delivery')
+        .prefetch_related('process__order__items__product')
+        .order_by('-created_at')
+    )
+    if status in dict(OrderRobotVendorTask.STATUS_CHOICES):
+        tasks = tasks.filter(status=status)
+
+    page = request.GET.get('page', 1)
+    tasks_page = get_paginated_items(tasks, page, 12)
+    context = {
+        'tasks': tasks_page,
+        'current_status': status,
+        'status_choices': OrderRobotVendorTask.STATUS_CHOICES,
+        'pending_count': OrderRobotVendorTask.objects.filter(vendor=request.user, status=OrderRobotVendorTask.STATUS_PENDING).count(),
+        'unread_count': _vendor_unread_admin_count(request.user),
+    }
+    context.update(_vendor_subscription_context(request.user))
+    context.update(_vendor_customer_chat_stats(request.user))
+    return render(request, 'dashboard/vendor_order_robot_tasks.html', context)
+
+
+@login_required
+def vendor_order_robot_task_action(request, task_id, action):
+    task = get_object_or_404(
+        OrderRobotVendorTask.objects.select_related('process__order'),
+        id=task_id,
+        vendor=request.user,
+    )
+    if request.method != 'POST':
+        return redirect('dashboard:vendor_order_robot_tasks')
+
+    note = request.POST.get('note', '').strip()
+    if action == 'confirm':
+        vendor_mark_confirmed(task, actor=request.user, note=note or 'Vendor confirmed stock and order availability.')
+        messages.success(request, 'Order confirmed. Arolana Order Robot has been updated.')
+    elif action == 'ready':
+        vendor_mark_confirmed(task, ready=True, actor=request.user, note=note or 'Vendor marked order ready for pickup.')
+        messages.success(request, 'Order marked ready for pickup. Rider/admin delivery flow can continue.')
+    elif action == 'reject':
+        vendor_mark_rejected(task, actor=request.user, note=note or 'Vendor cannot fulfill this order.')
+        messages.warning(request, 'Order escalated to Arolana admin for help.')
+    else:
+        messages.error(request, 'Unknown robot action.')
+    return redirect('dashboard:vendor_order_robot_tasks')
 
 def dashboard_home(request):
     """Dashboard home redirect"""

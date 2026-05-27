@@ -3,10 +3,32 @@
 {% load currency_filters %}
 {% load products_extras %}
 {% load ad_tags %}
+{% load arolana_seo %}
 
-{% block title %}{{ product.name }} | Arolana.com{% endblock %}
+{% block title %}{% product_seo_title product %}{% endblock %}
 
 {% block extra_css %}
+{# ============================================================
+   AROLANA PRODUCT SEO / GOOGLE MERCHANT HEAD
+   For Google launch, force structured data currency to NGN.
+   This prevents Google from reading USD from auto currency detection.
+   ============================================================ #}
+<meta name="description" content="{% product_seo_description product %}">
+<link rel="canonical" href="{% product_canonical_url product %}">
+<meta property="og:type" content="product">
+<meta property="og:title" content="{% product_seo_title product %}">
+<meta property="og:description" content="{% product_seo_description product %}">
+<meta property="og:url" content="{% product_canonical_url product %}">
+{% if product.main_image %}
+<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ product.main_image.url }}">
+{% endif %}
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{% product_seo_title product %}">
+<meta name="twitter:description" content="{% product_seo_description product %}">
+<script type="application/ld+json">
+{% product_schema_ld product "NGN" %}
+</script>
+
 <style>
     /* Futuristic Glassmorphism Effects */
     .glass-card {
@@ -605,10 +627,15 @@
                 </div>
 
                 <!-- Price with Pulse Animation -->
-                <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-4 mb-4">
+                <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-4 mb-4" itemscope itemtype="https://schema.org/Offer">
+
+                    {# Google/Merchant stable NGN price hint. Do not remove for launch SEO. #}
+                    <meta itemprop="priceCurrency" content="NGN">
+                    <meta itemprop="price" content="{{ product.price|floatformat:2 }}">
+
                     <div class="flex items-baseline justify-between">
                         <div>
-	                            <span id="product-price" class="text-4xl font-bold text-blue-600 price-pulse">{{ current_price|currency:request }}</span>
+	                            <span id="product-price" class="text-4xl font-bold text-blue-600 price-pulse" data-google-currency="NGN" data-base-price="{{ product.price|floatformat:2 }}">{{ current_price|currency:request }}</span>
 	                            <span id="product-compare-price" class="text-gray-400 line-through ml-2 {% if not current_compare_price %}hidden{% endif %}">
 	                                {% if current_compare_price %}{{ current_compare_price|currency:request }}{% endif %}
 	                            </span>

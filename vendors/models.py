@@ -81,6 +81,10 @@ class VendorProfile(BaseModel):
     
     def __str__(self):
         return self.store_name
+
+    @property
+    def pickup_location_is_ready(self):
+        return bool(self.pickup_address and self.pickup_latitude and self.pickup_longitude)
     
     def get_absolute_url(self):
         from django.urls import reverse

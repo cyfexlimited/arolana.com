@@ -1,13 +1,40 @@
 import json
 
 from django.contrib import messages
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
-from .models import DeliveryRequest, DeliveryVehicle, RiderProfile
-from .services import accept_delivery, calculate_live_delivery_quote, update_rider_location
+from .models import DeliveryRequest, DeliveryVehicle, RiderProfile, RiderWallet
+from .services import accept_delivery, calculate_live_delivery_quote, update_rider_current_location, update_rider_location
+
+
+RIDER_STATUS_ACTIONS = {
+    DeliveryRequest.STATUS_ASSIGNED: [
+        (DeliveryRequest.STATUS_ACCEPTED, "Accept assigned job", "fa-check", "bg-green-600"),
+    ],
+    DeliveryRequest.STATUS_ACCEPTED: [
+        (DeliveryRequest.STATUS_ARRIVED_PICKUP, "Arrived at pickup", "fa-location-dot", "bg-indigo-600"),
+    ],
+    DeliveryRequest.STATUS_ARRIVED_PICKUP: [
+        (DeliveryRequest.STATUS_PICKED_UP, "Mark picked up", "fa-box", "bg-blue-600"),
+    ],
+    DeliveryRequest.STATUS_PICKED_UP: [
+        (DeliveryRequest.STATUS_IN_TRANSIT, "Start delivery", "fa-route", "bg-blue-600"),
+    ],
+    DeliveryRequest.STATUS_IN_TRANSIT: [
+        (DeliveryRequest.STATUS_ARRIVED_CUSTOMER, "Arrived at customer", "fa-location-crosshairs", "bg-indigo-600"),
+    ],
+    DeliveryRequest.STATUS_ARRIVED_CUSTOMER: [
+        (DeliveryRequest.STATUS_DELIVERED, "Mark delivered", "fa-check", "bg-green-600"),
+        (DeliveryRequest.STATUS_FAILED, "Report issue", "fa-triangle-exclamation", "bg-red-600"),
+    ],
+    DeliveryRequest.STATUS_FAILED: [
+        (DeliveryRequest.STATUS_RETURNED, "Mark returned", "fa-rotate-left", "bg-gray-800"),
+    ],
+}
 
 
 def _json_body(request):
@@ -60,15 +87,23 @@ def rider_dashboard(request):
         .filter(rider=rider)
         .exclude(status__in=[DeliveryRequest.STATUS_DELIVERED, DeliveryRequest.STATUS_CANCELLED, DeliveryRequest.STATUS_FAILED, DeliveryRequest.STATUS_RETURNED])
         .select_related("order")
+        .prefetch_related("status_history")
         .order_by("-created_at")
     )
+
+    for delivery in active_deliveries:
+        delivery.rider_actions = RIDER_STATUS_ACTIONS.get(delivery.status, [])
+
     available_deliveries = DeliveryRequest.objects.filter(
         rider__isnull=True,
+        is_ready_for_rider=True,
         status__in=[DeliveryRequest.STATUS_PENDING, DeliveryRequest.STATUS_ASSIGNED],
     ).select_related("order").order_by("-created_at")[:30]
     completed_deliveries = DeliveryRequest.objects.filter(rider=rider, status=DeliveryRequest.STATUS_DELIVERED).order_by("-updated_at")[:10]
+    wallet, _created = RiderWallet.objects.get_or_create(rider=rider)
     return render(request, "deliveries/rider_dashboard.html", {
         "rider": rider,
+        "wallet": wallet,
         "active_deliveries": active_deliveries,
         "available_deliveries": available_deliveries,
         "completed_deliveries": completed_deliveries,
@@ -83,7 +118,8 @@ def rider_go_online(request):
         messages.error(request, "Admin must approve your rider profile before you can go online.")
     else:
         rider.is_online = True
-        rider.save(update_fields=["is_online", "updated_at"])
+        rider.is_available = True
+        rider.save(update_fields=["is_online", "is_available", "updated_at"])
         messages.success(request, "You are now online for deliveries.")
     return redirect("deliveries:rider_dashboard")
 
@@ -93,7 +129,8 @@ def rider_go_online(request):
 def rider_go_offline(request):
     rider = get_object_or_404(RiderProfile, user=request.user)
     rider.is_online = False
-    rider.save(update_fields=["is_online", "updated_at"])
+    rider.is_available = False
+    rider.save(update_fields=["is_online", "is_available", "updated_at"])
     messages.success(request, "You are now offline.")
     return redirect("deliveries:rider_dashboard")
 
@@ -105,6 +142,12 @@ def rider_accept_delivery(request, delivery_id):
     delivery = get_object_or_404(DeliveryRequest, id=delivery_id)
     try:
         accept_delivery(delivery, rider)
+        try:
+            from order_robot.services import sync_from_live_delivery
+
+            sync_from_live_delivery(delivery)
+        except Exception:
+            pass
         messages.success(request, f"Delivery {delivery.tracking_code} accepted.")
     except ValueError as exc:
         messages.error(request, str(exc))
@@ -120,12 +163,49 @@ def rider_update_status(request, delivery_id):
     note = request.POST.get("note", "")
     latitude = request.POST.get("latitude") or None
     longitude = request.POST.get("longitude") or None
+    proof_note = request.POST.get("proof_note", "").strip()
+    failed_reason = request.POST.get("failed_reason", "").strip()
     if status not in dict(DeliveryRequest.STATUS_CHOICES):
         messages.error(request, "Invalid delivery status.")
     else:
+        if request.FILES.get("proof_of_delivery"):
+            delivery.proof_of_delivery = request.FILES["proof_of_delivery"]
+        if proof_note:
+            delivery.proof_note = proof_note
+        if failed_reason:
+            delivery.failed_reason = failed_reason
+        if request.FILES.get("proof_of_delivery") or proof_note or failed_reason:
+            delivery.save(update_fields=["proof_of_delivery", "proof_note", "failed_reason", "updated_at"])
         delivery.set_status(status, actor=request.user, note=note, latitude=latitude, longitude=longitude)
+        try:
+            from order_robot.services import sync_from_live_delivery
+
+            sync_from_live_delivery(delivery)
+        except Exception:
+            pass
         messages.success(request, f"Delivery status updated to {delivery.get_status_display()}.")
     return redirect("deliveries:rider_dashboard")
+
+
+@login_required
+@require_POST
+def api_rider_current_location(request):
+    rider = get_object_or_404(RiderProfile, user=request.user)
+    data = _json_body(request) or request.POST
+    try:
+        update_rider_current_location(
+            rider,
+            data.get("latitude"),
+            data.get("longitude"),
+        )
+    except ValueError as exc:
+        return JsonResponse({"success": False, "error": str(exc)}, status=400)
+    return JsonResponse({
+        "success": True,
+        "latitude": str(rider.current_latitude),
+        "longitude": str(rider.current_longitude),
+        "last_location_at": rider.last_location_at.isoformat() if rider.last_location_at else "",
+    })
 
 
 @login_required
@@ -151,6 +231,45 @@ def api_rider_location(request, delivery_id):
         "latitude": str(ping.latitude),
         "longitude": str(ping.longitude),
         "created_at": ping.created_at.isoformat(),
+    })
+
+
+@staff_member_required
+@require_GET
+def api_admin_delivery_location(request, delivery_id):
+    delivery = get_object_or_404(
+        DeliveryRequest.objects.select_related("rider__user").prefetch_related("location_pings"),
+        id=delivery_id,
+    )
+    latest = delivery.latest_location
+    rider_latitude = latest.latitude if latest else getattr(delivery.rider, "current_latitude", None)
+    rider_longitude = latest.longitude if latest else getattr(delivery.rider, "current_longitude", None)
+    return JsonResponse({
+        "success": True,
+        "tracking_code": delivery.tracking_code,
+        "status": delivery.status,
+        "status_display": delivery.get_status_display(),
+        "pickup": {
+            "label": delivery.pickup_name or "Vendor pickup",
+            "address": delivery.pickup_address,
+            "latitude": str(delivery.pickup_latitude or ""),
+            "longitude": str(delivery.pickup_longitude or ""),
+        },
+        "dropoff": {
+            "label": delivery.dropoff_name or "Customer drop-off",
+            "address": delivery.dropoff_address,
+            "latitude": str(delivery.dropoff_latitude or ""),
+            "longitude": str(delivery.dropoff_longitude or ""),
+        },
+        "rider": {
+            "name": str(delivery.rider or ""),
+            "phone": getattr(delivery.rider, "phone", "") if delivery.rider_id else "",
+            "latitude": str(rider_latitude or ""),
+            "longitude": str(rider_longitude or ""),
+            "last_location_at": latest.created_at.isoformat() if latest else (
+                delivery.rider.last_location_at.isoformat() if delivery.rider_id and delivery.rider.last_location_at else ""
+            ),
+        },
     })
 
 

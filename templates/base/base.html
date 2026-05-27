@@ -1456,6 +1456,51 @@
             transform: scale(0.97);
         }
 
+        .mobile-rider-cta {
+            align-items: center;
+            display: flex;
+            gap: 0.85rem;
+            margin: 0.85rem 1rem 0;
+            min-height: 58px;
+            padding: 0.75rem 0.9rem;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #111827 0%, var(--color-primary) 100%);
+            color: #fff;
+            box-shadow: 0 16px 36px rgba(15, 23, 42, 0.16);
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        .mobile-rider-cta i {
+            align-items: center;
+            display: inline-flex;
+            justify-content: center;
+            width: 2.45rem;
+            height: 2.45rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.16);
+            color: #fff;
+            flex: 0 0 auto;
+        }
+
+        .mobile-rider-cta strong {
+            display: block;
+            font-size: 0.92rem;
+            font-weight: 950;
+            line-height: 1.1;
+        }
+
+        .mobile-rider-cta span {
+            display: block;
+            color: rgba(255, 255, 255, 0.82);
+            font-size: 0.72rem;
+            font-weight: 700;
+            line-height: 1.25;
+        }
+
+        .mobile-rider-cta:active {
+            transform: scale(0.98);
+        }
+
         .mobile-currency-switcher {
             align-items: center;
             background: #fff;
@@ -2646,6 +2691,12 @@
                     <span id="chat-unread-badge" class="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] rounded-full min-w-4 h-4 px-1 flex items-center justify-center {% if not chat_unread_count %}hidden{% endif %}">{% if chat_unread_count > 9 %}9+{% else %}{{ chat_unread_count }}{% endif %}</span>
                 </a>
 
+                <a href="{% url 'deliveries:rider_dashboard' %}" class="premium-topbar-item inline-flex items-center gap-2 hover:text-brand transition text-sm font-medium" title="Open Arolana Rider Center">
+                    <i class="fas fa-motorcycle text-brand"></i>
+                    <span class="hidden xl:inline">Rider Center</span>
+                    <span class="xl:hidden">Rider</span>
+                </a>
+
                 {% if user.is_staff or user.is_superuser %}
                     <a href="{% url 'dashboard:admin_home' %}" class="relative hover:text-brand transition hover-glow" title="Admin Dashboard">
                         <i class="fas fa-chalkboard-user text-lg"></i>
@@ -2672,6 +2723,7 @@
                              x-transition:leave-end="opacity-0 -translate-y-2 scale-95">
                             <a href="{% url 'accounts:profile' %}" @click="dropdownOpen = false" class="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-brand transition text-sm"><i class="fas fa-user-circle w-5"></i> My Profile</a>
                             <a href="/orders/" @click="dropdownOpen = false" class="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-brand transition text-sm"><i class="fas fa-box w-5"></i> My Orders</a>
+                            <a href="{% url 'deliveries:rider_dashboard' %}" @click="dropdownOpen = false" class="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-brand transition text-sm"><i class="fas fa-motorcycle w-5"></i> Rider Center</a>
                             <a href="{% url 'accounts:wishlist' %}" @click="dropdownOpen = false" class="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-brand transition text-sm"><i class="fas fa-heart w-5"></i> Wishlist</a>
                             <a href="{% url 'notifications:list' %}" @click="dropdownOpen = false" class="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-brand transition text-sm"><i class="fas fa-bell w-5"></i> Notifications</a>
                             {% if user.is_staff or user.is_superuser %}
@@ -2961,6 +3013,12 @@
                     </li>
 
                     <li class="mega-menu-container">
+                        <a href="{% url 'deliveries:rider_dashboard' %}" class="flex items-center gap-2 px-4 py-4 hover:text-brand transition font-medium group">
+                            <i class="fas fa-motorcycle group-hover:scale-125 transition"></i> Rider Center
+                        </a>
+                    </li>
+
+                    <li class="mega-menu-container">
                         <a href="/products/?deals=true" class="flex items-center gap-2 px-4 py-4 hover:text-brand transition font-medium group">
                             <i class="fas fa-tags group-hover:scale-125 transition"></i> Deals
                         </a>
@@ -3099,6 +3157,14 @@
                 </a>
             </div>
 
+            <a href="{% url 'deliveries:rider_dashboard' %}" @click="mobileMenuOpen = false" class="mobile-rider-cta">
+                <i class="fas fa-motorcycle"></i>
+                <span>
+                    <strong>Rider Center</strong>
+                    <span>Register, manage jobs, and deliver with Arolana</span>
+                </span>
+            </a>
+
             <form method="POST" action="{% url 'currency:switch' %}" class="mobile-currency-switcher">
                 {% csrf_token %}
                 <input type="hidden" name="next" value="{{ request.path }}">
@@ -3235,6 +3301,14 @@
                     <span class="mobile-menu-left">
                         <span class="mobile-menu-icon"><i class="fas fa-store"></i></span>
                         <span class="mobile-menu-label">Vendors</span>
+                    </span>
+                    <i class="fas fa-chevron-right mobile-menu-arrow text-xs"></i>
+                </a>
+
+                <a href="{% url 'deliveries:rider_dashboard' %}" @click="mobileMenuOpen = false" class="mobile-menu-link">
+                    <span class="mobile-menu-left">
+                        <span class="mobile-menu-icon"><i class="fas fa-motorcycle"></i></span>
+                        <span class="mobile-menu-label">Rider Center</span>
                     </span>
                     <i class="fas fa-chevron-right mobile-menu-arrow text-xs"></i>
                 </a>
@@ -4600,6 +4674,383 @@
 
     {% include "partials/arolana_smart_chat_widget.html" %}
     <script defer src="{% static 'js/arolana-web-push.js' %}"></script>
+
+    <script>
+        (function () {
+            "use strict";
+
+            const googleMapsKey = "{{ GOOGLE_MAPS_API_KEY|default:''|escapejs }}";
+            const selector = [
+                'input[name="address"]',
+                'textarea[name="address"]',
+                'input[name="shipping_address"]',
+                'textarea[name="shipping_address"]',
+                'input[name="address_line1"]',
+                'textarea[name="address_line1"]',
+                'input[name="pickup_address"]',
+                'textarea[name="pickup_address"]'
+            ].join(",");
+
+            const style = document.createElement("style");
+            style.textContent = `
+                .arolana-address-suggestions {
+                    background: #fff;
+                    border: 1px solid #dbe3ef;
+                    border-radius: 14px;
+                    box-shadow: 0 18px 42px rgba(15, 23, 42, .14);
+                    max-height: 270px;
+                    overflow: auto;
+                    padding: 6px;
+                    position: absolute;
+                    z-index: 100000;
+                }
+
+                .arolana-address-suggestion {
+                    align-items: flex-start;
+                    background: transparent;
+                    border: 0;
+                    border-radius: 10px;
+                    color: #0f172a;
+                    cursor: pointer;
+                    display: flex;
+                    gap: 9px;
+                    padding: 10px 11px;
+                    text-align: left;
+                    width: 100%;
+                }
+
+                .arolana-address-suggestion:hover,
+                .arolana-address-suggestion:focus {
+                    background: #eff6ff;
+                    outline: none;
+                }
+
+                .arolana-address-suggestion i {
+                    color: #2563eb;
+                    line-height: 1.35;
+                    margin-top: 1px;
+                }
+
+                .arolana-address-suggestion strong {
+                    display: block;
+                    font-size: 13px;
+                    line-height: 1.35;
+                }
+
+                .arolana-address-suggestion span {
+                    color: #64748b;
+                    display: block;
+                    font-size: 11px;
+                    font-weight: 800;
+                    margin-top: 2px;
+                    text-transform: uppercase;
+                }
+            `;
+            document.head.appendChild(style);
+
+            let activeField = null;
+            let activeSuggestions = [];
+            let debounceTimer = null;
+            let placesService = null;
+            const dropdown = document.createElement("div");
+            dropdown.className = "arolana-address-suggestions";
+            dropdown.hidden = true;
+            document.body.appendChild(dropdown);
+
+            function isVisible(field) {
+                return field && field.offsetParent !== null && field.type !== "hidden";
+            }
+
+            function formFor(field) {
+                return field.closest("form") || document;
+            }
+
+            function inputByName(scope, names) {
+                for (const name of names) {
+                    const input = scope.querySelector(`[name="${name}"], #${name}, #vendor-${name.replace(/_/g, "-")}`);
+                    if (input) return input;
+                }
+                return null;
+            }
+
+            function dispatchFilled(input) {
+                if (!input) return;
+                input.dispatchEvent(new Event("input", { bubbles: true }));
+                input.dispatchEvent(new Event("change", { bubbles: true }));
+                input.dispatchEvent(new Event("blur", { bubbles: true }));
+            }
+
+            function componentValue(components, desiredTypes) {
+                const match = (components || []).find((component) => {
+                    return desiredTypes.some((type) => component.types && component.types.includes(type));
+                });
+                return match ? (match.long_name || match.short_name || "") : "";
+            }
+
+            function parseGoogleComponents(components) {
+                return {
+                    city: componentValue(components, ["locality", "postal_town", "administrative_area_level_2", "sublocality_level_1"]),
+                    state: componentValue(components, ["administrative_area_level_1"]),
+                    postal_code: componentValue(components, ["postal_code"]),
+                    country: componentValue(components, ["country"])
+                };
+            }
+
+            function parseNominatimAddress(address) {
+                address = address || {};
+                return {
+                    city: address.city || address.town || address.village || address.county || address.suburb || "",
+                    state: address.state || address.region || "",
+                    postal_code: address.postcode || "",
+                    country: address.country || ""
+                };
+            }
+
+            function positionDropdown(field) {
+                const rect = field.getBoundingClientRect();
+                dropdown.style.left = `${Math.max(12, rect.left + window.scrollX)}px`;
+                dropdown.style.top = `${rect.bottom + window.scrollY + 6}px`;
+                dropdown.style.width = `${Math.max(260, rect.width)}px`;
+            }
+
+            function hideDropdown() {
+                dropdown.hidden = true;
+                activeSuggestions = [];
+                activeField = null;
+            }
+
+            function hasGooglePlaces() {
+                return Boolean(window.google && google.maps && google.maps.places);
+            }
+
+            function loadGooglePlaces() {
+                if (hasGooglePlaces()) return Promise.resolve(true);
+                if (!googleMapsKey) return Promise.resolve(false);
+                if (window.__arolanaGooglePlacesPromise) return window.__arolanaGooglePlacesPromise;
+
+                window.__arolanaGooglePlacesPromise = new Promise((resolve) => {
+                    const existing = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]');
+                    const done = () => resolve(hasGooglePlaces());
+                    if (existing) {
+                        existing.addEventListener("load", done, { once: true });
+                        window.setTimeout(done, 1800);
+                        return;
+                    }
+
+                    const script = document.createElement("script");
+                    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(googleMapsKey)}&libraries=places&loading=async`;
+                    script.async = true;
+                    script.defer = true;
+                    script.onload = done;
+                    script.onerror = () => resolve(false);
+                    document.head.appendChild(script);
+                });
+                return window.__arolanaGooglePlacesPromise;
+            }
+
+            function googlePredictions(query) {
+                if (!hasGooglePlaces()) return Promise.resolve([]);
+                const service = new google.maps.places.AutocompleteService();
+                return new Promise((resolve) => {
+                    service.getPlacePredictions(
+                        { input: query },
+                        (predictions, status) => {
+                            if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions) {
+                                resolve([]);
+                                return;
+                            }
+                            resolve(predictions.slice(0, 6).map((prediction) => ({
+                                label: prediction.description,
+                                provider: "Google Places",
+                                placeId: prediction.place_id
+                            })));
+                        }
+                    );
+                });
+            }
+
+            async function nominatimPredictions(query) {
+                try {
+                    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&q=${encodeURIComponent(query)}`;
+                    const response = await fetch(url, { headers: { "Accept": "application/json" } });
+                    if (!response.ok) return [];
+                    const data = await response.json();
+                    return data.map((item) => ({
+                        label: item.display_name,
+                        provider: "Address search",
+                        latitude: item.lat,
+                        longitude: item.lon,
+                        components: parseNominatimAddress(item.address)
+                    }));
+                } catch (error) {
+                    return [];
+                }
+            }
+
+            function googleDetails(placeId) {
+                if (!hasGooglePlaces() || !placeId) return Promise.resolve(null);
+                placesService = placesService || new google.maps.places.PlacesService(document.createElement("div"));
+                return new Promise((resolve) => {
+                    placesService.getDetails(
+                        {
+                            placeId,
+                            fields: ["formatted_address", "geometry", "address_components", "name"]
+                        },
+                        (place, status) => {
+                            if (status !== google.maps.places.PlacesServiceStatus.OK || !place) {
+                                resolve(null);
+                                return;
+                            }
+                            const location = place.geometry && place.geometry.location;
+                            resolve({
+                                label: place.formatted_address || place.name || "",
+                                latitude: location ? location.lat() : "",
+                                longitude: location ? location.lng() : "",
+                                components: parseGoogleComponents(place.address_components || [])
+                            });
+                        }
+                    );
+                });
+            }
+
+            function renderSuggestions(field, suggestions) {
+                activeField = field;
+                activeSuggestions = suggestions;
+                dropdown.innerHTML = "";
+                suggestions.slice(0, 6).forEach((suggestion, index) => {
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.className = "arolana-address-suggestion";
+                    button.dataset.index = String(index);
+                    button.innerHTML = `<i class="fas fa-location-dot"></i><div><strong>${escapeHtml(suggestion.label)}</strong><span>${escapeHtml(suggestion.provider || "Address")}</span></div>`;
+                    dropdown.appendChild(button);
+                });
+                positionDropdown(field);
+                dropdown.hidden = suggestions.length === 0;
+            }
+
+            function escapeHtml(value) {
+                return String(value || "").replace(/[&<>"']/g, (char) => ({
+                    "&": "&amp;",
+                    "<": "&lt;",
+                    ">": "&gt;",
+                    '"': "&quot;",
+                    "'": "&#039;"
+                }[char]));
+            }
+
+            async function searchAddress(field) {
+                const query = field.value.trim();
+                if (query.length < 3) {
+                    hideDropdown();
+                    return;
+                }
+                await loadGooglePlaces();
+                let suggestions = await googlePredictions(query);
+                if (!suggestions.length) suggestions = await nominatimPredictions(query);
+                if (activeField === field || document.activeElement === field) {
+                    renderSuggestions(field, suggestions);
+                }
+            }
+
+            function setIfEmptyOrAvailable(input, value) {
+                if (!input || value === undefined || value === null || value === "") return;
+                input.value = value;
+                dispatchFilled(input);
+            }
+
+            function fillAddress(field, result) {
+                const scope = formFor(field);
+                const fieldName = field.name || "";
+                const isPickup = fieldName.includes("pickup");
+                const components = result.components || {};
+
+                field.value = result.label || field.value;
+                dispatchFilled(field);
+
+                setIfEmptyOrAvailable(inputByName(scope, ["city"]), components.city);
+                setIfEmptyOrAvailable(inputByName(scope, ["state"]), components.state);
+                setIfEmptyOrAvailable(inputByName(scope, ["postal_code", "postcode", "zip"]), components.postal_code);
+                setIfEmptyOrAvailable(inputByName(scope, ["country"]), components.country);
+
+                const latInput = isPickup
+                    ? inputByName(scope, ["pickup_latitude", "vendor-pickup-latitude"])
+                    : inputByName(scope, ["dropoff_latitude", "latitude"]);
+                const lngInput = isPickup
+                    ? inputByName(scope, ["pickup_longitude", "vendor-pickup-longitude"])
+                    : inputByName(scope, ["dropoff_longitude", "longitude"]);
+
+                setIfEmptyOrAvailable(latInput, result.latitude);
+                setIfEmptyOrAvailable(lngInput, result.longitude);
+
+                document.dispatchEvent(new CustomEvent("arolana:address-selected", {
+                    detail: {
+                        field,
+                        address: result.label || "",
+                        latitude: result.latitude || "",
+                        longitude: result.longitude || "",
+                        components
+                    }
+                }));
+            }
+
+            function bindAddressField(field) {
+                if (!isVisible(field) || field.dataset.arolanaAddressSuggestBound === "true") return;
+                field.dataset.arolanaAddressSuggestBound = "true";
+                field.setAttribute("autocomplete", field.getAttribute("autocomplete") || "street-address");
+
+                field.addEventListener("input", () => {
+                    activeField = field;
+                    window.clearTimeout(debounceTimer);
+                    debounceTimer = window.setTimeout(() => searchAddress(field), 260);
+                });
+
+                field.addEventListener("focus", () => {
+                    activeField = field;
+                    if (field.value.trim().length >= 3) {
+                        window.clearTimeout(debounceTimer);
+                        debounceTimer = window.setTimeout(() => searchAddress(field), 120);
+                    }
+                });
+            }
+
+            dropdown.addEventListener("click", async (event) => {
+                const button = event.target.closest(".arolana-address-suggestion");
+                if (!button || !activeField) return;
+                const suggestion = activeSuggestions[Number(button.dataset.index)];
+                if (!suggestion) return;
+                let result = suggestion;
+                if (suggestion.placeId) {
+                    result = await googleDetails(suggestion.placeId) || suggestion;
+                }
+                fillAddress(activeField, result);
+                hideDropdown();
+            });
+
+            document.addEventListener("click", (event) => {
+                if (dropdown.contains(event.target) || event.target.closest(selector)) return;
+                hideDropdown();
+            });
+
+            window.addEventListener("resize", () => {
+                if (activeField && !dropdown.hidden) positionDropdown(activeField);
+            });
+            window.addEventListener("scroll", () => {
+                if (activeField && !dropdown.hidden) positionDropdown(activeField);
+            }, true);
+
+            function bindAllAddressFields() {
+                document.querySelectorAll(selector).forEach(bindAddressField);
+            }
+
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", bindAllAddressFields);
+            } else {
+                bindAllAddressFields();
+            }
+            window.setTimeout(bindAllAddressFields, 1200);
+        })();
+    </script>
 
     {% block extra_js %}{% endblock %}
 

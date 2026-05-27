@@ -1,5 +1,18 @@
 {% extends 'base/base.html' %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+    .vendor-pickup-map {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 1rem;
+        height: 280px;
+        overflow: hidden;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="max-w-4xl mx-auto py-8">
     <div class="bg-white rounded-lg shadow-md overflow-hidden">
@@ -10,6 +23,16 @@
         </div>
         
         <div class="p-8">
+            {% if messages %}
+                <div class="mb-6 grid gap-3">
+                    {% for message in messages %}
+                        <div class="rounded-xl border px-4 py-3 text-sm font-bold {% if message.tags == 'error' %}border-red-200 bg-red-50 text-red-700{% elif message.tags == 'success' %}border-green-200 bg-green-50 text-green-700{% else %}border-blue-200 bg-blue-50 text-blue-700{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
             <!-- Benefits Section -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 pb-8 border-b">
                 <div class="text-center">
@@ -84,6 +107,35 @@
                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                               placeholder="Tell customers about your store, what products you sell, and why they should buy from you..."></textarea>
                 </div>
+
+                <div class="mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
+                    <h3 class="text-xl font-black text-gray-900">Exact Pickup Location</h3>
+                    <p class="mt-1 text-sm text-gray-600">This is what Arolana uses to calculate delivery fees and send nearby riders to the right store or warehouse.</p>
+                    <div class="mt-4 grid gap-4 md:grid-cols-2">
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2">Pickup contact name</label>
+                            <input type="text" name="pickup_contact_name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Name riders should ask for">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2">Pickup phone</label>
+                            <input type="tel" name="pickup_phone" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="+234...">
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-gray-700 font-semibold mb-2">Exact pickup address *</label>
+                        <textarea name="pickup_address" rows="3" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Building number, street, area, city, state, nearby landmark"></textarea>
+                    </div>
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        <button type="button" id="vendor-use-current-location" class="rounded-xl bg-blue-600 px-4 py-2 text-sm font-black text-white hover:bg-blue-700">
+                            <i class="fas fa-location-crosshairs mr-1"></i> Use my current location as pickup pin
+                        </button>
+                        <span id="vendor-location-status" class="inline-flex items-center text-sm font-bold text-gray-600">Map pin is required.</span>
+                    </div>
+                    <div class="mt-4 vendor-pickup-map" id="vendor-pickup-map"></div>
+                    <input type="hidden" name="pickup_latitude" id="vendor-pickup-latitude" required>
+                    <input type="hidden" name="pickup_longitude" id="vendor-pickup-longitude" required>
+                    <p class="mt-2 text-xs text-gray-500">You can drag the pin on the map after using your current location.</p>
+                </div>
                 
                 <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
                     <div class="flex items-start gap-3">
@@ -111,4 +163,74 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function () {
+    "use strict";
+
+    const mapEl = document.getElementById("vendor-pickup-map");
+    const latInput = document.getElementById("vendor-pickup-latitude");
+    const lngInput = document.getElementById("vendor-pickup-longitude");
+    const button = document.getElementById("vendor-use-current-location");
+    const status = document.getElementById("vendor-location-status");
+    if (!mapEl || !window.L) return;
+
+    const map = L.map(mapEl).setView([6.5244, 3.3792], 11);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "OpenStreetMap"
+    }).addTo(map);
+
+    let marker = null;
+
+    function setPin(lat, lng, message) {
+        latInput.value = lat;
+        lngInput.value = lng;
+        if (!marker) {
+            marker = L.marker([lat, lng], { draggable: true }).addTo(map).bindPopup("Vendor pickup pin").openPopup();
+            marker.on("dragend", function () {
+                const point = marker.getLatLng();
+                latInput.value = point.lat;
+                lngInput.value = point.lng;
+                status.textContent = "Pickup pin updated from map.";
+                status.className = "inline-flex items-center text-sm font-bold text-green-700";
+            });
+        } else {
+            marker.setLatLng([lat, lng]);
+        }
+        map.setView([lat, lng], 16);
+        status.textContent = message || "Pickup pin set accurately.";
+        status.className = "inline-flex items-center text-sm font-bold text-green-700";
+    }
+
+    document.addEventListener("arolana:address-selected", function (event) {
+        const detail = event.detail || {};
+        if (detail.field && detail.field.name === "pickup_address" && detail.latitude && detail.longitude) {
+            setPin(detail.latitude, detail.longitude, "Pickup pin set from the selected address.");
+        }
+    });
+
+    button?.addEventListener("click", function () {
+        if (!navigator.geolocation) {
+            status.textContent = "This browser cannot get your location. Please use a supported browser.";
+            status.className = "inline-flex items-center text-sm font-bold text-red-700";
+            return;
+        }
+        status.textContent = "Getting accurate location...";
+        navigator.geolocation.getCurrentPosition(function (position) {
+            setPin(position.coords.latitude, position.coords.longitude, "Pickup pin set from your current GPS location.");
+        }, function () {
+            status.textContent = "Location permission was denied. Please allow location or try again.";
+            status.className = "inline-flex items-center text-sm font-bold text-red-700";
+        }, {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 10000
+        });
+    });
+})();
+</script>
 {% endblock %}

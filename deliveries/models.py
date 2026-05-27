@@ -196,6 +196,11 @@ class DeliveryRequest(BaseModel):
     surge_multiplier = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('1.00'))
     delivery_fee = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     rider_earning = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    is_ready_for_rider = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text='Show this delivery to riders only after vendor/admin confirms it is ready for pickup.',
+    )
     customer_note = models.TextField(blank=True)
     rider_note = models.TextField(blank=True)
     proof_of_delivery = models.ImageField(upload_to='delivery/proofs/', blank=True, null=True)
@@ -251,6 +256,27 @@ class DeliveryRequest(BaseModel):
             location_label=location_label,
         )
         self.sync_legacy_delivery_status()
+        if self.rider_id:
+            busy_statuses = {
+                self.STATUS_ASSIGNED,
+                self.STATUS_ACCEPTED,
+                self.STATUS_ARRIVED_PICKUP,
+                self.STATUS_PICKED_UP,
+                self.STATUS_IN_TRANSIT,
+                self.STATUS_ARRIVED_CUSTOMER,
+            }
+            terminal_statuses = {
+                self.STATUS_DELIVERED,
+                self.STATUS_CANCELLED,
+                self.STATUS_FAILED,
+                self.STATUS_RETURNED,
+            }
+            if status in busy_statuses and self.rider.is_available:
+                self.rider.is_available = False
+                self.rider.save(update_fields=['is_available', 'updated_at'])
+            elif status in terminal_statuses and not self.rider.is_available and not self.rider.is_suspended:
+                self.rider.is_available = True
+                self.rider.save(update_fields=['is_available', 'updated_at'])
         if first_delivery_completion and self.rider_id:
             self.credit_rider_wallet()
 
