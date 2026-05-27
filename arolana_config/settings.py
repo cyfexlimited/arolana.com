@@ -249,7 +249,7 @@ LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
-ACCOUNT_EMAIL_VERIFICATION = 'optional'
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
 ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
 ACCOUNT_LOGOUT_ON_GET = True
 ACCOUNT_SESSION_REMEMBER = True
@@ -258,6 +258,7 @@ ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
 ACCOUNT_UNIQUE_EMAIL = True
 ACCOUNT_PASSWORD_MIN_LENGTH = 8
 ACCOUNT_PASSWORD_RESET_TOKEN_EXPIRY = timedelta(days=3)
+
 
 ACCOUNT_RATE_LIMITS = {
     'login_failed': '5/5m',
@@ -268,6 +269,10 @@ ACCOUNT_RATE_LIMITS = {
 
 ACCOUNT_ADAPTER = 'accounts.adapters.CustomAccountAdapter'
 SOCIALACCOUNT_ADAPTER = 'accounts.adapters.CustomSocialAccountAdapter'
+
+ACCOUNT_FORMS = {
+    "signup": "accounts.forms.ArolanaAllauthSignupForm",
+}
 SOCIALACCOUNT_AUTO_SIGNUP = True
 SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
 SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
@@ -783,8 +788,14 @@ LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
-        'verbose': {'format': '{levelname} {asctime} {module} {message}', 'style': '{'},
-        'simple': {'format': '{levelname} {message}', 'style': '{'},
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
     },
     'handlers': {
         'console': {'class': 'logging.StreamHandler', 'formatter': 'simple'},
