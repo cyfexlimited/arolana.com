@@ -303,8 +303,13 @@ def register_view(request):
         errors = []
         
         # Strong email validation
+        # Hard block obvious bad emails before user creation or OTP sending.
         if not email:
             errors.append('Email is required')
+        elif '..' in email:
+            errors.append('Email address cannot contain two dots together.')
+        elif email.startswith('.') or email.endswith('.'):
+            errors.append('Please enter a valid email address.')
         else:
             try:
                 email = normalize_and_validate_real_email(email)
