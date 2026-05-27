@@ -25,6 +25,10 @@ from products.models import Product, RecentlyViewed, Wishlist
 from .utils.otp_utils import create_otp, verify_otp
 from .utils.messaging import send_registration_messages, sync_newsletter_subscriber
 from .tokens import account_activation_token
+from .forms import (
+    normalize_and_validate_real_email,
+    validate_password_strength,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -298,16 +302,16 @@ def register_view(request):
         
         errors = []
         
-        # Email validation
+        # Strong email validation
         if not email:
             errors.append('Email is required')
         else:
             try:
-                validate_email(email)
+                email = normalize_and_validate_real_email(email)
                 if User.objects.filter(email__iexact=email).exists():
                     errors.append('Email already registered')
-            except ValidationError:
-                errors.append('Please enter a valid email address')
+            except ValidationError as exc:
+                errors.extend(exc.messages)
         
         # Username validation
         if not username:
@@ -319,18 +323,15 @@ def register_view(request):
         elif User.objects.filter(username__iexact=username).exists():
             errors.append('Username already taken')
         
-        # Password validation
+        # Strong password validation
         if not password:
             errors.append('Password is required')
         else:
-            if len(password) < 8:
-                errors.append('Password must be at least 8 characters')
-            if not any(c.isupper() for c in password):
-                errors.append('Password must contain at least one uppercase letter')
-            if not any(c.islower() for c in password):
-                errors.append('Password must contain at least one lowercase letter')
-            if not any(c.isdigit() for c in password):
-                errors.append('Password must contain at least one number')
+            try:
+                validate_password_strength(password)
+            except ValidationError as exc:
+                errors.extend(exc.messages)
+
             if password != confirm_password:
                 errors.append('Passwords do not match')
         
@@ -761,8 +762,29 @@ def check_username(request):
 @require_GET
 def check_email(request):
     email = request.GET.get('email', '').strip()
-    exists = User.objects.filter(email__iexact=email).exists() if email else False
-    return JsonResponse({'exists': exists})
+
+    if not email:
+        return JsonResponse({
+            'exists': False,
+            'valid': False,
+            'error': 'Email address is required.',
+        })
+
+    try:
+        email = normalize_and_validate_real_email(email)
+    except ValidationError as exc:
+        return JsonResponse({
+            'exists': False,
+            'valid': False,
+            'error': ' '.join(exc.messages),
+        })
+
+    exists = User.objects.filter(email__iexact=email).exists()
+    return JsonResponse({
+        'exists': exists,
+        'valid': True,
+        'email': email,
+    })
 
 @require_GET
 def recent_activity_api(request):
