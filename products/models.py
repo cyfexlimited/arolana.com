@@ -163,6 +163,22 @@ class Category(BaseModel):
         default='',
         help_text="Optional category hero button text color."
     )
+    hero_image_brightness = models.PositiveSmallIntegerField(
+        default=62,
+        help_text="Hero image brightness percentage. Lower values make the banner darker; 100 keeps the image original."
+    )
+    hero_height_desktop = models.PositiveIntegerField(
+        default=520,
+        help_text="Category hero height on desktop in pixels."
+    )
+    hero_height_tablet = models.PositiveIntegerField(
+        default=440,
+        help_text="Category hero height on tablet in pixels."
+    )
+    hero_height_mobile = models.PositiveIntegerField(
+        default=360,
+        help_text="Category hero height on mobile in pixels."
+    )
     meta_title = models.CharField(max_length=200, blank=True, help_text="SEO title")
     meta_description = models.TextField(blank=True, help_text="SEO description (160 chars)")
     meta_keywords = models.CharField(max_length=200, blank=True)
@@ -762,6 +778,10 @@ class ProductArticleLink(BaseModel):
     @property
     def article_url(self):
         return self.article.get_absolute_url()
+
+    @property
+    def article_image_url(self):
+        return self.article.display_image_url
 
 
 # =========================

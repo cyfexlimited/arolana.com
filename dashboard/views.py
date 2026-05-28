@@ -56,6 +56,20 @@ def require_verified_kyc(request):
     return redirect('kyc:dashboard')
 
 
+def vendor_selectable_categories():
+    """
+    Vendors should choose a real selling category, not broad admin departments.
+    Leaf categories are preferred; if a category has no configured children it remains selectable.
+    """
+    return (
+        Category.objects
+        .filter(is_active=True)
+        .annotate(active_child_count=Count('children', filter=Q(children__is_active=True)))
+        .filter(Q(parent__isnull=False) | Q(active_child_count=0))
+        .order_by('parent__name', 'order', 'name')
+    )
+
+
 def _decimal_or_none(value):
     try:
         if value in (None, ""):
@@ -253,7 +267,7 @@ def vendor_dashboard(request):
         total_sold=Sum('orderitem__quantity')
     ).order_by('-total_sold')[:5]
     
-    categories = Category.objects.filter(is_active=True)
+    categories = vendor_selectable_categories()
     brands = Brand.objects.filter(is_active=True)
     recent_orders = orders[:10]
     recent_reviews = reviews.order_by('-created_at')[:5]
@@ -496,7 +510,7 @@ def vendor_products(request):
     page = request.GET.get('page', 1)
     products_page = get_paginated_items(products, page, 20)
     
-    categories = Category.objects.filter(is_active=True)
+    categories = vendor_selectable_categories()
     
     # Get approval counts for sidebar
     pending_count = Product.objects.filter(vendor=request.user, approval_status='pending').count()
@@ -695,7 +709,7 @@ def vendor_add_product(request):
             messages.error(request, f'Error adding product: {str(e)}')
             return redirect('dashboard:vendor_add_product')
     
-    categories = Category.objects.filter(is_active=True)
+    categories = vendor_selectable_categories()
     brands = Brand.objects.filter(is_active=True)
     
     context = {
@@ -773,7 +787,7 @@ def vendor_product_detail(request, product_id):
         except Exception as e:
             messages.error(request, f'Error updating product: {str(e)}')
     
-    categories = Category.objects.filter(is_active=True)
+    categories = vendor_selectable_categories()
     brands = Brand.objects.filter(is_active=True)
     product_images = product.images.all()
     variants = product.variants.filter(is_active=True)

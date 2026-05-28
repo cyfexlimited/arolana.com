@@ -62,6 +62,12 @@ class BlogPost(BaseModel):
     thumbnail_image = models.ImageField(upload_to='blog/thumbnails/', null=True, blank=True, help_text="Small thumbnail (300x200)")
     gallery_images = models.JSONField(default=list, blank=True, help_text="Additional images for gallery")
     video_url = models.URLField(blank=True, help_text="YouTube or Vimeo URL for video content")
+    local_video = models.FileField(
+        upload_to='blog/videos/%Y/%m/',
+        null=True,
+        blank=True,
+        help_text="Optional uploaded article video (MP4/WebM). Used when no YouTube/Vimeo URL is provided."
+    )
     social_links = models.JSONField(
         default=dict,
         blank=True,
@@ -99,6 +105,15 @@ class BlogPost(BaseModel):
     custom_css = models.TextField(blank=True, help_text="Custom CSS for this article")
     hero_background_color = models.CharField(max_length=20, default="#111827")
     show_featured_image = models.BooleanField(default=True)
+    show_article_top_ad = models.BooleanField(default=False, help_text="Show an ad above the article media.")
+    show_article_native_ad = models.BooleanField(default=False, help_text="Show a native/sponsored ad inside the article body.")
+    show_article_after_author_ad = models.BooleanField(default=False, help_text="Show an ad after the author box.")
+    show_article_footer_ad = models.BooleanField(default=False, help_text="Show an ad after comments.")
+    show_sidebar_top_ad = models.BooleanField(default=False, help_text="Show the top sidebar ad.")
+    show_sidebar_mid_ad = models.BooleanField(default=False, help_text="Show the middle sidebar ad.")
+    show_sidebar_bottom_ad = models.BooleanField(default=False, help_text="Show the bottom sidebar ad.")
+    show_sidebar_sticky_ad = models.BooleanField(default=False, help_text="Show the sticky sidebar ad.")
+    show_sidebar_newsletter = models.BooleanField(default=True, help_text="Show newsletter signup on this article.")
     layout_style = models.CharField(max_length=20, choices=[
         ('standard', 'Standard'),
         ('featured', 'Featured Image Top'),
@@ -141,6 +156,25 @@ class BlogPost(BaseModel):
         if self.category and self.category.featured_image:
             return self.category.featured_image
         return None
+
+    @property
+    def display_image_url(self):
+        image = self.display_image
+        if not image:
+            return ''
+        try:
+            return image.url
+        except Exception:
+            return ''
+
+    @property
+    def local_video_url(self):
+        if not self.local_video:
+            return ''
+        try:
+            return self.local_video.url
+        except Exception:
+            return ''
     
     def increment_views(self):
         self.views += 1

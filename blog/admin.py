@@ -56,7 +56,18 @@ class BlogPostAdmin(admin.ModelAdmin):
             'fields': ('title', 'slug', 'excerpt', 'content', 'category', 'author')
         }),
         ('Media', {
-            'fields': ('featured_image', 'thumbnail_image', 'gallery_images', 'video_url', 'source_url', 'social_links'),
+            'fields': ('featured_image', 'thumbnail_image', 'gallery_images', 'video_url', 'local_video', 'source_url', 'social_links'),
+            'classes': ('wide',)
+        }),
+        ('Article Ad Placement Controls', {
+            'fields': (
+                ('show_article_top_ad', 'show_article_native_ad'),
+                ('show_article_after_author_ad', 'show_article_footer_ad'),
+                ('show_sidebar_top_ad', 'show_sidebar_mid_ad'),
+                ('show_sidebar_bottom_ad', 'show_sidebar_sticky_ad'),
+                'show_sidebar_newsletter',
+            ),
+            'description': 'Choose exactly where ads appear on this article. Leave placements off for a cleaner editorial page.',
             'classes': ('wide',)
         }),
         ('SEO & Metadata', {

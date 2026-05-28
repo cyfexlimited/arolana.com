@@ -444,6 +444,7 @@ class CategoryAdmin(OptionalColorFieldAdminMixin, admin.ModelAdmin):
                 ('show_hero_stats', 'show_hero_cta', 'show_hero_side_image'),
                 ('hero_background_color', 'hero_text_color', 'hero_accent_color'),
                 ('hero_button_background_color', 'hero_button_text_color'),
+                ('hero_image_brightness', 'hero_height_desktop', 'hero_height_tablet', 'hero_height_mobile'),
             ),
             'description': 'Customize the hero section on the category landing page. Turn off text/metrics when your uploaded design already includes them.',
             'classes': ('wide',)

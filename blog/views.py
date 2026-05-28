@@ -109,6 +109,8 @@ def blog_detail(request, slug):
         toc.append({'title': h, 'id': heading_id})
     
     article_image = post.display_image
+    article_video_embed_url = post.get_video_embed_url()
+    article_local_video_url = post.local_video_url
 
     # JSON-LD Schema for article
     schema = {
@@ -135,23 +137,23 @@ def blog_detail(request, slug):
     
     ad_controls = {
         # Main content ads
-        'display_ad_top': getattr(settings, 'DISPLAY_ARTICLE_TOP_AD', True),
+        'display_ad_top': getattr(settings, 'DISPLAY_ARTICLE_TOP_AD', True) and post.show_article_top_ad,
         'display_ad_after_header': getattr(settings, 'DISPLAY_ARTICLE_AFTER_HEADER_AD', True),
         'display_ad_mid_1': getattr(settings, 'DISPLAY_ARTICLE_MID_AD', True),
-        'display_ad_native': getattr(settings, 'DISPLAY_ARTICLE_NATIVE_AD', True),
+        'display_ad_native': getattr(settings, 'DISPLAY_ARTICLE_NATIVE_AD', True) and post.show_article_native_ad,
         'display_ad_before_conclusion': getattr(settings, 'DISPLAY_ARTICLE_BEFORE_CONCLUSION_AD', True),
-        'display_ad_after_author': getattr(settings, 'DISPLAY_ARTICLE_AFTER_AUTHOR_AD', True),
-        'display_ad_footer': getattr(settings, 'DISPLAY_ARTICLE_FOOTER_AD', True),
+        'display_ad_after_author': getattr(settings, 'DISPLAY_ARTICLE_AFTER_AUTHOR_AD', True) and post.show_article_after_author_ad,
+        'display_ad_footer': getattr(settings, 'DISPLAY_ARTICLE_FOOTER_AD', True) and post.show_article_footer_ad,
         
         # Sidebar ads
         'display_sidebar_search': getattr(settings, 'DISPLAY_SIDEBAR_SEARCH', True),
-        'display_sidebar_ad_top': getattr(settings, 'DISPLAY_SIDEBAR_TOP_AD', True),
-        'display_sidebar_newsletter': getattr(settings, 'DISPLAY_SIDEBAR_NEWSLETTER', True),
-        'display_sidebar_ad_mid': getattr(settings, 'DISPLAY_SIDEBAR_MID_AD', True),
+        'display_sidebar_ad_top': getattr(settings, 'DISPLAY_SIDEBAR_TOP_AD', True) and post.show_sidebar_top_ad,
+        'display_sidebar_newsletter': getattr(settings, 'DISPLAY_SIDEBAR_NEWSLETTER', True) and post.show_sidebar_newsletter,
+        'display_sidebar_ad_mid': getattr(settings, 'DISPLAY_SIDEBAR_MID_AD', True) and post.show_sidebar_mid_ad,
         'display_sidebar_popular': getattr(settings, 'DISPLAY_SIDEBAR_POPULAR', True),
-        'display_sidebar_ad_bottom': getattr(settings, 'DISPLAY_SIDEBAR_BOTTOM_AD', True),
+        'display_sidebar_ad_bottom': getattr(settings, 'DISPLAY_SIDEBAR_BOTTOM_AD', True) and post.show_sidebar_bottom_ad,
         'display_sidebar_categories': getattr(settings, 'DISPLAY_SIDEBAR_CATEGORIES', True),
-        'display_sidebar_sticky': getattr(settings, 'DISPLAY_SIDEBAR_STICKY_AD', True),
+        'display_sidebar_sticky': getattr(settings, 'DISPLAY_SIDEBAR_STICKY_AD', True) and post.show_sidebar_sticky_ad,
     }
     
     context = {
@@ -162,6 +164,8 @@ def blog_detail(request, slug):
         'categories': categories,
         'table_of_contents': toc,
         'schema': json.dumps(schema),
+        'article_video_embed_url': article_video_embed_url,
+        'article_local_video_url': article_local_video_url,
         # Ad controls
         **ad_controls,
         # Additional context for template
