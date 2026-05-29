@@ -129,6 +129,7 @@ INSTALLED_APPS = [
     'orders',
     'deliveries',
     'order_robot',
+    'landing_pages',
     'blog',
     'chat',
     'notifications',

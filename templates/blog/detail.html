@@ -233,7 +233,16 @@
             </div>
             {% endif %}
             
-            <!-- Featured Image / Video -->
+            <!-- Featured Image -->
+            {% if post.show_featured_image and post.display_image %}
+            <div class="mb-6">
+                {% optimized_image_url post.display_image 'hero' as post_image_url %}
+                <img src="{{ post_image_url }}" alt="{{ post.title }}"
+                     class="article-media-frame w-full object-cover">
+            </div>
+            {% endif %}
+
+            <!-- Article Video -->
             {% if article_video_embed_url %}
             <div class="article-video-frame mb-8">
                 <iframe src="{{ article_video_embed_url }}" title="{{ post.title }}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
@@ -244,12 +253,6 @@
                     <source src="{{ article_local_video_url }}">
                     Your browser does not support this video.
                 </video>
-            </div>
-            {% elif post.show_featured_image and post.display_image %}
-            <div class="mb-8">
-                {% optimized_image_url post.display_image 'hero' as post_image_url %}
-                <img src="{{ post_image_url }}" alt="{{ post.title }}" 
-                     class="article-media-frame w-full object-cover">
             </div>
             {% endif %}
             

@@ -15,6 +15,7 @@ import currency.views as currency_views
 import core.views as core_views
 from core import admin_views as core_admin_views
 from accounts import views as accounts_views
+from landing_pages import views as landing_page_views
 
 from .sitemaps import (
     StaticViewSitemap,
@@ -186,6 +187,8 @@ urlpatterns = [
     path("reports/", include("reports.urls")),
     path("notifications/", include("notifications.urls")),
     path("payments/", include("arolana_payments.urls")),
+    path("landing/", include("landing_pages.urls")),
+    path("landing-preview/<slug:slug>/", landing_page_views.landing_page_preview, name="landing_page_preview"),
 
     # Smart AI Chat
     path("smartchat/", include(("smartchat.urls", "smartchat"), namespace="smartchat")),
@@ -224,6 +227,7 @@ urlpatterns = [
     path("ads-test/", TemplateView.as_view(template_name="ads/test.html"), name="ads_test"),
     path("image-test/", TemplateView.as_view(template_name="ads/direct_test.html"), name="image_test"),
     path("social-test/", TemplateView.as_view(template_name="socialaccount/test.html"), name="social_test"),
+    path("<slug:slug>/", landing_page_views.landing_page_detail, name="landing_page_clean_detail"),
 ]
 
 

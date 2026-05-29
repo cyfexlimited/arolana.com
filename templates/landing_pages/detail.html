@@ -1,0 +1,341 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block title %}{{ page.meta_title|default:page.public_title }} | Arolana{% endblock %}
+
+{% block extra_css %}
+<meta name="description" content="{{ page.public_description|default:'' }}">
+{% if page.meta_keywords %}<meta name="keywords" content="{{ page.meta_keywords }}">{% endif %}
+<meta property="og:title" content="{{ page.og_title|default:page.public_title }}">
+<meta property="og:description" content="{{ page.og_description|default:page.public_description }}">
+{% if page.og_image_url %}<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ page.og_image_url }}">{% endif %}
+{% if page.canonical_url %}<link rel="canonical" href="{{ page.canonical_url }}">{% endif %}
+<link rel="stylesheet" href="{% static 'landing_pages/css/landing_pages.css' %}">
+{% if page.custom_css %}<style>{{ page.custom_css|safe }}</style>{% endif %}
+{% if schema_json %}
+<script type="application/ld+json">{{ schema_json|safe }}</script>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<main class="arolana-landing-page"
+      style="--lp-primary: {{ page.primary_color|default:'#2563EB' }}; --lp-accent: {{ page.accent_color|default:'#F97316' }}; --lp-dark: {{ page.dark_color|default:'#0F172A' }}; --lp-bg: {{ page.background_color|default:'#F8FAFC' }}; --lp-text: {{ page.text_color|default:'#0F172A' }};">
+    {% if preview %}
+    <div class="lp-preview-banner">Staff preview: this page may be unpublished.</div>
+    {% endif %}
+
+    <section class="lp-hero" id="top">
+        {% if page.hero_background_image %}
+            <picture>
+                {% if page.hero_mobile_image %}
+                    <source media="(max-width: 640px)" srcset="{{ page.hero_mobile_image.url }}">
+                {% endif %}
+                <img src="{{ page.hero_background_image.url }}" alt="{{ page.title }}" class="lp-hero-image">
+            </picture>
+        {% endif %}
+        <div class="lp-hero-overlay" style="opacity: {{ page.hero_overlay_opacity|default:'0.56' }}"></div>
+        <div class="lp-container lp-hero-inner">
+            <div class="lp-hero-copy">
+                {% if page.hero_badge_text %}
+                <span class="lp-badge">{{ page.hero_badge_text }}</span>
+                {% endif %}
+                <h1>{{ page.hero_headline|default:page.title }}</h1>
+                {% if page.hero_subheadline or page.subtitle %}
+                <p>{{ page.hero_subheadline|default:page.subtitle }}</p>
+                {% endif %}
+                <div class="lp-hero-actions">
+                    {% if page.primary_cta_text and page.primary_cta_url %}
+                    <a href="{{ page.primary_cta_url }}" class="lp-btn lp-btn-primary">{{ page.primary_cta_text }} <i class="fas fa-arrow-right"></i></a>
+                    {% endif %}
+                    {% if page.secondary_cta_text and page.secondary_cta_url %}
+                    <a href="{{ page.secondary_cta_url }}" class="lp-btn lp-btn-secondary">{{ page.secondary_cta_text }}</a>
+                    {% endif %}
+                </div>
+                {% if page.trust_badges %}
+                <div class="lp-trust-row">
+                    {% for badge in page.trust_badges %}
+                    <span><i class="fas fa-check"></i> {{ badge }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            <div class="lp-hero-panel">
+                <span class="lp-panel-kicker">Arolana support</span>
+                <strong>Plan bigger purchases with a cleaner process.</strong>
+                <p>Build campaign pages for offers, categories, brand promotions, financing, and customer support journeys directly from admin.</p>
+            </div>
+        </div>
+    </section>
+
+    {% if nav_items %}
+    <nav class="lp-mini-nav" aria-label="Landing page sections">
+        <div class="lp-container lp-mini-nav-inner">
+            <button type="button" class="lp-mobile-nav-toggle"><i class="fas fa-bars"></i> Sections</button>
+            <div class="lp-mini-nav-links">
+                {% for anchor, section, label, enabled in nav_items %}
+                <a href="#{{ anchor }}" data-lp-nav="{{ anchor }}">{{ section.title|default:label }}</a>
+                {% endfor %}
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+
+    {% if benefits %}
+    <section class="lp-section" id="benefits">
+        <div class="lp-container">
+            <div class="lp-section-heading">
+                <span>Why it helps</span>
+                <h2>{{ benefits_section.title|default:"Benefits built for better buying" }}</h2>
+                {% if benefits_section.subtitle %}<p>{{ benefits_section.subtitle }}</p>{% endif %}
+            </div>
+            <div class="lp-benefit-grid">
+                {% for item in benefits %}
+                <article class="lp-card lp-benefit-card">
+                    <div class="lp-icon"><i class="{{ item.icon|default:'fas fa-check-circle' }}"></i></div>
+                    <h3>{{ item.title }}</h3>
+                    <p>{{ item.description }}</p>
+                    {% if item.link_text and item.link_url %}<a href="{{ item.link_url }}">{{ item.link_text }} <i class="fas fa-arrow-right"></i></a>{% endif %}
+                </article>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if offers %}
+    <section class="lp-section lp-section-soft" id="offers">
+        <div class="lp-container">
+            <div class="lp-section-heading">
+                <span>Current offers</span>
+                <h2>{{ offers_section.title|default:"Featured support offers" }}</h2>
+                {% if offers_section.subtitle %}<p>{{ offers_section.subtitle }}</p>{% endif %}
+            </div>
+            <div class="lp-offer-grid">
+                {% for item in offers %}
+                <article class="lp-card lp-offer-card">
+                    {% if item.offer_label %}<span class="lp-offer-label">{{ item.offer_label }}</span>{% endif %}
+                    {% if item.image %}<img src="{{ item.image.url }}" alt="{{ item.title }}">{% endif %}
+                    <div class="lp-icon"><i class="{{ item.icon|default:'fas fa-tags' }}"></i></div>
+                    <h3>{{ item.title }}</h3>
+                    <p>{{ item.description }}</p>
+                    {% if item.price_text or item.discount_text %}
+                    <div class="lp-price-line"><strong>{{ item.price_text }}</strong><span>{{ item.discount_text }}</span></div>
+                    {% endif %}
+                    {% if item.button_text and item.button_url %}<a class="lp-card-link" href="{{ item.button_url }}">{{ item.button_text }}</a>{% endif %}
+                </article>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if steps %}
+    <section class="lp-section" id="how-it-works">
+        <div class="lp-container">
+            <div class="lp-section-heading">
+                <span>Simple process</span>
+                <h2>{{ steps_section.title|default:"How it works" }}</h2>
+                {% if steps_section.subtitle %}<p>{{ steps_section.subtitle }}</p>{% endif %}
+            </div>
+            <div class="lp-step-grid">
+                {% for item in steps %}
+                <article class="lp-step-card">
+                    <div class="lp-step-number">{{ item.step_number }}</div>
+                    <i class="{{ item.icon|default:'fas fa-arrow-right' }}"></i>
+                    <h3>{{ item.title }}</h3>
+                    <p>{{ item.description }}</p>
+                </article>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if category_cards %}
+    <section class="lp-section lp-section-soft" id="categories">
+        <div class="lp-container">
+            <div class="lp-section-heading">
+                <span>Eligible categories</span>
+                <h2>{{ categories_section.title|default:"Explore eligible product categories" }}</h2>
+                {% if categories_section.subtitle %}<p>{{ categories_section.subtitle }}</p>{% endif %}
+            </div>
+            <div class="lp-category-grid">
+                {% for item in category_cards %}
+                <a class="lp-card lp-category-card" href="{{ item.resolved_url }}">
+                    {% if item.image %}
+                    <img src="{{ item.image.url }}" alt="{{ item.title }}">
+                    {% endif %}
+                    <div class="lp-icon"><i class="{{ item.icon|default:'fas fa-box-open' }}"></i></div>
+                    <h3>{{ item.title }}</h3>
+                    <p>{{ item.description }}</p>
+                    <span>{{ item.button_text|default:"View products" }} <i class="fas fa-arrow-right"></i></span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if video_guides %}
+    <section class="lp-section" id="video-guides">
+        <div class="lp-container">
+            <div class="lp-section-heading">
+                <span>Video guides</span>
+                <h2>{{ video_guides_section.title|default:"Other How-To Guides" }}</h2>
+                {% if video_guides_section.subtitle %}<p>{{ video_guides_section.subtitle }}</p>{% endif %}
+            </div>
+            <div class="lp-video-grid">
+                {% for video in video_guides %}
+                <article class="lp-card lp-video-card" data-video-url="{{ video.video_url }}" data-video-embed="{{ video.embed_url }}" data-video-title="{{ video.title }}">
+                    <button type="button" class="lp-video-thumb" aria-label="Watch {{ video.title }}">
+                        {% if video.thumbnail_url %}
+                            <img src="{{ video.thumbnail_url }}" alt="{{ video.title }}">
+                        {% else %}
+                            <span class="lp-video-placeholder"><i class="fas fa-video"></i></span>
+                        {% endif %}
+                        <span class="lp-play"><i class="fas fa-play"></i></span>
+                        {% if video.duration %}<span class="lp-duration">{{ video.duration }}</span>{% endif %}
+                    </button>
+                    <div class="lp-video-body">
+                        {% if video.subtitle %}<span>{{ video.subtitle }}</span>{% endif %}
+                        <h3>{{ video.title }}</h3>
+                        {% if video.description %}<p>{{ video.description }}</p>{% endif %}
+                        <button type="button" class="lp-watch-btn">{{ video.button_text|default:"Watch Video" }}</button>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if negative_comparison_items or positive_comparison_items %}
+    <section class="lp-section lp-section-dark" id="comparison">
+        <div class="lp-container">
+            <div class="lp-section-heading">
+                <span>Better buying</span>
+                <h2>{{ comparison_section.title|default:"Compare the experience" }}</h2>
+                {% if comparison_section.subtitle %}<p>{{ comparison_section.subtitle }}</p>{% endif %}
+            </div>
+            <div class="lp-comparison-grid">
+                <div class="lp-comparison-card lp-negative">
+                    <h3>Without Flexible Payment</h3>
+                    {% for item in negative_comparison_items %}
+                    <p><i class="{{ item.icon|default:'fas fa-times' }}"></i> <strong>{{ item.title }}</strong><span>{{ item.description }}</span></p>
+                    {% endfor %}
+                </div>
+                <div class="lp-comparison-card lp-positive">
+                    <h3>With Arolana Flexible Payment</h3>
+                    {% for item in positive_comparison_items %}
+                    <p><i class="{{ item.icon|default:'fas fa-check' }}"></i> <strong>{{ item.title }}</strong><span>{{ item.description }}</span></p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if testimonials %}
+    <section class="lp-section" id="testimonials">
+        <div class="lp-container">
+            <div class="lp-section-heading">
+                <span>Customer confidence</span>
+                <h2>{{ testimonials_section.title|default:"What customers say" }}</h2>
+            </div>
+            <div class="lp-testimonial-grid">
+                {% for item in testimonials %}
+                <article class="lp-card lp-testimonial-card">
+                    <div class="lp-stars">{% for i in "12345" %}<i class="fas fa-star"></i>{% endfor %}</div>
+                    <blockquote>{{ item.quote }}</blockquote>
+                    <div class="lp-person">
+                        {% if item.image %}<img src="{{ item.image.url }}" alt="{{ item.customer_name }}">{% endif %}
+                        <div>
+                            <strong>{{ item.customer_name }}</strong>
+                            <span>{{ item.customer_title }}{% if item.customer_location %} · {{ item.customer_location }}{% endif %}</span>
+                        </div>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if faqs %}
+    <section class="lp-section lp-section-soft" id="faq">
+        <div class="lp-container lp-narrow">
+            <div class="lp-section-heading">
+                <span>Questions</span>
+                <h2>{{ faq_section.title|default:"Frequently asked questions" }}</h2>
+            </div>
+            <div class="lp-faq-list">
+                {% for item in faqs %}
+                <article class="lp-faq-item">
+                    <button type="button" class="lp-faq-question">{{ item.question }} <i class="fas fa-chevron-down"></i></button>
+                    <div class="lp-faq-answer"><p>{{ item.answer }}</p></div>
+                </article>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    {% for section in custom_sections %}
+    <section class="lp-section lp-custom-section" style="{% if section.background_color %}background: {{ section.background_color }};{% endif %}{% if section.text_color %}color: {{ section.text_color }};{% endif %}">
+        <div class="lp-container">
+            {% if section.title %}<h2>{{ section.title }}</h2>{% endif %}
+            {% if section.subtitle %}<p>{{ section.subtitle }}</p>{% endif %}
+            <div>{{ section.content|safe }}</div>
+        </div>
+    </section>
+    {% endfor %}
+
+    {% if contact_options %}
+    <section class="lp-section lp-contact-section" id="contact">
+        <div class="lp-container lp-contact-inner">
+            <div>
+                <span class="lp-kicker">Talk to Arolana</span>
+                <h2>{{ contact_section.title|default:"Need help choosing the right option?" }}</h2>
+                <p>{{ contact_section.subtitle|default:"Contact our team for product, business purchase, installation, and eligibility support." }}</p>
+            </div>
+            <div class="lp-contact-grid">
+                {% for item in contact_options %}
+                <a class="lp-contact-card" href="{{ item.url|default:'#' }}">
+                    <i class="{{ item.icon|default:'fas fa-headset' }}"></i>
+                    <span>{{ item.label }}</span>
+                    <strong>{{ item.value }}</strong>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if terms_section and terms_section.content %}
+    <section class="lp-terms">
+        <div class="lp-container">
+            <strong>{{ terms_section.title|default:"Important terms" }}</strong>
+            <p>{{ terms_section.content }}</p>
+        </div>
+    </section>
+    {% endif %}
+
+    {% for contact in contact_options %}
+        {% if contact.label|lower == "whatsapp" and contact.url %}
+        <a class="lp-floating-whatsapp" href="{{ contact.url }}" target="_blank" rel="noopener noreferrer" aria-label="Chat on WhatsApp"><i class="fab fa-whatsapp"></i></a>
+        {% endif %}
+    {% endfor %}
+    <button type="button" class="lp-back-to-top" aria-label="Back to top"><i class="fas fa-arrow-up"></i></button>
+
+    <div class="lp-video-modal" aria-hidden="true">
+        <div class="lp-video-modal-card">
+            <button type="button" class="lp-video-modal-close" aria-label="Close video"><i class="fas fa-times"></i></button>
+            <iframe src="about:blank" title="Landing page video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'landing_pages/js/landing_pages.js' %}"></script>
+{% endblock %}

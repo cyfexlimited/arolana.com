@@ -1,0 +1,529 @@
+.arolana-landing-page {
+    --lp-primary: #2563EB;
+    --lp-accent: #F97316;
+    --lp-dark: #0F172A;
+    --lp-bg: #F8FAFC;
+    --lp-text: #0F172A;
+    background: var(--lp-bg);
+    color: var(--lp-text);
+    overflow: hidden;
+}
+
+.arolana-landing-page .lp-container {
+    width: min(100% - 2rem, 1240px);
+    margin: 0 auto;
+}
+
+.arolana-landing-page .lp-narrow { width: min(100% - 2rem, 900px); }
+.arolana-landing-page .lp-preview-banner { background: #f97316; color: #fff; padding: .65rem 1rem; text-align: center; font-weight: 900; }
+
+.arolana-landing-page .lp-hero {
+    position: relative;
+    min-height: 720px;
+    display: grid;
+    align-items: center;
+    background:
+        radial-gradient(circle at 14% 18%, rgba(37,99,235,.28), transparent 28rem),
+        linear-gradient(135deg, var(--lp-dark), #172554 55%, #0f172a);
+    color: #fff;
+}
+
+.arolana-landing-page .lp-hero-image,
+.arolana-landing-page .lp-hero picture {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.arolana-landing-page .lp-hero-image {
+    object-fit: cover;
+}
+
+.arolana-landing-page .lp-hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, #020617, rgba(15,23,42,.72), rgba(15,23,42,.2));
+}
+
+.arolana-landing-page .lp-hero-inner {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(280px, .55fr);
+    gap: clamp(2rem, 5vw, 5rem);
+    align-items: center;
+    padding: 7rem 0 5rem;
+}
+
+.arolana-landing-page .lp-badge,
+.arolana-landing-page .lp-kicker {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    border-radius: 999px;
+    background: rgba(37,99,235,.16);
+    color: #bfdbfe;
+    border: 1px solid rgba(191,219,254,.28);
+    padding: .55rem .85rem;
+    font-size: .72rem;
+    font-weight: 950;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+}
+
+.arolana-landing-page .lp-hero h1 {
+    margin: 1.2rem 0 1rem;
+    max-width: 920px;
+    font-size: clamp(2.8rem, 7vw, 6.8rem);
+    line-height: .9;
+    font-weight: 1000;
+    letter-spacing: -0.06em;
+}
+
+.arolana-landing-page .lp-hero p {
+    max-width: 760px;
+    color: rgba(255,255,255,.84);
+    font-size: clamp(1rem, 1.5vw, 1.22rem);
+    line-height: 1.75;
+}
+
+.arolana-landing-page .lp-hero-actions,
+.arolana-landing-page .lp-trust-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .85rem;
+    margin-top: 1.5rem;
+}
+
+.arolana-landing-page .lp-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .55rem;
+    min-height: 52px;
+    border-radius: 999px;
+    padding: .85rem 1.25rem;
+    font-weight: 950;
+    transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+}
+
+.arolana-landing-page .lp-btn:hover,
+.arolana-landing-page .lp-card:hover {
+    transform: translateY(-4px);
+}
+
+.arolana-landing-page .lp-btn-primary {
+    background: var(--lp-accent);
+    color: #fff;
+    box-shadow: 0 18px 38px rgba(249,115,22,.28);
+}
+
+.arolana-landing-page .lp-btn-secondary {
+    background: rgba(255,255,255,.12);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,.24);
+}
+
+.arolana-landing-page .lp-trust-row span {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    border-radius: 999px;
+    background: rgba(255,255,255,.1);
+    padding: .55rem .75rem;
+    color: rgba(255,255,255,.9);
+    font-size: .86rem;
+    font-weight: 800;
+}
+
+.arolana-landing-page .lp-hero-panel {
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 1.6rem;
+    background: rgba(255,255,255,.12);
+    padding: 1.4rem;
+    backdrop-filter: blur(18px);
+    box-shadow: 0 30px 90px rgba(0,0,0,.24);
+}
+
+.arolana-landing-page .lp-hero-panel strong {
+    display: block;
+    margin: .6rem 0;
+    font-size: 1.55rem;
+    line-height: 1.1;
+    font-weight: 1000;
+}
+
+.arolana-landing-page .lp-panel-kicker { color: #fed7aa; font-weight: 950; font-size: .75rem; text-transform: uppercase; letter-spacing: .12em; }
+
+.arolana-landing-page .lp-mini-nav {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background: rgba(255,255,255,.9);
+    border-bottom: 1px solid rgba(148,163,184,.18);
+    backdrop-filter: blur(14px);
+}
+
+.arolana-landing-page .lp-mini-nav-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 64px;
+}
+
+.arolana-landing-page .lp-mobile-nav-toggle { display: none; }
+.arolana-landing-page .lp-mini-nav-links { display: flex; flex-wrap: wrap; justify-content: center; gap: .55rem; }
+.arolana-landing-page .lp-mini-nav-links a {
+    border-radius: 999px;
+    padding: .55rem .85rem;
+    color: #475569;
+    font-size: .88rem;
+    font-weight: 900;
+}
+.arolana-landing-page .lp-mini-nav-links a.is-active,
+.arolana-landing-page .lp-mini-nav-links a:hover { background: #dbeafe; color: var(--lp-primary); }
+
+.arolana-landing-page .lp-section { padding: clamp(4rem, 7vw, 7rem) 0; }
+.arolana-landing-page .lp-section-soft { background: #fff; }
+.arolana-landing-page .lp-section-dark { background: var(--lp-dark); color: #fff; }
+
+.arolana-landing-page .lp-section-heading {
+    max-width: 820px;
+    margin: 0 auto 2.3rem;
+    text-align: center;
+}
+
+.arolana-landing-page .lp-section-heading span {
+    display: inline-flex;
+    margin-bottom: .75rem;
+    color: var(--lp-primary);
+    font-size: .78rem;
+    font-weight: 1000;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+}
+
+.arolana-landing-page .lp-section-heading h2,
+.arolana-landing-page .lp-contact-inner h2 {
+    color: inherit;
+    font-size: clamp(2rem, 4.3vw, 4.4rem);
+    line-height: .95;
+    font-weight: 1000;
+    letter-spacing: -0.045em;
+}
+
+.arolana-landing-page .lp-section-heading p {
+    margin-top: .9rem;
+    color: #64748b;
+    font-size: 1.05rem;
+    line-height: 1.75;
+}
+
+.arolana-landing-page .lp-section-dark .lp-section-heading p { color: rgba(255,255,255,.72); }
+
+.arolana-landing-page .lp-benefit-grid,
+.arolana-landing-page .lp-offer-grid,
+.arolana-landing-page .lp-category-grid,
+.arolana-landing-page .lp-testimonial-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.arolana-landing-page .lp-card {
+    border: 1px solid rgba(148,163,184,.18);
+    border-radius: 1.35rem;
+    background: #fff;
+    padding: 1.15rem;
+    box-shadow: 0 18px 55px rgba(15,23,42,.075);
+    transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.arolana-landing-page .lp-card:hover { box-shadow: 0 28px 80px rgba(15,23,42,.13); }
+.arolana-landing-page .lp-icon {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 1rem;
+    background: #dbeafe;
+    color: var(--lp-primary);
+    font-size: 1.15rem;
+}
+
+.arolana-landing-page .lp-card h3,
+.arolana-landing-page .lp-step-card h3 {
+    margin-top: .95rem;
+    color: var(--lp-dark);
+    font-size: 1.15rem;
+    line-height: 1.25;
+    font-weight: 1000;
+}
+
+.arolana-landing-page .lp-card p,
+.arolana-landing-page .lp-step-card p {
+    margin-top: .6rem;
+    color: #64748b;
+    line-height: 1.65;
+}
+
+.arolana-landing-page .lp-offer-card { position: relative; overflow: hidden; }
+.arolana-landing-page .lp-offer-card > img,
+.arolana-landing-page .lp-category-card > img {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: 1rem;
+    object-fit: cover;
+    margin-bottom: .9rem;
+}
+.arolana-landing-page .lp-offer-label {
+    display: inline-flex;
+    border-radius: 999px;
+    background: #ffedd5;
+    color: #c2410c;
+    padding: .4rem .65rem;
+    font-size: .72rem;
+    font-weight: 950;
+}
+.arolana-landing-page .lp-price-line { display: flex; gap: .75rem; align-items: baseline; margin-top: .9rem; }
+.arolana-landing-page .lp-price-line strong { color: var(--lp-primary); font-size: 1.25rem; }
+.arolana-landing-page .lp-price-line span { color: #16a34a; font-weight: 900; }
+.arolana-landing-page .lp-card-link,
+.arolana-landing-page .lp-category-card span,
+.arolana-landing-page .lp-watch-btn {
+    display: inline-flex;
+    margin-top: 1rem;
+    color: var(--lp-primary);
+    font-weight: 950;
+}
+
+.arolana-landing-page .lp-step-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+}
+.arolana-landing-page .lp-step-card {
+    position: relative;
+    border-radius: 1.35rem;
+    background: #fff;
+    padding: 1.2rem;
+    box-shadow: 0 18px 55px rgba(15,23,42,.075);
+}
+.arolana-landing-page .lp-step-number {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    background: var(--lp-primary);
+    color: #fff;
+    font-weight: 1000;
+}
+.arolana-landing-page .lp-step-card > i { color: var(--lp-accent); margin-top: 1rem; font-size: 1.25rem; }
+
+.arolana-landing-page .lp-video-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+}
+.arolana-landing-page .lp-video-card { padding: 0; overflow: hidden; }
+.arolana-landing-page .lp-video-thumb {
+    position: relative;
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: linear-gradient(135deg, #e2e8f0, #f8fafc);
+    border: 0;
+    cursor: pointer;
+}
+.arolana-landing-page .lp-video-thumb img,
+.arolana-landing-page .lp-video-placeholder {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: grid;
+    place-items: center;
+    color: #94a3b8;
+    font-size: 2rem;
+}
+.arolana-landing-page .lp-play {
+    position: absolute;
+    inset: 50% auto auto 50%;
+    transform: translate(-50%, -50%);
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    border-radius: 999px;
+    background: #ef4444;
+    color: #fff;
+    box-shadow: 0 16px 40px rgba(239,68,68,.35);
+}
+.arolana-landing-page .lp-duration {
+    position: absolute;
+    right: .7rem;
+    bottom: .7rem;
+    border-radius: .55rem;
+    background: rgba(15,23,42,.86);
+    color: #fff;
+    padding: .28rem .5rem;
+    font-size: .75rem;
+    font-weight: 900;
+}
+.arolana-landing-page .lp-video-body { padding: 1rem; }
+.arolana-landing-page .lp-video-body > span { color: var(--lp-accent); font-weight: 950; font-size: .78rem; }
+
+.arolana-landing-page .lp-comparison-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+.arolana-landing-page .lp-comparison-card {
+    border-radius: 1.5rem;
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.16);
+    padding: 1.25rem;
+}
+.arolana-landing-page .lp-comparison-card h3 { font-size: 1.5rem; font-weight: 1000; margin-bottom: 1rem; }
+.arolana-landing-page .lp-comparison-card p { display: grid; grid-template-columns: 28px 1fr; gap: .25rem .65rem; margin: .85rem 0; }
+.arolana-landing-page .lp-comparison-card p span { grid-column: 2; color: rgba(255,255,255,.68); }
+.arolana-landing-page .lp-negative i { color: #fb7185; }
+.arolana-landing-page .lp-positive i { color: #4ade80; }
+
+.arolana-landing-page .lp-stars { color: #facc15; }
+.arolana-landing-page .lp-testimonial-card blockquote { margin: 1rem 0; color: #334155; font-weight: 700; line-height: 1.65; }
+.arolana-landing-page .lp-person { display: flex; align-items: center; gap: .8rem; }
+.arolana-landing-page .lp-person img { width: 44px; height: 44px; border-radius: 999px; object-fit: cover; }
+.arolana-landing-page .lp-person strong { display: block; color: var(--lp-dark); }
+.arolana-landing-page .lp-person span { color: #64748b; font-size: .86rem; }
+
+.arolana-landing-page .lp-faq-list { display: grid; gap: .75rem; }
+.arolana-landing-page .lp-faq-item { border: 1px solid rgba(148,163,184,.22); border-radius: 1rem; background: #fff; overflow: hidden; }
+.arolana-landing-page .lp-faq-question {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    padding: 1rem;
+    color: var(--lp-dark);
+    font-weight: 1000;
+    text-align: left;
+}
+.arolana-landing-page .lp-faq-answer { display: none; padding: 0 1rem 1rem; color: #64748b; line-height: 1.65; }
+.arolana-landing-page .lp-faq-item.is-open .lp-faq-answer { display: block; }
+.arolana-landing-page .lp-faq-item.is-open .lp-faq-question i { transform: rotate(180deg); }
+
+.arolana-landing-page .lp-contact-section { background: linear-gradient(135deg, var(--lp-dark), #172554); color: #fff; }
+.arolana-landing-page .lp-contact-inner {
+    display: grid;
+    grid-template-columns: minmax(0, .85fr) minmax(300px, 1fr);
+    gap: 2rem;
+    align-items: center;
+}
+.arolana-landing-page .lp-contact-inner p { margin-top: 1rem; color: rgba(255,255,255,.72); line-height: 1.7; }
+.arolana-landing-page .lp-contact-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .9rem; }
+.arolana-landing-page .lp-contact-card {
+    border-radius: 1rem;
+    background: rgba(255,255,255,.1);
+    border: 1px solid rgba(255,255,255,.16);
+    padding: 1rem;
+    color: #fff;
+}
+.arolana-landing-page .lp-contact-card i { color: #93c5fd; }
+.arolana-landing-page .lp-contact-card span { display: block; margin-top: .55rem; color: rgba(255,255,255,.65); font-size: .85rem; }
+.arolana-landing-page .lp-contact-card strong { display: block; word-break: break-word; }
+
+.arolana-landing-page .lp-terms { padding: 1.4rem 0; background: #fff7ed; color: #7c2d12; }
+.arolana-landing-page .lp-terms p { margin-top: .35rem; line-height: 1.65; font-size: .9rem; }
+
+.arolana-landing-page .lp-floating-whatsapp,
+.arolana-landing-page .lp-back-to-top {
+    position: fixed;
+    right: 1.25rem;
+    z-index: 80;
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 999px;
+    border: 0;
+    color: #fff;
+    box-shadow: 0 18px 45px rgba(15,23,42,.18);
+}
+.arolana-landing-page .lp-floating-whatsapp { bottom: 5.4rem; background: #16a34a; font-size: 1.45rem; }
+.arolana-landing-page .lp-back-to-top { bottom: 1.4rem; background: var(--lp-primary); opacity: 0; pointer-events: none; transition: opacity .2s ease; }
+.arolana-landing-page .lp-back-to-top.is-visible { opacity: 1; pointer-events: auto; }
+
+.arolana-landing-page .lp-video-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(2,6,23,.86);
+}
+.arolana-landing-page .lp-video-modal.is-open { display: flex; }
+.arolana-landing-page .lp-video-modal-card { position: relative; width: min(100%, 980px); aspect-ratio: 16 / 9; border-radius: 1.25rem; overflow: hidden; background: #000; }
+.arolana-landing-page .lp-video-modal-card iframe { width: 100%; height: 100%; border: 0; }
+.arolana-landing-page .lp-video-modal-close {
+    position: absolute;
+    right: .7rem;
+    top: .7rem;
+    z-index: 2;
+    width: 42px;
+    height: 42px;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(255,255,255,.92);
+    color: #0f172a;
+}
+
+@media (max-width: 1024px) {
+    .arolana-landing-page .lp-hero { min-height: 650px; }
+    .arolana-landing-page .lp-hero-inner,
+    .arolana-landing-page .lp-contact-inner { grid-template-columns: 1fr; }
+    .arolana-landing-page .lp-benefit-grid,
+    .arolana-landing-page .lp-offer-grid,
+    .arolana-landing-page .lp-category-grid,
+    .arolana-landing-page .lp-testimonial-grid,
+    .arolana-landing-page .lp-video-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .arolana-landing-page .lp-step-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 640px) {
+    .arolana-landing-page .lp-container { width: min(100% - 1.5rem, 1240px); }
+    .arolana-landing-page .lp-hero { min-height: auto; }
+    .arolana-landing-page .lp-hero-inner { padding: 4.5rem 0 3rem; }
+    .arolana-landing-page .lp-hero h1 { font-size: 2.85rem; }
+    .arolana-landing-page .lp-hero-panel { display: none; }
+    .arolana-landing-page .lp-btn { width: 100%; }
+    .arolana-landing-page .lp-mini-nav-inner { justify-content: stretch; flex-direction: column; align-items: stretch; padding: .7rem 0; }
+    .arolana-landing-page .lp-mobile-nav-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: .5rem;
+        border: 0;
+        border-radius: .85rem;
+        background: var(--lp-dark);
+        color: #fff;
+        min-height: 42px;
+        font-weight: 950;
+    }
+    .arolana-landing-page .lp-mini-nav-links { display: none; padding-top: .7rem; }
+    .arolana-landing-page .lp-mini-nav.is-open .lp-mini-nav-links { display: flex; }
+    .arolana-landing-page .lp-benefit-grid,
+    .arolana-landing-page .lp-offer-grid,
+    .arolana-landing-page .lp-category-grid,
+    .arolana-landing-page .lp-testimonial-grid,
+    .arolana-landing-page .lp-video-grid,
+    .arolana-landing-page .lp-step-grid,
+    .arolana-landing-page .lp-comparison-grid,
+    .arolana-landing-page .lp-contact-grid { grid-template-columns: 1fr; }
+    .arolana-landing-page .lp-section { padding: 3.2rem 0; }
+}
