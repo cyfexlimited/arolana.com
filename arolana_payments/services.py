@@ -2,6 +2,7 @@ import base64
 import hashlib
 import hmac
 import json
+import os
 from decimal import Decimal
 from decimal import InvalidOperation
 from decimal import ROUND_HALF_UP
@@ -105,6 +106,13 @@ def _configured_secret(value):
     return not any(marker in lowered for marker in ("your_key", "xxxx", "placeholder", "change-me"))
 
 
+def _paypal_setting(name, default=""):
+    value = getattr(settings, name, None)
+    if value in (None, ""):
+        value = os.environ.get(name, default)
+    return value if value not in (None, "") else default
+
+
 def gateway_credentials_status(gateway):
     if gateway == PaymentMethod.FLUTTERWAVE:
         ok = _configured_secret(getattr(settings, "FLUTTERWAVE_SECRET_KEY", ""))
@@ -113,9 +121,9 @@ def gateway_credentials_status(gateway):
         ok = _configured_secret(getattr(settings, "PAYSTACK_SECRET_KEY", ""))
         return ok, "" if ok else "Add PAYSTACK_SECRET_KEY to enable Paystack."
     if gateway == PaymentMethod.PAYPAL:
-        client_ok = _configured_secret(getattr(settings, "PAYPAL_CLIENT_ID", ""))
-        secret_ok = _configured_secret(getattr(settings, "PAYPAL_CLIENT_SECRET", ""))
-        webhook_ok = _configured_secret(getattr(settings, "PAYPAL_WEBHOOK_ID", ""))
+        client_ok = _configured_secret(_paypal_setting("PAYPAL_CLIENT_ID"))
+        secret_ok = _configured_secret(_paypal_setting("PAYPAL_CLIENT_SECRET"))
+        webhook_ok = _configured_secret(_paypal_setting("PAYPAL_WEBHOOK_ID"))
         ok = client_ok and secret_ok and webhook_ok
         if ok:
             return True, ""
@@ -335,7 +343,7 @@ def verify_paypal_webhook_signature(headers, event):
     PAYPAL_WEBHOOK_ID is the ID shown for the webhook in the PayPal developer
     dashboard. Client credentials alone cannot verify webhook signatures.
     """
-    webhook_id = str(getattr(settings, "PAYPAL_WEBHOOK_ID", "") or "").strip()
+    webhook_id = str(_paypal_setting("PAYPAL_WEBHOOK_ID") or "").strip()
     if not webhook_id:
         raise ValueError("PAYPAL_WEBHOOK_ID is not configured.")
 
@@ -778,7 +786,7 @@ def _paypal_settlement(payment):
     if original_currency in PAYPAL_SUPPORTED_CURRENCIES:
         return original_amount, original_currency, Decimal("1")
 
-    settlement_currency = str(getattr(settings, "PAYPAL_SETTLEMENT_CURRENCY", "USD") or "USD").upper()
+    settlement_currency = str(_paypal_setting("PAYPAL_SETTLEMENT_CURRENCY", "USD") or "USD").upper()
     if settlement_currency not in PAYPAL_SUPPORTED_CURRENCIES:
         settlement_currency = "USD"
 
@@ -800,7 +808,7 @@ def _paypal_settlement(payment):
                 f"PayPal does not support {original_currency}. Configure an exchange rate for "
                 f"{original_currency} to {settlement_currency}."
             )
-        ngn_per_usd = Decimal(str(getattr(settings, "PAYPAL_NGN_PER_USD", "1500") or "1500"))
+        ngn_per_usd = Decimal(str(_paypal_setting("PAYPAL_NGN_PER_USD", "1500") or "1500"))
         if ngn_per_usd <= 0:
             raise ValueError("PAYPAL_NGN_PER_USD must be greater than zero.")
         converted = original_amount / ngn_per_usd
@@ -831,7 +839,7 @@ def init_paypal_checkout(request, payment):
             },
         }],
         "application_context": {
-            "brand_name": getattr(settings, "PAYPAL_BRAND_NAME", "Arolana Marketplace"),
+            "brand_name": _paypal_setting("PAYPAL_BRAND_NAME", "Arolana Marketplace"),
             "landing_page": "LOGIN",
             "user_action": "PAY_NOW",
             "return_url": return_url,
