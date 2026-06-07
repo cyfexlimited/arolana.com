@@ -7,6 +7,7 @@ app_name = "arolana_payments"
 urlpatterns = [
     path("", views.checkout, name="checkout"),
     path("start/<str:gateway>/", views.start_payment, name="start"),
+    path("api/start/<str:gateway>/", views.start_payment_api, name="start_api"),
     path("manual-crypto/<str:reference>/", views.manual_crypto, name="manual_crypto"),
     path("callback/<str:reference>/", views.callback, name="callback"),
     path("cancel/<str:reference>/", views.cancel, name="cancel"),

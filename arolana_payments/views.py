@@ -341,6 +341,53 @@ def start_payment(request, gateway):
         return redirect("arolana_payments:checkout")
 
 
+@require_POST
+def start_payment_api(request, gateway):
+    if gateway not in PaymentMethod.values:
+        return _json_error("Unsupported payment gateway.", status=400)
+
+    try:
+        is_available, disabled_reason = gateway_is_available(gateway)
+        if not is_available:
+            return _json_error(disabled_reason or "This payment gateway is not available yet.", status=400)
+
+        payment = create_transaction(request, gateway)
+
+        if gateway == PaymentMethod.FLUTTERWAVE:
+            checkout_url = init_flutterwave_checkout(request, payment)
+        elif gateway == PaymentMethod.PAYPAL:
+            checkout_url = init_paypal_checkout(request, payment)
+        elif gateway == PaymentMethod.PAYSTACK:
+            checkout_url = init_paystack_checkout(request, payment)
+        elif gateway == PaymentMethod.COINBASE:
+            checkout_url = init_coinbase_checkout(request, payment)
+        elif gateway == PaymentMethod.MANUAL_CRYPTO:
+            checkout_url = request.build_absolute_uri(
+                reverse("arolana_payments:manual_crypto", args=[payment.reference])
+            )
+        else:
+            return _json_error("Unsupported payment gateway.", status=400)
+
+        if not checkout_url:
+            payment.mark_failed({"error": "Gateway did not return checkout URL."})
+            return _json_error("Payment gateway did not return a checkout link. Please try another method.", status=502)
+
+        return JsonResponse({
+            "success": True,
+            "message": "Payment initialized.",
+            "reference": payment.reference,
+            "gateway": payment.gateway,
+            "checkout_url": checkout_url,
+            "status_url": request.build_absolute_uri(
+                reverse("arolana_payments:status", args=[payment.reference])
+            ),
+        })
+    except Exception as exc:
+        if 'payment' in locals():
+            payment.mark_failed({"error": str(exc)})
+        return _json_error(f"Payment initialization failed: {exc}", status=502)
+
+
 def manual_crypto(request, reference):
     payment = get_object_or_404(PaymentTransaction, reference=reference, gateway=PaymentMethod.MANUAL_CRYPTO)
     wallets = ManualCryptoWallet.objects.filter(is_active=True)

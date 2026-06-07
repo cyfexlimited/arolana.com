@@ -135,7 +135,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
                         {% for option in payment_options %}
                         <button type="button"
-                                onclick="startArolanaPayment('{{ option.gateway }}')"
+                                onclick="startArolanaPayment('{{ option.gateway }}', this)"
                                 class="arolana-payment-option {% if not option.available %}arolana-payment-option-disabled{% endif %}"
                                 {% if not option.available %}disabled title="{{ option.disabled_reason }}"{% endif %}>
                             <i class="{{ option.icon_class }} text-2xl"></i>
@@ -608,7 +608,7 @@ document.addEventListener("DOMContentLoaded", () => {
     refreshDeliveryQuote(false);
 });
 
-async function startArolanaPayment(gateway) {
+async function startArolanaPayment(gateway, clickedButton) {
     const dataBox = document.getElementById("arolana-payment-data");
 
     if (!dataBox) {
@@ -674,16 +674,6 @@ async function startArolanaPayment(gateway) {
         return;
     }
 
-    const form = document.createElement("form");
-    form.method = "POST";
-    form.action = `/payments/start/${gateway}/`;
-
-    const csrfInput = document.createElement("input");
-    csrfInput.type = "hidden";
-    csrfInput.name = "csrfmiddlewaretoken";
-    csrfInput.value = "{{ csrf_token }}";
-    form.appendChild(csrfInput);
-
     const fields = {
         amount: (amountNumber + currentDeliveryFee).toFixed(2),
         currency: currency,
@@ -711,16 +701,43 @@ async function startArolanaPayment(gateway) {
         delivery_fee: currentDeliveryFee.toFixed(2)
     };
 
-    Object.entries(fields).forEach(([key, value]) => {
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = key;
-        input.value = value || "";
-        form.appendChild(input);
-    });
+    const originalHtml = clickedButton?.innerHTML;
+    if (clickedButton) {
+        clickedButton.disabled = true;
+        clickedButton.classList.add("opacity-70", "cursor-wait");
+        clickedButton.innerHTML = `<i class="fas fa-spinner fa-spin text-2xl text-orange-500"></i><span><strong>Opening secure checkout...</strong><small>Please wait while Arolana connects to ${gateway}.</small></span>`;
+    }
 
-    document.body.appendChild(form);
-    form.submit();
+    try {
+        const formData = new FormData();
+        formData.append("csrfmiddlewaretoken", "{{ csrf_token }}");
+        Object.entries(fields).forEach(([key, value]) => {
+            formData.append(key, value || "");
+        });
+
+        const response = await fetch(`/payments/api/start/${gateway}/`, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+                "X-Requested-With": "XMLHttpRequest"
+            },
+            body: formData
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success || !data.checkout_url) {
+            throw new Error(data.message || data.error || "Payment gateway did not return a checkout link.");
+        }
+
+        window.location.assign(data.checkout_url);
+    } catch (error) {
+        alert(error.message || "Payment could not start. Please try another method.");
+        if (clickedButton) {
+            clickedButton.disabled = false;
+            clickedButton.classList.remove("opacity-70", "cursor-wait");
+            clickedButton.innerHTML = originalHtml;
+        }
+    }
 }
 </script>
 {% endblock %}
