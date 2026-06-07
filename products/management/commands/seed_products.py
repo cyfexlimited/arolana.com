@@ -1,16 +1,39 @@
-from django.core.management.base import BaseCommand
-from django.utils.text import slugify
-from products.models import Product, Category, Brand, ProductImage
-from accounts.models import User
-from decimal import Decimal
+import os
 import random
 import string
+from decimal import Decimal
+
+from django.conf import settings
+from django.core.management.base import BaseCommand
+from django.utils.text import slugify
+
+from products.models import Product, Category, Brand, ProductImage
+from accounts.models import User
 
 
 class Command(BaseCommand):
     help = 'Seed database with realistic products (safe to run multiple times)'
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--force',
+            action='store_true',
+            help='Allow demo product seeding outside development.',
+        )
+
     def handle(self, *args, **options):
+        allow_production_seed = str(
+            os.environ.get('ALLOW_DEMO_PRODUCT_SEEDING', '')
+        ).strip().lower() in {'1', 'true', 'yes', 'on'}
+        if not settings.DEBUG and not options.get('force') and not allow_production_seed:
+            self.stdout.write(
+                self.style.WARNING(
+                    'Skipping demo product seeding in production. '
+                    'Use --force or ALLOW_DEMO_PRODUCT_SEEDING=true only when intentionally loading demo data.'
+                )
+            )
+            return
+
         self.stdout.write(self.style.SUCCESS('Starting product seeding...'))
         
         # Get or create a vendor
@@ -313,6 +336,7 @@ class Command(BaseCommand):
                     'price': Decimal(str(product_data['price'])),
                     'compare_price': Decimal(str(product_data['compare_price'])) if product_data.get('compare_price') else None,
                     'description': product_data['description'],
+                    'certifications': [],
                     'stock_quantity': product_data['stock'],
                     'is_featured': product_data.get('is_featured', False),
                     'is_new': product_data.get('is_new', False),
