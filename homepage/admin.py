@@ -1,10 +1,12 @@
 from django.contrib import admin
 from django.utils.html import format_html
+from core.local_cache import local_delete
 from .models import (
     HomepageCategory, HomepageBanner, HomepageSection, 
     HomepageVendorSettings, HomepageNewsletterSettings, 
     HomepageBannerImage, HomepageManufacturerSettings, 
-    HomepageManufacturerCategory, HomepageVideoSection
+    HomepageManufacturerCategory, HomepageVideoSection,
+    HomepageVendorSection
 )
 
 
@@ -104,6 +106,45 @@ class HomepageVendorSettingsAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return not HomepageVendorSettings.objects.exists()
+
+
+@admin.register(HomepageVendorSection)
+class HomepageVendorSectionAdmin(admin.ModelAdmin):
+    list_display = [
+        'title', 'section_type', 'vendor_type_filter', 'verified_only',
+        'manufacturer_only', 'max_items', 'sort_order', 'show_when_empty',
+        'show_view_all', 'is_active'
+    ]
+    list_editable = ['max_items', 'sort_order', 'show_when_empty', 'show_view_all', 'is_active']
+    list_filter = [
+        'section_type', 'vendor_type_filter', 'verified_only',
+        'manufacturer_only', 'show_when_empty', 'show_view_all', 'is_active'
+    ]
+    search_fields = ['title', 'description', 'empty_state_text', 'view_all_url']
+    fieldsets = (
+        ('Content', {
+            'fields': ('title', 'description', 'section_type', 'empty_state_text')
+        }),
+        ('Filters', {
+            'fields': ('vendor_type_filter', 'verified_only', 'manufacturer_only'),
+            'description': 'Factory Direct Manufacturers is always locked to manufacturer vendors only.'
+        }),
+        ('Display', {
+            'fields': ('view_all_url', 'show_view_all', 'show_when_empty', 'max_items', 'sort_order', 'is_active')
+        }),
+    )
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        local_delete('homepage:vendor_sections:v3')
+
+    def delete_model(self, request, obj):
+        super().delete_model(request, obj)
+        local_delete('homepage:vendor_sections:v3')
+
+    def delete_queryset(self, request, queryset):
+        super().delete_queryset(request, queryset)
+        local_delete('homepage:vendor_sections:v3')
 
 
 # 🔹 NEWSLETTER SETTINGS (SINGLE INSTANCE)

@@ -112,6 +112,47 @@
         margin-top: .65rem;
     }
 
+    .homepage-product-vendor {
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        gap: .35rem;
+        margin-top: .65rem;
+        min-height: 1.65rem;
+    }
+
+    .homepage-product-vendor-name {
+        color: #334155;
+        font-size: .76rem;
+        font-weight: 800;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .homepage-product-badge {
+        align-items: center;
+        border-radius: 999px;
+        display: inline-flex;
+        font-size: .66rem;
+        font-weight: 900;
+        gap: .25rem;
+        line-height: 1;
+        padding: .34rem .48rem;
+        white-space: nowrap;
+    }
+
+    .homepage-product-badge--verified {
+        background: #ecfdf5;
+        color: #047857;
+    }
+
+    .homepage-product-badge--plan {
+        background: #fff7ed;
+        color: #c2410c;
+    }
+
     .homepage-product-stars {
         color: #facc15;
         display: inline-flex;
@@ -393,7 +434,7 @@
                 {% if product.main_image %}
                     {% optimized_image_url product.main_image 'product_card' as product_image_url %}
                     <img src="{{ product_image_url }}" alt="{{ product.name }}"
-                         loading="lazy">
+                         loading="lazy" decoding="async">
                 {% else %}
                     <div class="w-full h-full flex items-center justify-center">
                         <i class="fas fa-image text-5xl text-gray-400"></i>
@@ -414,6 +455,24 @@
             <div class="homepage-product-body">
                 <div class="homepage-product-brand">{{ product.brand.name|default:product.category.name }}</div>
                 <a href="{{ product.get_absolute_url }}" class="homepage-product-title">{{ product.name }}</a>
+
+                {% with vendor_profile=product.vendor.vendor_profile %}
+                {% if vendor_profile %}
+                <div class="homepage-product-vendor">
+                    <span class="homepage-product-vendor-name">{{ vendor_profile.store_name }}</span>
+                    {% if vendor_profile.is_verified %}
+                    <span class="homepage-product-badge homepage-product-badge--verified">
+                        <i class="fas fa-check-circle"></i>
+                        Verified {{ vendor_profile.get_vendor_type_display }}
+                    </span>
+                    {% endif %}
+                    <span class="homepage-product-badge homepage-product-badge--plan">
+                        <i class="fas fa-gem"></i>
+                        {{ vendor_profile.badge_level|default:vendor_profile.subscription_plan_label }}
+                    </span>
+                </div>
+                {% endif %}
+                {% endwith %}
                 
                 <div class="homepage-product-rating">
                     <div class="homepage-product-stars">

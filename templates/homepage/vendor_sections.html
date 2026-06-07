@@ -1,0 +1,58 @@
+{% load static %}
+
+{% for section in sections %}
+    {% if section.vendors or section.show_when_empty %}
+    <section class="mb-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="flex items-end justify-between gap-4 mb-5">
+                <div>
+                    <h2 class="text-2xl sm:text-3xl font-black text-slate-950">{{ section.title }}</h2>
+                    {% if section.description %}
+                        <p class="text-slate-500 mt-1">{{ section.description }}</p>
+                    {% endif %}
+                </div>
+                {% if section.show_view_all %}
+                    <a href="{{ section.view_all_url|default:'/vendors/' }}" class="text-sm font-bold text-blue-700 hover:text-orange-600">View all</a>
+                {% endif %}
+            </div>
+
+            {% if section.vendors %}
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {% for vendor in section.vendors %}
+                <a href="{% url 'vendors:detail' vendor.store_slug %}" class="group bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition">
+                    <div class="h-28 bg-gradient-to-br from-blue-950 to-blue-700 relative">
+                        {% if vendor.store_banner %}
+                            <img src="{{ vendor.store_banner.url }}" alt="" class="w-full h-full object-cover" loading="lazy" decoding="async">
+                        {% endif %}
+                        <div class="absolute -bottom-7 left-4 w-14 h-14 rounded-2xl bg-white border border-slate-200 shadow flex items-center justify-center overflow-hidden">
+                            {% if vendor.store_logo %}
+                                <img src="{{ vendor.store_logo.url }}" alt="{{ vendor.store_name }}" class="w-full h-full object-cover" loading="lazy" decoding="async">
+                            {% else %}
+                                <span class="text-xl font-black text-orange-500">{{ vendor.store_name|first|upper }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="pt-9 p-4">
+                        <h3 class="font-black text-slate-950 group-hover:text-blue-700 line-clamp-1">{{ vendor.store_name }}</h3>
+                        <p class="text-sm text-slate-500 line-clamp-1">{{ vendor.company_name|default:vendor.country }}</p>
+                        <div class="flex flex-wrap gap-2 mt-3">
+                            <span class="px-2.5 py-1 rounded-full bg-blue-50 text-blue-800 text-xs font-black">{{ vendor.get_vendor_type_display }}</span>
+                            {% if vendor.is_verified %}
+                                <span class="px-2.5 py-1 rounded-full bg-green-50 text-green-700 text-xs font-black">Verified {{ vendor.get_vendor_type_display }}</span>
+                            {% endif %}
+                            {% if vendor.vendor_type == 'manufacturer' and vendor.manufacturer_verified %}
+                                <span class="px-2.5 py-1 rounded-full bg-orange-50 text-orange-700 text-xs font-black">Verified Manufacturer</span>
+                            {% endif %}
+                            <span class="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-black">{{ vendor.badge_level|default:vendor.subscription_plan_label }}</span>
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% elif section.show_when_empty %}
+            <div class="bg-white border border-dashed border-slate-300 rounded-2xl p-6 text-slate-500">{{ section.empty_state_text }}</div>
+            {% endif %}
+        </div>
+    </section>
+    {% endif %}
+{% endfor %}

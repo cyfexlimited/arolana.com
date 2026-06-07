@@ -213,7 +213,27 @@
     </section>
     {% endif %}
 
-    <section class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+    <section class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div class="rider-card border-orange-100 bg-orange-50 p-5">
+            <p class="text-sm font-bold text-orange-700">New Pickups</p>
+            <strong class="mt-1 block text-2xl text-orange-600">{{ new_pickup_count|default:0 }}</strong>
+            <p class="mt-1 text-xs font-bold text-orange-700">Assigned and waiting for acceptance</p>
+        </div>
+        <div class="rider-card border-blue-100 bg-blue-50 p-5">
+            <p class="text-sm font-bold text-blue-700">Assigned Deliveries</p>
+            <strong class="mt-1 block text-2xl text-blue-700">{{ assigned_deliveries_count|default:0 }}</strong>
+            <p class="mt-1 text-xs font-bold text-blue-700">Active delivery inbox</p>
+        </div>
+        <div class="rider-card border-amber-100 bg-amber-50 p-5">
+            <p class="text-sm font-bold text-amber-700">Notifications</p>
+            <strong class="mt-1 block text-2xl text-amber-700">{{ unread_notification_count|default:0 }}</strong>
+            <p class="mt-1 text-xs font-bold text-amber-700">Unread rider alerts</p>
+        </div>
+        <div class="rider-card p-5">
+            <p class="text-sm font-bold text-gray-500">Delivery Inbox</p>
+            <strong class="mt-1 block text-2xl text-gray-950">{{ delivery_inbox_count|default:0 }}</strong>
+            <p class="mt-1 text-xs font-bold text-gray-500">New orders to accept</p>
+        </div>
         <div class="rider-card p-5">
             <p class="text-sm font-bold text-gray-500">KYC</p>
             <strong class="mt-1 block text-lg text-gray-950">{{ rider.get_kyc_status_display }}</strong>

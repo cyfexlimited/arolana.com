@@ -1,7 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Cart, CartItem, DeliveryProvider, DeliveryQuoteRequest, DeliveryRequest, Order, OrderItem
-
+from .models import Cart, CartItem, DeliveryProvider, DeliveryQuoteRequest, DeliveryRequest, Order, OrderItem, MobilePushToken
 class CartItemInline(admin.TabularInline):
     model = CartItem
     extra = 0
@@ -21,14 +20,43 @@ class CartAdmin(admin.ModelAdmin):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ['order_number', 'user', 'total', 'status', 'created_at']
-    list_filter = ['status', 'payment_status']
-    search_fields = ['order_number', 'user__username', 'user__email']
-    readonly_fields = ['order_number', 'created_at']
-    
+    list_display = [
+        'order_number',
+        'customer_name_display',
+        'customer_email_display',
+        'customer_phone_display',
+        'total',
+        'status',
+        'payment_status',
+        'created_at',
+    ]
+    list_filter = ['status', 'payment_status', 'created_at']
+    search_fields = [
+        'order_number',
+        'customer_name',
+        'customer_email',
+        'customer_phone',
+        'user__username',
+        'user__email',
+    ]
+    readonly_fields = [
+        'order_number',
+        'created_at',
+        'customer_name_display',
+        'customer_email_display',
+        'customer_phone_display',
+    ]
+
     fieldsets = (
         ('Order Information', {
             'fields': ('order_number', 'user', 'status', 'payment_status')
+        }),
+        ('Customer Contact', {
+            'fields': (
+                'customer_name_display',
+                'customer_email_display',
+                'customer_phone_display',
+            )
         }),
         ('Financial', {
             'fields': ('subtotal', 'shipping_cost', 'tax', 'total')
@@ -37,6 +65,19 @@ class OrderAdmin(admin.ModelAdmin):
             'fields': ('shipping_address', 'tracking_number')
         }),
     )
+
+    def customer_name_display(self, obj):
+        return getattr(obj, 'customer_name', '') or obj.user.get_full_name() or obj.user.username
+    customer_name_display.short_description = 'Customer Name'
+
+    def customer_email_display(self, obj):
+        return getattr(obj, 'customer_email', '') or getattr(obj.user, 'email', '')
+    customer_email_display.short_description = 'Customer Email'
+
+    def customer_phone_display(self, obj):
+        return getattr(obj, 'customer_phone', '') or ''
+    customer_phone_display.short_description = 'Customer Phone'
+
 
 @admin.register(OrderItem)
 class OrderItemAdmin(admin.ModelAdmin):
@@ -148,3 +189,12 @@ class DeliveryQuoteRequestAdmin(admin.ModelAdmin):
     @admin.action(description='Mark selected quote requests as quoted')
     def mark_quoted(self, request, queryset):
         queryset.update(status=DeliveryQuoteRequest.STATUS_QUOTED)
+
+
+
+@admin.register(MobilePushToken)
+class MobilePushTokenAdmin(admin.ModelAdmin):
+    list_display = ['phone_number', 'email', 'device_name', 'platform', 'is_active', 'last_registered_at']
+    list_filter = ['is_active', 'platform', 'last_registered_at']
+    search_fields = ['phone_number', 'email', 'expo_push_token', 'device_name']
+    readonly_fields = ['expo_push_token', 'last_registered_at', 'created_at', 'updated_at']

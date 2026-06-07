@@ -7,17 +7,21 @@ from django.http import JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.conf import settings
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_GET
+from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 import json
+import re
 from django.http import HttpResponse
 from decimal import Decimal, InvalidOperation
 from django.template.loader import render_to_string
+from django.utils.html import strip_tags
 from .models import (
     Product, Category, ProductReview, Wishlist, RecentlyViewed, 
     ProductVariant, ProductQuestion, Accessory, AccessoryProduct,
     ProductImage, ProductVideo, ProductVariantImage, Brand, ProductListingBanner,
-    ProductArticleLink
+    ProductArticleLink, ProductWholesaleTier, ProductDetailSection,
+    ProductDetailFieldConfig, ProductVariantTypeConfig
 )
 from accounts.models import User
 from currency.templatetags.currency_filters import currency as format_currency
@@ -42,6 +46,30 @@ try:
 except ImportError:
     Currency = None
     CurrencyConverter = None
+
+try:
+    from homepage.models import HomepageBanner, HomepageCategory, HomepageVendorSection
+except ImportError:
+    HomepageBanner = None
+    HomepageCategory = None
+    HomepageVendorSection = None
+
+try:
+    from mobile_customers.views import _auth_mobile_customer_from_request_data
+except ImportError:
+    _auth_mobile_customer_from_request_data = None
+
+try:
+    from vendors.models import VendorProfile, VendorFollow, VendorRFQ
+except ImportError:
+    VendorProfile = None
+    VendorFollow = None
+    VendorRFQ = None
+
+try:
+    from notifications.models import Notification
+except ImportError:
+    Notification = None
 
 
 # ================================
@@ -117,8 +145,103 @@ def get_paginated_items(queryset, page_num, per_page=24):
         return paginator.page(1)
 
 
+PRODUCT_SEARCH_STOP_WORDS = {
+    "do", "you", "u", "have", "has", "please", "pls", "can", "i", "get",
+    "buy", "want", "need", "looking", "for", "show", "me", "find", "search",
+    "available", "stock", "in", "the", "a", "an", "on", "arolana", "any", "is",
+    "there", "with", "under", "below", "above", "best", "good", "cheap",
+    "affordable", "price", "prices", "sell", "selling",
+}
+
+PRODUCT_SEARCH_ALIASES = {
+    "google": ("google", "pixel"),
+    "pixel": ("pixel", "google"),
+    "phone": ("phone", "phones", "smartphone", "mobile"),
+    "phones": ("phone", "phones", "smartphone", "mobile"),
+    "tv": ("tv", "television"),
+    "television": ("tv", "television"),
+    "earbud": ("earbud", "earbuds", "earphone", "headphone"),
+    "earbuds": ("earbud", "earbuds", "earphone", "headphone"),
+}
+
+PRODUCT_SEARCH_BRANDS = {
+    "acer", "apple", "asus", "google", "hp", "huawei", "infinix", "itel",
+    "lenovo", "lg", "nokia", "oneplus", "oppo", "pixel", "samsung", "sony",
+    "tecno", "vivo", "xiaomi",
+}
+
+
+def _product_search_terms(query):
+    text = re.sub(r"[^a-zA-Z0-9\s-]", " ", str(query or "").lower())
+    terms = [
+        term.strip()
+        for term in text.split()
+        if len(term.strip()) > 1 and term.strip() not in PRODUCT_SEARCH_STOP_WORDS
+    ]
+    cleaned = []
+    for term in terms:
+        singular = term[:-1] if term.endswith("s") and len(term) > 3 else term
+        for item in (singular, term):
+            if item and item not in cleaned:
+                cleaned.append(item)
+    return cleaned[:8]
+
+
+def _product_term_q(term):
+    values = PRODUCT_SEARCH_ALIASES.get(term, (term,))
+    term_q = Q()
+    for value in values:
+        term_q |= (
+            Q(name__icontains=value)
+            | Q(description__icontains=value)
+            | Q(sku__icontains=value)
+            | Q(manufacturer_sku__icontains=value)
+            | Q(country_of_origin__icontains=value)
+            | Q(category__name__icontains=value)
+            | Q(brand__name__icontains=value)
+            | Q(vendor__vendor_profile__store_name__icontains=value)
+            | Q(vendor__vendor_profile__company_name__icontains=value)
+            | Q(vendor__vendor_profile__vendor_type__icontains=value)
+        )
+    return term_q
+
+
+def _product_search_q(query, strict=True):
+    text = str(query or "").strip()
+    terms = _product_search_terms(text)
+    exact_q = Q()
+    if text:
+        exact_q = _product_term_q(text.lower())
+    if not terms:
+        return exact_q
+    if not strict:
+        loose_q = exact_q
+        for term in terms:
+            loose_q |= _product_term_q(term)
+        return loose_q
+    strict_q = Q()
+    for term in terms:
+        strict_q &= _product_term_q(term)
+    return strict_q
+
+
+def apply_product_search(queryset, query):
+    query = str(query or "").strip()
+    if not query:
+        return queryset
+    strict_queryset = queryset.filter(_product_search_q(query, strict=True)).distinct()
+    if strict_queryset.exists():
+        return strict_queryset
+    if PRODUCT_SEARCH_BRANDS.intersection(_product_search_terms(query)):
+        return queryset.none()
+    return queryset.filter(_product_search_q(query, strict=False)).distinct()
+
+
 def apply_filters(queryset, request):
     """Apply all filters to queryset"""
+    query = request.GET.get('q', '').strip()
+    if query:
+        queryset = apply_product_search(queryset, query)
     
     # ====== Category Filter ======
     categories = request.GET.getlist('categories')
@@ -1158,6 +1281,8 @@ def product_detail(request, slug):
         'four_star_percent': four_star_percent,
         'three_star_percent': three_star_percent,
         'user_currency': user_currency,
+        'product_detail_sections': ProductDetailSection.objects.filter(is_enabled=True, web_enabled=True).order_by('display_order', 'title'),
+        'product_detail_fields': ProductDetailFieldConfig.objects.filter(is_enabled=True).order_by('display_order', 'label'),
     }
 
     return render(request, 'products/detail.html', context)
@@ -1919,3 +2044,1231 @@ def debug_colors(request, product_id):
     </html>
     """
     return HttpResponse(html)
+
+def _mobile_get_value(obj, *field_names, default=None):
+    for field_name in field_names:
+        if hasattr(obj, field_name):
+            value = getattr(obj, field_name)
+            if value is not None:
+                return value
+    return default
+
+
+def _mobile_get_image_url(request, product):
+    image = _mobile_get_value(
+        product,
+        "image",
+        "main_image",
+        "thumbnail",
+        "featured_image",
+        "product_image",
+        "cover_image",
+        default=None,
+    )
+
+    if not image:
+        return None
+
+    try:
+        image_url = image.url
+    except Exception:
+        return None
+
+    if image_url.startswith("http://") or image_url.startswith("https://"):
+        return image_url
+
+    return request.build_absolute_uri(image_url)
+
+
+def parse_price_safe(value):
+    try:
+        return Decimal(str(value or "0").replace(",", ""))
+    except (InvalidOperation, ValueError, TypeError):
+        return Decimal("0")
+
+
+def _mobile_file_url(request, file_field):
+    if not file_field:
+        return None
+
+    try:
+        file_url = file_field.url
+    except Exception:
+        return None
+
+    if file_url.startswith("http://") or file_url.startswith("https://"):
+        return file_url
+
+    return request.build_absolute_uri(file_url)
+
+
+def _mobile_category_payload(request, category, include_children=True):
+    if not category:
+        return None
+
+    children = []
+    if include_children:
+        children = [
+            _mobile_category_payload(request, child, include_children=False)
+            for child in category.children.filter(is_active=True).order_by("name")[:12]
+        ]
+        children = [child for child in children if child]
+
+    return {
+        "id": category.id,
+        "name": category.name,
+        "slug": category.slug,
+        "description": strip_tags(category.description or "")[:180],
+        "image": _mobile_file_url(request, getattr(category, "image", None)),
+        "background_image": _mobile_file_url(request, getattr(category, "background_image", None)),
+        "url": request.build_absolute_uri(reverse("products:category", args=[category.slug])),
+        "product_count": category.get_total_products() if hasattr(category, "get_total_products") else 0,
+        "children": children,
+    }
+
+
+def _mobile_vendor_payload(request, vendor_profile, include_products=False):
+    if not vendor_profile:
+        return None
+
+    vendor_user = getattr(vendor_profile, "user", None)
+    product_qs = Product.objects.filter(
+        vendor=vendor_user,
+        is_active=True,
+        approval_status="approved",
+    ) if vendor_user else Product.objects.none()
+
+    badges = []
+    vendor_type = getattr(vendor_profile, "vendor_type", "retailer")
+    vendor_type_display = vendor_profile.get_vendor_type_display() if hasattr(vendor_profile, "get_vendor_type_display") else vendor_type.replace("_", " ").title()
+    if getattr(vendor_profile, "is_verified", False):
+        badges.append(f"Verified {vendor_type_display}")
+    if vendor_type == "manufacturer" and getattr(vendor_profile, "manufacturer_verified", False):
+        badges.append(getattr(vendor_profile, "manufacturer_badge_label", "") or "Verified Manufacturer")
+    if getattr(vendor_profile, "is_trusted", False):
+        badges.append("Trusted Supplier")
+    if getattr(vendor_profile, "is_top_rated", False):
+        badges.append("Top Supplier")
+    subscription_badge = getattr(vendor_profile, "badge_level", "") or getattr(vendor_profile, "subscription_plan_label", "")
+    if subscription_badge:
+        badges.append(subscription_badge)
+
+    payload = {
+        "id": vendor_profile.id,
+        "user_id": getattr(vendor_user, "id", None),
+        "name": vendor_profile.store_name,
+        "store_name": vendor_profile.store_name,
+        "company_name": getattr(vendor_profile, "company_name", ""),
+        "vendor_type": vendor_type,
+        "vendor_type_display": vendor_type_display,
+        "country": getattr(vendor_profile, "country", ""),
+        "logo": _mobile_file_url(request, getattr(vendor_profile, "store_logo", None)),
+        "banner": _mobile_file_url(request, getattr(vendor_profile, "store_banner", None)),
+        "description": getattr(vendor_profile, "description", ""),
+        "verified": bool(getattr(vendor_profile, "is_verified", False)),
+        "is_verified": bool(getattr(vendor_profile, "is_verified", False)),
+        "manufacturer_verified": bool(vendor_type == "manufacturer" and getattr(vendor_profile, "manufacturer_verified", False)),
+        "manufacturer_badge_label": getattr(vendor_profile, "manufacturer_badge_label", "") or "Verified Manufacturer",
+        "badges": badges,
+        "subscription_tier": getattr(vendor_profile, "subscription_tier", "free"),
+        "subscription_label": subscription_badge,
+        "subscription_badge": subscription_badge,
+        "rating_avg": str(getattr(vendor_profile, "rating_avg", "0") or "0"),
+        "total_reviews": getattr(vendor_profile, "total_reviews", 0),
+        "total_sales": getattr(vendor_profile, "total_sales", 0),
+        "followers_count": getattr(vendor_profile, "followers_count", 0),
+        "total_products": product_qs.count(),
+        "response_time": getattr(vendor_profile, "response_time", ""),
+        "fulfillment_rate": str(getattr(vendor_profile, "fulfillment_rate", "") or ""),
+        "return_rate": str(getattr(vendor_profile, "return_rate", "") or ""),
+        "support_email": getattr(vendor_profile, "support_email", ""),
+        "support_phone": getattr(vendor_profile, "support_phone", ""),
+        "website": getattr(vendor_profile, "website", ""),
+        "business_address": getattr(vendor_profile, "business_address", ""),
+        "manufacturer_address": getattr(vendor_profile, "manufacturer_address", ""),
+        "warehouse_address": getattr(vendor_profile, "warehouse_address", ""),
+        "pickup_address": getattr(vendor_profile, "pickup_address", ""),
+        "factory_name": getattr(vendor_profile, "factory_name", ""),
+        "factory_video_url": getattr(vendor_profile, "factory_video_url", ""),
+        "years_in_business": getattr(vendor_profile, "years_in_business", None),
+        "number_of_employees": getattr(vendor_profile, "number_of_employees", None),
+        "production_capacity": getattr(vendor_profile, "production_capacity", ""),
+        "quality_control_details": getattr(vendor_profile, "quality_control_details", ""),
+        "export_countries": getattr(vendor_profile, "export_countries", ""),
+        "main_product_categories": getattr(vendor_profile, "main_product_categories", ""),
+        "chat_available": bool(vendor_user and user_has_paid_subscription(vendor_user)),
+        "url": request.build_absolute_uri(vendor_profile.get_absolute_url()) if hasattr(vendor_profile, "get_absolute_url") else "",
+    }
+
+    if include_products:
+        payload["products"] = [_mobile_product_payload(request, product) for product in product_qs.select_related("category", "brand", "vendor")[:60]]
+
+    return payload
+
+
+def _mobile_product_payload(request, product):
+    category = _mobile_get_value(product, "category", default=None)
+    brand = _mobile_get_value(product, "brand", default=None)
+    vendor_user = getattr(product, "vendor", None)
+    vendor_profile = getattr(vendor_user, "vendor_profile", None) if vendor_user else None
+
+    category_name = category.name if category and hasattr(category, "name") else "Arolana"
+    brand_name = brand.name if brand and hasattr(brand, "name") else ""
+
+    regular_price = _mobile_get_value(product, "regular_price", "compare_price", "old_price", default="")
+    price = _mobile_get_value(product, "price", "sale_price", "current_price", "amount", default="")
+    rating = getattr(product, "average_rating", None)
+    if rating is None:
+        try:
+            rating = product.reviews.aggregate(avg=Avg("rating")).get("avg") or 0
+        except Exception:
+            rating = 0
+
+    minimum_order_quantity = getattr(product, "minimum_order_quantity", 1) or 1
+    wholesale_price = getattr(product, "wholesale_price", None)
+    bulk_price = getattr(product, "bulk_price", None)
+    vendor_type = getattr(vendor_profile, "vendor_type", "") if vendor_profile else ""
+    vendor_type_display = vendor_profile.get_vendor_type_display() if vendor_profile and hasattr(vendor_profile, "get_vendor_type_display") else vendor_type.replace("_", " ").title()
+    manufacturer_verified = bool(vendor_type == "manufacturer" and getattr(vendor_profile, "manufacturer_verified", False)) if vendor_profile else False
+    vendor_verified = bool(getattr(vendor_profile, "is_verified", False)) if vendor_profile else False
+    vendor_name = getattr(vendor_profile, "store_name", "") if vendor_profile else ""
+
+    badges = []
+    if vendor_verified:
+        badges.append(f"Verified {vendor_type_display or 'Vendor'}")
+    if manufacturer_verified:
+        badges.append(getattr(vendor_profile, "manufacturer_badge_label", "") or "Verified Manufacturer")
+    if minimum_order_quantity > 1:
+        badges.append(f"MOQ {minimum_order_quantity}")
+    if wholesale_price or bulk_price:
+        badges.append("Wholesale")
+    subscription_badge = getattr(vendor_profile, "badge_level", "") or getattr(vendor_profile, "subscription_plan_label", "") if vendor_profile else ""
+    if subscription_badge:
+        badges.append(subscription_badge)
+
+    return {
+        "id": product.id,
+        "name": _mobile_get_value(product, "name", "title", "product_name", default="Unnamed product"),
+        "slug": _mobile_get_value(product, "slug", default=""),
+        "price": str(price or ""),
+        "regular_price": str(regular_price or ""),
+        "compare_price": str(regular_price or ""),
+        "wholesale_price": str(wholesale_price or ""),
+        "bulk_price": str(bulk_price or ""),
+        "minimum_order_quantity": minimum_order_quantity,
+        "moq": minimum_order_quantity,
+        "moq_unit": getattr(product, "moq_unit", "") or "unit",
+        "lead_time_days": getattr(product, "lead_time_days", None),
+        "country_of_origin": getattr(product, "country_of_origin", "") or "",
+        "manufacturer_sku": getattr(product, "manufacturer_sku", "") or "",
+        "sample_available": bool(getattr(product, "sample_available", False)),
+        "sample_price": str(getattr(product, "sample_price", "") or ""),
+        "category_name": category_name,
+        "category_slug": getattr(category, "slug", "") if category else "",
+        "brand_name": brand_name,
+        "brand": brand_name,
+        "condition": getattr(product, "condition", "") or "",
+        "sku": getattr(product, "sku", "") or "",
+        "arolana_sku": getattr(product, "sku", "") or "",
+        "stock_quantity": getattr(product, "stock_quantity", 0) or 0,
+        "in_stock": bool(getattr(product, "stock_quantity", 0) or getattr(product, "is_in_stock", False)),
+        "is_featured": bool(getattr(product, "is_featured", False)),
+        "is_new": bool(getattr(product, "is_new", False)),
+        "is_bestseller": bool(getattr(product, "is_bestseller", False)),
+        "rating": str(rating or 0),
+        "rating_count": getattr(product, "review_count", None) or product.reviews.count(),
+        "image": _mobile_get_image_url(request, product),
+        "url": request.build_absolute_uri(reverse("products:detail", args=[product.slug])),
+        "vendor_id": getattr(vendor_profile, "id", None),
+        "vendor_user_id": getattr(vendor_user, "id", None),
+        "vendor_name": vendor_name,
+        "vendor_type": vendor_type,
+        "vendor_type_display": vendor_type_display,
+        "vendor_verified": vendor_verified,
+        "manufacturer_verified": manufacturer_verified,
+        "subscription_tier": getattr(vendor_profile, "subscription_tier", "free") if vendor_profile else "free",
+        "subscription_label": subscription_badge,
+        "subscription_badge": subscription_badge,
+        "badges": badges,
+        "wholesale_available": bool(wholesale_price or bulk_price),
+        "rfq_available": bool(vendor_profile),
+    }
+
+
+@require_GET
+def mobile_home_api(request):
+    product_queryset = Product.objects.filter(
+        is_active=True,
+        approval_status="approved",
+    ).select_related("category", "brand", "vendor", "vendor__vendor_profile").prefetch_related("reviews").order_by("-id")[:80]
+
+    banner_payloads = []
+    if HomepageBanner:
+        banners = (
+            HomepageBanner.objects.filter(is_active=True)
+            .prefetch_related("uploaded_images")
+            .order_by("display_order", "-id")[:8]
+        )
+        for banner in banners:
+            uploaded_images = [image for image in banner.uploaded_images.all() if image.is_active]
+            background = next((image for image in uploaded_images if image.position == "background"), None)
+            center = next((image for image in uploaded_images if image.position == "center"), None)
+            image = background or center or (uploaded_images[0] if uploaded_images else None)
+            banner_payloads.append({
+                "id": banner.id,
+                "title": banner.title,
+                "subtitle": banner.subtitle,
+                "button_text": banner.button_text,
+                "button_url": banner.button_url,
+                "background_color_start": banner.background_color_start,
+                "background_color_end": banner.background_color_end,
+                "content_layout": banner.content_layout,
+                "content_alignment": banner.content_alignment,
+                "background_fit": banner.background_fit,
+                "background_position": banner.background_position,
+                "background_opacity": banner.background_opacity,
+                "desktop_height": banner.desktop_height,
+                "tablet_height": banner.tablet_height,
+                "mobile_height": banner.mobile_height,
+                "image": _mobile_file_url(request, image.image) if image else None,
+                "show_button": banner.show_button,
+            })
+
+    category_payloads = []
+    if HomepageCategory:
+        homepage_categories = (
+            HomepageCategory.objects.filter(is_active=True, category__is_active=True)
+            .select_related("category")
+            .order_by("display_order")[:12]
+        )
+        category_payloads = [
+            _mobile_category_payload(request, item.category)
+            for item in homepage_categories
+            if item.category
+        ]
+
+    if not category_payloads:
+        roots = Category.objects.filter(is_active=True, parent=None).order_by("name")[:12]
+        category_payloads = [_mobile_category_payload(request, category) for category in roots]
+
+    products = [_mobile_product_payload(request, product) for product in product_queryset]
+    verified_vendors = []
+    factory_direct_manufacturers = []
+    top_retailers = []
+    distributors_wholesalers = []
+    service_providers = []
+    top_vendors = []
+    if VendorProfile:
+        section_payloads = {}
+        if HomepageVendorSection:
+            for section in HomepageVendorSection.objects.filter(is_active=True).order_by("sort_order", "title"):
+                section_payloads[section.section_type] = [
+                    _mobile_vendor_payload(request, vendor_profile)
+                    for vendor_profile in section.get_vendor_queryset()
+                    if vendor_profile
+                ]
+
+        verified_vendors = section_payloads["verified_vendors"] if "verified_vendors" in section_payloads else [
+            _mobile_vendor_payload(request, vendor_profile)
+            for vendor_profile in VendorProfile.objects.filter(
+                approval_status="approved",
+                is_verified=True,
+            ).select_related("user").order_by("-manufacturer_verified", "-priority_score", "-rating_avg")[:12]
+        ]
+        factory_direct_manufacturers = section_payloads["factory_direct_manufacturers"] if "factory_direct_manufacturers" in section_payloads else [
+            _mobile_vendor_payload(request, vendor_profile)
+            for vendor_profile in VendorProfile.objects.filter(
+                approval_status="approved",
+                vendor_type="manufacturer",
+            ).filter(
+                Q(is_verified=True) | Q(manufacturer_verified=True)
+            ).select_related("user").order_by("-manufacturer_verified", "-priority_score", "-rating_avg")[:12]
+        ]
+        top_vendors = verified_vendors[:8]
+        top_retailers = section_payloads["top_retailers"] if "top_retailers" in section_payloads else [
+            _mobile_vendor_payload(request, vendor_profile)
+            for vendor_profile in VendorProfile.objects.filter(approval_status="approved", is_verified=True, vendor_type="retailer").select_related("user").order_by("-priority_score", "-rating_avg")[:12]
+        ]
+        distributors_wholesalers = section_payloads["distributors_wholesalers"] if "distributors_wholesalers" in section_payloads else [
+            _mobile_vendor_payload(request, vendor_profile)
+            for vendor_profile in VendorProfile.objects.filter(approval_status="approved", is_verified=True, vendor_type__in=["distributor", "wholesaler"]).select_related("user").order_by("-priority_score", "-rating_avg")[:12]
+        ]
+        service_providers = section_payloads["service_providers"] if "service_providers" in section_payloads else [
+            _mobile_vendor_payload(request, vendor_profile)
+            for vendor_profile in VendorProfile.objects.filter(approval_status="approved", is_verified=True, vendor_type="service_provider").select_related("user").order_by("-priority_score", "-rating_avg")[:12]
+        ]
+
+    factory_direct = [
+        item for item in products
+        if item.get("vendor_type") == "manufacturer"
+    ][:12]
+    wholesale_deals = [
+        item for item in products
+        if item.get("wholesale_available")
+    ][:12]
+    moq_products = [
+        item for item in products
+        if int(item.get("minimum_order_quantity") or 1) > 1
+    ][:12]
+    price_drop_products = [
+        item for item in products
+        if parse_price_safe(item.get("compare_price")) > parse_price_safe(item.get("price"))
+    ][:12]
+
+    return JsonResponse({
+        "hero_banners": banner_payloads,
+        "mega_categories": [category for category in category_payloads if category],
+        "products": products,
+        "recommended_products": products[:12],
+        "new_arrivals": products[:12],
+        "trending_products": products[:12],
+        "verified_vendors": verified_vendors,
+        "factory_direct_manufacturers": factory_direct_manufacturers,
+        "verified_manufacturers": factory_direct_manufacturers,
+        "top_vendors": top_vendors,
+        "top_retailers": top_retailers,
+        "distributors_wholesalers": distributors_wholesalers,
+        "service_providers": service_providers,
+        "homepage_vendor_sections": [
+            {
+                "key": section.section_type,
+                "title": section.title,
+                "description": section.description,
+                "empty_state_text": section.empty_state_text,
+                "view_all_url": section.view_all_url,
+                "show_view_all": section.show_view_all,
+                "show_when_empty": section.show_when_empty,
+                "max_items": section.max_items,
+                "sort_order": section.sort_order,
+                "vendors": section_payloads.get(section.section_type, []),
+            }
+            for section in HomepageVendorSection.objects.filter(is_active=True).order_by("sort_order", "title")
+            if section_payloads.get(section.section_type, []) or section.show_when_empty
+        ] if HomepageVendorSection and VendorProfile else [],
+        "factory_direct_deals": factory_direct,
+        "bulk_order_deals": wholesale_deals,
+        "wholesale_deals": wholesale_deals,
+        "moq_products": moq_products,
+        "request_quote_products": moq_products or factory_direct,
+        "price_drop_products": price_drop_products,
+    })
+
+
+@require_GET
+def mobile_product_config_api(request):
+    sections = ProductDetailSection.objects.filter(is_enabled=True, mobile_enabled=True).order_by("display_order", "title")
+    fields = ProductDetailFieldConfig.objects.filter(is_enabled=True).order_by("display_order", "label")
+    variant_types = ProductVariantTypeConfig.objects.filter(is_active=True).order_by("display_order", "label")
+    if not variant_types.exists():
+        variant_type_payload = [{"key": value, "label": label} for value, label in ProductVariant.VARIANT_TYPES]
+    else:
+        variant_type_payload = [{"key": item.key, "label": item.label} for item in variant_types]
+    return JsonResponse({
+        "success": True,
+        "sections": [
+            {
+                "key": section.key,
+                "title": section.title,
+                "display_order": section.display_order,
+                "web_enabled": section.web_enabled,
+                "mobile_enabled": section.mobile_enabled,
+            }
+            for section in sections
+        ],
+        "fields": [
+            {
+                "key": field.key,
+                "label": field.label,
+                "is_required": field.is_required,
+                "display_order": field.display_order,
+                "help_text": field.help_text,
+            }
+            for field in fields
+        ],
+        "variant_types": variant_type_payload,
+    })
+
+
+@require_GET
+def mobile_products_api(request):
+    products = Product.objects.filter(
+        is_active=True,
+        approval_status="approved",
+    ).select_related("category", "brand", "vendor", "vendor__vendor_profile").prefetch_related("reviews")
+
+    query = request.GET.get("q", "").strip()
+    category = request.GET.get("category", "").strip()
+    brand = request.GET.get("brand", "").strip()
+    condition = request.GET.get("condition", "").strip()
+    vendor_type = request.GET.get("vendor_type", "").strip()
+    country = request.GET.get("country", "").strip()
+    verified_manufacturer = request.GET.get("verified_manufacturer", "").strip().lower()
+    wholesale = request.GET.get("wholesale", "").strip().lower()
+    moq = request.GET.get("moq", "").strip().lower()
+    min_price = request.GET.get("min_price", "").strip()
+    max_price = request.GET.get("max_price", "").strip()
+    in_stock = request.GET.get("in_stock", "").strip().lower()
+    sort = request.GET.get("sort", "").strip().lower()
+
+    if query:
+        products = apply_product_search(products, query)
+    if category:
+        products = products.filter(Q(category__name__iexact=category) | Q(category__slug=category))
+    if brand:
+        products = products.filter(Q(brand__name__iexact=brand) | Q(brand__slug=brand))
+    if condition:
+        products = products.filter(condition=condition)
+    if vendor_type:
+        products = products.filter(vendor__vendor_profile__vendor_type=vendor_type)
+    if country:
+        products = products.filter(Q(country_of_origin__icontains=country) | Q(vendor__vendor_profile__country__icontains=country))
+    if verified_manufacturer in {"1", "true", "yes"}:
+        products = products.filter(vendor__vendor_profile__manufacturer_verified=True)
+    if wholesale in {"1", "true", "yes"}:
+        products = products.filter(Q(wholesale_price__isnull=False) | Q(bulk_price__isnull=False))
+    if moq in {"1", "true", "yes"}:
+        products = products.filter(minimum_order_quantity__gt=1)
+    if min_price:
+        try:
+            products = products.filter(price__gte=Decimal(min_price))
+        except InvalidOperation:
+            pass
+    if max_price:
+        try:
+            products = products.filter(price__lte=Decimal(max_price))
+        except InvalidOperation:
+            pass
+    if in_stock in {"1", "true", "yes"}:
+        products = products.filter(stock_quantity__gt=0)
+
+    if sort == "price_low":
+        products = products.order_by("price")
+    elif sort == "price_high":
+        products = products.order_by("-price")
+    elif sort == "newest":
+        products = products.order_by("-created_at")
+    elif sort == "popular":
+        products = products.order_by("-sales_count", "-id")
+    elif sort == "verified":
+        products = products.order_by("-vendor__vendor_profile__manufacturer_verified", "-vendor__vendor_profile__is_verified", "-rating_avg", "-id")
+    elif sort == "wholesale":
+        products = products.order_by(F("wholesale_price").desc(nulls_last=True), "-id")
+    elif sort == "top_rated":
+        products = products.order_by("-rating_avg", "-rating_count", "-id")
+    else:
+        products = products.order_by("-id")
+
+    data = [_mobile_product_payload(request, product) for product in products[:120]]
+
+    return JsonResponse(
+        {
+            "count": len(data),
+            "products": data,
+        },
+        safe=False,
+    )
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@transaction.atomic
+def mobile_product_review_api(request, slug):
+    if _auth_mobile_customer_from_request_data is None:
+        return JsonResponse({"success": False, "message": "Mobile customer app is not available."}, status=500)
+
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except Exception:
+        return JsonResponse({"success": False, "message": "Invalid JSON payload."}, status=400)
+
+    try:
+        customer = _auth_mobile_customer_from_request_data(payload)
+    except PermissionError as error:
+        return JsonResponse({"success": False, "message": str(error)}, status=403)
+    except ValueError as error:
+        return JsonResponse({"success": False, "message": str(error)}, status=400)
+
+    product = get_object_or_404(Product, slug=slug, is_active=True, approval_status="approved")
+    user = getattr(customer, "user", None)
+    if not user:
+        return JsonResponse({"success": False, "message": "Customer account is not linked to a user yet."}, status=400)
+
+    rating = int(payload.get("rating") or 5)
+    rating = max(1, min(5, rating))
+    title = str(payload.get("title") or "").strip()
+    review_text = str(payload.get("review") or payload.get("message") or "").strip()
+
+    if len(title) < 3:
+        return JsonResponse({"success": False, "message": "Please add a short review title."}, status=400)
+    if len(review_text) < 10:
+        return JsonResponse({"success": False, "message": "Please write a little more about the product."}, status=400)
+
+    review, _created = ProductReview.objects.update_or_create(
+        product=product,
+        user=user,
+        defaults={
+            "rating": rating,
+            "title": title,
+            "review": review_text,
+            "verified_purchase": False,
+        },
+    )
+
+    avg_rating = product.reviews.aggregate(Avg("rating"))["rating__avg"] or 0
+    product.rating_avg = Decimal(str(avg_rating))
+    product.rating_count = product.reviews.count()
+    product.save(update_fields=["rating_avg", "rating_count"])
+
+    return JsonResponse({
+        "success": True,
+        "message": "Review saved successfully.",
+        "review": {
+            "id": review.id,
+            "rating": review.rating,
+            "title": review.title,
+            "review": review.review,
+            "customer_name": customer.full_name or getattr(user, "get_full_name", lambda: "")() or getattr(user, "username", "Arolana customer"),
+            "verified_purchase": review.verified_purchase,
+        },
+    })
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def mobile_product_question_api(request, slug):
+    if _auth_mobile_customer_from_request_data is None:
+        return JsonResponse({"success": False, "message": "Mobile customer app is not available."}, status=500)
+
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except Exception:
+        return JsonResponse({"success": False, "message": "Invalid JSON payload."}, status=400)
+
+    try:
+        customer = _auth_mobile_customer_from_request_data(payload)
+    except PermissionError as error:
+        return JsonResponse({"success": False, "message": str(error)}, status=403)
+    except ValueError as error:
+        return JsonResponse({"success": False, "message": str(error)}, status=400)
+
+    product = get_object_or_404(Product, slug=slug, is_active=True, approval_status="approved")
+    user = getattr(customer, "user", None)
+    if not user:
+        return JsonResponse({"success": False, "message": "Customer account is not linked to a user yet."}, status=400)
+
+    question_text = str(payload.get("question") or "").strip()
+    if len(question_text) < 10:
+        return JsonResponse({"success": False, "message": "Question must be at least 10 characters."}, status=400)
+    if len(question_text) > 500:
+        return JsonResponse({"success": False, "message": "Question must be less than 500 characters."}, status=400)
+
+    qna = ProductQuestion.objects.create(
+        product=product,
+        user=user,
+        question=question_text,
+        is_public=True,
+    )
+
+    return JsonResponse({
+        "success": True,
+        "message": "Question submitted successfully.",
+        "question": {
+            "id": qna.id,
+            "question": qna.question,
+            "answer": "",
+            "answered": False,
+            "helpful_count": 0,
+        },
+    })
+
+@require_GET
+def mobile_product_detail_api(request, slug):
+    product = get_object_or_404(
+        Product.objects.select_related("category", "brand", "vendor").prefetch_related(
+            "images",
+            "variants",
+            "variants__images",
+            "reviews__user",
+            "questions__user",
+            "additional_videos",
+            "wholesale_tiers",
+            "product_accessories__accessory",
+        ),
+        slug=slug,
+        is_active=True,
+        approval_status="approved",
+    )
+
+    def safe_url(file_field):
+        if not file_field:
+            return None
+        try:
+            url = file_field.url
+        except Exception:
+            return None
+
+        if url.startswith("http://") or url.startswith("https://"):
+            return url
+
+        return request.build_absolute_uri(url)
+
+    images = []
+
+    main_image = safe_url(getattr(product, "main_image", None))
+    if main_image:
+        images.append(main_image)
+
+    for image in product.images.all():
+        image_url = safe_url(getattr(image, "image", None))
+        if image_url and image_url not in images:
+            images.append(image_url)
+
+    variants = []
+    for variant in product.variants.filter(is_active=True):
+        variant_images = []
+        variant_image = safe_url(getattr(variant, "image", None))
+        if variant_image:
+            variant_images.append(variant_image)
+        for gallery_image in variant.images.all():
+            gallery_url = safe_url(getattr(gallery_image, "image", None))
+            if gallery_url and gallery_url not in variant_images:
+                variant_images.append(gallery_url)
+        variants.append({
+            "id": variant.id,
+            "name": getattr(variant, "name", ""),
+            "value": getattr(variant, "value", ""),
+            "variant_type": getattr(variant, "variant_type", ""),
+            "sku": getattr(variant, "sku", ""),
+            "final_price": str(getattr(variant, "final_price", product.price)),
+            "price_adjustment": str(getattr(variant, "price_adjustment", "0")),
+            "stock_quantity": getattr(variant, "stock_quantity", 0),
+            "color_code": getattr(variant, "color_code", ""),
+            "image": variant_image,
+            "images": variant_images,
+        })
+
+    category = getattr(product, "category", None)
+    brand = getattr(product, "brand", None)
+    vendor = getattr(product, "vendor", None)
+    vendor_profile = getattr(vendor, "vendor_profile", None) if vendor else None
+    vendor_chat_available = bool(vendor and user_has_paid_subscription(vendor))
+
+    def product_card(item):
+        return _mobile_product_payload(request, item)
+
+    mobile_customer = None
+    if _auth_mobile_customer_from_request_data is not None:
+        try:
+            mobile_customer = _auth_mobile_customer_from_request_data(request.GET)
+        except Exception:
+            mobile_customer = None
+
+    related_queryset = Product.objects.filter(
+        is_active=True,
+        approval_status="approved",
+    ).exclude(id=product.id).select_related("category", "brand").order_by("-is_featured", "-rating_avg", "-created_at")
+
+    bought_together_ids = []
+    try:
+        from orders.models import OrderItem
+
+        order_ids = OrderItem.objects.filter(product=product).values_list("order_id", flat=True)
+        bought_together_ids = list(
+            OrderItem.objects.filter(order_id__in=order_ids, product_id__isnull=False)
+            .exclude(product_id=product.id)
+            .exclude(order__status__in=["cancelled", "refunded"])
+            .values("product_id")
+            .annotate(times=Count("id"))
+            .order_by("-times")
+            .values_list("product_id", flat=True)[:8]
+        )
+    except Exception:
+        bought_together_ids = []
+
+    frequently_bought = list(related_queryset.filter(id__in=bought_together_ids))
+    if bought_together_ids:
+        frequently_bought.sort(key=lambda item: bought_together_ids.index(item.id))
+    if len(frequently_bought) < 8:
+        extra_frequently_bought = related_queryset.filter(brand=brand).exclude(id__in=[item.id for item in frequently_bought]) if brand else related_queryset.exclude(id__in=[item.id for item in frequently_bought])
+        frequently_bought.extend(list(extra_frequently_bought[: 8 - len(frequently_bought)]))
+
+    recommended_ids = []
+    if mobile_customer:
+        try:
+            from arolana_ops.views import _build_recommendation_scores
+
+            recommended_ids = [
+                product_id
+                for product_id, _meta in sorted(
+                    _build_recommendation_scores(mobile_customer).items(),
+                    key=lambda item: item[1]["score"],
+                    reverse=True,
+                )
+                if product_id != product.id
+            ][:12]
+        except Exception:
+            recommended_ids = []
+
+    recommended = list(related_queryset.filter(id__in=recommended_ids[:8]))
+    if recommended_ids:
+        recommended.sort(key=lambda item: recommended_ids.index(item.id))
+    if len(recommended) < 8:
+        extra_recommended = related_queryset.filter(category=category).exclude(id__in=[item.id for item in recommended]) if category else related_queryset.exclude(id__in=[item.id for item in recommended])
+        recommended.extend(list(extra_recommended[: 8 - len(recommended)]))
+
+    supplier_products = list(related_queryset.filter(vendor=vendor)[:8]) if vendor else []
+    recently_viewed = []
+    if mobile_customer:
+        try:
+            interactions = (
+                mobile_customer.product_interactions.select_related("product", "product__category", "product__brand")
+                .filter(product__is_active=True, product__approval_status="approved")
+                .exclude(product=product)
+                .order_by("-last_viewed_at")[:8]
+            )
+            recently_viewed = [interaction.product for interaction in interactions]
+        except Exception:
+            recently_viewed = []
+    if len(recently_viewed) < 8:
+        recently_viewed.extend(list(related_queryset.exclude(id__in=[item.id for item in recently_viewed])[: 8 - len(recently_viewed)]))
+
+    reviews = []
+    for review in product.reviews.all()[:8]:
+        user = getattr(review, "user", None)
+        reviews.append({
+            "id": review.id,
+            "rating": getattr(review, "rating", 0),
+            "title": getattr(review, "title", ""),
+            "review": getattr(review, "review", ""),
+            "customer_name": getattr(user, "get_full_name", lambda: "")() or getattr(user, "username", "Arolana customer"),
+            "verified_purchase": getattr(review, "verified_purchase", False),
+            "helpful_count": getattr(review, "helpful_count", 0),
+            "created_at": getattr(review, "created_at", None).isoformat() if getattr(review, "created_at", None) else "",
+        })
+
+    questions = []
+    for question in product.questions.filter(is_public=True)[:8]:
+        questions.append({
+            "id": question.id,
+            "question": getattr(question, "question", ""),
+            "answer": getattr(question, "answer", "") or "",
+            "answered": bool(getattr(question, "answer", "")),
+            "helpful_count": getattr(question, "helpful_count", 0),
+        })
+
+    videos = []
+    if getattr(product, "video_url", "") or getattr(product, "local_video", None):
+        videos.append({
+            "title": product.video_title or "Product video",
+            "source": getattr(product, "video_type", "youtube"),
+            "url": product.video_url or safe_url(getattr(product, "local_video", None)),
+            "thumbnail": safe_url(getattr(product, "video_thumbnail", None)),
+        })
+    for video in product.additional_videos.all():
+        videos.append({
+            "title": video.title or "Product video",
+            "description": getattr(video, "description", ""),
+            "source": getattr(video, "source", ""),
+            "url": getattr(video, "youtube_url", "") or getattr(video, "vimeo_url", "") or safe_url(getattr(video, "local_video", None)),
+            "thumbnail": safe_url(getattr(video, "thumbnail", None)),
+        })
+
+    shipping_info = getattr(product, "shipping_info", None)
+    delivery_info = {
+        "title": "Delivery calculated at checkout",
+        "message": "Use your accurate location at checkout so Arolana can calculate delivery from the vendor pickup address to you.",
+        "estimate": shipping_info.delivery_estimate() if shipping_info else "Calculated by location",
+        "free_shipping": getattr(shipping_info, "free_shipping", False) if shipping_info else False,
+        "weight": str(getattr(shipping_info, "weight_shipping", "") or getattr(product, "weight", "") or ""),
+        "dimensions": getattr(shipping_info, "dimensions_package", "") if shipping_info else "",
+        "restrictions": getattr(shipping_info, "shipping_restrictions", "") if shipping_info else "",
+    }
+
+    wholesale_tiers = [
+        {
+            "id": tier.id,
+            "min_quantity": tier.min_quantity,
+            "max_quantity": tier.max_quantity,
+            "price_per_unit": str(tier.price_per_unit),
+        }
+        for tier in product.wholesale_tiers.filter(is_active=True)
+    ]
+
+    accessories = []
+    for accessory_link in product.product_accessories.select_related("accessory").filter(accessory__is_active=True)[:12]:
+        accessory = accessory_link.accessory
+        accessories.append({
+            "id": accessory.id,
+            "name": accessory.name,
+            "slug": accessory.slug,
+            "description": getattr(accessory, "description", ""),
+            "price": str(accessory.price),
+            "compare_price": str(accessory.compare_price or ""),
+            "image": safe_url(getattr(accessory, "image", None)),
+            "required": accessory_link.required,
+            "discount_when_bought_together": str(accessory_link.discount_when_bought_together),
+        })
+
+    vendor_url = ""
+    if vendor_profile:
+        try:
+            vendor_url = request.build_absolute_uri(vendor_profile.get_absolute_url())
+        except Exception:
+            vendor_url = ""
+
+    chat_url = ""
+    if vendor:
+        try:
+            chat_url = request.build_absolute_uri(reverse("chat:start_vendor_product", args=[vendor.id, product.id]))
+        except Exception:
+            chat_url = ""
+
+    return JsonResponse({
+        "id": product.id,
+        "name": product.name,
+        "slug": product.slug,
+        "sku": product.sku,
+        "arolana_sku": product.sku,
+        "manufacturer_sku": getattr(product, "manufacturer_sku", ""),
+        "condition": product.get_condition_display() if hasattr(product, "get_condition_display") else getattr(product, "condition", ""),
+        "price": str(product.price),
+        "compare_price": str(getattr(product, "compare_price", "") or ""),
+        "wholesale_price": str(getattr(product, "wholesale_price", "") or ""),
+        "bulk_price": str(getattr(product, "bulk_price", "") or ""),
+        "minimum_order_quantity": getattr(product, "minimum_order_quantity", 1) or 1,
+        "moq": getattr(product, "minimum_order_quantity", 1) or 1,
+        "moq_unit": getattr(product, "moq_unit", "") or "unit",
+        "lead_time_days": getattr(product, "lead_time_days", None),
+        "country_of_origin": getattr(product, "country_of_origin", "") or "",
+        "manufacturer_address": getattr(product, "manufacturer_address", "") or "",
+        "certifications": getattr(product, "certifications", []) or [],
+        "sample_available": bool(getattr(product, "sample_available", False)),
+        "sample_price": str(getattr(product, "sample_price", "") or ""),
+        "shipping_weight": getattr(product, "formatted_weight", "") or str(getattr(product, "weight", "") or ""),
+        "package_dimensions": getattr(product, "dimensions", "") or "",
+        "wholesale_tiers": wholesale_tiers,
+        "accessories": accessories,
+        "rfq_available": bool(vendor_profile),
+        "badges": _mobile_product_payload(request, product).get("badges", []),
+        "description": getattr(product, "description", "") or "",
+        "short_description": getattr(product, "short_description", "") or "",
+        "specifications": getattr(product, "specifications", "") or "",
+        "specifications_text": strip_tags(getattr(product, "specifications", "") or ""),
+        "category_name": category.name if category else "Arolana",
+        "brand_name": brand.name if brand else "",
+        "stock_quantity": getattr(product, "stock_quantity", 0),
+        "rating_avg": str(getattr(product, "rating_avg", "0") or "0"),
+        "rating_count": getattr(product, "rating_count", 0),
+        "manual_pdf": safe_url(getattr(product, "manual_pdf", None)),
+        "delivery_info": delivery_info,
+        "vendor": {
+            **(_mobile_vendor_payload(request, vendor_profile) or {
+                "id": vendor.id if vendor else None,
+                "name": getattr(vendor, "get_full_name", lambda: "")() or getattr(vendor, "email", "Arolana vendor"),
+            }),
+            "chat_available": vendor_chat_available,
+            "chat_url": chat_url,
+            "url": vendor_url,
+        },
+        "image": main_image,
+        "images": images,
+        "variants": variants,
+        "videos": videos,
+        "reviews": reviews,
+        "questions": questions,
+        "recommended_products": [product_card(item) for item in recommended],
+        "frequently_bought": [product_card(item) for item in frequently_bought],
+        "supplier_products": [product_card(item) for item in supplier_products],
+        "recently_viewed": [product_card(item) for item in recently_viewed],
+        "detail_sections": [
+            {
+                "key": section.key,
+                "title": section.title,
+                "display_order": section.display_order,
+            }
+            for section in ProductDetailSection.objects.filter(is_enabled=True, mobile_enabled=True).order_by("display_order", "title")
+        ],
+        "detail_fields": [
+            {
+                "key": field.key,
+                "label": field.label,
+                "is_required": field.is_required,
+                "display_order": field.display_order,
+                "help_text": field.help_text,
+            }
+            for field in ProductDetailFieldConfig.objects.filter(is_enabled=True).order_by("display_order", "label")
+        ],
+    })
+
+
+def _mobile_customer_from_payload(payload):
+    if _auth_mobile_customer_from_request_data is None:
+        raise ValueError("Mobile customer app is not available.")
+    return _auth_mobile_customer_from_request_data(payload)
+
+
+def _rfq_payload(request, rfq):
+    product = getattr(rfq, "product", None)
+    vendor = getattr(rfq, "vendor", None)
+    return {
+        "id": rfq.id,
+        "status": rfq.status,
+        "status_label": rfq.get_status_display() if hasattr(rfq, "get_status_display") else rfq.status,
+        "quantity": rfq.quantity,
+        "budget": str(rfq.budget or ""),
+        "country": rfq.country,
+        "delivery_location": rfq.delivery_location,
+        "message": rfq.message,
+        "quote_price": str(rfq.quote_price or ""),
+        "quote_lead_time_days": rfq.quote_lead_time_days,
+        "vendor_note": rfq.vendor_note,
+        "created_at": rfq.created_at.isoformat() if getattr(rfq, "created_at", None) else "",
+        "expires_at": rfq.expires_at.isoformat() if getattr(rfq, "expires_at", None) else "",
+        "product": _mobile_product_payload(request, product) if product else None,
+        "vendor": _mobile_vendor_payload(request, vendor) if vendor else None,
+    }
+
+
+@require_GET
+def mobile_vendors_api(request):
+    if VendorProfile is None:
+        return JsonResponse({"success": False, "message": "Vendor system is not available."}, status=500)
+
+    query = request.GET.get("q", "").strip()
+    vendor_type = request.GET.get("vendor_type", "").strip()
+    verified = request.GET.get("verified", "").strip().lower()
+
+    vendors = VendorProfile.objects.filter(approval_status="approved").select_related("user")
+    if query:
+        vendors = vendors.filter(
+            Q(store_name__icontains=query)
+            | Q(company_name__icontains=query)
+            | Q(description__icontains=query)
+            | Q(country__icontains=query)
+            | Q(main_product_categories__icontains=query)
+        )
+    if vendor_type:
+        vendors = vendors.filter(vendor_type=vendor_type)
+    if verified in {"1", "true", "yes"}:
+        vendors = vendors.filter(Q(is_verified=True) | Q(manufacturer_verified=True))
+
+    vendors = vendors.order_by("-manufacturer_verified", "-is_verified", "-priority_score", "-rating_avg")[:80]
+    return JsonResponse({
+        "success": True,
+        "vendors": [_mobile_vendor_payload(request, vendor) for vendor in vendors],
+    })
+
+
+@require_GET
+def mobile_vendor_detail_api(request, vendor_id):
+    if VendorProfile is None:
+        return JsonResponse({"success": False, "message": "Vendor system is not available."}, status=500)
+
+    vendor = get_object_or_404(VendorProfile.objects.select_related("user"), id=vendor_id, approval_status="approved")
+    return JsonResponse({
+        "success": True,
+        "vendor": _mobile_vendor_payload(request, vendor, include_products=True),
+    })
+
+
+@require_GET
+def mobile_vendor_products_api(request, vendor_id):
+    if VendorProfile is None:
+        return JsonResponse({"success": False, "message": "Vendor system is not available."}, status=500)
+
+    vendor = get_object_or_404(VendorProfile.objects.select_related("user"), id=vendor_id, approval_status="approved")
+    products = Product.objects.filter(
+        vendor=vendor.user,
+        is_active=True,
+        approval_status="approved",
+    ).select_related("category", "brand", "vendor", "vendor__vendor_profile").order_by("-is_featured", "-created_at")[:120]
+    return JsonResponse({
+        "success": True,
+        "vendor": _mobile_vendor_payload(request, vendor),
+        "products": [_mobile_product_payload(request, product) for product in products],
+    })
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def mobile_vendor_follow_api(request, vendor_id):
+    if VendorProfile is None or VendorFollow is None:
+        return JsonResponse({"success": False, "message": "Vendor follow system is not available."}, status=500)
+
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+        customer = _mobile_customer_from_payload(payload)
+    except PermissionError as error:
+        return JsonResponse({"success": False, "message": str(error)}, status=403)
+    except Exception as error:
+        return JsonResponse({"success": False, "message": str(error)}, status=400)
+
+    user = getattr(customer, "user", None)
+    if not user:
+        return JsonResponse({"success": False, "message": "Customer account is not linked to a user yet."}, status=400)
+
+    vendor = get_object_or_404(VendorProfile, id=vendor_id, approval_status="approved")
+    VendorFollow.objects.get_or_create(user=user, vendor=vendor)
+    vendor.followers_count = vendor.followers.count()
+    vendor.save(update_fields=["followers_count"])
+    return JsonResponse({"success": True, "message": f"You are now following {vendor.store_name}.", "followers_count": vendor.followers_count})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def mobile_vendor_unfollow_api(request, vendor_id):
+    if VendorProfile is None or VendorFollow is None:
+        return JsonResponse({"success": False, "message": "Vendor follow system is not available."}, status=500)
+
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+        customer = _mobile_customer_from_payload(payload)
+    except PermissionError as error:
+        return JsonResponse({"success": False, "message": str(error)}, status=403)
+    except Exception as error:
+        return JsonResponse({"success": False, "message": str(error)}, status=400)
+
+    user = getattr(customer, "user", None)
+    if not user:
+        return JsonResponse({"success": False, "message": "Customer account is not linked to a user yet."}, status=400)
+
+    vendor = get_object_or_404(VendorProfile, id=vendor_id, approval_status="approved")
+    VendorFollow.objects.filter(user=user, vendor=vendor).delete()
+    vendor.followers_count = vendor.followers.count()
+    vendor.save(update_fields=["followers_count"])
+    return JsonResponse({"success": True, "message": f"{vendor.store_name} removed from followed suppliers.", "followers_count": vendor.followers_count})
+
+
+@require_GET
+def mobile_rfqs_api(request):
+    if VendorRFQ is None:
+        return JsonResponse({"success": False, "message": "RFQ system is not available."}, status=500)
+
+    try:
+        customer = _mobile_customer_from_payload(request.GET)
+    except PermissionError as error:
+        return JsonResponse({"success": False, "message": str(error)}, status=403)
+    except Exception as error:
+        return JsonResponse({"success": False, "message": str(error)}, status=400)
+
+    user = getattr(customer, "user", None)
+    rfqs = VendorRFQ.objects.filter(customer=user).select_related("vendor", "vendor__user", "product", "product__category", "product__brand", "product__vendor")[:80]
+    return JsonResponse({"success": True, "rfqs": [_rfq_payload(request, rfq) for rfq in rfqs]})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@transaction.atomic
+def mobile_rfq_create_api(request):
+    if VendorRFQ is None or VendorProfile is None:
+        return JsonResponse({"success": False, "message": "RFQ system is not available."}, status=500)
+
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+        customer = _mobile_customer_from_payload(payload)
+    except PermissionError as error:
+        return JsonResponse({"success": False, "message": str(error)}, status=403)
+    except Exception as error:
+        return JsonResponse({"success": False, "message": str(error)}, status=400)
+
+    user = getattr(customer, "user", None)
+    if not user:
+        return JsonResponse({"success": False, "message": "Customer account is not linked to a user yet."}, status=400)
+
+    product_id = payload.get("product_id")
+    vendor_id = payload.get("vendor_id")
+    product = Product.objects.filter(id=product_id, is_active=True, approval_status="approved").select_related("vendor__vendor_profile").first() if product_id else None
+    vendor = None
+    if vendor_id:
+        vendor = VendorProfile.objects.filter(id=vendor_id, approval_status="approved").first()
+    if not vendor and product:
+        vendor = getattr(getattr(product, "vendor", None), "vendor_profile", None)
+    if not vendor:
+        return JsonResponse({"success": False, "message": "Choose a supplier before requesting quotation."}, status=400)
+
+    try:
+        quantity = max(1, int(payload.get("quantity") or 1))
+    except (TypeError, ValueError):
+        quantity = 1
+    minimum_order_quantity = getattr(product, "minimum_order_quantity", 1) if product else 1
+    if product and quantity < minimum_order_quantity:
+        return JsonResponse({
+            "success": False,
+            "message": f"Minimum order quantity for this product is {minimum_order_quantity} {getattr(product, 'moq_unit', 'unit')}.",
+        }, status=400)
+
+    budget_value = payload.get("budget") or None
+    try:
+        budget = Decimal(str(budget_value)) if budget_value not in {"", None} else None
+    except (InvalidOperation, TypeError, ValueError):
+        budget = None
+
+    rfq = VendorRFQ.objects.create(
+        vendor=vendor,
+        customer=user,
+        product=product,
+        quantity=quantity,
+        budget=budget,
+        country=str(payload.get("country") or "").strip(),
+        delivery_location=str(payload.get("delivery_location") or "").strip(),
+        message=str(payload.get("message") or "").strip(),
+    )
+
+    if Notification:
+        Notification.objects.create(
+            user=vendor.user,
+            notification_type="vendor",
+            title="New RFQ received",
+            message=f"{customer.full_name or user.get_full_name() or user.username} requested a quote from {vendor.store_name}.",
+            metadata={"rfq_id": rfq.id, "product_id": product.id if product else None},
+        )
+
+    return JsonResponse({"success": True, "message": "Quotation request sent to the supplier.", "rfq": _rfq_payload(request, rfq)})
+
+
+@require_GET
+def mobile_rfq_detail_api(request, rfq_id):
+    if VendorRFQ is None:
+        return JsonResponse({"success": False, "message": "RFQ system is not available."}, status=500)
+
+    try:
+        customer = _mobile_customer_from_payload(request.GET)
+    except PermissionError as error:
+        return JsonResponse({"success": False, "message": str(error)}, status=403)
+    except Exception as error:
+        return JsonResponse({"success": False, "message": str(error)}, status=400)
+
+    rfq = get_object_or_404(VendorRFQ.objects.select_related("vendor", "vendor__user", "product", "product__category", "product__brand", "product__vendor"), id=rfq_id, customer=getattr(customer, "user", None))
+    return JsonResponse({"success": True, "rfq": _rfq_payload(request, rfq)})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def mobile_rfq_status_api(request, rfq_id, action):
+    if VendorRFQ is None:
+        return JsonResponse({"success": False, "message": "RFQ system is not available."}, status=500)
+
+    if action not in {"accept", "reject"}:
+        return JsonResponse({"success": False, "message": "Invalid RFQ action."}, status=400)
+
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+        customer = _mobile_customer_from_payload(payload)
+    except PermissionError as error:
+        return JsonResponse({"success": False, "message": str(error)}, status=403)
+    except Exception as error:
+        return JsonResponse({"success": False, "message": str(error)}, status=400)
+
+    rfq = get_object_or_404(VendorRFQ, id=rfq_id, customer=getattr(customer, "user", None))
+    rfq.status = "accepted" if action == "accept" else "rejected"
+    rfq.save(update_fields=["status", "updated_at"])
+
+    if Notification:
+        Notification.objects.create(
+            user=rfq.vendor.user,
+            notification_type="vendor",
+            title=f"RFQ {rfq.status}",
+            message=f"Customer {rfq.status} your quotation request response.",
+            metadata={"rfq_id": rfq.id},
+        )
+
+    return JsonResponse({"success": True, "message": f"RFQ {rfq.status}.", "rfq": _rfq_payload(request, rfq)})

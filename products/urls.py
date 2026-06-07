@@ -34,7 +34,21 @@ urlpatterns = [
     # Debug (integer-based, before slug patterns)
     # ================================
     path('debug-colors/<int:product_id>/', views.debug_colors, name='debug_colors'),
-    
+    path("mobile/home/", views.mobile_home_api, name="mobile_home_api"),
+    path("mobile/product-config/", views.mobile_product_config_api, name="mobile_product_config_api"),
+    path("mobile/products/", views.mobile_products_api, name="mobile_products_api"),
+    path("mobile/products/<slug:slug>/review/", views.mobile_product_review_api, name="mobile_product_review_api"),
+    path("mobile/products/<slug:slug>/question/", views.mobile_product_question_api, name="mobile_product_question_api"),
+    path("mobile/products/<slug:slug>/", views.mobile_product_detail_api, name="mobile_product_detail_api"),
+    path("mobile/vendors/", views.mobile_vendors_api, name="mobile_vendors_api"),
+    path("mobile/vendors/<int:vendor_id>/", views.mobile_vendor_detail_api, name="mobile_vendor_detail_api"),
+    path("mobile/vendors/<int:vendor_id>/products/", views.mobile_vendor_products_api, name="mobile_vendor_products_api"),
+    path("mobile/vendors/<int:vendor_id>/follow/", views.mobile_vendor_follow_api, name="mobile_vendor_follow_api"),
+    path("mobile/vendors/<int:vendor_id>/unfollow/", views.mobile_vendor_unfollow_api, name="mobile_vendor_unfollow_api"),
+    path("mobile/rfqs/", views.mobile_rfqs_api, name="mobile_rfqs_api"),
+    path("mobile/rfqs/create/", views.mobile_rfq_create_api, name="mobile_rfq_create_api"),
+    path("mobile/rfqs/<int:rfq_id>/", views.mobile_rfq_detail_api, name="mobile_rfq_detail_api"),
+    path("mobile/rfqs/<int:rfq_id>/<str:action>/", views.mobile_rfq_status_api, name="mobile_rfq_status_api"),
     # ================================
     # Main Listing (empty slug)
     # ================================

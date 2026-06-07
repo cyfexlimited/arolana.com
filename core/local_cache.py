@@ -37,9 +37,21 @@ def local_get_or_set(key, builder, timeout):
     if cached is not None:
         return cached
 
-    value = builder()
-    local_set(key, value, timeout)
-    return value
+    # Keep one request responsible for an expensive cold-cache build. Without
+    # this lock, simultaneous homepage requests repeat the same database work.
+    with _LOCK:
+        cached = _CACHE.get(key)
+        if cached:
+            expires_at, value = cached
+            if expires_at > time.monotonic():
+                return value
+            _CACHE.pop(key, None)
+
+        value = builder()
+        if len(_CACHE) > 10000:
+            _prune_expired()
+        _CACHE[key] = (time.monotonic() + timeout, value)
+        return value
 
 
 def _prune_expired():

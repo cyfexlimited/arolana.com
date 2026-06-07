@@ -2,7 +2,7 @@
     {% for vendor in vendors_shuffled %}
     <article class="vendor-list-card bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-xl transition">
         {% with plan=vendor.get_subscription_display %}
-        <div class="relative h-28 {% if plan.text == 'Special' %}bg-gradient-to-r from-yellow-400 to-orange-500{% elif plan.text == 'Pro' %}bg-gradient-to-r from-purple-500 to-pink-500{% elif plan.text == 'Plus' %}bg-gradient-to-r from-cyan-500 to-blue-500{% elif vendor.subscription_tier == 'enterprise' %}bg-gradient-to-r from-indigo-500 to-blue-500{% elif vendor.subscription_tier == 'basic' %}bg-gradient-to-r from-blue-500 to-cyan-500{% else %}bg-gradient-to-r from-gray-500 to-gray-600{% endif %}">
+        <div class="relative h-28 {% if vendor.subscription_tier == 'special' %}bg-gradient-to-r from-yellow-400 to-orange-500{% elif vendor.subscription_tier == 'pro' %}bg-gradient-to-r from-purple-500 to-pink-500{% elif vendor.subscription_tier == 'plus' %}bg-gradient-to-r from-cyan-500 to-blue-500{% elif vendor.subscription_tier == 'enterprise' %}bg-gradient-to-r from-indigo-500 to-blue-500{% elif vendor.subscription_tier == 'basic' %}bg-gradient-to-r from-blue-500 to-cyan-500{% else %}bg-gradient-to-r from-gray-500 to-gray-600{% endif %}">
             {% if vendor.store_banner %}
                 <img src="{{ vendor.store_banner.url }}" alt="{{ vendor.store_name }} banner" class="absolute inset-0 h-full w-full object-cover">
                 <div class="absolute inset-0 bg-black/20"></div>

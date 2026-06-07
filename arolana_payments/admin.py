@@ -1,7 +1,13 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import ManualCryptoWallet, PaymentGatewayConfig, PaymentTransaction
+from .models import (
+    ManualCryptoWallet,
+    PayPalWebhookLog,
+    PaymentGatewayConfig,
+    PaymentRefund,
+    PaymentTransaction,
+)
 
 
 @admin.register(PaymentGatewayConfig)
@@ -32,6 +38,7 @@ class PaymentTransactionAdmin(admin.ModelAdmin):
     list_display = [
         "reference",
         "gateway",
+        "gateway_capture_id",
         "status",
         "amount",
         "currency",
@@ -44,6 +51,7 @@ class PaymentTransactionAdmin(admin.ModelAdmin):
     search_fields = [
         "reference",
         "gateway_reference",
+        "gateway_capture_id",
         "order_id",
         "customer_email",
         "customer_name",
@@ -51,6 +59,7 @@ class PaymentTransactionAdmin(admin.ModelAdmin):
     ]
     readonly_fields = [
         "reference",
+        "gateway_capture_id",
         "gateway_response",
         "webhook_payload",
         "checkout_data",
@@ -77,7 +86,13 @@ class PaymentTransactionAdmin(admin.ModelAdmin):
             "fields": ("customer_name", "customer_email", "customer_phone")
         }),
         ("Gateway", {
-            "fields": ("gateway_reference", "gateway_checkout_url", "gateway_response", "webhook_payload")
+            "fields": (
+                "gateway_reference",
+                "gateway_capture_id",
+                "gateway_checkout_url",
+                "gateway_response",
+                "webhook_payload",
+            )
         }),
         ("Checkout Data", {
             "fields": ("checkout_data",),
@@ -126,3 +141,81 @@ class ManualCryptoWalletAdmin(admin.ModelAdmin):
             return obj.address
         return f"{obj.address[:12]}...{obj.address[-8:]}"
     address_short.short_description = "Wallet Address"
+
+
+@admin.register(PayPalWebhookLog)
+class PayPalWebhookLogAdmin(admin.ModelAdmin):
+    list_display = [
+        "event_id",
+        "event_type",
+        "resource_id",
+        "status",
+        "signature_verified",
+        "payment",
+        "attempts",
+        "received_at",
+        "processed_at",
+    ]
+    list_filter = ["status", "signature_verified", "event_type", "received_at"]
+    search_fields = [
+        "event_id",
+        "event_type",
+        "resource_id",
+        "payment__reference",
+        "payment__gateway_reference",
+        "payment__gateway_capture_id",
+        "last_error",
+    ]
+    readonly_fields = [
+        "event_id",
+        "event_type",
+        "resource_type",
+        "resource_id",
+        "status",
+        "signature_verified",
+        "payment",
+        "attempts",
+        "payload",
+        "request_headers",
+        "last_error",
+        "received_at",
+        "verified_at",
+        "processed_at",
+        "updated_at",
+    ]
+    date_hierarchy = "received_at"
+    list_per_page = 50
+
+
+@admin.register(PaymentRefund)
+class PaymentRefundAdmin(admin.ModelAdmin):
+    list_display = [
+        "gateway_refund_id",
+        "transaction",
+        "order_id",
+        "amount",
+        "currency",
+        "status",
+        "refunded_at",
+    ]
+    list_filter = ["gateway", "status", "currency", "refunded_at"]
+    search_fields = [
+        "gateway_refund_id",
+        "gateway_capture_id",
+        "order_id",
+        "transaction__reference",
+    ]
+    readonly_fields = [
+        "transaction",
+        "gateway",
+        "gateway_refund_id",
+        "gateway_capture_id",
+        "order_id",
+        "amount",
+        "currency",
+        "status",
+        "payload",
+        "refunded_at",
+        "created_at",
+        "updated_at",
+    ]

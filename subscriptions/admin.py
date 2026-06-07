@@ -4,9 +4,18 @@ from .models import SubscriptionPlan, VendorSubscription
 
 @admin.register(SubscriptionPlan)
 class SubscriptionPlanAdmin(admin.ModelAdmin):
-    list_display = ['display_name', 'tier_key', 'price_monthly', 'max_products', 'commission_rate', 'chat_enabled', 'is_popular', 'is_active', 'icon_preview']
+    list_display = [
+        'display_name', 'tier_key', 'price_monthly', 'max_products',
+        'max_images_per_product', 'max_variants_per_product', 'priority_score',
+        'commission_rate', 'chat_enabled', 'can_access_rfq', 'can_show_on_homepage',
+        'is_popular', 'is_active', 'icon_preview'
+    ]
     list_filter = ['is_active', 'is_popular']
-    list_editable = ['price_monthly', 'max_products', 'commission_rate', 'is_popular', 'is_active']
+    list_editable = [
+        'price_monthly', 'max_products', 'max_images_per_product',
+        'max_variants_per_product', 'priority_score', 'commission_rate',
+        'is_popular', 'is_active'
+    ]
     search_fields = ['display_name', 'description']
     ordering = ['order', 'price_monthly']
     
@@ -18,10 +27,22 @@ class SubscriptionPlanAdmin(admin.ModelAdmin):
             'fields': ('price_monthly', 'price_yearly')
         }),
         ('Features', {
-            'fields': ('max_products', 'featured_products', 'commission_rate')
+            'fields': (
+                'max_products', 'featured_products',
+                'max_images_per_product', 'max_variants_per_product',
+                'commission_rate', 'feature_bullets'
+            )
         }),
         ('Benefits', {
-            'fields': ('priority_support', 'analytics_access', 'promotion_opportunities', 'dedicated_account_manager')
+            'fields': (
+                'can_upload_video', 'can_upload_pdf', 'can_upload_certificates',
+                'can_access_rfq', 'can_receive_direct_enquiries',
+                'can_use_boosting', 'can_show_on_homepage',
+                'can_access_analytics', 'can_access_advanced_analytics',
+                'can_access_ads', 'priority_support', 'analytics_access',
+                'promotion_opportunities', 'dedicated_account_manager',
+                'priority_score', 'support_level', 'badge_label'
+            )
         }),
         ('Display Settings', {
             'fields': ('icon', 'color', 'is_popular', 'is_active', 'order')

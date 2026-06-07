@@ -277,7 +277,7 @@
         transition: width 0.3s;
     }
 
-    /* Arolana AI Chat Panel */
+    /* Arolana Chat Panel */
     .arolana-ai-panel {
         transform-origin: bottom right;
         animation: aiPanelIn 0.22s ease-out;
@@ -2771,7 +2771,7 @@
     }
 
 
-    // Extra protection: ensure global Arolana AI chat button always opens on product pages.
+    // Extra protection: ensure the global Arolana Chat button opens on product pages.
     document.addEventListener('click', function (event) {
         const toggle = event.target.closest('#arolana-smartchat-toggle');
         if (!toggle) return;

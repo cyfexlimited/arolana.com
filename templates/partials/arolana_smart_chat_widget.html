@@ -20,17 +20,23 @@
         class="hidden mb-4 w-[calc(100vw-2rem)] max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl border border-gray-200"
         style="animation: arolanaSmartChatIn .22s ease-out; transform-origin: bottom right;"
     >
-        <div class="arolana-smartchat-header bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 p-4 text-white">
+        <div class="arolana-smartchat-header p-4 text-white" style="background: linear-gradient(135deg, #0F2D6B 0%, #1D4ED8 58%, #FF7A00 100%);">
             <div class="flex items-center justify-between gap-3">
                 <div class="flex items-center gap-3 min-w-0">
-                    <div class="relative flex h-11 w-11 items-center justify-center rounded-full bg-white/15 backdrop-blur-md shrink-0">
-                        <i class="fas fa-robot text-xl"></i>
+                    <div class="arolana-chat-brand-mark relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl bg-white shadow-sm shrink-0">
+                        <img
+                            src="{% if site_settings.smart_chat_bot_image %}{{ site_settings.smart_chat_bot_image.url }}{% else %}{% static 'admin/images/arolana-logo.png' %}{% endif %}"
+                            alt="Arolana Chat"
+                            class="h-full w-full object-contain"
+                            onerror="this.hidden=true; this.nextElementSibling.hidden=false;"
+                        >
+                        <span class="arolana-chat-brand-fallback" hidden aria-hidden="true">A</span>
                         <span class="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white bg-green-400"></span>
                     </div>
                     <div class="min-w-0">
-                        <p class="font-bold leading-tight truncate">Arolana AI Assistant</p>
+                        <p class="font-bold leading-tight truncate">Arolana Chat</p>
                         <p id="arolana-smartchat-subtitle" class="text-xs text-white/85 truncate">
-                            Smart support • Admin handoff available
+                            Smart shopping support • Admin handoff
                         </p>
                     </div>
                 </div>
@@ -39,7 +45,7 @@
                     type="button"
                     onclick="window.ArolanaSmartChatNoRefresh.close()"
                     class="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition shrink-0"
-                    aria-label="Close AI chat"
+                    aria-label="Close Arolana chat"
                 >
                     <i class="fas fa-times"></i>
                 </button>
@@ -53,7 +59,7 @@
             style="scrollbar-width: thin; scrollbar-color: #8b5cf6 #f1f5f9;"
         >
             <div class="arolana-chat-bubble arolana-chat-bot rounded-2xl rounded-tl-md px-4 py-3 text-sm shadow-sm bg-gray-100 text-gray-900 max-w-[86%]">
-                Hi! I’m Arolana AI. I can help with products, orders, delivery, vendors, payments, or connect you to an admin.
+                Hi! I’m Arolana Chat. I can help you shop, compare products, track orders, or connect you to Arolana support.
             </div>
 
             <div
@@ -66,6 +72,7 @@
 
             <div id="arolana-smartchat-guest-intake" class="arolana-chat-guest-card hidden">
                 <form id="arolana-smartchat-guest-form" class="grid gap-3" novalidate>
+                    {% csrf_token %}
                     <label class="arolana-smartchat-guest-label" for="arolana-smartchat-guest-first-name">
                         First Name <span>*</span>
                     </label>
@@ -149,7 +156,7 @@
                     id="arolana-smartchat-input"
                     type="text"
                     autocomplete="off"
-                    placeholder="Ask Arolana AI..."
+                    placeholder="Ask Arolana Chat..."
                     class="min-w-0 flex-1 rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                     onkeydown="if(event.key === 'Enter'){event.preventDefault(); window.ArolanaSmartChatNoRefresh.sendFromInput();}"
                 >
@@ -173,7 +180,7 @@
                     id="arolana-smartchat-send"
                     onclick="window.ArolanaSmartChatNoRefresh.sendFromInput()"
                     class="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg hover:scale-105 transition shrink-0"
-                    aria-label="Send AI chat message"
+                    aria-label="Send Arolana Chat message"
                 >
                     <i class="fas fa-paper-plane"></i>
                 </button>
@@ -197,9 +204,10 @@
             id="arolana-smartchat-toggle"
             type="button"
             onclick="window.ArolanaSmartChatNoRefresh.open()"
-            aria-label="Open Arolana AI Chat"
+            aria-label="Open Arolana Chat"
             aria-expanded="false"
-            class="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 text-white shadow-2xl backdrop-blur-md transition-all duration-300 hover:scale-110 hover:shadow-purple-500/40 active:scale-95"
+            class="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-white/20 text-white shadow-2xl backdrop-blur-md transition-all duration-300 hover:scale-110 hover:shadow-orange-500/40 active:scale-95"
+            style="background: linear-gradient(135deg, #0F2D6B 0%, #1D4ED8 58%, #FF7A00 100%);"
         >
             <span class="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition duration-500"></span>
             <i id="arolana-smartchat-toggle-icon" class="fas fa-comment-dots text-2xl relative z-10"></i>
@@ -209,7 +217,7 @@
             </span>
         </button>
         <div class="pointer-events-none absolute bottom-20 right-0 translate-y-2 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
-            <div class="whitespace-nowrap rounded-xl bg-black/90 px-4 py-2 text-sm text-white shadow-xl">Chat with Arolana AI</div>
+            <div class="whitespace-nowrap rounded-xl bg-black/90 px-4 py-2 text-sm text-white shadow-xl">Chat with Arolana</div>
         </div>
     </div>
 </div>
@@ -232,6 +240,18 @@
         white-space: normal;
     }
 
+    .arolana-chat-brand-fallback {
+        align-items: center;
+        background: linear-gradient(135deg, #0f2d6b 0%, #1d4ed8 58%, #ff7a00 100%);
+        color: #fff;
+        display: flex;
+        font-size: 1.25rem;
+        font-weight: 900;
+        height: 100%;
+        justify-content: center;
+        width: 100%;
+    }
+
     .arolana-chat-bubble.hidden {
         display: none !important;
     }
@@ -244,6 +264,25 @@
 
     .arolana-chat-message-text {
         white-space: pre-wrap;
+    }
+
+    .arolana-chat-message-text .arolana-chat-link {
+        align-items: center;
+        background: #ff7a00;
+        border-radius: 999px;
+        box-shadow: 0 10px 20px rgba(255, 122, 0, 0.18);
+        color: #fff !important;
+        display: inline-flex;
+        font-weight: 800;
+        gap: 0.4rem;
+        margin-top: 0.55rem;
+        padding: 0.55rem 0.85rem;
+        text-decoration: none !important;
+        white-space: normal;
+    }
+
+    .arolana-chat-message-text .arolana-chat-link:hover {
+        background: #ea6c00;
     }
 
     .arolana-chat-attachment {
@@ -375,6 +414,16 @@
     #arolana-smartchat-panel,
     #arolana-smartchat-panel * {
         box-sizing: border-box;
+    }
+
+    #arolana-smartchat-panel {
+        overscroll-behavior: contain;
+    }
+
+    #arolana-smartchat-messages {
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        touch-action: pan-y;
     }
 
     html.arolana-smartchat-open,
@@ -589,6 +638,62 @@
         return "";
     }
 
+    function csrfToken() {
+        return getCookie("csrftoken")
+            || getEl("arolana-smartchat-guest-form")?.querySelector("[name='csrfmiddlewaretoken']")?.value
+            || "";
+    }
+
+    async function readJsonResponse(response, fallbackMessage) {
+        const contentType = (response.headers.get("content-type") || "").toLowerCase();
+        const raw = await response.text();
+
+        if (contentType.includes("application/json")) {
+            try {
+                return raw ? JSON.parse(raw) : {};
+            } catch (error) {
+                throw new Error(fallbackMessage || "Arolana Chat received an invalid server response.");
+            }
+        }
+
+        if (response.status === 403 && /csrf/i.test(raw)) {
+            throw new Error("Your secure chat session expired. Refresh this page and submit the form again.");
+        }
+
+        throw new Error(
+            response.status >= 500
+                ? "Arolana Chat is temporarily unavailable. Please try again shortly."
+                : (fallbackMessage || "Arolana Chat could not complete that request.")
+        );
+    }
+
+    function installScrollContainment() {
+        const panel = getEl("arolana-smartchat-panel");
+        const messages = getEl("arolana-smartchat-messages");
+        if (!panel || !messages || panel.dataset.scrollContainment === "true") return;
+        panel.dataset.scrollContainment = "true";
+
+        panel.addEventListener("wheel", function (event) {
+            const target = event.target.closest("#arolana-smartchat-messages");
+            if (!target) {
+                event.stopPropagation();
+                return;
+            }
+
+            const atTop = target.scrollTop <= 0;
+            const atBottom = Math.ceil(target.scrollTop + target.clientHeight) >= target.scrollHeight;
+            const leavingTop = event.deltaY < 0 && atTop;
+            const leavingBottom = event.deltaY > 0 && atBottom;
+
+            event.stopPropagation();
+            if (leavingTop || leavingBottom) event.preventDefault();
+        }, { passive: false });
+
+        panel.addEventListener("touchmove", function (event) {
+            event.stopPropagation();
+        }, { passive: true });
+    }
+
     function escapeHtml(value) {
         return String(value || "").replace(/[&<>"']/g, function (char) {
             return {
@@ -598,6 +703,18 @@
                 '"': "&quot;",
                 "'": "&#039;"
             }[char];
+        });
+    }
+
+    function renderMessageText(value) {
+        const escaped = escapeHtml(value || "");
+        return escaped.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+|\/[^)\s]+)\)/g, function (match, label, url) {
+            const safeUrl = String(url || "");
+            if (!safeUrl.startsWith("/") && !safeUrl.startsWith("http://") && !safeUrl.startsWith("https://")) {
+                return match;
+            }
+            const target = safeUrl.startsWith("http") ? "_blank" : "_self";
+            return `<a class="arolana-chat-link" href="${safeUrl}" target="${target}" rel="noopener" data-arolana-chat-link="true">${label}<i class="fas fa-arrow-right text-xs"></i></a>`;
         });
     }
 
@@ -683,7 +800,7 @@
         if (input) {
             input.placeholder = adminMode
                 ? "Message Arolana admin..."
-                : "Ask Arolana AI...";
+                : "Ask Arolana Chat...";
         }
     }
 
@@ -718,7 +835,7 @@
 
         const senderType = message.sender_type || "ai";
         let bubbleClass = "arolana-chat-bot";
-        let senderName = message.sender_name || "Arolana AI";
+        let senderName = message.sender_name || "Arolana Chat";
 
         if (senderType === "user") {
             bubbleClass = "arolana-chat-user";
@@ -738,7 +855,7 @@
             bubble.dataset.arolanaMessageId = String(numericId);
         }
 
-        const text = escapeHtml(message.message || message.reply || "");
+        const text = renderMessageText(message.message || message.reply || "");
         const imageUrl = message.image_url || "";
         const imageName = message.image_name || "Uploaded image";
         const attachment = imageUrl
@@ -756,6 +873,40 @@
         scrollMessages();
 
         if (hasNumericId) updateLastMessageId(numericId);
+    }
+
+    function installChatLinkHandoff() {
+        const box = getEl("arolana-smartchat-messages");
+        if (!box || box.dataset.arolanaLinkHandoff === "true") return;
+        box.dataset.arolanaLinkHandoff = "true";
+        box.addEventListener("click", function (event) {
+            const link = event.target.closest("[data-arolana-chat-link='true']");
+            if (!link) return;
+            const href = link.getAttribute("href") || "";
+            if (href.startsWith("/products/") || href.includes("/products/?")) {
+                localStorage.setItem("arolanaSmartChatFollowup", "product_list");
+            }
+        });
+    }
+
+    function maybeOpenProductFollowup() {
+        const followup = localStorage.getItem("arolanaSmartChatFollowup");
+        if (followup !== "product_list" || !window.location.pathname.startsWith("/products")) return;
+
+        localStorage.removeItem("arolanaSmartChatFollowup");
+        state.lastMessageId = 0;
+        localStorage.setItem("arolanaSmartChatLastMessageId", "0");
+        setTimeout(function () {
+            open();
+            if (state.conversationId) poll();
+        }, 180);
+        setTimeout(function () {
+            renderMessage({
+                sender_type: "ai",
+                sender_name: "Arolana Chat",
+                message: "Find what you’re looking for? If you need my assistance, I’ll be right here."
+            });
+        }, 900);
     }
 
     function setBusy(isBusy) {
@@ -812,7 +963,7 @@
                 credentials: "same-origin",
                 headers: {
                     "Content-Type": "application/json",
-                    "X-CSRFToken": getCookie("csrftoken"),
+                    "X-CSRFToken": csrfToken(),
                     "X-Requested-With": "XMLHttpRequest"
                 },
                 body: JSON.stringify({
@@ -995,7 +1146,7 @@
                 credentials: "same-origin",
                 headers: {
                     "Content-Type": "application/json",
-                    "X-CSRFToken": getCookie("csrftoken"),
+                    "X-CSRFToken": csrfToken(),
                     "X-Requested-With": "XMLHttpRequest"
                 },
                 body: JSON.stringify({
@@ -1004,7 +1155,7 @@
                 })
             });
 
-            const data = await response.json();
+            const data = await readJsonResponse(response, "We could not submit your message. Please try again.");
 
             if (!response.ok || !data.success) {
                 const errors = data.errors || {};
@@ -1034,7 +1185,7 @@
             } else if (data.reply) {
                 renderMessage({
                     sender_type: "ai",
-                    sender_name: "Arolana AI",
+                    sender_name: "Arolana Chat",
                     message: data.reply
                 });
             }
@@ -1088,7 +1239,7 @@
                 credentials: "same-origin",
                 headers: {
                     "Content-Type": "application/json",
-                    "X-CSRFToken": getCookie("csrftoken"),
+                    "X-CSRFToken": csrfToken(),
                     "X-Requested-With": "XMLHttpRequest"
                 },
                 body: JSON.stringify({
@@ -1098,7 +1249,7 @@
                 })
             });
 
-            const data = await response.json();
+            const data = await readJsonResponse(response, "Message could not be sent.");
 
             if (!response.ok || !data.success) {
                 if (data.requires_guest_contact) {
@@ -1131,7 +1282,7 @@
             } else if (data.reply) {
                 renderMessage({
                     sender_type: "ai",
-                    sender_name: "Arolana AI",
+                    sender_name: "Arolana Chat",
                     message: data.reply
                 });
             }
@@ -1142,7 +1293,7 @@
         } catch (error) {
             renderMessage({
                 sender_type: "ai",
-                sender_name: "Arolana AI",
+                sender_name: "Arolana Chat",
                 message: error.message || "I could not send that message. Please try again."
             });
         } finally {
@@ -1196,13 +1347,13 @@
                 method: "POST",
                 credentials: "same-origin",
                 headers: {
-                    "X-CSRFToken": getCookie("csrftoken"),
+                    "X-CSRFToken": csrfToken(),
                     "X-Requested-With": "XMLHttpRequest"
                 },
                 body: formData
             });
 
-            const data = await response.json();
+            const data = await readJsonResponse(response, "Image could not be uploaded.");
 
             if (!response.ok || !data.success) {
                 if (data.requires_guest_contact) {
@@ -1256,7 +1407,7 @@
                 credentials: "same-origin",
                 headers: {
                     "Content-Type": "application/json",
-                    "X-CSRFToken": getCookie("csrftoken"),
+                    "X-CSRFToken": csrfToken(),
                     "X-Requested-With": "XMLHttpRequest"
                 },
                 body: JSON.stringify({
@@ -1266,7 +1417,7 @@
                 })
             });
 
-            const data = await response.json();
+            const data = await readJsonResponse(response, "Could not request admin support.");
 
             if (!response.ok || !data.success) {
                 if (data.requires_guest_contact) {
@@ -1331,7 +1482,7 @@
                 return;
             }
 
-            const data = await response.json();
+            const data = await readJsonResponse(response, "Arolana Chat could not refresh this conversation.");
 
             if (data.status === "admin_requested" || data.status === "admin_active") {
                 updateConversationStatus(data.status);
@@ -1453,6 +1604,9 @@
         }, true);
 
         if (state.conversationId) startPolling();
+        installScrollContainment();
+        installChatLinkHandoff();
+        maybeOpenProductFollowup();
         syncChatMode();
     }
 

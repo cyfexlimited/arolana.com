@@ -1,0 +1,171 @@
+from django.db import migrations, models
+
+
+PLAN_DEFAULTS = {
+    'free': {
+        'display_name': 'Free Vendor',
+        'max_products': 1,
+        'max_images_per_product': 3,
+        'max_variants_per_product': 0,
+        'can_upload_video': False,
+        'can_upload_pdf': False,
+        'can_upload_certificates': False,
+        'can_access_rfq': False,
+        'can_receive_direct_enquiries': False,
+        'can_use_boosting': False,
+        'can_show_on_homepage': False,
+        'can_access_analytics': True,
+        'can_access_advanced_analytics': False,
+        'can_access_ads': False,
+        'priority_score': 0,
+        'support_level': 'basic',
+        'badge_label': 'Free Vendor',
+        'feature_bullets': ['Free vendor account', '1 product upload', '3 images per product', 'Basic visibility'],
+    },
+    'basic': {
+        'display_name': 'Basic Vendor',
+        'max_products': 5,
+        'max_images_per_product': 5,
+        'max_variants_per_product': 2,
+        'can_upload_video': False,
+        'can_upload_pdf': False,
+        'can_upload_certificates': False,
+        'can_access_rfq': False,
+        'can_receive_direct_enquiries': True,
+        'can_use_boosting': False,
+        'can_show_on_homepage': False,
+        'can_access_analytics': True,
+        'can_access_advanced_analytics': False,
+        'can_access_ads': False,
+        'priority_score': 20,
+        'support_level': 'basic',
+        'badge_label': 'Basic Vendor',
+        'feature_bullets': ['5 product uploads', '5 images per product', '2 variants per product', 'Customer chat'],
+    },
+    'plus': {
+        'display_name': 'Plus Vendor',
+        'max_products': 20,
+        'max_images_per_product': 10,
+        'max_variants_per_product': 5,
+        'can_upload_video': False,
+        'can_upload_pdf': True,
+        'can_upload_certificates': False,
+        'can_access_rfq': True,
+        'can_receive_direct_enquiries': True,
+        'can_use_boosting': False,
+        'can_show_on_homepage': True,
+        'can_access_analytics': True,
+        'can_access_advanced_analytics': False,
+        'can_access_ads': False,
+        'priority_score': 40,
+        'support_level': 'standard',
+        'badge_label': 'Plus Vendor',
+        'feature_bullets': ['20 product uploads', '10 images per product', 'PDF brochure/manual', 'Limited RFQ access'],
+    },
+    'pro': {
+        'display_name': 'Pro Vendor',
+        'max_products': 100,
+        'max_images_per_product': 10,
+        'max_variants_per_product': 20,
+        'can_upload_video': True,
+        'can_upload_pdf': True,
+        'can_upload_certificates': True,
+        'can_access_rfq': True,
+        'can_receive_direct_enquiries': True,
+        'can_use_boosting': True,
+        'can_show_on_homepage': True,
+        'can_access_analytics': True,
+        'can_access_advanced_analytics': True,
+        'can_access_ads': True,
+        'priority_score': 65,
+        'support_level': 'priority',
+        'badge_label': 'Pro Vendor',
+        'feature_bullets': ['100 product uploads', 'Video, PDF and certificates', 'RFQ access', 'Priority ranking'],
+    },
+    'special': {
+        'display_name': 'Special Vendor',
+        'max_products': 300,
+        'max_images_per_product': 10,
+        'max_variants_per_product': 50,
+        'can_upload_video': True,
+        'can_upload_pdf': True,
+        'can_upload_certificates': True,
+        'can_access_rfq': True,
+        'can_receive_direct_enquiries': True,
+        'can_use_boosting': True,
+        'can_show_on_homepage': True,
+        'can_access_analytics': True,
+        'can_access_advanced_analytics': True,
+        'can_access_ads': True,
+        'priority_score': 85,
+        'support_level': 'priority',
+        'badge_label': 'Special Vendor',
+        'feature_bullets': ['300 product uploads', 'Homepage placement', 'Priority RFQ', 'Ads access'],
+    },
+    'enterprise': {
+        'display_name': 'Enterprise Vendor',
+        'max_products': -1,
+        'max_images_per_product': 30,
+        'max_variants_per_product': -1,
+        'can_upload_video': True,
+        'can_upload_pdf': True,
+        'can_upload_certificates': True,
+        'can_access_rfq': True,
+        'can_receive_direct_enquiries': True,
+        'can_use_boosting': True,
+        'can_show_on_homepage': True,
+        'can_access_analytics': True,
+        'can_access_advanced_analytics': True,
+        'can_access_ads': True,
+        'priority_score': 100,
+        'support_level': 'dedicated',
+        'badge_label': 'Enterprise Vendor',
+        'feature_bullets': ['Unlimited products', 'Premium placement', 'Dedicated support', 'Enterprise analytics'],
+    },
+}
+
+
+def sync_plan_defaults(apps, schema_editor):
+    SubscriptionPlan = apps.get_model('subscriptions', 'SubscriptionPlan')
+    for order, (tier, values) in enumerate(PLAN_DEFAULTS.items()):
+        plan, _ = SubscriptionPlan.objects.get_or_create(
+            name=tier,
+            defaults={
+                'display_name': values['display_name'],
+                'description': f"{values['display_name']} plan",
+                'order': order,
+                'is_active': True,
+            },
+        )
+        for field, value in values.items():
+            setattr(plan, field, value)
+        plan.order = order
+        plan.is_active = True
+        plan.save()
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ('subscriptions', '0003_update_vendor_plan_benefits'),
+    ]
+
+    operations = [
+        migrations.AddField('subscriptionplan', 'badge_label', models.CharField(default='Free Vendor', max_length=80)),
+        migrations.AddField('subscriptionplan', 'can_access_ads', models.BooleanField(default=False)),
+        migrations.AddField('subscriptionplan', 'can_access_advanced_analytics', models.BooleanField(default=False)),
+        migrations.AddField('subscriptionplan', 'can_access_analytics', models.BooleanField(default=True)),
+        migrations.AddField('subscriptionplan', 'can_access_rfq', models.BooleanField(default=False)),
+        migrations.AddField('subscriptionplan', 'can_receive_direct_enquiries', models.BooleanField(default=False)),
+        migrations.AddField('subscriptionplan', 'can_show_on_homepage', models.BooleanField(default=False)),
+        migrations.AddField('subscriptionplan', 'can_upload_certificates', models.BooleanField(default=False)),
+        migrations.AddField('subscriptionplan', 'can_upload_pdf', models.BooleanField(default=False)),
+        migrations.AddField('subscriptionplan', 'can_upload_video', models.BooleanField(default=False)),
+        migrations.AddField('subscriptionplan', 'can_use_boosting', models.BooleanField(default=False)),
+        migrations.AddField('subscriptionplan', 'feature_bullets', models.JSONField(blank=True, default=list)),
+        migrations.AddField('subscriptionplan', 'max_images_per_product', models.IntegerField(default=3, help_text='-1 means unlimited.')),
+        migrations.AddField('subscriptionplan', 'max_variants_per_product', models.IntegerField(default=0, help_text='-1 means unlimited.')),
+        migrations.AddField('subscriptionplan', 'priority_score', models.IntegerField(default=0)),
+        migrations.AddField('subscriptionplan', 'support_level', models.CharField(default='basic', max_length=40)),
+        migrations.RunPython(sync_plan_defaults, migrations.RunPython.noop),
+    ]

@@ -1,14 +1,19 @@
 import json
+from datetime import timedelta
 
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
+from django.db.models import Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
-from .models import DeliveryRequest, DeliveryVehicle, RiderProfile, RiderWallet
+from .models import DeliveryRequest, DeliveryVehicle, RiderPayout, RiderProfile, RiderWallet
 from .services import accept_delivery, calculate_live_delivery_quote, update_rider_current_location, update_rider_location
+from notifications.models import Notification
+from accounts.utils.otp_utils import create_otp
 
 
 RIDER_STATUS_ACTIONS = {
@@ -56,6 +61,11 @@ def _user_can_view_delivery(request, delivery):
 def rider_register(request):
     vehicles = DeliveryVehicle.objects.filter(is_active=True).order_by("name")
     rider = RiderProfile.objects.filter(user=request.user).first()
+    if not getattr(request.user, "email_verified", False):
+        create_otp(request.user, request.user.email, "email")
+        request.session["pending_email_verification_user_id"] = request.user.id
+        messages.info(request, "Verify your email before submitting rider KYC. We sent a verification OTP to your email.")
+        return redirect("accounts:verify_email")
     if request.method == "POST":
         rider_type = request.POST.get("rider_type") or RiderProfile.RIDER_INDEPENDENT
         vehicle = DeliveryVehicle.objects.filter(id=request.POST.get("vehicle")).first()
@@ -67,10 +77,29 @@ def rider_register(request):
             messages.error(request, "Please enter your phone number.")
             return render(request, "deliveries/rider_register.html", {"vehicles": vehicles, "rider": rider})
         rider, _created = RiderProfile.objects.get_or_create(user=request.user)
-        rider.rider_type = rider_type
-        rider.vehicle = vehicle
-        rider.phone = phone
-        rider.emergency_phone = request.POST.get("emergency_phone", "").strip()
+        if not rider.can_request_profile_edit:
+            next_date = rider.profile_edit_available_at.strftime("%b %d, %Y") if rider.profile_edit_available_at else "later"
+            messages.error(request, f"You can edit your rider profile again from {next_date}. Rider profile edits are limited to once every 14 days.")
+            return render(request, "deliveries/rider_register.html", {"vehicles": vehicles, "rider": rider})
+        about = request.POST.get("about", "").strip()
+        rider.profile_edit_pending_data = {
+            "first_name": request.POST.get("first_name", request.user.first_name).strip(),
+            "last_name": request.POST.get("last_name", request.user.last_name).strip(),
+            "phone": phone,
+            "emergency_phone": request.POST.get("emergency_phone", "").strip(),
+            "about": about,
+            "rider_type": rider_type,
+            "vehicle_id": vehicle.id,
+            "vehicle_name": vehicle.name,
+            "submitted_from": "web",
+        }
+        now = timezone.now()
+        rider.profile_edit_status = "pending_admin_review"
+        rider.profile_edit_requested_at = now
+        rider.profile_edit_available_at = now + timedelta(days=14)
+        rider.kyc_status = RiderProfile.KYC_PENDING
+        rider.is_online = False
+        rider.is_available = False
         if request.FILES.get("id_document"):
             rider.id_document = request.FILES["id_document"]
         if request.FILES.get("driver_license"):
@@ -78,7 +107,7 @@ def rider_register(request):
         if request.FILES.get("vehicle_document"):
             rider.vehicle_document = request.FILES["vehicle_document"]
         rider.save()
-        messages.success(request, "Your rider profile has been submitted for approval.")
+        messages.success(request, "Your rider profile changes have been submitted for admin verification. You can submit another edit after 14 days.")
         return redirect("deliveries:rider_dashboard")
     return render(request, "deliveries/rider_register.html", {"vehicles": vehicles, "rider": rider})
 
@@ -89,10 +118,17 @@ def rider_dashboard(request):
     if not rider:
         return redirect("deliveries:rider_register")
 
+    active_statuses = [
+        DeliveryRequest.STATUS_ASSIGNED,
+        DeliveryRequest.STATUS_ACCEPTED,
+        DeliveryRequest.STATUS_ARRIVED_PICKUP,
+        DeliveryRequest.STATUS_PICKED_UP,
+        DeliveryRequest.STATUS_IN_TRANSIT,
+        DeliveryRequest.STATUS_ARRIVED_CUSTOMER,
+    ]
     active_deliveries = (
         DeliveryRequest.objects
-        .filter(rider=rider)
-        .exclude(status__in=[DeliveryRequest.STATUS_DELIVERED, DeliveryRequest.STATUS_CANCELLED, DeliveryRequest.STATUS_FAILED, DeliveryRequest.STATUS_RETURNED])
+        .filter(rider=rider, status__in=active_statuses)
         .select_related("order")
         .prefetch_related("status_history")
         .order_by("-created_at")
@@ -107,13 +143,33 @@ def rider_dashboard(request):
         status__in=[DeliveryRequest.STATUS_PENDING, DeliveryRequest.STATUS_ASSIGNED],
     ).select_related("order").order_by("-created_at")[:30]
     completed_deliveries = DeliveryRequest.objects.filter(rider=rider, status=DeliveryRequest.STATUS_DELIVERED).order_by("-updated_at")[:10]
+    new_pickup_count = active_deliveries.filter(status=DeliveryRequest.STATUS_ASSIGNED).count()
+    unread_notification_count = Notification.objects.filter(user=request.user, is_read=False, is_archived=False).count()
     wallet, _created = RiderWallet.objects.get_or_create(rider=rider)
+    completed_total = DeliveryRequest.objects.filter(
+        rider=rider,
+        status=DeliveryRequest.STATUS_DELIVERED,
+        delivered_at__isnull=False,
+    ).aggregate(total=Sum("rider_earning"))["total"] or 0
+    paid_total = RiderPayout.objects.filter(rider=rider, status=RiderPayout.STATUS_PAID).aggregate(total=Sum("amount"))["total"] or 0
+    approved_total = RiderPayout.objects.filter(rider=rider, status=RiderPayout.STATUS_APPROVED).aggregate(total=Sum("amount"))["total"] or 0
+    pending_payout_total = RiderPayout.objects.filter(rider=rider, status=RiderPayout.STATUS_PENDING).aggregate(total=Sum("amount"))["total"] or 0
+    pending_earnings = max(completed_total - paid_total - approved_total - pending_payout_total, 0)
+    wallet.balance = pending_earnings + approved_total + pending_payout_total
+    wallet.pending_balance = pending_earnings + pending_payout_total
+    wallet.total_earned = completed_total
+    wallet.total_paid_out = paid_total
+    wallet.save(update_fields=["balance", "pending_balance", "total_earned", "total_paid_out", "updated_at"])
     return render(request, "deliveries/rider_dashboard.html", {
         "rider": rider,
         "wallet": wallet,
         "active_deliveries": active_deliveries,
         "available_deliveries": available_deliveries,
         "completed_deliveries": completed_deliveries,
+        "assigned_deliveries_count": active_deliveries.count(),
+        "new_pickup_count": new_pickup_count,
+        "delivery_inbox_count": new_pickup_count,
+        "unread_notification_count": unread_notification_count,
     })
 
 

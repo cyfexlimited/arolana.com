@@ -1,4 +1,10 @@
 from django.urls import reverse
+import json
+import urllib.request
+
+from django.conf import settings
+from django.core.mail import send_mail
+
 
 
 def _order_link(order):
@@ -11,6 +17,121 @@ def _order_link(order):
 def _delivery_label(delivery):
     provider_name = delivery.provider.name if delivery.provider else 'Arolana delivery'
     return f'{delivery.get_service_level_display()} via {provider_name}'
+
+
+def _customer_email(order):
+    email = getattr(order, 'customer_email', '') or ''
+    if email:
+        return email
+
+    user = getattr(order, 'user', None)
+    if user and getattr(user, 'email', ''):
+        return user.email
+
+    return ''
+
+
+def _customer_name(order):
+    name = getattr(order, 'customer_name', '') or ''
+    if name:
+        return name
+
+    user = getattr(order, 'user', None)
+    if user:
+        return user.get_full_name() or user.username
+
+    return 'Customer'
+
+
+def _status_display(delivery):
+    try:
+        return delivery.get_tracking_status_display()
+    except Exception:
+        return str(getattr(delivery, 'tracking_status', '') or 'Pending').replace('_', ' ').title()
+
+
+def send_delivery_email(delivery, title, message):
+    order = delivery.order
+    customer_email = _customer_email(order)
+
+    if not customer_email:
+        return
+
+    customer_name = _customer_name(order)
+    tracking_status = _status_display(delivery)
+
+    subject = f"Arolana update: {title} - {order.order_number}"
+
+    body = (
+        f"Hello {customer_name},\n\n"
+        f"{message}\n\n"
+        f"Order Number: {order.order_number}\n"
+        f"Tracking Code: {delivery.tracking_code}\n"
+        f"Delivery Status: {tracking_status}\n"
+        f"Payment Status: {order.payment_status}\n"
+        f"Total: ₦{order.total}\n\n"
+        f"You can also open your Arolana mobile app and check the Orders tab for live tracking.\n\n"
+        f"Thank you for shopping with Arolana."
+    )
+
+    send_mail(
+        subject=subject,
+        message=body,
+        from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', None),
+        recipient_list=[customer_email],
+        fail_silently=True,
+    )
+
+
+
+
+def send_expo_push_notification(order, title, message, extra_data=None):
+    try:
+        from .models import MobilePushToken
+    except Exception:
+        return
+
+    customer_phone = getattr(order, 'customer_phone', '') or ''
+    customer_email = getattr(order, 'customer_email', '') or getattr(order.user, 'email', '')
+
+    tokens = MobilePushToken.objects.filter(is_active=True)
+
+    if customer_phone:
+        tokens = tokens.filter(phone_number__in=[customer_phone, ''.join(ch for ch in customer_phone if ch.isdigit())])
+    elif customer_email:
+        tokens = tokens.filter(email__iexact=customer_email)
+    else:
+        return
+
+    expo_tokens = list(tokens.values_list('expo_push_token', flat=True).distinct())
+
+    if not expo_tokens:
+        return
+
+    messages = []
+    for token in expo_tokens:
+        messages.append({
+            'to': token,
+            'sound': 'default',
+            'title': title,
+            'body': message,
+            'data': extra_data or {},
+        })
+
+    request = urllib.request.Request(
+        'https://exp.host/--/api/v2/push/send',
+        data=json.dumps(messages).encode('utf-8'),
+        headers={
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+        },
+        method='POST',
+    )
+
+    try:
+        urllib.request.urlopen(request, timeout=10).read()
+    except Exception:
+        return
 
 
 def notify_delivery_created(delivery):
@@ -32,6 +153,28 @@ def notify_delivery_created(delivery):
             'delivery_status': delivery.tracking_status,
         },
         priority=2,
+    )
+
+    created_message = (
+        f'Your order {order.order_number} is ready for delivery planning. '
+        f'Tracking code: {delivery.tracking_code}. Delivery fee: {delivery.delivery_fee}.'
+    )
+
+    send_delivery_email(
+        delivery,
+        title='Delivery request created',
+        message=created_message,
+    )
+
+    send_expo_push_notification(
+        order,
+        title='Delivery request created',
+        message=created_message,
+        extra_data={
+            'order_number': order.order_number,
+            'tracking_code': delivery.tracking_code,
+            'delivery_status': delivery.tracking_status,
+        },
     )
 
 
@@ -57,6 +200,26 @@ def notify_delivery_location(delivery):
             'longitude': str(delivery.latest_longitude or ''),
         },
         priority=2,
+    )
+
+    location_message = f'Order {order.order_number} latest delivery location: {delivery.latest_location}.'
+
+    send_delivery_email(
+        delivery,
+        title='Live delivery location updated',
+        message=location_message,
+    )
+
+    send_expo_push_notification(
+        order,
+        title='Live delivery location updated',
+        message=location_message,
+        extra_data={
+            'order_number': order.order_number,
+            'tracking_code': delivery.tracking_code,
+            'delivery_status': delivery.tracking_status,
+            'latest_location': delivery.latest_location,
+        },
     )
 
 
@@ -120,6 +283,24 @@ def notify_delivery_status(delivery, previous_status=''):
             'provider': provider_name,
         },
         priority=3 if delivery.tracking_status in [delivery.STATUS_PICKED_UP, delivery.STATUS_IN_TRANSIT, delivery.STATUS_DELIVERED] else 2,
+    )
+
+    send_delivery_email(
+        delivery,
+        title=title,
+        message=message,
+    )
+
+    send_expo_push_notification(
+        order,
+        title=title,
+        message=message,
+        extra_data={
+            'order_number': order.order_number,
+            'tracking_code': delivery.tracking_code,
+            'delivery_status': delivery.tracking_status,
+            'previous_status': previous_status,
+        },
     )
 
     if delivery.tracking_status == delivery.STATUS_DELIVERED:

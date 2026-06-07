@@ -1,29 +1,26 @@
 from django.contrib import admin
-from .models import SearchHistory, SearchAnalytics
+
+from .models import SearchAnalytics, SearchHistory, VoiceSearchLog
+
 
 @admin.register(SearchHistory)
 class SearchHistoryAdmin(admin.ModelAdmin):
-    list_display = ['query', 'user', 'results_count', 'created_at']
-    list_filter = ['created_at']
-    search_fields = ['query']
-    readonly_fields = ['query', 'user', 'session_id', 'results_count', 'ip_address', 'created_at']
-
-    def has_add_permission(self, request):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False
+    list_display = ['query', 'intent', 'category', 'results_count', 'ip_address', 'created_at']
+    list_filter = ['intent', 'category', 'created_at']
+    search_fields = ['query', 'category', 'session_id', 'ip_address']
+    readonly_fields = ['created_at', 'updated_at']
 
 
 @admin.register(SearchAnalytics)
 class SearchAnalyticsAdmin(admin.ModelAdmin):
-    list_display = ['query', 'product', 'clicked', 'position', 'created_at']
+    list_display = ['query', 'product', 'position', 'score', 'clicked', 'created_at']
     list_filter = ['clicked', 'created_at']
-    search_fields = ['query', 'product__name']
-    readonly_fields = ['query', 'product', 'position', 'clicked', 'session_id', 'user', 'created_at']
+    search_fields = ['query', 'product__name', 'session_id']
+    readonly_fields = ['created_at', 'updated_at']
 
-    def has_add_permission(self, request):
-        return False
 
-    def has_change_permission(self, request, obj=None):
-        return False
+@admin.register(VoiceSearchLog)
+class VoiceSearchLogAdmin(admin.ModelAdmin):
+    list_display = ['transcript', 'results_count', 'ip_address', 'created_at']
+    search_fields = ['transcript', 'ai_reply', 'session_id', 'ip_address']
+    readonly_fields = ['created_at', 'updated_at']

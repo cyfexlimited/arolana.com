@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
 
-from .models import SmartChatConversation, SmartChatMessage
+from .models import SmartChatConversation, SmartChatMessage, SmartChatSupportTicket
 
 
 class SmartChatMessageInline(admin.TabularInline):
@@ -461,3 +461,81 @@ class SmartChatMessageAdmin(admin.ModelAdmin):
         return preview
 
     message_preview.short_description = "Message"
+
+
+@admin.register(SmartChatSupportTicket)
+class SmartChatSupportTicketAdmin(admin.ModelAdmin):
+    list_display = [
+        "id",
+        "title",
+        "audience",
+        "intent",
+        "priority",
+        "status",
+        "created_by",
+        "assigned_admin",
+        "created_at",
+    ]
+    list_filter = [
+        "status",
+        "priority",
+        "audience",
+        "intent",
+        "created_at",
+    ]
+    search_fields = [
+        "title",
+        "description",
+        "conversation__customer_name",
+        "conversation__customer_email",
+        "created_by__email",
+        "created_by__username",
+        "order__order_number",
+        "product__name",
+    ]
+    list_select_related = [
+        "conversation",
+        "created_by",
+        "assigned_admin",
+        "order",
+        "product",
+        "vendor_profile",
+        "rider_profile",
+    ]
+    readonly_fields = [
+        "created_at",
+        "updated_at",
+        "resolved_at",
+        "metadata",
+    ]
+    actions = [
+        "assign_to_me",
+        "mark_in_progress",
+        "mark_resolved",
+        "mark_closed",
+    ]
+
+    def assign_to_me(self, request, queryset):
+        updated = queryset.update(assigned_admin=request.user, status=SmartChatSupportTicket.STATUS_IN_PROGRESS)
+        self.message_user(request, f"{updated} ticket(s) assigned to you.")
+
+    assign_to_me.short_description = "Assign selected tickets to me"
+
+    def mark_in_progress(self, request, queryset):
+        updated = queryset.update(status=SmartChatSupportTicket.STATUS_IN_PROGRESS)
+        self.message_user(request, f"{updated} ticket(s) marked in progress.")
+
+    mark_in_progress.short_description = "Mark selected tickets in progress"
+
+    def mark_resolved(self, request, queryset):
+        for ticket in queryset:
+            ticket.mark_resolved()
+        self.message_user(request, f"{queryset.count()} ticket(s) resolved.")
+
+    mark_resolved.short_description = "Mark selected tickets resolved"
+
+    def mark_closed(self, request, queryset):
+        updated = queryset.update(status=SmartChatSupportTicket.STATUS_CLOSED)
+        self.message_user(request, f"{updated} ticket(s) closed.")
+
+    mark_closed.short_description = "Close selected tickets"

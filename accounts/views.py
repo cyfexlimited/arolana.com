@@ -244,33 +244,15 @@ def login_view(request):
                     messages.error(request, "We could not send your verification email. Please try Resend Code or contact support.")
                 return redirect('accounts:verify_email')
             
-            # Check if 2FA is enabled
-            if getattr(user, 'two_factor_enabled', False):
-                otp = create_otp(user, user.email, 'login')
-                if otp:
-                    request.session['pre_2fa_user_id'] = user.id
-                    messages.info(request, f"Please enter the OTP sent to {user.email}")
-                    return redirect('accounts:verify_2fa')
-                else:
-                    messages.error(request, "Failed to send OTP. Please try again.")
-            else:
-                # Regular login
-                user.backend = 'django.contrib.auth.backends.ModelBackend'
-                login(request, user)
-                
-                if not remember:
-                    request.session.set_expiry(0)
-                
-                log_user_activity(user, 'login', request, {'method': 'password'})
-                create_notification(
-                    user, 'success', '🔐 New Login Detected',
-                    f'You logged in from IP: {ip_address} at {timezone.now().strftime("%I:%M %p")}',
-                    '/accounts/profile/'
-                )
-                
-                messages.success(request, f"Welcome back, {user.get_full_name() or user.email}!")
-                next_url = request.POST.get('next') or request.GET.get('next') or 'home'
-                return redirect(next_url)
+            otp = create_otp(user, user.email, 'login')
+            if otp:
+                request.session['pre_2fa_user_id'] = user.id
+                request.session['pre_2fa_remember'] = remember
+                request.session['pre_2fa_next'] = request.POST.get('next') or request.GET.get('next') or 'home'
+                messages.info(request, f"Please enter the OTP sent to {user.email} before signing in.")
+                return redirect('accounts:verify_2fa')
+
+            messages.error(request, "Failed to send login OTP. Please try again.")
         else:
             log_user_activity(None, 'failed_login', request, {'identifier': identifier[:50]})
             messages.error(request, "Invalid email/username or password.")
@@ -819,12 +801,16 @@ def verify_2fa(request):
             user.backend = 'django.contrib.auth.backends.ModelBackend'
             login(request, user)
             del request.session['pre_2fa_user_id']
+
+            remember = request.session.pop('pre_2fa_remember', False)
+            next_url = request.session.pop('pre_2fa_next', request.GET.get('next', 'home')) or 'home'
+            if not remember:
+                request.session.set_expiry(0)
             
-            create_notification(user, 'success', '🔐 2FA Login Successful', 'You logged in using two-factor authentication', '/accounts/profile/')
-            log_user_activity(user, 'login_2fa', request, {'method': '2fa_otp'})
+            create_notification(user, 'success', '🔐 Login Verified', 'You logged in using email OTP verification.', '/accounts/profile/')
+            log_user_activity(user, 'login_otp', request, {'method': 'email_login_otp'})
             
             messages.success(request, f"Welcome back, {user.get_full_name() or user.email}!")
-            next_url = request.GET.get('next', 'home')
             return redirect(next_url)
         else:
             messages.error(request, message)

@@ -2,16 +2,23 @@ from django.db import models
 from core.models import BaseModel
 from accounts.models import User
 from vendors.models import VendorProfile
+from django.utils import timezone
 
 class KYCDocument(BaseModel):
     """KYC Documents for vendors"""
     DOCUMENT_TYPES = [
         ('business_registration', 'Business Registration Certificate'),
+        ('cac_certificate', 'CAC / Company Certificate'),
         ('tax_id', 'Tax ID / VAT Certificate'),
+        ('tin_certificate', 'TIN Certificate'),
         ('bank_statement', 'Bank Account Statement'),
         ('utility_bill', 'Utility Bill (Address Proof)'),
+        ('proof_of_address', 'Proof of Address'),
         ('id_proof', 'Government ID Proof'),
         ('product_license', 'Product License/Certification'),
+        ('manufacturer_certificate', 'Manufacturer Certificate'),
+        ('import_export_license', 'Import / Export License'),
+        ('factory_document', 'Factory / Warehouse Document'),
         ('other', 'Other Document'),
     ]
     
@@ -85,6 +92,12 @@ class KYCRecord(BaseModel):
     bank_routing_number = models.CharField(max_length=100, blank=True)
     iban = models.CharField(max_length=100, blank=True)
     swift_code = models.CharField(max_length=20, blank=True)
+
+    # Manufacturer / international trade details
+    factory_address = models.TextField(blank=True)
+    warehouse_address = models.TextField(blank=True)
+    manufacturer_certificate_number = models.CharField(max_length=140, blank=True)
+    import_export_license_number = models.CharField(max_length=140, blank=True)
     
     # Authorized Person
     authorized_person_name = models.CharField(max_length=200)
@@ -96,9 +109,12 @@ class KYCRecord(BaseModel):
     KYC_STATUS = [
         ('not_started', 'Not Started'),
         ('pending', 'Pending Verification'),
+        ('under_review', 'Under Review'),
         ('in_review', 'Under Review'),
+        ('approved', 'Approved'),
         ('verified', 'Verified'),
         ('rejected', 'Rejected'),
+        ('requires_changes', 'Requires Changes'),
         ('suspended', 'Suspended'),
     ]
     kyc_status = models.CharField(max_length=20, choices=KYC_STATUS, default='not_started')

@@ -132,7 +132,7 @@ class SiteSettingsAdmin(admin.ModelAdmin):
     list_editable = ('is_active',)
     list_filter = ('is_active',)
     search_fields = ('site_name',)
-    readonly_fields = ('admin_logo_preview',)
+    readonly_fields = ('admin_logo_preview', 'smart_chat_bot_preview')
 
     fieldsets = (
         ('Basic Information', {
@@ -144,11 +144,13 @@ class SiteSettingsAdmin(admin.ModelAdmin):
                 'site_logo',
                 'site_favicon',
                 'footer_logo',
+                'smart_chat_bot_preview',
+                'smart_chat_bot_image',
                 'logo_height_desktop',
                 'logo_height_mobile',
                 'footer_logo_height',
             ),
-            'description': 'Upload the logo here to control the storefront and Jazzmin admin logo. Use the height fields to make the homepage/header/footer logo larger or smaller without code changes.',
+            'description': 'Upload the storefront/admin logo and a separate square avatar for Arolana Smart Chat.',
         }),
         ('Contact Information', {
             'fields': ('contact_email', 'contact_phone', 'address'),
@@ -192,6 +194,21 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         return mark_safe('<span style="color:#64748b;">No uploaded logo yet. The admin will use the fallback static logo until you upload one here.</span>')
 
     admin_logo_preview.short_description = "Current admin logo"
+
+    def smart_chat_bot_preview(self, obj):
+        if obj and obj.smart_chat_bot_image:
+            return format_html(
+                '<div style="display:flex;align-items:center;gap:14px;">'
+                '<img src="{}" style="width:84px;height:84px;border:1px solid #d0d7de;border-radius:22px;padding:6px;background:#fff;object-fit:contain;" />'
+                '<span style="color:#475569;">This avatar appears in the customer Smart Chat header.</span>'
+                '</div>',
+                obj.smart_chat_bot_image.url,
+            )
+        return mark_safe(
+            '<span style="color:#64748b;">No Smart Chat image uploaded. The Arolana fallback logo will be used.</span>'
+        )
+
+    smart_chat_bot_preview.short_description = "Current Smart Chat bot image"
 
     def has_delete_permission(self, request, obj=None):
         return False

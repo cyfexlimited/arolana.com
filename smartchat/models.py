@@ -16,6 +16,20 @@ class SmartChatConversation(models.Model):
         (STATUS_CLOSED, "Closed"),
     ]
 
+    AUDIENCE_CUSTOMER = "customer"
+    AUDIENCE_VENDOR = "vendor"
+    AUDIENCE_RIDER = "rider"
+    AUDIENCE_ADMIN = "admin"
+    AUDIENCE_GUEST = "guest"
+
+    AUDIENCE_CHOICES = [
+        (AUDIENCE_CUSTOMER, "Customer"),
+        (AUDIENCE_VENDOR, "Vendor"),
+        (AUDIENCE_RIDER, "Rider"),
+        (AUDIENCE_ADMIN, "Admin"),
+        (AUDIENCE_GUEST, "Guest"),
+    ]
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -39,6 +53,30 @@ class SmartChatConversation(models.Model):
         related_name="smart_chat_conversations",
     )
 
+    order = models.ForeignKey(
+        "orders.Order",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="smart_chat_conversations",
+    )
+
+    vendor_profile = models.ForeignKey(
+        "vendors.VendorProfile",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="smart_chat_conversations",
+    )
+
+    rider_profile = models.ForeignKey(
+        "deliveries.RiderProfile",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="smart_chat_conversations",
+    )
+
     assigned_admin = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -54,6 +92,17 @@ class SmartChatConversation(models.Model):
         default=STATUS_AI,
         db_index=True,
     )
+
+    audience = models.CharField(
+        max_length=30,
+        choices=AUDIENCE_CHOICES,
+        default=AUDIENCE_CUSTOMER,
+        db_index=True,
+    )
+
+    current_intent = models.CharField(max_length=80, blank=True, db_index=True)
+    urgency = models.CharField(max_length=30, default="normal", blank=True, db_index=True)
+    context = models.JSONField(default=dict, blank=True)
 
     # Visitor / customer captured details
     customer_first_name = models.CharField(max_length=100, blank=True)
@@ -80,6 +129,8 @@ class SmartChatConversation(models.Model):
         ordering = ["-last_message_at"]
         indexes = [
             models.Index(fields=["status", "-last_message_at"]),
+            models.Index(fields=["audience", "status", "-last_message_at"]),
+            models.Index(fields=["current_intent", "-last_message_at"]),
             models.Index(fields=["session_key", "-last_message_at"]),
             models.Index(fields=["customer_email"]),
             models.Index(fields=["created_at"]),
@@ -106,6 +157,38 @@ class SmartChatConversation(models.Model):
             or self.customer_email
             or "Guest customer"
         )
+
+    @property
+    def customer_avatar_url(self):
+        """
+        Best-effort avatar for admin Smart Chat views.
+        Mobile customers store their app profile image separately, while web
+        customers may have an account avatar or profile avatar.
+        """
+        try:
+            mobile_customer_id = (self.selected_variants or {}).get("mobile_customer_id")
+            if mobile_customer_id:
+                from mobile_customers.models import MobileCustomer
+
+                mobile_customer = MobileCustomer.objects.filter(id=mobile_customer_id).first()
+                if mobile_customer and mobile_customer.profile_image:
+                    return mobile_customer.profile_image.url
+        except Exception:
+            pass
+
+        try:
+            if self.user and getattr(self.user, "avatar", None):
+                return self.user.avatar.url
+        except Exception:
+            pass
+
+        try:
+            if self.user and getattr(self.user, "profile", None) and self.user.profile.avatar:
+                return self.user.profile.avatar.url
+        except Exception:
+            pass
+
+        return ""
 
     @property
     def is_guest(self):
@@ -170,7 +253,7 @@ class SmartChatMessage(models.Model):
 
     SENDER_CHOICES = [
         (SENDER_USER, "Customer"),
-        (SENDER_AI, "AI Assistant"),
+        (SENDER_AI, "Arolana Chat"),
         (SENDER_ADMIN, "Admin"),
         (SENDER_SYSTEM, "System"),
     ]
@@ -227,7 +310,7 @@ class SmartChatMessage(models.Model):
             return "Customer"
 
         if self.sender_type == self.SENDER_AI:
-            return "Arolana AI"
+            return "Arolana Chat"
 
         if self.sender_type == self.SENDER_ADMIN:
             if self.user:
@@ -245,3 +328,87 @@ class SmartChatMessage(models.Model):
             last_message_at=self.created_at,
             updated_at=timezone.now(),
         )
+
+
+class SmartChatSupportTicket(models.Model):
+    STATUS_OPEN = "open"
+    STATUS_IN_PROGRESS = "in_progress"
+    STATUS_WAITING_CUSTOMER = "waiting_customer"
+    STATUS_RESOLVED = "resolved"
+    STATUS_CLOSED = "closed"
+
+    STATUS_CHOICES = [
+        (STATUS_OPEN, "Open"),
+        (STATUS_IN_PROGRESS, "In Progress"),
+        (STATUS_WAITING_CUSTOMER, "Waiting Customer"),
+        (STATUS_RESOLVED, "Resolved"),
+        (STATUS_CLOSED, "Closed"),
+    ]
+
+    PRIORITY_LOW = "low"
+    PRIORITY_NORMAL = "normal"
+    PRIORITY_HIGH = "high"
+    PRIORITY_URGENT = "urgent"
+
+    PRIORITY_CHOICES = [
+        (PRIORITY_LOW, "Low"),
+        (PRIORITY_NORMAL, "Normal"),
+        (PRIORITY_HIGH, "High"),
+        (PRIORITY_URGENT, "Urgent"),
+    ]
+
+    conversation = models.ForeignKey(
+        SmartChatConversation,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="support_tickets",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="smartchat_support_tickets",
+    )
+    assigned_admin = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_smartchat_support_tickets",
+        limit_choices_to={"is_staff": True},
+    )
+    title = models.CharField(max_length=220)
+    description = models.TextField()
+    audience = models.CharField(max_length=30, choices=SmartChatConversation.AUDIENCE_CHOICES, default=SmartChatConversation.AUDIENCE_CUSTOMER)
+    intent = models.CharField(max_length=80, blank=True, db_index=True)
+    priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default=PRIORITY_NORMAL, db_index=True)
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default=STATUS_OPEN, db_index=True)
+    order = models.ForeignKey("orders.Order", on_delete=models.SET_NULL, null=True, blank=True, related_name="smartchat_support_tickets")
+    product = models.ForeignKey("products.Product", on_delete=models.SET_NULL, null=True, blank=True, related_name="smartchat_support_tickets")
+    vendor_profile = models.ForeignKey("vendors.VendorProfile", on_delete=models.SET_NULL, null=True, blank=True, related_name="smartchat_support_tickets")
+    rider_profile = models.ForeignKey("deliveries.RiderProfile", on_delete=models.SET_NULL, null=True, blank=True, related_name="smartchat_support_tickets")
+    metadata = models.JSONField(default=dict, blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["status", "-created_at"]),
+            models.Index(fields=["priority", "status"]),
+            models.Index(fields=["audience", "status"]),
+            models.Index(fields=["intent", "-created_at"]),
+        ]
+        verbose_name = "Smart Chat Support Ticket"
+        verbose_name_plural = "Smart Chat Support Tickets"
+
+    def __str__(self):
+        return f"#{self.id} {self.title}"
+
+    def mark_resolved(self):
+        self.status = self.STATUS_RESOLVED
+        self.resolved_at = timezone.now()
+        self.save(update_fields=["status", "resolved_at", "updated_at"])

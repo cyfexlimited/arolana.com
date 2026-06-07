@@ -71,6 +71,13 @@ class Order(BaseModel):
     ]
     
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders')
+
+    # Customer contact fields for mobile/guest checkout.
+    # These make customer details visible and searchable directly on the order.
+    customer_name = models.CharField(max_length=160, blank=True)
+    customer_email = models.EmailField(blank=True)
+    customer_phone = models.CharField(max_length=50, blank=True)
+
     order_number = models.CharField(max_length=20, unique=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
@@ -322,6 +329,28 @@ class OrderItem(BaseModel):
     
     def __str__(self):
         return f"{self.quantity} x {self.item_name}"
+
+
+class MobilePushToken(BaseModel):
+    """Expo push token for Arolana mobile app notifications."""
+
+    phone_number = models.CharField(max_length=50, db_index=True)
+    email = models.EmailField(blank=True)
+    expo_push_token = models.CharField(max_length=255, unique=True)
+    device_name = models.CharField(max_length=120, blank=True)
+    platform = models.CharField(max_length=60, blank=True)
+    is_active = models.BooleanField(default=True)
+    last_registered_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ['-last_registered_at']
+        indexes = [
+            models.Index(fields=['phone_number', 'is_active']),
+            models.Index(fields=['email', 'is_active']),
+        ]
+
+    def __str__(self):
+        return f"{self.phone_number} - {self.device_name or self.platform or 'mobile'}"
 
 
 from django.db.models.signals import post_save, pre_save

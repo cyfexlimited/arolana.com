@@ -16,6 +16,7 @@ from .models import (
     RiderProfile,
     RiderWallet,
 )
+from notifications.models import Notification
 
 
 ADMIN_DELIVERY_LIVE_MAP_ASSETS = mark_safe("""
@@ -224,16 +225,47 @@ class DeliveryPricingRuleAdmin(admin.ModelAdmin):
 
 @admin.register(RiderProfile)
 class RiderProfileAdmin(admin.ModelAdmin):
-    list_display = ("__str__", "rider_type", "vehicle", "zone", "kyc_status", "is_online", "is_available", "completed_deliveries", "rating_avg")
-    list_filter = ("rider_type", "kyc_status", "is_online", "is_available", "is_suspended", "vehicle", "zone")
+    list_display = ("__str__", "rider_type", "vehicle", "zone", "kyc_status", "profile_edit_status", "is_online", "is_available", "preferred_language", "completed_deliveries", "rating_avg")
+    list_filter = ("rider_type", "kyc_status", "profile_edit_status", "is_online", "is_available", "is_suspended", "preferred_language", "vehicle", "zone")
     search_fields = ("user__email", "user__first_name", "user__last_name", "phone")
-    actions = ("approve_riders", "suspend_riders", "set_online", "set_offline")
+    readonly_fields = ("created_at", "updated_at")
+    fieldsets = (
+        ("Account", {"fields": ("user", "rider_type", "phone", "emergency_phone", "about", "profile_photo", "dashboard_image")}),
+        ("Vehicle & Zone", {"fields": ("vehicle", "zone")}),
+        ("KYC Documents", {"fields": ("kyc_status", "id_document", "driver_license", "vehicle_document")}),
+        ("Profile Edit Review", {"fields": ("profile_edit_status", "profile_edit_pending_data", "profile_edit_requested_at", "profile_edit_available_at")}),
+        ("Payout Bank", {"fields": ("payout_bank_name", "payout_account_name", "payout_account_number", "payout_bank_country", "payout_preferred_currency")}),
+        ("Live Operations", {"fields": ("is_online", "is_available", "is_suspended", "current_latitude", "current_longitude", "last_location_at")}),
+        ("Preferences", {"fields": ("preferred_language", "notification_preferences")}),
+        ("Performance", {"fields": ("completed_deliveries", "failed_deliveries", "rating_avg")}),
+        ("Admin", {"fields": ("admin_notes", "created_at", "updated_at")}),
+    )
+    actions = ("approve_riders", "approve_profile_edits", "reject_profile_edits", "suspend_riders", "set_online", "set_offline")
 
     @admin.action(description="Approve selected riders")
     def approve_riders(self, request, queryset):
-        queryset.update(kyc_status=RiderProfile.KYC_APPROVED, is_suspended=False, updated_at=timezone.now())
         for rider in queryset:
+            if rider.profile_edit_status == "pending_admin_review" and rider.profile_edit_pending_data:
+                rider.apply_pending_profile_edit()
+            else:
+                rider.kyc_status = RiderProfile.KYC_APPROVED
+                rider.is_suspended = False
+                rider.save(update_fields=["kyc_status", "is_suspended", "updated_at"])
             RiderWallet.objects.get_or_create(rider=rider)
+
+    @admin.action(description="Approve pending rider profile edits")
+    def approve_profile_edits(self, request, queryset):
+        for rider in queryset.filter(profile_edit_status="pending_admin_review"):
+            rider.apply_pending_profile_edit()
+            RiderWallet.objects.get_or_create(rider=rider)
+
+    @admin.action(description="Reject pending rider profile edits")
+    def reject_profile_edits(self, request, queryset):
+        queryset.filter(profile_edit_status="pending_admin_review").update(
+            profile_edit_status="rejected",
+            profile_edit_pending_data={},
+            updated_at=timezone.now(),
+        )
 
     @admin.action(description="Suspend selected riders")
     def suspend_riders(self, request, queryset):
@@ -441,15 +473,32 @@ class RiderWalletAdmin(admin.ModelAdmin):
 @admin.register(RiderPayout)
 class RiderPayoutAdmin(admin.ModelAdmin):
     list_display = ("rider", "amount", "status", "bank_name", "account_number", "created_at", "paid_at")
-    list_filter = ("status", "bank_name")
+    list_filter = ("status", "bank_name", "created_at", "paid_at")
+    date_hierarchy = "created_at"
     search_fields = ("rider__user__email", "account_name", "account_number")
     actions = ("approve_payouts", "mark_paid")
 
     @admin.action(description="Approve payouts")
     def approve_payouts(self, request, queryset):
-        queryset.filter(status=RiderPayout.STATUS_PENDING).update(status=RiderPayout.STATUS_APPROVED, updated_at=timezone.now())
+        for payout in queryset.filter(status=RiderPayout.STATUS_PENDING):
+            payout.status = RiderPayout.STATUS_APPROVED
+            payout.save(update_fields=["status", "updated_at"])
+            Notification.send(
+                user=payout.rider.user,
+                notification_type="payment",
+                title="Payout approved",
+                message=f"Your rider payout of NGN {payout.amount} has been approved.",
+                metadata={"payout_id": payout.id, "amount": str(payout.amount), "status": payout.status},
+            )
 
     @admin.action(description="Mark payouts paid")
     def mark_paid(self, request, queryset):
         for payout in queryset.exclude(status=RiderPayout.STATUS_PAID):
             payout.mark_paid()
+            Notification.send(
+                user=payout.rider.user,
+                notification_type="payment",
+                title="Payout paid",
+                message=f"Your rider payout of NGN {payout.amount} has been marked paid.",
+                metadata={"payout_id": payout.id, "amount": str(payout.amount), "status": payout.status},
+            )

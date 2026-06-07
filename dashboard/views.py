@@ -1,5 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.password_validation import validate_password
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
@@ -20,12 +22,17 @@ from products.models import Product, Category, ProductReview, Wishlist, Recently
 from vendors.models import VendorProfile
 from accounts.models import User
 from orders.models import Order, OrderItem
+from deliveries.models import DeliveryRequest
 from .models import AdminActivityLog, SystemAlert, VendorAdminMessage, VendorNotification
-from subscriptions.models import VendorSubscription, user_has_paid_subscription, user_subscription_limits, user_subscription_tier
+from subscriptions.models import SubscriptionPlan, VendorSubscription, subscription_label, user_has_paid_subscription, user_subscription_limits, user_subscription_tier
+from arolana_payments.models import PaymentTransaction
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ValidationError
 
 from order_robot.models import OrderRobotVendorTask
 from order_robot.services import vendor_mark_confirmed, vendor_mark_rejected
+from vendors.security import send_vendor_password_changed_email
+from notifications.models import Notification
 
 try:
     from chat.models import VendorChatRoom
@@ -112,10 +119,30 @@ def _vendor_subscription_context(user):
         is_active=True,
         end_date__gt=timezone.now()
     ).select_related('plan').first()
+    vendor_profile = getattr(user, 'vendor_profile', None)
+    subscription_invoices = PaymentTransaction.objects.filter(
+        user=user,
+        checkout_data__purpose='vendor_subscription',
+    ).order_by('-created_at')[:12]
+    subscription_plans = SubscriptionPlan.objects.filter(is_active=True).order_by('order', 'price_monthly')
+    expires_at = None
+    if current_subscription:
+        expires_at = current_subscription.end_date
+    elif vendor_profile:
+        expires_at = getattr(vendor_profile, 'subscription_expires_at', None) or vendor_profile.subscription_expiry
     return {
         'subscription_tier': tier,
+        'subscription_label': subscription_label(tier),
         'subscription_limits': limits,
+        'subscription_benefits_image_url': '/static/images/arolana-vendor-subscription-benefits.png',
         'current_subscription': current_subscription,
+        'subscription_profile': vendor_profile,
+        'subscription_active': bool(getattr(vendor_profile, 'subscription_active', False)) if vendor_profile else False,
+        'subscription_started_at': getattr(vendor_profile, 'subscription_started_at', None) if vendor_profile else None,
+        'subscription_expires_at': expires_at,
+        'subscription_expiring_soon': bool(expires_at and expires_at <= timezone.now() + timedelta(days=3)),
+        'subscription_plans': subscription_plans,
+        'subscription_invoices': subscription_invoices,
         'chat_enabled': user_has_paid_subscription(user),
     }
 
@@ -250,11 +277,80 @@ def vendor_dashboard(request):
         return render(request, 'dashboard/access_denied.html', {
             'message': 'Your vendor profile is not set up. Please contact support.'
         })
+
+    if request.method == 'POST':
+        action = request.POST.get('dashboard_action')
+        if action == 'profile_settings':
+            editable = [
+                'store_name', 'company_name', 'vendor_type', 'country', 'description',
+                'business_address', 'manufacturer_address', 'warehouse_address',
+                'pickup_address', 'pickup_phone', 'support_email', 'support_phone', 'website',
+                'preferred_language', 'preferred_currency',
+            ]
+            for field in editable:
+                if field in request.POST:
+                    value = request.POST.get(field, '').strip()
+                    if field == 'vendor_type' and value not in dict(VendorProfile.VENDOR_TYPE_CHOICES):
+                        continue
+                    if field == 'preferred_language' and value not in ['english', 'french', 'arabic', 'chinese', 'spanish']:
+                        continue
+                    if field == 'preferred_currency':
+                        value = value.upper()
+                        if value not in ['NGN', 'USD', 'GBP', 'EUR', 'CNY', 'CAD']:
+                            continue
+                    setattr(vendor_profile, field, value)
+            if request.FILES.get('store_logo'):
+                vendor_profile.store_logo = request.FILES['store_logo']
+            if request.FILES.get('store_banner'):
+                vendor_profile.store_banner = request.FILES['store_banner']
+            vendor_profile.save()
+            messages.success(request, 'Vendor profile and preferences updated.')
+            return redirect('dashboard:vendor_home')
+        if action == 'change_password':
+            current = request.POST.get('current_password', '')
+            new_password = request.POST.get('new_password', '')
+            confirm_password = request.POST.get('confirm_password', '')
+            if not request.user.check_password(current):
+                messages.error(request, 'Current password is incorrect.')
+            elif not new_password or new_password != confirm_password:
+                messages.error(request, 'New password and confirmation do not match.')
+            else:
+                try:
+                    validate_password(new_password, request.user)
+                except ValidationError as error:
+                    messages.error(request, ' '.join(error.messages))
+                else:
+                    request.user.set_password(new_password)
+                    request.user.save(update_fields=['password'])
+                    update_session_auth_hash(request, request.user)
+                    email_sent = send_vendor_password_changed_email(request.user)
+                    Notification.send(
+                        user=request.user,
+                        notification_type='security',
+                        title='Vendor security updated',
+                        message='Your Arolana vendor password/PIN was changed successfully. Contact support immediately if you did not make this change.',
+                        link='/dashboard/vendor/',
+                        metadata={'event': 'vendor_password_changed'},
+                        priority=3,
+                    )
+                    if email_sent:
+                        messages.success(
+                            request,
+                            f'Password/PIN changed successfully. A security confirmation email was sent to {request.user.email}.',
+                        )
+                    else:
+                        messages.success(
+                            request,
+                            'Password/PIN changed successfully. Your security notification was saved, but the email provider could not confirm delivery.',
+                        )
+                    return redirect('dashboard:vendor_home')
     
     all_products = Product.objects.filter(vendor=request.user).select_related('category', 'brand').prefetch_related('variants', 'images')
     products = all_products.filter(is_active=True, approval_status='approved')
-    order_items = OrderItem.objects.filter(product__vendor=request.user)
-    orders = Order.objects.filter(items__product__vendor=request.user).distinct().order_by('-created_at')
+    vendor_order_filter = Q(items__product__vendor=request.user) | Q(items__variant__product__vendor=request.user)
+    vendor_item_filter = Q(product__vendor=request.user) | Q(variant__product__vendor=request.user)
+    order_items = OrderItem.objects.filter(vendor_item_filter)
+    orders = Order.objects.filter(vendor_order_filter).distinct().order_by('-created_at')
     
     total_orders = orders.count()
     total_sales = order_items.filter(order__status='delivered').aggregate(total=Sum('subtotal'))['total'] or 0
@@ -279,7 +375,10 @@ def vendor_dashboard(request):
     changes_required_count = all_products.filter(approval_status='requires_changes').count()
     
     # Get notifications for this vendor
-    notifications_list = VendorNotification.objects.filter(vendor=request.user).order_by('-created_at')[:10]
+    vendor_notifications_qs = VendorNotification.objects.filter(vendor=request.user)
+    notification_count = vendor_notifications_qs.count()
+    unread_notification_count = vendor_notifications_qs.filter(is_read=False).count()
+    notifications_list = vendor_notifications_qs.order_by('-created_at')[:10]
     
     # Convert notifications to the format expected by template
     notifications = []
@@ -295,6 +394,20 @@ def vendor_dashboard(request):
     
     # Get unread message count
     unread_messages_count = _vendor_unread_admin_count(request.user)
+    pickup_report_count = (
+        DeliveryRequest.objects
+        .filter(
+            Q(order__items__product__vendor=request.user) | Q(order__items__variant__product__vendor=request.user),
+            status__in=[
+                DeliveryRequest.STATUS_PICKED_UP,
+                DeliveryRequest.STATUS_IN_TRANSIT,
+                DeliveryRequest.STATUS_ARRIVED_CUSTOMER,
+                DeliveryRequest.STATUS_DELIVERED,
+            ],
+        )
+        .distinct()
+        .count()
+    )
     robot_tasks = (
         OrderRobotVendorTask.objects
         .filter(vendor=request.user)
@@ -341,7 +454,10 @@ def vendor_dashboard(request):
         'rejected_count': rejected_count,
         'changes_required_count': changes_required_count,
         'notifications': notifications,
+        'notification_count': notification_count,
+        'unread_notification_count': unread_notification_count,
         'unread_count': unread_messages_count,
+        'pickup_report_count': pickup_report_count,
         'monthly_sales': monthly_sales,
         'robot_tasks': robot_tasks,
         'robot_pending_count': OrderRobotVendorTask.objects.filter(vendor=request.user, status=OrderRobotVendorTask.STATUS_PENDING).count(),
@@ -627,7 +743,9 @@ def vendor_add_product(request):
                     approval_status='pending',
                 )
 
-                if video_type == 'youtube' and video_url:
+                if video_type and video_type != 'none' and not subscription_limits.get('can_upload_video'):
+                    messages.warning(request, 'Your current subscription does not allow product video upload. Upgrade your plan to add videos.')
+                elif video_type == 'youtube' and video_url:
                     product.video_type = 'youtube'
                     product.video_url = video_url
                     product.save(update_fields=['video_type', 'video_url'])
@@ -643,8 +761,11 @@ def vendor_add_product(request):
 
                 manual_pdf = request.FILES.get('manual_pdf')
                 if manual_pdf:
-                    product.manual_pdf = manual_pdf
-                    product.save(update_fields=['manual_pdf'])
+                    if subscription_limits.get('can_upload_pdf'):
+                        product.manual_pdf = manual_pdf
+                        product.save(update_fields=['manual_pdf'])
+                    else:
+                        messages.warning(request, 'Your current subscription does not allow PDF brochure/manual upload. Upgrade your plan to add PDF files.')
 
                 additional_images = request.FILES.getlist('additional_images')
                 max_images = subscription_limits['max_images_per_product']
@@ -734,6 +855,7 @@ def vendor_product_detail(request, product_id):
         kyc_redirect = require_verified_kyc(request)
         if kyc_redirect:
             return kyc_redirect
+        subscription_limits = user_subscription_limits(request.user)
 
         try:
             product.name = request.POST.get('name', product.name)
@@ -760,17 +882,24 @@ def vendor_product_detail(request, product_id):
 
             manual_pdf = request.FILES.get('manual_pdf')
             if manual_pdf:
-                product.manual_pdf = manual_pdf
+                if subscription_limits.get('can_upload_pdf'):
+                    product.manual_pdf = manual_pdf
+                else:
+                    messages.warning(request, 'Your current subscription does not allow PDF brochure/manual upload. Upgrade your plan to add PDF files.')
 
             video_type = request.POST.get('video_type')
-            product.video_type = video_type or ''
-            product.video_url = request.POST.get('youtube_url', '') if video_type == 'youtube' else ''
-            if video_type == 'local' and request.FILES.get('local_video'):
-                product.local_video = request.FILES['local_video']
+            if video_type and video_type != 'none' and not subscription_limits.get('can_upload_video'):
+                messages.warning(request, 'Your current subscription does not allow product video upload. Upgrade your plan to add videos.')
+                product.video_type = ''
+                product.video_url = ''
+            else:
+                product.video_type = video_type or ''
+                product.video_url = request.POST.get('youtube_url', '') if video_type == 'youtube' else ''
+                if video_type == 'local' and request.FILES.get('local_video'):
+                    product.local_video = request.FILES['local_video']
             
             product.save()
 
-            subscription_limits = user_subscription_limits(request.user)
             additional_images = request.FILES.getlist('additional_images')
             if additional_images:
                 max_images = subscription_limits['max_images_per_product']
@@ -1033,12 +1162,21 @@ def vendor_orders(request):
 @login_required
 def vendor_order_detail(request, order_id):
     """Vendor order detail view"""
-    order = get_object_or_404(Order, id=order_id)
-    vendor_items = order.items.filter(product__vendor=request.user)
+    order = get_object_or_404(
+        Order.objects.prefetch_related("items__product", "items__variant__product", "live_delivery_requests__rider__user"),
+        id=order_id,
+    )
+    vendor_items = order.items.filter(
+        Q(product__vendor=request.user) | Q(variant__product__vendor=request.user)
+    ).select_related("product", "variant", "variant__product")
+    if not vendor_items.exists():
+        messages.error(request, "You do not have access to this order.")
+        return redirect("dashboard:vendor_orders")
+    delivery = order.live_delivery_requests.select_related("rider", "rider__user").order_by("-created_at").first()
     
     if request.method == 'POST':
         new_status = request.POST.get('status')
-        if new_status and order.items.filter(product__vendor=request.user).exists():
+        if new_status and vendor_items.exists():
             order.status = new_status
             order.save()
             messages.success(request, f'Order status updated to {new_status}')
@@ -1047,6 +1185,7 @@ def vendor_order_detail(request, order_id):
     context = {
         'order': order,
         'vendor_items': vendor_items,
+        'delivery': delivery,
     }
     return render(request, 'dashboard/vendor_order_detail.html', context)
 

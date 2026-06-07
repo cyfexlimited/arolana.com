@@ -4,12 +4,12 @@ from accounts.models import User
 from django.utils import timezone
 
 SUBSCRIPTION_TIERS = [
-    ('free', 'Free'),
-    ('basic', 'Basic'),
-    ('plus', 'Plus'),
-    ('pro', 'Pro'),
-    ('special', 'Special'),
-    ('enterprise', 'Enterprise'),
+    ('free', 'Free Vendor'),
+    ('basic', 'Basic Vendor'),
+    ('plus', 'Plus Vendor'),
+    ('pro', 'Pro Vendor'),
+    ('special', 'Special Vendor'),
+    ('enterprise', 'Enterprise Vendor'),
 ]
 
 LEGACY_TIER_MAP = {
@@ -19,59 +19,119 @@ LEGACY_TIER_MAP = {
 
 TIER_LIMITS = {
     'free': {
-        'max_products': 10,
+        'max_products': 1,
         'featured_products': 0,
         'max_images_per_product': 3,
         'max_variants_per_product': 0,
         'chat_enabled': False,
         'store_reviews_enabled': False,
         'manufacturer_access': False,
+        'can_upload_video': False,
+        'can_upload_pdf': False,
+        'can_upload_certificates': False,
+        'can_access_rfq': False,
+        'can_receive_direct_enquiries': False,
+        'can_use_boosting': False,
+        'can_show_on_homepage': False,
+        'can_access_analytics': True,
+        'can_access_advanced_analytics': False,
+        'can_access_ads': False,
         'priority_score': 0,
         'commission_rate': 12,
+        'support_level': 'basic',
+        'badge_level': 'Free Vendor',
     },
     'basic': {
-        'max_products': 50,
+        'max_products': 5,
         'featured_products': 1,
-        'max_images_per_product': 6,
-        'max_variants_per_product': 10,
+        'max_images_per_product': 5,
+        'max_variants_per_product': 2,
         'chat_enabled': True,
         'store_reviews_enabled': True,
         'manufacturer_access': False,
+        'can_upload_video': False,
+        'can_upload_pdf': False,
+        'can_upload_certificates': False,
+        'can_access_rfq': False,
+        'can_receive_direct_enquiries': True,
+        'can_use_boosting': False,
+        'can_show_on_homepage': False,
+        'can_access_analytics': True,
+        'can_access_advanced_analytics': False,
+        'can_access_ads': False,
         'priority_score': 20,
         'commission_rate': 10,
+        'support_level': 'basic',
+        'badge_level': 'Basic Vendor',
     },
     'plus': {
-        'max_products': 150,
+        'max_products': 20,
         'featured_products': 3,
         'max_images_per_product': 10,
-        'max_variants_per_product': 30,
+        'max_variants_per_product': 5,
         'chat_enabled': True,
         'store_reviews_enabled': True,
         'manufacturer_access': True,
+        'can_upload_video': False,
+        'can_upload_pdf': True,
+        'can_upload_certificates': False,
+        'can_access_rfq': True,
+        'can_receive_direct_enquiries': True,
+        'can_use_boosting': False,
+        'can_show_on_homepage': True,
+        'can_access_analytics': True,
+        'can_access_advanced_analytics': False,
+        'can_access_ads': False,
         'priority_score': 40,
         'commission_rate': 8,
+        'support_level': 'standard',
+        'badge_level': 'Plus Vendor',
     },
     'pro': {
-        'max_products': 500,
+        'max_products': 100,
         'featured_products': 8,
-        'max_images_per_product': 15,
-        'max_variants_per_product': 75,
+        'max_images_per_product': 10,
+        'max_variants_per_product': 20,
         'chat_enabled': True,
         'store_reviews_enabled': True,
         'manufacturer_access': True,
+        'can_upload_video': True,
+        'can_upload_pdf': True,
+        'can_upload_certificates': True,
+        'can_access_rfq': True,
+        'can_receive_direct_enquiries': True,
+        'can_use_boosting': True,
+        'can_show_on_homepage': True,
+        'can_access_analytics': True,
+        'can_access_advanced_analytics': True,
+        'can_access_ads': True,
         'priority_score': 65,
         'commission_rate': 6,
+        'support_level': 'priority',
+        'badge_level': 'Pro Vendor',
     },
     'special': {
-        'max_products': 1000,
+        'max_products': 300,
         'featured_products': 20,
-        'max_images_per_product': 20,
-        'max_variants_per_product': 150,
+        'max_images_per_product': 10,
+        'max_variants_per_product': 50,
         'chat_enabled': True,
         'store_reviews_enabled': True,
         'manufacturer_access': True,
+        'can_upload_video': True,
+        'can_upload_pdf': True,
+        'can_upload_certificates': True,
+        'can_access_rfq': True,
+        'can_receive_direct_enquiries': True,
+        'can_use_boosting': True,
+        'can_show_on_homepage': True,
+        'can_access_analytics': True,
+        'can_access_advanced_analytics': True,
+        'can_access_ads': True,
         'priority_score': 85,
         'commission_rate': 4,
+        'support_level': 'priority',
+        'badge_level': 'Special Vendor',
     },
     'enterprise': {
         'max_products': -1,
@@ -81,8 +141,20 @@ TIER_LIMITS = {
         'chat_enabled': True,
         'store_reviews_enabled': True,
         'manufacturer_access': True,
+        'can_upload_video': True,
+        'can_upload_pdf': True,
+        'can_upload_certificates': True,
+        'can_access_rfq': True,
+        'can_receive_direct_enquiries': True,
+        'can_use_boosting': True,
+        'can_show_on_homepage': True,
+        'can_access_analytics': True,
+        'can_access_advanced_analytics': True,
+        'can_access_ads': True,
         'priority_score': 100,
         'commission_rate': 2,
+        'support_level': 'dedicated',
+        'badge_level': 'Enterprise Vendor',
     },
 }
 
@@ -94,7 +166,40 @@ def normalize_subscription_tier(tier):
 
 
 def get_tier_limits(tier):
-    return TIER_LIMITS[normalize_subscription_tier(tier)]
+    tier = normalize_subscription_tier(tier)
+    limits = TIER_LIMITS[tier].copy()
+    try:
+        plan = SubscriptionPlan.objects.filter(name__iexact=tier, is_active=True).first()
+    except Exception:
+        plan = None
+    if not plan:
+        return limits
+
+    field_map = {
+        'max_products': 'max_products',
+        'featured_products': 'featured_products',
+        'max_images_per_product': 'max_images_per_product',
+        'max_variants_per_product': 'max_variants_per_product',
+        'can_upload_video': 'can_upload_video',
+        'can_upload_pdf': 'can_upload_pdf',
+        'can_upload_certificates': 'can_upload_certificates',
+        'can_access_rfq': 'can_access_rfq',
+        'can_receive_direct_enquiries': 'can_receive_direct_enquiries',
+        'can_use_boosting': 'can_use_boosting',
+        'can_show_on_homepage': 'can_show_on_homepage',
+        'can_access_analytics': 'can_access_analytics',
+        'can_access_advanced_analytics': 'can_access_advanced_analytics',
+        'can_access_ads': 'can_access_ads',
+        'priority_score': 'priority_score',
+        'support_level': 'support_level',
+        'badge_level': 'badge_label',
+    }
+    for limit_key, plan_field in field_map.items():
+        if hasattr(plan, plan_field):
+            limits[limit_key] = getattr(plan, plan_field)
+    limits['commission_rate'] = plan.commission_rate
+    limits['chat_enabled'] = bool(plan.can_receive_direct_enquiries or limits.get('chat_enabled'))
+    return limits
 
 
 def tier_is_paid(tier):
@@ -115,7 +220,8 @@ def user_subscription_tier(user):
 
     vendor_profile = getattr(user, 'vendor_profile', None)
     if vendor_profile:
-        if vendor_profile.subscription_expiry and vendor_profile.subscription_expiry <= timezone.now():
+        expiry = getattr(vendor_profile, 'subscription_expires_at', None) or vendor_profile.subscription_expiry
+        if expiry and expiry <= timezone.now():
             return 'free'
         return normalize_subscription_tier(vendor_profile.subscription_tier)
 
@@ -130,6 +236,64 @@ def user_has_paid_subscription(user):
     limits = user_subscription_limits(user)
     return limits['chat_enabled'] and tier_is_paid(user_subscription_tier(user))
 
+
+def subscription_label(tier):
+    labels = {
+        'free': 'Free Vendor',
+        'basic': 'Basic Vendor',
+        'plus': 'Plus Vendor',
+        'pro': 'Pro Vendor',
+        'special': 'Special Vendor',
+        'enterprise': 'Enterprise Vendor',
+    }
+    return labels[normalize_subscription_tier(tier)]
+
+
+def apply_vendor_subscription_benefits(vendor, plan):
+    """Apply one subscription source of truth to a VendorProfile."""
+    if hasattr(vendor, 'vendor_profile'):
+        vendor = vendor.vendor_profile
+    tier = normalize_subscription_tier(getattr(plan, 'tier_key', None) or getattr(plan, 'name', None) or plan)
+    limits = get_tier_limits(tier)
+    vendor.subscription_tier = tier
+    vendor.product_limit = limits['max_products']
+    vendor.image_limit = limits['max_images_per_product']
+    vendor.variant_limit = limits['max_variants_per_product']
+    vendor.can_upload_video = limits['can_upload_video']
+    vendor.can_upload_pdf = limits['can_upload_pdf']
+    vendor.can_upload_certificates = limits['can_upload_certificates']
+    vendor.can_access_rfq = limits['can_access_rfq']
+    vendor.can_receive_direct_enquiries = limits['can_receive_direct_enquiries']
+    vendor.can_use_boosting = limits['can_use_boosting']
+    vendor.can_show_on_homepage = limits['can_show_on_homepage']
+    vendor.can_access_analytics = limits['can_access_analytics']
+    vendor.can_access_advanced_analytics = limits['can_access_advanced_analytics']
+    vendor.can_access_ads = limits['can_access_ads']
+    vendor.priority_score = limits['priority_score']
+    vendor.support_level = limits['support_level']
+    vendor.badge_level = limits['badge_level']
+    vendor.save(update_fields=[
+        'subscription_tier',
+        'product_limit',
+        'image_limit',
+        'variant_limit',
+        'can_upload_video',
+        'can_upload_pdf',
+        'can_upload_certificates',
+        'can_access_rfq',
+        'can_receive_direct_enquiries',
+        'can_use_boosting',
+        'can_show_on_homepage',
+        'can_access_analytics',
+        'can_access_advanced_analytics',
+        'can_access_ads',
+        'priority_score',
+        'support_level',
+        'badge_level',
+        'updated_at',
+    ])
+    return vendor
+
 class SubscriptionPlan(BaseModel):
     """Subscription plans for vendors"""
     name = models.CharField(max_length=50, unique=True)
@@ -143,6 +307,8 @@ class SubscriptionPlan(BaseModel):
     # Features
     max_products = models.IntegerField(default=10)
     featured_products = models.IntegerField(default=0)
+    max_images_per_product = models.IntegerField(default=3, help_text="-1 means unlimited.")
+    max_variants_per_product = models.IntegerField(default=0, help_text="-1 means unlimited.")
     commission_rate = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)
     
     # Benefits
@@ -150,6 +316,20 @@ class SubscriptionPlan(BaseModel):
     analytics_access = models.BooleanField(default=False)
     promotion_opportunities = models.BooleanField(default=False)
     dedicated_account_manager = models.BooleanField(default=False)
+    can_upload_video = models.BooleanField(default=False)
+    can_upload_pdf = models.BooleanField(default=False)
+    can_upload_certificates = models.BooleanField(default=False)
+    can_access_rfq = models.BooleanField(default=False)
+    can_receive_direct_enquiries = models.BooleanField(default=False)
+    can_use_boosting = models.BooleanField(default=False)
+    can_show_on_homepage = models.BooleanField(default=False)
+    can_access_analytics = models.BooleanField(default=True)
+    can_access_advanced_analytics = models.BooleanField(default=False)
+    can_access_ads = models.BooleanField(default=False)
+    priority_score = models.IntegerField(default=0)
+    support_level = models.CharField(max_length=40, default='basic')
+    badge_label = models.CharField(max_length=80, default='Free Vendor')
+    feature_bullets = models.JSONField(default=list, blank=True)
     
     # Display
     icon = models.CharField(max_length=50, blank=True)
@@ -163,6 +343,10 @@ class SubscriptionPlan(BaseModel):
     
     def __str__(self):
         return self.display_name
+
+    @property
+    def vendor_label(self):
+        return subscription_label(self.tier_key)
 
     @property
     def tier_key(self):
@@ -194,6 +378,8 @@ class SubscriptionPlan(BaseModel):
             features.append("Vendor store reviews and comments")
         if limits['manufacturer_access']:
             features.append("Manufacturer tools")
+        if isinstance(self.feature_bullets, list) and self.feature_bullets:
+            return [str(item) for item in self.feature_bullets if str(item).strip()]
         if self.priority_support:
             features.append("Priority support")
         if self.analytics_access:

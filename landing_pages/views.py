@@ -48,7 +48,7 @@ def _context_for_page(page, preview=False):
         ("benefits", section_by_type.get("benefits"), "Benefits", bool(getattr(page, "active_benefits", []))),
         ("offers", section_by_type.get("offers"), "Offers", bool(getattr(page, "active_offers", []))),
         ("how-it-works", section_by_type.get("how_it_works"), "How It Works", bool(getattr(page, "active_steps", []))),
-        ("categories", section_by_type.get("eligible_categories"), "Categories", bool(getattr(page, "active_category_cards", []))),
+        ("eligible-products", section_by_type.get("eligible_categories"), "Categories", bool(getattr(page, "active_category_cards", []))),
         ("video-guides", section_by_type.get("video_guides") or section_by_type.get("video"), "Video Guides", bool(getattr(page, "active_video_guides", []))),
         ("comparison", section_by_type.get("comparison"), "Compare", bool(comparison_items)),
         ("testimonials", section_by_type.get("testimonials"), "Stories", bool(getattr(page, "active_testimonials", []))),

@@ -83,7 +83,7 @@ class SmartChatAdminNotificationTests(TestCase):
         self.assertTrue(response.json()["admin_only"])
 
         notification = Notification.objects.get(user=self.staff_user)
-        self.assertEqual(notification.title, "New Arolana AI Assistant message")
+        self.assertEqual(notification.title, "New Arolana Chat message")
         self.assertEqual(notification.metadata["smartchat_conversation_id"], conversation.id)
         self.assertEqual(notification.metadata["event"], "customer_message")
         self.assertFalse(Notification.objects.filter(user=other_staff).exists())

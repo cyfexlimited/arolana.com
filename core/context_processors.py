@@ -40,6 +40,7 @@ def _fallback_site_settings():
         site_logo=None,
         site_favicon=None,
         footer_logo=None,
+        smart_chat_bot_image=None,
         facebook_url='',
         twitter_url='',
         instagram_url='',

@@ -1,16 +1,22 @@
 import json
-
+from io import BytesIO
+import re
+from decimal import Decimal, InvalidOperation
+from django.http import JsonResponse, HttpResponse
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.db import transaction
 from django.db.models import Q
-from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
-from django.views.decorators.http import require_POST
-
-from .models import DeliveryProvider, DeliveryQuoteRequest, DeliveryRequest, Order
+from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_GET, require_POST
+from io import BytesIO
+from .models import DeliveryProvider, DeliveryQuoteRequest, DeliveryRequest, Order, OrderItem, MobilePushToken
 from .services import calculate_delivery_quote, notify_staff_delivery, requires_delivery_admin_quote, select_delivery_provider
-
+from products.models import Product
 
 @login_required
 def orders_home(request):
@@ -292,3 +298,1689 @@ def delivery_quote_request(request):
             'We will confirm the carrier cost, route, and timing with you before dispatch.'
         ),
     })
+
+@csrf_exempt
+@require_POST
+def mobile_create_order_api(request):
+    """
+    Mobile checkout endpoint.
+
+    Creates:
+    - a guest/mobile customer user if the request is not authenticated
+    - a real Order
+    - real OrderItem rows
+    - a DeliveryRequest for tracking
+    """
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except Exception:
+        return JsonResponse(
+            {"success": False, "message": "Invalid JSON payload."},
+            status=400,
+        )
+
+    customer = payload.get("customer") or {}
+    items = payload.get("items") or []
+    payment_method = str(payload.get("payment_method") or "paystack").strip().lower()
+
+    full_name = str(customer.get("full_name") or "").strip()
+    phone_number = str(customer.get("phone_number") or "").strip()
+    email = str(customer.get("email") or "").strip().lower()
+    delivery_address = str(customer.get("delivery_address") or "").strip()
+    city_state = str(customer.get("city_state") or "").strip()
+
+    if not full_name or not phone_number or not delivery_address or not city_state:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "Please complete your delivery information.",
+            },
+            status=400,
+        )
+
+    if not items:
+        return JsonResponse(
+            {"success": False, "message": "Cart is empty."},
+            status=400,
+        )
+
+    clean_items = []
+    subtotal = Decimal("0.00")
+
+    for item in items:
+        product_id = item.get("product_id")
+
+        try:
+            quantity = int(item.get("quantity") or 1)
+        except (TypeError, ValueError):
+            quantity = 1
+
+        if quantity < 1:
+            quantity = 1
+
+        product = Product.objects.filter(id=product_id, is_active=True).first()
+
+        if not product:
+            continue
+
+        try:
+            price = Decimal(str(getattr(product, "price", "0") or "0")).quantize(Decimal("0.01"))
+        except (InvalidOperation, TypeError, ValueError):
+            price = Decimal("0.00")
+
+        line_total = (price * quantity).quantize(Decimal("0.01"))
+        subtotal += line_total
+
+        clean_items.append(
+            {
+                "product": product,
+                "product_id": product.id,
+                "name": product.name,
+                "slug": product.slug,
+                "price": price,
+                "quantity": quantity,
+                "line_total": line_total,
+            }
+        )
+
+    if not clean_items:
+        return JsonResponse(
+            {"success": False, "message": "No valid products found."},
+            status=400,
+        )
+
+    shipping_cost = Decimal("0.00")
+    tax = Decimal("0.00")
+    total = (subtotal + shipping_cost + tax).quantize(Decimal("0.01"))
+
+    shipping_address = (
+        f"Customer: {full_name}\\n"
+        f"Phone: {phone_number}\\n"
+        f"Email: {email or 'Not provided'}\\n"
+        f"Address: {delivery_address}\\n"
+        f"City/State: {city_state}"
+    )
+
+    try:
+        with transaction.atomic():
+            if getattr(request, "user", None) and request.user.is_authenticated:
+                user = request.user
+            else:
+                User = get_user_model()
+                clean_phone = "".join(ch for ch in phone_number if ch.isdigit())
+                username = f"mobile_{clean_phone}" if clean_phone else "mobile_customer"
+
+                user = User.objects.filter(username=username).first()
+
+                # Email can be unique in your User model.
+                # Do not force the mobile phone user to take an email that already
+                # belongs to another account, otherwise checkout fails with:
+                # UNIQUE constraint failed: users.email
+                email_owner = None
+                if email and hasattr(User, "email"):
+                    email_owner = User.objects.filter(email__iexact=email).first()
+
+                safe_user_email = email
+                if email_owner and (not user or email_owner.pk != user.pk):
+                    safe_user_email = ""
+
+                if not user:
+                    name_parts = full_name.split(" ", 1)
+                    first_name = name_parts[0] if name_parts else ""
+                    last_name = name_parts[1] if len(name_parts) > 1 else ""
+
+                    user = User(
+                        username=username,
+                        first_name=first_name[:150],
+                        last_name=last_name[:150],
+                    )
+
+                    if hasattr(user, "email"):
+                        user.email = safe_user_email or f"{username}@mobile.arolana.local"
+
+                    if hasattr(user, "phone_number"):
+                        user.phone_number = phone_number
+
+                    if hasattr(user, "phone"):
+                        user.phone = phone_number
+
+                    user.set_unusable_password()
+                    user.save()
+                else:
+                    update_fields = []
+
+                    if full_name:
+                        name_parts = full_name.split(" ", 1)
+                        first_name = name_parts[0] if name_parts else ""
+                        last_name = name_parts[1] if len(name_parts) > 1 else ""
+
+                        if hasattr(user, "first_name") and user.first_name != first_name[:150]:
+                            user.first_name = first_name[:150]
+                            update_fields.append("first_name")
+
+                        if hasattr(user, "last_name") and user.last_name != last_name[:150]:
+                            user.last_name = last_name[:150]
+                            update_fields.append("last_name")
+
+                    if (
+                        safe_user_email
+                        and hasattr(user, "email")
+                        and user.email != safe_user_email
+                    ):
+                        user.email = safe_user_email
+                        update_fields.append("email")
+
+                    if hasattr(user, "phone_number") and getattr(user, "phone_number", "") != phone_number:
+                        user.phone_number = phone_number
+                        update_fields.append("phone_number")
+
+                    if hasattr(user, "phone") and getattr(user, "phone", "") != phone_number:
+                        user.phone = phone_number
+                        update_fields.append("phone")
+
+                    if update_fields:
+                        user.save(update_fields=update_fields)
+
+            order_data = {
+                "user": user,
+                "status": "pending",
+                "subtotal": subtotal.quantize(Decimal("0.01")),
+                "shipping_cost": shipping_cost,
+                "tax": tax,
+                "total": total,
+                "shipping_address": shipping_address,
+                "billing_address": shipping_address,
+                "payment_method": payment_method,
+                "payment_status": "pending",
+            }
+
+            order_field_names = {field.name for field in Order._meta.fields}
+
+            if "customer_name" in order_field_names:
+                order_data["customer_name"] = full_name[:160]
+
+            if "customer_email" in order_field_names:
+                order_data["customer_email"] = email
+
+            if "customer_phone" in order_field_names:
+                order_data["customer_phone"] = phone_number[:50]
+
+            order = Order.objects.create(**order_data)
+
+            order_items_response = []
+
+            for item in clean_items:
+                order_item = OrderItem.objects.create(
+                    order=order,
+                    product=item["product"],
+                    quantity=item["quantity"],
+                    price=item["price"],
+                    subtotal=item["line_total"],
+                )
+
+                order_items_response.append(
+                    {
+                        "id": order_item.id,
+                        "product_id": item["product_id"],
+                        "name": item["name"],
+                        "slug": item["slug"],
+                        "price": str(item["price"]),
+                        "quantity": item["quantity"],
+                        "line_total": str(item["line_total"]),
+                    }
+                )
+
+            delivery = DeliveryRequest.objects.create(
+                order=order,
+                service_level=DeliveryRequest.SERVICE_STANDARD,
+                dropoff_address=shipping_address,
+                delivery_fee=shipping_cost,
+                tracking_status=DeliveryRequest.STATUS_PENDING_ASSIGNMENT,
+                admin_notes=(
+                    "Mobile checkout order.\\n"
+                    f"Customer: {full_name}\\n"
+                    f"Phone: {phone_number}\\n"
+                    f"Email: {email or 'Not provided'}\\n"
+                    f"Payment method: {payment_method}"
+                ),
+            )
+
+    except Exception as error:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": f"Could not create order: {str(error)}",
+            },
+            status=500,
+        )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "message": "Order created successfully.",
+            "order": {
+                "id": order.id,
+                "order_number": order.order_number,
+                "status": order.status,
+                "payment_method": order.payment_method,
+                "payment_status": order.payment_status,
+                "customer_name": getattr(order, "customer_name", "") or order.user.get_full_name() or order.user.username,
+                "customer_email": getattr(order, "customer_email", "") or getattr(order.user, "email", ""),
+                "customer_phone": getattr(order, "customer_phone", ""),
+                "tracking_code": delivery.tracking_code,
+                "customer": {
+                    "full_name": full_name,
+                    "phone_number": phone_number,
+                    "email": email,
+                    "delivery_address": delivery_address,
+                    "city_state": city_state,
+                },
+                "items": order_items_response,
+                "subtotal": str(order.subtotal),
+                "delivery_fee": str(order.shipping_cost),
+                "tax": str(order.tax),
+                "total": str(order.total),
+            },
+        },
+        status=201,
+    )
+
+@require_GET
+def mobile_orders_history_api(request):
+    phone_number = str(request.GET.get("phone") or "").strip()
+    clean_phone = "".join(ch for ch in phone_number if ch.isdigit())
+
+    if not clean_phone:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "Phone number is required.",
+                "orders": [],
+            },
+            status=400,
+        )
+
+    username = f"mobile_{clean_phone}"
+
+    orders = (
+        Order.objects
+        .filter(Q(user__username=username) | Q(customer_phone=phone_number) | Q(customer_phone=clean_phone))
+        .prefetch_related("items__product", "delivery_requests")
+        .order_by("-created_at")[:30]
+    )
+
+    order_list = []
+
+    for order in orders:
+        delivery = order.delivery_requests.order_by("-created_at").first()
+
+        items = []
+        for item in order.items.all():
+            product = item.product
+
+            image_url = None
+            if product:
+                raw_image = (
+                    getattr(product, "image", None)
+                    or getattr(product, "main_image", None)
+                    or getattr(product, "thumbnail", None)
+                )
+
+                if raw_image:
+                    try:
+                        image_url = request.build_absolute_uri(raw_image.url)
+                    except Exception:
+                        image_url = None
+
+            items.append(
+                {
+                    "id": item.id,
+                    "product_id": product.id if product else None,
+                    "name": item.item_name,
+                    "quantity": item.quantity,
+                    "price": str(item.price),
+                    "subtotal": str(item.subtotal),
+                    "image": image_url,
+                }
+            )
+
+        order_list.append(
+            {
+                "id": order.id,
+                "order_number": order.order_number,
+                "status": order.status,
+                "payment_method": order.payment_method,
+                "payment_status": order.payment_status,
+                "subtotal": str(order.subtotal),
+                "shipping_cost": str(order.shipping_cost),
+                "tax": str(order.tax),
+                "total": str(order.total),
+                "tracking_code": delivery.tracking_code if delivery else "",
+                "tracking_status": delivery.tracking_status if delivery else "",
+                "created_at": order.created_at.isoformat() if order.created_at else "",
+                "items": items,
+            }
+        )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "orders": order_list,
+        }
+    )
+
+@csrf_exempt
+@require_POST
+def mobile_register_push_token_api(request):
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except Exception:
+        return JsonResponse(
+            {"success": False, "message": "Invalid JSON payload."},
+            status=400,
+        )
+
+    phone_number = str(payload.get("phone_number") or "").strip()
+    email = str(payload.get("email") or "").strip().lower()
+    expo_push_token = str(payload.get("expo_push_token") or "").strip()
+    device_name = str(payload.get("device_name") or "").strip()
+    platform = str(payload.get("platform") or "").strip()
+
+    if not phone_number:
+        return JsonResponse(
+            {"success": False, "message": "Phone number is required."},
+            status=400,
+        )
+
+    if not expo_push_token:
+        return JsonResponse(
+            {"success": False, "message": "Expo push token is required."},
+            status=400,
+        )
+
+    token, created = MobilePushToken.objects.update_or_create(
+        expo_push_token=expo_push_token,
+        defaults={
+            "phone_number": phone_number,
+            "email": email,
+            "device_name": device_name,
+            "platform": platform,
+            "is_active": True,
+            "last_registered_at": timezone.now(),
+        },
+    )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "message": "Push token registered.",
+            "created": created,
+            "token_id": token.id,
+        }
+    )
+
+
+
+def _mobile_notification_context(phone_number):
+    clean_phone = "".join(ch for ch in str(phone_number or "") if ch.isdigit())
+    username = f"mobile_{clean_phone}"
+
+    User = get_user_model()
+    user_ids = []
+
+    mobile_user = User.objects.filter(username=username).first()
+    if mobile_user:
+        user_ids.append(mobile_user.id)
+
+    matching_orders = (
+        Order.objects
+        .filter(Q(user__username=username) | Q(customer_phone=phone_number) | Q(customer_phone=clean_phone))
+        .select_related("user")
+        .prefetch_related("delivery_requests")
+        .order_by("-created_at")[:80]
+    )
+
+    order_numbers = []
+    tracking_codes = []
+
+    for order in matching_orders:
+        if order.user_id and order.user_id not in user_ids:
+            user_ids.append(order.user_id)
+
+        order_numbers.append(order.order_number)
+
+        delivery = order.delivery_requests.order_by("-created_at").first()
+        if delivery:
+            tracking_codes.append(delivery.tracking_code)
+
+    return clean_phone, user_ids, order_numbers, tracking_codes
+
+
+def _mobile_notification_queryset(phone_number):
+    try:
+        from notifications.models import Notification
+    except Exception:
+        return None
+
+    clean_phone, user_ids, order_numbers, tracking_codes = _mobile_notification_context(phone_number)
+
+    if not clean_phone:
+        return Notification.objects.none()
+
+    notifications_query = Notification.objects.none()
+
+    if user_ids:
+        notifications_query = Notification.objects.filter(user_id__in=user_ids)
+
+    metadata_query = Q()
+
+    for order_number in order_numbers:
+        metadata_query |= Q(metadata__order_number=order_number)
+
+    for tracking_code in tracking_codes:
+        metadata_query |= Q(metadata__tracking_code=tracking_code)
+
+    if metadata_query:
+        notifications_query = notifications_query | Notification.objects.filter(metadata_query)
+
+    return notifications_query.distinct()
+
+@require_GET
+def mobile_notifications_api(request):
+    phone_number = str(request.GET.get("phone") or "").strip()
+    clean_phone = "".join(ch for ch in phone_number if ch.isdigit())
+
+    if not clean_phone:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "Phone number is required.",
+                "notifications": [],
+            },
+            status=400,
+        )
+
+    username = f"mobile_{clean_phone}"
+
+    try:
+        from notifications.models import Notification
+    except Exception:
+        return JsonResponse(
+            {
+                "success": True,
+                "notifications": [],
+                "message": "Notifications app is not available.",
+            }
+        )
+
+    user_ids = []
+
+    User = get_user_model()
+    mobile_user = User.objects.filter(username=username).first()
+
+    if mobile_user:
+        user_ids.append(mobile_user.id)
+
+    matching_orders = (
+        Order.objects
+        .filter(Q(user__username=username) | Q(customer_phone=phone_number) | Q(customer_phone=clean_phone))
+        .select_related("user")
+        .order_by("-created_at")[:50]
+    )
+
+    order_numbers = []
+    tracking_codes = []
+
+    for order in matching_orders:
+        if order.user_id and order.user_id not in user_ids:
+            user_ids.append(order.user_id)
+
+        order_numbers.append(order.order_number)
+
+        delivery = order.delivery_requests.order_by("-created_at").first()
+        if delivery:
+            tracking_codes.append(delivery.tracking_code)
+
+    notifications_query = Notification.objects.none()
+
+    if user_ids:
+        notifications_query = Notification.objects.filter(user_id__in=user_ids)
+
+    metadata_query = Q()
+
+    for order_number in order_numbers:
+        metadata_query |= Q(metadata__order_number=order_number)
+
+    for tracking_code in tracking_codes:
+        metadata_query |= Q(metadata__tracking_code=tracking_code)
+
+    if metadata_query:
+        notifications_query = notifications_query | Notification.objects.filter(metadata_query)
+
+    notifications_query = notifications_query.distinct().order_by("-created_at")[:50]
+
+    notifications = []
+
+    for notification in notifications_query:
+        metadata = getattr(notification, "metadata", None) or {}
+
+        notifications.append(
+            {
+                "id": notification.id,
+                "notification_type": getattr(notification, "notification_type", ""),
+                "title": getattr(notification, "title", ""),
+                "message": getattr(notification, "message", ""),
+                "link": getattr(notification, "link", ""),
+                "metadata": metadata,
+                "order_number": metadata.get("order_number", ""),
+                "tracking_code": metadata.get("tracking_code", ""),
+                "delivery_status": metadata.get("delivery_status", ""),
+                "is_read": bool(getattr(notification, "is_read", False)),
+                "created_at": notification.created_at.isoformat() if getattr(notification, "created_at", None) else "",
+            }
+        )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "notifications": notifications,
+        }
+    )
+
+
+@csrf_exempt
+@require_POST
+def mobile_notifications_mark_read_api(request):
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except Exception:
+        return JsonResponse(
+            {"success": False, "message": "Invalid JSON payload."},
+            status=400,
+        )
+
+    phone_number = str(payload.get("phone") or payload.get("phone_number") or "").strip()
+    clean_phone = "".join(ch for ch in phone_number if ch.isdigit())
+
+    if not clean_phone:
+        return JsonResponse(
+            {"success": False, "message": "Phone number is required."},
+            status=400,
+        )
+
+    username = f"mobile_{clean_phone}"
+
+    try:
+        from notifications.models import Notification
+    except Exception:
+        return JsonResponse(
+            {
+                "success": True,
+                "message": "Notifications app is not available.",
+                "updated": 0,
+            }
+        )
+
+    User = get_user_model()
+    user_ids = []
+
+    mobile_user = User.objects.filter(username=username).first()
+    if mobile_user:
+        user_ids.append(mobile_user.id)
+
+    matching_orders = (
+        Order.objects
+        .filter(Q(user__username=username) | Q(customer_phone=phone_number) | Q(customer_phone=clean_phone))
+        .select_related("user")
+        .prefetch_related("delivery_requests")
+        .order_by("-created_at")[:50]
+    )
+
+    order_numbers = []
+    tracking_codes = []
+
+    for order in matching_orders:
+        if order.user_id and order.user_id not in user_ids:
+            user_ids.append(order.user_id)
+
+        order_numbers.append(order.order_number)
+
+        delivery = order.delivery_requests.order_by("-created_at").first()
+        if delivery:
+            tracking_codes.append(delivery.tracking_code)
+
+    notifications_query = Notification.objects.none()
+
+    if user_ids:
+        notifications_query = Notification.objects.filter(user_id__in=user_ids)
+
+    metadata_query = Q()
+
+    for order_number in order_numbers:
+        metadata_query |= Q(metadata__order_number=order_number)
+
+    for tracking_code in tracking_codes:
+        metadata_query |= Q(metadata__tracking_code=tracking_code)
+
+    if metadata_query:
+        notifications_query = notifications_query | Notification.objects.filter(metadata_query)
+
+    notifications_query = notifications_query.distinct()
+
+    updated = 0
+
+    # Support common field names used by notification models.
+    sample = notifications_query.first()
+    if sample:
+        if hasattr(sample, "is_read"):
+            updated = notifications_query.filter(is_read=False).update(is_read=True)
+        elif hasattr(sample, "read"):
+            updated = notifications_query.filter(read=False).update(read=True)
+        else:
+            updated = 0
+
+    return JsonResponse(
+        {
+            "success": True,
+            "message": "Notifications marked as read.",
+            "updated": updated,
+        }
+    )
+
+
+@csrf_exempt
+@require_POST
+def mobile_notifications_delete_api(request):
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except Exception:
+        return JsonResponse(
+            {"success": False, "message": "Invalid JSON payload."},
+            status=400,
+        )
+
+    phone_number = str(payload.get("phone") or payload.get("phone_number") or "").strip()
+    clean_phone = "".join(ch for ch in phone_number if ch.isdigit())
+    notification_id = payload.get("notification_id")
+
+    if not clean_phone:
+        return JsonResponse(
+            {"success": False, "message": "Phone number is required."},
+            status=400,
+        )
+
+    if not notification_id:
+        return JsonResponse(
+            {"success": False, "message": "Notification ID is required."},
+            status=400,
+        )
+
+    try:
+        from notifications.models import Notification
+    except Exception:
+        return JsonResponse(
+            {
+                "success": True,
+                "message": "Notifications app is not available.",
+                "deleted": 0,
+            }
+        )
+
+    notifications_query = _mobile_notification_queryset(phone_number).filter(id=notification_id)
+    deleted_count, _ = notifications_query.delete()
+
+    return JsonResponse(
+        {
+            "success": True,
+            "message": "Notification deleted.",
+            "deleted": deleted_count,
+        }
+    )
+
+def _mobile_order_clean_phone(value):
+    return "".join(ch for ch in str(value or "") if ch.isdigit() or ch == "+").strip()
+
+
+def _mobile_order_clean_text(value):
+    return str(value or "").strip()
+
+
+def _mobile_order_json_body(request):
+    try:
+        return json.loads(request.body.decode("utf-8") or "{}")
+    except Exception:
+        return {}
+
+
+def _mobile_order_json_error(message, status=400):
+    return JsonResponse(
+        {
+            "success": False,
+            "message": str(message),
+            "error": str(message),
+        },
+        status=status,
+    )
+
+
+def _mobile_order_auth_customer(payload_or_request):
+    """
+    Authenticates a mobile customer using phone + api_token from:
+    - GET query string
+    - top-level POST payload
+    - mobile_customer payload
+    - customer payload
+    """
+    try:
+        from mobile_customers.models import MobileCustomer
+    except Exception as error:
+        raise RuntimeError("mobile_customers app must be installed first.") from error
+
+    if hasattr(payload_or_request, "GET"):
+        payload = payload_or_request.GET
+    else:
+        payload = payload_or_request or {}
+
+    mobile_customer_payload = payload.get("mobile_customer") or {}
+    customer_payload = payload.get("customer") or {}
+
+    phone_number = _mobile_order_clean_phone(
+        payload.get("phone")
+        or payload.get("phone_number")
+        or payload.get("phoneNumber")
+        or mobile_customer_payload.get("phone_number")
+        or mobile_customer_payload.get("phoneNumber")
+        or customer_payload.get("phone_number")
+        or customer_payload.get("phoneNumber")
+    )
+
+    api_token = _mobile_order_clean_text(
+        payload.get("api_token")
+        or payload.get("apiToken")
+        or mobile_customer_payload.get("api_token")
+        or mobile_customer_payload.get("apiToken")
+    )
+
+    if not phone_number:
+        raise ValueError("Phone number is required.")
+
+    if not api_token:
+        raise PermissionError("Login token is required. Login/register again.")
+
+    customer = (
+        MobileCustomer.objects
+        .select_related("user")
+        .filter(phone_number=phone_number, api_token=api_token)
+        .first()
+    )
+
+    if not customer:
+        raise PermissionError("Invalid login token. Login/register again.")
+
+    return customer
+
+
+def _mobile_order_set_field(obj, field_name, value):
+    if hasattr(obj, field_name) and value not in [None, ""]:
+        setattr(obj, field_name, value)
+        return True
+    return False
+
+
+def _mobile_order_decimal(value):
+    try:
+        return Decimal(str(value or "0").replace(",", ""))
+    except Exception:
+        return Decimal("0")
+
+
+def _mobile_order_image_url(request, product):
+    if not product:
+        return ""
+
+    for field_name in ["image", "main_image", "thumbnail", "photo", "featured_image", "product_image"]:
+        image = getattr(product, field_name, None)
+        if image:
+            try:
+                return request.build_absolute_uri(image.url)
+            except Exception:
+                return str(image)
+
+    try:
+        first_image = product.images.first()
+        if first_image:
+            for attr in ["image", "url", "file", "photo"]:
+                image = getattr(first_image, attr, None)
+                if image:
+                    try:
+                        return request.build_absolute_uri(image.url)
+                    except Exception:
+                        return str(image)
+    except Exception:
+        pass
+
+    return ""
+
+
+def _mobile_order_item_payload(request, item):
+    product = getattr(item, "product", None)
+
+    price = (
+        getattr(item, "price", None)
+        or getattr(item, "unit_price", None)
+        or getattr(item, "amount", None)
+        or getattr(item, "price_at_order", None)
+        or getattr(item, "price_at_add", None)
+        or 0
+    )
+    quantity = getattr(item, "quantity", 1) or 1
+    subtotal = getattr(item, "subtotal", None)
+
+    try:
+        subtotal_value = subtotal() if callable(subtotal) else subtotal
+    except Exception:
+        subtotal_value = None
+
+    if subtotal_value in [None, ""]:
+        subtotal_value = _mobile_order_decimal(price) * _mobile_order_decimal(quantity)
+
+    return {
+        "id": getattr(item, "id", None),
+        "product_id": getattr(product, "id", None),
+        "name": getattr(product, "name", "") or getattr(product, "title", "") or str(product or "Product"),
+        "quantity": quantity,
+        "price": str(price or 0),
+        "unit_price": str(price or 0),
+        "subtotal": str(subtotal_value or 0),
+        "line_total": str(subtotal_value or 0),
+        "image": _mobile_order_image_url(request, product),
+    }
+
+
+def _mobile_order_items_for_order(order):
+    if hasattr(order, "items"):
+        try:
+            return order.items.select_related("product").all()
+        except Exception:
+            pass
+
+    try:
+        return order.orderitem_set.select_related("product").all()
+    except Exception:
+        return []
+
+
+def _mobile_order_delivery_payload(order):
+    delivery = None
+
+    for related_name in ["delivery_requests", "deliveryrequest_set"]:
+        try:
+            manager = getattr(order, related_name)
+            delivery = manager.order_by("-created_at").first()
+            if delivery:
+                break
+        except Exception:
+            continue
+
+    if not delivery:
+        return {}
+
+    return {
+        "tracking_code": getattr(delivery, "tracking_code", "") or getattr(order, "tracking_number", ""),
+        "delivery_status": getattr(delivery, "status", "") or getattr(delivery, "delivery_status", ""),
+        "tracking_status": getattr(delivery, "status", "") or getattr(delivery, "delivery_status", ""),
+        "delivery_fee": str(getattr(delivery, "delivery_fee", "") or getattr(delivery, "fee", "") or getattr(order, "shipping_cost", "") or 0),
+    }
+
+
+def _mobile_order_payload(request, order):
+    items = [_mobile_order_item_payload(request, item) for item in _mobile_order_items_for_order(order)]
+    delivery_payload = _mobile_order_delivery_payload(order)
+
+    customer = {
+        "full_name": getattr(order, "customer_name", "") or getattr(getattr(order, "user", None), "get_full_name", lambda: "")(),
+        "phone_number": getattr(order, "customer_phone", ""),
+        "email": getattr(order, "customer_email", "") or getattr(getattr(order, "user", None), "email", ""),
+    }
+
+    payload = {
+        "id": getattr(order, "id", None),
+        "order_number": getattr(order, "order_number", "") or str(getattr(order, "id", "")),
+        "status": getattr(order, "status", ""),
+        "payment_status": getattr(order, "payment_status", ""),
+        "payment_method": getattr(order, "payment_method", "") or getattr(order, "payment_type", "") or "paystack",
+        "subtotal": str(getattr(order, "subtotal", "") or 0),
+        "shipping_cost": str(getattr(order, "shipping_cost", "") or getattr(order, "delivery_fee", "") or 0),
+        "delivery_fee": str(getattr(order, "shipping_cost", "") or getattr(order, "delivery_fee", "") or 0),
+        "tax": str(getattr(order, "tax", "") or 0),
+        "total": str(getattr(order, "total", "") or getattr(order, "grand_total", "") or 0),
+        "tracking_code": delivery_payload.get("tracking_code") or getattr(order, "tracking_number", ""),
+        "delivery_status": delivery_payload.get("delivery_status", ""),
+        "tracking_status": delivery_payload.get("tracking_status", ""),
+        "customer": customer,
+        "items": items,
+        "created_at": order.created_at.isoformat() if getattr(order, "created_at", None) else "",
+        "updated_at": order.updated_at.isoformat() if getattr(order, "updated_at", None) else "",
+    }
+
+    payload.update(delivery_payload)
+    return payload
+
+
+def _mobile_find_order_from_response(data):
+    order_data = data.get("order") or {}
+    order_id = order_data.get("id") or data.get("order_id")
+    order_number = order_data.get("order_number") or data.get("order_number")
+
+    queryset = Order.objects.all()
+
+    if order_id:
+        order = queryset.filter(id=order_id).first()
+        if order:
+            return order
+
+    if order_number:
+        order = queryset.filter(order_number=order_number).first()
+        if order:
+            return order
+
+    return None
+
+
+def _mobile_attach_customer_to_order(order, customer, payload):
+    if not order or not customer:
+        return order
+
+    mobile_customer_payload = payload.get("mobile_customer") or {}
+    customer_payload = payload.get("customer") or {}
+
+    full_name = (
+        _mobile_order_clean_text(mobile_customer_payload.get("full_name"))
+        or _mobile_order_clean_text(customer_payload.get("full_name"))
+        or getattr(customer, "full_name", "")
+    )
+    email = (
+        _mobile_order_clean_text(mobile_customer_payload.get("email"))
+        or _mobile_order_clean_text(customer_payload.get("email"))
+        or getattr(customer, "email", "")
+        or getattr(customer.user, "email", "")
+    )
+
+    changed_fields = []
+
+    if hasattr(order, "user") and customer.user_id and order.user_id != customer.user_id:
+        order.user = customer.user
+        changed_fields.append("user")
+
+    if _mobile_order_set_field(order, "customer_name", full_name):
+        changed_fields.append("customer_name")
+
+    if _mobile_order_set_field(order, "customer_email", email):
+        changed_fields.append("customer_email")
+
+    if _mobile_order_set_field(order, "customer_phone", customer.phone_number):
+        changed_fields.append("customer_phone")
+
+    if changed_fields:
+        order.save(update_fields=list(set(changed_fields)))
+
+    return order
+
+
+def _mobile_original_create_view():
+    """
+    Finds your existing mobile order create function without requiring us to know
+    the exact name. Add your exact function name here if your project uses a different one.
+    """
+    current = globals().get("mobile_authenticated_order_create_api")
+
+    for function_name in [
+        "mobile_create_order_api",
+        "mobile_order_create_api",
+        "mobile_create_order",
+        "api_mobile_create_order",
+        "create_mobile_order_api",
+        "api_mobile_orders_create",
+    ]:
+        view = globals().get(function_name)
+        if view and view is not current:
+            return view
+
+    return None
+
+
+@csrf_exempt
+@require_POST
+def mobile_authenticated_order_create_api(request):
+    payload = _mobile_order_json_body(request)
+
+    try:
+        customer = _mobile_order_auth_customer(payload)
+    except PermissionError as error:
+        return _mobile_order_json_error(error, status=403)
+    except Exception as error:
+        return _mobile_order_json_error(error, status=400)
+
+    original_view = _mobile_original_create_view()
+
+    if not original_view:
+        return _mobile_order_json_error(
+            "Existing mobile order create view was not found. Add your current create function name inside _mobile_original_create_view().",
+            status=500,
+        )
+
+    response = original_view(request)
+
+    try:
+        data = json.loads(response.content.decode("utf-8") or "{}")
+    except Exception:
+        return response
+
+    if getattr(response, "status_code", 500) >= 400 or not data.get("success"):
+        return response
+
+    order = _mobile_find_order_from_response(data)
+
+    if order:
+        order = _mobile_attach_customer_to_order(order, customer, payload)
+        data["order"] = _mobile_order_payload(request, order)
+
+        return JsonResponse(data, status=getattr(response, "status_code", 201))
+
+    return response
+
+
+@require_GET
+def mobile_authenticated_orders_history_api(request):
+    try:
+        customer = _mobile_order_auth_customer(request)
+    except PermissionError as error:
+        return _mobile_order_json_error(error, status=403)
+    except Exception as error:
+        return _mobile_order_json_error(error, status=400)
+
+    queryset = Order.objects.all().order_by("-created_at")
+
+    lookup = Q()
+    if getattr(customer, "user_id", None):
+        lookup |= Q(user=customer.user)
+
+    if hasattr(Order, "customer_phone"):
+        lookup |= Q(customer_phone=customer.phone_number)
+
+    orders = queryset.filter(lookup).distinct()[:80]
+
+    return JsonResponse(
+        {
+            "success": True,
+            "customer": {
+                "id": customer.id,
+                "full_name": customer.full_name,
+                "phone_number": customer.phone_number,
+                "email": customer.email,
+            },
+            "orders": [_mobile_order_payload(request, order) for order in orders],
+            "count": orders.count() if hasattr(orders, "count") else len(orders),
+        }
+    )
+
+
+def _mobile_cancel_json_body(request):
+    try:
+        return json.loads(request.body.decode("utf-8") or "{}")
+    except Exception:
+        return {}
+
+
+def _mobile_cancel_error(message, status=400):
+    return JsonResponse({"success": False, "message": str(message)}, status=status)
+
+
+def _mobile_cancel_status_value():
+    try:
+        field = Order._meta.get_field("status")
+        choice_values = [choice[0] for choice in getattr(field, "choices", []) or []]
+
+        if "cancelled" in choice_values:
+            return "cancelled"
+
+        if "canceled" in choice_values:
+            return "canceled"
+
+        if "cancelled_by_customer" in choice_values:
+            return "cancelled_by_customer"
+    except Exception:
+        pass
+
+    return "cancelled"
+
+
+def _mobile_cancel_order_allowed(order):
+    status = str(getattr(order, "status", "") or "").strip().lower()
+
+    if any(word in status for word in ["deliver", "complete", "cancel", "fail", "refund", "return"]):
+        return False
+
+    # If a delivery request already progressed, do not allow customer cancellation.
+    try:
+        delivery = order.delivery_requests.order_by("-created_at").first()
+        delivery_status = str(getattr(delivery, "status", "") or "").strip().lower()
+
+        if any(word in delivery_status for word in ["assigned", "picked", "transit", "deliver", "ship"]):
+            return False
+    except Exception:
+        pass
+
+    return status in ["", "pending", "pending_assignment", "processing"]
+
+
+@csrf_exempt
+@require_POST
+def mobile_authenticated_order_cancel_api(request):
+    payload = _mobile_cancel_json_body(request)
+
+    try:
+        customer = _mobile_order_auth_customer(payload)
+    except PermissionError as error:
+        return _mobile_cancel_error(error, status=403)
+    except Exception as error:
+        return _mobile_cancel_error(error, status=400)
+
+    order_id = payload.get("order_id") or payload.get("id")
+    order_number = payload.get("order_number")
+
+    if not order_id and not order_number:
+        return _mobile_cancel_error("Order ID or order number is required.", status=400)
+
+    lookup = Q()
+    if order_id:
+        lookup |= Q(id=order_id)
+    if order_number:
+        lookup |= Q(order_number=order_number)
+
+    ownership = Q()
+    if getattr(customer, "user_id", None):
+        ownership |= Q(user=customer.user)
+
+    if hasattr(Order, "customer_phone"):
+        ownership |= Q(customer_phone=customer.phone_number)
+
+    order = Order.objects.filter(lookup).filter(ownership).first()
+
+    if not order:
+        return _mobile_cancel_error("Order not found for this customer.", status=404)
+
+    if not _mobile_cancel_order_allowed(order):
+        return _mobile_cancel_error(
+            "This order can no longer be cancelled because delivery has already started.",
+            status=400,
+        )
+
+    cancel_status = _mobile_cancel_status_value()
+    order.status = cancel_status
+
+    changed_fields = ["status"]
+
+    if hasattr(order, "cancel_reason"):
+        order.cancel_reason = str(payload.get("reason") or "Cancelled from mobile app")
+        changed_fields.append("cancel_reason")
+
+    if hasattr(order, "cancelled_by"):
+        order.cancelled_by = "customer"
+        changed_fields.append("cancelled_by")
+
+    order.save(update_fields=list(set(changed_fields)))
+
+    return JsonResponse(
+        {
+            "success": True,
+            "message": "Order cancelled successfully.",
+            "order": _mobile_order_payload(request, order),
+        }
+    )
+
+
+
+def _receipt_error(message, status=400):
+    return JsonResponse({"success": False, "message": str(message)}, status=status)
+
+
+def _receipt_model_has_field(model, field_name):
+    try:
+        model._meta.get_field(field_name)
+        return True
+    except Exception:
+        return False
+
+
+def _receipt_clean_filename(value):
+    value = str(value or "arolana-receipt").strip()
+    value = re.sub(r"[^A-Za-z0-9_.-]+", "-", value)
+    return value[:80] or "arolana-receipt"
+
+
+def _receipt_money(value):
+    try:
+        amount = Decimal(str(value or "0").replace(",", ""))
+    except Exception:
+        amount = Decimal("0")
+
+    return f"NGN {amount:,.2f}"
+
+
+def _receipt_get_order_for_customer(request):
+    if "_mobile_order_auth_customer" not in globals():
+        raise RuntimeError(
+            "Authenticated orders patch is required before PDF receipts. "
+            "Paste orders_mobile_customer_auth_patch.py first."
+        )
+
+    customer = _mobile_order_auth_customer(request)
+
+    order_id = request.GET.get("order_id") or request.GET.get("id")
+    order_number = request.GET.get("order_number")
+
+    if not order_id and not order_number:
+        raise ValueError("Order ID or order number is required.")
+
+    lookup = Q()
+    if order_id:
+        lookup |= Q(id=order_id)
+    if order_number and _receipt_model_has_field(Order, "order_number"):
+        lookup |= Q(order_number=order_number)
+
+    ownership = Q()
+    if getattr(customer, "user_id", None) and _receipt_model_has_field(Order, "user"):
+        ownership |= Q(user=customer.user)
+
+    if _receipt_model_has_field(Order, "customer_phone"):
+        ownership |= Q(customer_phone=customer.phone_number)
+
+    order = Order.objects.filter(lookup).filter(ownership).first()
+
+    if not order:
+        raise PermissionError("Order not found for this customer.")
+
+    return customer, order
+
+
+def _receipt_order_items(order):
+    if hasattr(order, "items"):
+        try:
+            return list(order.items.select_related("product").all())
+        except Exception:
+            pass
+
+    try:
+        return list(order.orderitem_set.select_related("product").all())
+    except Exception:
+        return []
+
+
+def _receipt_item_values(item):
+    product = getattr(item, "product", None)
+    name = (
+        getattr(product, "name", "")
+        or getattr(product, "title", "")
+        or getattr(item, "name", "")
+        or str(product or "Product")
+    )
+
+    quantity = getattr(item, "quantity", 1) or 1
+
+    unit_price = (
+        getattr(item, "price", None)
+        or getattr(item, "unit_price", None)
+        or getattr(item, "amount", None)
+        or getattr(item, "price_at_order", None)
+        or getattr(item, "price_at_add", None)
+        or 0
+    )
+
+    subtotal = getattr(item, "subtotal", None)
+
+    try:
+        subtotal_value = subtotal() if callable(subtotal) else subtotal
+    except Exception:
+        subtotal_value = None
+
+    if subtotal_value in [None, ""]:
+        try:
+            subtotal_value = Decimal(str(unit_price or "0")) * Decimal(str(quantity or "0"))
+        except Exception:
+            subtotal_value = Decimal("0")
+
+    return name, quantity, unit_price, subtotal_value
+
+
+def _receipt_order_field(order, *field_names, default=""):
+    for field_name in field_names:
+        value = getattr(order, field_name, None)
+        if value not in [None, ""]:
+            return value
+    return default
+
+
+def _receipt_effective_tracking_status(order):
+    for field_name in ["delivery_status", "tracking_status", "shipment_status"]:
+        value = getattr(order, field_name, None)
+        if value:
+            return value
+
+    try:
+        delivery = order.delivery_requests.order_by("-created_at").first()
+        if delivery:
+            return getattr(delivery, "status", "") or getattr(delivery, "delivery_status", "")
+    except Exception:
+        pass
+
+    return getattr(order, "status", "")
+
+
+@require_GET
+def mobile_authenticated_order_receipt_pdf_api(request):
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+        from reportlab.lib.units import mm
+        from reportlab.platypus import (
+            Paragraph,
+            SimpleDocTemplate,
+            Spacer,
+            Table,
+            TableStyle,
+        )
+    except Exception:
+        return _receipt_error(
+            "ReportLab is not installed. Run: pip install reportlab",
+            status=500,
+        )
+
+    try:
+        customer, order = _receipt_get_order_for_customer(request)
+    except PermissionError as error:
+        return _receipt_error(error, status=403)
+    except Exception as error:
+        return _receipt_error(error, status=400)
+
+    buffer = BytesIO()
+
+    order_number = _receipt_order_field(order, "order_number", default=str(order.id))
+    filename = _receipt_clean_filename(f"arolana-receipt-{order_number}.pdf")
+
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=16 * mm,
+        leftMargin=16 * mm,
+        topMargin=14 * mm,
+        bottomMargin=14 * mm,
+        title=f"Arolana Receipt {order_number}",
+        author="Arolana",
+    )
+
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        "ArolanaTitle",
+        parent=styles["Title"],
+        fontName="Helvetica-Bold",
+        fontSize=24,
+        leading=28,
+        textColor=colors.HexColor("#071B3A"),
+        spaceAfter=8,
+    )
+
+    section_style = ParagraphStyle(
+        "ArolanaSection",
+        parent=styles["Heading2"],
+        fontName="Helvetica-Bold",
+        fontSize=13,
+        leading=16,
+        textColor=colors.HexColor("#071B3A"),
+        spaceBefore=10,
+        spaceAfter=8,
+    )
+
+    small_style = ParagraphStyle(
+        "ArolanaSmall",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=8,
+        leading=11,
+        textColor=colors.HexColor("#64748B"),
+    )
+
+    normal_style = ParagraphStyle(
+        "ArolanaNormal",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=10,
+        leading=14,
+        textColor=colors.HexColor("#0F172A"),
+    )
+
+    right_style = ParagraphStyle(
+        "ArolanaRight",
+        parent=normal_style,
+        alignment=TA_RIGHT,
+    )
+
+    center_style = ParagraphStyle(
+        "ArolanaCenter",
+        parent=normal_style,
+        alignment=TA_CENTER,
+    )
+
+    story = []
+
+    created_at = getattr(order, "created_at", None)
+    created_text = created_at.strftime("%d %b %Y, %I:%M %p") if created_at else ""
+
+    status = _receipt_order_field(order, "status", default="Pending")
+    tracking_status = _receipt_effective_tracking_status(order) or status
+    tracking_code = _receipt_order_field(order, "tracking_code", "tracking_number", default="Not assigned")
+    payment_status = _receipt_order_field(order, "payment_status", default="Pending")
+    payment_method = _receipt_order_field(order, "payment_method", "payment_type", default="paystack")
+
+    header_table = Table(
+        [
+            [
+                Paragraph("<b>AROLANA</b><br/><font size='9'>Secure Marketplace Receipt</font>", title_style),
+                Paragraph(
+                    f"<b>Receipt / Invoice</b><br/>Order: {order_number}<br/>Date: {created_text}",
+                    right_style,
+                ),
+            ]
+        ],
+        colWidths=[105 * mm, 72 * mm],
+    )
+    header_table.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
+            ]
+        )
+    )
+    story.append(header_table)
+
+    status_table = Table(
+        [
+            [
+                Paragraph(f"<b>Order Status</b><br/>{status}", normal_style),
+                Paragraph(f"<b>Delivery Status</b><br/>{tracking_status}", normal_style),
+                Paragraph(f"<b>Payment Status</b><br/>{payment_status}", normal_style),
+            ]
+        ],
+        colWidths=[59 * mm, 59 * mm, 59 * mm],
+    )
+    status_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FFF7ED")),
+                ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#FED7AA")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#FED7AA")),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("PADDING", (0, 0), (-1, -1), 8),
+            ]
+        )
+    )
+    story.append(status_table)
+    story.append(Spacer(1, 8))
+
+    customer_name = (
+        getattr(order, "customer_name", "")
+        or getattr(customer, "full_name", "")
+        or "Customer"
+    )
+    customer_phone = getattr(order, "customer_phone", "") or customer.phone_number
+    customer_email = getattr(order, "customer_email", "") or customer.email
+
+    delivery_address = (
+        getattr(order, "delivery_address", "")
+        or getattr(order, "shipping_address", "")
+        or getattr(getattr(order, "customer", None), "delivery_address", "")
+        or "Delivery address saved with order"
+    )
+
+    info_table = Table(
+        [
+            [
+                Paragraph("<b>Customer</b>", section_style),
+                Paragraph("<b>Delivery / Tracking</b>", section_style),
+            ],
+            [
+                Paragraph(
+                    f"{customer_name}<br/>Phone: {customer_phone}<br/>Email: {customer_email or 'Not provided'}",
+                    normal_style,
+                ),
+                Paragraph(
+                    f"Tracking Code: {tracking_code}<br/>Payment Method: {payment_method}<br/>Deliver to: {delivery_address}",
+                    normal_style,
+                ),
+            ],
+        ],
+        colWidths=[88 * mm, 89 * mm],
+    )
+    info_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#F8FAFC")),
+                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#E2E8F0")),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("PADDING", (0, 0), (-1, -1), 8),
+            ]
+        )
+    )
+    story.append(info_table)
+    story.append(Spacer(1, 10))
+
+    story.append(Paragraph("Items", section_style))
+
+    item_rows = [
+        [
+            Paragraph("<b>#</b>", normal_style),
+            Paragraph("<b>Product</b>", normal_style),
+            Paragraph("<b>Qty</b>", center_style),
+            Paragraph("<b>Unit Price</b>", right_style),
+            Paragraph("<b>Total</b>", right_style),
+        ]
+    ]
+
+    for index, item in enumerate(_receipt_order_items(order), start=1):
+        name, quantity, unit_price, subtotal_value = _receipt_item_values(item)
+        item_rows.append(
+            [
+                str(index),
+                Paragraph(str(name), normal_style),
+                Paragraph(str(quantity), center_style),
+                Paragraph(_receipt_money(unit_price), right_style),
+                Paragraph(_receipt_money(subtotal_value), right_style),
+            ]
+        )
+
+    if len(item_rows) == 1:
+        item_rows.append(["1", Paragraph("No item details found.", normal_style), "", "", ""])
+
+    item_table = Table(
+        item_rows,
+        colWidths=[10 * mm, 78 * mm, 18 * mm, 35 * mm, 36 * mm],
+        repeatRows=1,
+    )
+    item_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#071B3A")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#E2E8F0")),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("PADDING", (0, 0), (-1, -1), 7),
+            ]
+        )
+    )
+    story.append(item_table)
+    story.append(Spacer(1, 10))
+
+    subtotal = _receipt_order_field(order, "subtotal", default=0)
+    delivery_fee = _receipt_order_field(order, "delivery_fee", "shipping_cost", default=0)
+    tax = _receipt_order_field(order, "tax", default=0)
+    total = _receipt_order_field(order, "total", "grand_total", default=0)
+
+    totals_table = Table(
+        [
+            ["Subtotal", _receipt_money(subtotal)],
+            ["Delivery Fee", _receipt_money(delivery_fee)],
+            ["Tax", _receipt_money(tax)],
+            [Paragraph("<b>Total</b>", normal_style), Paragraph(f"<b>{_receipt_money(total)}</b>", right_style)],
+        ],
+        colWidths=[130 * mm, 47 * mm],
+    )
+    totals_table.setStyle(
+        TableStyle(
+            [
+                ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+                ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#FFF7ED")),
+                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#E2E8F0")),
+                ("PADDING", (0, 0), (-1, -1), 8),
+            ]
+        )
+    )
+    story.append(totals_table)
+    story.append(Spacer(1, 12))
+
+    story.append(
+        Paragraph(
+            "Thank you for shopping with Arolana. This receipt was generated securely from your logged-in mobile customer account.",
+            small_style,
+        )
+    )
+    story.append(
+        Paragraph(
+            "For support, open Arolana Smart Chat in the mobile app or contact Arolana customer service.",
+            small_style,
+        )
+    )
+
+    def footer(canvas, doc):
+        canvas.saveState()
+        canvas.setFont("Helvetica", 8)
+        canvas.setFillColor(colors.HexColor("#94A3B8"))
+        canvas.drawString(16 * mm, 9 * mm, "Arolana Secure Marketplace")
+        canvas.drawRightString(194 * mm, 9 * mm, f"Page {doc.page}")
+        canvas.restoreState()
+
+    doc.build(story, onFirstPage=footer, onLaterPages=footer)
+
+    pdf_value = buffer.getvalue()
+    buffer.close()
+
+    response = HttpResponse(pdf_value, content_type="application/pdf")
+    response["Content-Disposition"] = f'inline; filename="{filename}"'
+    response["Content-Length"] = str(len(pdf_value))
+    return response

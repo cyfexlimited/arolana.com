@@ -12,4 +12,7 @@ urlpatterns = [
     path('voice-page/', views.voice_search_page, name='voice_search_page'),
     path('track-click/', views.track_click, name='track_click'),
     path('upload-image/', views.upload_search_image, name='upload_image'),
+
+    path('api/mobile/search/ai/', views.mobile_ai_search_api, name='mobile_ai_search_api'),
+    path('api/mobile/search/voice/', views.mobile_voice_search_api, name='mobile_voice_search_api'),
 ]

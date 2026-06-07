@@ -165,6 +165,48 @@ def convert_amount(request):
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
 
+
+def api_currency_rates(request):
+    currencies = Currency.objects.filter(is_active=True).order_by('code')
+    return JsonResponse({
+        'success': True,
+        'base_currency': 'NGN',
+        'rates': {
+            item.code: {
+                'code': item.code,
+                'name': item.name,
+                'symbol': item.symbol,
+                'exchange_rate': float(item.exchange_rate),
+                'is_base': item.is_base,
+            }
+            for item in currencies
+        },
+    })
+
+
+def api_convert_amount(request):
+    try:
+        amount = float(request.GET.get('amount', '0'))
+        from_code = request.GET.get('from', request.GET.get('from_currency', 'NGN')).upper()
+        to_code = request.GET.get('to', request.GET.get('to_currency', 'NGN')).upper()
+        from_currency = Currency.objects.get(code=from_code, is_active=True)
+        to_currency = Currency.objects.get(code=to_code, is_active=True)
+        rate = float(to_currency.exchange_rate) / float(from_currency.exchange_rate)
+        converted = amount * rate
+        return JsonResponse({
+            'success': True,
+            'amount': amount,
+            'converted_amount': round(converted, 2),
+            'formatted': to_currency.format_amount(converted),
+            'rate': round(rate, 6),
+            'from_currency': from_code,
+            'to_currency': to_code,
+        })
+    except Currency.DoesNotExist:
+        return JsonResponse({'success': False, 'message': 'Currency not found.'}, status=404)
+    except (TypeError, ValueError):
+        return JsonResponse({'success': False, 'message': 'Invalid amount.'}, status=400)
+
 def currency_info(request):
     """Get information about all currencies"""
     currencies = Currency.objects.filter(is_active=True)

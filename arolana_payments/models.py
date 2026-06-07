@@ -73,6 +73,7 @@ class PaymentTransaction(models.Model):
     customer_phone = models.CharField(max_length=40, blank=True)
 
     gateway_reference = models.CharField(max_length=220, blank=True, db_index=True)
+    gateway_capture_id = models.CharField(max_length=220, blank=True, db_index=True)
     gateway_checkout_url = models.URLField(blank=True, max_length=1000)
     gateway_response = models.JSONField(default=dict, blank=True)
     webhook_payload = models.JSONField(default=dict, blank=True)
@@ -116,6 +117,16 @@ class PaymentTransaction(models.Model):
         if payload is not None:
             self.webhook_payload = payload
         self.save(update_fields=["status", "paid_at", "gateway_reference", "webhook_payload", "updated_at"])
+        if not getattr(self, "_success_handler_running", False):
+            self._success_handler_running = True
+            try:
+                from .services import update_order_after_payment
+
+                update_order_after_payment(self)
+            except Exception:
+                pass
+            finally:
+                self._success_handler_running = False
 
     def mark_failed(self, payload=None):
         self.status = PaymentStatus.FAILED
@@ -137,3 +148,81 @@ class ManualCryptoWallet(models.Model):
 
     def __str__(self):
         return f"{self.currency} - {self.network}"
+
+
+class PayPalWebhookLog(models.Model):
+    STATUS_RECEIVED = "received"
+    STATUS_VERIFIED = "verified"
+    STATUS_PROCESSED = "processed"
+    STATUS_IGNORED = "ignored"
+    STATUS_FAILED = "failed"
+    STATUS_CHOICES = [
+        (STATUS_RECEIVED, "Received"),
+        (STATUS_VERIFIED, "Verified"),
+        (STATUS_PROCESSED, "Processed"),
+        (STATUS_IGNORED, "Ignored"),
+        (STATUS_FAILED, "Failed"),
+    ]
+
+    event_id = models.CharField(max_length=180, unique=True, db_index=True)
+    event_type = models.CharField(max_length=120, blank=True, db_index=True)
+    resource_type = models.CharField(max_length=80, blank=True)
+    resource_id = models.CharField(max_length=220, blank=True, db_index=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_RECEIVED, db_index=True)
+    signature_verified = models.BooleanField(default=False)
+    payload = models.JSONField(default=dict, blank=True)
+    request_headers = models.JSONField(default=dict, blank=True)
+    payment = models.ForeignKey(
+        PaymentTransaction,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="paypal_webhook_logs",
+    )
+    attempts = models.PositiveIntegerField(default=0)
+    last_error = models.TextField(blank=True)
+    received_at = models.DateTimeField(auto_now_add=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-received_at"]
+        indexes = [
+            models.Index(fields=["event_type", "status"]),
+            models.Index(fields=["resource_id", "status"]),
+        ]
+        verbose_name = "PayPal Webhook Event"
+        verbose_name_plural = "PayPal Webhook Events"
+
+    def __str__(self):
+        return f"{self.event_type or 'PayPal event'} - {self.event_id}"
+
+
+class PaymentRefund(models.Model):
+    transaction = models.ForeignKey(
+        PaymentTransaction,
+        on_delete=models.CASCADE,
+        related_name="refunds",
+    )
+    gateway = models.CharField(max_length=30, choices=PaymentMethod.choices, default=PaymentMethod.PAYPAL)
+    gateway_refund_id = models.CharField(max_length=220, unique=True, db_index=True)
+    gateway_capture_id = models.CharField(max_length=220, blank=True, db_index=True)
+    order_id = models.CharField(max_length=120, blank=True, db_index=True)
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    currency = models.CharField(max_length=10, default="USD")
+    status = models.CharField(max_length=30, default="completed", db_index=True)
+    payload = models.JSONField(default=dict, blank=True)
+    refunded_at = models.DateTimeField(default=timezone.now)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-refunded_at"]
+        indexes = [
+            models.Index(fields=["gateway", "status"]),
+            models.Index(fields=["order_id", "status"]),
+        ]
+
+    def __str__(self):
+        return f"{self.gateway_refund_id} - {self.amount} {self.currency}"

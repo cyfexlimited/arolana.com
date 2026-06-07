@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.validators import MaxValueValidator, MinValueValidator
 from core.models import BaseModel
+from core.local_cache import local_delete
 from products.models import Category, Product
 from vendors.models import VendorProfile
 import re
@@ -121,7 +122,15 @@ class HomepageSection(BaseModel):
     
     def get_products(self):
         """Get products based on section type - APPROVED ONLY"""
-        queryset = Product.objects.filter(is_active=True, approval_status='approved').select_related('category', 'brand')
+        queryset = Product.objects.filter(
+            is_active=True,
+            approval_status='approved',
+        ).select_related(
+            'category',
+            'brand',
+            'vendor',
+            'vendor__vendor_profile',
+        )
         if self.section_type == 'featured':
             return queryset.filter(is_featured=True)[:self.products_limit]
         elif self.section_type == 'new':
@@ -147,6 +156,80 @@ class HomepageVendorSettings(BaseModel):
     
     def __str__(self):
         return "Vendor Carousel Settings"
+
+
+class HomepageVendorSection(BaseModel):
+    """Admin-managed vendor marketplace sections used by web and mobile."""
+    SECTION_TYPES = [
+        ('verified_vendors', 'Verified Vendors'),
+        ('factory_direct_manufacturers', 'Factory Direct Manufacturers'),
+        ('top_retailers', 'Top Retailers'),
+        ('distributors_wholesalers', 'Distributors & Wholesalers'),
+        ('service_providers', 'Service Providers'),
+        ('custom', 'Custom'),
+    ]
+    VENDOR_TYPE_FILTERS = [
+        ('', 'Any vendor type'),
+        ('manufacturer', 'Manufacturer'),
+        ('distributor', 'Distributor'),
+        ('wholesaler', 'Wholesaler'),
+        ('retailer', 'Retailer'),
+        ('service_provider', 'Service Provider'),
+        ('distributor_wholesaler', 'Distributor + Wholesaler'),
+    ]
+
+    title = models.CharField(max_length=200)
+    description = models.CharField(max_length=500, blank=True, default='')
+    section_type = models.CharField(max_length=40, choices=SECTION_TYPES, default='verified_vendors', db_index=True)
+    vendor_type_filter = models.CharField(max_length=40, choices=VENDOR_TYPE_FILTERS, blank=True, default='')
+    verified_only = models.BooleanField(default=True)
+    manufacturer_only = models.BooleanField(default=False, help_text="Hard lock this section to vendor_type=manufacturer.")
+    max_items = models.PositiveIntegerField(default=12)
+    sort_order = models.IntegerField(default=0)
+    empty_state_text = models.CharField(max_length=255, default='No vendors yet.', blank=True)
+    view_all_url = models.CharField(max_length=500, default='/vendors/', blank=True)
+    show_view_all = models.BooleanField(default=True)
+    show_when_empty = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['sort_order', 'title']
+        verbose_name = "Homepage Vendor Section"
+        verbose_name_plural = "Homepage Vendor Sections"
+        indexes = [
+            models.Index(fields=['section_type', 'is_active']),
+            models.Index(fields=['sort_order', 'is_active']),
+        ]
+
+    def __str__(self):
+        return self.title
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        local_delete('homepage:vendor_sections:v3')
+
+    def delete(self, *args, **kwargs):
+        result = super().delete(*args, **kwargs)
+        local_delete('homepage:vendor_sections:v3')
+        return result
+
+    def get_vendor_queryset(self):
+        qs = VendorProfile.objects.filter(approval_status='approved').select_related('user')
+        if self.verified_only:
+            qs = qs.filter(is_verified=True)
+        if self.manufacturer_only or self.section_type == 'factory_direct_manufacturers':
+            qs = qs.filter(vendor_type='manufacturer').filter(models.Q(is_verified=True) | models.Q(manufacturer_verified=True))
+        elif self.section_type == 'top_retailers':
+            qs = qs.filter(vendor_type='retailer')
+        elif self.section_type == 'distributors_wholesalers':
+            qs = qs.filter(vendor_type__in=['distributor', 'wholesaler'])
+        elif self.section_type == 'service_providers':
+            qs = qs.filter(vendor_type='service_provider')
+        elif self.vendor_type_filter == 'distributor_wholesaler':
+            qs = qs.filter(vendor_type__in=['distributor', 'wholesaler'])
+        elif self.vendor_type_filter:
+            qs = qs.filter(vendor_type=self.vendor_type_filter)
+        return qs.order_by('-manufacturer_verified', '-priority_score', '-rating_avg')[:self.max_items]
 
 class HomepageNewsletterSettings(BaseModel):
     """Settings for newsletter section"""

@@ -94,6 +94,29 @@ class RiderProfile(BaseModel):
     driver_license = models.FileField(upload_to='delivery/riders/licenses/', blank=True, null=True)
     vehicle_document = models.FileField(upload_to='delivery/riders/vehicle_documents/', blank=True, null=True)
     profile_photo = models.ImageField(upload_to='delivery/riders/photos/', blank=True, null=True)
+    dashboard_image = models.ImageField(upload_to='delivery/riders/banners/', blank=True, null=True)
+    about = models.TextField(blank=True)
+    preferred_language = models.CharField(max_length=40, default='english', blank=True)
+    notification_preferences = models.JSONField(default=dict, blank=True)
+    profile_edit_status = models.CharField(
+        max_length=30,
+        default='clear',
+        choices=[
+            ('clear', 'No Pending Edit'),
+            ('pending_admin_review', 'Pending Admin Review'),
+            ('approved', 'Approved'),
+            ('rejected', 'Rejected'),
+        ],
+        db_index=True,
+    )
+    profile_edit_pending_data = models.JSONField(default=dict, blank=True)
+    profile_edit_requested_at = models.DateTimeField(null=True, blank=True)
+    profile_edit_available_at = models.DateTimeField(null=True, blank=True)
+    payout_bank_name = models.CharField(max_length=120, blank=True)
+    payout_account_name = models.CharField(max_length=160, blank=True)
+    payout_account_number = models.CharField(max_length=40, blank=True)
+    payout_bank_country = models.CharField(max_length=80, default='Nigeria', blank=True)
+    payout_preferred_currency = models.CharField(max_length=10, default='NGN', blank=True)
     is_online = models.BooleanField(default=False)
     is_available = models.BooleanField(default=True)
     is_suspended = models.BooleanField(default=False)
@@ -118,6 +141,51 @@ class RiderProfile(BaseModel):
     @property
     def can_accept_deliveries(self):
         return self.kyc_status == self.KYC_APPROVED and self.is_online and self.is_available and not self.is_suspended
+
+    @property
+    def can_request_profile_edit(self):
+        if not self.profile_edit_available_at:
+            return True
+        return timezone.now() >= self.profile_edit_available_at
+
+    def apply_pending_profile_edit(self):
+        data = self.profile_edit_pending_data or {}
+        user_updates = []
+        first_name = str(data.get('first_name') or '').strip()
+        last_name = str(data.get('last_name') or '').strip()
+        if first_name:
+            self.user.first_name = first_name
+            user_updates.append('first_name')
+        if last_name:
+            self.user.last_name = last_name
+            user_updates.append('last_name')
+        if user_updates:
+            self.user.save(update_fields=user_updates)
+
+        for field in ['phone', 'emergency_phone', 'about']:
+            if field in data:
+                setattr(self, field, str(data.get(field) or '').strip())
+        if data.get('rider_type'):
+            self.rider_type = data['rider_type']
+        if data.get('vehicle_id'):
+            self.vehicle_id = data['vehicle_id']
+
+        self.kyc_status = self.KYC_APPROVED
+        self.is_suspended = False
+        self.profile_edit_status = 'approved'
+        self.profile_edit_pending_data = {}
+        self.save(update_fields=[
+            'phone',
+            'emergency_phone',
+            'about',
+            'rider_type',
+            'vehicle',
+            'kyc_status',
+            'is_suspended',
+            'profile_edit_status',
+            'profile_edit_pending_data',
+            'updated_at',
+        ])
 
 
 class DeliveryPricingRule(BaseModel):
@@ -383,9 +451,16 @@ class RiderPayout(BaseModel):
         ordering = ['-created_at']
 
     def mark_paid(self):
+        was_paid = self.status == self.STATUS_PAID
         self.status = self.STATUS_PAID
-        self.paid_at = timezone.now()
+        if not self.paid_at:
+            self.paid_at = timezone.now()
         self.save(update_fields=['status', 'paid_at', 'updated_at'])
+        if not was_paid:
+            wallet, _created = RiderWallet.objects.get_or_create(rider=self.rider)
+            wallet.balance = max(wallet.balance - self.amount, Decimal('0.00'))
+            wallet.total_paid_out = wallet.total_paid_out + self.amount
+            wallet.save(update_fields=['balance', 'total_paid_out', 'updated_at'])
 
     def __str__(self):
         return f"{self.rider} - {self.amount}"

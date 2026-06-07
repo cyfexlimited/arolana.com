@@ -1,0 +1,133 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Subscription Payment History | Arolana{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-6xl px-4 py-8">
+    <div class="mb-8 overflow-hidden rounded-2xl bg-slate-950 text-white shadow-lg">
+        <div class="p-6 md:p-8">
+            <p class="text-sm font-bold uppercase tracking-widest text-orange-300">Vendor Subscription</p>
+            <h1 class="mt-2 text-3xl font-black md:text-4xl">Payment History & Receipts</h1>
+            <p class="mt-3 max-w-3xl text-slate-200">
+                Website and staff mobile payments appear here from the same Arolana payment records.
+            </p>
+        </div>
+    </div>
+
+    <div class="mb-8 grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100 lg:col-span-2">
+            <p class="text-sm font-bold uppercase tracking-wide text-blue-700">Current Subscription</p>
+            {% if current_subscription %}
+                <h2 class="mt-2 text-2xl font-black text-slate-950">{{ current_subscription.plan.vendor_label }}</h2>
+                <div class="mt-4 grid grid-cols-1 gap-3 text-sm text-slate-700 sm:grid-cols-3">
+                    <div class="rounded-xl bg-slate-50 p-3">
+                        <span class="block text-slate-500">Status</span>
+                        <strong class="text-green-700">Active</strong>
+                    </div>
+                    <div class="rounded-xl bg-slate-50 p-3">
+                        <span class="block text-slate-500">Started</span>
+                        <strong>{{ current_subscription.start_date|date:"M d, Y" }}</strong>
+                    </div>
+                    <div class="rounded-xl bg-slate-50 p-3">
+                        <span class="block text-slate-500">Expires</span>
+                        <strong>{{ current_subscription.end_date|date:"M d, Y" }}</strong>
+                    </div>
+                </div>
+            {% else %}
+                <h2 class="mt-2 text-2xl font-black text-slate-950">{{ vendor_profile.subscription_plan_label }}</h2>
+                <p class="mt-3 text-slate-600">No active paid subscription is currently running. You can activate Free Vendor or choose a paid plan.</p>
+            {% endif %}
+        </div>
+
+        <div class="rounded-2xl bg-orange-50 p-5 shadow-sm ring-1 ring-orange-100">
+            <p class="text-sm font-bold uppercase tracking-wide text-orange-700">Need an upgrade?</p>
+            <h3 class="mt-2 text-xl font-black text-slate-950">Grow with Arolana</h3>
+            <p class="mt-2 text-sm text-slate-700">Choose a higher plan to unlock more products, images, RFQ, analytics, ads, and visibility.</p>
+            <a href="{% url 'subscriptions:plans' %}" class="mt-4 inline-flex rounded-full bg-orange-500 px-5 py-2.5 text-sm font-black text-white hover:bg-orange-600">
+                View Plans
+            </a>
+        </div>
+    </div>
+
+    <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
+        <div class="mb-5 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div>
+                <p class="text-sm font-bold uppercase tracking-wide text-blue-700">Payment History</p>
+                <h2 class="text-2xl font-black text-slate-950">Subscription Invoices</h2>
+            </div>
+            <p class="text-sm text-slate-500">{{ invoices|length }} record{{ invoices|length|pluralize }}</p>
+        </div>
+
+        {% if invoices %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 text-left text-sm">
+                    <thead class="bg-slate-50 text-xs font-black uppercase tracking-wide text-slate-500">
+                        <tr>
+                            <th class="px-4 py-3">Invoice</th>
+                            <th class="px-4 py-3">Plan</th>
+                            <th class="px-4 py-3">Amount</th>
+                            <th class="px-4 py-3">Reference</th>
+                            <th class="px-4 py-3">Status</th>
+                            <th class="px-4 py-3">Date</th>
+                            <th class="px-4 py-3 text-right">Receipt</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        {% for invoice in invoices %}
+                            <tr class="hover:bg-slate-50">
+                                <td class="px-4 py-4 font-black text-slate-950">{{ invoice.reference }}</td>
+                                <td class="px-4 py-4 text-slate-700">
+                                    {{ invoice.checkout_data.plan_name|default:invoice.checkout_data.tier|default:"Vendor Subscription" }}
+                                </td>
+                                <td class="px-4 py-4 font-bold text-slate-950">{{ invoice.currency }} {{ invoice.amount }}</td>
+                                <td class="px-4 py-4 text-slate-600">{{ invoice.gateway_reference|default:invoice.reference }}</td>
+                                <td class="px-4 py-4">
+                                    <span class="rounded-full px-3 py-1 text-xs font-black {% if invoice.status == 'success' %}bg-green-100 text-green-700{% elif invoice.status == 'failed' %}bg-red-100 text-red-700{% else %}bg-amber-100 text-amber-700{% endif %}">
+                                        {{ invoice.status|title }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-4 text-slate-600">{{ invoice.created_at|date:"M d, Y H:i" }}</td>
+                                <td class="px-4 py-4 text-right">
+                                    <a href="/api/staff/vendor/subscription/invoices/{{ invoice.id }}/pdf/" target="_blank" class="inline-flex rounded-full border border-blue-200 px-3 py-1.5 font-black text-blue-700 hover:bg-blue-50">
+                                        View receipt
+                                    </a>
+                                    <a href="/api/staff/vendor/subscription/invoices/{{ invoice.id }}/pdf/" download class="ml-2 inline-flex rounded-full bg-blue-700 px-3 py-1.5 font-black text-white hover:bg-blue-800">
+                                        Download PDF
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="rounded-2xl bg-slate-50 p-8 text-center">
+                <h3 class="text-xl font-black text-slate-950">No subscription payments yet</h3>
+                <p class="mt-2 text-slate-600">When you activate Free Vendor or pay for a plan on web or staff mobile, the invoice will appear here.</p>
+                <a href="{% url 'subscriptions:plans' %}" class="mt-5 inline-flex rounded-full bg-orange-500 px-5 py-2.5 text-sm font-black text-white hover:bg-orange-600">
+                    Choose a Plan
+                </a>
+            </div>
+        {% endif %}
+    </div>
+
+    {% if subscriptions %}
+        <div class="mt-8 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
+            <p class="text-sm font-bold uppercase tracking-wide text-blue-700">Plan Activity</p>
+            <div class="mt-4 space-y-3">
+                {% for subscription in subscriptions %}
+                    <div class="flex flex-col gap-1 rounded-xl bg-slate-50 p-4 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <p class="font-black text-slate-950">{{ subscription.plan.vendor_label }}</p>
+                            <p class="text-sm text-slate-500">{{ subscription.start_date|date:"M d, Y" }} to {{ subscription.end_date|date:"M d, Y" }}</p>
+                        </div>
+                        <span class="rounded-full px-3 py-1 text-xs font-black {% if subscription.is_active %}bg-green-100 text-green-700{% else %}bg-slate-200 text-slate-600{% endif %}">
+                            {% if subscription.is_active %}Active{% else %}Ended{% endif %}
+                        </span>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

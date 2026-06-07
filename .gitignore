@@ -30,7 +30,7 @@ media/categories/
 media/optimized/products/
 media/optimized/categories/
 staticfiles/
-static/
+/static/
 
 # Arolana production data guards
 fixtures/products*.json

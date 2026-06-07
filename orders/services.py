@@ -259,6 +259,11 @@ def mark_order_paid(payment):
         return None
 
     existing_order = Order.objects.filter(order_number=payment.order_id).first()
+    if not existing_order and str(payment.order_id).isdigit():
+        existing_query = Order.objects.filter(id=int(payment.order_id))
+        if payment.user_id:
+            existing_query = existing_query.filter(user=payment.user)
+        existing_order = existing_query.first()
     if existing_order:
         existing_order.payment_status = 'paid'
         existing_order.payment_method = payment.gateway

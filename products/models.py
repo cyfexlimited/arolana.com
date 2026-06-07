@@ -378,6 +378,22 @@ class Product(BaseModel):
         validators=[MinValueValidator(Decimal('0.01'))],
         help_text="Your cost per item (for profit calculation)"
     )
+    wholesale_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal('0.01'))],
+        help_text="Optional manufacturer/wholesale unit price."
+    )
+    bulk_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal('0.01'))],
+        help_text="Optional bulk buying unit price."
+    )
     
     # Inventory
     stock_quantity = models.IntegerField(
@@ -401,6 +417,14 @@ class Product(BaseModel):
         validators=[MinValueValidator(0)],
         help_text="Quantity reserved for pending orders"
     )
+    minimum_order_quantity = models.PositiveIntegerField(default=1, help_text="Minimum order quantity for wholesale/manufacturer orders.")
+    moq_unit = models.CharField(max_length=40, default='unit', blank=True, help_text="MOQ unit, e.g. unit, carton, pallet, roll.")
+    sample_available = models.BooleanField(default=False)
+    sample_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(Decimal('0.01'))])
+    lead_time_days = models.PositiveIntegerField(null=True, blank=True, help_text="Estimated production/dispatch lead time in days.")
+    country_of_origin = models.CharField(max_length=120, blank=True)
+    manufacturer_address = models.TextField(blank=True)
+    certifications = models.JSONField(default=list, blank=True, help_text="Certification names or document labels.")
     
     # Physical Attributes
     weight = models.DecimalField(
@@ -573,6 +597,7 @@ class Product(BaseModel):
             models.Index(fields=['is_bestseller', '-sales_count']),
             models.Index(fields=['rating_avg', '-rating_count']),
             models.Index(fields=['approval_status', '-submitted_for_review_at']),
+            models.Index(fields=['minimum_order_quantity']),
         ]
     
     def clean(self):
@@ -677,7 +702,7 @@ class Product(BaseModel):
         self.approval_notes = ''
         self.resubmitted_at = now()
         self.save()
-    
+
     def get_video_embed_url(self):
         """Get embed URL for video"""
         if not self.video_type:
@@ -731,6 +756,36 @@ class Product(BaseModel):
     def increment_views(self):
         """Increment view count"""
         Product.objects.filter(pk=self.pk).update(views_count=models.F('views_count') + 1)
+
+
+class ProductWholesaleTier(BaseModel):
+    """Tiered manufacturer/wholesale price breaks for bulk buyers."""
+
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='wholesale_tiers')
+    min_quantity = models.PositiveIntegerField(default=1)
+    max_quantity = models.PositiveIntegerField(null=True, blank=True)
+    price_per_unit = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
+    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['sort_order', 'min_quantity']
+        indexes = [
+            models.Index(fields=['product', 'is_active']),
+            models.Index(fields=['min_quantity']),
+        ]
+
+    def clean(self):
+        if self.max_quantity and self.max_quantity < self.min_quantity:
+            raise ValidationError("Maximum quantity must be greater than or equal to minimum quantity.")
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        maximum = f"{self.max_quantity}" if self.max_quantity else "+"
+        return f"{self.product.name}: {self.min_quantity}-{maximum} @ {self.price_per_unit}"
 
 
 class ProductArticleLink(BaseModel):
@@ -1027,6 +1082,113 @@ class ProductVariantImage(BaseModel):
                 is_main=True
             ).exclude(pk=self.pk).update(is_main=False)
         super().save(*args, **kwargs)
+
+
+class ProductDetailSection(BaseModel):
+    """Admin-managed product detail sections shared by web and mobile."""
+    SECTION_CHOICES = [
+        ('overview', 'Overview'),
+        ('specifications', 'Specifications'),
+        ('variants', 'Variants'),
+        ('wholesale_pricing', 'Wholesale Pricing'),
+        ('moq', 'MOQ'),
+        ('product_images', 'Product Images'),
+        ('videos', 'Videos'),
+        ('brochure', 'PDF Brochure / Manual'),
+        ('certifications', 'Certifications'),
+        ('accessories', 'Accessories'),
+        ('frequently_bought_together', 'Frequently Bought Together'),
+        ('related_products', 'Related Products'),
+        ('reviews', 'Reviews'),
+        ('qa', 'Q&A'),
+        ('shipping', 'Shipping'),
+        ('warranty', 'Warranty'),
+        ('vendor_profile', 'Vendor / Manufacturer Profile'),
+        ('factory_details', 'Factory Details'),
+        ('rfq', 'RFQ'),
+        ('recently_viewed', 'Recently Viewed'),
+        ('recommended_products', 'Recommended Products'),
+    ]
+
+    key = models.CharField(max_length=60, choices=SECTION_CHOICES, unique=True)
+    title = models.CharField(max_length=120)
+    is_enabled = models.BooleanField(default=True, db_index=True)
+    display_order = models.IntegerField(default=0)
+    mobile_enabled = models.BooleanField(default=True)
+    web_enabled = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['display_order', 'title']
+        verbose_name = 'Product Detail Section'
+        verbose_name_plural = 'Product Detail Sections'
+
+    def __str__(self):
+        return self.title
+
+
+class ProductDetailFieldConfig(BaseModel):
+    """Admin-managed product form/detail field visibility shared by web and mobile."""
+    FIELD_CHOICES = [
+        ('brand', 'Brand'),
+        ('model_number', 'Model Number'),
+        ('sku', 'SKU'),
+        ('manufacturer_sku', 'Manufacturer SKU'),
+        ('condition', 'Product Condition'),
+        ('category', 'Category'),
+        ('subcategory', 'Subcategory'),
+        ('minimum_order_quantity', 'MOQ'),
+        ('price', 'Retail Price'),
+        ('wholesale_price', 'Wholesale Price'),
+        ('bulk_price', 'Bulk Price'),
+        ('stock_quantity', 'Stock Quantity'),
+        ('country_of_origin', 'Country of Origin'),
+        ('lead_time_days', 'Lead Time'),
+        ('warranty', 'Warranty'),
+        ('shipping_weight', 'Shipping Weight'),
+        ('package_dimensions', 'Package Dimensions'),
+        ('video_type', 'Video Type'),
+        ('youtube_url', 'YouTube URL'),
+        ('local_video', 'Local Video'),
+        ('manufacturer_address', 'Manufacturer Address'),
+        ('description', 'Description'),
+        ('specifications', 'Specifications'),
+        ('certifications', 'Certifications'),
+        ('accessories', 'Accessories'),
+        ('manual_pdf', 'PDF Brochure'),
+        ('images', 'Images'),
+        ('variants', 'Variants'),
+    ]
+
+    key = models.CharField(max_length=80, choices=FIELD_CHOICES, unique=True)
+    label = models.CharField(max_length=120)
+    is_enabled = models.BooleanField(default=True, db_index=True)
+    is_required = models.BooleanField(default=False)
+    display_order = models.IntegerField(default=0)
+    help_text = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ['display_order', 'label']
+        verbose_name = 'Product Detail Field Config'
+        verbose_name_plural = 'Product Detail Field Configs'
+
+    def __str__(self):
+        return self.label
+
+
+class ProductVariantTypeConfig(BaseModel):
+    """Admin-managed variant types used by product forms and product detail."""
+    key = models.CharField(max_length=40, unique=True)
+    label = models.CharField(max_length=80)
+    display_order = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['display_order', 'label']
+        verbose_name = 'Product Variant Type'
+        verbose_name_plural = 'Product Variant Types'
+
+    def __str__(self):
+        return self.label
 
 
 # =========================

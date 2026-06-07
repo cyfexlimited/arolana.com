@@ -27,6 +27,12 @@ class SiteSettings(BaseModel):
     site_logo = models.ImageField(upload_to='settings/', null=True, blank=True, help_text="Main logo (recommended size: 200x60)")
     site_favicon = models.ImageField(upload_to='settings/', null=True, blank=True, help_text="Browser favicon (recommended size: 32x32)")
     footer_logo = models.ImageField(upload_to='settings/', null=True, blank=True, help_text="Footer logo")
+    smart_chat_bot_image = models.ImageField(
+        upload_to='settings/smart-chat/',
+        null=True,
+        blank=True,
+        help_text="Smart Chat bot avatar (recommended: square PNG or WebP, at least 256x256).",
+    )
     logo_height_desktop = models.PositiveIntegerField(default=88, help_text="Storefront logo height on desktop in pixels")
     logo_height_mobile = models.PositiveIntegerField(default=58, help_text="Storefront logo height on mobile/tablet in pixels")
     footer_logo_height = models.PositiveIntegerField(default=76, help_text="Footer logo height in pixels")

@@ -15,8 +15,8 @@ from django.db.models import Q
 from django.core.cache import cache
 
 from products.models import Product
-from .models import SmartChatConversation, SmartChatMessage
-from .services import openai_reply, should_handoff, make_conversation_title, create_system_message
+from .models import SmartChatConversation, SmartChatMessage, SmartChatSupportTicket
+from .services import ai_operations_reply, openai_reply, should_handoff, make_conversation_title, create_system_message, create_support_ticket
 
 User = get_user_model()
 
@@ -92,7 +92,7 @@ def _customer_identity(request):
 
 
 def _message_payload(message):
-    display_name = "Arolana AI"
+    display_name = "Arolana Chat"
     if message.sender_type == SmartChatMessage.SENDER_USER:
         display_name = "Customer"
     elif message.sender_type == SmartChatMessage.SENDER_ADMIN:
@@ -217,7 +217,7 @@ def _notify_staff_customer_message(conversation, message):
 
     _notify_staff_new_conversation(
         conversation,
-        "New Arolana AI Assistant message",
+        "New Arolana Chat message",
         f"{conversation.customer_display} sent a Smart Chat message: {snippet}",
         priority=3,
         metadata={
@@ -431,6 +431,14 @@ def api_message(request):
         conversation.mark_admin_requested()
         if not was_already_waiting:
             create_system_message(conversation, "Customer requested admin support. Waiting for admin takeover.")
+            create_support_ticket(
+                conversation,
+                title="Customer requested Arolana admin",
+                description=message,
+                intent="human_handoff",
+                priority="high",
+                metadata={"source": "web_smartchat", "event": "handoff_request"},
+            )
             _notify_staff_new_conversation(
                 conversation,
                 "Customer requested Arolana admin",
@@ -453,12 +461,20 @@ def api_message(request):
             "messages": [_message_payload(user_message), _message_payload(ai_message)],
         })
 
-    reply = openai_reply(conversation, message, product=conversation.product or product, selected_variants=selected_variants)
+    if product and not conversation.product_id:
+        conversation.product = product
+        conversation.save(update_fields=["product", "updated_at"])
+    reply, ai_context = ai_operations_reply(
+        conversation,
+        message,
+        audience=SmartChatConversation.AUDIENCE_CUSTOMER,
+        actor_user=request.user if request.user.is_authenticated else None,
+    )
     ai_message = SmartChatMessage.objects.create(
         conversation=conversation,
         sender_type=SmartChatMessage.SENDER_AI,
         message=reply,
-        metadata={"model_mode": "openai_or_fallback"},
+        metadata={"model_mode": "ai_operations", "context": ai_context},
     )
 
     return JsonResponse({
@@ -580,6 +596,14 @@ def api_request_admin(request):
     if not already_waiting:
         message = str(data.get("message", "Customer requested admin support.")).strip()
         create_system_message(conversation, message)
+        create_support_ticket(
+            conversation,
+            title="Admin support requested",
+            description=message,
+            intent="human_handoff",
+            priority="high",
+            metadata={"source": "request_admin_endpoint"},
+        )
         _notify_staff_new_conversation(
             conversation,
             "Customer requested Arolana admin",
@@ -727,3 +751,654 @@ def admin_typing(request, conversation_id):
     data = _json_body(request)
     _set_typing(conversation.id, "admin", bool(data.get("is_typing", True)))
     return JsonResponse({"success": True, "typing": _typing_payload(conversation, "admin")})
+
+
+def _mobile_clean_phone(value):
+    return "".join(ch for ch in str(value or "") if ch.isdigit() or ch == "+").strip()
+
+
+def _mobile_clean_text(value):
+    return str(value or "").strip()
+
+
+def _mobile_json_body(request):
+    try:
+        return json.loads(request.body.decode("utf-8") or "{}")
+    except Exception:
+        return {}
+
+
+def _mobile_json_error(message, status=400):
+    return JsonResponse(
+        {
+            "success": False,
+            "message": str(message),
+            "error": str(message),
+        },
+        status=status,
+    )
+
+
+def _mobile_customer_from_payload(payload):
+    """
+    Authenticates the mobile customer using the MobileCustomer phone + api_token
+    created by the mobile Account PIN login flow.
+    """
+    try:
+        from mobile_customers.models import MobileCustomer
+    except Exception as error:
+        raise RuntimeError(
+            "mobile_customers app is required before mobile SmartChat can work."
+        ) from error
+
+    phone_number = _mobile_clean_phone(
+        payload.get("phone_number")
+        or payload.get("phoneNumber")
+        or payload.get("phone")
+    )
+    api_token = _mobile_clean_text(
+        payload.get("api_token") or payload.get("apiToken")
+    )
+
+    if not phone_number:
+        raise ValueError("Phone number is required.")
+
+    if not api_token:
+        raise PermissionError("Login token is required. Login/register again.")
+
+    customer = (
+        MobileCustomer.objects
+        .select_related("user")
+        .filter(phone_number=phone_number, api_token=api_token)
+        .first()
+    )
+
+    if not customer:
+        raise PermissionError("Invalid login token. Login/register again.")
+
+    return customer
+
+
+def _mobile_customer_name(customer, payload=None):
+    payload = payload or {}
+    return (
+        _mobile_clean_text(getattr(customer, "full_name", ""))
+        or _mobile_clean_text(payload.get("full_name") or payload.get("fullName"))
+        or _mobile_clean_text(getattr(customer.user, "get_full_name", lambda: "")())
+        or _mobile_clean_text(getattr(customer.user, "username", ""))
+        or "Mobile Customer"
+    )
+
+
+def _mobile_message_payload(message):
+    """
+    Keep the payload close to your existing _message_payload format,
+    but also include simple aliases for the React Native app.
+    """
+    image_url = ""
+    image_name = ""
+
+    if getattr(message, "image", None):
+        try:
+            image_url = message.image.url
+            image_name = message.image.name.rsplit("/", 1)[-1]
+        except Exception:
+            image_url = ""
+            image_name = ""
+
+    return {
+        "id": message.id,
+        "sender_type": message.sender_type,
+        "sender": message.sender_type,
+        "message": message.message,
+        "text": message.message,
+        "image_url": image_url,
+        "image_name": image_name,
+        "has_image": bool(image_url),
+        "created_at": message.created_at.isoformat() if message.created_at else "",
+        "is_private_note": getattr(message, "is_private_note", False),
+    }
+
+
+def _mobile_conversation_payload(conversation):
+    messages = (
+        conversation.messages
+        .filter(is_private_note=False)
+        .order_by("created_at")[:250]
+    )
+
+    return {
+        "id": conversation.id,
+        "conversation_id": conversation.id,
+        "status": conversation.status,
+        "title": conversation.title,
+        "customer_name": conversation.customer_display,
+        "customer_avatar_url": getattr(conversation, "customer_avatar_url", "") or "",
+        "last_message_at": (
+            conversation.last_message_at.isoformat()
+            if conversation.last_message_at else ""
+        ),
+        "messages": [_mobile_message_payload(message) for message in messages],
+    }
+
+
+def _mobile_get_existing_conversation(customer, conversation_id=0):
+    if not conversation_id:
+        return None
+
+    lookup = Q(id=conversation_id)
+
+    # The mobile customer is linked to a Django user by mobile_customers.
+    if getattr(customer, "user_id", None):
+        lookup &= Q(user=customer.user)
+
+    # Extra fallback ownership check.
+    lookup |= Q(id=conversation_id, customer_phone=customer.phone_number)
+
+    return SmartChatConversation.objects.filter(lookup).first()
+
+
+def _mobile_get_or_create_conversation(customer, payload):
+    conversation_id = _safe_int(payload.get("conversation_id"), default=0)
+    conversation = _mobile_get_existing_conversation(customer, conversation_id)
+
+    if conversation:
+        return conversation
+
+    # Reuse an existing open mobile conversation for this customer when available.
+    conversation = (
+        SmartChatConversation.objects
+        .filter(
+            Q(user=customer.user) | Q(customer_phone=customer.phone_number),
+            status__in=[
+                SmartChatConversation.STATUS_AI,
+                SmartChatConversation.STATUS_ADMIN_REQUESTED,
+                SmartChatConversation.STATUS_ADMIN_ACTIVE,
+            ],
+        )
+        .order_by("-last_message_at")
+        .first()
+    )
+
+    if conversation:
+        return conversation
+
+    full_name = _mobile_customer_name(customer, payload)
+    email = (
+        _mobile_clean_text(getattr(customer, "email", ""))
+        or _mobile_clean_text(getattr(customer.user, "email", ""))
+        or _mobile_clean_text(payload.get("email"))
+    )
+
+    conversation = SmartChatConversation.objects.create(
+        user=customer.user,
+        session_key=f"mobile-{customer.id}",
+        status=SmartChatConversation.STATUS_AI,
+        audience=SmartChatConversation.AUDIENCE_CUSTOMER,
+        title="Arolana Mobile Smart Chat",
+        customer_name=full_name[:200],
+        customer_email=email,
+        customer_phone=customer.phone_number,
+        page_url="Arolana Mobile App",
+        user_agent="Arolana Mobile App",
+        selected_variants={
+            "source": "arolana_mobile_app",
+            "mobile_customer_id": customer.id,
+        },
+    )
+
+    try:
+        create_system_message(
+            conversation,
+            f"Mobile Smart Chat started by {full_name}.",
+            {
+                "source": "arolana_mobile_app",
+                "mobile_customer_id": customer.id,
+            },
+        )
+    except Exception:
+        SmartChatMessage.objects.create(
+            conversation=conversation,
+            sender_type=SmartChatMessage.SENDER_SYSTEM,
+            message=f"Mobile Smart Chat started by {full_name}.",
+            metadata={
+                "source": "arolana_mobile_app",
+                "mobile_customer_id": customer.id,
+            },
+        )
+
+    return conversation
+
+
+def _mobile_notify_staff(conversation, message=None):
+    """
+    Reuse your existing notification helper when available.
+    """
+    try:
+        if message:
+            _notify_staff_customer_message(conversation, message)
+        else:
+            _notify_staff_new_conversation(
+                conversation,
+                "New Arolana mobile Smart Chat",
+                f"{conversation.customer_display} started a mobile Smart Chat conversation.",
+                priority=3,
+                metadata={
+                    "event": "mobile_smartchat",
+                    "smartchat_conversation_id": conversation.id,
+                },
+            )
+    except Exception:
+        return
+
+
+@csrf_exempt
+@require_POST
+def mobile_smartchat_start_api(request):
+    payload = _mobile_json_body(request)
+
+    try:
+        customer = _mobile_customer_from_payload(payload)
+        conversation = _mobile_get_or_create_conversation(customer, payload)
+    except PermissionError as error:
+        return _mobile_json_error(error, status=403)
+    except Exception as error:
+        return _mobile_json_error(error, status=400)
+
+    _mobile_notify_staff(conversation)
+
+    return JsonResponse(
+        {
+            "success": True,
+            "conversation_id": conversation.id,
+            "conversation": _mobile_conversation_payload(conversation),
+            "messages": _mobile_conversation_payload(conversation)["messages"],
+        }
+    )
+
+
+@csrf_exempt
+@require_POST
+def mobile_smartchat_send_api(request):
+    payload = _mobile_json_body(request)
+
+    try:
+        customer = _mobile_customer_from_payload(payload)
+        conversation = _mobile_get_or_create_conversation(customer, payload)
+    except PermissionError as error:
+        return _mobile_json_error(error, status=403)
+    except Exception as error:
+        return _mobile_json_error(error, status=400)
+
+    message_text = _mobile_clean_text(payload.get("message") or payload.get("text"))
+
+    if not message_text:
+        return _mobile_json_error("Message is required.", status=400)
+
+    if conversation.status == SmartChatConversation.STATUS_CLOSED:
+        conversation.status = SmartChatConversation.STATUS_ADMIN_REQUESTED
+        conversation.admin_requested_at = timezone.now()
+        conversation.save(
+            update_fields=[
+                "status",
+                "admin_requested_at",
+                "updated_at",
+            ]
+        )
+
+    user_message = SmartChatMessage.objects.create(
+        conversation=conversation,
+        sender_type=SmartChatMessage.SENDER_USER,
+        user=customer.user,
+        message=message_text,
+        metadata={
+            "source": "arolana_mobile_app",
+            "mobile_customer_id": customer.id,
+            "phone_number": customer.phone_number,
+        },
+    )
+
+    _set_typing(conversation.id, "customer", False)
+
+    if hasattr(conversation, "touch"):
+        conversation.touch()
+    else:
+        conversation.last_message_at = user_message.created_at
+        conversation.save(update_fields=["last_message_at", "updated_at"])
+
+    if conversation.status in [SmartChatConversation.STATUS_ADMIN_REQUESTED, SmartChatConversation.STATUS_ADMIN_ACTIVE]:
+        _mobile_notify_staff(conversation, user_message)
+    else:
+        reply, ai_context = ai_operations_reply(
+            conversation,
+            message_text,
+            audience=SmartChatConversation.AUDIENCE_CUSTOMER,
+            actor_user=customer.user,
+        )
+        SmartChatMessage.objects.create(
+            conversation=conversation,
+            sender_type=SmartChatMessage.SENDER_AI,
+            message=reply,
+            metadata={
+                "model_mode": "ai_operations",
+                "context": ai_context,
+                "source": "arolana_mobile_app",
+            },
+        )
+        if conversation.status in [SmartChatConversation.STATUS_ADMIN_REQUESTED, SmartChatConversation.STATUS_ADMIN_ACTIVE]:
+            _mobile_notify_staff(conversation, user_message)
+
+    conversation.refresh_from_db()
+
+    return JsonResponse(
+        {
+            "success": True,
+            "message": "Message sent.",
+            "conversation_id": conversation.id,
+            "conversation": _mobile_conversation_payload(conversation),
+            "messages": _mobile_conversation_payload(conversation)["messages"],
+        }
+    )
+
+
+@csrf_exempt
+@require_POST
+def mobile_smartchat_upload_image_api(request):
+    try:
+        customer = _mobile_customer_from_payload(request.POST)
+        conversation = _mobile_get_or_create_conversation(customer, request.POST)
+    except PermissionError as error:
+        return _mobile_json_error(error, status=403)
+    except Exception as error:
+        return _mobile_json_error(error, status=400)
+
+    uploaded_file = request.FILES.get("image")
+    image_error = _validate_chat_image(uploaded_file)
+    if image_error:
+        return _mobile_json_error(image_error, status=400)
+
+    message_text = _mobile_clean_text(request.POST.get("message")) or "Customer uploaded an image from the Arolana mobile app."
+
+    if conversation.status == SmartChatConversation.STATUS_CLOSED:
+        conversation.status = SmartChatConversation.STATUS_ADMIN_REQUESTED
+        conversation.admin_requested_at = timezone.now()
+        conversation.save(update_fields=["status", "admin_requested_at", "updated_at"])
+
+    if conversation.status == SmartChatConversation.STATUS_AI:
+        conversation.mark_admin_requested()
+
+    user_message = SmartChatMessage.objects.create(
+        conversation=conversation,
+        sender_type=SmartChatMessage.SENDER_USER,
+        user=customer.user,
+        message=message_text,
+        image=uploaded_file,
+        metadata={
+            "source": "arolana_mobile_app",
+            "mobile_customer_id": customer.id,
+            "phone_number": customer.phone_number,
+            "attachment_type": "image",
+            "content_type": uploaded_file.content_type,
+            "file_size": uploaded_file.size,
+        },
+    )
+
+    _set_typing(conversation.id, "customer", False)
+
+    if hasattr(conversation, "touch"):
+        conversation.touch()
+    else:
+        conversation.last_message_at = user_message.created_at
+        conversation.save(update_fields=["last_message_at", "updated_at"])
+
+    _mobile_notify_staff(conversation, user_message)
+    conversation.refresh_from_db()
+
+    return JsonResponse(
+        {
+            "success": True,
+            "message": "Image sent.",
+            "conversation_id": conversation.id,
+            "conversation": _mobile_conversation_payload(conversation),
+            "messages": _mobile_conversation_payload(conversation)["messages"],
+        }
+    )
+
+
+@csrf_exempt
+@require_POST
+def mobile_smartchat_poll_api(request):
+    payload = _mobile_json_body(request)
+
+    try:
+        customer = _mobile_customer_from_payload(payload)
+        conversation = _mobile_get_or_create_conversation(customer, payload)
+    except PermissionError as error:
+        return _mobile_json_error(error, status=403)
+    except Exception as error:
+        return _mobile_json_error(error, status=400)
+
+    return JsonResponse(
+        {
+            "success": True,
+            "conversation_id": conversation.id,
+            "conversation": _mobile_conversation_payload(conversation),
+            "messages": _mobile_conversation_payload(conversation)["messages"],
+            "typing": {
+                "admin": _typing_payload(conversation, "admin"),
+                "customer": _typing_payload(conversation, "customer"),
+            },
+        }
+    )
+
+
+@csrf_exempt
+@require_POST
+def mobile_smartchat_mark_read_api(request):
+    payload = _mobile_json_body(request)
+
+    try:
+        customer = _mobile_customer_from_payload(payload)
+        conversation = _mobile_get_or_create_conversation(customer, payload)
+    except PermissionError as error:
+        return _mobile_json_error(error, status=403)
+    except Exception as error:
+        return _mobile_json_error(error, status=400)
+
+    # Your existing SmartChatMessage model does not currently have customer read flags,
+    # so this is intentionally a safe no-op for now.
+    return JsonResponse(
+        {
+            "success": True,
+            "message": "Marked as read.",
+            "conversation_id": conversation.id,
+            "conversation": _mobile_conversation_payload(conversation),
+            "messages": _mobile_conversation_payload(conversation)["messages"],
+        }
+    )
+
+
+def _ticket_payload(ticket):
+    return {
+        "id": ticket.id,
+        "title": ticket.title,
+        "description": ticket.description,
+        "audience": ticket.audience,
+        "intent": ticket.intent,
+        "priority": ticket.priority,
+        "status": ticket.status,
+        "conversation_id": ticket.conversation_id,
+        "order_id": ticket.order_id,
+        "product_id": ticket.product_id,
+        "created_at": ticket.created_at.isoformat() if ticket.created_at else "",
+        "updated_at": ticket.updated_at.isoformat() if ticket.updated_at else "",
+    }
+
+
+def _operations_actor_from_request(request, payload):
+    token = (
+        request.headers.get("Authorization", "")
+        .replace("Bearer ", "")
+        .strip()
+        or payload.get("token")
+        or payload.get("staff_token")
+    )
+    if token:
+        try:
+            from staff_mobile.models import StaffMobileToken
+
+            session = (
+                StaffMobileToken.objects
+                .select_related("user", "rider", "rider__user")
+                .filter(token=token, is_active=True)
+                .first()
+            )
+            if session:
+                session.last_used_at = timezone.now()
+                session.save(update_fields=["last_used_at", "updated_at"])
+                return {
+                    "audience": session.role,
+                    "user": session.user or (session.rider.user if session.rider_id else None),
+                    "rider": session.rider,
+                    "session": session,
+                }
+        except Exception:
+            pass
+    if request.user.is_authenticated:
+        if request.user.is_staff:
+            audience = SmartChatConversation.AUDIENCE_ADMIN
+        elif hasattr(request.user, "vendor_profile"):
+            audience = SmartChatConversation.AUDIENCE_VENDOR
+        elif hasattr(request.user, "rider_profile"):
+            audience = SmartChatConversation.AUDIENCE_RIDER
+        else:
+            audience = SmartChatConversation.AUDIENCE_CUSTOMER
+        return {
+            "audience": audience,
+            "user": request.user,
+            "rider": getattr(request.user, "rider_profile", None),
+            "session": None,
+        }
+    return {"audience": SmartChatConversation.AUDIENCE_GUEST, "user": None, "rider": None, "session": None}
+
+
+def _operations_conversation(actor, payload):
+    conversation_id = _safe_int(payload.get("conversation_id"), default=0)
+    user = actor.get("user")
+    rider = actor.get("rider")
+    audience = actor.get("audience") or SmartChatConversation.AUDIENCE_GUEST
+    conversation = None
+    if conversation_id:
+        qs = SmartChatConversation.objects.filter(id=conversation_id)
+        if user:
+            qs = qs.filter(Q(user=user) | Q(assigned_admin=user))
+        conversation = qs.first()
+    if conversation:
+        return conversation
+
+    conversation = SmartChatConversation.objects.create(
+        user=user,
+        rider_profile=rider,
+        vendor_profile=getattr(user, "vendor_profile", None) if user else None,
+        audience=audience,
+        status=SmartChatConversation.STATUS_AI,
+        title=payload.get("title") or f"Arolana {audience.title()} Operations Assistant",
+        customer_name=(user.get_full_name() or user.username if user else payload.get("name", ""))[:200],
+        customer_email=(getattr(user, "email", "") if user else payload.get("email", ""))[:254],
+        customer_phone=payload.get("phone", "")[:40],
+        page_url=payload.get("page_url", "")[:700],
+        user_agent=request_user_agent(payload),
+        context={"source": payload.get("source", "operations_api")},
+    )
+    create_system_message(conversation, f"Arolana Chat started for {audience}.")
+    return conversation
+
+
+def request_user_agent(payload):
+    return str(payload.get("user_agent") or payload.get("platform") or "Arolana Operations API")[:1200]
+
+
+@csrf_exempt
+@require_POST
+def operations_message_api(request):
+    payload = _json_body(request)
+    message = str(payload.get("message") or payload.get("text") or "").strip()
+    if not message:
+        return JsonResponse({"success": False, "message": "Message is required."}, status=400)
+
+    actor = _operations_actor_from_request(request, payload)
+    if actor["audience"] == SmartChatConversation.AUDIENCE_GUEST:
+        return JsonResponse({"success": False, "message": "Login is required for Arolana Operations Assistant."}, status=403)
+
+    conversation = _operations_conversation(actor, payload)
+    user_message = SmartChatMessage.objects.create(
+        conversation=conversation,
+        sender_type=SmartChatMessage.SENDER_USER,
+        user=actor.get("user"),
+        message=message,
+        metadata={
+            "source": payload.get("source", "operations_api"),
+            "audience": actor["audience"],
+        },
+    )
+    reply, ai_context = ai_operations_reply(
+        conversation,
+        message,
+        audience=actor["audience"],
+        actor_user=actor.get("user"),
+        rider=actor.get("rider"),
+    )
+    ai_message = SmartChatMessage.objects.create(
+        conversation=conversation,
+        sender_type=SmartChatMessage.SENDER_AI,
+        message=reply,
+        metadata={"model_mode": "ai_operations", "context": ai_context},
+    )
+    return JsonResponse({
+        "success": True,
+        "conversation_id": conversation.id,
+        "status": conversation.status,
+        "intent": conversation.current_intent,
+        "urgency": conversation.urgency,
+        "reply": reply,
+        "messages": [_message_payload(user_message), _message_payload(ai_message)],
+        "tickets": [_ticket_payload(ticket) for ticket in conversation.support_tickets.order_by("-created_at")[:5]],
+    })
+
+
+@csrf_exempt
+@require_POST
+def operations_create_ticket_api(request):
+    payload = _json_body(request)
+    actor = _operations_actor_from_request(request, payload)
+    if actor["audience"] == SmartChatConversation.AUDIENCE_GUEST:
+        return JsonResponse({"success": False, "message": "Login is required to create a support ticket."}, status=403)
+    conversation = _operations_conversation(actor, payload)
+    title = str(payload.get("title") or "Arolana support request").strip()
+    description = str(payload.get("description") or payload.get("message") or "").strip()
+    if not description:
+        return JsonResponse({"success": False, "message": "Ticket description is required."}, status=400)
+    ticket = create_support_ticket(
+        conversation,
+        title=title,
+        description=description,
+        intent=str(payload.get("intent") or conversation.current_intent or "support"),
+        priority=str(payload.get("priority") or "normal"),
+        metadata={"source": payload.get("source", "operations_api"), "audience": actor["audience"]},
+    )
+    return JsonResponse({"success": True, "ticket": _ticket_payload(ticket), "conversation_id": conversation.id})
+
+
+@require_GET
+def operations_tickets_api(request):
+    actor = _operations_actor_from_request(request, request.GET)
+    if actor["audience"] == SmartChatConversation.AUDIENCE_GUEST:
+        return JsonResponse({"success": False, "message": "Login is required."}, status=403)
+    tickets = SmartChatSupportTicket.objects.select_related("conversation", "created_by")
+    user = actor.get("user")
+    if actor["audience"] != SmartChatConversation.AUDIENCE_ADMIN:
+        tickets = tickets.filter(Q(created_by=user) | Q(conversation__user=user))
+    status = request.GET.get("status")
+    if status:
+        tickets = tickets.filter(status=status)
+    return JsonResponse({"success": True, "tickets": [_ticket_payload(ticket) for ticket in tickets.order_by("-created_at")[:100]]})

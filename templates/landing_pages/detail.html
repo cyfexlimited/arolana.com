@@ -1,6 +1,6 @@
 {% extends "base/base.html" %}
 {% load static %}
-
+{% block body_class %}landing-page-body{% endblock %}
 {% block title %}{{ page.meta_title|default:page.public_title }} | Arolana{% endblock %}
 
 {% block extra_css %}
@@ -320,11 +320,6 @@
     </section>
     {% endif %}
 
-    {% for contact in contact_options %}
-        {% if contact.label|lower == "whatsapp" and contact.url %}
-        <a class="lp-floating-whatsapp" href="{{ contact.url }}" target="_blank" rel="noopener noreferrer" aria-label="Chat on WhatsApp"><i class="fab fa-whatsapp"></i></a>
-        {% endif %}
-    {% endfor %}
     <button type="button" class="lp-back-to-top" aria-label="Back to top"><i class="fas fa-arrow-up"></i></button>
 
     <div class="lp-video-modal" aria-hidden="true">

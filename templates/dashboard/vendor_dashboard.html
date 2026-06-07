@@ -151,6 +151,104 @@
         </div>
     </div>
 
+    <div class="mb-8 overflow-hidden rounded-3xl bg-slate-900 shadow-xl">
+        <div class="relative min-h-[260px] p-6 md:p-8">
+            {% if vendor_profile.store_banner %}
+                <img src="{{ vendor_profile.store_banner.url }}" alt="{{ vendor_profile.store_name }} banner" class="absolute inset-0 h-full w-full object-cover opacity-45">
+            {% else %}
+                <div class="absolute inset-0 bg-gradient-to-br from-blue-950 via-blue-800 to-orange-500"></div>
+            {% endif %}
+            <div class="absolute inset-0 bg-slate-950/45"></div>
+            <div class="relative z-10 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+                <div class="flex items-center gap-5">
+                    <div class="flex h-24 w-24 items-center justify-center overflow-hidden rounded-3xl border-4 border-white bg-orange-500 text-4xl font-black text-white">
+                        {% if vendor_profile.store_logo %}
+                            <img src="{{ vendor_profile.store_logo.url }}" alt="{{ vendor_profile.store_name }} logo" class="h-full w-full object-cover">
+                        {% else %}
+                            {{ vendor_profile.store_name|slice:":1"|upper }}
+                        {% endif %}
+                    </div>
+                    <div>
+                        <h2 class="text-3xl font-black text-white">{{ vendor_profile.store_name }}</h2>
+                        <p class="mt-1 text-sm font-bold text-blue-100">{{ vendor_profile.get_vendor_type_display }} · {{ vendor_profile.country|default:"Nigeria" }}</p>
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            <span class="rounded-full bg-white px-3 py-1 text-xs font-black text-blue-900">{% if vendor_profile.is_verified %}Verified {{ vendor_profile.get_vendor_type_display }}{% else %}Verification Pending{% endif %}</span>
+                            <span class="rounded-full bg-orange-500 px-3 py-1 text-xs font-black text-white">{{ vendor_profile.subscription_plan_label }}</span>
+                            <span class="rounded-full bg-white/90 px-3 py-1 text-xs font-black text-slate-700">{{ vendor_profile.preferred_currency|default:"NGN" }} · {{ vendor_profile.preferred_language|default:"English"|title }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="rounded-2xl bg-white/95 p-4 shadow-lg md:w-80">
+                    <div class="flex justify-between text-sm font-black text-slate-700">
+                        <span>Profile completion</span>
+                        <span>{{ vendor_profile.profile_completion_percent }}%</span>
+                    </div>
+                    <div class="mt-2 h-3 overflow-hidden rounded-full bg-slate-200">
+                        <div class="h-full rounded-full bg-orange-500" style="width: {{ vendor_profile.profile_completion_percent }}%"></div>
+                    </div>
+                    <p class="mt-3 text-xs font-semibold text-slate-500">Logo, banner, KYC, bank account, pickup address and subscription all improve store trust.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <form method="post" enctype="multipart/form-data" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2">
+            {% csrf_token %}
+            <input type="hidden" name="dashboard_action" value="profile_settings">
+            <div class="mb-4 flex items-center justify-between">
+                <h2 class="text-xl font-black text-slate-900">Profile & Store Settings</h2>
+                <button class="rounded-full bg-orange-500 px-5 py-2 text-sm font-black text-white hover:bg-orange-600" type="submit">Save Settings</button>
+            </div>
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <label class="text-sm font-bold text-slate-700">Store name<input name="store_name" value="{{ vendor_profile.store_name }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
+                <label class="text-sm font-bold text-slate-700">Company name<input name="company_name" value="{{ vendor_profile.company_name }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
+                <label class="text-sm font-bold text-slate-700">Vendor type<select name="vendor_type" class="mt-1 w-full rounded-xl border border-slate-200 p-3">{% for value,label in vendor_profile.VENDOR_TYPE_CHOICES %}<option value="{{ value }}" {% if vendor_profile.vendor_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+                <label class="text-sm font-bold text-slate-700">Country<input name="country" value="{{ vendor_profile.country }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
+                <label class="text-sm font-bold text-slate-700">Support email<input name="support_email" value="{{ vendor_profile.support_email }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
+                <label class="text-sm font-bold text-slate-700">Support phone<input name="support_phone" value="{{ vendor_profile.support_phone }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
+                <label class="text-sm font-bold text-slate-700">Website<input name="website" value="{{ vendor_profile.website }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
+                <label class="text-sm font-bold text-slate-700">Pickup phone<input name="pickup_phone" value="{{ vendor_profile.pickup_phone }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
+                <label class="text-sm font-bold text-slate-700">Language<select name="preferred_language" class="mt-1 w-full rounded-xl border border-slate-200 p-3">
+                    <option value="english" {% if vendor_profile.preferred_language == "english" %}selected{% endif %}>English</option>
+                    <option value="french" {% if vendor_profile.preferred_language == "french" %}selected{% endif %}>French</option>
+                    <option value="arabic" {% if vendor_profile.preferred_language == "arabic" %}selected{% endif %}>Arabic</option>
+                    <option value="chinese" {% if vendor_profile.preferred_language == "chinese" %}selected{% endif %}>Chinese</option>
+                    <option value="spanish" {% if vendor_profile.preferred_language == "spanish" %}selected{% endif %}>Spanish</option>
+                </select></label>
+                <label class="text-sm font-bold text-slate-700">Currency<select name="preferred_currency" class="mt-1 w-full rounded-xl border border-slate-200 p-3">
+                    <option value="NGN" {% if vendor_profile.preferred_currency == "NGN" %}selected{% endif %}>NGN</option>
+                    <option value="USD" {% if vendor_profile.preferred_currency == "USD" %}selected{% endif %}>USD</option>
+                    <option value="GBP" {% if vendor_profile.preferred_currency == "GBP" %}selected{% endif %}>GBP</option>
+                    <option value="EUR" {% if vendor_profile.preferred_currency == "EUR" %}selected{% endif %}>EUR</option>
+                    <option value="CNY" {% if vendor_profile.preferred_currency == "CNY" %}selected{% endif %}>CNY</option>
+                    <option value="CAD" {% if vendor_profile.preferred_currency == "CAD" %}selected{% endif %}>CAD</option>
+                </select></label>
+                <label class="text-sm font-bold text-slate-700">Logo<input type="file" name="store_logo" accept="image/*" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
+                <label class="text-sm font-bold text-slate-700">Banner<input type="file" name="store_banner" accept="image/*" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
+            </div>
+            <label class="mt-4 block text-sm font-bold text-slate-700">Store description<textarea name="description" rows="3" class="mt-1 w-full rounded-xl border border-slate-200 p-3">{{ vendor_profile.description }}</textarea></label>
+            <label class="mt-4 block text-sm font-bold text-slate-700">Business address<textarea name="business_address" rows="2" class="mt-1 w-full rounded-xl border border-slate-200 p-3">{{ vendor_profile.business_address }}</textarea></label>
+        </form>
+        <form method="post" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            {% csrf_token %}
+            <input type="hidden" name="dashboard_action" value="change_password">
+            <h2 class="text-xl font-black text-slate-900">Security</h2>
+            <p class="mt-1 text-sm leading-6 text-slate-500">
+                Change your vendor password/PIN securely. You will remain signed in, receive an inbox security alert,
+                and a confirmation email will be sent to <strong>{{ request.user.email }}</strong>.
+            </p>
+            <label class="mt-4 block text-sm font-bold text-slate-700">Current password/PIN<input type="password" name="current_password" autocomplete="current-password" required class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
+            <label class="mt-4 block text-sm font-bold text-slate-700">New password/PIN<input type="password" name="new_password" autocomplete="new-password" minlength="8" required class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
+            <label class="mt-4 block text-sm font-bold text-slate-700">Confirm new password/PIN<input type="password" name="confirm_password" autocomplete="new-password" minlength="8" required class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
+            <p class="mt-3 rounded-xl bg-blue-50 px-4 py-3 text-xs font-semibold leading-5 text-blue-900">
+                Use at least 8 characters and avoid passwords that are too common or similar to your personal details.
+                Arolana will never include your password in an email.
+            </p>
+            <button class="mt-5 w-full rounded-full bg-blue-700 px-5 py-3 text-sm font-black text-white hover:bg-blue-800" type="submit">Change Password / PIN</button>
+        </form>
+    </div>
+
     {% if not vendor_profile.pickup_location_is_ready %}
     <div class="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-950">
         <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -242,7 +340,8 @@
         <div class="flex justify-between items-center mb-3">
             <h2 class="text-lg font-semibold flex items-center gap-2">
                 <i class="fas fa-bell text-yellow-500"></i> Notifications
-                <span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full">{{ notifications|length }}</span>
+                <span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full">{{ unread_notification_count|default:0 }} unread</span>
+                <span class="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">{{ notification_count|default:0 }} total</span>
             </h2>
             <button onclick="deleteAllNotifications()" class="text-red-600 hover:text-red-800 text-sm">
                 <i class="fas fa-trash-alt"></i> Clear All
@@ -335,7 +434,7 @@
 
         <div class="vendor-dashboard-card bg-white rounded-xl shadow-md p-6 border border-gray-100">
             <p class="text-sm text-gray-500">Subscription & Chat</p>
-            <h2 class="text-3xl font-bold capitalize mt-1">{{ subscription_tier }}</h2>
+            <h2 class="text-3xl font-bold mt-1">{{ subscription_label }}</h2>
             <div class="mt-4 rounded-lg {% if chat_enabled %}bg-green-50 text-green-800{% else %}bg-gray-100 text-gray-700{% endif %} p-4">
                 <div class="flex items-center gap-2 font-semibold">
                     <i class="fas {% if chat_enabled %}fa-unlock{% else %}fa-lock{% endif %}"></i>
@@ -346,10 +445,68 @@
             <div class="grid grid-cols-2 gap-3 mt-4 text-sm">
                 <div><span class="text-gray-500">Products</span><strong class="block">{{ current_product_count|default:total_products }} / {% if subscription_limits.max_products == -1 %}Unlimited{% else %}{{ subscription_limits.max_products }}{% endif %}</strong></div>
                 <div><span class="text-gray-500">Variants</span><strong class="block">{% if subscription_limits.max_variants_per_product == -1 %}Unlimited{% else %}{{ subscription_limits.max_variants_per_product }}{% endif %}</strong></div>
+                <div><span class="text-gray-500">Plan status</span><strong class="block">{% if subscription_active %}Active{% else %}Inactive{% endif %}</strong></div>
+                <div><span class="text-gray-500">Expires</span><strong class="block">{% if subscription_expires_at %}{{ subscription_expires_at|date:"M d, Y" }}{% else %}No expiry{% endif %}</strong></div>
             </div>
+            {% if subscription_expiring_soon %}
+                <div class="mt-4 rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-800">
+                    Your subscription expires soon. Renew to keep your benefits active.
+                </div>
+            {% endif %}
             <a href="{% if chat_enabled %}{% url 'chat:vendor_list' %}{% else %}{% url 'subscriptions:plans' %}{% endif %}" class="mt-5 inline-flex items-center gap-2 text-blue-700 font-semibold">
                 {% if chat_enabled %}Open customer chat{% else %}View upgrade plans{% endif %} <i class="fas fa-arrow-right"></i>
             </a>
+        </div>
+    </div>
+
+    <div class="vendor-dashboard-card bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-8">
+        <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+                <p class="text-sm font-semibold uppercase tracking-wide text-blue-700">Current Subscription</p>
+                <h2 class="text-2xl font-black text-gray-900">{{ subscription_label }}</h2>
+                <p class="text-sm text-gray-500">
+                    {% if subscription_started_at %}Started {{ subscription_started_at|date:"M d, Y" }}{% else %}Start date pending{% endif %}
+                    ·
+                    {% if subscription_expires_at %}Expires {{ subscription_expires_at|date:"M d, Y" }}{% else %}No expiry date{% endif %}
+                </p>
+            </div>
+            <a href="{% url 'subscriptions:plans' %}" class="inline-flex items-center justify-center rounded-full bg-orange-500 px-5 py-2.5 text-sm font-black text-white hover:bg-orange-600">
+                Upgrade Plan
+            </a>
+        </div>
+
+        <div class="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div class="rounded-xl bg-slate-50 p-4">
+                <img src="{{ subscription_benefits_image_url }}" alt="Arolana vendor subscription benefits" class="mb-4 w-full rounded-xl border border-slate-200 bg-white object-cover">
+                <h3 class="font-black text-gray-900">Subscription Benefits</h3>
+                <ul class="mt-3 space-y-2 text-sm text-gray-700">
+                    <li>Products: {% if subscription_limits.max_products == -1 %}Unlimited{% else %}{{ subscription_limits.max_products }}{% endif %}</li>
+                    <li>Images per product: {{ subscription_limits.max_images_per_product }}</li>
+                    <li>Variants per product: {% if subscription_limits.max_variants_per_product == -1 %}Unlimited{% else %}{{ subscription_limits.max_variants_per_product }}{% endif %}</li>
+                    <li>Priority score: {{ subscription_limits.priority_score }}</li>
+                    <li>Customer chat: {% if subscription_limits.chat_enabled %}Enabled{% else %}Locked{% endif %}</li>
+                </ul>
+            </div>
+            <div class="rounded-xl bg-slate-50 p-4">
+                <h3 class="font-black text-gray-900">Invoices / Receipts</h3>
+                <div class="mt-3 space-y-3">
+                    {% for invoice in subscription_invoices %}
+                        <div class="rounded-lg bg-white p-3 text-sm shadow-sm ring-1 ring-gray-100">
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <p class="font-black text-gray-900">{{ invoice.reference }}</p>
+                                    <p class="text-gray-500">{{ invoice.checkout_data.plan_name|default:invoice.checkout_data.tier|default:"Subscription" }} · {{ invoice.currency }} {{ invoice.amount }} · {{ invoice.status|title }}</p>
+                                </div>
+                                <a href="/api/staff/vendor/subscription/invoices/{{ invoice.id }}/pdf/" class="shrink-0 rounded-full border border-blue-200 px-3 py-1.5 font-bold text-blue-700 hover:bg-blue-50">
+                                    Receipt
+                                </a>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <p class="text-sm text-gray-500">No subscription invoices yet.</p>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
     </div>
     
@@ -461,6 +618,19 @@
                 </div>
                 <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
                     <i class="fas fa-star text-yellow-600 text-xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card bg-white rounded-lg shadow-md p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">Pickup Reports</p>
+                    <p class="text-3xl font-bold text-orange-600">{{ pickup_report_count|default:0 }}</p>
+                    <p class="text-xs text-gray-500 mt-1">Vendor handoffs recorded by riders</p>
+                </div>
+                <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-handshake text-orange-600 text-xl"></i>
                 </div>
             </div>
         </div>

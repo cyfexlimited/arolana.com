@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db import models
 from django.db.models import Avg
 from django.utils import timezone
@@ -6,12 +8,27 @@ from core.models import BaseModel
 
 class VendorProfile(BaseModel):
     SUBSCRIPTION_TIERS = [
-        ('free', 'Free'),
-        ('basic', 'Basic'),
-        ('plus', 'Plus'),
-        ('pro', 'Pro'),
-        ('special', 'Special'),
-        ('enterprise', 'Enterprise'),
+        ('free', 'Free Vendor'),
+        ('basic', 'Basic Vendor'),
+        ('plus', 'Plus Vendor'),
+        ('pro', 'Pro Vendor'),
+        ('special', 'Special Vendor'),
+        ('enterprise', 'Enterprise Vendor'),
+    ]
+
+    VENDOR_TYPE_CHOICES = [
+        ('manufacturer', 'Manufacturer'),
+        ('distributor', 'Distributor'),
+        ('wholesaler', 'Wholesaler'),
+        ('retailer', 'Retailer'),
+        ('service_provider', 'Service Provider'),
+    ]
+
+    APPROVAL_STATUS_CHOICES = [
+        ('pending', 'Pending Admin Review'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('suspended', 'Suspended'),
     ]
     
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='vendor_profile')
@@ -20,12 +37,46 @@ class VendorProfile(BaseModel):
     store_logo = models.ImageField(upload_to='vendors/logos/', null=True, blank=True)
     store_banner = models.ImageField(upload_to='vendors/banners/', null=True, blank=True)
     description = models.TextField()
+    company_name = models.CharField(max_length=220, blank=True)
+    vendor_type = models.CharField(max_length=30, choices=VENDOR_TYPE_CHOICES, default='retailer', db_index=True)
+    country = models.CharField(max_length=100, blank=True, default='Nigeria')
+    business_address = models.TextField(blank=True)
+    manufacturer_address = models.TextField(blank=True)
+    warehouse_address = models.TextField(blank=True)
+    support_email = models.EmailField(blank=True)
+    support_phone = models.CharField(max_length=50, blank=True)
+    website = models.URLField(blank=True)
+    preferred_language = models.CharField(max_length=20, default='english', blank=True)
+    preferred_currency = models.CharField(max_length=10, default='NGN', blank=True)
     is_verified = models.BooleanField(default=False)
     verification_documents = models.FileField(upload_to='vendors/documents/', null=True, blank=True)
+    approval_status = models.CharField(max_length=20, choices=APPROVAL_STATUS_CHOICES, default='pending', db_index=True)
+    approval_note = models.TextField(blank=True)
+    rejection_reason = models.TextField(blank=True)
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_vendor_profiles')
+    approved_at = models.DateTimeField(null=True, blank=True)
     
     # Subscription tier for priority sorting
     subscription_tier = models.CharField(max_length=20, choices=SUBSCRIPTION_TIERS, default='free')
+    subscription_active = models.BooleanField(default=False, db_index=True)
+    subscription_started_at = models.DateTimeField(null=True, blank=True)
+    subscription_expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
     subscription_expiry = models.DateTimeField(null=True, blank=True)
+    product_limit = models.IntegerField(default=1)
+    image_limit = models.IntegerField(default=3)
+    variant_limit = models.IntegerField(default=0)
+    can_upload_video = models.BooleanField(default=False)
+    can_upload_pdf = models.BooleanField(default=False)
+    can_upload_certificates = models.BooleanField(default=False)
+    can_access_rfq = models.BooleanField(default=False)
+    can_receive_direct_enquiries = models.BooleanField(default=False)
+    can_use_boosting = models.BooleanField(default=False)
+    can_show_on_homepage = models.BooleanField(default=False)
+    can_access_analytics = models.BooleanField(default=False)
+    can_access_advanced_analytics = models.BooleanField(default=False)
+    can_access_ads = models.BooleanField(default=False)
+    support_level = models.CharField(max_length=40, default='basic')
+    badge_level = models.CharField(max_length=80, default='Free Vendor')
     priority_score = models.IntegerField(default=0, help_text="Higher score = better placement")
     
     # Ratings and sales
@@ -75,9 +126,25 @@ class VendorProfile(BaseModel):
     is_top_rated = models.BooleanField(default=False)
     is_best_seller = models.BooleanField(default=False)
     is_trusted = models.BooleanField(default=False)
+    manufacturer_verified = models.BooleanField(default=False, db_index=True)
+    manufacturer_badge_label = models.CharField(max_length=80, blank=True, default='Verified Manufacturer')
+
+    # Manufacturer / factory profile
+    factory_name = models.CharField(max_length=220, blank=True)
+    factory_video_url = models.URLField(blank=True)
+    years_in_business = models.PositiveIntegerField(null=True, blank=True)
+    number_of_employees = models.PositiveIntegerField(null=True, blank=True)
+    production_capacity = models.CharField(max_length=220, blank=True)
+    quality_control_details = models.TextField(blank=True)
+    export_countries = models.TextField(blank=True, help_text="Comma-separated export countries or regions.")
+    main_product_categories = models.TextField(blank=True)
     
     class Meta:
         ordering = ['-priority_score', '-subscription_tier', '-rating_avg', '-total_sales']
+        indexes = [
+            models.Index(fields=['vendor_type', 'approval_status']),
+            models.Index(fields=['manufacturer_verified', '-priority_score']),
+        ]
     
     def __str__(self):
         return self.store_name
@@ -93,12 +160,12 @@ class VendorProfile(BaseModel):
     def get_subscription_display(self):
         """Get formatted subscription display"""
         displays = {
-            'free': {'color': 'gray', 'icon': 'fa-user', 'text': 'Free', 'badge_class': 'bg-gray-500'},
-            'basic': {'color': 'blue', 'icon': 'fa-chart-line', 'text': 'Basic', 'badge_class': 'bg-blue-500'},
-            'plus': {'color': 'cyan', 'icon': 'fa-layer-group', 'text': 'Plus', 'badge_class': 'bg-cyan-500'},
-            'pro': {'color': 'purple', 'icon': 'fa-gem', 'text': 'Pro', 'badge_class': 'bg-purple-500'},
-            'special': {'color': 'yellow', 'icon': 'fa-crown', 'text': 'Special', 'badge_class': 'bg-yellow-500'},
-            'enterprise': {'color': 'indigo', 'icon': 'fa-building', 'text': 'Enterprise', 'badge_class': 'bg-indigo-600'},
+            'free': {'color': 'gray', 'icon': 'fa-user', 'text': 'Free Vendor', 'badge_class': 'bg-gray-500'},
+            'basic': {'color': 'blue', 'icon': 'fa-chart-line', 'text': 'Basic Vendor', 'badge_class': 'bg-blue-500'},
+            'plus': {'color': 'cyan', 'icon': 'fa-layer-group', 'text': 'Plus Vendor', 'badge_class': 'bg-cyan-500'},
+            'pro': {'color': 'purple', 'icon': 'fa-gem', 'text': 'Pro Vendor', 'badge_class': 'bg-purple-500'},
+            'special': {'color': 'yellow', 'icon': 'fa-crown', 'text': 'Special Vendor', 'badge_class': 'bg-yellow-500'},
+            'enterprise': {'color': 'indigo', 'icon': 'fa-building', 'text': 'Enterprise Vendor', 'badge_class': 'bg-indigo-600'},
         }
         try:
             from subscriptions.models import normalize_subscription_tier
@@ -130,9 +197,14 @@ class VendorProfile(BaseModel):
             from subscriptions.models import user_has_paid_subscription
             return user_has_paid_subscription(self.user)
         except Exception:
-            if self.subscription_expiry:
-                return self.subscription_expiry > timezone.now() and self.subscription_tier != 'free'
+            expiry = self.subscription_expires_at or self.subscription_expiry
+            if expiry:
+                return expiry > timezone.now() and self.subscription_tier != 'free'
             return self.subscription_tier != 'free'
+
+    @property
+    def subscription_end_at(self):
+        return self.subscription_expires_at or self.subscription_expiry
 
     @property
     def kyc_status(self):
@@ -148,7 +220,42 @@ class VendorProfile(BaseModel):
             return 'Not Started'
 
     def has_verified_kyc(self):
-        return self.is_verified and self.kyc_status == 'verified'
+        return self.is_verified and self.kyc_status in ['approved', 'verified']
+
+    @property
+    def profile_completion_percent(self):
+        checks = [
+            bool(self.store_name),
+            bool(self.company_name),
+            bool(self.description),
+            bool(self.store_logo),
+            bool(self.store_banner),
+            bool(self.country),
+            bool(self.business_address),
+            bool(self.support_email or self.user.email),
+            bool(self.support_phone or self.pickup_phone),
+            bool(self.pickup_address),
+            self.has_verified_kyc(),
+            self.bank_accounts.exists(),
+            self.subscription_tier != 'free' or bool(self.subscription_active),
+        ]
+        return int((sum(1 for item in checks if item) / len(checks)) * 100)
+
+    @property
+    def can_upload_products(self):
+        return bool(
+            self.is_active
+            and self.approval_status == 'approved'
+            and (self.has_verified_kyc() or self.is_verified)
+        )
+
+    @property
+    def subscription_plan_label(self):
+        try:
+            from subscriptions.models import subscription_label
+            return subscription_label(self.subscription_tier)
+        except Exception:
+            return self.get_subscription_display()['text']
     
     def update_rating(self):
         """Update vendor rating based on product and storefront reviews."""
@@ -177,17 +284,188 @@ class VendorProfile(BaseModel):
         """Get all applicable badges for this vendor"""
         badges = []
         if self.is_verified:
-            badges.append({'text': 'Verified', 'color': 'green', 'icon': 'fa-check-circle'})
+            badges.append({'text': f'Verified {self.get_vendor_type_display()}', 'color': 'green', 'icon': 'fa-check-circle'})
         if self.is_top_rated:
             badges.append({'text': 'Top Rated', 'color': 'yellow', 'icon': 'fa-star'})
         if self.is_best_seller:
             badges.append({'text': 'Best Seller', 'color': 'orange', 'icon': 'fa-trophy'})
         if self.is_trusted:
             badges.append({'text': 'Trusted', 'color': 'blue', 'icon': 'fa-shield-alt'})
-        if self.has_active_subscription():
-            badge = self.get_subscription_display()
-            badges.append({'text': badge['text'], 'color': badge['color'], 'icon': badge['icon']})
+        if self.vendor_type == 'manufacturer' and self.manufacturer_verified:
+            badges.append({'text': self.manufacturer_badge_label or 'Verified Manufacturer', 'color': 'indigo', 'icon': 'fa-industry'})
+        badge = self.get_subscription_display()
+        badges.append({'text': self.badge_level or badge['text'], 'color': badge['color'], 'icon': badge['icon']})
         return badges
+
+
+class VendorFactoryPhoto(BaseModel):
+    vendor = models.ForeignKey(VendorProfile, on_delete=models.CASCADE, related_name='factory_photos')
+    image = models.ImageField(upload_to='vendors/factory/')
+    caption = models.CharField(max_length=180, blank=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['sort_order', '-created_at']
+
+    def __str__(self):
+        return f"{self.vendor.store_name} factory photo"
+
+
+class VendorBankAccount(BaseModel):
+    BANK_COUNTRY_CHOICES = [
+        ('nigeria', 'Nigeria'),
+        ('china', 'China'),
+        ('usa', 'USA'),
+        ('uk', 'UK'),
+        ('canada', 'Canada'),
+        ('other', 'Other'),
+    ]
+
+    vendor = models.ForeignKey(VendorProfile, on_delete=models.CASCADE, related_name='bank_accounts')
+    bank_name = models.CharField(max_length=180)
+    account_name = models.CharField(max_length=180)
+    account_number = models.CharField(max_length=80)
+    bank_country = models.CharField(max_length=30, choices=BANK_COUNTRY_CHOICES, default='nigeria')
+    swift_code = models.CharField(max_length=40, blank=True)
+    iban = models.CharField(max_length=80, blank=True)
+    routing_number = models.CharField(max_length=80, blank=True)
+    sort_code = models.CharField(max_length=80, blank=True)
+    bank_address = models.TextField(blank=True)
+    preferred_currency = models.CharField(max_length=10, default='NGN')
+    is_default = models.BooleanField(default=True, db_index=True)
+    is_verified = models.BooleanField(default=False, db_index=True)
+    verified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='verified_vendor_bank_accounts')
+    verified_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-is_default', '-created_at']
+        indexes = [
+            models.Index(fields=['vendor', 'is_default']),
+            models.Index(fields=['vendor', 'is_verified']),
+        ]
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.is_default:
+            VendorBankAccount.objects.filter(vendor=self.vendor, is_default=True).exclude(pk=self.pk).update(is_default=False)
+
+    def __str__(self):
+        return f"{self.vendor.store_name} - {self.bank_name}"
+
+
+class VendorWallet(BaseModel):
+    vendor = models.OneToOneField(VendorProfile, on_delete=models.CASCADE, related_name='wallet')
+    available_balance = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0.00'))
+    pending_balance = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0.00'))
+    withdrawable_balance = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0.00'))
+    total_earnings = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0.00'))
+    total_withdrawn = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0.00'))
+    currency = models.CharField(max_length=10, default='NGN')
+
+    def __str__(self):
+        return f"{self.vendor.store_name} wallet"
+
+
+class VendorTransaction(BaseModel):
+    TRANSACTION_TYPES = [
+        ('order_earning', 'Order Earning'),
+        ('commission_deduction', 'Commission Deduction'),
+        ('withdrawal_request', 'Withdrawal Request'),
+        ('withdrawal_approved', 'Withdrawal Approved'),
+        ('withdrawal_rejected', 'Withdrawal Rejected'),
+        ('refund', 'Refund'),
+        ('adjustment', 'Adjustment'),
+        ('subscription_payment', 'Subscription Payment'),
+    ]
+
+    vendor = models.ForeignKey(VendorProfile, on_delete=models.CASCADE, related_name='transactions')
+    wallet = models.ForeignKey(VendorWallet, on_delete=models.CASCADE, related_name='transactions')
+    transaction_type = models.CharField(max_length=40, choices=TRANSACTION_TYPES, db_index=True)
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    balance_after = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0.00'))
+    reference = models.CharField(max_length=120, blank=True, db_index=True)
+    description = models.TextField(blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['vendor', '-created_at']),
+            models.Index(fields=['transaction_type', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.vendor.store_name} {self.transaction_type} {self.amount}"
+
+
+class VendorWithdrawal(BaseModel):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('under_review', 'Under Review'),
+        ('approved', 'Approved'),
+        ('paid', 'Paid'),
+        ('rejected', 'Rejected'),
+        ('cancelled', 'Cancelled'),
+    ]
+
+    vendor = models.ForeignKey(VendorProfile, on_delete=models.CASCADE, related_name='withdrawals')
+    bank_account = models.ForeignKey(VendorBankAccount, on_delete=models.SET_NULL, null=True, blank=True, related_name='withdrawals')
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    currency = models.CharField(max_length=10, default='NGN')
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='pending', db_index=True)
+    admin_note = models.TextField(blank=True)
+    rejection_reason = models.TextField(blank=True)
+    requested_at = models.DateTimeField(default=timezone.now)
+    reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reviewed_vendor_withdrawals')
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-requested_at']
+        indexes = [
+            models.Index(fields=['vendor', 'status']),
+            models.Index(fields=['status', '-requested_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.vendor.store_name} withdrawal {self.amount} {self.status}"
+
+
+class VendorRFQ(BaseModel):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('quoted', 'Quoted'),
+        ('accepted', 'Accepted'),
+        ('rejected', 'Rejected'),
+        ('expired', 'Expired'),
+        ('closed', 'Closed'),
+    ]
+
+    vendor = models.ForeignKey(VendorProfile, on_delete=models.CASCADE, related_name='rfqs')
+    customer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='vendor_rfqs')
+    product = models.ForeignKey('products.Product', on_delete=models.SET_NULL, null=True, blank=True, related_name='rfqs')
+    quantity = models.PositiveIntegerField(default=1)
+    budget = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    country = models.CharField(max_length=100, blank=True)
+    delivery_location = models.TextField(blank=True)
+    message = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', db_index=True)
+    quote_price = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    quote_lead_time_days = models.PositiveIntegerField(null=True, blank=True)
+    vendor_note = models.TextField(blank=True)
+    quoted_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['vendor', 'status']),
+            models.Index(fields=['status', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f"RFQ #{self.id} - {self.vendor.store_name}"
 
 class VendorFollow(BaseModel):
     """Track users who follow vendors"""
@@ -237,12 +515,12 @@ class VendorReview(BaseModel):
 class VendorSubscriptionPlan(BaseModel):
     """Vendor subscription plans for premium features"""
     TIER_CHOICES = [
-        ('free', 'Free'),
-        ('basic', 'Basic'),
-        ('plus', 'Plus'),
-        ('pro', 'Pro'),
-        ('special', 'Special'),
-        ('enterprise', 'Enterprise'),
+        ('free', 'Free Vendor'),
+        ('basic', 'Basic Vendor'),
+        ('plus', 'Plus Vendor'),
+        ('pro', 'Pro Vendor'),
+        ('special', 'Special Vendor'),
+        ('enterprise', 'Enterprise Vendor'),
     ]
     
     tier = models.CharField(max_length=20, choices=TIER_CHOICES, unique=True)
@@ -340,3 +618,15 @@ class VendorSubscription(BaseModel):
         except Exception:
             tier = self.plan.tier
         return scores.get(tier, 0)
+
+
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+
+@receiver(post_save, sender=VendorProfile)
+def ensure_vendor_wallet(sender, instance, created=False, **kwargs):
+    try:
+        VendorWallet.objects.get_or_create(vendor=instance, defaults={'currency': 'NGN'})
+    except Exception:
+        return

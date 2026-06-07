@@ -60,7 +60,7 @@
     <div class="flex justify-between items-center">
         <div>
             <h3 class="font-bold text-lg">Subscription</h3>
-            <p class="text-sm text-gray-600">Current Plan: {{ vendor_profile.get_subscription_plan_display }}</p>
+            <p class="text-sm text-gray-600">Current Plan: {{ vendor_profile.subscription_plan_label }}</p>
         </div>
         <a href="{% url 'subscriptions:plans' %}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
             Upgrade Plan

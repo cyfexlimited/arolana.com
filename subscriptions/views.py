@@ -2,8 +2,10 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
-from .models import SubscriptionPlan, VendorSubscription, normalize_subscription_tier, get_tier_limits
+from .models import SubscriptionPlan, VendorSubscription, apply_vendor_subscription_benefits, normalize_subscription_tier, get_tier_limits
 from vendors.models import VendorProfile
+from arolana_payments.models import PaymentMethod, PaymentStatus, PaymentTransaction
+from arolana_payments.services import gateway_is_available, get_gateway_options
 
 @login_required
 def subscription_plans(request):
@@ -22,6 +24,8 @@ def subscription_plans(request):
     context = {
         'plans': plans,
         'current_subscription': current_subscription,
+        'subscription_benefits_image_url': '/static/images/arolana-vendor-subscription-benefits.png',
+        'payment_gateways': get_gateway_options(include_inactive=True),
     }
     return render(request, 'subscriptions/plans.html', context)
 
@@ -35,42 +39,36 @@ def subscribe(request, plan_id):
         messages.error(request, 'You need to become a vendor first.')
         return redirect('vendors:become')
     
-    # Replace any existing active subscription so vendors can upgrade/downgrade cleanly.
-    existing = VendorSubscription.objects.filter(
-        vendor=request.user,
-        is_active=True,
-        end_date__gt=timezone.now()
-    ).first()
-    
-    if existing:
-        existing.is_active = False
-        existing.auto_renew = False
-        existing.save(update_fields=['is_active', 'auto_renew', 'updated_at'])
-    
-    # Create subscription (30 days)
-    from django.utils import timezone
-    end_date = timezone.now() + timezone.timedelta(days=30)
-    
-    subscription = VendorSubscription.objects.create(
-        vendor=request.user,
-        plan=plan,
-        start_date=timezone.now(),
-        end_date=end_date,
-        is_active=True,
-        auto_renew=False
-    )
-    
-    # Update vendor profile
     vendor_profile = request.user.vendor_profile
-    tier = normalize_subscription_tier(plan.name)
-    limits = get_tier_limits(tier)
-    vendor_profile.subscription_tier = tier
-    vendor_profile.subscription_expiry = end_date
-    vendor_profile.priority_score = limits['priority_score']
-    vendor_profile.save()
-    
-    messages.success(request, f'Successfully subscribed to {plan.display_name}!')
-    return redirect('subscriptions:plans')
+
+    if plan.price_monthly <= 0:
+        from staff_mobile.views import _activate_free_vendor_plan
+
+        _activate_free_vendor_plan(vendor_profile, plan)
+        messages.success(request, f'Successfully activated {plan.vendor_label}.')
+        return redirect('subscriptions:plans')
+
+    gateway = (request.POST.get('payment_gateway') or request.GET.get('payment_gateway') or PaymentMethod.PAYSTACK).lower()
+    is_available, disabled_reason = gateway_is_available(gateway)
+    if not is_available:
+        messages.error(request, disabled_reason or 'Selected payment gateway is not available yet.')
+        return redirect('subscriptions:plans')
+
+    try:
+        from staff_mobile.views import _hosted_subscription_checkout_url, _subscription_receipt
+
+        payment = _subscription_receipt(vendor_profile, plan, gateway=gateway, status=PaymentStatus.PENDING)
+        checkout_url = _hosted_subscription_checkout_url(request, payment)
+    except Exception as error:
+        messages.error(request, f'Unable to start subscription checkout: {error}')
+        return redirect('subscriptions:plans')
+
+    if not checkout_url:
+        messages.error(request, 'Payment gateway did not return a checkout link. Please try another gateway.')
+        return redirect('subscriptions:plans')
+
+    messages.info(request, 'Payment initialized. Complete checkout, then verify your payment from the vendor dashboard or staff app.')
+    return redirect(checkout_url)
 
 @login_required
 def cancel_subscription(request, subscription_id):
@@ -83,9 +81,13 @@ def cancel_subscription(request, subscription_id):
     # Update vendor profile
     vendor_profile = request.user.vendor_profile
     vendor_profile.subscription_tier = 'free'
+    vendor_profile.subscription_active = False
+    vendor_profile.subscription_started_at = None
+    vendor_profile.subscription_expires_at = None
     vendor_profile.subscription_expiry = None
     vendor_profile.priority_score = 0
-    vendor_profile.save(update_fields=['subscription_tier', 'subscription_expiry', 'priority_score', 'updated_at'])
+    vendor_profile.save(update_fields=['subscription_tier', 'subscription_active', 'subscription_started_at', 'subscription_expires_at', 'subscription_expiry', 'priority_score', 'updated_at'])
+    apply_vendor_subscription_benefits(vendor_profile, 'free')
     
     messages.success(request, 'Your subscription has been cancelled.')
     return redirect('subscriptions:plans')
@@ -93,5 +95,28 @@ def cancel_subscription(request, subscription_id):
 @login_required
 def subscription_history(request):
     """View subscription history"""
-    subscriptions = VendorSubscription.objects.filter(vendor=request.user).order_by('-created_at')
-    return render(request, 'subscriptions/history.html', {'subscriptions': subscriptions})
+    if not hasattr(request.user, 'vendor_profile'):
+        messages.error(request, 'You need to become a vendor first.')
+        return redirect('vendors:become')
+
+    current_subscription = VendorSubscription.objects.filter(
+        vendor=request.user,
+        is_active=True,
+        end_date__gt=timezone.now()
+    ).select_related('plan').first()
+
+    invoices = PaymentTransaction.objects.filter(
+        user=request.user,
+        checkout_data__purpose='vendor_subscription',
+    ).order_by('-created_at')
+
+    subscriptions = VendorSubscription.objects.filter(
+        vendor=request.user
+    ).select_related('plan').order_by('-created_at')
+
+    return render(request, 'subscriptions/history.html', {
+        'vendor_profile': request.user.vendor_profile,
+        'current_subscription': current_subscription,
+        'invoices': invoices,
+        'subscriptions': subscriptions,
+    })

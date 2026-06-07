@@ -19,4 +19,3 @@ urlpatterns = [
     path('convert/', views.convert_amount, name='convert'),
     path('test-currency/', views.test_currency, name='test_currency'),
 ]
-

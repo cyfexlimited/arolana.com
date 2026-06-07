@@ -8,7 +8,15 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from django.contrib.sitemaps.views import sitemap
 
-from pages.views import page_by_slug, page_detail, help_center, faq_page, article_detail, careers_page, contact_page
+from pages.views import (
+    page_by_slug,
+    page_detail,
+    help_center,
+    faq_page,
+    article_detail,
+    careers_page,
+    contact_page,
+)
 from products import views as products_views
 from orders import views as orders_views
 import currency.views as currency_views
@@ -49,11 +57,15 @@ def sitemap_page(request):
         is_active=True
     )[:20]
 
-    return render(request, "pages/sitemap.html", {
-        "categories": categories,
-        "products": products,
-        "vendors": vendors,
-    })
+    return render(
+        request,
+        "pages/sitemap.html",
+        {
+            "categories": categories,
+            "products": products,
+            "vendors": vendors,
+        },
+    )
 
 
 sitemaps = {
@@ -76,17 +88,24 @@ def home_view(request):
 
     video_section = local_get_or_set(
         "homepage:video_section",
-        lambda: HomepageVideoSection.objects.filter(is_active=True).order_by("display_order").first(),
+        lambda: HomepageVideoSection.objects.filter(is_active=True)
+        .order_by("display_order")
+        .first(),
         300,
     )
 
-    return render(request, "base/home.html", {
-        "video_section": video_section,
-    })
+    return render(
+        request,
+        "base/home.html",
+        {
+            "video_section": video_section,
+        },
+    )
 
 
 def returns_redirect(request, path=None):
     from django.shortcuts import redirect
+
     return redirect("returns")
 
 
@@ -117,14 +136,30 @@ except ImportError:
 urlpatterns = [
     # Admin & Core
     path("admin/live-stats/", core_views.live_stats, name="live_stats"),
-    path("admin/logo-check/", TemplateView.as_view(template_name="admin/logo_check.html"), name="logo_check"),
+    path(
+        "admin/logo-check/",
+        TemplateView.as_view(template_name="admin/logo_check.html"),
+        name="logo_check",
+    ),
     path("admin/upload-logo/", core_admin_views.upload_logo, name="upload_logo"),
-    path("admin/avatar-upload/<int:user_id>/", core_admin_views.upload_user_avatar, name="avatar_upload"),
-    path("admin/avatar-delete/<int:user_id>/", core_admin_views.delete_user_avatar, name="avatar_delete"),
+    path(
+        "admin/avatar-upload/<int:user_id>/",
+        core_admin_views.upload_user_avatar,
+        name="avatar_upload",
+    ),
+    path(
+        "admin/avatar-delete/<int:user_id>/",
+        core_admin_views.delete_user_avatar,
+        name="avatar_delete",
+    ),
     path("admin/", admin.site.urls),
+
+    # Products API
+    path("api/", include("products.urls")),
 
     # Health check for Railway
     path("health/", health_check, name="health"),
+
     path(
         "manifest.webmanifest",
         TemplateView.as_view(
@@ -173,7 +208,6 @@ urlpatterns = [
     path("deliveries/", include("deliveries.urls")),
     path("order-robot/", include("order_robot.urls")),
     path("dashboard/", include("dashboard.urls")),
-    path("search/", include("search_ai.urls")),
     path("hero-banners/", include("hero_banners.urls")),
     path("ads/", include("ads.urls")),
     path("pages/", include("pages.urls")),
@@ -182,27 +216,45 @@ urlpatterns = [
     path("chat/", include("chat.urls")),
     path("blog/", include("blog.urls")),
     path("currency/", include("currency.urls")),
+    path("api/currency/rates/", currency_views.api_currency_rates, name="api_currency_rates"),
+    path("api/currency/convert/", currency_views.api_convert_amount, name="api_currency_convert"),
     path("subscriptions/", include("subscriptions.urls")),
     path("videos/", include("videos.urls")),
     path("reports/", include("reports.urls")),
     path("notifications/", include("notifications.urls")),
     path("payments/", include("arolana_payments.urls")),
     path("landing/", include("landing_pages.urls")),
-    path("landing-preview/<slug:slug>/", landing_page_views.landing_page_preview, name="landing_page_preview"),
+    path(
+        "landing-preview/<slug:slug>/",
+        landing_page_views.landing_page_preview,
+        name="landing_page_preview",
+    ),
 
     # Smart AI Chat
     path("smartchat/", include(("smartchat.urls", "smartchat"), namespace="smartchat")),
     path("support/ai/", include("smartchat.compat_urls")),
 
     # Social Apps Status
-    path("social-apps-status/", accounts_views.social_apps_status, name="social_apps_status"),
+    path(
+        "social-apps-status/",
+        accounts_views.social_apps_status,
+        name="social_apps_status",
+    ),
 
     # CKEditor 5
     *CKEDITOR_URLS,
 
     # Support Pages
-    path("shipping/", TemplateView.as_view(template_name="support/shipping.html"), name="shipping"),
-    path("youtube-embed-test/", TemplateView.as_view(template_name="youtube_embed_test.html"), name="youtube_embed_test"),
+    path(
+        "shipping/",
+        TemplateView.as_view(template_name="support/shipping.html"),
+        name="shipping",
+    ),
+    path(
+        "youtube-embed-test/",
+        TemplateView.as_view(template_name="youtube_embed_test.html"),
+        name="youtube_embed_test",
+    ),
     path("support/", contact_page, name="support"),
     path("contact/", contact_page, name="contact"),
     path("about/", page_by_slug, {"slug": "about"}, name="about"),
@@ -211,11 +263,74 @@ urlpatterns = [
     path("returns/", page_by_slug, {"slug": "returns"}, name="returns"),
     path("faq/", faq_page, name="faq"),
     re_path(r"^returns/.*$", returns_redirect, name="returns_catchall"),
+
+    # Order tracking page
     path("orders/track/", orders_views.track_order, name="track_order"),
 
+    # Mobile Orders API - keep these BEFORE search_ai root include
+    path(
+        "api/mobile/orders/create/",
+        orders_views.mobile_authenticated_order_create_api,
+        name="mobile_authenticated_order_create_api",
+    ),
+    path(
+        "api/mobile/orders/history/",
+        orders_views.mobile_authenticated_orders_history_api,
+        name="mobile_authenticated_orders_history_api",
+    ),
+    path(
+        "api/mobile/orders/receipt/",
+        orders_views.mobile_authenticated_order_receipt_pdf_api,
+        name="mobile_authenticated_order_receipt_pdf_api",
+    ),
+    path(
+        "api/mobile/orders/cancel/",
+        orders_views.mobile_authenticated_order_cancel_api,
+        name="mobile_authenticated_order_cancel_api",
+    ),
+
+    # Mobile Notifications API
+    path(
+        "api/mobile/notifications/",
+        orders_views.mobile_notifications_api,
+        name="mobile_notifications_api",
+    ),
+    path(
+        "api/mobile/push-token/register/",
+        orders_views.mobile_register_push_token_api,
+        name="mobile_register_push_token_api",
+    ),
+    path(
+        "api/mobile/notifications/mark-read/",
+        orders_views.mobile_notifications_mark_read_api,
+        name="mobile_notifications_mark_read_api",
+    ),
+    path(
+        "api/mobile/notifications/delete/",
+        orders_views.mobile_notifications_delete_api,
+        name="mobile_notifications_delete_api",
+    ),
+
+    # Mobile Customers API
+    path("", include("mobile_customers.urls")),
+    path("", include("arolana_ops.urls")),
+    path("", include("staff_mobile.urls")),
+
+    # Search routes - keep AFTER mobile API routes
+    path("search/", include("search_ai.urls")),
+    path("", include("search_ai.urls")),
+
     # Help & Debug
-    path("color-test/", TemplateView.as_view(template_name="products/color_test.html"), name="color_test"),
-    path("debug-colors/<int:product_id>/", products_views.debug_colors, name="debug_colors"),
+    path(
+        "color-test/",
+        TemplateView.as_view(template_name="products/color_test.html"),
+        name="color_test",
+    ),
+    path(
+        "debug-colors/<int:product_id>/",
+        products_views.debug_colors,
+        name="debug_colors",
+    ),
     path("debug/", include("core.urls")),
     path("careers/", careers_page, name="careers"),
     path("help/", help_center, name="help_center"),
@@ -224,9 +339,23 @@ urlpatterns = [
     path("currency/diagnose/", currency_views.diagnose_currency, name="diagnose_currency"),
 
     # Test Pages
-    path("ads-test/", TemplateView.as_view(template_name="ads/test.html"), name="ads_test"),
-    path("image-test/", TemplateView.as_view(template_name="ads/direct_test.html"), name="image_test"),
-    path("social-test/", TemplateView.as_view(template_name="socialaccount/test.html"), name="social_test"),
+    path(
+        "ads-test/",
+        TemplateView.as_view(template_name="ads/test.html"),
+        name="ads_test",
+    ),
+    path(
+        "image-test/",
+        TemplateView.as_view(template_name="ads/direct_test.html"),
+        name="image_test",
+    ),
+    path(
+        "social-test/",
+        TemplateView.as_view(template_name="socialaccount/test.html"),
+        name="social_test",
+    ),
+
+    # Landing clean detail must stay near bottom because it catches slugs
     path("<slug:slug>/", landing_page_views.landing_page_detail, name="landing_page_clean_detail"),
 ]
 

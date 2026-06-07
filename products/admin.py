@@ -9,7 +9,8 @@ from .models import (
     ProductVariantImage, ProductReview, RecentlyViewed, 
     Wishlist, ProductVideo, ReviewVideo, ProductQnA,
     Accessory, AccessoryProduct, ManufacturerWarranty, ShippingInfo, ProductListingBanner,
-    ProductArticleLink
+    ProductArticleLink, ProductWholesaleTier, ProductDetailSection,
+    ProductDetailFieldConfig, ProductVariantTypeConfig
 )
 
 from django.utils.timezone import now
@@ -175,6 +176,30 @@ class ProductVariantImageInline(admin.TabularInline):
     image_preview.short_description = 'Preview'
 
 
+@admin.register(ProductDetailSection)
+class ProductDetailSectionAdmin(admin.ModelAdmin):
+    list_display = ['title', 'key', 'display_order', 'is_enabled', 'web_enabled', 'mobile_enabled']
+    list_editable = ['display_order', 'is_enabled', 'web_enabled', 'mobile_enabled']
+    list_filter = ['is_enabled', 'web_enabled', 'mobile_enabled']
+    search_fields = ['title', 'key']
+
+
+@admin.register(ProductDetailFieldConfig)
+class ProductDetailFieldConfigAdmin(admin.ModelAdmin):
+    list_display = ['label', 'key', 'display_order', 'is_enabled', 'is_required']
+    list_editable = ['display_order', 'is_enabled', 'is_required']
+    list_filter = ['is_enabled', 'is_required']
+    search_fields = ['label', 'key', 'help_text']
+
+
+@admin.register(ProductVariantTypeConfig)
+class ProductVariantTypeConfigAdmin(admin.ModelAdmin):
+    list_display = ['label', 'key', 'display_order', 'is_active']
+    list_editable = ['display_order', 'is_active']
+    list_filter = ['is_active']
+    search_fields = ['label', 'key']
+
+
 class ProductVideoInline(admin.TabularInline):
     model = ProductVideo
     extra = 1
@@ -186,6 +211,12 @@ class ProductArticleLinkInline(admin.TabularInline):
     extra = 1
     fields = ['article', 'label', 'placement', 'open_behavior', 'sort_order', 'is_active']
     autocomplete_fields = ['article']
+
+
+class ProductWholesaleTierInline(admin.TabularInline):
+    model = ProductWholesaleTier
+    extra = 1
+    fields = ['min_quantity', 'max_quantity', 'price_per_unit', 'sort_order', 'is_active']
 
 
 class AccessoryInline(admin.TabularInline):
@@ -228,7 +259,7 @@ class ProductAdmin(admin.ModelAdmin):
     search_fields = ['sku', 'manufacturer_sku', 'name', 'description']
     prepopulated_fields = {'slug': ['name']}
     readonly_fields = ['views_count', 'sales_count', 'rating_avg', 'rating_count', 'created_at', 'updated_at', 'sku', 'submitted_for_review_at', 'approved_at']
-    inlines = [ProductImageInline, ProductVariantInline, ProductVideoInline, ProductArticleLinkInline, AccessoryInline, ManufacturerWarrantyInline, ShippingInfoInline]
+    inlines = [ProductImageInline, ProductVariantInline, ProductWholesaleTierInline, ProductVideoInline, ProductArticleLinkInline, AccessoryInline, ManufacturerWarrantyInline, ShippingInfoInline]
     autocomplete_fields = ['vendor', 'category', 'brand']
     list_select_related = ['category', 'brand', 'vendor']
     list_per_page = 30
@@ -242,11 +273,15 @@ class ProductAdmin(admin.ModelAdmin):
             'description': 'Use the rich text editor to add formatted content'
         }),
         ('Pricing', {
-            'fields': ('price', 'compare_price', 'cost_per_item')
+            'fields': ('price', 'compare_price', 'cost_per_item', 'wholesale_price', 'bulk_price')
         }),
         ('Inventory', {
-            'fields': ('stock_quantity', 'reserved_quantity', 'low_stock_threshold', 'is_in_stock', 'allow_backorder'),
+            'fields': ('stock_quantity', 'reserved_quantity', 'low_stock_threshold', 'is_in_stock', 'allow_backorder', 'minimum_order_quantity', 'moq_unit', 'sample_available', 'sample_price'),
             'description': 'Manage product stock, reserved quantities, low-stock alerts, and backorder behavior from one place.'
+        }),
+        ('Manufacturer & Bulk Trade', {
+            'fields': ('lead_time_days', 'country_of_origin', 'manufacturer_address', 'certifications'),
+            'classes': ('collapse',)
         }),
         ('Physical Attributes', {
             'fields': ('weight', 'weight_unit', 'dimensions_length', 'dimensions_width', 'dimensions_height', 'dimension_unit'),

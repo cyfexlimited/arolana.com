@@ -12,6 +12,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-arolana-super-secret-key')
 DEBUG = config('DEBUG', default=False, cast=bool)
 
+
 def csv_config(name, default=''):
     return [
         item.strip().strip('"').strip("'")
@@ -19,12 +20,49 @@ def csv_config(name, default=''):
         if item.strip()
     ]
 
+
 ALLOWED_HOSTS = csv_config(
     'ALLOWED_HOSTS',
-    default='arolana.com,www.arolana.com,localhost,127.0.0.1'
+    default=(
+        'arolana.com,'
+        'www.arolana.com,'
+        'localhost,'
+        '127.0.0.1,'
+        '0.0.0.0,'
+        '192.168.1.3,'
+        '192.168.1.5'
+    )
 )
+
+
+REQUIRED_ALLOWED_HOSTS = [
+    'arolana.com',
+    'www.arolana.com',
+    'localhost',
+    '127.0.0.1',
+    '0.0.0.0',
+    '192.168.1.3',
+    '192.168.1.5',
+    'agile-wonder-production-dfa7.up.railway.app',
+    '.railway.app',
+    '.up.railway.app',
+    'healthcheck.railway.app',
+]
+
+
+RAILWAY_PUBLIC_DOMAIN = config('RAILWAY_PUBLIC_DOMAIN', default='')
+if RAILWAY_PUBLIC_DOMAIN:
+    REQUIRED_ALLOWED_HOSTS.append(RAILWAY_PUBLIC_DOMAIN)
+
+
+for host in REQUIRED_ALLOWED_HOSTS:
+    if host and host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(host)
+
+
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 AROLANA_AI_MODEL = os.environ.get("AROLANA_AI_MODEL", "gpt-5.5")
+
 
 # ============ WEB PUSH / PWA NOTIFICATIONS ============
 WEB_PUSH_ENABLED = config('WEB_PUSH_ENABLED', default=True, cast=bool)
@@ -33,24 +71,6 @@ WEB_PUSH_VAPID_PRIVATE_KEY = config('WEB_PUSH_VAPID_PRIVATE_KEY', default='')
 WEB_PUSH_VAPID_SUBJECT = config('WEB_PUSH_VAPID_SUBJECT', default='mailto:contact@arolana.com')
 WEB_PUSH_TTL = config('WEB_PUSH_TTL', default=86400, cast=int)
 
-REQUIRED_ALLOWED_HOSTS = [
-    'arolana.com',
-    'www.arolana.com',
-    'localhost',
-    '127.0.0.1',
-    'agile-wonder-production-dfa7.up.railway.app',
-    '.railway.app',
-    '.up.railway.app',
-    'healthcheck.railway.app',
-]
-
-RAILWAY_PUBLIC_DOMAIN = config('RAILWAY_PUBLIC_DOMAIN', default='')
-if RAILWAY_PUBLIC_DOMAIN:
-    REQUIRED_ALLOWED_HOSTS.append(RAILWAY_PUBLIC_DOMAIN)
-
-for host in REQUIRED_ALLOWED_HOSTS:
-    if host and host not in ALLOWED_HOSTS:
-        ALLOWED_HOSTS.append(host)
 
 CSRF_TRUSTED_ORIGINS = [
     'https://arolana.com',
@@ -58,8 +78,15 @@ CSRF_TRUSTED_ORIGINS = [
     'https://agile-wonder-production-dfa7.up.railway.app',
     'https://*.railway.app',
     'https://*.up.railway.app',
+
+    # Local Django
     'http://localhost:8000',
     'http://127.0.0.1:8000',
+    'http://0.0.0.0:8000',
+
+    # Local network Django
+    'http://192.168.1.3:8000',
+    'http://192.168.1.5:8000',
 ]
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -152,6 +179,10 @@ INSTALLED_APPS = [
     'smartchat',
     'arolana_seo',
     'arolana_payments',
+    'mobile_customers.apps.MobileCustomersConfig',
+    'arolana_ops.apps.ArolanaOpsConfig',
+    'staff_mobile.apps.StaffMobileConfig',
+
 ]
 AROLANA_BASE_CURRENCY = "NGN"
 AROLANA_DEFAULT_CURRENCY = "NGN"
@@ -163,6 +194,7 @@ GOOGLE_MERCHANT_FEED_LABEL = "NG"
 # ============ MIDDLEWARE ============
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'django.middleware.gzip.GZipMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -189,10 +221,11 @@ if DATABASE_URL:
     DATABASES = {
         'default': dj_database_url.config(
             default=DATABASE_URL,
-            conn_max_age=config('DATABASE_CONN_MAX_AGE', default=0, cast=int),
+            conn_max_age=config('DATABASE_CONN_MAX_AGE', default=60, cast=int),
             ssl_require=not DEBUG,
         )
     }
+    DATABASES['default']['CONN_HEALTH_CHECKS'] = True
 else:
     DATABASES = {
         'default': {
@@ -221,6 +254,20 @@ TEMPLATES = [
         },
     },
 ]
+
+if not DEBUG:
+    # Compile templates once per process in production instead of repeatedly
+    # walking the filesystem on high-traffic storefront requests.
+    TEMPLATES[0]['APP_DIRS'] = False
+    TEMPLATES[0]['OPTIONS']['loaders'] = [
+        (
+            'django.template.loaders.cached.Loader',
+            [
+                'django.template.loaders.filesystem.Loader',
+                'django.template.loaders.app_directories.Loader',
+            ],
+        ),
+    ]
 
 # ============ AUTHENTICATION ============
 AUTH_USER_MODEL = 'accounts.User'
@@ -654,10 +701,14 @@ PAYSTACK_SECRET_KEY = config("PAYSTACK_SECRET_KEY", default="")
 # PayPal
 PAYPAL_CLIENT_ID = config("PAYPAL_CLIENT_ID", default="")
 PAYPAL_CLIENT_SECRET = config("PAYPAL_CLIENT_SECRET", default="")
+PAYPAL_WEBHOOK_ID = config("PAYPAL_WEBHOOK_ID", default="")
 PAYPAL_BASE_URL = config(
     "PAYPAL_BASE_URL",
     default="https://api-m.sandbox.paypal.com"
 )
+PAYPAL_BRAND_NAME = config("PAYPAL_BRAND_NAME", default="Arolana Marketplace")
+PAYPAL_SETTLEMENT_CURRENCY = config("PAYPAL_SETTLEMENT_CURRENCY", default="USD")
+PAYPAL_NGN_PER_USD = config("PAYPAL_NGN_PER_USD", default="1500")
 
 # Coinbase Commerce
 COINBASE_COMMERCE_API_KEY = config("COINBASE_COMMERCE_API_KEY", default="")
@@ -863,11 +914,41 @@ CORS_ALLOWED_ORIGINS = [
     'https://arolana.com',
     'https://www.arolana.com',
     'https://agile-wonder-production-dfa7.up.railway.app',
+
+    # Local Django
     'http://localhost:8000',
     'http://127.0.0.1:8000',
+    'http://0.0.0.0:8000',
+
+    # Expo local
+    'http://localhost:8081',
+    'http://localhost:8082',
+    'http://localhost:8083',
+    'http://127.0.0.1:8081',
+    'http://127.0.0.1:8082',
+    'http://127.0.0.1:8083',
+
+    # Old Mac IP
+    'http://192.168.1.3:8000',
+    'http://192.168.1.3:8081',
+    'http://192.168.1.3:8082',
+    'http://192.168.1.3:8083',
+
+    # Current Mac IP
+    'http://192.168.1.5:8000',
+    'http://192.168.1.5:8081',
+    'http://192.168.1.5:8082',
+    'http://192.168.1.5:8083',
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^http://192\.168\.1\.\d+:8000$",
+    r"^http://192\.168\.1\.\d+:808\d$",
+    r"^http://localhost:808\d$",
+    r"^http://127\.0\.0\.1:808\d$",
+]
 
 # ============ SILENCE WARNINGS ============
 warnings.filterwarnings('ignore', category=DeprecationWarning, module='allauth')

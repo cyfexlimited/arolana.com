@@ -5,7 +5,7 @@ from homepage.models import (
     HomepageCategory, HomepageBanner, HomepageSection, 
     HomepageVendorSettings, HomepageNewsletterSettings, 
     HomepageManufacturerSettings, HomepageManufacturerCategory,
-    HomepageVideoSection
+    HomepageVideoSection, HomepageVendorSection
 )
 from vendors.models import VendorProfile
 from products.models import Product
@@ -160,6 +160,75 @@ def vendor_carousel(context):
         'settings': settings,
         'request': request
     }
+
+
+@register.inclusion_tag('homepage/vendor_sections.html', takes_context=True)
+def homepage_vendor_sections(context):
+    request = context.get('request')
+
+    def build_sections():
+        sections = list(HomepageVendorSection.objects.filter(is_active=True).order_by('sort_order', 'title'))
+        if not sections and not HomepageVendorSection.objects.exists():
+            sections = [
+                HomepageVendorSection(
+                    title='Verified Vendors',
+                    description='Trusted Arolana sellers across all vendor types.',
+                    section_type='verified_vendors',
+                    verified_only=True,
+                    max_items=12,
+                    empty_state_text='No verified vendors yet.',
+                    view_all_url='/vendors/?section=verified_vendors',
+                ),
+                HomepageVendorSection(
+                    title='Factory Direct Manufacturers',
+                    description='Verified factory-direct suppliers and manufacturers.',
+                    section_type='factory_direct_manufacturers',
+                    verified_only=True,
+                    manufacturer_only=True,
+                    max_items=12,
+                    empty_state_text='No verified manufacturers yet.',
+                    view_all_url='/vendors/?section=factory_direct_manufacturers',
+                ),
+                HomepageVendorSection(
+                    title='Top Retailers',
+                    description='Retail-ready sellers with verified Arolana stores.',
+                    section_type='top_retailers',
+                    vendor_type_filter='retailer',
+                    verified_only=True,
+                    max_items=12,
+                    empty_state_text='No verified retailers yet.',
+                    view_all_url='/vendors/?section=top_retailers',
+                ),
+                HomepageVendorSection(
+                    title='Distributors & Wholesalers',
+                    description='Bulk supply partners for trade buyers.',
+                    section_type='distributors_wholesalers',
+                    vendor_type_filter='distributor_wholesaler',
+                    verified_only=True,
+                    max_items=12,
+                    empty_state_text='No distributors or wholesalers yet.',
+                    view_all_url='/vendors/?section=distributors_wholesalers',
+                ),
+                HomepageVendorSection(
+                    title='Service Providers',
+                    description='Verified service providers for business support.',
+                    section_type='service_providers',
+                    vendor_type_filter='service_provider',
+                    verified_only=True,
+                    max_items=12,
+                    empty_state_text='No service providers yet.',
+                    view_all_url='/vendors/?section=service_providers',
+                ),
+            ]
+        visible_sections = []
+        for section in sections:
+            section.vendors = list(section.get_vendor_queryset())
+            if section.vendors or section.show_when_empty:
+                visible_sections.append(section)
+        return visible_sections
+
+    sections = local_get_or_set('homepage:vendor_sections:v3', build_sections, HOMEPAGE_CACHE_TIMEOUT)
+    return {'sections': sections, 'request': request}
 
 @register.inclusion_tag('homepage/newsletter.html', takes_context=True)
 def newsletter_section(context):
