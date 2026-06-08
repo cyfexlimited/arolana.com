@@ -68,3 +68,5 @@ claim.json
 secrets/
 local-data.json
 .env*
+venv311/
+venv/
