@@ -1,0 +1,9 @@
+{% load i18n %}{% autoescape off %}
+Hello from Arolana!
+
+{% block content %}{% endblock %}
+
+Thank you,
+The Arolana Team
+https://www.arolana.com
+{% endautoescape %}
