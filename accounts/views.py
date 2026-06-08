@@ -513,44 +513,105 @@ def change_password(request):
 
 # ==================== ADDRESS MANAGEMENT ====================
 
+ALLOWED_ADDRESS_COUNTRIES = {
+    'NG', 'US', 'GB', 'CA', 'AU', 'DE', 'FR', 'JP', 'IN', 'BR', 'ZA', 'CN',
+}
+
+COUNTRY_NAME_TO_CODE = {
+    'nigeria': 'NG',
+    'united states': 'US',
+    'usa': 'US',
+    'us': 'US',
+    'united kingdom': 'GB',
+    'uk': 'GB',
+    'great britain': 'GB',
+    'canada': 'CA',
+    'australia': 'AU',
+    'germany': 'DE',
+    'france': 'FR',
+    'japan': 'JP',
+    'india': 'IN',
+    'brazil': 'BR',
+    'south africa': 'ZA',
+    'china': 'CN',
+}
+
+
+def normalize_country_code(value, default='NG'):
+    """Return a safe 2-letter country code for django-countries CountryField."""
+    raw = (value or default or 'NG').strip()
+    if not raw:
+        return default
+
+    lower = raw.lower()
+    if lower in COUNTRY_NAME_TO_CODE:
+        return COUNTRY_NAME_TO_CODE[lower]
+
+    code = raw.upper()
+    if len(code) == 2 and code.isalpha():
+        return code if code in ALLOWED_ADDRESS_COUNTRIES else code
+
+    # Never allow long values like "Nigeria" into CountryField(max_length=2).
+    return default
+
+
+def clean_address_post_data(request):
+    """Normalize address POST data so add/edit address cannot crash on country length."""
+    country = normalize_country_code(request.POST.get('country'), default='NG')
+    address_type = request.POST.get('address_type', 'home') or 'home'
+    if address_type not in {'home', 'work', 'other'}:
+        address_type = 'home'
+
+    return {
+        'address_line1': request.POST.get('address_line1', '').strip(),
+        'address_line2': request.POST.get('address_line2', '').strip(),
+        'city': request.POST.get('city', '').strip(),
+        'state': request.POST.get('state', '').strip(),
+        'postal_code': request.POST.get('postal_code', '').strip() or '',
+        'country': country,
+        'address_type': address_type,
+        'phone_number': request.POST.get('phone_number', '').strip() or None,
+        'is_default': request.POST.get('is_default') == 'on',
+        'is_shipping': True,
+        'is_billing': request.POST.get('is_billing') == 'on',
+    }
+
+
+def validate_address_payload(data):
+    required = {
+        'address_line1': 'Address line 1 is required.',
+        'city': 'City is required.',
+        'state': 'State/Province is required.',
+        'country': 'Country is required.',
+    }
+    errors = []
+    for key, message in required.items():
+        if not data.get(key):
+            errors.append(message)
+    return errors
+
+
 @login_required
 def addresses_view(request):
-    """Display all user addresses"""
-    addresses = Address.objects.filter(user=request.user, is_active=True)
+    """Display all active user addresses."""
+    addresses = Address.objects.filter(user=request.user, is_active=True).order_by('-is_default', '-created_at')
     return render(request, 'accounts/addresses.html', {'addresses': addresses})
+
 
 @login_required
 def add_address(request):
-    """Add a new address"""
+    """Add a new address."""
     if request.method == 'POST':
-    try:
-        country_raw = (request.POST.get('country') or 'NG').strip()
+        data = clean_address_post_data(request)
+        errors = validate_address_payload(data)
 
-        country_map = {
-            'nigeria': 'NG',
-            'united states': 'US',
-            'usa': 'US',
-            'united kingdom': 'GB',
-            'uk': 'GB',
-            'china': 'CN',
-        }
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+            return render(request, 'accounts/add_address.html', {'form_data': request.POST})
 
-        country = country_map.get(country_raw.lower(), country_raw.upper()[:2])
-
-        address = Address.objects.create(
-            user=request.user,
-            address_line1=request.POST.get('address_line1', '').strip(),
-            address_line2=request.POST.get('address_line2', '').strip(),
-            city=request.POST.get('city', '').strip(),
-            state=request.POST.get('state', '').strip(),
-            postal_code=request.POST.get('postal_code', '').strip() or '',
-            country=country,
-            address_type=request.POST.get('address_type', 'home') or 'home',
-            phone_number=request.POST.get('phone_number', '').strip() or None,
-            is_default=request.POST.get('is_default') == 'on',
-            is_shipping=True,
-            is_billing=request.POST.get('is_billing') == 'on'
-        )
+        try:
+            address = Address.objects.create(user=request.user, **data)
 
             create_notification(
                 request.user,
@@ -559,65 +620,94 @@ def add_address(request):
                 'A new address has been added to your account.',
                 '/accounts/addresses/'
             )
+            log_user_activity(
+                request.user,
+                'address_added',
+                request,
+                {'address_id': address.id, 'country': str(address.country)}
+            )
 
             messages.success(request, 'Address added successfully!')
             return redirect('accounts:addresses')
 
         except Exception as e:
+            logger.exception('Address could not be saved for user %s', request.user.id)
             messages.error(request, f'Address could not be saved: {e}')
-            return render(request, 'accounts/add_address.html', {
-                'form_data': request.POST
-            })
+            return render(request, 'accounts/add_address.html', {'form_data': request.POST})
 
     return render(request, 'accounts/add_address.html')
 
+
 @login_required
 def edit_address(request, pk):
-    """Edit an existing address"""
+    """Edit an existing address."""
     address = get_object_or_404(Address, id=pk, user=request.user)
-    
+
     if request.method == 'POST':
-        address.address_line1 = request.POST.get('address_line1', '').strip()
-        address.address_line2 = request.POST.get('address_line2', '').strip()
-        address.city = request.POST.get('city', '').strip()
-        address.state = request.POST.get('state', '').strip()
-        address.postal_code = request.POST.get('postal_code', '').strip()
-        address.country = request.POST.get('country', 'US')
-        address.is_default = request.POST.get('is_default') == 'on'
-        address.is_billing = request.POST.get('is_billing') == 'on'
-        address.save()
-        
-        messages.success(request, 'Address updated successfully!')
-        return redirect('accounts:addresses')
-    
+        data = clean_address_post_data(request)
+        errors = validate_address_payload(data)
+
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+            return render(request, 'accounts/edit_address.html', {
+                'address': address,
+                'form_data': request.POST,
+            })
+
+        try:
+            for key, value in data.items():
+                setattr(address, key, value)
+            address.save()
+
+            log_user_activity(
+                request.user,
+                'address_updated',
+                request,
+                {'address_id': address.id, 'country': str(address.country)}
+            )
+            messages.success(request, 'Address updated successfully!')
+            return redirect('accounts:addresses')
+
+        except Exception as e:
+            logger.exception('Address could not be updated for user %s', request.user.id)
+            messages.error(request, f'Address could not be updated: {e}')
+            return render(request, 'accounts/edit_address.html', {
+                'address': address,
+                'form_data': request.POST,
+            })
+
     return render(request, 'accounts/edit_address.html', {'address': address})
+
 
 @login_required
 def delete_address(request, pk):
-    """Delete an address"""
+    """Delete an address."""
     address = get_object_or_404(Address, id=pk, user=request.user)
-    
+
     was_default = address.is_default
     address.delete()
-    
+
     if was_default:
         first_address = Address.objects.filter(user=request.user).first()
         if first_address:
             first_address.is_default = True
             first_address.save()
-    
+
+    log_user_activity(request.user, 'address_deleted', request, {'address_id': pk})
     messages.success(request, 'Address deleted successfully!')
     return redirect('accounts:addresses')
 
+
 @login_required
 def set_default_address(request, pk):
-    """Set an address as default"""
+    """Set an address as default."""
     address = get_object_or_404(Address, id=pk, user=request.user)
-    
+
     Address.objects.filter(user=request.user).update(is_default=False)
     address.is_default = True
     address.save()
-    
+
     messages.success(request, 'Default address updated successfully!')
     return redirect('accounts:addresses')
 
