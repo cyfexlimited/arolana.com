@@ -89,18 +89,17 @@
                         <select name="country" id="country" required 
                                 class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none">
                             <option value="">Select Country</option>
-                            <option value="USA">🇺🇸 United States</option>
-                            <option value="UK">🇬🇧 United Kingdom</option>
-                            <option value="Canada">🇨🇦 Canada</option>
-                            <option value="Australia">🇦🇺 Australia</option>
-                            <option value="Germany">🇩🇪 Germany</option>
-                            <option value="France">🇫🇷 France</option>
-                            <option value="Japan">🇯🇵 Japan</option>
-                            <option value="Nigeria">🇳🇬 Nigeria</option>
-                            <option value="India">🇮🇳 India</option>
-                            <option value="Brazil">🇧🇷 Brazil</option>
-                            <option value="South Africa">🇿🇦 South Africa</option>
-                            <option value="Other">🌍 Other</option>
+                            <option value="NG" selected>🇳🇬 Nigeria</option>
+                            <option value="US">🇺🇸 United States</option>
+                            <option value="GB">🇬🇧 United Kingdom</option>
+                            <option value="CA">🇨🇦 Canada</option>
+                            <option value="AU">🇦🇺 Australia</option>
+                            <option value="DE">🇩🇪 Germany</option>
+                            <option value="FR">🇫🇷 France</option>
+                            <option value="JP">🇯🇵 Japan</option>
+                            <option value="IN">🇮🇳 India</option>
+                            <option value="BR">🇧🇷 Brazil</option>
+                            <option value="ZA">🇿🇦 South Africa</option>
                         </select>
                         <i class="fas fa-chevron-down absolute right-3 top-3 text-gray-400 pointer-events-none"></i>
                     </div>
@@ -171,7 +170,7 @@
         <div class="flex items-start gap-3">
             <i class="fas fa-lightbulb text-blue-600 mt-1"></i>
             <div class="text-sm text-blue-800">
-                <p class="font-semibold">💡 Tips for accurate delivery:</p>
+                <p class="font-semibold">Tips for accurate delivery:</p>
                 <ul class="list-disc list-inside mt-2 space-y-1 text-xs">
                     <li>Double-check your address for typos</li>
                     <li>Include apartment/suite numbers if applicable</li>
@@ -261,17 +260,17 @@ const postalCodeField = document.getElementById('postal_code');
 const postalHint = document.getElementById('postal-hint');
 
 const postalFormats = {
-    'USA': 'Format: 12345 or 12345-6789',
-    'UK': 'Format: SW1A 1AA (Letters and numbers)',
-    'Canada': 'Format: K1A 0B1 (Letter Number Letter Space Number Letter Number)',
-    'Australia': 'Format: 2000 (4 digits)',
-    'Germany': 'Format: 10115 (5 digits)',
-    'France': 'Format: 75001 (5 digits)',
-    'Japan': 'Format: 100-0001 (3 digits-4 digits)',
-    'Nigeria': 'Format: 100001 (6 digits)',
-    'India': 'Format: 110001 (6 digits)',
-    'Brazil': 'Format: 01000-000 (5 digits-3 digits)',
-    'South Africa': 'Format: 0001 (4 digits)'
+    'US': 'Format: 12345 or 12345-6789',
+    'GB': 'Format: SW1A 1AA (Letters and numbers)',
+    'CA': 'Format: K1A 0B1',
+    'AU': 'Format: 2000 (4 digits)',
+    'DE': 'Format: 10115 (5 digits)',
+    'FR': 'Format: 75001 (5 digits)',
+    'JP': 'Format: 100-0001',
+    'NG': 'Format: 100001 (6 digits)',
+    'IN': 'Format: 110001 (6 digits)',
+    'BR': 'Format: 01000-000',
+    'ZA': 'Format: 0001 (4 digits)'
 };
 
 if (countrySelect) {
