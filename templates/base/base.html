@@ -2657,9 +2657,9 @@
                     <span id="chat-unread-badge" class="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] rounded-full min-w-4 h-4 px-1 flex items-center justify-center {% if not chat_unread_count %}hidden{% endif %}">{% if chat_unread_count > 9 %}9+{% else %}{{ chat_unread_count }}{% endif %}</span>
                 </a>
 
-                <a href="{% url 'deliveries:rider_dashboard' %}" class="premium-topbar-item inline-flex items-center gap-2 hover:text-brand transition text-sm font-medium" title="Open Arolana Rider Center">
+                <a href="{% if user.is_authenticated %}{% url 'deliveries:rider_dashboard' %}{% else %}{% url 'deliveries:rider_register' %}{% endif %}" class="premium-topbar-item inline-flex items-center gap-2 hover:text-brand transition text-sm font-medium" title="{% if user.is_authenticated %}Open Arolana Rider Center{% else %}Register as Arolana Rider{% endif %}">
                     <i class="fas fa-motorcycle text-brand"></i>
-                    <span class="hidden xl:inline">Rider Center</span>
+                    <span class="hidden xl:inline">{% if user.is_authenticated %}Rider Center{% else %}Become a Rider{% endif %}</span>
                     <span class="xl:hidden">Rider</span>
                 </a>
 
@@ -2689,7 +2689,7 @@
                              x-transition:leave-end="opacity-0 -translate-y-2 scale-95">
                             <a href="{% url 'accounts:profile' %}" @click="dropdownOpen = false" class="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-brand transition text-sm"><i class="fas fa-user-circle w-5"></i> My Profile</a>
                             <a href="/orders/" @click="dropdownOpen = false" class="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-brand transition text-sm"><i class="fas fa-box w-5"></i> My Orders</a>
-                            <a href="{% url 'deliveries:rider_dashboard' %}" @click="dropdownOpen = false" class="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-brand transition text-sm"><i class="fas fa-motorcycle w-5"></i> Rider Center</a>
+                            <a href="{% if user.is_authenticated %}{% url 'deliveries:rider_dashboard' %}{% else %}{% url 'deliveries:rider_register' %}{% endif %}" @click="dropdownOpen = false" class="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-brand transition text-sm"><i class="fas fa-motorcycle w-5"></i> Rider Center</a>
                             <a href="{% url 'accounts:wishlist' %}" @click="dropdownOpen = false" class="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-brand transition text-sm"><i class="fas fa-heart w-5"></i> Wishlist</a>
                             <a href="{% url 'notifications:list' %}" @click="dropdownOpen = false" class="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-brand transition text-sm"><i class="fas fa-bell w-5"></i> Notifications</a>
                             {% if user.is_staff or user.is_superuser %}
@@ -2979,7 +2979,7 @@
                     </li>
 
                     <li class="mega-menu-container">
-                        <a href="{% url 'deliveries:rider_dashboard' %}" class="flex items-center gap-2 px-4 py-4 hover:text-brand transition font-medium group">
+                        <a href="{% if user.is_authenticated %}{% url 'deliveries:rider_dashboard' %}{% else %}{% url 'deliveries:rider_register' %}{% endif %}" class="flex items-center gap-2 px-4 py-4 hover:text-brand transition font-medium group">
                             <i class="fas fa-motorcycle group-hover:scale-125 transition"></i> Rider Center
                         </a>
                     </li>
@@ -3123,11 +3123,11 @@
                 </a>
             </div>
 
-            <a href="{% url 'deliveries:rider_dashboard' %}" @click="mobileMenuOpen = false" class="mobile-rider-cta">
+            <a href="{% if user.is_authenticated %}{% url 'deliveries:rider_dashboard' %}{% else %}{% url 'deliveries:rider_register' %}{% endif %}" @click="mobileMenuOpen = false" class="mobile-rider-cta">
                 <i class="fas fa-motorcycle"></i>
                 <span>
-                    <strong>Rider Center</strong>
-                    <span>Register, manage jobs, and deliver with Arolana</span>
+                    <strong>{% if user.is_authenticated %}Rider Center{% else %}Become a Rider{% endif %}</strong>
+                    <span>{% if user.is_authenticated %}Manage jobs, wallet, and rider settings{% else %}Register, verify email, upload KYC, and deliver with Arolana{% endif %}</span>
                 </span>
             </a>
 
@@ -3271,7 +3271,7 @@
                     <i class="fas fa-chevron-right mobile-menu-arrow text-xs"></i>
                 </a>
 
-                <a href="{% url 'deliveries:rider_dashboard' %}" @click="mobileMenuOpen = false" class="mobile-menu-link">
+                <a href="{% if user.is_authenticated %}{% url 'deliveries:rider_dashboard' %}{% else %}{% url 'deliveries:rider_register' %}{% endif %}" @click="mobileMenuOpen = false" class="mobile-menu-link">
                     <span class="mobile-menu-left">
                         <span class="mobile-menu-icon"><i class="fas fa-motorcycle"></i></span>
                         <span class="mobile-menu-label">Rider Center</span>

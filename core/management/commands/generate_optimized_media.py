@@ -3,10 +3,11 @@ from django.core.management.base import BaseCommand
 from ads.models import AdBanner, AdCreative, Advertisement
 from core.media_optimization import get_optimized_image_url
 from core.models import SiteSettings
+from blog.models import BlogCategory, BlogPost
 from homepage.models import HomepageVideoSection
 from hero_banners.models import HeroBanner
 from manufacturers.models import Manufacturer
-from products.models import Category, Product
+from products.models import Category, Product, ProductImage, ProductVariant, ProductVariantImage
 from vendors.models import VendorProfile
 
 
@@ -22,6 +23,11 @@ class Command(BaseCommand):
             (SiteSettings.objects.all(), [('site_logo', 'logo'), ('site_favicon', 'nav_icon'), ('footer_logo', 'logo')]),
             (Category.objects.filter(is_active=True), [('image', 'category_card'), ('background_image', 'hero')]),
             (Product.objects.filter(is_active=True, approval_status='approved'), [('main_image', 'product_card'), ('video_thumbnail', 'product_card')]),
+            (ProductImage.objects.filter(is_active=True), [('image', 'product_card')]),
+            (ProductVariant.objects.filter(is_active=True), [('image', 'product_card')]),
+            (ProductVariantImage.objects.filter(is_active=True), [('image', 'product_card')]),
+            (BlogPost.objects.filter(is_published=True), [('featured_image', 'hero'), ('thumbnail_image', 'category_card')]),
+            (BlogCategory.objects.filter(is_active=True), [('featured_image', 'category_card')]),
             (VendorProfile.objects.filter(is_active=True), [('store_logo', 'avatar'), ('store_banner', 'hero')]),
             (Manufacturer.objects.filter(is_active=True), [('logo', 'avatar'), ('banner', 'ad_card')]),
             (AdBanner.objects.filter(is_active=True), [('image', 'ad_card'), ('image_mobile', 'ad_card')]),

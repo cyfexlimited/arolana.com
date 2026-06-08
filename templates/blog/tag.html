@@ -15,7 +15,7 @@
         <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition">
             {% if post.display_image %}
                 {% optimized_image_url post.display_image 'category_card' as post_image_url %}
-                <img src="{{ post_image_url }}" alt="{{ post.title }}" class="w-full h-48 object-cover">
+                <img src="{{ post_image_url }}" alt="{{ post.title }}" class="w-full h-48 object-cover" loading="lazy" decoding="async" width="560" height="420">
             {% else %}
                 <div class="w-full h-48 bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
                     <i class="fas fa-newspaper text-5xl text-white opacity-50"></i>

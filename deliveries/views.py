@@ -3,14 +3,20 @@ from datetime import timedelta
 
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-from django.db.models import Sum
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
+from django.db import transaction
+from django.db.models import Q, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.text import slugify
 from django.views.decorators.http import require_GET, require_POST
 
 from .models import DeliveryRequest, DeliveryVehicle, RiderPayout, RiderProfile, RiderWallet
+from staff_mobile.models import RiderCredential
 from .services import accept_delivery, calculate_live_delivery_quote, update_rider_current_location, update_rider_location
 from notifications.models import Notification
 from accounts.utils.otp_utils import create_otp
@@ -57,36 +63,148 @@ def _user_can_view_delivery(request, delivery):
     return False
 
 
-@login_required
+def _unique_rider_username(email):
+    User = get_user_model()
+    base = slugify(str(email).split("@")[0]) or "rider"
+    username = base
+    suffix = 2
+    while User.objects.filter(username=username).exists():
+        username = f"{base}{suffix}"
+        suffix += 1
+    return username
+
+
+def _rider_register_context(request, vehicles, rider=None):
+    return {
+        "vehicles": vehicles,
+        "rider": rider,
+        "is_public_registration": not request.user.is_authenticated,
+        "rider_type_choices": RiderProfile.RIDER_TYPE_CHOICES,
+    }
+
+
 def rider_register(request):
     vehicles = DeliveryVehicle.objects.filter(is_active=True).order_by("name")
-    rider = RiderProfile.objects.filter(user=request.user).first()
-    if not getattr(request.user, "email_verified", False):
+    rider = RiderProfile.objects.filter(user=request.user).first() if request.user.is_authenticated else None
+
+    if request.user.is_authenticated and not getattr(request.user, "email_verified", False):
         create_otp(request.user, request.user.email, "email")
         request.session["pending_email_verification_user_id"] = request.user.id
+        request.session["pending_email_verification_next"] = "deliveries:rider_dashboard"
         messages.info(request, "Verify your email before submitting rider KYC. We sent a verification OTP to your email.")
         return redirect("accounts:verify_email")
+
     if request.method == "POST":
         rider_type = request.POST.get("rider_type") or RiderProfile.RIDER_INDEPENDENT
-        vehicle = DeliveryVehicle.objects.filter(id=request.POST.get("vehicle")).first()
+        vehicle = DeliveryVehicle.objects.filter(id=request.POST.get("vehicle") or request.POST.get("vehicle_id"), is_active=True).first()
         phone = request.POST.get("phone", "").strip()
+        emergency_phone = request.POST.get("emergency_phone", "").strip()
+        about = request.POST.get("about", "").strip()
+
+        if rider_type not in dict(RiderProfile.RIDER_TYPE_CHOICES):
+            messages.error(request, "Please choose a valid rider type.")
+            return render(request, "deliveries/rider_register.html", _rider_register_context(request, vehicles, rider))
         if not vehicle:
             messages.error(request, "Please choose your delivery vehicle.")
-            return render(request, "deliveries/rider_register.html", {"vehicles": vehicles, "rider": rider})
+            return render(request, "deliveries/rider_register.html", _rider_register_context(request, vehicles, rider))
         if not phone:
             messages.error(request, "Please enter your phone number.")
-            return render(request, "deliveries/rider_register.html", {"vehicles": vehicles, "rider": rider})
+            return render(request, "deliveries/rider_register.html", _rider_register_context(request, vehicles, rider))
+        if len(about) < 20:
+            messages.error(request, "About rider should be at least 20 characters so admin can review your delivery experience.")
+            return render(request, "deliveries/rider_register.html", _rider_register_context(request, vehicles, rider))
+
+        if not request.user.is_authenticated:
+            User = get_user_model()
+            full_name = request.POST.get("full_name", "").strip()
+            email = request.POST.get("email", "").strip().lower()
+            password = request.POST.get("password", "").strip()
+            if not full_name or not email or not password:
+                messages.error(request, "Full name, email and password/PIN are required for rider registration.")
+                return render(request, "deliveries/rider_register.html", _rider_register_context(request, vehicles, rider))
+            try:
+                validate_email(email)
+            except ValidationError:
+                messages.error(request, "Enter a valid email address.")
+                return render(request, "deliveries/rider_register.html", _rider_register_context(request, vehicles, rider))
+            if User.objects.filter(email__iexact=email).exists():
+                messages.error(request, "An account with this email already exists. Please sign in, then submit or update your rider profile.")
+                return render(request, "deliveries/rider_register.html", _rider_register_context(request, vehicles, rider))
+            required_files = {
+                "id_document": request.FILES.get("id_document"),
+                "driver_license": request.FILES.get("driver_license"),
+                "vehicle_document": request.FILES.get("vehicle_document"),
+            }
+            missing = [label.replace("_", " ").title() for label, file in required_files.items() if not file]
+            if missing:
+                messages.error(request, f"{', '.join(missing)} required for rider KYC.")
+                return render(request, "deliveries/rider_register.html", _rider_register_context(request, vehicles, rider))
+
+            with transaction.atomic():
+                user = User.objects.create_user(username=_unique_rider_username(email), email=email, password=password)
+                parts = full_name.split()
+                user.first_name = parts[0]
+                user.last_name = " ".join(parts[1:])
+                if hasattr(user, "phone_number"):
+                    user.phone_number = phone
+                if hasattr(user, "user_type"):
+                    user.user_type = "customer"
+                user.email_verified = False
+                user.save()
+
+                rider = RiderProfile.objects.create(
+                    user=user,
+                    rider_type=rider_type,
+                    vehicle=vehicle,
+                    phone=phone,
+                    emergency_phone=emergency_phone,
+                    about=about,
+                    kyc_status=RiderProfile.KYC_PENDING,
+                    is_online=False,
+                    is_available=False,
+                    profile_edit_status="pending_admin_review",
+                    profile_edit_requested_at=timezone.now(),
+                )
+                rider.id_document = required_files["id_document"]
+                rider.driver_license = required_files["driver_license"]
+                rider.vehicle_document = required_files["vehicle_document"]
+                if request.FILES.get("profile_photo"):
+                    rider.profile_photo = request.FILES["profile_photo"]
+                if request.FILES.get("dashboard_image"):
+                    rider.dashboard_image = request.FILES["dashboard_image"]
+                rider.save()
+
+                credential = RiderCredential.objects.create(rider=rider)
+                credential.set_pin(password)
+                credential.save(update_fields=["pin_hash", "updated_at"])
+                RiderWallet.objects.get_or_create(rider=rider)
+
+                for admin_user in User.objects.filter(Q(is_staff=True) | Q(is_superuser=True), is_active=True)[:20]:
+                    Notification.objects.create(
+                        user=admin_user,
+                        notification_type="shipping",
+                        priority=3,
+                        title="New rider registration",
+                        message=f"{full_name} submitted rider KYC from the website and is waiting for email verification/admin approval.",
+                        metadata={"rider_id": rider.id, "submitted_from": "web"},
+                    )
+                create_otp(user, user.email, "email")
+
+            request.session["pending_email_verification_user_id"] = user.id
+            request.session["pending_email_verification_next"] = "deliveries:rider_dashboard"
+            messages.success(request, "Rider registration submitted. Enter the OTP sent to your email before entering Rider Center.")
+            return redirect("accounts:verify_email")
+
         rider, _created = RiderProfile.objects.get_or_create(user=request.user)
         if not rider.can_request_profile_edit:
             next_date = rider.profile_edit_available_at.strftime("%b %d, %Y") if rider.profile_edit_available_at else "later"
             messages.error(request, f"You can edit your rider profile again from {next_date}. Rider profile edits are limited to once every 14 days.")
-            return render(request, "deliveries/rider_register.html", {"vehicles": vehicles, "rider": rider})
-        about = request.POST.get("about", "").strip()
+            return render(request, "deliveries/rider_register.html", _rider_register_context(request, vehicles, rider))
         rider.profile_edit_pending_data = {
             "first_name": request.POST.get("first_name", request.user.first_name).strip(),
             "last_name": request.POST.get("last_name", request.user.last_name).strip(),
             "phone": phone,
-            "emergency_phone": request.POST.get("emergency_phone", "").strip(),
+            "emergency_phone": emergency_phone,
             "about": about,
             "rider_type": rider_type,
             "vehicle_id": vehicle.id,
@@ -106,10 +224,14 @@ def rider_register(request):
             rider.driver_license = request.FILES["driver_license"]
         if request.FILES.get("vehicle_document"):
             rider.vehicle_document = request.FILES["vehicle_document"]
+        if request.FILES.get("profile_photo"):
+            rider.profile_photo = request.FILES["profile_photo"]
+        if request.FILES.get("dashboard_image"):
+            rider.dashboard_image = request.FILES["dashboard_image"]
         rider.save()
         messages.success(request, "Your rider profile changes have been submitted for admin verification. You can submit another edit after 14 days.")
         return redirect("deliveries:rider_dashboard")
-    return render(request, "deliveries/rider_register.html", {"vehicles": vehicles, "rider": rider})
+    return render(request, "deliveries/rider_register.html", _rider_register_context(request, vehicles, rider))
 
 
 @login_required

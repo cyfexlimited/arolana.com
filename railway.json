@@ -4,7 +4,7 @@
     "buildCommand": "python manage.py collectstatic --noinput"
   },
   "deploy": {
-    "preDeployCommand": "python manage.py migrate --noinput",
+    "preDeployCommand": "python manage.py migrate --noinput && python manage.py generate_optimized_media --limit 800",
     "startCommand": "daphne -b 0.0.0.0 -p $PORT arolana_config.asgi:application",
     "restartPolicyType": "ON_FAILURE",
     "healthcheckPath": "/health/"

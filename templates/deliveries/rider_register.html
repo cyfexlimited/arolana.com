@@ -70,15 +70,23 @@
             <aside class="rider-register-card overflow-hidden">
                 <div class="bg-slate-950 p-6 text-white sm:p-7">
                     <p class="text-xs font-black uppercase tracking-[0.18em] text-blue-300">Arolana Delivery</p>
-                    <h1 class="mt-3 text-3xl font-black leading-tight sm:text-4xl">Register as a rider</h1>
-                    <p class="mt-3 text-sm leading-6 text-slate-300">Submit your rider profile once. After admin approval, you can go online, share live location, accept nearby deliveries, and track earnings from your dashboard.</p>
+                    <h1 class="mt-3 text-3xl font-black leading-tight sm:text-4xl">{% if is_public_registration %}Register as a rider{% else %}Update rider profile{% endif %}</h1>
+                    <p class="mt-3 text-sm leading-6 text-slate-300">{% if is_public_registration %}Create your rider account, verify your email, upload KYC documents, and wait for admin approval before accepting deliveries.{% else %}Update your rider profile, documents, photo, and dashboard image. Admin must verify edits before full rider access continues.{% endif %}</p>
 
-                    {% if rider %}
-                    <a href="{% url 'deliveries:rider_dashboard' %}" class="mt-5 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-blue-50">
-                        <i class="fas fa-motorcycle"></i>
-                        Rider Dashboard
-                    </a>
-                    {% endif %}
+                    <div class="mt-5 flex flex-wrap gap-3">
+                        {% if rider %}
+                        <a href="{% url 'deliveries:rider_dashboard' %}" class="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-blue-50">
+                            <i class="fas fa-motorcycle"></i>
+                            Rider Dashboard
+                        </a>
+                        {% endif %}
+                        {% if is_public_registration %}
+                        <a href="{% url 'accounts:login' %}" class="inline-flex items-center gap-2 rounded-xl border border-white/25 px-4 py-3 text-sm font-black text-white transition hover:bg-white/10">
+                            <i class="fas fa-right-to-bracket"></i>
+                            Already registered? Sign in
+                        </a>
+                        {% endif %}
+                    </div>
                 </div>
 
                 <div class="grid gap-3 p-4 sm:p-5">
@@ -91,9 +99,9 @@
                         <strong class="mt-1 block text-lg text-gray-950">{% if rider.vehicle %}{{ rider.vehicle.name }}{% else %}Required{% endif %}</strong>
                     </div>
                     <div class="rounded-2xl border border-gray-200 bg-white p-4">
-                        <p class="text-xs font-black uppercase tracking-[0.12em] text-gray-500">Dashboard Access</p>
+                        <p class="text-xs font-black uppercase tracking-[0.12em] text-gray-500">{% if is_public_registration %}Email Verification{% else %}Dashboard Access{% endif %}</p>
                         <strong class="mt-1 block text-lg {% if rider.kyc_status == 'approved' %}text-green-600{% else %}text-amber-600{% endif %}">
-                            {% if rider.kyc_status == 'approved' %}Ready{% else %}After approval{% endif %}
+                            {% if is_public_registration %}Required before app access{% elif rider.kyc_status == 'approved' %}Ready{% else %}After approval{% endif %}
                         </strong>
                     </div>
                     {% if rider %}
@@ -129,14 +137,30 @@
                 <form method="post" enctype="multipart/form-data" class="mt-6 grid gap-5">
                     {% csrf_token %}
 
+                    {% if is_public_registration %}
+                    <div class="grid gap-5 md:grid-cols-2">
+                        <label class="grid gap-2 md:col-span-2">
+                            <span class="text-sm font-black text-gray-800">Full name <span class="text-red-500">*</span></span>
+                            <input name="full_name" required autocomplete="name" placeholder="Full legal name" class="rider-register-field">
+                        </label>
+                        <label class="grid gap-2">
+                            <span class="text-sm font-black text-gray-800">Email <span class="text-red-500">*</span></span>
+                            <input type="email" name="email" required autocomplete="email" placeholder="rider@example.com" class="rider-register-field">
+                        </label>
+                        <label class="grid gap-2">
+                            <span class="text-sm font-black text-gray-800">Password / PIN <span class="text-red-500">*</span></span>
+                            <input type="password" name="password" required autocomplete="new-password" placeholder="Create secure rider login" class="rider-register-field">
+                        </label>
+                    </div>
+                    {% endif %}
+
                     <div class="grid gap-5 md:grid-cols-2">
                         <label class="grid gap-2">
                             <span class="text-sm font-black text-gray-800">Rider type <span class="text-red-500">*</span></span>
                             <select name="rider_type" class="rider-register-field">
-                                <option value="independent" {% if rider.rider_type == 'independent' %}selected{% endif %}>Independent Dispatch Rider</option>
-                                <option value="arolana" {% if rider.rider_type == 'arolana' %}selected{% endif %}>Arolana Rider</option>
-                                <option value="vendor" {% if rider.rider_type == 'vendor' %}selected{% endif %}>Vendor Rider</option>
-                                <option value="admin_assigned" {% if rider.rider_type == 'admin_assigned' %}selected{% endif %}>Admin Assigned Rider</option>
+                                {% for value,label in rider_type_choices %}
+                                    <option value="{{ value }}" {% if rider.rider_type == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
                             </select>
                         </label>
 
@@ -151,6 +175,7 @@
                         </label>
                     </div>
 
+                    {% if not is_public_registration %}
                     <div class="grid gap-5 md:grid-cols-2">
                         <label class="grid gap-2">
                             <span class="text-sm font-black text-gray-800">First name</span>
@@ -161,6 +186,7 @@
                             <input name="last_name" autocomplete="family-name" placeholder="Last name" class="rider-register-field" value="{{ request.user.last_name|default:'' }}">
                         </label>
                     </div>
+                    {% endif %}
 
                     <div class="grid gap-5 md:grid-cols-2">
                         <label class="grid gap-2">
@@ -199,11 +225,29 @@
                         </label>
                     </div>
 
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <label class="rider-upload grid gap-3">
+                            <span class="text-sm font-black text-gray-800">Profile picture</span>
+                            <input type="file" name="profile_photo" accept="image/*">
+                            <span class="text-xs text-gray-500">Clear face photo for rider identity and admin review.</span>
+                        </label>
+                        <label class="rider-upload grid gap-3">
+                            <span class="text-sm font-black text-gray-800">Dashboard picture</span>
+                            <input type="file" name="dashboard_image" accept="image/*">
+                            <span class="text-xs text-gray-500">Optional banner image shown on rider dashboard.</span>
+                        </label>
+                    </div>
+
+                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs leading-5 text-slate-600">
+                        <strong class="block text-sm text-slate-950">Synced rider account</strong>
+                        This web registration uses the same Arolana rider record as the staff mobile app. After email verification and admin approval, your profile, KYC, vehicle, wallet, notifications, and delivery access stay synchronized on web, app, and admin.
+                    </div>
+
                     <div class="flex flex-col gap-3 border-t border-gray-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
                         <p class="text-xs leading-5 text-gray-500">Only approved riders can accept deliveries. Submitting edits returns your rider account to admin review, and another profile edit is allowed after 14 days.</p>
                         <button class="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700">
                             <i class="fas fa-paper-plane"></i>
-                            Submit Rider Profile
+                            {% if is_public_registration %}Create Rider Account{% else %}Submit Rider Profile{% endif %}
                         </button>
                     </div>
                 </form>
