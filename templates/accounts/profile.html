@@ -3,126 +3,336 @@
 {% block title %}My Profile | Arolana{% endblock %}
 
 {% block content %}
-<section class="bg-gray-50 py-10">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
-            <div class="bg-gray-950 text-white p-6 sm:p-8">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-                    <div class="flex items-center gap-5 min-w-0">
-                        {% if user.avatar %}
-                            <img src="{{ user.avatar.url }}" class="w-20 h-20 rounded-full border-4 border-white object-cover" alt="{{ user.username }}">
-                        {% else %}
-                            <div class="w-20 h-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
-                                <i class="fas fa-user text-3xl text-yellow-300"></i>
-                            </div>
-                        {% endif %}
+<section class="min-h-screen bg-[#F8FAFC] py-8 sm:py-12">
+    <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+
+        {% if messages %}
+        <div class="mb-6 space-y-3">
+            {% for message in messages %}
+            <div class="rounded-2xl border px-4 py-3 text-sm font-semibold
+                {% if message.tags == 'success' %}border-green-200 bg-green-50 text-green-800
+                {% elif message.tags == 'error' %}border-red-200 bg-red-50 text-red-800
+                {% elif message.tags == 'warning' %}border-yellow-200 bg-yellow-50 text-yellow-800
+                {% else %}border-blue-200 bg-blue-50 text-blue-800{% endif %}">
+                <div class="flex items-start gap-3">
+                    <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' %}fa-exclamation-circle{% elif message.tags == 'warning' %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %} mt-0.5"></i>
+                    <span>{{ message }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Profile Hero -->
+        <div class="overflow-hidden rounded-3xl bg-white shadow-2xl shadow-slate-200/80 ring-1 ring-slate-200">
+            <div class="relative overflow-hidden bg-[#0F2D6B] px-6 py-8 text-white sm:px-8 lg:px-10">
+                <div class="absolute inset-0 opacity-20">
+                    <div class="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#00B8FF] blur-3xl"></div>
+                    <div class="absolute -bottom-32 left-12 h-72 w-72 rounded-full bg-[#FF7A00] blur-3xl"></div>
+                </div>
+
+                <div class="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                    <div class="flex min-w-0 flex-col gap-5 sm:flex-row sm:items-center">
+                        <div class="relative h-24 w-24 shrink-0 overflow-hidden rounded-3xl border-4 border-white/20 bg-white/10 shadow-xl">
+                            {% if user.avatar %}
+                                <img src="{{ user.avatar.url }}" class="h-full w-full object-cover" alt="{{ user.username }}">
+                            {% else %}
+                                <div class="flex h-full w-full items-center justify-center bg-white text-4xl font-black text-[#0F2D6B]">
+                                    {{ user.first_name|default:user.username|first|upper }}
+                                </div>
+                            {% endif %}
+                        </div>
+
                         <div class="min-w-0">
-                            <p class="text-sm text-yellow-300 font-semibold uppercase tracking-wide">{{ user.get_user_type_display }}</p>
-                            <h1 class="text-3xl font-bold truncate">{{ user.get_full_name|default:user.username }}</h1>
-                            <p class="text-gray-300 truncate">{{ user.email }}</p>
+                            <div class="mb-3 flex flex-wrap items-center gap-2">
+                                <span class="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-white/80">
+                                    <i class="fas fa-user-circle text-[#FF7A00]"></i>
+                                    {{ user.get_user_type_display }}
+                                </span>
+
+                                {% if user.email_verified %}
+                                    <span class="inline-flex items-center gap-2 rounded-full bg-green-400/15 px-3 py-1 text-xs font-black text-green-100 ring-1 ring-green-300/20">
+                                        <i class="fas fa-check-circle"></i> Email verified
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center gap-2 rounded-full bg-yellow-400/15 px-3 py-1 text-xs font-black text-yellow-100 ring-1 ring-yellow-300/20">
+                                        <i class="fas fa-triangle-exclamation"></i> Email not verified
+                                    </span>
+                                {% endif %}
+
+                                {% if vendor_profile %}
+                                    {% if vendor_profile.has_verified_kyc %}
+                                        <span class="inline-flex items-center gap-2 rounded-full bg-green-400/15 px-3 py-1 text-xs font-black text-green-100 ring-1 ring-green-300/20">
+                                            <i class="fas fa-shield-check"></i> Seller verified
+                                        </span>
+                                    {% else %}
+                                        <span class="inline-flex items-center gap-2 rounded-full bg-orange-400/15 px-3 py-1 text-xs font-black text-orange-100 ring-1 ring-orange-300/20">
+                                            <i class="fas fa-id-card"></i> KYC pending
+                                        </span>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+
+                            <h1 class="truncate text-3xl font-black tracking-tight sm:text-4xl">
+                                {{ user.get_full_name|default:user.username }}
+                            </h1>
+                            <p class="mt-2 truncate text-sm font-semibold text-white/75">{{ user.email }}</p>
+
+                            {% if user.profile.bio %}
+                                <p class="mt-3 max-w-2xl text-sm leading-6 text-white/70">{{ user.profile.bio }}</p>
+                            {% endif %}
                         </div>
                     </div>
+
                     <div class="flex flex-wrap gap-3">
-                        <a href="{% url 'accounts:edit_profile' %}" class="inline-flex items-center gap-2 rounded-lg bg-white text-gray-950 px-4 py-2 font-semibold hover:bg-gray-100">
-                            <i class="fas fa-pen"></i>
-                            Edit Profile
+                        <a href="{% url 'accounts:edit_profile' %}" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-[#0F2D6B] transition hover:bg-blue-50">
+                            <i class="fas fa-pen"></i> Edit Profile
                         </a>
-                        <a href="{% url 'accounts:security_settings' %}" class="inline-flex items-center gap-2 rounded-lg border border-white/30 px-4 py-2 font-semibold hover:bg-white/10">
-                            <i class="fas fa-shield-halved"></i>
-                            Security
+                        <a href="{% url 'accounts:security_settings' %}" class="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-black text-white transition hover:bg-white/20">
+                            <i class="fas fa-shield-halved"></i> Security
                         </a>
                     </div>
                 </div>
             </div>
 
-            <div class="p-6 sm:p-8 grid lg:grid-cols-[1fr_0.9fr] gap-8">
-                <div class="space-y-6">
-                    <div>
-                        <h2 class="text-lg font-bold text-gray-950 mb-4">Account Information</h2>
-                        <div class="grid sm:grid-cols-2 gap-4">
-                            <div class="rounded-lg border border-gray-200 p-4">
-                                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">First name</p>
-                                <p class="mt-1 text-gray-950">{{ user.first_name|default:"Not set" }}</p>
+            <div class="grid gap-0 lg:grid-cols-[1fr_0.9fr]">
+                <!-- Left Column -->
+                <div class="border-b border-slate-200 p-5 sm:p-8 lg:border-b-0 lg:border-r">
+                    <div class="mb-6 flex items-center gap-3">
+                        <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-[#0F2D6B]">
+                            <i class="fas fa-id-card"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-black text-slate-950">Account Information</h2>
+                            <p class="text-sm font-semibold text-slate-500">Your basic account and contact details.</p>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                            <div class="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#0F2D6B] shadow-sm">
+                                <i class="fas fa-user"></i>
                             </div>
-                            <div class="rounded-lg border border-gray-200 p-4">
-                                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Last name</p>
-                                <p class="mt-1 text-gray-950">{{ user.last_name|default:"Not set" }}</p>
+                            <p class="text-xs font-black uppercase tracking-wide text-slate-500">First name</p>
+                            <p class="mt-1 break-words text-base font-black text-slate-950">{{ user.first_name|default:"Not set" }}</p>
+                        </div>
+
+                        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                            <div class="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#0F2D6B] shadow-sm">
+                                <i class="fas fa-user-tag"></i>
                             </div>
-                            <div class="rounded-lg border border-gray-200 p-4">
-                                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Phone</p>
-                                <p class="mt-1 text-gray-950">{{ user.phone_number|default:"Not set" }}</p>
+                            <p class="text-xs font-black uppercase tracking-wide text-slate-500">Last name</p>
+                            <p class="mt-1 break-words text-base font-black text-slate-950">{{ user.last_name|default:"Not set" }}</p>
+                        </div>
+
+                        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                            <div class="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#0F2D6B] shadow-sm">
+                                <i class="fas fa-phone"></i>
                             </div>
-                            <div class="rounded-lg border border-gray-200 p-4">
-                                <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Joined</p>
-                                <p class="mt-1 text-gray-950">{{ user.date_joined|date:"M d, Y" }}</p>
+                            <p class="text-xs font-black uppercase tracking-wide text-slate-500">Phone</p>
+                            <p class="mt-1 break-words text-base font-black text-slate-950">{{ user.phone_number|default:"Not set" }}</p>
+                        </div>
+
+                        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                            <div class="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#0F2D6B] shadow-sm">
+                                <i class="fas fa-calendar-check"></i>
                             </div>
+                            <p class="text-xs font-black uppercase tracking-wide text-slate-500">Joined</p>
+                            <p class="mt-1 break-words text-base font-black text-slate-950">{{ user.date_joined|date:"M d, Y" }}</p>
+                        </div>
+
+                        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                            <div class="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#0F2D6B] shadow-sm">
+                                <i class="fas fa-building"></i>
+                            </div>
+                            <p class="text-xs font-black uppercase tracking-wide text-slate-500">Company</p>
+                            <p class="mt-1 break-words text-base font-black text-slate-950">{{ user.profile.company|default:"Not set" }}</p>
+                        </div>
+
+                        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                            <div class="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#0F2D6B] shadow-sm">
+                                <i class="fas fa-location-dot"></i>
+                            </div>
+                            <p class="text-xs font-black uppercase tracking-wide text-slate-500">Location</p>
+                            <p class="mt-1 break-words text-base font-black text-slate-950">{{ user.profile.location|default:"Not set" }}</p>
                         </div>
                     </div>
 
                     {% if vendor_profile %}
-                    <div>
-                        <h2 class="text-lg font-bold text-gray-950 mb-4">Seller Verification</h2>
-                        <div class="rounded-lg border border-gray-200 p-5">
-                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                <div>
-                                    <p class="font-semibold text-gray-950">{{ vendor_profile.store_name }}</p>
-                                    <p class="text-sm text-gray-500">KYC status: {{ vendor_profile.get_kyc_status_display }}</p>
-                                    <p class="text-sm text-gray-500">Subscription: {{ vendor_profile.get_subscription_display.text }}</p>
-                                </div>
-                                {% if vendor_profile.has_verified_kyc %}
-                                    <span class="inline-flex items-center gap-2 rounded-full bg-green-100 text-green-700 px-3 py-1 text-sm font-semibold">
-                                        <i class="fas fa-check-circle"></i>
-                                        Verified
-                                    </span>
-                                {% else %}
-                                    <a href="{% url 'kyc:dashboard' %}" class="inline-flex items-center justify-center gap-2 rounded-lg bg-yellow-500 px-4 py-2 font-semibold text-gray-950 hover:bg-yellow-400">
-                                        <i class="fas fa-id-card"></i>
-                                        Complete KYC
-                                    </a>
-                                {% endif %}
+                    <div class="mt-8">
+                        <div class="mb-4 flex items-center gap-3">
+                            <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-50 text-[#FF7A00]">
+                                <i class="fas fa-store"></i>
                             </div>
+                            <div>
+                                <h2 class="text-xl font-black text-slate-950">Seller Verification</h2>
+                                <p class="text-sm font-semibold text-slate-500">Your store status, KYC, and subscription visibility.</p>
+                            </div>
+                        </div>
+
+                        <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white">
+                            <div class="bg-slate-50 p-5">
+                                <div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                                    <div class="min-w-0">
+                                        <p class="truncate text-lg font-black text-slate-950">{{ vendor_profile.store_name }}</p>
+                                        <p class="mt-1 text-sm font-semibold text-slate-500">
+                                            KYC status:
+                                            <span class="font-black text-slate-800">{{ vendor_profile.get_kyc_status_display }}</span>
+                                        </p>
+                                        <p class="mt-1 text-sm font-semibold text-slate-500">
+                                            Subscription:
+                                            <span class="font-black text-slate-800">{{ vendor_profile.get_subscription_display.text }}</span>
+                                        </p>
+                                    </div>
+
+                                    {% if vendor_profile.has_verified_kyc %}
+                                        <span class="inline-flex items-center justify-center gap-2 rounded-2xl bg-green-100 px-4 py-2 text-sm font-black text-green-800">
+                                            <i class="fas fa-check-circle"></i> Verified
+                                        </span>
+                                    {% else %}
+                                        <a href="{% url 'kyc:dashboard' %}" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#FF7A00] px-5 py-3 text-sm font-black text-white shadow-lg shadow-orange-500/20 transition hover:bg-[#e96f00]">
+                                            <i class="fas fa-id-card"></i> Complete KYC
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            {% if vendor_profile.description %}
+                            <div class="border-t border-slate-200 p-5">
+                                <p class="text-xs font-black uppercase tracking-wide text-slate-500">Store description</p>
+                                <p class="mt-2 text-sm font-semibold leading-6 text-slate-700">{{ vendor_profile.description }}</p>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                     {% endif %}
                 </div>
 
-                <div class="space-y-6">
-                    <div class="rounded-lg border border-gray-200 p-5">
-                        <h2 class="text-lg font-bold text-gray-950">Verification</h2>
-                        <div class="mt-4 space-y-3">
-                            <div class="flex items-center justify-between">
-                                <span class="text-sm text-gray-700">Email</span>
-                                {% if user.email_verified %}
-                                    <span class="text-sm font-semibold text-green-700">Verified</span>
-                                {% else %}
-                                    <a href="{% url 'accounts:verify_email' %}" class="text-sm font-semibold text-blue-700 hover:underline">Verify now</a>
-                                {% endif %}
+                <!-- Right Column -->
+                <div class="p-5 sm:p-8">
+                    <div class="space-y-6">
+                        <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white">
+                            <div class="border-b border-slate-200 bg-slate-50 px-5 py-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-green-50 text-green-700">
+                                        <i class="fas fa-shield-check"></i>
+                                    </div>
+                                    <div>
+                                        <h2 class="text-lg font-black text-slate-950">Verification</h2>
+                                        <p class="text-xs font-semibold text-slate-500">Protect your account and improve trust.</p>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-sm text-gray-700">Phone</span>
-                                <a href="{% url 'accounts:edit_profile' %}" class="text-sm font-semibold text-blue-700 hover:underline">
-                                    {% if user.phone_number %}Edit phone{% else %}Add phone{% endif %}
+
+                            <div class="divide-y divide-slate-200">
+                                <div class="flex items-center justify-between gap-4 px-5 py-4">
+                                    <div>
+                                        <p class="text-sm font-black text-slate-900">Email address</p>
+                                        <p class="mt-1 text-xs font-semibold text-slate-500">{{ user.email }}</p>
+                                    </div>
+                                    {% if user.email_verified %}
+                                        <span class="inline-flex items-center gap-2 rounded-full bg-green-100 px-3 py-1 text-xs font-black text-green-800">
+                                            <i class="fas fa-check-circle"></i> Verified
+                                        </span>
+                                    {% else %}
+                                        <a href="{% url 'accounts:verify_email' %}" class="inline-flex items-center justify-center rounded-xl bg-[#0F2D6B] px-3 py-2 text-xs font-black text-white transition hover:bg-blue-900">
+                                            Verify now
+                                        </a>
+                                    {% endif %}
+                                </div>
+
+                                <div class="flex items-center justify-between gap-4 px-5 py-4">
+                                    <div>
+                                        <p class="text-sm font-black text-slate-900">Phone number</p>
+                                        <p class="mt-1 text-xs font-semibold text-slate-500">{{ user.phone_number|default:"No phone added" }}</p>
+                                    </div>
+                                    <a href="{% url 'accounts:edit_profile' %}" class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50">
+                                        {% if user.phone_number %}Edit phone{% else %}Add phone{% endif %}
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white">
+                            <div class="border-b border-slate-200 bg-slate-50 px-5 py-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-[#0F2D6B]">
+                                        <i class="fas fa-bolt"></i>
+                                    </div>
+                                    <div>
+                                        <h2 class="text-lg font-black text-slate-950">Quick Links</h2>
+                                        <p class="text-xs font-semibold text-slate-500">Manage your Arolana account faster.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="grid gap-3 p-5">
+                                <a href="{% url 'accounts:addresses' %}" class="group flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-800 transition hover:border-[#0F2D6B] hover:bg-blue-50">
+                                    <span class="flex items-center gap-3 font-black">
+                                        <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-[#0F2D6B]">
+                                            <i class="fas fa-map-location-dot"></i>
+                                        </span>
+                                        Addresses
+                                    </span>
+                                    <i class="fas fa-chevron-right text-slate-400 transition group-hover:translate-x-1 group-hover:text-[#0F2D6B]"></i>
+                                </a>
+
+                                <a href="{% url 'accounts:subscriptions' %}" class="group flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-800 transition hover:border-[#0F2D6B] hover:bg-blue-50">
+                                    <span class="flex items-center gap-3 font-black">
+                                        <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-[#0F2D6B]">
+                                            <i class="fas fa-envelope-open-text"></i>
+                                        </span>
+                                        Email preferences
+                                    </span>
+                                    <i class="fas fa-chevron-right text-slate-400 transition group-hover:translate-x-1 group-hover:text-[#0F2D6B]"></i>
+                                </a>
+
+                                <a href="{% url 'notifications:list' %}" class="group flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-800 transition hover:border-[#0F2D6B] hover:bg-blue-50">
+                                    <span class="flex items-center gap-3 font-black">
+                                        <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-[#0F2D6B]">
+                                            <i class="fas fa-bell"></i>
+                                        </span>
+                                        Notifications
+                                    </span>
+                                    <i class="fas fa-chevron-right text-slate-400 transition group-hover:translate-x-1 group-hover:text-[#0F2D6B]"></i>
+                                </a>
+
+                                <a href="{% url 'accounts:security_settings' %}" class="group flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-4 text-slate-800 transition hover:border-[#0F2D6B] hover:bg-blue-50">
+                                    <span class="flex items-center gap-3 font-black">
+                                        <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-[#0F2D6B]">
+                                            <i class="fas fa-shield-halved"></i>
+                                        </span>
+                                        Security settings
+                                    </span>
+                                    <i class="fas fa-chevron-right text-slate-400 transition group-hover:translate-x-1 group-hover:text-[#0F2D6B]"></i>
+                                </a>
+
+                                <a href="{% url 'accounts:logout' %}" class="group flex items-center justify-between rounded-2xl border border-red-100 bg-red-50 px-4 py-4 text-red-700 transition hover:bg-red-100">
+                                    <span class="flex items-center gap-3 font-black">
+                                        <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-red-700">
+                                            <i class="fas fa-right-from-bracket"></i>
+                                        </span>
+                                        Logout
+                                    </span>
+                                    <i class="fas fa-chevron-right text-red-300 transition group-hover:translate-x-1 group-hover:text-red-700"></i>
                                 </a>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="rounded-lg border border-gray-200 p-5">
-                        <h2 class="text-lg font-bold text-gray-950">Quick Links</h2>
-                        <div class="mt-4 grid gap-3">
-                            <a href="{% url 'accounts:addresses' %}" class="flex items-center justify-between rounded-lg bg-gray-50 px-4 py-3 text-gray-800 hover:bg-gray-100">
-                                Addresses <i class="fas fa-chevron-right text-gray-400"></i>
-                            </a>
-                            <a href="{% url 'accounts:subscriptions' %}" class="flex items-center justify-between rounded-lg bg-gray-50 px-4 py-3 text-gray-800 hover:bg-gray-100">
-                                Email preferences <i class="fas fa-chevron-right text-gray-400"></i>
-                            </a>
-                            <a href="{% url 'notifications:list' %}" class="flex items-center justify-between rounded-lg bg-gray-50 px-4 py-3 text-gray-800 hover:bg-gray-100">
-                                Notifications <i class="fas fa-chevron-right text-gray-400"></i>
-                            </a>
-                            <a href="{% url 'accounts:logout' %}" class="flex items-center justify-between rounded-lg bg-red-50 px-4 py-3 text-red-700 hover:bg-red-100">
-                                Logout <i class="fas fa-right-from-bracket"></i>
-                            </a>
+                        <div class="rounded-3xl border border-amber-200 bg-amber-50 p-5">
+                            <div class="flex items-start gap-3">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-[#FF7A00]">
+                                    <i class="fas fa-lightbulb"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-sm font-black text-amber-900">Account trust tip</h3>
+                                    <p class="mt-1 text-xs font-semibold leading-5 text-amber-800">
+                                        Verified email, accurate phone number, and clean seller profile help customers and Arolana support reach you quickly.
+                                    </p>
+                                </div>
+                            </div>
                         </div>
+
                     </div>
                 </div>
             </div>
