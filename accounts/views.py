@@ -78,21 +78,37 @@ def log_user_activity(user, action, request, details=None):
         logger.error(f"Failed to log activity: {e}")
 
 def get_social_apps_context(request=None):
-    """Get social apps availability for template context"""
+    """Get social apps availability for template context.
+
+    Results are cached for 1 hour under a request-agnostic key because
+    social app configuration is global and changes very rarely.  This
+    eliminates two database round-trips (one per provider) on every
+    login/register page load.
+    """
+    CACHE_KEY = 'social_apps_context'
+    CACHE_TTL = 3600  # 1 hour
+
+    cached = cache.get(CACHE_KEY)
+    if cached is not None:
+        return cached
+
     try:
         adapter = get_socialaccount_adapter(request)
         google_app = bool(adapter.list_apps(request, provider='google'))
         facebook_app = bool(adapter.list_apps(request, provider='facebook'))
-        return {
+        context = {
             'google_app_exists': google_app,
             'facebook_app_exists': facebook_app,
         }
     except Exception as e:
         logger.warning(f"Could not fetch social apps: {e}")
-        return {
+        context = {
             'google_app_exists': False,
             'facebook_app_exists': False,
         }
+
+    cache.set(CACHE_KEY, context, CACHE_TTL)
+    return context
 
 def unique_store_slug(store_name):
     from vendors.models import VendorProfile
