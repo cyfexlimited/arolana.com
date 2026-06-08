@@ -1,0 +1,13 @@
+Hello {{ user.get_full_name|default:user.username }},
+
+Welcome to Arolana.
+
+Please confirm your email address by clicking the link below:
+
+{{ activate_url }}
+
+If you did not create this account, you can safely ignore this email.
+
+Thank you,
+The Arolana Team
+https://www.arolana.com

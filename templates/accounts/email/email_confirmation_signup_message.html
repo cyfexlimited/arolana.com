@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirm Your Email Address</title>
+</head>
+<body style="margin:0;padding:0;background:#F8FAFC;font-family:Arial,Helvetica,sans-serif;color:#071B4D;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F8FAFC;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#FFFFFF;border-radius:18px;overflow:hidden;border:1px solid #E5EAF2;">
+          <tr>
+            <td style="background:#0F2D6B;padding:28px 32px;text-align:center;">
+              <div style="font-size:30px;font-weight:800;color:#FFFFFF;letter-spacing:.3px;">Arolana</div>
+              <div style="font-size:14px;color:#D7E5FF;margin-top:6px;">Secure Account Verification</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:36px 32px;">
+              <h1 style="margin:0 0 16px;font-size:26px;line-height:1.25;color:#071B4D;">Confirm your email address</h1>
+              <p style="margin:0 0 18px;font-size:16px;line-height:1.7;color:#334155;">
+                Hello {{ user.get_full_name|default:user.username }}, welcome to Arolana.
+              </p>
+              <p style="margin:0 0 28px;font-size:16px;line-height:1.7;color:#334155;">
+                Please confirm your email address to complete your registration and secure your account.
+              </p>
+              <div style="text-align:center;margin:32px 0;">
+                <a href="{{ activate_url }}" style="display:inline-block;background:#FF7A00;color:#FFFFFF;text-decoration:none;font-weight:700;font-size:16px;padding:16px 28px;border-radius:12px;">Confirm Email Address</a>
+              </div>
+              <p style="margin:28px 0 8px;font-size:13px;line-height:1.6;color:#64748B;">If the button does not work, copy and paste this link into your browser:</p>
+              <p style="margin:0 0 28px;font-size:13px;line-height:1.6;word-break:break-all;color:#0F2D6B;">{{ activate_url }}</p>
+              <p style="margin:0;font-size:14px;line-height:1.7;color:#64748B;">
+                If you did not create this account, you can safely ignore this email.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#F1F5F9;padding:22px 32px;text-align:center;color:#64748B;font-size:13px;line-height:1.6;">
+              Thank you,<br>
+              <strong style="color:#071B4D;">The Arolana Team</strong><br>
+              <a href="https://www.arolana.com" style="color:#0F2D6B;text-decoration:none;">www.arolana.com</a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
