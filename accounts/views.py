@@ -523,23 +523,39 @@ def addresses_view(request):
 def add_address(request):
     """Add a new address"""
     if request.method == 'POST':
-        address = Address.objects.create(
-            user=request.user,
-            address_line1=request.POST.get('address_line1', '').strip(),
-            address_line2=request.POST.get('address_line2', '').strip(),
-            city=request.POST.get('city', '').strip(),
-            state=request.POST.get('state', '').strip(),
-            postal_code=request.POST.get('postal_code', '').strip(),
-            country=request.POST.get('country', 'US'),
-            is_default=request.POST.get('is_default') == 'on',
-            is_shipping=True,
-            is_billing=request.POST.get('is_billing') == 'on'
-        )
-        
-        create_notification(request.user, 'system', '📍 New Address Added', f'A new address has been added to your account.', '/accounts/addresses/')
-        messages.success(request, 'Address added successfully!')
-        return redirect('accounts:addresses')
-    
+        try:
+            address = Address.objects.create(
+                user=request.user,
+                address_line1=request.POST.get('address_line1', '').strip(),
+                address_line2=request.POST.get('address_line2', '').strip(),
+                city=request.POST.get('city', '').strip(),
+                state=request.POST.get('state', '').strip(),
+                postal_code=request.POST.get('postal_code', '').strip() or '',
+                country=request.POST.get('country', 'NG') or 'NG',
+                address_type=request.POST.get('address_type', 'home') or 'home',
+                phone_number=request.POST.get('phone_number', '').strip() or None,
+                is_default=request.POST.get('is_default') == 'on',
+                is_shipping=True,
+                is_billing=request.POST.get('is_billing') == 'on'
+            )
+
+            create_notification(
+                request.user,
+                'system',
+                '📍 New Address Added',
+                'A new address has been added to your account.',
+                '/accounts/addresses/'
+            )
+
+            messages.success(request, 'Address added successfully!')
+            return redirect('accounts:addresses')
+
+        except Exception as e:
+            messages.error(request, f'Address could not be saved: {e}')
+            return render(request, 'accounts/add_address.html', {
+                'form_data': request.POST
+            })
+
     return render(request, 'accounts/add_address.html')
 
 @login_required
