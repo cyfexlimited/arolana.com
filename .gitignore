@@ -70,3 +70,9 @@ local-data.json
 .env*
 venv311/
 venv/
+
+# Virtual environments
+venv/
+venv311/
+.env
+.env.*
