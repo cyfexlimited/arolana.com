@@ -67,3 +67,4 @@ dumpdata/
 claim.json
 secrets/
 local-data.json
+.env*
