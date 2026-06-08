@@ -1,0 +1,18 @@
+{% load account %}
+Hello {{ user.username }},
+
+Welcome to Arolana.
+
+Please confirm your email address by opening this link:
+
+{% if activate_url %}
+{{ activate_url }}
+{% else %}
+https://www.arolana.com{{ key }}
+{% endif %}
+
+If you did not create this account, you can safely ignore this email.
+
+Thank you,
+The Arolana Team
+https://www.arolana.com
