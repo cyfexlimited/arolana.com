@@ -7,122 +7,110 @@
 
 {% block extra_css %}
 <style>
-    .article-hero {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        position: relative;
-        overflow: hidden;
+    html { scroll-behavior: smooth; }
+
+    .article-shell {
+        background:
+            radial-gradient(circle at top right, rgba(0, 184, 255, .12), transparent 34rem),
+            radial-gradient(circle at bottom left, rgba(255, 122, 0, .10), transparent 34rem),
+            #F8FAFC;
     }
-    .article-hero::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320"><path fill="rgba(255,255,255,0.1)" fill-opacity="1" d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,122.7C672,117,768,139,864,154.7C960,171,1056,181,1152,165.3C1248,149,1344,107,1392,85.3L1440,64L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path></svg>') no-repeat bottom;
-        background-size: cover;
+
+    .article-prose {
+        color: #334155;
+        font-size: 1.04rem;
+        line-height: 1.85;
     }
-    .toc-container {
-        background: #f8fafc;
-        border-left: 4px solid #3b82f6;
-    }
-    .toc-link {
-        transition: all 0.2s;
-        cursor: pointer;
-    }
-    .toc-link:hover {
-        color: #3b82f6;
-        padding-left: 0.5rem;
-    }
-    .share-btn {
-        transition: all 0.2s;
-    }
-    .share-btn:hover {
-        transform: translateY(-2px);
-    }
-    .comment-reply {
-        margin-left: 48px;
-    }
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    .article-content {
-        animation: fadeIn 0.5s ease-out;
-    }
-    .prose h2 {
-        font-size: 1.5rem;
-        font-weight: 700;
-        margin-top: 2rem;
+
+    .article-prose h2 {
+        color: #0f172a;
+        font-size: 1.65rem;
+        line-height: 1.25;
+        font-weight: 900;
+        margin-top: 2.4rem;
         margin-bottom: 1rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 2px solid #e5e7eb;
-        scroll-margin-top: 80px;
+        padding-bottom: .75rem;
+        border-bottom: 1px solid #e2e8f0;
+        scroll-margin-top: 110px;
     }
-    .prose h3 {
-        font-size: 1.25rem;
-        font-weight: 600;
+
+    .article-prose h3 {
+        color: #0f172a;
+        font-size: 1.35rem;
+        line-height: 1.35;
+        font-weight: 850;
+        margin-top: 2rem;
+        margin-bottom: .8rem;
+        scroll-margin-top: 110px;
+    }
+
+    .article-prose h4 {
+        color: #0f172a;
+        font-weight: 850;
         margin-top: 1.5rem;
-        margin-bottom: 0.75rem;
-        scroll-margin-top: 80px;
+        margin-bottom: .65rem;
+        scroll-margin-top: 110px;
     }
-    .prose h4 {
-        scroll-margin-top: 80px;
+
+    .article-prose p { margin-top: 1rem; margin-bottom: 1rem; }
+    .article-prose a { color: #0F2D6B; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
+    .article-prose a:hover { color: #FF7A00; }
+    .article-prose ul, .article-prose ol { margin-top: 1rem; margin-bottom: 1rem; padding-left: 1.5rem; }
+    .article-prose li { margin-top: .35rem; margin-bottom: .35rem; }
+    .article-prose blockquote {
+        margin: 1.75rem 0;
+        border-left: 5px solid #FF7A00;
+        background: #fff7ed;
+        border-radius: 1rem;
+        padding: 1rem 1.25rem;
+        color: #475569;
+        font-style: italic;
+        font-weight: 650;
     }
-    .prose img {
-        border-radius: 0.5rem;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+
+    .article-prose img {
         max-width: 100%;
         height: auto;
+        border-radius: 1.25rem;
+        box-shadow: 0 24px 60px rgba(15, 23, 42, .12);
+        margin: 1.5rem 0;
     }
-    .prose blockquote {
-        border-left: 4px solid #3b82f6;
-        padding-left: 1rem;
-        font-style: italic;
-        color: #4b5563;
+
+    .article-prose table {
+        width: 100%;
+        border-collapse: collapse;
+        overflow: hidden;
+        border-radius: 1rem;
+        margin: 1.5rem 0;
+        font-size: .95rem;
     }
-    .prose ul, .prose ol {
-        margin-top: 1rem;
-        margin-bottom: 1rem;
-        padding-left: 1.5rem;
+
+    .article-prose th,
+    .article-prose td {
+        border: 1px solid #e2e8f0;
+        padding: .85rem;
     }
-    .prose li {
-        margin-top: 0.25rem;
-        margin-bottom: 0.25rem;
-    }
-    .prose a {
-        color: #3b82f6;
-        text-decoration: underline;
-    }
-    .prose a:hover {
-        color: #2563eb;
-    }
-    html {
-        scroll-behavior: smooth;
-    }
-    
-    /* Ad section styling */
-    .ad-section {
-        transition: all 0.3s ease;
-    }
-    .ad-section:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 20px 25px -12px rgba(0,0,0,0.1);
+
+    .article-prose th {
+        background: #f1f5f9;
+        color: #0f172a;
+        font-weight: 900;
     }
 
     .article-media-frame {
         overflow: hidden;
-        border-radius: 1.25rem;
+        border-radius: 1.75rem;
         background: #0f172a;
-        box-shadow: 0 24px 70px rgba(15, 23, 42, .16);
+        box-shadow: 0 32px 90px rgba(15, 23, 42, .18);
     }
 
     .article-video-frame {
         aspect-ratio: 16 / 9;
         width: 100%;
         overflow: hidden;
-        border-radius: 1.25rem;
+        border-radius: 1.75rem;
         background: #020617;
+        box-shadow: 0 32px 90px rgba(15, 23, 42, .18);
     }
 
     .article-video-frame iframe,
@@ -133,47 +121,23 @@
         display: block;
     }
 
-    @media (max-width: 1024px) {
-        .article-hero {
-            padding-top: 3rem;
-            padding-bottom: 3rem;
-        }
+    .toc-link { transition: all .2s ease; }
+    .toc-link:hover { transform: translateX(4px); color: #FF7A00; }
 
-        .article-hero h1 {
-            font-size: clamp(2rem, 7vw, 3.4rem);
-            line-height: 1.04;
-        }
+    .share-btn { transition: all .2s ease; }
+    .share-btn:hover { transform: translateY(-2px); }
 
-        .article-hero p {
-            font-size: 1rem;
-            line-height: 1.65;
-        }
-    }
+    .ad-section { transition: all .3s ease; }
+    .ad-section:hover { transform: translateY(-2px); }
+
+    .comment-reply { margin-left: 3.25rem; }
 
     @media (max-width: 640px) {
-        .article-hero {
-            margin-bottom: 1rem;
-            padding-top: 2.4rem;
-            padding-bottom: 2.4rem;
-        }
-
-        .share-btn {
-            width: 100%;
-            justify-content: center;
-        }
-
-        .comment-reply {
-            margin-left: 1rem;
-        }
-
-        .prose {
-            font-size: .98rem;
-            line-height: 1.75;
-        }
-
-        .prose h2 {
-            font-size: 1.35rem;
-        }
+        .article-prose { font-size: .98rem; line-height: 1.78; }
+        .article-prose h2 { font-size: 1.35rem; }
+        .article-prose h3 { font-size: 1.18rem; }
+        .comment-reply { margin-left: 1rem; }
+        .share-btn { width: 100%; justify-content: center; }
     }
 </style>
 {% endblock %}
@@ -185,502 +149,566 @@
 </script>
 {% endif %}
 
-<!-- Hero Section -->
-<div class="article-hero text-white py-16 mb-8">
-    <div class="container mx-auto px-4 relative z-10">
-        <div class="max-w-4xl mx-auto text-center">
-            {% if post.category %}
-            <a href="{% url 'blog:list' %}?category={{ post.category.slug }}" 
-               class="inline-block px-3 py-1 rounded-full text-sm font-semibold mb-4 bg-white/20">
-                {{ post.category.name }}
-            </a>
-            {% endif %}
-            <h1 class="text-4xl md:text-5xl font-bold mb-4">{{ post.title }}</h1>
-            <p class="text-xl opacity-90 mb-6">{{ post.excerpt }}</p>
-            
-            <div class="flex flex-wrap items-center justify-center gap-6 text-sm">
-                <div class="flex items-center gap-2">
-                    <i class="far fa-calendar"></i>
-                    <span>{{ post.published_at|date:"F j, Y" }}</span>
+<section class="article-shell min-h-screen pb-12">
+
+    <!-- Hero -->
+    <div class="overflow-hidden bg-[#0F2D6B]">
+        <div class="relative mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+            <div class="absolute inset-0 opacity-20">
+                <div class="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-[#00B8FF] blur-3xl"></div>
+                <div class="absolute -bottom-36 left-20 h-80 w-80 rounded-full bg-[#FF7A00] blur-3xl"></div>
+            </div>
+
+            <div class="relative mx-auto max-w-5xl text-center text-white">
+                <div class="mb-5 flex flex-wrap items-center justify-center gap-3">
+                    {% if post.category %}
+                    <a href="{% url 'blog:list' %}?category={{ post.category.slug }}" class="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs font-black uppercase tracking-wide text-white/85 ring-1 ring-white/15 transition hover:bg-white/20">
+                        <i class="fas fa-folder-open text-[#FF7A00]"></i>
+                        {{ post.category.name }}
+                    </a>
+                    {% endif %}
+
+                    <span class="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs font-black text-white/75 ring-1 ring-white/15">
+                        <i class="far fa-calendar"></i>
+                        {{ post.published_at|date:"F j, Y" }}
+                    </span>
+
+                    {% if post.reading_time %}
+                    <span class="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs font-black text-white/75 ring-1 ring-white/15">
+                        <i class="far fa-clock"></i>
+                        {{ post.reading_time }} min read
+                    </span>
+                    {% endif %}
+
+                    <span class="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs font-black text-white/75 ring-1 ring-white/15">
+                        <i class="far fa-eye"></i>
+                        {{ post.views }} views
+                    </span>
                 </div>
-                {% if post.reading_time %}
-                <div class="flex items-center gap-2">
-                    <i class="far fa-clock"></i>
-                    <span>{{ post.reading_time }} min read</span>
-                </div>
+
+                <h1 class="text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl">
+                    {{ post.title }}
+                </h1>
+
+                {% if post.excerpt %}
+                <p class="mx-auto mt-5 max-w-4xl text-base font-semibold leading-8 text-white/75 sm:text-lg">
+                    {{ post.excerpt }}
+                </p>
                 {% endif %}
-                <div class="flex items-center gap-2">
-                    <i class="far fa-eye"></i>
-                    <span>{{ post.views }} views</span>
+
+                <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+                    <button type="button" onclick="copyLink()" class="share-btn inline-flex items-center justify-center gap-2 rounded-2xl bg-[#FF7A00] px-5 py-3 text-sm font-black text-white shadow-lg shadow-orange-500/20 transition hover:bg-[#e96f00]">
+                        <i class="fas fa-link"></i>
+                        Copy Link
+                    </button>
+                    <a href="#comments" class="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-black text-white transition hover:bg-white/20">
+                        <i class="fas fa-comments"></i>
+                        Comments
+                    </a>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<div class="container mx-auto px-4">
-    <div class="flex flex-col lg:flex-row gap-8">
-        <!-- Main Content -->
-        <div class="lg:w-2/3">
-            
-            <!-- ===== AD SECTION: TOP BANNER ===== -->
-            {% if display_ad_top %}
-            <div class="ad-section mb-8">
-                <div class="text-center text-xs text-gray-400 mb-2">ADVERTISEMENT</div>
-                <div class="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl p-4 border border-gray-200">
+    <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+
+            <!-- Main Article Column -->
+            <main class="min-w-0">
+
+                <!-- Top Ad -->
+                {% if display_ad_top %}
+                <div class="ad-section mb-8 overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-lg shadow-slate-200/70">
+                    <div class="mb-3 text-center text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Advertisement</div>
                     {% render_ad_carousel 'article_top' count=1 interval=8000 %}
                 </div>
-            </div>
-            {% endif %}
-            
-            <!-- Featured Image -->
-            {% if post.show_featured_image and post.display_image %}
-            <div class="mb-6">
-                {% optimized_image_url post.display_image 'hero' as post_image_url %}
-                <img src="{{ post_image_url }}" alt="{{ post.title }}"
-                     class="article-media-frame w-full object-cover" fetchpriority="high" decoding="async" width="1600" height="900">
-            </div>
-            {% endif %}
+                {% endif %}
 
-            <!-- Article Video -->
-            {% if article_video_embed_url %}
-            <div class="article-video-frame mb-8">
-                <iframe src="{{ article_video_embed_url }}" title="{{ post.title }}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-            </div>
-            {% elif article_local_video_url %}
-            <div class="article-video-frame mb-8">
-                <video controls playsinline preload="metadata" {% if post.display_image_url %}poster="{{ post.display_image_url }}"{% endif %}>
-                    <source src="{{ article_local_video_url }}">
-                    Your browser does not support this video.
-                </video>
-            </div>
-            {% endif %}
-            
-            <!-- Table of Contents -->
-            {% if table_of_contents %}
-            <div class="toc-container rounded-lg p-6 mb-8">
-                <h3 class="font-bold text-lg mb-3 flex items-center gap-2">
-                    <i class="fas fa-list-ul text-blue-500"></i>
-                    Table of Contents
-                </h3>
-                <ul class="space-y-2">
-                    {% for item in table_of_contents %}
-                    <li>
-                        <a href="#{{ item.id }}" class="toc-link text-gray-700 hover:text-blue-600 block">
-                            {{ item.title }}
-                        </a>
-                    </li>
-                    {% endfor %}
-                </ul>
-            </div>
-            {% endif %}
-            
-            <!-- Article Content -->
-            <div class="article-content prose max-w-none mb-8">
-                {{ post.content|safe }}
-            </div>
-            
-            <!-- ===== AD SECTION: NATIVE AD (Mid Content) ===== -->
-            {% if display_ad_native %}
-            <div class="ad-section my-8 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl p-6 text-white">
-                <div class="flex flex-col md:flex-row items-center gap-6">
-                    <div class="flex-1 text-center md:text-left">
-                        <div class="text-xs opacity-80 mb-2">Sponsored</div>
-                        <h4 class="text-xl font-bold mb-2">Limited Time Offer</h4>
-                        <p class="text-sm opacity-90">Exclusive deal for our readers</p>
-                    </div>
-                    <div class="flex-1">
-                        {% render_ad_carousel 'article_native' count=1 interval=5000 %}
-                    </div>
+                <!-- Featured Image -->
+                {% if post.show_featured_image and post.display_image %}
+                <div class="mb-8">
+                    {% optimized_image_url post.display_image 'hero' as post_image_url %}
+                    <img src="{{ post_image_url }}" alt="{{ post.title }}" class="article-media-frame h-auto w-full object-cover" fetchpriority="high" decoding="async" width="1600" height="900">
                 </div>
-            </div>
-            {% endif %}
-            
-            <!-- Tags -->
-            {% if post.tags.all %}
-            <div class="flex flex-wrap gap-2 mb-8 pt-4 border-t">
-                {% for tag in post.tags.all %}
-                <a href="{% url 'blog:list' %}?tag={{ tag.slug }}" 
-                   class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm hover:bg-blue-100 hover:text-blue-600 transition">
-                    #{{ tag.name }}
-                </a>
-                {% endfor %}
-            </div>
-            {% endif %}
-            
-            <!-- Share Section -->
-            <div class="bg-gray-50 rounded-xl p-6 mb-8">
-                <div class="flex flex-wrap items-center justify-between gap-4">
-                    <div class="flex items-center gap-4">
-                        <span class="font-semibold">Share this article:</span>
-                        <button onclick="shareOnFacebook()" class="share-btn bg-[#1877f2] text-white px-4 py-2 rounded-lg hover:bg-[#1877f2]/90">
-                            <i class="fab fa-facebook"></i> Facebook
-                        </button>
-                        <button onclick="shareOnTwitter()" class="share-btn bg-[#1da1f2] text-white px-4 py-2 rounded-lg hover:bg-[#1da1f2]/90">
-                            <i class="fab fa-twitter"></i> Twitter
-                        </button>
-                        <button onclick="shareOnLinkedIn()" class="share-btn bg-[#0077b5] text-white px-4 py-2 rounded-lg hover:bg-[#0077b5]/90">
-                            <i class="fab fa-linkedin"></i> LinkedIn
-                        </button>
-                    </div>
-                    <button onclick="copyLink()" class="share-btn bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700">
-                        <i class="fas fa-link"></i> Copy Link
-                    </button>
+                {% endif %}
+
+                <!-- Article Video -->
+                {% if article_video_embed_url %}
+                <div class="article-video-frame mb-8">
+                    <iframe src="{{ article_video_embed_url }}" title="{{ post.title }}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
                 </div>
-            </div>
-            
-            <!-- Author Bio -->
-            <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 mb-8">
-                <div class="flex items-center gap-4">
-                    <img src="https://ui-avatars.com/api/?name={{ post.author.username }}&background=random&size=64" 
-                         class="w-16 h-16 rounded-full">
-                    <div>
-                        <h3 class="font-bold text-lg">{{ post.author.get_full_name|default:post.author.username }}</h3>
-                        <p class="text-gray-600 text-sm">Staff Writer at Arolana</p>
-                    </div>
+                {% elif article_local_video_url %}
+                <div class="article-video-frame mb-8">
+                    <video controls playsinline preload="metadata" {% if post.display_image_url %}poster="{{ post.display_image_url }}"{% endif %}>
+                        <source src="{{ article_local_video_url }}">
+                        Your browser does not support this video.
+                    </video>
                 </div>
-            </div>
-            
-            <!-- ===== AD SECTION: AFTER AUTHOR ===== -->
-            {% if display_ad_after_author %}
-            <div class="ad-section my-8">
-                <div class="bg-amber-50 rounded-xl p-4 border border-amber-200">
-                    <div class="flex items-center gap-3 mb-3">
-                        <i class="fas fa-bullhorn text-amber-500"></i>
-                        <span class="text-xs font-semibold text-amber-600">Recommended</span>
-                    </div>
-                    {% render_ad_carousel 'article_after_author' count=2 interval=6000 %}
-                </div>
-            </div>
-            {% endif %}
-            
-            <!-- Comments Section -->
-            <div class="bg-white rounded-xl shadow-lg p-6">
-                <h3 class="text-2xl font-bold mb-6">Comments ({{ comments.count }})</h3>
-                
-                {% if comments %}
-                    {% for comment in comments %}
-                    <div class="border-b pb-4 mb-4">
-                        <div class="flex items-start gap-3">
-                            <div class="flex-1">
-                                <div class="flex items-center justify-between mb-1">
-                                    <span class="font-semibold">{{ comment.user.username }}</span>
-                                    <span class="text-xs text-gray-400">{{ comment.created_at|timesince }} ago</span>
-                                </div>
-                                <p class="text-gray-700">{{ comment.comment }}</p>
-                                <button onclick="showReplyForm({{ comment.id }})" class="text-xs text-blue-600 hover:underline mt-2">
-                                    Reply
-                                </button>
-                                
-                                <!-- Reply Form -->
-                                <div id="reply-form-{{ comment.id }}" class="hidden mt-3">
-                                    <form method="POST" action="{% url 'blog:add_comment' post.id %}">
-                                        {% csrf_token %}
-                                        <input type="hidden" name="parent_id" value="{{ comment.id }}">
-                                        <textarea name="comment" rows="2" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Write a reply..."></textarea>
-                                        <button type="submit" class="mt-2 bg-blue-600 text-white px-4 py-1 rounded-lg text-sm">Post Reply</button>
-                                    </form>
-                                </div>
-                                
-                                <!-- Replies -->
-                                {% for reply in comment.replies.all %}
-                                <div class="comment-reply mt-3 pt-3 border-t">
-                                    <div class="flex items-start gap-3">
-                                        <div>
-                                            <div class="flex items-center gap-2 mb-1">
-                                                <span class="font-semibold text-sm">{{ reply.user.username }}</span>
-                                                <span class="text-xs text-gray-400">{{ reply.created_at|timesince }} ago</span>
-                                            </div>
-                                            <p class="text-gray-600 text-sm">{{ reply.comment }}</p>
-                                        </div>
-                                    </div>
-                                </div>
+                {% endif %}
+
+                <!-- Content Card -->
+                <article class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/70">
+
+                    {% if table_of_contents %}
+                    <div class="border-b border-slate-200 bg-slate-50 p-5 sm:p-6">
+                        <div class="rounded-3xl border border-slate-200 bg-white p-5">
+                            <h2 class="mb-4 flex items-center gap-3 text-lg font-black text-slate-950">
+                                <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-[#0F2D6B]">
+                                    <i class="fas fa-list-ul"></i>
+                                </span>
+                                Table of Contents
+                            </h2>
+                            <div class="grid gap-2 sm:grid-cols-2">
+                                {% for item in table_of_contents %}
+                                <a href="#{{ item.id }}" class="toc-link rounded-2xl bg-slate-50 px-4 py-3 text-sm font-black text-slate-700 hover:bg-orange-50">
+                                    {{ item.title }}
+                                </a>
                                 {% endfor %}
                             </div>
                         </div>
                     </div>
-                    {% endfor %}
-                {% else %}
-                    <p class="text-gray-500 text-center py-4">No comments yet. Be the first to comment!</p>
-                {% endif %}
-                
-                <!-- Comment Form -->
-                <div class="mt-6">
-                    <h4 class="font-semibold mb-3">Leave a Comment</h4>
-                    {% if user.is_authenticated %}
-                    <form method="POST" action="{% url 'blog:add_comment' post.id %}">
-                        {% csrf_token %}
-                        <textarea name="comment" rows="4" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Share your thoughts..."></textarea>
-                        <button type="submit" class="mt-3 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
-                            Post Comment
-                        </button>
-                    </form>
-                    {% else %}
-                    <p class="text-gray-500">Please <a href="{% url 'accounts:login' %}?next={{ request.path }}" class="text-blue-600">sign in</a> to leave a comment.</p>
                     {% endif %}
+
+                    <div class="p-5 sm:p-8 lg:p-10">
+                        <div class="article-content article-prose max-w-none">
+                            {{ post.content|safe }}
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Native Ad -->
+                {% if display_ad_native %}
+                <div class="ad-section my-8 overflow-hidden rounded-3xl bg-[#0F2D6B] p-6 text-white shadow-xl shadow-blue-950/10">
+                    <div class="grid gap-6 md:grid-cols-[0.9fr_1.1fr] md:items-center">
+                        <div>
+                            <p class="text-xs font-black uppercase tracking-[0.2em] text-white/50">Sponsored</p>
+                            <h3 class="mt-2 text-2xl font-black">Recommended for Arolana readers</h3>
+                            <p class="mt-2 text-sm font-semibold leading-6 text-white/70">Discover curated offers and products related to this article.</p>
+                        </div>
+                        <div class="rounded-2xl bg-white/10 p-4">
+                            {% render_ad_carousel 'article_native' count=1 interval=5000 %}
+                        </div>
+                    </div>
                 </div>
-            </div>
-            
-            <!-- ===== AD SECTION: FOOTER ===== -->
-            {% if display_ad_footer %}
-            <div class="ad-section mt-8">
-                <div class="bg-gradient-to-r from-pink-50 to-rose-50 rounded-xl p-6 text-center">
-                    <span class="text-xs text-gray-400">Advertisement</span>
-                    <div class="mt-2">
+                {% endif %}
+
+                <!-- Tags -->
+                {% if post.tags.all %}
+                <div class="mt-8 rounded-3xl border border-slate-200 bg-white p-5 shadow-lg shadow-slate-200/70">
+                    <h3 class="mb-4 text-sm font-black uppercase tracking-[0.2em] text-slate-500">Tags</h3>
+                    <div class="flex flex-wrap gap-2">
+                        {% for tag in post.tags.all %}
+                        <a href="{% url 'blog:list' %}?tag={{ tag.slug }}" class="rounded-full bg-slate-100 px-4 py-2 text-sm font-black text-slate-700 transition hover:bg-orange-50 hover:text-[#FF7A00]">
+                            #{{ tag.name }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Share -->
+                <div class="mt-8 rounded-3xl border border-slate-200 bg-white p-5 shadow-lg shadow-slate-200/70 sm:p-6">
+                    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                            <h3 class="text-lg font-black text-slate-950">Share this article</h3>
+                            <p class="mt-1 text-sm font-semibold text-slate-500">Send this story to your audience or save the link.</p>
+                        </div>
+
+                        <div class="flex flex-wrap gap-3">
+                            <button type="button" onclick="shareOnFacebook()" class="share-btn inline-flex items-center gap-2 rounded-2xl bg-[#1877f2] px-4 py-2 text-sm font-black text-white">
+                                <i class="fab fa-facebook"></i>
+                                Facebook
+                            </button>
+                            <button type="button" onclick="shareOnTwitter()" class="share-btn inline-flex items-center gap-2 rounded-2xl bg-[#1da1f2] px-4 py-2 text-sm font-black text-white">
+                                <i class="fab fa-twitter"></i>
+                                Twitter
+                            </button>
+                            <button type="button" onclick="shareOnLinkedIn()" class="share-btn inline-flex items-center gap-2 rounded-2xl bg-[#0077b5] px-4 py-2 text-sm font-black text-white">
+                                <i class="fab fa-linkedin"></i>
+                                LinkedIn
+                            </button>
+                            <button type="button" onclick="copyLink()" class="share-btn inline-flex items-center gap-2 rounded-2xl bg-slate-800 px-4 py-2 text-sm font-black text-white">
+                                <i class="fas fa-link"></i>
+                                Copy
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Author -->
+                <div class="mt-8 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg shadow-slate-200/70">
+                    <div class="bg-gradient-to-r from-blue-50 to-orange-50 p-6">
+                        <div class="flex items-center gap-4">
+                            <img src="https://ui-avatars.com/api/?name={{ post.author.username }}&background=0F2D6B&color=fff&size=128" alt="{{ post.author.get_full_name|default:post.author.username }}" class="h-16 w-16 rounded-3xl object-cover ring-4 ring-white">
+                            <div>
+                                <p class="text-xs font-black uppercase tracking-[0.2em] text-[#FF7A00]">Written by</p>
+                                <h3 class="text-xl font-black text-slate-950">{{ post.author.get_full_name|default:post.author.username }}</h3>
+                                <p class="mt-1 text-sm font-semibold text-slate-600">Staff Writer at Arolana</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- After Author Ad -->
+                {% if display_ad_after_author %}
+                <div class="ad-section mt-8 overflow-hidden rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-lg shadow-amber-100/60">
+                    <div class="mb-3 flex items-center gap-3">
+                        <i class="fas fa-bullhorn text-[#FF7A00]"></i>
+                        <span class="text-xs font-black uppercase tracking-[0.2em] text-amber-700">Recommended</span>
+                    </div>
+                    {% render_ad_carousel 'article_after_author' count=2 interval=6000 %}
+                </div>
+                {% endif %}
+
+                <!-- Comments -->
+                <section id="comments" class="mt-8 rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/70 sm:p-6">
+                    <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                            <p class="text-sm font-black uppercase tracking-[0.2em] text-[#FF7A00]">Discussion</p>
+                            <h2 class="mt-1 text-2xl font-black text-slate-950">Comments ({{ comments.count }})</h2>
+                        </div>
+                        <p class="text-sm font-semibold text-slate-500">Join the conversation respectfully.</p>
+                    </div>
+
+                    <div class="space-y-5">
+                        {% for comment in comments %}
+                        <div class="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                            <div class="flex items-start gap-4">
+                                <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-[#0F2D6B] shadow-sm">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex flex-wrap items-center justify-between gap-3">
+                                        <p class="font-black text-slate-950">{{ comment.user.username }}</p>
+                                        <span class="text-xs font-bold text-slate-400">{{ comment.created_at|timesince }} ago</span>
+                                    </div>
+                                    <p class="mt-2 text-sm font-semibold leading-6 text-slate-600">{{ comment.comment }}</p>
+
+                                    <button type="button" onclick="showReplyForm({{ comment.id }})" class="mt-3 text-sm font-black text-[#0F2D6B] hover:text-[#FF7A00]">
+                                        <i class="fas fa-reply mr-1"></i>
+                                        Reply
+                                    </button>
+
+                                    <div id="reply-form-{{ comment.id }}" class="mt-4 hidden rounded-2xl bg-white p-4">
+                                        <form method="POST" action="{% url 'blog:add_comment' post.slug %}">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="parent_id" value="{{ comment.id }}">
+                                            <textarea name="comment" rows="3" required class="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm font-semibold outline-none transition focus:border-[#0F2D6B] focus:ring-4 focus:ring-blue-100" placeholder="Write a reply..."></textarea>
+                                            <button type="submit" class="mt-3 rounded-2xl bg-[#0F2D6B] px-5 py-2 text-sm font-black text-white transition hover:bg-blue-900">
+                                                Post Reply
+                                            </button>
+                                        </form>
+                                    </div>
+
+                                    {% for reply in comment.replies.all %}
+                                    <div class="comment-reply mt-4 border-l-4 border-orange-200 pl-4">
+                                        <div class="rounded-2xl bg-white p-4">
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <span class="text-sm font-black text-slate-900">{{ reply.user.username }}</span>
+                                                <span class="text-xs font-bold text-slate-400">{{ reply.created_at|timesince }} ago</span>
+                                            </div>
+                                            <p class="mt-2 text-sm font-semibold leading-6 text-slate-600">{{ reply.comment }}</p>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="rounded-3xl bg-slate-50 p-8 text-center">
+                            <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-white text-slate-400">
+                                <i class="fas fa-comments text-2xl"></i>
+                            </div>
+                            <p class="text-sm font-black text-slate-700">No comments yet</p>
+                            <p class="mt-1 text-xs font-semibold text-slate-500">Be the first to comment on this article.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mt-7 border-t border-slate-200 pt-6">
+                        <h3 class="mb-3 text-lg font-black text-slate-950">Leave a Comment</h3>
+                        {% if user.is_authenticated %}
+                        <form method="POST" action="{% url 'blog:add_comment' post.slug %}">
+                            {% csrf_token %}
+                            <textarea name="comment" rows="4" required class="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm font-semibold outline-none transition focus:border-[#0F2D6B] focus:ring-4 focus:ring-blue-100" placeholder="Share your thoughts..."></textarea>
+                            <button type="submit" class="mt-3 inline-flex items-center gap-2 rounded-2xl bg-[#FF7A00] px-6 py-3 text-sm font-black text-white shadow-lg shadow-orange-500/20 transition hover:bg-[#e96f00]">
+                                <i class="fas fa-paper-plane"></i>
+                                Post Comment
+                            </button>
+                        </form>
+                        {% else %}
+                        <div class="rounded-3xl border border-blue-200 bg-blue-50 p-5">
+                            <p class="text-sm font-semibold text-blue-900">
+                                Please <a href="{% url 'accounts:login' %}?next={{ request.path }}" class="font-black underline">sign in</a> to leave a comment.
+                            </p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </section>
+
+                <!-- Footer Ad -->
+                {% if display_ad_footer %}
+                <div class="ad-section mt-8 overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 text-center shadow-lg shadow-slate-200/70">
+                    <span class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Advertisement</span>
+                    <div class="mt-3">
                         {% render_ad_carousel 'article_footer' count=1 interval=8000 %}
                     </div>
                 </div>
-            </div>
-            {% endif %}
-        </div>
-        
-        <!-- Sidebar -->
-        <div class="lg:w-1/3 space-y-6">
-            
-            <!-- Search -->
-            {% if display_sidebar_search %}
-            <div class="bg-white rounded-xl shadow-lg p-6">
-                <h3 class="font-bold text-lg mb-4">Search Articles</h3>
-                <form method="GET" action="{% url 'blog:list' %}">
-                    <div class="flex">
-                        <input type="text" name="q" placeholder="Search..." 
-                               class="flex-1 px-4 py-2 border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <button type="submit" class="bg-blue-600 text-white px-4 rounded-r-lg hover:bg-blue-700">
+                {% endif %}
+            </main>
+
+            <!-- Sidebar -->
+            <aside class="space-y-6 lg:sticky lg:top-24 lg:self-start">
+
+                {% if display_sidebar_search %}
+                <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-lg shadow-slate-200/70">
+                    <h3 class="mb-4 flex items-center gap-3 text-lg font-black text-slate-950">
+                        <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-[#0F2D6B]">
+                            <i class="fas fa-search"></i>
+                        </span>
+                        Search Articles
+                    </h3>
+                    <form method="GET" action="{% url 'blog:list' %}" class="flex">
+                        <input type="text" name="q" placeholder="Search..." class="min-w-0 flex-1 rounded-l-2xl border border-slate-300 px-4 py-3 text-sm font-semibold outline-none focus:border-[#0F2D6B] focus:ring-4 focus:ring-blue-100">
+                        <button type="submit" class="rounded-r-2xl bg-[#0F2D6B] px-4 text-white transition hover:bg-blue-900">
                             <i class="fas fa-search"></i>
                         </button>
-                    </div>
-                </form>
-            </div>
-            {% endif %}
-            
-            <!-- ===== AD SECTION: SIDEBAR TOP ===== -->
-            {% if display_sidebar_ad_top %}
-            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl shadow-lg p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="font-bold text-gray-800">Sponsored</h3>
-                    <span class="text-xs text-gray-400">Ad</span>
+                    </form>
                 </div>
-                {% render_ad_carousel 'sidebar_top' count=2 interval=5000 %}
-            </div>
-            {% endif %}
-            
-            <!-- Popular Posts -->
-            {% if popular_posts %}
-            <div class="bg-white rounded-xl shadow-lg p-6">
-                <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
-                    <i class="fas fa-fire text-orange-500"></i>
-                    Popular Posts
-                </h3>
-                <div class="space-y-4">
-                    {% for popular in popular_posts %}
-                    <a href="{{ popular.get_absolute_url }}" class="flex gap-3 group">
-                        {% if popular.display_image %}
-                            {% optimized_image_url popular.display_image 'avatar' as popular_image_url %}
-                            <img src="{{ popular_image_url }}" alt="{{ popular.title }}" class="w-16 h-16 object-cover rounded-lg">
-                        {% else %}
-                            <div class="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
-                                <i class="fas fa-image text-gray-400"></i>
-                            </div>
-                        {% endif %}
-                        <div class="flex-1">
-                            <h4 class="font-semibold group-hover:text-blue-600 line-clamp-2">{{ popular.title }}</h4>
-                            <p class="text-xs text-gray-500 mt-1">{{ popular.views }} views</p>
-                        </div>
-                    </a>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-            
-            <!-- ===== AD SECTION: SIDEBAR MID ===== -->
-            {% if display_sidebar_ad_mid %}
-            <div class="bg-white rounded-xl shadow-lg p-6">
-                <div class="flex items-center gap-2 mb-4">
-                    <i class="fas fa-fire text-orange-500"></i>
-                    <h3 class="font-bold text-gray-800">Hot Deals</h3>
-                </div>
-                {% render_ad_carousel 'sidebar_mid' count=2 interval=4000 %}
-            </div>
-            {% endif %}
-            
-            <!-- Categories -->
-            {% if categories %}
-            <div class="bg-white rounded-xl shadow-lg p-6">
-                <h3 class="font-bold text-lg mb-4">Categories</h3>
-                <div class="space-y-2">
-                    {% for category in categories %}
-                    <a href="{% url 'blog:list' %}?category={{ category.slug }}" 
-                       class="flex justify-between items-center p-2 rounded-lg hover:bg-gray-50 transition">
-                        <span>{{ category.name }}</span>
-                        <span class="text-sm text-gray-500">{{ category.post_count }}</span>
-                    </a>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-            
-            <!-- ===== AD SECTION: SIDEBAR BOTTOM ===== -->
-            {% if display_sidebar_ad_bottom %}
-            <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl shadow-lg p-6">
-                <div class="flex items-center gap-2 mb-4">
-                    <i class="fas fa-gem text-purple-500"></i>
-                    <h3 class="font-bold text-gray-800">Premium</h3>
-                </div>
-                {% render_ad_carousel 'sidebar_bottom' count=1 interval=6000 %}
-            </div>
-            {% endif %}
-            
-            <!-- Newsletter Subscription -->
-            {% if display_sidebar_newsletter %}
-            <div class="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white">
-                <div class="text-center mb-4">
-                    <i class="fas fa-envelope text-4xl mb-2"></i>
-                    <h3 class="text-xl font-bold mb-2">Subscribe to Newsletter</h3>
-                    <p class="text-sm opacity-90 mb-4">Get the latest articles delivered to your inbox</p>
-                </div>
-                
-                <form method="POST" action="{% url 'blog:newsletter_subscribe' %}" id="newsletterForm">
-                    {% csrf_token %}
-                    <input type="email" name="email" id="newsletter_email" 
-                           placeholder="Your email address" 
-                           class="w-full px-4 py-2 rounded-lg text-gray-900 mb-3 focus:outline-none focus:ring-2 focus:ring-white" 
-                           required>
-                    <input type="hidden" name="next" value="{{ request.path }}">
-                    <button type="submit" class="w-full bg-white text-blue-600 py-2 rounded-lg font-semibold hover:bg-gray-100 transition transform hover:scale-105">
-                        Subscribe Now
-                    </button>
-                </form>
-                <p class="text-xs text-center mt-3 opacity-75">No spam, unsubscribe anytime.</p>
-            </div>
-            {% endif %}
-            
-            <!-- ===== AD SECTION: SIDEBAR STICKY ===== -->
-            {% if display_sidebar_sticky %}
-            <div class="sticky top-24">
-                <div class="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl shadow-lg p-6">
-                    <div class="text-center text-xs text-gray-400 mb-2">Advertisement</div>
-                    {% render_ad_carousel 'sidebar_sticky' count=1 interval=8000 %}
-                </div>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-    
-    <!-- Related Posts -->
-    {% if related_posts %}
-    <div class="mt-12">
-        <h2 class="text-2xl font-bold mb-6">You Might Also Like</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {% for related in related_posts %}
-            <a href="{{ related.get_absolute_url }}" class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition group">
-                {% if related.display_image %}
-                    {% optimized_image_url related.display_image 'category_card' as related_image_url %}
-                    <img src="{{ related_image_url }}" alt="{{ related.title }}" class="w-full h-40 object-cover group-hover:scale-105 transition duration-300">
-                {% else %}
-                    <div class="w-full h-40 bg-gray-200 flex items-center justify-center">
-                        <i class="fas fa-image text-gray-400 text-4xl"></i>
-                    </div>
                 {% endif %}
-                <div class="p-4">
-                    <h3 class="font-semibold group-hover:text-blue-600 line-clamp-2">{{ related.title }}</h3>
-                    <p class="text-sm text-gray-500 mt-2">{{ related.published_at|date:"M d, Y" }}</p>
+
+                {% if display_sidebar_ad_top %}
+                <div class="ad-section rounded-3xl border border-slate-200 bg-white p-5 shadow-lg shadow-slate-200/70">
+                    <div class="mb-4 flex items-center justify-between">
+                        <h3 class="text-lg font-black text-slate-950">Sponsored</h3>
+                        <span class="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-slate-400">Ad</span>
+                    </div>
+                    {% render_ad_carousel 'sidebar_top' count=2 interval=5000 %}
                 </div>
-            </a>
-            {% endfor %}
+                {% endif %}
+
+                {% if popular_posts %}
+                <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-lg shadow-slate-200/70">
+                    <h3 class="mb-4 flex items-center gap-3 text-lg font-black text-slate-950">
+                        <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-50 text-[#FF7A00]">
+                            <i class="fas fa-fire"></i>
+                        </span>
+                        Popular Posts
+                    </h3>
+
+                    <div class="space-y-4">
+                        {% for popular in popular_posts %}
+                        <a href="{{ popular.get_absolute_url }}" class="group flex gap-3 rounded-2xl p-2 transition hover:bg-slate-50">
+                            {% if popular.display_image %}
+                                {% optimized_image_url popular.display_image 'avatar' as popular_image_url %}
+                                <img src="{{ popular_image_url }}" alt="{{ popular.title }}" class="h-16 w-16 rounded-2xl object-cover">
+                            {% else %}
+                                <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+                                    <i class="fas fa-image"></i>
+                                </div>
+                            {% endif %}
+                            <div class="min-w-0">
+                                <h4 class="line-clamp-2 text-sm font-black leading-5 text-slate-900 transition group-hover:text-[#0F2D6B]">{{ popular.title }}</h4>
+                                <p class="mt-1 text-xs font-bold text-slate-500">{{ popular.views }} views</p>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if display_sidebar_ad_mid %}
+                <div class="ad-section rounded-3xl border border-slate-200 bg-white p-5 shadow-lg shadow-slate-200/70">
+                    <h3 class="mb-4 flex items-center gap-2 text-lg font-black text-slate-950">
+                        <i class="fas fa-fire text-[#FF7A00]"></i>
+                        Hot Deals
+                    </h3>
+                    {% render_ad_carousel 'sidebar_mid' count=2 interval=4000 %}
+                </div>
+                {% endif %}
+
+                {% if categories %}
+                <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-lg shadow-slate-200/70">
+                    <h3 class="mb-4 flex items-center gap-3 text-lg font-black text-slate-950">
+                        <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-[#0F2D6B]">
+                            <i class="fas fa-folder-open"></i>
+                        </span>
+                        Categories
+                    </h3>
+
+                    <div class="space-y-2">
+                        {% for category in categories %}
+                        <a href="{% url 'blog:list' %}?category={{ category.slug }}" class="flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-black text-slate-700 transition hover:bg-blue-50 hover:text-[#0F2D6B]">
+                            <span>{{ category.name }}</span>
+                            <span class="rounded-full bg-slate-100 px-2 py-1 text-xs font-black text-slate-500">{{ category.post_count }}</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if display_sidebar_ad_bottom %}
+                <div class="ad-section rounded-3xl border border-purple-100 bg-purple-50 p-5 shadow-lg shadow-purple-100/60">
+                    <h3 class="mb-4 flex items-center gap-2 text-lg font-black text-slate-950">
+                        <i class="fas fa-gem text-purple-600"></i>
+                        Premium
+                    </h3>
+                    {% render_ad_carousel 'sidebar_bottom' count=1 interval=6000 %}
+                </div>
+                {% endif %}
+
+                {% if display_sidebar_newsletter %}
+                <div class="overflow-hidden rounded-3xl bg-[#0F2D6B] p-6 text-white shadow-xl shadow-blue-950/10">
+                    <div class="text-center">
+                        <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-white text-[#0F2D6B]">
+                            <i class="fas fa-envelope text-2xl"></i>
+                        </div>
+                        <h3 class="text-xl font-black">Subscribe to Newsletter</h3>
+                        <p class="mt-2 text-sm font-semibold leading-6 text-white/70">Get the latest articles delivered to your inbox.</p>
+                    </div>
+
+                    <form method="POST" action="{% url 'blog:newsletter_subscribe' %}" id="newsletterForm" class="mt-5">
+                        {% csrf_token %}
+                        <input type="email" name="email" id="newsletter_email" placeholder="Your email address" class="w-full rounded-2xl border-0 px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:ring-4 focus:ring-white/30" required>
+                        <input type="hidden" name="next" value="{{ request.path }}">
+                        <button type="submit" class="mt-3 w-full rounded-2xl bg-[#FF7A00] px-5 py-3 text-sm font-black text-white shadow-lg shadow-orange-500/20 transition hover:bg-[#e96f00]">
+                            Subscribe Now
+                        </button>
+                    </form>
+                    <p class="mt-3 text-center text-xs font-semibold text-white/55">No spam, unsubscribe anytime.</p>
+                </div>
+                {% endif %}
+
+                {% if display_sidebar_sticky %}
+                <div class="ad-section lg:sticky lg:top-24">
+                    <div class="rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-lg shadow-amber-100/60">
+                        <div class="mb-3 text-center text-[11px] font-black uppercase tracking-[0.22em] text-amber-500">Advertisement</div>
+                        {% render_ad_carousel 'sidebar_sticky' count=1 interval=8000 %}
+                    </div>
+                </div>
+                {% endif %}
+            </aside>
         </div>
+
+        <!-- Related Posts -->
+        {% if related_posts %}
+        <section class="mt-12">
+            <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <p class="text-sm font-black uppercase tracking-[0.2em] text-[#FF7A00]">More to read</p>
+                    <h2 class="mt-1 text-2xl font-black text-slate-950">You Might Also Like</h2>
+                </div>
+            </div>
+
+            <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                {% for related in related_posts %}
+                <a href="{{ related.get_absolute_url }}" class="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg shadow-slate-200/70 transition hover:-translate-y-1 hover:shadow-2xl">
+                    {% if related.display_image %}
+                        {% optimized_image_url related.display_image 'category_card' as related_image_url %}
+                        <img src="{{ related_image_url }}" alt="{{ related.title }}" class="h-44 w-full object-cover transition duration-500 group-hover:scale-105">
+                    {% else %}
+                        <div class="flex h-44 w-full items-center justify-center bg-slate-100 text-slate-400">
+                            <i class="fas fa-image text-4xl"></i>
+                        </div>
+                    {% endif %}
+                    <div class="p-4">
+                        <h3 class="line-clamp-2 font-black leading-6 text-slate-950 transition group-hover:text-[#0F2D6B]">{{ related.title }}</h3>
+                        <p class="mt-2 text-sm font-semibold text-slate-500">{{ related.published_at|date:"M d, Y" }}</p>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
     </div>
-    {% endif %}
-</div>
+</section>
 
 <script>
-// Smooth scroll to heading when clicking TOC links
-document.querySelectorAll('.toc-link').forEach(link => {
-    link.addEventListener('click', function(e) {
-        e.preventDefault();
-        const targetId = this.getAttribute('href').substring(1);
-        const targetElement = document.getElementById(targetId);
-        if (targetElement) {
-            targetElement.scrollIntoView({
-                behavior: 'smooth',
-                block: 'start'
+(function () {
+    document.querySelectorAll('.toc-link').forEach((link) => {
+        link.addEventListener('click', function (event) {
+            event.preventDefault();
+            const targetId = this.getAttribute('href').substring(1);
+            const targetElement = document.getElementById(targetId);
+            if (targetElement) {
+                targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const articleContent = document.querySelector('.article-content');
+
+        if (articleContent) {
+            const headings = articleContent.querySelectorAll('h2, h3');
+            headings.forEach((heading, index) => {
+                if (!heading.id) {
+                    const slug = heading.textContent
+                        .toLowerCase()
+                        .replace(/[^a-z0-9]+/g, '-')
+                        .replace(/^-|-$/g, '');
+                    heading.id = slug || `heading-${index}`;
+                }
+            });
+        }
+
+        const newsletterForm = document.getElementById('newsletterForm');
+        const newsletterInput = document.getElementById('newsletter_email');
+
+        if (newsletterForm) {
+            newsletterForm.addEventListener('submit', function (event) {
+                event.preventDefault();
+                const formData = new FormData(this);
+
+                fetch(this.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then((response) => response.json())
+                .then((data) => {
+                    if (data.success) {
+                        alert(data.message || 'Successfully subscribed!');
+                        if (newsletterInput) newsletterInput.value = '';
+                    } else {
+                        alert(data.error || 'Subscription failed. Please try again.');
+                    }
+                })
+                .catch(() => {
+                    alert('An error occurred. Please try again.');
+                });
             });
         }
     });
-});
 
-// Add IDs to all h2 and h3 elements in the article content
-document.addEventListener('DOMContentLoaded', function() {
-    const articleContent = document.querySelector('.article-content');
-    if (articleContent) {
-        const headings = articleContent.querySelectorAll('h2, h3');
-        headings.forEach((heading, index) => {
-            if (!heading.id) {
-                const slug = heading.textContent
-                    .toLowerCase()
-                    .replace(/[^a-z0-9]+/g, '-')
-                    .replace(/^-|-$/g, '');
-                heading.id = slug || `heading-${index}`;
-            }
-        });
-    }
-    
-    // Newsletter form submission with AJAX
-    const newsletterForm = document.getElementById('newsletterForm');
-    if (newsletterForm) {
-        newsletterForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const formData = new FormData(this);
-            const email = formData.get('email');
-            
-            fetch(this.action, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert(data.message || 'Successfully subscribed!');
-                    document.getElementById('newsletter_email').value = '';
-                } else {
-                    alert(data.error || 'Subscription failed. Please try again.');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred. Please try again.');
+    window.showReplyForm = function (commentId) {
+        const form = document.getElementById(`reply-form-${commentId}`);
+        if (form) form.classList.toggle('hidden');
+    };
+
+    window.shareOnFacebook = function () {
+        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`, '_blank', 'width=640,height=520');
+    };
+
+    window.shareOnTwitter = function () {
+        window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(document.title)}&url=${encodeURIComponent(window.location.href)}`, '_blank', 'width=640,height=520');
+    };
+
+    window.shareOnLinkedIn = function () {
+        window.open(`https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(window.location.href)}&title=${encodeURIComponent(document.title)}`, '_blank', 'width=640,height=520');
+    };
+
+    window.copyLink = function () {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(window.location.href).then(() => {
+                alert('Link copied to clipboard!');
+            }).catch(() => {
+                prompt('Copy this link:', window.location.href);
             });
-        });
-    }
-});
-
-function showReplyForm(commentId) {
-    const form = document.getElementById(`reply-form-${commentId}`);
-    if (form) {
-        form.classList.toggle('hidden');
-    }
-}
-
-function shareOnFacebook() {
-    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`, '_blank', 'width=600,height=400');
-}
-
-function shareOnTwitter() {
-    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(document.title)}&url=${encodeURIComponent(window.location.href)}`, '_blank', 'width=600,height=400');
-}
-
-function shareOnLinkedIn() {
-    window.open(`https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(window.location.href)}&title=${encodeURIComponent(document.title)}`, '_blank', 'width=600,height=400');
-}
-
-function copyLink() {
-    navigator.clipboard.writeText(window.location.href).then(() => {
-        alert('Link copied to clipboard!');
-    }).catch(() => {
-        prompt('Copy this link:', window.location.href);
-    });
-}
+        } else {
+            prompt('Copy this link:', window.location.href);
+        }
+    };
+})();
 </script>
 {% endblock %}

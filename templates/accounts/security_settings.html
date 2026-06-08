@@ -1,205 +1,410 @@
 {% extends 'base/base.html' %}
 
+{% block title %}Security Settings | Arolana{% endblock %}
+
 {% block content %}
-<div class="max-w-4xl mx-auto">
-    <h1 class="text-3xl font-bold mb-6">Security Settings</h1>
-    
-    <!-- Display messages -->
-    {% if messages %}
-        {% for message in messages %}
-            <div class="mb-4 p-4 rounded-lg {% if message.tags == 'success' %}bg-green-100 text-green-700 border border-green-200{% elif message.tags == 'error' %}bg-red-100 text-red-700 border border-red-200{% else %}bg-blue-100 text-blue-700 border border-blue-200{% endif %}">
-                <div class="flex items-center gap-2">
-                    {% if message.tags == 'success' %}
-                        <i class="fas fa-check-circle"></i>
-                    {% elif message.tags == 'error' %}
-                        <i class="fas fa-exclamation-circle"></i>
-                    {% else %}
-                        <i class="fas fa-info-circle"></i>
-                    {% endif %}
-                    {{ message }}
+<section class="min-h-screen bg-[#F8FAFC] py-8 sm:py-12">
+    <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+
+        {% if messages %}
+        <div class="mb-6 space-y-3">
+            {% for message in messages %}
+            <div class="rounded-2xl border px-4 py-3 text-sm font-semibold
+                {% if message.tags == 'success' %}border-green-200 bg-green-50 text-green-800
+                {% elif message.tags == 'error' %}border-red-200 bg-red-50 text-red-800
+                {% elif message.tags == 'warning' %}border-yellow-200 bg-yellow-50 text-yellow-800
+                {% else %}border-blue-200 bg-blue-50 text-blue-800{% endif %}">
+                <div class="flex items-start gap-3">
+                    <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' %}fa-exclamation-circle{% elif message.tags == 'warning' %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %} mt-0.5"></i>
+                    <span>{{ message }}</span>
                 </div>
-            </div>
-        {% endfor %}
-    {% endif %}
-    
-    <!-- Two-Factor Authentication Section -->
-    <div class="bg-white rounded-xl shadow-lg p-6 mb-6 hover:shadow-xl transition">
-        <div class="flex items-center justify-between">
-            <div>
-                <div class="flex items-center gap-2">
-                    <i class="fas fa-shield-alt text-2xl text-blue-600"></i>
-                    <h2 class="text-xl font-bold">Two-Factor Authentication</h2>
-                </div>
-                <p class="text-gray-600 mt-2">
-                    {% if has_2fa %}
-                        <i class="fas fa-check-circle text-green-600"></i> 2FA is enabled ✅
-                    {% else %}
-                        <i class="fas fa-times-circle text-red-600"></i> 2FA is disabled ❌
-                    {% endif %}
-                </p>
-                <p class="text-sm text-gray-500 mt-1">Add an extra layer of security to your account</p>
-            </div>
-            {% if has_2fa %}
-                <button onclick="showDisable2FAConfirm()" class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition transform hover:scale-105">
-                    <i class="fas fa-lock-open mr-2"></i> Disable 2FA
-                </button>
-            {% else %}
-                <a href="{% url 'accounts:enable_2fa' %}" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition transform hover:scale-105">
-                    <i class="fas fa-shield-alt mr-2"></i> Enable 2FA
-                </a>
-            {% endif %}
-        </div>
-        
-        <!-- 2FA Info Box -->
-        {% if not has_2fa %}
-        <div class="mt-4 bg-blue-50 rounded-lg p-4 border border-blue-200">
-            <div class="flex items-start gap-3">
-                <i class="fas fa-info-circle text-blue-600 mt-1"></i>
-                <div class="text-sm text-blue-800">
-                    <p class="font-semibold">Why enable 2FA?</p>
-                    <p>Two-factor authentication adds an extra layer of security to your account. After enabling, you'll need to enter a verification code from your email in addition to your password when logging in.</p>
-                </div>
-            </div>
-        </div>
-        {% endif %}
-    </div>
-    
-    <!-- Verification Status Section -->
-    <div class="bg-white rounded-xl shadow-lg p-6 mb-6 hover:shadow-xl transition">
-        <div class="flex items-center gap-2 mb-4">
-            <i class="fas fa-id-card text-2xl text-blue-600"></i>
-            <h2 class="text-xl font-bold">Verification Status</h2>
-        </div>
-        <div class="space-y-4">
-            <div class="flex justify-between items-center py-3 border-b">
-                <div>
-                    <p class="font-semibold">📧 Email Verification</p>
-                    <p class="text-sm text-gray-500">{{ user.email }}</p>
-                </div>
-                <div class="text-right">
-                    {% if email_verified %}
-                        <span class="text-green-600"><i class="fas fa-check-circle"></i> Verified</span>
-                    {% else %}
-                        <a href="{% url 'accounts:verify_email' %}" class="inline-flex items-center gap-1 bg-yellow-500 text-white px-4 py-1 rounded-lg text-sm hover:bg-yellow-600 transition">
-                            <i class="fas fa-envelope"></i> Verify Now
-                        </a>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Change Password Section -->
-    <div class="bg-white rounded-xl shadow-lg p-6 mb-6 hover:shadow-xl transition">
-        <div class="flex items-center justify-between">
-            <div>
-                <div class="flex items-center gap-2">
-                    <i class="fas fa-key text-2xl text-blue-600"></i>
-                    <h2 class="text-xl font-bold">Password</h2>
-                </div>
-                <p class="text-sm text-gray-500 mt-1">Last changed: {{ user.last_login|date:"M d, Y"|default:"Never" }}</p>
-            </div>
-            <a href="{% url 'accounts:change_password' %}" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition">
-                <i class="fas fa-edit mr-2"></i> Change Password
-            </a>
-        </div>
-        
-        <!-- Password Strength Indicator -->
-        <div class="mt-4 bg-gray-50 rounded-lg p-4">
-            <div class="flex items-center gap-2">
-                <i class="fas fa-shield-alt text-gray-600"></i>
-                <span class="text-sm text-gray-600">Password strength: </span>
-                <div class="flex-1">
-                    <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div class="h-full bg-green-500 rounded-full" style="width: 100%"></div>
-                    </div>
-                </div>
-                <span class="text-sm font-semibold text-green-600">Strong</span>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Session Management -->
-    <div class="bg-white rounded-xl shadow-lg p-6 mb-6 hover:shadow-xl transition">
-        <div class="flex items-center gap-2 mb-4">
-            <i class="fas fa-laptop text-2xl text-blue-600"></i>
-            <h2 class="text-xl font-bold">Active Sessions</h2>
-        </div>
-        <div class="space-y-3">
-            <div class="flex justify-between items-center py-2">
-                <div>
-                    <p class="font-semibold">Current Session</p>
-                    <p class="text-xs text-gray-500">{{ request.META.HTTP_USER_AGENT|truncatechars:50 }}</p>
-                    <p class="text-xs text-gray-500">IP: {{ request.META.REMOTE_ADDR }}</p>
-                </div>
-                <span class="text-green-600 text-sm"><i class="fas fa-circle text-[8px]"></i> Active Now</span>
-            </div>
-        </div>
-        <button onclick="logoutAllDevices()" class="mt-4 w-full bg-red-50 text-red-600 py-2 rounded-lg hover:bg-red-100 transition border border-red-200">
-            <i class="fas fa-sign-out-alt mr-2"></i> Sign out of all other devices
-        </button>
-    </div>
-    
-    <!-- Recent Activity Section -->
-    <div class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition">
-        <div class="flex items-center justify-between mb-4">
-            <div class="flex items-center gap-2">
-                <i class="fas fa-history text-2xl text-blue-600"></i>
-                <h2 class="text-xl font-bold">Recent Activity</h2>
-            </div>
-            <button onclick="refreshActivity()" class="text-blue-600 hover:text-blue-700 text-sm">
-                <i class="fas fa-sync-alt"></i> Refresh
-            </button>
-        </div>
-        <div class="space-y-3">
-            {% for activity in recent_activities %}
-            <div class="flex justify-between items-center py-3 border-b last:border-0 hover:bg-gray-50 transition px-2 rounded-lg">
-                <div class="flex items-center gap-3">
-                    {% if activity.action == 'login' %}
-                        <i class="fas fa-sign-in-alt text-green-600 w-5"></i>
-                    {% elif activity.action == 'logout' %}
-                        <i class="fas fa-sign-out-alt text-red-600 w-5"></i>
-                    {% elif activity.action == 'login_2fa' %}
-                        <i class="fas fa-shield-alt text-blue-600 w-5"></i>
-                    {% elif activity.action == 'password_change' %}
-                        <i class="fas fa-key text-yellow-600 w-5"></i>
-                    {% else %}
-                        <i class="fas fa-info-circle text-gray-600 w-5"></i>
-                    {% endif %}
-                    <div>
-                        <p class="font-semibold text-sm">{{ activity.get_action_display|default:activity.action|title }}</p>
-                        <p class="text-xs text-gray-500">{{ activity.timestamp|date:"M d, Y H:i:s" }}</p>
-                    </div>
-                </div>
-                <div class="text-right">
-                    <p class="text-sm font-mono text-gray-600">{{ activity.ip_address }}</p>
-                    <p class="text-xs text-gray-400">{{ activity.user_agent|truncatechars:30 }}</p>
-                </div>
-            </div>
-            {% empty %}
-            <div class="text-center py-8">
-                <i class="fas fa-chart-line text-5xl text-gray-300 mb-3"></i>
-                <p class="text-gray-500">No recent activity found.</p>
-                <p class="text-sm text-gray-400">Activity will appear here as you use your account</p>
             </div>
             {% endfor %}
         </div>
+        {% endif %}
+
+        <!-- Premium Header -->
+        <div class="mb-8 overflow-hidden rounded-3xl bg-[#0F2D6B] shadow-2xl shadow-blue-950/10">
+            <div class="relative px-6 py-8 sm:px-8 lg:px-10">
+                <div class="absolute inset-0 opacity-20">
+                    <div class="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#00B8FF] blur-3xl"></div>
+                    <div class="absolute -bottom-32 left-20 h-72 w-72 rounded-full bg-[#FF7A00] blur-3xl"></div>
+                </div>
+
+                <div class="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <p class="mb-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-black uppercase tracking-[0.2em] text-white/80">
+                            <i class="fas fa-shield-halved text-[#FF7A00]"></i>
+                            Account Security
+                        </p>
+                        <h1 class="text-3xl font-black tracking-tight text-white sm:text-4xl">
+                            Security Settings
+                        </h1>
+                        <p class="mt-2 max-w-2xl text-sm leading-6 text-white/75">
+                            Protect your Arolana account, monitor login activity, manage two-factor authentication, and control active sessions.
+                        </p>
+                    </div>
+
+                    <div class="flex flex-wrap gap-3">
+                        <a href="{% url 'accounts:profile' %}" class="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-black text-white transition hover:bg-white/20">
+                            <i class="fas fa-arrow-left"></i>
+                            Back to profile
+                        </a>
+                        <a href="{% url 'accounts:change_password' %}" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-[#0F2D6B] transition hover:bg-blue-50">
+                            <i class="fas fa-key"></i>
+                            Change password
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security Summary Cards -->
+        <div class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-lg shadow-slate-200/60">
+                <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl {% if email_verified %}bg-green-50 text-green-700{% else %}bg-yellow-50 text-yellow-700{% endif %}">
+                    <i class="fas fa-envelope-circle-check"></i>
+                </div>
+                <p class="text-xs font-black uppercase tracking-wide text-slate-500">Email</p>
+                <p class="mt-1 text-lg font-black {% if email_verified %}text-green-700{% else %}text-yellow-700{% endif %}">
+                    {% if email_verified %}Verified{% else %}Pending{% endif %}
+                </p>
+            </div>
+
+            <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-lg shadow-slate-200/60">
+                <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl {% if has_2fa %}bg-green-50 text-green-700{% else %}bg-red-50 text-red-700{% endif %}">
+                    <i class="fas fa-fingerprint"></i>
+                </div>
+                <p class="text-xs font-black uppercase tracking-wide text-slate-500">2FA</p>
+                <p class="mt-1 text-lg font-black {% if has_2fa %}text-green-700{% else %}text-red-700{% endif %}">
+                    {% if has_2fa %}Enabled{% else %}Disabled{% endif %}
+                </p>
+            </div>
+
+            <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-lg shadow-slate-200/60">
+                <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-[#0F2D6B]">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <p class="text-xs font-black uppercase tracking-wide text-slate-500">Last login</p>
+                <p class="mt-1 text-sm font-black text-slate-900">{{ user.last_login|date:"M d, Y"|default:"Never" }}</p>
+            </div>
+
+            <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-lg shadow-slate-200/60">
+                <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-50 text-[#FF7A00]">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+                <p class="text-xs font-black uppercase tracking-wide text-slate-500">Account</p>
+                <p class="mt-1 text-sm font-black text-slate-900">{{ user.get_user_type_display|default:"User" }}</p>
+            </div>
+        </div>
+
+        <div class="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
+
+            <!-- Left Column -->
+            <div class="space-y-6">
+
+                <!-- Security Overview -->
+                <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/70">
+                    <div class="border-b border-slate-200 bg-slate-50 px-5 py-4 sm:px-6">
+                        <div class="flex items-center gap-3">
+                            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-[#0F2D6B]">
+                                <i class="fas fa-user-shield text-lg"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-xl font-black text-slate-950">Security Overview</h2>
+                                <p class="text-sm font-semibold text-slate-500">Your current protection status.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
+                        <div class="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                            <div class="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-[#0F2D6B] shadow-sm">
+                                <i class="fas fa-envelope-circle-check"></i>
+                            </div>
+                            <p class="text-xs font-black uppercase tracking-wide text-slate-500">Email Verification</p>
+                            {% if email_verified %}
+                                <p class="mt-2 text-lg font-black text-green-700">Verified</p>
+                                <p class="mt-1 break-words text-xs font-semibold leading-5 text-slate-500">{{ user.email }}</p>
+                            {% else %}
+                                <p class="mt-2 text-lg font-black text-yellow-700">Not verified</p>
+                                <a href="{% url 'accounts:verify_email' %}" class="mt-3 inline-flex items-center gap-2 rounded-xl bg-[#FF7A00] px-3 py-2 text-xs font-black text-white hover:bg-[#e96f00]">
+                                    <i class="fas fa-envelope"></i>
+                                    Verify now
+                                </a>
+                            {% endif %}
+                        </div>
+
+                        <div class="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                            <div class="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-[#0F2D6B] shadow-sm">
+                                <i class="fas fa-fingerprint"></i>
+                            </div>
+                            <p class="text-xs font-black uppercase tracking-wide text-slate-500">Two-Factor Auth</p>
+                            {% if has_2fa %}
+                                <p class="mt-2 text-lg font-black text-green-700">Enabled</p>
+                                <p class="mt-1 text-xs font-semibold leading-5 text-slate-500">Extra login protection is active.</p>
+                            {% else %}
+                                <p class="mt-2 text-lg font-black text-red-700">Disabled</p>
+                                <p class="mt-1 text-xs font-semibold leading-5 text-slate-500">Add OTP verification to strengthen login security.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Two-Factor Authentication -->
+                <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/70">
+                    <div class="p-5 sm:p-6">
+                        <div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="flex items-start gap-4">
+                                <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl {% if has_2fa %}bg-green-50 text-green-700{% else %}bg-blue-50 text-[#0F2D6B]{% endif %}">
+                                    <i class="fas fa-shield-alt text-xl"></i>
+                                </div>
+                                <div>
+                                    <h2 class="text-xl font-black text-slate-950">Two-Factor Authentication</h2>
+                                    {% if has_2fa %}
+                                        <p class="mt-1 text-sm font-semibold text-green-700">
+                                            <i class="fas fa-check-circle"></i>
+                                            2FA is enabled
+                                        </p>
+                                    {% else %}
+                                        <p class="mt-1 text-sm font-semibold text-red-700">
+                                            <i class="fas fa-times-circle"></i>
+                                            2FA is disabled
+                                        </p>
+                                    {% endif %}
+                                    <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                                        Two-factor authentication adds an extra verification step when signing in to your Arolana account.
+                                    </p>
+                                </div>
+                            </div>
+
+                            {% if has_2fa %}
+                                <button type="button" onclick="showDisable2FAConfirm()" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-red-600 px-5 py-3 text-sm font-black text-white shadow-lg shadow-red-500/20 transition hover:bg-red-700">
+                                    <i class="fas fa-lock-open"></i>
+                                    Disable 2FA
+                                </button>
+                            {% else %}
+                                <a href="{% url 'accounts:enable_2fa' %}" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#0F2D6B] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-900/20 transition hover:bg-blue-900">
+                                    <i class="fas fa-shield-alt"></i>
+                                    Enable 2FA
+                                </a>
+                            {% endif %}
+                        </div>
+
+                        {% if not has_2fa %}
+                        <div class="mt-5 rounded-3xl border border-blue-200 bg-blue-50 p-5">
+                            <div class="flex items-start gap-3">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-[#0F2D6B]">
+                                    <i class="fas fa-info-circle"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-sm font-black text-blue-950">Why enable 2FA?</h3>
+                                    <p class="mt-1 text-xs font-semibold leading-5 text-blue-800">
+                                        Even if someone gets your password, they still need your verification code before they can access your account.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Password -->
+                <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/70">
+                    <div class="p-5 sm:p-6">
+                        <div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="flex items-start gap-4">
+                                <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-[#FF7A00]">
+                                    <i class="fas fa-key text-xl"></i>
+                                </div>
+                                <div>
+                                    <h2 class="text-xl font-black text-slate-950">Password</h2>
+                                    <p class="mt-1 text-sm font-semibold text-slate-500">
+                                        Last login: {{ user.last_login|date:"M d, Y H:i"|default:"Never" }}
+                                    </p>
+                                    <p class="mt-2 text-sm leading-6 text-slate-500">
+                                        Use a strong password that you do not use on other websites.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <a href="{% url 'accounts:change_password' %}" class="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-300 px-5 py-3 text-sm font-black text-slate-800 transition hover:bg-slate-50">
+                                <i class="fas fa-edit"></i>
+                                Change Password
+                            </a>
+                        </div>
+
+                        <div class="mt-5 rounded-3xl bg-slate-50 p-5">
+                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+                                <div class="flex items-center gap-3">
+                                    <i class="fas fa-shield-halved text-green-600"></i>
+                                    <span class="text-sm font-black text-slate-700">Recommended password strength</span>
+                                </div>
+                                <div class="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
+                                    <div class="h-full rounded-full bg-green-500" style="width: 100%"></div>
+                                </div>
+                                <span class="text-xs font-black text-green-700">Strong</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="space-y-6">
+
+                <!-- Active Session -->
+                <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/70">
+                    <div class="border-b border-slate-200 bg-slate-50 px-5 py-4 sm:px-6">
+                        <div class="flex items-center gap-3">
+                            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-[#0F2D6B]">
+                                <i class="fas fa-laptop"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-xl font-black text-slate-950">Current Session</h2>
+                                <p class="text-sm font-semibold text-slate-500">Device currently signed in.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-5 sm:p-6">
+                        <div class="rounded-3xl border border-green-200 bg-green-50 p-5">
+                            <div class="flex items-start justify-between gap-4">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-black text-green-900">Active Now</p>
+                                    <p class="mt-2 break-words text-xs font-semibold leading-5 text-green-800">
+                                        {{ request.META.HTTP_USER_AGENT|default:"Unknown device"|truncatechars:90 }}
+                                    </p>
+                                    <p class="mt-2 text-xs font-semibold text-green-700">
+                                        IP: {{ request.META.REMOTE_ADDR|default:"Unknown" }}
+                                    </p>
+                                </div>
+                                <span class="inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-black text-green-700">
+                                    <span class="h-2 w-2 rounded-full bg-green-500"></span>
+                                    Live
+                                </span>
+                            </div>
+                        </div>
+
+                        <form method="post" action="{% url 'accounts:logout_all_devices' %}" class="mt-4" onsubmit="return confirm('This will sign you out of all other devices. Continue?')">
+                            {% csrf_token %}
+                            <button type="submit" class="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-black text-red-700 transition hover:bg-red-100">
+                                <i class="fas fa-sign-out-alt"></i>
+                                Sign out of all other devices
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/70">
+                    <div class="border-b border-slate-200 bg-slate-50 px-5 py-4 sm:px-6">
+                        <div class="flex items-center justify-between gap-4">
+                            <div class="flex items-center gap-3">
+                                <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-[#0F2D6B]">
+                                    <i class="fas fa-history"></i>
+                                </div>
+                                <div>
+                                    <h2 class="text-xl font-black text-slate-950">Recent Activity</h2>
+                                    <p class="text-sm font-semibold text-slate-500">Latest account security events.</p>
+                                </div>
+                            </div>
+
+                            <button type="button" onclick="window.location.reload()" class="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 text-xs font-black text-slate-700 hover:bg-white">
+                                <i class="fas fa-sync-alt"></i>
+                                Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="divide-y divide-slate-200">
+                        {% for activity in recent_activities %}
+                        <div class="px-5 py-4 transition hover:bg-slate-50 sm:px-6">
+                            <div class="flex items-start justify-between gap-4">
+                                <div class="flex min-w-0 items-start gap-3">
+                                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl
+                                        {% if activity.action == 'login' %}bg-green-50 text-green-700
+                                        {% elif activity.action == 'logout' %}bg-red-50 text-red-700
+                                        {% elif activity.action == 'login_2fa' or activity.action == 'login_otp' %}bg-blue-50 text-[#0F2D6B]
+                                        {% elif activity.action == 'password_change' %}bg-yellow-50 text-yellow-700
+                                        {% else %}bg-slate-100 text-slate-600{% endif %}">
+                                        {% if activity.action == 'login' %}
+                                            <i class="fas fa-sign-in-alt"></i>
+                                        {% elif activity.action == 'logout' %}
+                                            <i class="fas fa-sign-out-alt"></i>
+                                        {% elif activity.action == 'login_2fa' or activity.action == 'login_otp' %}
+                                            <i class="fas fa-shield-alt"></i>
+                                        {% elif activity.action == 'password_change' %}
+                                            <i class="fas fa-key"></i>
+                                        {% else %}
+                                            <i class="fas fa-info-circle"></i>
+                                        {% endif %}
+                                    </div>
+                                    <div class="min-w-0">
+                                        <p class="truncate text-sm font-black text-slate-900">
+                                            {{ activity.get_action_display|default:activity.action|title }}
+                                        </p>
+                                        <p class="mt-1 text-xs font-semibold text-slate-500">
+                                            {{ activity.timestamp|date:"M d, Y H:i:s" }}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div class="max-w-[120px] text-right sm:max-w-[180px]">
+                                    <p class="truncate font-mono text-xs font-bold text-slate-600">{{ activity.ip_address|default:"Unknown IP" }}</p>
+                                    <p class="mt-1 truncate text-xs font-semibold text-slate-400">{{ activity.user_agent|default:"Unknown device"|truncatechars:30 }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="p-8 text-center">
+                            <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-100 text-slate-400">
+                                <i class="fas fa-chart-line text-2xl"></i>
+                            </div>
+                            <p class="text-sm font-black text-slate-700">No recent activity found</p>
+                            <p class="mt-1 text-xs font-semibold text-slate-500">Security activity will appear here as you use your account.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="rounded-3xl border border-amber-200 bg-amber-50 p-5">
+                    <div class="flex items-start gap-3">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-[#FF7A00]">
+                            <i class="fas fa-lightbulb"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-black text-amber-900">Security tip</h3>
+                            <p class="mt-1 text-xs font-semibold leading-5 text-amber-800">
+                                Review your activity regularly. If you see a login you do not recognize, change your password and sign out of other devices immediately.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
     </div>
-</div>
+</section>
 
 <!-- Disable 2FA Confirmation Modal -->
-<div id="disable2faModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
-        <div class="text-center">
-            <i class="fas fa-shield-alt text-5xl text-red-500 mb-4"></i>
-            <h3 class="text-xl font-bold mb-2">Disable 2FA?</h3>
-            <p class="text-gray-600 mb-6">Are you sure you want to disable two-factor authentication? This will make your account less secure.</p>
-            <div class="flex gap-3">
-                <button onclick="closeModal()" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition">
+<div id="disable2faModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
+    <div class="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
+        <div class="p-6 text-center">
+            <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-red-50 text-red-600">
+                <i class="fas fa-shield-alt text-3xl"></i>
+            </div>
+            <h3 class="text-xl font-black text-slate-950">Disable 2FA?</h3>
+            <p class="mt-2 text-sm font-semibold leading-6 text-slate-500">
+                Are you sure you want to disable two-factor authentication? This will reduce your account protection.
+            </p>
+
+            <div class="mt-6 grid grid-cols-2 gap-3">
+                <button type="button" onclick="closeModal()" class="rounded-2xl border border-slate-300 px-4 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50">
                     Cancel
                 </button>
-                <a href="{% url 'accounts:disable_2fa' %}" class="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition text-center">
-                    Yes, Disable
+                <a href="{% url 'accounts:disable_2fa' %}" class="rounded-2xl bg-red-600 px-4 py-3 text-center text-sm font-black text-white transition hover:bg-red-700">
+                    Continue
                 </a>
             </div>
         </div>
@@ -207,123 +412,34 @@
 </div>
 
 <script>
-// Modal functions
-function showDisable2FAConfirm() {
-    document.getElementById('disable2faModal').classList.remove('hidden');
-    document.getElementById('disable2faModal').classList.add('flex');
-}
+(function () {
+    const modal = document.getElementById('disable2faModal');
 
-function closeModal() {
-    document.getElementById('disable2faModal').classList.add('hidden');
-    document.getElementById('disable2faModal').classList.remove('flex');
-}
+    window.showDisable2FAConfirm = function () {
+        if (!modal) return;
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    };
 
-// Send verification email
-function sendVerificationEmail() {
-    const btn = event.target;
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
-    btn.disabled = true;
-    
-    fetch('/accounts/send-verification-email/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token }}'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showToast('Verification email sent! Check your inbox.', 'success');
-        } else {
-            showToast(data.error || 'Failed to send email', 'error');
-        }
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    })
-    .catch(error => {
-        showToast('Network error. Please try again.', 'error');
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    });
-}
+    window.closeModal = function () {
+        if (!modal) return;
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    };
 
-// Logout all other devices
-function logoutAllDevices() {
-    if (confirm('This will sign you out of all other devices. Continue?')) {
-        fetch('/accounts/logout-all-devices/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showToast('Signed out of all other devices!', 'success');
-                setTimeout(() => window.location.reload(), 1500);
-            } else {
-                showToast('Failed to logout other devices', 'error');
+    if (modal) {
+        modal.addEventListener('click', function (event) {
+            if (event.target === modal) {
+                window.closeModal();
             }
         });
     }
-}
 
-// Refresh activity log
-function refreshActivity() {
-    const btn = event.target;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-    
-    fetch('/accounts/recent-activity/', {
-        method: 'GET',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}'
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') {
+            window.closeModal();
         }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        }
-    })
-    .finally(() => {
-        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh';
     });
-}
-
-// Show toast notification
-function showToast(message, type = 'success') {
-    const container = document.getElementById('toast-container');
-    if (!container) return;
-    
-    const toast = document.createElement('div');
-    toast.className = `toast-notification bg-white rounded-lg shadow-xl p-4 mb-3 border-l-4 ${
-        type === 'success' ? 'border-green-500' : 'border-red-500'
-    }`;
-    toast.innerHTML = `
-        <div class="flex items-center gap-3">
-            <div class="${type === 'success' ? 'text-green-500' : 'text-red-500'}">
-                <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'} text-xl"></i>
-            </div>
-            <div class="flex-1">
-                <p class="text-gray-800 text-sm">${message}</p>
-            </div>
-            <button onclick="this.parentElement.parentElement.remove()" class="text-gray-400 hover:text-gray-600">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-    `;
-    container.appendChild(toast);
-    setTimeout(() => toast.remove(), 5000);
-}
-
-// Close modal when clicking outside
-document.getElementById('disable2faModal').addEventListener('click', function(e) {
-    if (e.target === this) {
-        closeModal();
-    }
-});
+})();
 </script>
 {% endblock %}

@@ -1,5 +1,6 @@
 {% extends "base/base.html" %}
 {% load static %}
+
 {% block body_class %}landing-page-body{% endblock %}
 {% block title %}{{ page.meta_title|default:page.public_title }} | Arolana{% endblock %}
 
@@ -11,6 +12,112 @@
 {% if page.og_image_url %}<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ page.og_image_url }}">{% endif %}
 {% if page.canonical_url %}<link rel="canonical" href="{{ page.canonical_url }}">{% endif %}
 <link rel="stylesheet" href="{% static 'landing_pages/css/landing_pages.css' %}">
+
+<style>
+    /*
+      Arolana landing detail polish.
+      This keeps your external landing_pages.css, then adds safe overrides here.
+    */
+
+    .arolana-landing-page {
+        --lp-primary-safe: var(--lp-primary, #0F2D6B);
+        --lp-accent-safe: var(--lp-accent, #FF7A00);
+        --lp-dark-safe: var(--lp-dark, #0F172A);
+        --lp-bg-safe: var(--lp-bg, #F8FAFC);
+        --lp-text-safe: var(--lp-text, #0F172A);
+        background:
+            radial-gradient(circle at top right, color-mix(in srgb, var(--lp-primary-safe) 10%, transparent), transparent 34rem),
+            radial-gradient(circle at bottom left, color-mix(in srgb, var(--lp-accent-safe) 10%, transparent), transparent 34rem),
+            var(--lp-bg-safe);
+        color: var(--lp-text-safe);
+    }
+
+    .lp-hero {
+        min-height: clamp(620px, 82vh, 860px);
+        background:
+            radial-gradient(circle at 15% 18%, rgba(0, 184, 255, 0.24), transparent 28rem),
+            radial-gradient(circle at 88% 22%, rgba(255, 122, 0, 0.22), transparent 30rem),
+            linear-gradient(135deg, var(--lp-primary-safe), #071A44 62%, var(--lp-dark-safe));
+    }
+
+    .lp-hero-copy h1 {
+        letter-spacing: -0.06em;
+        text-wrap: balance;
+    }
+
+    .lp-hero-panel {
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(18px);
+        box-shadow: 0 34px 100px rgba(15, 23, 42, 0.18);
+    }
+
+    .lp-card,
+    .lp-step-card,
+    .lp-faq-item,
+    .lp-contact-card {
+        transition: transform .24s ease, box-shadow .24s ease, border-color .24s ease;
+    }
+
+    .lp-card:hover,
+    .lp-step-card:hover,
+    .lp-contact-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .lp-offer-card img,
+    .lp-category-card img,
+    .lp-video-thumb img,
+    .lp-testimonial-card img {
+        background: #e2e8f0;
+    }
+
+    .lp-section-heading h2 {
+        text-wrap: balance;
+    }
+
+    .lp-mini-nav-links a.is-active {
+        background: color-mix(in srgb, var(--lp-primary-safe) 10%, #fff);
+        color: var(--lp-primary-safe);
+    }
+
+    /*
+      IMPORTANT FIX:
+      Orange "Back to top" button moved to the LEFT.
+    */
+    .lp-back-to-top {
+        left: 1rem !important;
+        right: auto !important;
+        bottom: 1rem !important;
+        background: var(--lp-accent-safe) !important;
+        color: #ffffff !important;
+        box-shadow: 0 18px 40px color-mix(in srgb, var(--lp-accent-safe) 35%, transparent) !important;
+        border: 0 !important;
+    }
+
+    .lp-back-to-top:hover {
+        transform: translateY(-3px);
+        background: color-mix(in srgb, var(--lp-accent-safe) 88%, #000) !important;
+    }
+
+    html.lp-video-open,
+    body.lp-video-open {
+        overflow: hidden !important;
+    }
+
+    @media (max-width: 640px) {
+        .lp-back-to-top {
+            left: .85rem !important;
+            right: auto !important;
+            bottom: .85rem !important;
+        }
+
+        .lp-hero-panel {
+            display: none;
+        }
+    }
+</style>
+
 {% if page.custom_css %}<style>{{ page.custom_css|safe }}</style>{% endif %}
 {% if schema_json %}
 <script type="application/ld+json">{{ schema_json|safe }}</script>
@@ -19,9 +126,13 @@
 
 {% block content %}
 <main class="arolana-landing-page"
-      style="--lp-primary: {{ page.primary_color|default:'#2563EB' }}; --lp-accent: {{ page.accent_color|default:'#F97316' }}; --lp-dark: {{ page.dark_color|default:'#0F172A' }}; --lp-bg: {{ page.background_color|default:'#F8FAFC' }}; --lp-text: {{ page.text_color|default:'#0F172A' }};">
+      style="--lp-primary: {{ page.primary_color|default:'#0F2D6B' }}; --lp-accent: {{ page.accent_color|default:'#FF7A00' }}; --lp-dark: {{ page.dark_color|default:'#0F172A' }}; --lp-bg: {{ page.background_color|default:'#F8FAFC' }}; --lp-text: {{ page.text_color|default:'#0F172A' }};">
+
     {% if preview %}
-    <div class="lp-preview-banner">Staff preview: this page may be unpublished.</div>
+    <div class="lp-preview-banner">
+        <i class="fas fa-eye"></i>
+        Staff preview: this page may be unpublished.
+    </div>
     {% endif %}
 
     <section class="lp-hero" id="top">
@@ -30,27 +141,39 @@
                 {% if page.hero_mobile_image %}
                     <source media="(max-width: 640px)" srcset="{{ page.hero_mobile_image.url }}">
                 {% endif %}
-                <img src="{{ page.hero_background_image.url }}" alt="{{ page.title }}" class="lp-hero-image">
+                <img src="{{ page.hero_background_image.url }}" alt="{{ page.hero_headline|default:page.title }}" class="lp-hero-image" fetchpriority="high" decoding="async">
             </picture>
         {% endif %}
-        <div class="lp-hero-overlay" style="opacity: {{ page.hero_overlay_opacity|default:'0.56' }}"></div>
+
+        <div class="lp-hero-overlay" style="opacity: {{ page.hero_overlay_opacity|default:'0.60' }}"></div>
+
         <div class="lp-container lp-hero-inner">
             <div class="lp-hero-copy">
                 {% if page.hero_badge_text %}
                 <span class="lp-badge">{{ page.hero_badge_text }}</span>
                 {% endif %}
+
                 <h1>{{ page.hero_headline|default:page.title }}</h1>
+
                 {% if page.hero_subheadline or page.subtitle %}
                 <p>{{ page.hero_subheadline|default:page.subtitle }}</p>
                 {% endif %}
+
                 <div class="lp-hero-actions">
                     {% if page.primary_cta_text and page.primary_cta_url %}
-                    <a href="{{ page.primary_cta_url }}" class="lp-btn lp-btn-primary">{{ page.primary_cta_text }} <i class="fas fa-arrow-right"></i></a>
+                    <a href="{{ page.primary_cta_url }}" class="lp-btn lp-btn-primary">
+                        {{ page.primary_cta_text }}
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
                     {% endif %}
+
                     {% if page.secondary_cta_text and page.secondary_cta_url %}
-                    <a href="{{ page.secondary_cta_url }}" class="lp-btn lp-btn-secondary">{{ page.secondary_cta_text }}</a>
+                    <a href="{{ page.secondary_cta_url }}" class="lp-btn lp-btn-secondary">
+                        {{ page.secondary_cta_text }}
+                    </a>
                     {% endif %}
                 </div>
+
                 {% if page.trust_badges %}
                 <div class="lp-trust-row">
                     {% for badge in page.trust_badges %}
@@ -59,10 +182,11 @@
                 </div>
                 {% endif %}
             </div>
+
             <div class="lp-hero-panel">
                 <span class="lp-panel-kicker">Arolana support</span>
-                <strong>Plan bigger purchases with a cleaner process.</strong>
-                <p>Build campaign pages for offers, categories, brand promotions, financing, and customer support journeys directly from admin.</p>
+                <strong>{{ page.hero_panel_title|default:"Plan bigger purchases with a cleaner process." }}</strong>
+                <p>{{ page.hero_panel_text|default:"Build campaign pages for offers, categories, brand promotions, financing, product education, and customer support journeys directly from admin." }}</p>
             </div>
         </div>
     </section>
@@ -70,10 +194,16 @@
     {% if nav_items %}
     <nav class="lp-mini-nav" aria-label="Landing page sections">
         <div class="lp-container lp-mini-nav-inner">
-            <button type="button" class="lp-mobile-nav-toggle"><i class="fas fa-bars"></i> Sections</button>
+            <button type="button" class="lp-mobile-nav-toggle" aria-expanded="false">
+                <i class="fas fa-bars"></i>
+                Sections
+            </button>
+
             <div class="lp-mini-nav-links">
                 {% for anchor, section, label, enabled in nav_items %}
-                <a href="#{{ anchor }}" data-lp-nav="{{ anchor }}">{{ section.title|default:label }}</a>
+                    {% if enabled %}
+                    <a href="#{{ anchor }}" data-lp-nav="{{ anchor }}">{{ section.title|default:label }}</a>
+                    {% endif %}
                 {% endfor %}
             </div>
         </div>
@@ -88,13 +218,16 @@
                 <h2>{{ benefits_section.title|default:"Benefits built for better buying" }}</h2>
                 {% if benefits_section.subtitle %}<p>{{ benefits_section.subtitle }}</p>{% endif %}
             </div>
+
             <div class="lp-benefit-grid">
                 {% for item in benefits %}
                 <article class="lp-card lp-benefit-card">
                     <div class="lp-icon"><i class="{{ item.icon|default:'fas fa-check-circle' }}"></i></div>
                     <h3>{{ item.title }}</h3>
                     <p>{{ item.description }}</p>
-                    {% if item.link_text and item.link_url %}<a href="{{ item.link_url }}">{{ item.link_text }} <i class="fas fa-arrow-right"></i></a>{% endif %}
+                    {% if item.link_text and item.link_url %}
+                    <a href="{{ item.link_url }}">{{ item.link_text }} <i class="fas fa-arrow-right"></i></a>
+                    {% endif %}
                 </article>
                 {% endfor %}
             </div>
@@ -110,18 +243,29 @@
                 <h2>{{ offers_section.title|default:"Featured support offers" }}</h2>
                 {% if offers_section.subtitle %}<p>{{ offers_section.subtitle }}</p>{% endif %}
             </div>
+
             <div class="lp-offer-grid">
                 {% for item in offers %}
                 <article class="lp-card lp-offer-card">
                     {% if item.offer_label %}<span class="lp-offer-label">{{ item.offer_label }}</span>{% endif %}
-                    {% if item.image %}<img src="{{ item.image.url }}" alt="{{ item.title }}">{% endif %}
+                    {% if item.image %}<img src="{{ item.image.url }}" alt="{{ item.title }}" loading="lazy" decoding="async">{% endif %}
                     <div class="lp-icon"><i class="{{ item.icon|default:'fas fa-tags' }}"></i></div>
                     <h3>{{ item.title }}</h3>
                     <p>{{ item.description }}</p>
+
                     {% if item.price_text or item.discount_text %}
-                    <div class="lp-price-line"><strong>{{ item.price_text }}</strong><span>{{ item.discount_text }}</span></div>
+                    <div class="lp-price-line">
+                        {% if item.price_text %}<strong>{{ item.price_text }}</strong>{% endif %}
+                        {% if item.discount_text %}<span>{{ item.discount_text }}</span>{% endif %}
+                    </div>
                     {% endif %}
-                    {% if item.button_text and item.button_url %}<a class="lp-card-link" href="{{ item.button_url }}">{{ item.button_text }}</a>{% endif %}
+
+                    {% if item.button_text and item.button_url %}
+                    <a class="lp-card-link" href="{{ item.button_url }}">
+                        {{ item.button_text }}
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                    {% endif %}
                 </article>
                 {% endfor %}
             </div>
@@ -137,10 +281,11 @@
                 <h2>{{ steps_section.title|default:"How it works" }}</h2>
                 {% if steps_section.subtitle %}<p>{{ steps_section.subtitle }}</p>{% endif %}
             </div>
+
             <div class="lp-step-grid">
                 {% for item in steps %}
                 <article class="lp-step-card">
-                    <div class="lp-step-number">{{ item.step_number }}</div>
+                    <div class="lp-step-number">{{ item.step_number|default:forloop.counter }}</div>
                     <i class="{{ item.icon|default:'fas fa-arrow-right' }}"></i>
                     <h3>{{ item.title }}</h3>
                     <p>{{ item.description }}</p>
@@ -159,11 +304,12 @@
                 <h2>{{ categories_section.title|default:"Explore eligible product categories" }}</h2>
                 {% if categories_section.subtitle %}<p>{{ categories_section.subtitle }}</p>{% endif %}
             </div>
+
             <div class="lp-category-grid">
                 {% for item in category_cards %}
                 <a class="lp-card lp-category-card" href="{{ item.resolved_url }}">
                     {% if item.image %}
-                    <img src="{{ item.image.url }}" alt="{{ item.title }}">
+                    <img src="{{ item.image.url }}" alt="{{ item.title }}" loading="lazy" decoding="async">
                     {% endif %}
                     <div class="lp-icon"><i class="{{ item.icon|default:'fas fa-box-open' }}"></i></div>
                     <h3>{{ item.title }}</h3>
@@ -184,18 +330,20 @@
                 <h2>{{ video_guides_section.title|default:"Other How-To Guides" }}</h2>
                 {% if video_guides_section.subtitle %}<p>{{ video_guides_section.subtitle }}</p>{% endif %}
             </div>
+
             <div class="lp-video-grid">
                 {% for video in video_guides %}
                 <article class="lp-card lp-video-card" data-video-url="{{ video.video_url }}" data-video-embed="{{ video.embed_url }}" data-video-title="{{ video.title }}">
                     <button type="button" class="lp-video-thumb" aria-label="Watch {{ video.title }}">
                         {% if video.thumbnail_url %}
-                            <img src="{{ video.thumbnail_url }}" alt="{{ video.title }}">
+                            <img src="{{ video.thumbnail_url }}" alt="{{ video.title }}" loading="lazy" decoding="async">
                         {% else %}
                             <span class="lp-video-placeholder"><i class="fas fa-video"></i></span>
                         {% endif %}
                         <span class="lp-play"><i class="fas fa-play"></i></span>
                         {% if video.duration %}<span class="lp-duration">{{ video.duration }}</span>{% endif %}
                     </button>
+
                     <div class="lp-video-body">
                         {% if video.subtitle %}<span>{{ video.subtitle }}</span>{% endif %}
                         <h3>{{ video.title }}</h3>
@@ -217,19 +365,33 @@
                 <h2>{{ comparison_section.title|default:"Compare the experience" }}</h2>
                 {% if comparison_section.subtitle %}<p>{{ comparison_section.subtitle }}</p>{% endif %}
             </div>
+
             <div class="lp-comparison-grid">
+                {% if negative_comparison_items %}
                 <div class="lp-comparison-card lp-negative">
-                    <h3>Without Flexible Payment</h3>
+                    <h3>{{ comparison_negative_title|default:"Without Flexible Payment" }}</h3>
                     {% for item in negative_comparison_items %}
-                    <p><i class="{{ item.icon|default:'fas fa-times' }}"></i> <strong>{{ item.title }}</strong><span>{{ item.description }}</span></p>
+                    <p>
+                        <i class="{{ item.icon|default:'fas fa-times' }}"></i>
+                        <strong>{{ item.title }}</strong>
+                        <span>{{ item.description }}</span>
+                    </p>
                     {% endfor %}
                 </div>
+                {% endif %}
+
+                {% if positive_comparison_items %}
                 <div class="lp-comparison-card lp-positive">
-                    <h3>With Arolana Flexible Payment</h3>
+                    <h3>{{ comparison_positive_title|default:"With Arolana Flexible Payment" }}</h3>
                     {% for item in positive_comparison_items %}
-                    <p><i class="{{ item.icon|default:'fas fa-check' }}"></i> <strong>{{ item.title }}</strong><span>{{ item.description }}</span></p>
+                    <p>
+                        <i class="{{ item.icon|default:'fas fa-check' }}"></i>
+                        <strong>{{ item.title }}</strong>
+                        <span>{{ item.description }}</span>
+                    </p>
                     {% endfor %}
                 </div>
+                {% endif %}
             </div>
         </div>
     </section>
@@ -241,14 +403,16 @@
             <div class="lp-section-heading">
                 <span>Customer confidence</span>
                 <h2>{{ testimonials_section.title|default:"What customers say" }}</h2>
+                {% if testimonials_section.subtitle %}<p>{{ testimonials_section.subtitle }}</p>{% endif %}
             </div>
+
             <div class="lp-testimonial-grid">
                 {% for item in testimonials %}
                 <article class="lp-card lp-testimonial-card">
                     <div class="lp-stars">{% for i in "12345" %}<i class="fas fa-star"></i>{% endfor %}</div>
                     <blockquote>{{ item.quote }}</blockquote>
                     <div class="lp-person">
-                        {% if item.image %}<img src="{{ item.image.url }}" alt="{{ item.customer_name }}">{% endif %}
+                        {% if item.image %}<img src="{{ item.image.url }}" alt="{{ item.customer_name }}" loading="lazy" decoding="async">{% endif %}
                         <div>
                             <strong>{{ item.customer_name }}</strong>
                             <span>{{ item.customer_title }}{% if item.customer_location %} · {{ item.customer_location }}{% endif %}</span>
@@ -267,11 +431,16 @@
             <div class="lp-section-heading">
                 <span>Questions</span>
                 <h2>{{ faq_section.title|default:"Frequently asked questions" }}</h2>
+                {% if faq_section.subtitle %}<p>{{ faq_section.subtitle }}</p>{% endif %}
             </div>
+
             <div class="lp-faq-list">
                 {% for item in faqs %}
                 <article class="lp-faq-item">
-                    <button type="button" class="lp-faq-question">{{ item.question }} <i class="fas fa-chevron-down"></i></button>
+                    <button type="button" class="lp-faq-question">
+                        {{ item.question }}
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
                     <div class="lp-faq-answer"><p>{{ item.answer }}</p></div>
                 </article>
                 {% endfor %}
@@ -296,8 +465,9 @@
             <div>
                 <span class="lp-kicker">Talk to Arolana</span>
                 <h2>{{ contact_section.title|default:"Need help choosing the right option?" }}</h2>
-                <p>{{ contact_section.subtitle|default:"Contact our team for product, business purchase, installation, and eligibility support." }}</p>
+                <p>{{ contact_section.subtitle|default:"Contact our team for product, business purchase, installation, eligibility, and customer support." }}</p>
             </div>
+
             <div class="lp-contact-grid">
                 {% for item in contact_options %}
                 <a class="lp-contact-card" href="{{ item.url|default:'#' }}">
@@ -320,11 +490,15 @@
     </section>
     {% endif %}
 
-    <button type="button" class="lp-back-to-top" aria-label="Back to top"><i class="fas fa-arrow-up"></i></button>
+    <button type="button" class="lp-back-to-top" aria-label="Back to top">
+        <i class="fas fa-arrow-up"></i>
+    </button>
 
     <div class="lp-video-modal" aria-hidden="true">
         <div class="lp-video-modal-card">
-            <button type="button" class="lp-video-modal-close" aria-label="Close video"><i class="fas fa-times"></i></button>
+            <button type="button" class="lp-video-modal-close" aria-label="Close video">
+                <i class="fas fa-times"></i>
+            </button>
             <iframe src="about:blank" title="Landing page video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
         </div>
     </div>

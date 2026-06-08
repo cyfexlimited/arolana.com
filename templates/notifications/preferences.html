@@ -4,128 +4,397 @@
 {% block title %}Notification Preferences | Arolana{% endblock %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto">
-    <div class="bg-white rounded-lg shadow-md">
-        <div class="border-b p-6">
-            <h1 class="text-2xl font-bold">Notification Preferences</h1>
-            <p class="text-gray-600 mt-1">Manage how you receive notifications</p>
+<section class="min-h-screen bg-[#F8FAFC] py-8 sm:py-12">
+    <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+
+        {% if messages %}
+        <div class="mb-6 space-y-3">
+            {% for message in messages %}
+            <div class="rounded-2xl border px-4 py-3 text-sm font-semibold
+                {% if message.tags == 'success' %}border-green-200 bg-green-50 text-green-800
+                {% elif message.tags == 'error' %}border-red-200 bg-red-50 text-red-800
+                {% elif message.tags == 'warning' %}border-yellow-200 bg-yellow-50 text-yellow-800
+                {% else %}border-blue-200 bg-blue-50 text-blue-800{% endif %}">
+                <div class="flex items-start gap-3">
+                    <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' %}fa-exclamation-circle{% elif message.tags == 'warning' %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %} mt-0.5"></i>
+                    <span>{{ message }}</span>
+                </div>
+            </div>
+            {% endfor %}
         </div>
-        
-        <form method="POST" class="p-6">
+        {% endif %}
+
+        <!-- Hero -->
+        <div class="mb-8 overflow-hidden rounded-3xl bg-[#0F2D6B] shadow-2xl shadow-blue-950/10">
+            <div class="relative px-6 py-8 sm:px-8 lg:px-10">
+                <div class="absolute inset-0 opacity-20">
+                    <div class="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#00B8FF] blur-3xl"></div>
+                    <div class="absolute -bottom-32 left-20 h-72 w-72 rounded-full bg-[#FF7A00] blur-3xl"></div>
+                </div>
+
+                <div class="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <p class="mb-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-black uppercase tracking-[0.2em] text-white/80">
+                            <i class="fas fa-bell text-[#FF7A00]"></i>
+                            Notification Center
+                        </p>
+                        <h1 class="text-3xl font-black tracking-tight text-white sm:text-4xl">
+                            Notification Preferences
+                        </h1>
+                        <p class="mt-2 max-w-2xl text-sm leading-6 text-white/75">
+                            Choose how Arolana reaches you for orders, security, messages, vendor updates, promotions, and quiet hours.
+                        </p>
+                    </div>
+
+                    <a href="{% url 'accounts:profile' %}" class="inline-flex w-fit items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-black text-white transition hover:bg-white/20">
+                        <i class="fas fa-arrow-left"></i>
+                        Back to profile
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <form method="POST" id="notification-preferences-form" class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/70">
             {% csrf_token %}
-            
-            <!-- Email & Push Notifications -->
-            <div class="mb-8">
-                <h2 class="text-lg font-semibold mb-4">Notification Channels</h2>
-                <div class="space-y-3">
-                    <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer">
-                        <div>
-                            <span class="font-medium">Email Notifications</span>
-                            <p class="text-sm text-gray-500">Receive notifications via email</p>
+
+            <div class="grid gap-0 lg:grid-cols-[0.9fr_1.1fr]">
+
+                <!-- Channels + Quiet Hours -->
+                <div class="border-b border-slate-200 p-5 sm:p-8 lg:border-b-0 lg:border-r">
+
+                    <div class="mb-6 flex items-center gap-3">
+                        <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-[#0F2D6B]">
+                            <i class="fas fa-satellite-dish text-lg"></i>
                         </div>
-                        <input type="checkbox" name="email_notifications" {% if settings.email_notifications %}checked{% endif %} class="w-5 h-5 text-blue-600">
-                    </label>
-                    <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer">
                         <div>
-                            <span class="font-medium">Push Notifications</span>
-                            <p class="text-sm text-gray-500">Receive browser push notifications</p>
+                            <h2 class="text-xl font-black text-slate-950">Notification Channels</h2>
+                            <p class="text-sm font-semibold text-slate-500">Choose how you want to receive alerts.</p>
                         </div>
-                        <input type="checkbox" name="push_notifications" {% if settings.push_notifications %}checked{% endif %} class="w-5 h-5 text-blue-600">
-                    </label>
+                    </div>
+
+                    <div class="space-y-4">
+                        <label class="group flex cursor-pointer items-start justify-between gap-4 rounded-3xl border border-slate-200 bg-slate-50 p-5 transition hover:border-[#0F2D6B] hover:bg-blue-50">
+                            <span class="flex items-start gap-4">
+                                <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-[#0F2D6B] shadow-sm">
+                                    <i class="fas fa-envelope"></i>
+                                </span>
+                                <span>
+                                    <span class="block text-sm font-black text-slate-950">Email Notifications</span>
+                                    <span class="mt-1 block text-xs font-semibold leading-5 text-slate-500">
+                                        Receive order, account, and marketplace notifications by email.
+                                    </span>
+                                </span>
+                            </span>
+                            <span class="relative inline-flex shrink-0 items-center">
+                                <input type="checkbox" name="email_notifications" id="email_notifications" class="peer sr-only" {% if prefs.email_notifications or settings.email_notifications %}checked{% endif %}>
+                                <span class="h-7 w-12 rounded-full bg-slate-300 transition peer-checked:bg-[#0F2D6B]"></span>
+                                <span class="absolute left-1 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-5"></span>
+                            </span>
+                        </label>
+
+                        <label class="group flex cursor-pointer items-start justify-between gap-4 rounded-3xl border border-slate-200 bg-slate-50 p-5 transition hover:border-[#0F2D6B] hover:bg-blue-50">
+                            <span class="flex items-start gap-4">
+                                <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-[#0F2D6B] shadow-sm">
+                                    <i class="fas fa-mobile-screen-button"></i>
+                                </span>
+                                <span>
+                                    <span class="block text-sm font-black text-slate-950">Push Notifications</span>
+                                    <span class="mt-1 block text-xs font-semibold leading-5 text-slate-500">
+                                        Receive browser and app push notifications when supported.
+                                    </span>
+                                </span>
+                            </span>
+                            <span class="relative inline-flex shrink-0 items-center">
+                                <input type="checkbox" name="push_notifications" id="push_notifications" class="peer sr-only" {% if prefs.push_notifications or settings.push_notifications %}checked{% endif %}>
+                                <span class="h-7 w-12 rounded-full bg-slate-300 transition peer-checked:bg-[#0F2D6B]"></span>
+                                <span class="absolute left-1 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-5"></span>
+                            </span>
+                        </label>
+                    </div>
+
+                    <!-- Quiet Hours -->
+                    <div class="mt-8 overflow-hidden rounded-3xl border border-slate-200 bg-white">
+                        <div class="border-b border-slate-200 bg-slate-50 px-5 py-4">
+                            <div class="flex items-center gap-3">
+                                <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                                    <i class="fas fa-moon"></i>
+                                </div>
+                                <div>
+                                    <h2 class="text-lg font-black text-slate-950">Quiet Hours</h2>
+                                    <p class="text-xs font-semibold text-slate-500">Mute non-urgent notifications during rest hours.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="p-5">
+                            <label class="flex cursor-pointer items-start justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:bg-slate-100">
+                                <span>
+                                    <span class="block text-sm font-black text-slate-900">Enable Quiet Hours</span>
+                                    <span class="mt-1 block text-xs font-semibold leading-5 text-slate-500">Security and order-critical alerts may still be delivered.</span>
+                                </span>
+                                <span class="relative inline-flex shrink-0 items-center">
+                                    <input type="checkbox" name="quiet_hours_enabled" id="quiet_hours_enabled" class="peer sr-only" {% if prefs.quiet_hours_enabled or settings.quiet_hours_enabled %}checked{% endif %}>
+                                    <span class="h-7 w-12 rounded-full bg-slate-300 transition peer-checked:bg-[#0F2D6B]"></span>
+                                    <span class="absolute left-1 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-5"></span>
+                                </span>
+                            </label>
+
+                            <div id="quiet_hours_settings" class="mt-4 grid gap-4 sm:grid-cols-2 {% if not prefs.quiet_hours_enabled and not settings.quiet_hours_enabled %}hidden{% endif %}">
+                                <div>
+                                    <label for="quiet_hours_start" class="mb-2 block text-sm font-black text-slate-800">Start Time</label>
+                                    <input type="time" name="quiet_hours_start" id="quiet_hours_start" value="{{ prefs.quiet_hours_start|default:settings.quiet_hours_start|default:'22:00' }}"
+                                           class="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-[#0F2D6B] focus:ring-4 focus:ring-blue-100">
+                                </div>
+                                <div>
+                                    <label for="quiet_hours_end" class="mb-2 block text-sm font-black text-slate-800">End Time</label>
+                                    <input type="time" name="quiet_hours_end" id="quiet_hours_end" value="{{ prefs.quiet_hours_end|default:settings.quiet_hours_end|default:'08:00' }}"
+                                           class="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-[#0F2D6B] focus:ring-4 focus:ring-blue-100">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 rounded-3xl border border-amber-200 bg-amber-50 p-5">
+                        <div class="flex items-start gap-3">
+                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-[#FF7A00]">
+                                <i class="fas fa-lightbulb"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-black text-amber-900">Recommended setup</h3>
+                                <p class="mt-1 text-xs font-semibold leading-5 text-amber-800">
+                                    Keep order updates, security alerts, and message alerts enabled so you do not miss important Arolana activity.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notification Types -->
+                <div class="p-5 sm:p-8">
+                    <div class="mb-6 flex items-center gap-3">
+                        <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-50 text-[#FF7A00]">
+                            <i class="fas fa-sliders text-lg"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-black text-slate-950">Notification Types</h2>
+                            <p class="text-sm font-semibold text-slate-500">Select the updates you want to receive.</p>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-4">
+                        <label class="notification-card group flex cursor-pointer items-start justify-between gap-4 rounded-3xl border border-slate-200 p-5 transition hover:border-[#0F2D6B] hover:bg-blue-50">
+                            <span class="flex items-start gap-4">
+                                <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-[#0F2D6B]">
+                                    <i class="fas fa-cart-shopping"></i>
+                                </span>
+                                <span>
+                                    <span class="block text-sm font-black text-slate-950">Cart Updates</span>
+                                    <span class="mt-1 block text-xs font-semibold leading-5 text-slate-500">Get notified when items are added, removed, or waiting in your cart.</span>
+                                </span>
+                            </span>
+                            <span class="relative inline-flex shrink-0 items-center">
+                                <input type="checkbox" name="cart_updates" id="cart_updates" class="peer sr-only" {% if prefs.cart_updates or settings.cart_updates %}checked{% endif %}>
+                                <span class="h-7 w-12 rounded-full bg-slate-300 transition peer-checked:bg-[#0F2D6B]"></span>
+                                <span class="absolute left-1 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-5"></span>
+                            </span>
+                        </label>
+
+                        <label class="notification-card group flex cursor-pointer items-start justify-between gap-4 rounded-3xl border border-slate-200 p-5 transition hover:border-green-600 hover:bg-green-50">
+                            <span class="flex items-start gap-4">
+                                <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-green-50 text-green-700">
+                                    <i class="fas fa-box"></i>
+                                </span>
+                                <span>
+                                    <span class="block text-sm font-black text-slate-950">Order Updates</span>
+                                    <span class="mt-1 block text-xs font-semibold leading-5 text-slate-500">Track order status, payment, pickup, delivery, and rider movement.</span>
+                                </span>
+                            </span>
+                            <span class="relative inline-flex shrink-0 items-center">
+                                <input type="checkbox" name="order_updates" id="order_updates" class="peer sr-only" {% if prefs.order_updates or settings.order_updates %}checked{% endif %}>
+                                <span class="h-7 w-12 rounded-full bg-slate-300 transition peer-checked:bg-green-600"></span>
+                                <span class="absolute left-1 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-5"></span>
+                            </span>
+                        </label>
+
+                        <label class="notification-card group flex cursor-pointer items-start justify-between gap-4 rounded-3xl border border-slate-200 p-5 transition hover:border-[#FF7A00] hover:bg-orange-50">
+                            <span class="flex items-start gap-4">
+                                <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-[#FF7A00]">
+                                    <i class="fas fa-tags"></i>
+                                </span>
+                                <span>
+                                    <span class="block text-sm font-black text-slate-950">Promotions</span>
+                                    <span class="mt-1 block text-xs font-semibold leading-5 text-slate-500">Receive special offers, discounts, flash sales, and campaigns.</span>
+                                </span>
+                            </span>
+                            <span class="relative inline-flex shrink-0 items-center">
+                                <input type="checkbox" name="promotions" id="promotions" class="peer sr-only" {% if prefs.promotions or settings.promotions %}checked{% endif %}>
+                                <span class="h-7 w-12 rounded-full bg-slate-300 transition peer-checked:bg-[#FF7A00]"></span>
+                                <span class="absolute left-1 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-5"></span>
+                            </span>
+                        </label>
+
+                        <label class="notification-card group flex cursor-pointer items-start justify-between gap-4 rounded-3xl border border-slate-200 p-5 transition hover:border-purple-600 hover:bg-purple-50">
+                            <span class="flex items-start gap-4">
+                                <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-purple-50 text-purple-700">
+                                    <i class="fas fa-store"></i>
+                                </span>
+                                <span>
+                                    <span class="block text-sm font-black text-slate-950">Vendor Alerts</span>
+                                    <span class="mt-1 block text-xs font-semibold leading-5 text-slate-500">Updates from vendors you follow, storefront changes, and vendor promotions.</span>
+                                </span>
+                            </span>
+                            <span class="relative inline-flex shrink-0 items-center">
+                                <input type="checkbox" name="vendor_alerts" id="vendor_alerts" class="peer sr-only" {% if prefs.vendor_alerts or settings.vendor_alerts %}checked{% endif %}>
+                                <span class="h-7 w-12 rounded-full bg-slate-300 transition peer-checked:bg-purple-600"></span>
+                                <span class="absolute left-1 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-5"></span>
+                            </span>
+                        </label>
+
+                        <label class="notification-card group flex cursor-pointer items-start justify-between gap-4 rounded-3xl border border-slate-200 p-5 transition hover:border-red-600 hover:bg-red-50">
+                            <span class="flex items-start gap-4">
+                                <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-50 text-red-700">
+                                    <i class="fas fa-lock"></i>
+                                </span>
+                                <span>
+                                    <span class="block text-sm font-black text-slate-950">Security Alerts</span>
+                                    <span class="mt-1 block text-xs font-semibold leading-5 text-slate-500">Important login, password, verification, and account safety messages.</span>
+                                </span>
+                            </span>
+                            <span class="relative inline-flex shrink-0 items-center">
+                                <input type="checkbox" name="security_alerts" id="security_alerts" class="peer sr-only" {% if prefs.security_alerts or settings.security_alerts %}checked{% endif %}>
+                                <span class="h-7 w-12 rounded-full bg-slate-300 transition peer-checked:bg-red-600"></span>
+                                <span class="absolute left-1 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-5"></span>
+                            </span>
+                        </label>
+
+                        <label class="notification-card group flex cursor-pointer items-start justify-between gap-4 rounded-3xl border border-slate-200 p-5 transition hover:border-yellow-600 hover:bg-yellow-50">
+                            <span class="flex items-start gap-4">
+                                <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-yellow-50 text-yellow-700">
+                                    <i class="fas fa-star"></i>
+                                </span>
+                                <span>
+                                    <span class="block text-sm font-black text-slate-950">Review Alerts</span>
+                                    <span class="mt-1 block text-xs font-semibold leading-5 text-slate-500">Get notified about product reviews, seller reviews, and rating activity.</span>
+                                </span>
+                            </span>
+                            <span class="relative inline-flex shrink-0 items-center">
+                                <input type="checkbox" name="review_alerts" id="review_alerts" class="peer sr-only" {% if prefs.review_alerts or settings.review_alerts %}checked{% endif %}>
+                                <span class="h-7 w-12 rounded-full bg-slate-300 transition peer-checked:bg-yellow-600"></span>
+                                <span class="absolute left-1 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-5"></span>
+                            </span>
+                        </label>
+
+                        <label class="notification-card group flex cursor-pointer items-start justify-between gap-4 rounded-3xl border border-slate-200 p-5 transition hover:border-cyan-600 hover:bg-cyan-50">
+                            <span class="flex items-start gap-4">
+                                <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-cyan-50 text-cyan-700">
+                                    <i class="fas fa-comments"></i>
+                                </span>
+                                <span>
+                                    <span class="block text-sm font-black text-slate-950">Message Alerts</span>
+                                    <span class="mt-1 block text-xs font-semibold leading-5 text-slate-500">Receive alerts for chat messages, support messages, and vendor/customer communication.</span>
+                                </span>
+                            </span>
+                            <span class="relative inline-flex shrink-0 items-center">
+                                <input type="checkbox" name="message_alerts" id="message_alerts" class="peer sr-only" {% if prefs.message_alerts or settings.message_alerts %}checked{% endif %}>
+                                <span class="h-7 w-12 rounded-full bg-slate-300 transition peer-checked:bg-cyan-600"></span>
+                                <span class="absolute left-1 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-5"></span>
+                            </span>
+                        </label>
+                    </div>
                 </div>
             </div>
-            
-            <!-- Notification Types -->
-            <div class="mb-8">
-                <h2 class="text-lg font-semibold mb-4">Notification Types</h2>
-                <div class="grid gap-3">
-                    <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer">
-                        <div>
-                            <span class="font-medium">🛒 Cart Updates</span>
-                            <p class="text-sm text-gray-500">Get notified when items are added or removed from your cart</p>
-                        </div>
-                        <input type="checkbox" name="cart_updates" {% if settings.cart_updates %}checked{% endif %} class="w-5 h-5 text-blue-600">
-                    </label>
-                    <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer">
-                        <div>
-                            <span class="font-medium">📦 Order Updates</span>
-                            <p class="text-sm text-gray-500">Get notified about your order status changes</p>
-                        </div>
-                        <input type="checkbox" name="order_updates" {% if settings.order_updates %}checked{% endif %} class="w-5 h-5 text-blue-600">
-                    </label>
-                    <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer">
-                        <div>
-                            <span class="font-medium">🎉 Promotions</span>
-                            <p class="text-sm text-gray-500">Receive special offers and discounts</p>
-                        </div>
-                        <input type="checkbox" name="promotions" {% if settings.promotions %}checked{% endif %} class="w-5 h-5 text-blue-600">
-                    </label>
-                    <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer">
-                        <div>
-                            <span class="font-medium">🏪 Vendor Alerts</span>
-                            <p class="text-sm text-gray-500">Get updates from your favorite vendors</p>
-                        </div>
-                        <input type="checkbox" name="vendor_alerts" {% if settings.vendor_alerts %}checked{% endif %} class="w-5 h-5 text-blue-600">
-                    </label>
-                    <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer">
-                        <div>
-                            <span class="font-medium">🔒 Security Alerts</span>
-                            <p class="text-sm text-gray-500">Important security notifications</p>
-                        </div>
-                        <input type="checkbox" name="security_alerts" {% if settings.security_alerts %}checked{% endif %} class="w-5 h-5 text-blue-600">
-                    </label>
-                    <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer">
-                        <div>
-                            <span class="font-medium">⭐ Review Alerts</span>
-                            <p class="text-sm text-gray-500">Get notified when someone reviews your products</p>
-                        </div>
-                        <input type="checkbox" name="review_alerts" {% if settings.review_alerts %}checked{% endif %} class="w-5 h-5 text-blue-600">
-                    </label>
-                    <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer">
-                        <div>
-                            <span class="font-medium">💬 Message Alerts</span>
-                            <p class="text-sm text-gray-500">Get notified when you receive messages</p>
-                        </div>
-                        <input type="checkbox" name="message_alerts" {% if settings.message_alerts %}checked{% endif %} class="w-5 h-5 text-blue-600">
-                    </label>
-                </div>
-            </div>
-            
-            <!-- Quiet Hours -->
-            <div class="mb-8">
-                <h2 class="text-lg font-semibold mb-4">Quiet Hours</h2>
-                <label class="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer mb-3">
-                    <div>
-                        <span class="font-medium">🔕 Enable Quiet Hours</span>
-                        <p class="text-sm text-gray-500">Mute notifications during specific hours</p>
-                    </div>
-                    <input type="checkbox" name="quiet_hours_enabled" id="quiet_hours_enabled" {% if settings.quiet_hours_enabled %}checked{% endif %} class="w-5 h-5 text-blue-600">
-                </label>
-                <div id="quiet_hours_settings" class="grid grid-cols-2 gap-4 mt-3" style="{% if not settings.quiet_hours_enabled %}display: none;{% endif %}">
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Start Time</label>
-                        <input type="time" name="quiet_hours_start" value="{{ settings.quiet_hours_start|default:'22:00' }}" class="w-full border rounded-lg px-3 py-2">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-1">End Time</label>
-                        <input type="time" name="quiet_hours_end" value="{{ settings.quiet_hours_end|default:'08:00' }}" class="w-full border rounded-lg px-3 py-2">
+
+            <div class="sticky bottom-0 z-20 border-t border-slate-200 bg-white/95 px-5 py-4 backdrop-blur sm:px-8">
+                <div class="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p class="text-xs font-semibold text-slate-500">
+                        Some advanced preferences require matching model fields and view saving logic.
+                    </p>
+                    <div class="flex gap-3">
+                        <button type="button" id="reset-defaults-btn" class="inline-flex flex-1 items-center justify-center rounded-2xl border border-slate-300 px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 sm:flex-none">
+                            Reset defaults
+                        </button>
+                        <button type="submit" id="save-preferences-btn" class="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[#FF7A00] px-5 py-3 text-sm font-black text-white shadow-lg shadow-orange-500/20 transition hover:bg-[#e96f00] sm:flex-none">
+                            <i class="fas fa-save"></i>
+                            Save Preferences
+                        </button>
                     </div>
                 </div>
-            </div>
-            
-            <div class="border-t pt-6">
-                <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
-                    Save Preferences
-                </button>
             </div>
         </form>
+
+        <div class="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <details class="group">
+                <summary class="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
+                    <span class="flex items-center gap-3 text-sm font-black text-slate-800">
+                        <i class="fas fa-eye text-[#0F2D6B]"></i>
+                        Preview notification examples
+                    </span>
+                    <i class="fas fa-chevron-down text-slate-400 transition group-open:rotate-180"></i>
+                </summary>
+
+                <div class="grid gap-3 border-t border-slate-200 p-5 sm:grid-cols-3">
+                    <div class="rounded-2xl bg-slate-50 p-4 text-sm">
+                        <p class="font-black text-slate-900"><i class="fas fa-box text-green-700"></i> Order Update</p>
+                        <p class="mt-1 text-xs font-semibold leading-5 text-slate-500">Your order #ARO-123456 is now out for delivery.</p>
+                    </div>
+                    <div class="rounded-2xl bg-slate-50 p-4 text-sm">
+                        <p class="font-black text-slate-900"><i class="fas fa-lock text-red-700"></i> Security Alert</p>
+                        <p class="mt-1 text-xs font-semibold leading-5 text-slate-500">A new login was detected on your Arolana account.</p>
+                    </div>
+                    <div class="rounded-2xl bg-slate-50 p-4 text-sm">
+                        <p class="font-black text-slate-900"><i class="fas fa-comments text-cyan-700"></i> Message Alert</p>
+                        <p class="mt-1 text-xs font-semibold leading-5 text-slate-500">You received a new message from support.</p>
+                    </div>
+                </div>
+            </details>
+        </div>
     </div>
-</div>
+</section>
 
 <script>
-    document.getElementById('quiet_hours_enabled').addEventListener('change', function() {
-        const settings = document.getElementById('quiet_hours_settings');
-        settings.style.display = this.checked ? 'grid' : 'none';
-    });
+(function () {
+    const form = document.getElementById('notification-preferences-form');
+    const saveBtn = document.getElementById('save-preferences-btn');
+    const resetBtn = document.getElementById('reset-defaults-btn');
+    const quietToggle = document.getElementById('quiet_hours_enabled');
+    const quietSettings = document.getElementById('quiet_hours_settings');
+
+    function setChecked(id, value) {
+        const el = document.getElementById(id);
+        if (el) el.checked = value;
+    }
+
+    if (quietToggle && quietSettings) {
+        quietToggle.addEventListener('change', function () {
+            quietSettings.classList.toggle('hidden', !this.checked);
+        });
+    }
+
+    if (form && saveBtn) {
+        form.addEventListener('submit', function () {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+        });
+    }
+
+    if (resetBtn) {
+        resetBtn.addEventListener('click', function () {
+            if (!confirm('Reset notification preferences to recommended defaults?')) return;
+
+            setChecked('email_notifications', true);
+            setChecked('push_notifications', true);
+            setChecked('cart_updates', true);
+            setChecked('order_updates', true);
+            setChecked('promotions', false);
+            setChecked('vendor_alerts', true);
+            setChecked('security_alerts', true);
+            setChecked('review_alerts', true);
+            setChecked('message_alerts', true);
+            setChecked('quiet_hours_enabled', false);
+
+            if (quietSettings) quietSettings.classList.add('hidden');
+        });
+    }
+})();
 </script>
 {% endblock %}

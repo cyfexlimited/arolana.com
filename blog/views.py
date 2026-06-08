@@ -12,58 +12,91 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.text import slugify
 
-from .models import BlogPost, BlogCategory, BlogTag, BlogComment, NewsletterSubscriber
+from .models import BlogPost, BlogCategory, BlogTag, BlogComment
+
+# Prefer the newsletter app subscriber model, but fall back safely if your project stores it in blog.models.
+try:
+    from newsletter.models import NewsletterSubscriber as NewsletterSubscriberModel
+except Exception:
+    from .models import NewsletterSubscriber as NewsletterSubscriberModel
 
 def blog_list(request):
-    """Blog listing page with B&H style layout"""
-    posts = BlogPost.objects.filter(is_published=True)
-    
-    # Filter by category
-    category_slug = request.GET.get('category')
+    """Blog listing page with filters, search, featured posts, and duplicate prevention."""
+    base_posts = (
+        BlogPost.objects
+        .filter(is_published=True)
+        .select_related('category', 'author')
+        .prefetch_related('tags')
+    )
+
+    posts = base_posts
+
+    # Filters
+    category_slug = (request.GET.get('category') or '').strip()
+    tag_slug = (request.GET.get('tag') or '').strip()
+    search_query = (request.GET.get('q') or '').strip()
+    sort_by = (request.GET.get('sort') or '-published_at').strip()
+
     if category_slug:
         posts = posts.filter(category__slug=category_slug)
-    
-    # Filter by tag
-    tag_slug = request.GET.get('tag')
+
     if tag_slug:
         posts = posts.filter(tags__slug=tag_slug)
-    
-    # Search
-    search_query = request.GET.get('q')
+
     if search_query:
         posts = posts.filter(
             Q(title__icontains=search_query) |
             Q(content__icontains=search_query) |
             Q(excerpt__icontains=search_query)
         )
-    
-    # Sort
-    sort_by = request.GET.get('sort', '-published_at')
-    if sort_by == 'popular':
-        posts = posts.order_by('-views', '-published_at')
-    elif sort_by == 'featured':
-        posts = posts.filter(is_featured=True).order_by('-published_at')
+
+    # Use the filtered queryset for featured posts so category/search/tag pages stay relevant.
+    filtered_posts = posts.distinct()
+
+    # When user explicitly sorts by featured, show featured posts in the main grid,
+    # and hide the separate featured section to avoid an empty "More Blog Posts" section.
+    if sort_by == 'featured':
+        featured_posts = []
+        posts = filtered_posts.filter(is_featured=True).order_by('-published_at')
     else:
-        posts = posts.order_by('-published_at')
-    
-    # Pagination
+        featured_posts = list(
+            filtered_posts
+            .filter(is_featured=True)
+            .order_by('-published_at')[:3]
+        )
+        featured_ids = [post.id for post in featured_posts]
+
+        if featured_ids:
+            posts = filtered_posts.exclude(id__in=featured_ids)
+        else:
+            posts = filtered_posts
+
+        if sort_by == 'popular':
+            posts = posts.order_by('-views', '-published_at')
+        else:
+            posts = posts.order_by('-published_at')
+
+    posts = posts.distinct()
+
     paginator = Paginator(posts, 12)
     page = request.GET.get('page', 1)
     posts_page = paginator.get_page(page)
-    
-    # Get featured posts for hero section
-    featured_posts = BlogPost.objects.filter(is_featured=True, is_published=True)[:3]
-    
-    # Get categories with counts
-    categories = BlogCategory.objects.filter(is_active=True).annotate(
-        post_count=Count('posts', filter=Q(posts__is_published=True))
+
+    categories = (
+        BlogCategory.objects
+        .filter(is_active=True)
+        .annotate(post_count=Count('posts', filter=Q(posts__is_published=True), distinct=True))
+        .filter(post_count__gt=0)
+        .order_by('name')
     )
-    
-    # Get popular tags
-    popular_tags = BlogTag.objects.annotate(
-        post_count=Count('posts', filter=Q(posts__is_published=True))
-    ).filter(post_count__gt=0).order_by('-post_count')[:15]
-    
+
+    popular_tags = (
+        BlogTag.objects
+        .annotate(post_count=Count('posts', filter=Q(posts__is_published=True), distinct=True))
+        .filter(post_count__gt=0)
+        .order_by('-post_count', 'name')[:15]
+    )
+
     context = {
         'posts': posts_page,
         'featured_posts': featured_posts,
@@ -75,6 +108,7 @@ def blog_list(request):
         'sort_by': sort_by,
     }
     return render(request, 'blog/list.html', context)
+
 
 def blog_detail(request, slug):
     """Article detail page with B&H style layout and integrated ads"""
@@ -98,15 +132,17 @@ def blog_detail(request, slug):
     
     # Get categories with post counts
     categories = BlogCategory.objects.filter(is_active=True).annotate(
-        post_count=Count('posts', filter=Q(posts__is_published=True))
+        post_count=Count('posts', filter=Q(posts__is_published=True), distinct=True)
     )
     
     # Generate table of contents from headings
     headings = re.findall(r'<h2[^>]*>(.*?)</h2>', post.content)
     toc = []
     for h in headings[:10]:
-        heading_id = slugify(h)
-        toc.append({'title': h, 'id': heading_id})
+        clean_heading = re.sub(r'<[^>]+>', '', h).strip()
+        heading_id = slugify(clean_heading)
+        if clean_heading and heading_id:
+            toc.append({'title': clean_heading, 'id': heading_id})
     
     article_image = post.display_image
     article_video_embed_url = post.get_video_embed_url()
@@ -205,36 +241,41 @@ def blog_tag(request, slug):
 
 @login_required
 def add_comment(request, slug):
-    """Add comment to post"""
+    """Add comment or reply to a published blog post."""
     post = get_object_or_404(BlogPost, slug=slug, is_published=True)
-    
-    if request.method == 'POST':
-        comment_text = request.POST.get('comment')
-        parent_id = request.POST.get('parent_id')
-        
-        if comment_text:
-            parent = None
-            if parent_id:
-                parent = get_object_or_404(BlogComment, id=parent_id)
-            
-            BlogComment.objects.create(
-                post=post,
-                user=request.user,
-                parent=parent,
-                comment=comment_text,
-                is_approved=True
-            )
-            messages.success(request, 'Comment added successfully!')
-        else:
-            messages.error(request, 'Please enter a comment.')
-    
+
+    if request.method != 'POST':
+        return redirect('blog:detail', slug=post.slug)
+
+    comment_text = (request.POST.get('comment') or '').strip()
+    parent_id = request.POST.get('parent_id')
+
+    if not comment_text:
+        messages.error(request, 'Please enter a comment.')
+        return redirect('blog:detail', slug=post.slug)
+
+    parent = None
+    if parent_id:
+        # Keep replies tied to the same post only.
+        parent = get_object_or_404(BlogComment, id=parent_id, post=post, parent=None)
+
+    BlogComment.objects.create(
+        post=post,
+        user=request.user,
+        parent=parent,
+        comment=comment_text,
+        is_approved=True
+    )
+
+    messages.success(request, 'Comment added successfully!')
     return redirect('blog:detail', slug=post.slug)
+
 
 @login_required
 def like_post(request, post_id):
     """Like a post via AJAX"""
     if request.method == 'POST':
-        post = get_object_or_404(BlogPost, id=post_id)
+        post = get_object_or_404(BlogPost, id=post_id, is_published=True)
         post.likes += 1
         post.save()
         return JsonResponse({'success': True, 'likes': post.likes})
@@ -243,7 +284,6 @@ def like_post(request, post_id):
 def newsletter_subscribe(request):
     """Newsletter subscription from blog"""
     if request.method == 'POST':
-        from newsletter.models import NewsletterSubscriber
         import re
         from django.http import JsonResponse
         
@@ -265,7 +305,7 @@ def newsletter_subscribe(request):
             return redirect(next_url)
         
         # Create subscriber
-        subscriber, created = NewsletterSubscriber.objects.get_or_create(
+        subscriber, created = NewsletterSubscriberModel.objects.get_or_create(
             email=email,
             defaults={'source': 'blog', 'is_active': True}
         )
@@ -296,7 +336,7 @@ def newsletter_subscribe(request):
 @staff_member_required
 def newsletter_admin(request):
     """Admin view for newsletter management"""
-    subscribers = NewsletterSubscriber.objects.all().order_by('-created_at')
+    subscribers = NewsletterSubscriberModel.objects.all().order_by('-created_at')
     
     # Statistics
     total_subscribers = subscribers.count()
@@ -326,7 +366,7 @@ def send_newsletter(request):
         message = request.POST.get('message')
         
         if subject and message:
-            subscribers = NewsletterSubscriber.objects.filter(is_active=True)
+            subscribers = NewsletterSubscriberModel.objects.filter(is_active=True)
             # Here you would integrate with an email service
             # For now, just log it
             print(f"Sending newsletter '{subject}' to {subscribers.count()} subscribers")

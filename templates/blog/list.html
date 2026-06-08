@@ -4,86 +4,369 @@
 {% block title %}Blog | Arolana.com{% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto">
-    <div class="text-center mb-12">
-        <h1 class="text-4xl font-bold mb-4">Our Blog</h1>
-        <p class="text-gray-600 text-lg">Latest news, updates, and articles from Arolana</p>
-    </div>
-    
-    <!-- Featured Posts -->
-    {% if featured_posts %}
-    <div class="mb-12">
-        <h2 class="text-2xl font-bold mb-6">Featured Posts</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {% for post in featured_posts %}
-            <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition">
-                {% if post.display_image %}
-                    {% optimized_image_url post.display_image 'category_card' as post_image_url %}
-                    <img src="{{ post_image_url }}" alt="{{ post.title }}" class="w-full h-48 object-cover" loading="lazy" decoding="async" width="560" height="420">
-                {% else %}
-                    <div class="w-full h-48 bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
-                        <i class="fas fa-newspaper text-5xl text-white opacity-50"></i>
+<section class="min-h-screen bg-[#F8FAFC] py-8 sm:py-12">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+
+        <!-- Premium Blog Hero -->
+        <div class="mb-8 overflow-hidden rounded-[2rem] bg-[#0F2D6B] shadow-2xl shadow-blue-950/10">
+            <div class="relative px-6 py-10 sm:px-8 lg:px-12 lg:py-14">
+                <div class="absolute inset-0 opacity-20">
+                    <div class="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-[#00B8FF] blur-3xl"></div>
+                    <div class="absolute -bottom-36 left-20 h-80 w-80 rounded-full bg-[#FF7A00] blur-3xl"></div>
+                    <div class="absolute left-1/2 top-1/2 h-56 w-56 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/20 blur-3xl"></div>
+                </div>
+
+                <div class="relative grid gap-8 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
+                    <div>
+                        <p class="mb-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-black uppercase tracking-[0.2em] text-white/80 ring-1 ring-white/15">
+                            <i class="fas fa-newspaper text-[#FF7A00]"></i>
+                            Arolana Blog
+                        </p>
+
+                        <h1 class="max-w-4xl text-4xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl">
+                            Smart insights for smarter buying and selling.
+                        </h1>
+
+                        <p class="mt-5 max-w-2xl text-sm font-semibold leading-7 text-white/75 sm:text-base">
+                            Explore Arolana marketplace news, product guides, vendor growth stories, technology trends, and practical tips for customers and sellers.
+                        </p>
+
+                        <div class="mt-7 flex flex-wrap gap-3">
+                            <a href="#latest-articles" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#FF7A00] px-5 py-3 text-sm font-black text-white shadow-lg shadow-orange-500/20 transition hover:bg-[#e96f00]">
+                                <i class="fas fa-book-open"></i>
+                                Read Articles
+                            </a>
+                            {% if categories %}
+                            <a href="#blog-categories" class="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-black text-white transition hover:bg-white/20">
+                                <i class="fas fa-layer-group"></i>
+                                Browse Categories
+                            </a>
+                            {% endif %}
+                        </div>
                     </div>
+
+                    <div class="rounded-[1.75rem] border border-white/10 bg-white/10 p-5 text-white backdrop-blur">
+                        <div class="grid gap-4 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+                            <div class="rounded-3xl bg-white/10 p-4 ring-1 ring-white/10">
+                                <div class="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-[#0F2D6B]">
+                                    <i class="fas fa-lightbulb"></i>
+                                </div>
+                                <p class="text-sm font-black">Guides</p>
+                                <p class="mt-1 text-xs font-semibold leading-5 text-white/65">Helpful buying and selling tips.</p>
+                            </div>
+                            <div class="rounded-3xl bg-white/10 p-4 ring-1 ring-white/10">
+                                <div class="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-[#0F2D6B]">
+                                    <i class="fas fa-store"></i>
+                                </div>
+                                <p class="text-sm font-black">Vendors</p>
+                                <p class="mt-1 text-xs font-semibold leading-5 text-white/65">Seller stories and growth updates.</p>
+                            </div>
+                            <div class="rounded-3xl bg-white/10 p-4 ring-1 ring-white/10">
+                                <div class="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-[#0F2D6B]">
+                                    <i class="fas fa-chart-line"></i>
+                                </div>
+                                <p class="text-sm font-black">Trends</p>
+                                <p class="mt-1 text-xs font-semibold leading-5 text-white/65">Marketplace and product trends.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search / Filter Bar -->
+        <div class="mb-10 rounded-[1.75rem] border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/70 sm:p-5">
+            <form method="GET" action="{% url 'blog:list' %}" class="grid gap-3 lg:grid-cols-[1fr_auto_auto] lg:items-center">
+                <div class="relative">
+                    <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" name="q" value="{{ search_query|default:'' }}" placeholder="Search articles, guides, announcements..."
+                           class="w-full rounded-2xl border border-slate-300 bg-slate-50 py-3 pl-11 pr-4 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#0F2D6B] focus:bg-white focus:ring-4 focus:ring-blue-100">
+                </div>
+
+                {% if current_category %}
+                    <input type="hidden" name="category" value="{{ current_category }}">
                 {% endif %}
-                <div class="p-4">
-                    <div class="flex items-center gap-2 text-sm text-gray-500 mb-2">
-                        {% if post.category %}<span class="bg-blue-100 text-blue-700 px-2 py-1 rounded">{{ post.category.name }}</span>{% endif %}
-                        <span><i class="far fa-calendar"></i> {{ post.published_at|date:"M d, Y" }}</span>
-                        <span><i class="far fa-eye"></i> {{ post.views }} views</span>
-                    </div>
-                    <a href="{% url 'blog:detail' post.slug %}" class="font-bold text-xl hover:text-blue-600 transition line-clamp-2">{{ post.title }}</a>
-                    <p class="text-gray-600 mt-2 line-clamp-3">{{ post.excerpt }}</p>
-                    <a href="{% url 'blog:detail' post.slug %}" class="inline-block mt-4 text-blue-600 hover:underline">Read More →</a>
-                </div>
+                {% if current_tag %}
+                    <input type="hidden" name="tag" value="{{ current_tag }}">
+                {% endif %}
+
+                <select name="sort" class="rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm font-black text-slate-700 outline-none transition focus:border-[#0F2D6B] focus:bg-white focus:ring-4 focus:ring-blue-100">
+                    <option value="-published_at" {% if sort_by == '-published_at' or not sort_by %}selected{% endif %}>Newest first</option>
+                    <option value="popular" {% if sort_by == 'popular' %}selected{% endif %}>Most viewed</option>
+                    <option value="featured" {% if sort_by == 'featured' %}selected{% endif %}>Featured</option>
+                </select>
+
+                <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#0F2D6B] px-5 py-3 text-sm font-black text-white transition hover:bg-blue-900">
+                    <i class="fas fa-magnifying-glass"></i>
+                    Search
+                </button>
+            </form>
+
+            {% if search_query or current_category or current_tag %}
+            <div class="mt-4 flex flex-wrap items-center gap-2">
+                <span class="text-xs font-black uppercase tracking-wide text-slate-500">Active filter:</span>
+                {% if search_query %}
+                <span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-[#0F2D6B]">Search: {{ search_query }}</span>
+                {% endif %}
+                {% if current_category %}
+                <span class="rounded-full bg-orange-50 px-3 py-1 text-xs font-black text-[#FF7A00]">Category: {{ current_category }}</span>
+                {% endif %}
+                {% if current_tag %}
+                <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">Tag: {{ current_tag }}</span>
+                {% endif %}
+                <a href="{% url 'blog:list' %}" class="rounded-full bg-red-50 px-3 py-1 text-xs font-black text-red-700 transition hover:bg-red-100">Clear filters</a>
             </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-    
-    <!-- All Posts Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {% for post in posts %}
-        <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition">
-            {% if post.display_image %}
-                {% optimized_image_url post.display_image 'category_card' as post_image_url %}
-                <img src="{{ post_image_url }}" alt="{{ post.title }}" class="w-full h-48 object-cover" loading="lazy" decoding="async" width="560" height="420">
-            {% else %}
-                <div class="w-full h-48 bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
-                    <i class="fas fa-newspaper text-5xl text-white opacity-50"></i>
-                </div>
             {% endif %}
-            <div class="p-4">
-                <div class="flex items-center gap-2 text-sm text-gray-500 mb-2">
-                    {% if post.category %}<span class="bg-blue-100 text-blue-700 px-2 py-1 rounded">{{ post.category.name }}</span>{% endif %}
-                    <span><i class="far fa-calendar"></i> {{ post.published_at|date:"M d, Y" }}</span>
-                    <span><i class="far fa-eye"></i> {{ post.views }} views</span>
+        </div>
+
+        <!-- Featured Posts -->
+        {% if featured_posts %}
+        <section class="mb-12">
+            <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <p class="text-sm font-black uppercase tracking-[0.2em] text-[#FF7A00]">Editor’s Pick</p>
+                    <h2 class="mt-1 text-2xl font-black text-slate-950 sm:text-3xl">Featured Posts</h2>
                 </div>
-                <a href="{% url 'blog:detail' post.slug %}" class="font-bold text-xl hover:text-blue-600 transition line-clamp-2">{{ post.title }}</a>
-                <p class="text-gray-600 mt-2 line-clamp-3">{{ post.excerpt|truncatewords:20 }}</p>
-                <a href="{% url 'blog:detail' post.slug %}" class="inline-block mt-4 text-blue-600 hover:underline">Read More →</a>
+                <p class="max-w-xl text-sm font-semibold leading-6 text-slate-500">
+                    Important stories, product guides, and marketplace updates selected for you.
+                </p>
             </div>
-        </div>
-        {% empty %}
-        <div class="col-span-full text-center py-12">
-            <i class="fas fa-newspaper text-6xl text-gray-400 mb-4"></i>
-            <p class="text-gray-500 text-lg">No blog posts yet.</p>
-            <a href="/admin/blog/blogpost/add/" class="inline-block mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg">Create First Post</a>
-        </div>
-        {% endfor %}
-    </div>
-    
-    <!-- Pagination -->
-    {% if posts.has_other_pages %}
-    <div class="flex justify-center gap-2 mt-8">
-        {% if posts.has_previous %}
-            <a href="?page={{ posts.previous_page_number }}" class="px-4 py-2 bg-white border rounded-lg hover:bg-gray-50">Previous</a>
+
+            <div class="grid gap-6 lg:grid-cols-3">
+                {% for post in featured_posts %}
+                <article class="group overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-xl shadow-slate-200/70 transition duration-300 hover:-translate-y-1 hover:shadow-2xl">
+                    <a href="{% url 'blog:detail' post.slug %}" class="block">
+                        <div class="relative h-60 overflow-hidden bg-slate-100">
+                            {% if post.display_image %}
+                                {% optimized_image_url post.display_image 'category_card' as post_image_url %}
+                                <img src="{{ post_image_url }}" alt="{{ post.title }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" decoding="async" width="560" height="420">
+                            {% else %}
+                                <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#0F2D6B] to-[#123E8C]">
+                                    <i class="fas fa-newspaper text-6xl text-white/35"></i>
+                                </div>
+                            {% endif %}
+
+                            <div class="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-slate-950/70 to-transparent"></div>
+
+                            <div class="absolute left-4 top-4">
+                                <span class="inline-flex items-center gap-2 rounded-full bg-[#FF7A00] px-3 py-1 text-xs font-black text-white shadow-lg">
+                                    <i class="fas fa-star"></i>
+                                    Featured
+                                </span>
+                            </div>
+                        </div>
+                    </a>
+
+                    <div class="p-5">
+                        <div class="mb-3 flex flex-wrap items-center gap-2">
+                            {% if post.category %}
+                            <a href="{% url 'blog:list' %}?category={{ post.category.slug }}" class="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-[#0F2D6B] transition hover:bg-blue-100">
+                                {{ post.category.name }}
+                            </a>
+                            {% endif %}
+                            <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500">
+                                <i class="far fa-calendar"></i>
+                                {{ post.published_at|date:"M d, Y" }}
+                            </span>
+                            <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500">
+                                <i class="far fa-eye"></i>
+                                {{ post.views }} views
+                            </span>
+                        </div>
+
+                        <a href="{% url 'blog:detail' post.slug %}" class="line-clamp-2 text-xl font-black leading-7 text-slate-950 transition group-hover:text-[#0F2D6B]">
+                            {{ post.title }}
+                        </a>
+
+                        <p class="mt-3 line-clamp-3 text-sm font-semibold leading-6 text-slate-600">
+                            {{ post.excerpt|truncatewords:24 }}
+                        </p>
+
+                        <a href="{% url 'blog:detail' post.slug %}" class="mt-5 inline-flex items-center gap-2 rounded-2xl bg-[#0F2D6B] px-4 py-2 text-sm font-black text-white transition hover:bg-blue-900">
+                            Read Article
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+        </section>
         {% endif %}
-        <span class="px-4 py-2 bg-blue-600 text-white rounded-lg">{{ posts.number }}</span>
-        {% if posts.has_next %}
-            <a href="?page={{ posts.next_page_number }}" class="px-4 py-2 bg-white border rounded-lg hover:bg-gray-50">Next</a>
+
+        <!-- Categories -->
+        {% if categories %}
+        <section id="blog-categories" class="mb-12 rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/70 sm:p-6">
+            <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <p class="text-sm font-black uppercase tracking-[0.2em] text-[#FF7A00]">Browse Topics</p>
+                    <h2 class="mt-1 text-2xl font-black text-slate-950">Categories</h2>
+                </div>
+                <a href="{% url 'blog:list' %}" class="text-sm font-black text-[#0F2D6B] hover:text-[#FF7A00]">View all articles</a>
+            </div>
+
+            <div class="flex gap-3 overflow-x-auto pb-2">
+                {% for category in categories %}
+                <a href="{% url 'blog:list' %}?category={{ category.slug }}"
+                   class="group flex min-w-[220px] items-center justify-between rounded-3xl border px-4 py-4 transition
+                   {% if current_category == category.slug %}
+                        border-[#0F2D6B] bg-blue-50 text-[#0F2D6B]
+                   {% else %}
+                        border-slate-200 bg-slate-50 text-slate-700 hover:border-[#0F2D6B] hover:bg-blue-50 hover:text-[#0F2D6B]
+                   {% endif %}">
+                    <span class="flex items-center gap-3">
+                        <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-[#0F2D6B] shadow-sm">
+                            <i class="fas fa-folder-open"></i>
+                        </span>
+                        <span>
+                            <span class="block text-sm font-black">{{ category.name }}</span>
+                            <span class="text-xs font-semibold text-slate-500">{{ category.post_count }} posts</span>
+                        </span>
+                    </span>
+                    <i class="fas fa-chevron-right text-xs transition group-hover:translate-x-1"></i>
+                </a>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- Latest Posts -->
+        <section id="latest-articles">
+            <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <p class="text-sm font-black uppercase tracking-[0.2em] text-[#FF7A00]">Latest Articles</p>
+                    <h2 class="mt-1 text-2xl font-black text-slate-950 sm:text-3xl">
+                        {% if featured_posts %}More Blog Posts{% else %}All Blog Posts{% endif %}
+                    </h2>
+                </div>
+                <p class="max-w-xl text-sm font-semibold leading-6 text-slate-500">
+                    {% if featured_posts %}
+                        Continue reading more articles, announcements, guides, and marketplace updates from Arolana.
+                    {% else %}
+                        Explore every article, announcement, guide, and marketplace update from Arolana.
+                    {% endif %}
+                </p>
+            </div>
+
+            <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {% for post in posts %}
+                <article class="group overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-lg shadow-slate-200/70 transition duration-300 hover:-translate-y-1 hover:shadow-2xl">
+                    <a href="{% url 'blog:detail' post.slug %}" class="block">
+                        <div class="relative h-56 overflow-hidden bg-slate-100">
+                            {% if post.display_image %}
+                                {% optimized_image_url post.display_image 'category_card' as post_image_url %}
+                                <img src="{{ post_image_url }}" alt="{{ post.title }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" decoding="async" width="560" height="420">
+                            {% else %}
+                                <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#0F2D6B] to-[#123E8C]">
+                                    <i class="fas fa-newspaper text-6xl text-white/35"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </a>
+
+                    <div class="p-5">
+                        <div class="mb-3 flex flex-wrap items-center gap-2">
+                            {% if post.category %}
+                            <a href="{% url 'blog:list' %}?category={{ post.category.slug }}" class="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-[#0F2D6B] transition hover:bg-blue-100">
+                                {{ post.category.name }}
+                            </a>
+                            {% endif %}
+                            <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500">
+                                <i class="far fa-calendar"></i>
+                                {{ post.published_at|date:"M d, Y" }}
+                            </span>
+                            <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500">
+                                <i class="far fa-eye"></i>
+                                {{ post.views }} views
+                            </span>
+                        </div>
+
+                        <a href="{% url 'blog:detail' post.slug %}" class="line-clamp-2 text-xl font-black leading-7 text-slate-950 transition group-hover:text-[#0F2D6B]">
+                            {{ post.title }}
+                        </a>
+
+                        <p class="mt-3 line-clamp-3 text-sm font-semibold leading-6 text-slate-600">
+                            {{ post.excerpt|truncatewords:22 }}
+                        </p>
+
+                        <div class="mt-5 flex items-center justify-between gap-3">
+                            <a href="{% url 'blog:detail' post.slug %}" class="inline-flex items-center gap-2 text-sm font-black text-[#FF7A00] transition hover:text-[#e96f00]">
+                                Read More
+                                <i class="fas fa-arrow-right"></i>
+                            </a>
+                        </div>
+                    </div>
+                </article>
+                {% empty %}
+                <div class="col-span-full rounded-[1.75rem] border border-slate-200 bg-white px-6 py-16 text-center shadow-xl shadow-slate-200/70">
+                    <div class="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-3xl bg-slate-100 text-slate-400">
+                        <i class="fas fa-newspaper text-3xl"></i>
+                    </div>
+
+                    {% if featured_posts %}
+                        <h2 class="text-xl font-black text-slate-950">No more blog posts yet</h2>
+                        <p class="mx-auto mt-2 max-w-md text-sm font-semibold leading-6 text-slate-500">
+                            Featured articles are already shown above. More Arolana articles will appear here once published.
+                        </p>
+                    {% else %}
+                        <h2 class="text-xl font-black text-slate-950">No blog posts yet</h2>
+                        <p class="mx-auto mt-2 max-w-md text-sm font-semibold leading-6 text-slate-500">
+                            Arolana articles, news, guides, and updates will appear here once published.
+                        </p>
+                    {% endif %}
+
+                    {% if request.user.is_staff %}
+                    <a href="/admin/blog/blogpost/add/" class="mt-5 inline-flex items-center justify-center gap-2 rounded-2xl bg-[#0F2D6B] px-5 py-3 text-sm font-black text-white transition hover:bg-blue-900">
+                        <i class="fas fa-plus"></i>
+                        Create Blog Post
+                    </a>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- Popular Tags -->
+        {% if popular_tags %}
+        <section class="mt-10 rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/70 sm:p-6">
+            <div class="mb-5">
+                <p class="text-sm font-black uppercase tracking-[0.2em] text-[#FF7A00]">Explore</p>
+                <h2 class="mt-1 text-2xl font-black text-slate-950">Popular Tags</h2>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+                {% for tag in popular_tags %}
+                <a href="{% url 'blog:list' %}?tag={{ tag.slug }}"
+                   class="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-black text-slate-700 transition hover:border-[#FF7A00] hover:bg-orange-50 hover:text-[#FF7A00]">
+                    #{{ tag.name }}
+                    <span class="ml-1 text-xs text-slate-400">{{ tag.post_count }}</span>
+                </a>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- Pagination -->
+        {% if posts.has_other_pages %}
+        <div class="mt-10 flex flex-wrap items-center justify-center gap-2">
+            {% if posts.has_previous %}
+                <a href="?page={{ posts.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if current_category %}&category={{ current_category }}{% endif %}{% if current_tag %}&tag={{ current_tag }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}" class="rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50">
+                    <i class="fas fa-arrow-left mr-2"></i>
+                    Previous
+                </a>
+            {% endif %}
+
+            <span class="rounded-2xl bg-[#0F2D6B] px-5 py-3 text-sm font-black text-white shadow-lg shadow-blue-950/10">
+                Page {{ posts.number }}{% if posts.paginator.num_pages %} of {{ posts.paginator.num_pages }}{% endif %}
+            </span>
+
+            {% if posts.has_next %}
+                <a href="?page={{ posts.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if current_category %}&category={{ current_category }}{% endif %}{% if current_tag %}&tag={{ current_tag }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}" class="rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50">
+                    Next
+                    <i class="fas fa-arrow-right ml-2"></i>
+                </a>
+            {% endif %}
+        </div>
         {% endif %}
     </div>
-    {% endif %}
-</div>
+</section>
 {% endblock %}
