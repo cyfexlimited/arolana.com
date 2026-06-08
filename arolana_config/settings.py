@@ -234,6 +234,8 @@ else:
         }
     }
 
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
+DATA_UPLOAD_MAX_NUMBER_FILES = 500
 # ============ TEMPLATES ============
 TEMPLATES = [
     {

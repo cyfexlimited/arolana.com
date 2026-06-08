@@ -15,8 +15,13 @@
 
 <style>
     /*
-      Arolana landing detail polish.
-      This keeps your external landing_pages.css, then adds safe overrides here.
+      Arolana Landing Detail — perfected.
+      Includes:
+      - Full page background image from admin
+      - Overlay opacity from admin
+      - Optional blur/fixed background from admin
+      - Orange back-to-top button moved to the left
+      - Cleaner hero/cards/glass sections
     */
 
     .arolana-landing-page {
@@ -25,6 +30,10 @@
         --lp-dark-safe: var(--lp-dark, #0F172A);
         --lp-bg-safe: var(--lp-bg, #F8FAFC);
         --lp-text-safe: var(--lp-text, #0F172A);
+
+        position: relative;
+        isolation: isolate;
+        overflow-x: hidden;
         background:
             radial-gradient(circle at top right, color-mix(in srgb, var(--lp-primary-safe) 10%, transparent), transparent 34rem),
             radial-gradient(circle at bottom left, color-mix(in srgb, var(--lp-accent-safe) 10%, transparent), transparent 34rem),
@@ -32,7 +41,46 @@
         color: var(--lp-text-safe);
     }
 
+    /*
+      Full-page background image controlled from admin.
+      It sits behind every landing section.
+    */
+    .arolana-landing-page::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: -2;
+        pointer-events: none;
+        background-image: var(--lp-page-bg-image, none);
+        background-size: cover;
+        background-position: var(--lp-page-bg-position, center center);
+        background-repeat: no-repeat;
+        background-attachment: var(--lp-page-bg-attachment, fixed);
+        filter: var(--lp-page-bg-filter, none);
+        transform: scale(var(--lp-page-bg-scale, 1));
+        transform-origin: center center;
+    }
+
+    /*
+      Opacity/overlay controlled from admin:
+      lower = image more visible, higher = image softer/more muted.
+    */
+    .arolana-landing-page::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
+        background:
+            linear-gradient(
+                135deg,
+                rgba(248, 250, 252, var(--lp-page-bg-opacity, 0.35)),
+                rgba(255, 255, 255, var(--lp-page-bg-opacity, 0.35))
+            );
+    }
+
     .lp-hero {
+        position: relative;
         min-height: clamp(620px, 82vh, 860px);
         background:
             radial-gradient(circle at 15% 18%, rgba(0, 184, 255, 0.24), transparent 28rem),
@@ -52,10 +100,23 @@
         box-shadow: 0 34px 100px rgba(15, 23, 42, 0.18);
     }
 
+    .lp-section,
+    .lp-mini-nav {
+        position: relative;
+        z-index: 1;
+    }
+
+    .lp-section-soft {
+        background: rgba(255, 255, 255, 0.76) !important;
+        backdrop-filter: blur(16px);
+    }
+
     .lp-card,
     .lp-step-card,
     .lp-faq-item,
     .lp-contact-card {
+        background: rgba(255, 255, 255, 0.88) !important;
+        backdrop-filter: blur(14px);
         transition: transform .24s ease, box-shadow .24s ease, border-color .24s ease;
     }
 
@@ -82,8 +143,7 @@
     }
 
     /*
-      IMPORTANT FIX:
-      Orange "Back to top" button moved to the LEFT.
+      Orange back-to-top button on the LEFT.
     */
     .lp-back-to-top {
         left: 1rem !important;
@@ -103,6 +163,12 @@
     html.lp-video-open,
     body.lp-video-open {
         overflow: hidden !important;
+    }
+
+    @media (max-width: 768px) {
+        .arolana-landing-page::before {
+            background-attachment: scroll;
+        }
     }
 
     @media (max-width: 640px) {
@@ -126,7 +192,25 @@
 
 {% block content %}
 <main class="arolana-landing-page"
-      style="--lp-primary: {{ page.primary_color|default:'#0F2D6B' }}; --lp-accent: {{ page.accent_color|default:'#FF7A00' }}; --lp-dark: {{ page.dark_color|default:'#0F172A' }}; --lp-bg: {{ page.background_color|default:'#F8FAFC' }}; --lp-text: {{ page.text_color|default:'#0F172A' }};">
+      style="
+        --lp-primary: {{ page.primary_color|default:'#0F2D6B' }};
+        --lp-accent: {{ page.accent_color|default:'#FF7A00' }};
+        --lp-dark: {{ page.dark_color|default:'#0F172A' }};
+        --lp-bg: {{ page.background_color|default:'#F8FAFC' }};
+        --lp-text: {{ page.text_color|default:'#0F172A' }};
+
+        {% if page.page_background_image %}
+            --lp-page-bg-image: url('{{ page.page_background_image.url }}');
+        {% else %}
+            --lp-page-bg-image: none;
+        {% endif %}
+
+        --lp-page-bg-opacity: {{ page.page_background_overlay_opacity|default:'0.35' }};
+        --lp-page-bg-position: {{ page.page_background_position|default:'center center' }};
+        --lp-page-bg-attachment: {% if page.page_background_fixed %}fixed{% else %}scroll{% endif %};
+        --lp-page-bg-filter: {% if page.page_background_blur %}blur(4px) saturate(1.08) contrast(1.05){% else %}saturate(1.08) contrast(1.05){% endif %};
+        --lp-page-bg-scale: {% if page.page_background_blur %}1.03{% else %}1{% endif %};
+      ">
 
     {% if preview %}
     <div class="lp-preview-banner">
@@ -160,12 +244,10 @@
                 {% endif %}
 
                 <div class="lp-hero-actions">
-                    {% if page.primary_cta_text and page.primary_cta_url %}
-                    <a href="{{ page.primary_cta_url }}" class="lp-btn lp-btn-primary">
-                        {{ page.primary_cta_text }}
+                    <a href="{{ page.primary_cta_url|default:'#contact' }}" class="lp-btn lp-btn-primary">
+                        {{ page.primary_cta_text|default:'Apply Now' }}
                         <i class="fas fa-arrow-right"></i>
                     </a>
-                    {% endif %}
 
                     {% if page.secondary_cta_text and page.secondary_cta_url %}
                     <a href="{{ page.secondary_cta_url }}" class="lp-btn lp-btn-secondary">

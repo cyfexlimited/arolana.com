@@ -109,6 +109,7 @@ class LandingPageAdmin(admin.ModelAdmin):
         "is_active",
         "is_featured",
         "show_on_homepage",
+        "background_preview",
         "preview_link",
         "published_at",
         "updated_at",
@@ -117,7 +118,7 @@ class LandingPageAdmin(admin.ModelAdmin):
     search_fields = ("title", "slug", "hero_headline", "meta_title")
     date_hierarchy = "published_at"
     prepopulated_fields = {"slug": ("title",)}
-    readonly_fields = ("created_at", "updated_at", "preview_link")
+    readonly_fields = ("created_at", "updated_at", "preview_link", "background_preview")
     actions = ("publish_pages", "unpublish_pages", "feature_pages", "unfeature_pages")
     inlines = [
         LandingPageSectionInline,
@@ -153,6 +154,16 @@ class LandingPageAdmin(admin.ModelAdmin):
         ("Branding & Colors", {
             "fields": (("primary_color", "accent_color"), ("dark_color", "background_color", "text_color"))
         }),
+        ("Full Page Background", {
+            "fields": (
+                "background_preview",
+                "page_background_image",
+                "page_background_overlay_opacity",
+                ("page_background_blur", "page_background_fixed"),
+                "page_background_position",
+            ),
+            "description": "Upload a full landing page background image and control the overlay opacity from admin.",
+        }),
         ("SEO & Metadata", {
             "fields": ("meta_title", "meta_description", "meta_keywords", "og_title", "og_description", "og_image", "canonical_url", "schema_markup")
         }),
@@ -164,6 +175,22 @@ class LandingPageAdmin(admin.ModelAdmin):
             "classes": ("collapse",),
         }),
     )
+
+
+    def background_preview(self, obj):
+        if not obj or not obj.page_background_image:
+            return "No background image uploaded."
+        try:
+            return format_html(
+                '<div style="width:220px;height:90px;border-radius:12px;overflow:hidden;'
+                'border:1px solid #e5e7eb;background:#f8fafc;">'
+                '<img src="{}" style="width:100%;height:100%;object-fit:cover;" alt="Landing background preview">'
+                '</div>',
+                obj.page_background_image.url,
+            )
+        except Exception:
+            return "Background image exists but could not be previewed."
+    background_preview.short_description = "Background Preview"
 
     def preview_link(self, obj):
         if not obj or not obj.slug:

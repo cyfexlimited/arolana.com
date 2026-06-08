@@ -1,5 +1,6 @@
 import re
 
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.urls import reverse
 from django.utils import timezone
@@ -66,6 +67,34 @@ class LandingPage(BaseModel):
     background_color = models.CharField(max_length=20, default="#F8FAFC")
     text_color = models.CharField(max_length=20, default="#0F172A")
     custom_css = models.TextField(blank=True)
+
+    # Full page background image control
+    page_background_image = models.ImageField(
+        upload_to="landing_pages/backgrounds/",
+        blank=True,
+        null=True,
+        help_text="Optional full-page background image shown behind landing page sections.",
+    )
+    page_background_overlay_opacity = models.DecimalField(
+        max_digits=3,
+        decimal_places=2,
+        default=0.35,
+        validators=[MinValueValidator(0), MaxValueValidator(1)],
+        help_text="Background overlay opacity. Use 0.00 for clear image, 1.00 for very strong overlay.",
+    )
+    page_background_blur = models.BooleanField(
+        default=False,
+        help_text="Softly blur the full-page background image.",
+    )
+    page_background_fixed = models.BooleanField(
+        default=True,
+        help_text="Keep background image fixed while scrolling for a premium effect.",
+    )
+    page_background_position = models.CharField(
+        max_length=50,
+        default="center center",
+        help_text="CSS background position. Example: center center, top center, center right.",
+    )
 
     meta_title = models.CharField(max_length=255, blank=True)
     meta_description = models.CharField(max_length=500, blank=True)
