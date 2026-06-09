@@ -17,8 +17,9 @@
     /*
       Arolana Landing Detail — perfected.
       Includes:
-      - Full page background image from admin
-      - Overlay opacity from admin
+      - Full page desktop background image from admin
+      - Full page mobile background image from admin
+      - Desktop and mobile overlay opacity from admin
       - Optional blur/fixed background from admin
       - Orange back-to-top button moved to the left
       - Cleaner hero/cards/glass sections
@@ -165,9 +166,21 @@
         overflow: hidden !important;
     }
 
+    /* Mobile background image and mobile overlay opacity */
     @media (max-width: 768px) {
         .arolana-landing-page::before {
+            background-image: var(--lp-mobile-bg-image, var(--lp-page-bg-image, none));
+            background-position: var(--lp-mobile-bg-position, center center);
             background-attachment: scroll;
+        }
+
+        .arolana-landing-page::after {
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(248, 250, 252, var(--lp-mobile-bg-opacity, 0.45)),
+                    rgba(255, 255, 255, var(--lp-mobile-bg-opacity, 0.45))
+                );
         }
     }
 
@@ -203,6 +216,14 @@
             --lp-page-bg-image: url('{{ page.page_background_image.url }}');
         {% else %}
             --lp-page-bg-image: none;
+        {% endif %}
+
+        {% if page.page_mobile_background_image %}
+            --lp-mobile-bg-image: url('{{ page.page_mobile_background_image.url }}');
+        {% elif page.page_background_image %}
+            --lp-mobile-bg-image: url('{{ page.page_background_image.url }}');
+        {% else %}
+            --lp-mobile-bg-image: none;
         {% endif %}
 
         --lp-page-bg-opacity: {{ page.page_background_overlay_opacity|default:'0.35' }};

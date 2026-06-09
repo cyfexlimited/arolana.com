@@ -70,10 +70,16 @@ class LandingPage(BaseModel):
 
     # Full page background image control
     page_background_image = models.ImageField(
-        upload_to="landing_pages/backgrounds/",
+        upload_to="landing_pages/backgrounds/desktop/",
         blank=True,
         null=True,
         help_text="Optional full-page background image shown behind landing page sections.",
+    )
+    page_mobile_background_image = models.ImageField(
+        upload_to="landing_pages/backgrounds/mobile/",
+        blank=True,
+        null=True,
+        help_text="Mobile full-page background image. Recommended: 1080x1350 WebP or 1080x1920 WebP.",
     )
     page_background_overlay_opacity = models.DecimalField(
         max_digits=3,
@@ -81,6 +87,13 @@ class LandingPage(BaseModel):
         default=0.35,
         validators=[MinValueValidator(0), MaxValueValidator(1)],
         help_text="Background overlay opacity. Use 0.00 for clear image, 1.00 for very strong overlay.",
+    )
+    page_mobile_background_overlay_opacity = models.DecimalField(
+        max_digits=3,
+        decimal_places=2,
+        default=0.45,
+        validators=[MinValueValidator(0), MaxValueValidator(1)],
+        help_text="Mobile overlay opacity. Mobile usually needs a slightly stronger overlay for readability.",
     )
     page_background_blur = models.BooleanField(
         default=False,
@@ -94,6 +107,11 @@ class LandingPage(BaseModel):
         max_length=50,
         default="center center",
         help_text="CSS background position. Example: center center, top center, center right.",
+    )
+    page_mobile_background_position = models.CharField(
+        max_length=50,
+        default="center center",
+        help_text="Mobile CSS background position. Example: center center, top center, center right.",
     )
 
     meta_title = models.CharField(max_length=255, blank=True)

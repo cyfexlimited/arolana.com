@@ -157,12 +157,15 @@ class LandingPageAdmin(admin.ModelAdmin):
         ("Full Page Background", {
             "fields": (
                 "background_preview",
-                "page_background_image",
-                "page_background_overlay_opacity",
+                ("page_background_image", "page_mobile_background_image"),
+                ("page_background_overlay_opacity", "page_mobile_background_overlay_opacity"),
                 ("page_background_blur", "page_background_fixed"),
-                "page_background_position",
+                ("page_background_position", "page_mobile_background_position"),
             ),
-            "description": "Upload a full landing page background image and control the overlay opacity from admin.",
+            "description": (
+                "Upload separate desktop and mobile landing page background images. "
+                "Recommended desktop: 1920x1080 WebP. Recommended mobile: 1080x1350 WebP or 1080x1920 WebP."
+            ),
         }),
         ("SEO & Metadata", {
             "fields": ("meta_title", "meta_description", "meta_keywords", "og_title", "og_description", "og_image", "canonical_url", "schema_markup")
@@ -178,19 +181,54 @@ class LandingPageAdmin(admin.ModelAdmin):
 
 
     def background_preview(self, obj):
-        if not obj or not obj.page_background_image:
-            return "No background image uploaded."
-        try:
-            return format_html(
-                '<div style="width:220px;height:90px;border-radius:12px;overflow:hidden;'
-                'border:1px solid #e5e7eb;background:#f8fafc;">'
-                '<img src="{}" style="width:100%;height:100%;object-fit:cover;" alt="Landing background preview">'
-                '</div>',
-                obj.page_background_image.url,
-            )
-        except Exception:
-            return "Background image exists but could not be previewed."
+        if not obj:
+            return "No background preview."
+
+        desktop_html = ""
+        mobile_html = ""
+
+        if getattr(obj, "page_background_image", None):
+            try:
+                desktop_html = format_html(
+                    '<div style="margin-right:14px;">'
+                    '<div style="font-weight:700;margin-bottom:6px;color:#111827;">Desktop Background</div>'
+                    '<div style="width:230px;height:95px;border-radius:12px;overflow:hidden;'
+                    'border:1px solid #e5e7eb;background:#f8fafc;">'
+                    '<img src="{}" style="width:100%;height:100%;object-fit:cover;" alt="Desktop landing background">'
+                    '</div>'
+                    '<div style="font-size:11px;color:#6b7280;margin-top:4px;">Recommended: 1920×1080 WebP</div>'
+                    '</div>',
+                    obj.page_background_image.url,
+                )
+            except Exception:
+                desktop_html = "Desktop image exists but could not be previewed."
+
+        if getattr(obj, "page_mobile_background_image", None):
+            try:
+                mobile_html = format_html(
+                    '<div>'
+                    '<div style="font-weight:700;margin-bottom:6px;color:#111827;">Mobile Background</div>'
+                    '<div style="width:95px;height:125px;border-radius:12px;overflow:hidden;'
+                    'border:1px solid #e5e7eb;background:#f8fafc;">'
+                    '<img src="{}" style="width:100%;height:100%;object-fit:cover;" alt="Mobile landing background">'
+                    '</div>'
+                    '<div style="font-size:11px;color:#6b7280;margin-top:4px;">Recommended: 1080×1350 WebP</div>'
+                    '</div>',
+                    obj.page_mobile_background_image.url,
+                )
+            except Exception:
+                mobile_html = "Mobile image exists but could not be previewed."
+
+        if not desktop_html and not mobile_html:
+            return "No background images uploaded."
+
+        return format_html(
+            '<div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;">{}{}</div>',
+            desktop_html,
+            mobile_html,
+        )
     background_preview.short_description = "Background Preview"
+
 
     def preview_link(self, obj):
         if not obj or not obj.slug:
