@@ -23,6 +23,7 @@ class HomepageCategory(BaseModel):
 
 class HomepageBanner(BaseModel):
     """Manageable promo banner on homepage"""
+
     TARGET_AUDIENCE_CHOICES = [
         ('all', 'Everyone'),
         ('guests', 'Guests only'),
@@ -32,67 +33,168 @@ class HomepageBanner(BaseModel):
         ('manufacturers', 'Manufacturers'),
         ('staff', 'Staff/Admin'),
     ]
+
     IMAGE_FIT_CHOICES = [
         ('cover', 'Fill frame (crop if needed)'),
         ('contain', 'Fit whole image'),
         ('fill', 'Stretch to frame'),
         ('scale-down', 'Scale down only'),
     ]
+
     CONTENT_LAYOUT_CHOICES = [
         ('designed', 'Designed banner with text/images'),
         ('image_only', 'Image only'),
     ]
+
     CONTENT_ALIGNMENT_CHOICES = [
         ('left', 'Left'),
         ('center', 'Center'),
         ('right', 'Right'),
     ]
 
+    PLACEMENT_CHOICES = [
+        ('top', 'Top of homepage'),
+        ('after_categories', 'After categories'),
+        ('after_products', 'After product sections'),
+        ('after_manufacturers', 'After manufacturers'),
+        ('after_vendors', 'After vendor sections'),
+        ('before_newsletter', 'Before newsletter'),
+        ('custom', 'Custom/manual placement'),
+    ]
+
+    BANNER_STYLE_CHOICES = [
+        ('hero_slider', 'Hero slider'),
+        ('wide_strip', 'Wide strip banner'),
+        ('two_column', 'Two-column promo'),
+        ('image_only', 'Image-only banner'),
+        ('card_grid', 'Promo card/grid style'),
+    ]
+
     title = models.CharField(max_length=200, default="Summer Mega Sale!")
-    subtitle = models.CharField(max_length=500, blank=True, default="Get up to 50% off on selected items + Free Shipping")
+    subtitle = models.CharField(
+        max_length=500,
+        blank=True,
+        default="Get up to 50% off on selected items + Free Shipping"
+    )
     button_text = models.CharField(max_length=50, default="Shop Now")
     button_url = models.CharField(max_length=500, default="/products/?deals=true")
+
     target_audience = models.CharField(
         max_length=20,
         choices=TARGET_AUDIENCE_CHOICES,
         default='all',
         help_text="Choose who should see this banner.",
     )
-    background_color_start = models.CharField(max_length=20, default="#3B82F6", help_text="Gradient start color")
-    background_color_end = models.CharField(max_length=20, default="#8B5CF6", help_text="Gradient end color")
-    desktop_height = models.PositiveIntegerField(default=320, validators=[MinValueValidator(120), MaxValueValidator(900)], help_text="Homepage banner height on desktop in pixels.")
-    tablet_height = models.PositiveIntegerField(default=300, validators=[MinValueValidator(120), MaxValueValidator(800)], help_text="Homepage banner height on tablet in pixels.")
-    mobile_height = models.PositiveIntegerField(default=260, validators=[MinValueValidator(120), MaxValueValidator(700)], help_text="Homepage banner height on mobile in pixels.")
-    content_layout = models.CharField(max_length=20, choices=CONTENT_LAYOUT_CHOICES, default='designed', help_text="Choose image-only when the uploaded background already includes all text/buttons.")
-    content_alignment = models.CharField(max_length=20, choices=CONTENT_ALIGNMENT_CHOICES, default='center')
-    background_fit = models.CharField(max_length=20, choices=IMAGE_FIT_CHOICES, default='cover')
-    background_position = models.CharField(max_length=50, default='center center', help_text="CSS object-position. Examples: center center, left center, 50% 35%.")
-    background_opacity = models.FloatField(default=0.35, validators=[MinValueValidator(0), MaxValueValidator(1)], help_text="0 is hidden, 1 is full strength. Image-only banners display at full strength.")
-    
-    # Floating images
+
+    placement = models.CharField(
+        max_length=40,
+        choices=PLACEMENT_CHOICES,
+        default="top",
+        db_index=True,
+        help_text="Choose where this banner should appear on the homepage.",
+    )
+
+    banner_style = models.CharField(
+        max_length=30,
+        choices=BANNER_STYLE_CHOICES,
+        default="hero_slider",
+        help_text="Choose the visual structure for this banner.",
+    )
+
+    show_on_homepage = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text="Turn off if you want to keep this banner saved but hide it from the homepage.",
+    )
+
+    full_width = models.BooleanField(
+        default=False,
+        help_text="Allow banner to stretch wider than the normal homepage container.",
+    )
+
+    background_color_start = models.CharField(
+        max_length=20,
+        default="#3B82F6",
+        help_text="Gradient start color"
+    )
+    background_color_end = models.CharField(
+        max_length=20,
+        default="#8B5CF6",
+        help_text="Gradient end color"
+    )
+
+    desktop_height = models.PositiveIntegerField(
+        default=320,
+        validators=[MinValueValidator(120), MaxValueValidator(900)],
+        help_text="Homepage banner height on desktop in pixels."
+    )
+    tablet_height = models.PositiveIntegerField(
+        default=300,
+        validators=[MinValueValidator(120), MaxValueValidator(800)],
+        help_text="Homepage banner height on tablet in pixels."
+    )
+    mobile_height = models.PositiveIntegerField(
+        default=260,
+        validators=[MinValueValidator(120), MaxValueValidator(700)],
+        help_text="Homepage banner height on mobile in pixels."
+    )
+
+    content_layout = models.CharField(
+        max_length=20,
+        choices=CONTENT_LAYOUT_CHOICES,
+        default='designed',
+        help_text="Choose image-only when the uploaded background already includes all text/buttons."
+    )
+    content_alignment = models.CharField(
+        max_length=20,
+        choices=CONTENT_ALIGNMENT_CHOICES,
+        default='center'
+    )
+
+    background_fit = models.CharField(
+        max_length=20,
+        choices=IMAGE_FIT_CHOICES,
+        default='cover'
+    )
+    background_position = models.CharField(
+        max_length=50,
+        default='center center',
+        help_text="CSS object-position. Examples: center center, left center, 50% 35%."
+    )
+    background_opacity = models.FloatField(
+        default=0.35,
+        validators=[MinValueValidator(0), MaxValueValidator(1)],
+        help_text="0 is hidden, 1 is full strength. Image-only banners display at full strength."
+    )
+
+    # Floating image URLs
     left_image = models.URLField(blank=True, help_text="URL for left floating image")
     right_image = models.URLField(blank=True, help_text="URL for right floating image")
     center_image = models.URLField(blank=True, help_text="URL for center floating image")
-    
+
     # Animations
     left_animation = models.CharField(max_length=50, default="animate-bounce")
     right_animation = models.CharField(max_length=50, default="animate-pulse")
     center_animation = models.CharField(max_length=50, default="animate-spin-slow")
-    
+
     display_order = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
-    
+
     class Meta:
-        ordering = ['display_order']
+        ordering = ['placement', 'display_order', 'id']
         verbose_name = "Homepage Banner"
         verbose_name_plural = "Homepage Banners"
-    
+
     def __str__(self):
         return self.title
 
     @property
     def show_button(self):
         return bool(self.button_text and self.button_url and self.button_url != '#')
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        local_delete("homepage:banners:v4")
 
 class HomepageSection(BaseModel):
     """Manageable sections on homepage"""

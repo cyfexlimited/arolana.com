@@ -1,402 +1,574 @@
 {% load static media_optimization %}
 
 {% if banners %}
-<div class="homepage-banner-wrap relative overflow-hidden mb-12" data-aos="fade-up">
-    <!-- Main Carousel Container -->
-    <div class="banner-carousel-container relative" data-autoplay="5000">
-        <div class="banner-carousel-track flex transition-transform duration-500 ease-out">
+<section class="ah-banner-zone ah-banner-zone-{{ placement|default:'top' }}" aria-label="Arolana homepage banners">
+    <style>
+        .ah-banner-zone {
+            width: min(100% - 24px, 1480px);
+            margin: 0 auto 1rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .ah-banner-carousel {
+            position: relative;
+            overflow: hidden;
+            background: #0f172a;
+            border-radius: 0 0 18px 18px;
+            box-shadow: 0 24px 60px rgba(15, 23, 42, .16);
+        }
+
+        .ah-banner-track {
+            display: flex;
+            transition: transform .55s cubic-bezier(.22, .61, .36, 1);
+            will-change: transform;
+        }
+
+        .ah-banner-slide {
+            flex: 0 0 100%;
+            min-width: 100%;
+            height: var(--ah-banner-height-desktop, 420px);
+            position: relative;
+            overflow: hidden;
+            background:
+                radial-gradient(circle at 20% 10%, rgba(0, 184, 255, .18), transparent 26rem),
+                radial-gradient(circle at 88% 90%, rgba(255, 122, 0, .13), transparent 26rem),
+                linear-gradient(135deg, var(--ah-banner-start, #071A44), var(--ah-banner-end, #6247D8));
+        }
+
+        .ah-banner-bg {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: var(--ah-banner-bg-fit, cover);
+            object-position: var(--ah-banner-bg-position, center center);
+            opacity: var(--ah-banner-bg-opacity, .35);
+        }
+
+        .ah-banner-slide::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none;
+            background:
+                linear-gradient(
+                    90deg,
+                    rgba(7, 26, 68, .88) 0%,
+                    rgba(15, 45, 107, .58) 43%,
+                    rgba(7, 26, 68, .16) 100%
+                );
+        }
+
+        .ah-banner-inner {
+            position: relative;
+            z-index: 2;
+            height: 100%;
+            display: grid;
+            grid-template-columns: minmax(320px, 0.95fr) minmax(320px, 1.05fr);
+            align-items: center;
+            gap: clamp(1.25rem, 4vw, 3rem);
+            padding: clamp(1.4rem, 3vw, 2.5rem);
+        }
+
+        .ah-banner-content {
+            width: min(100%, 600px);
+            max-height: calc(100% - 24px);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, .94);
+            padding: clamp(1.35rem, 3vw, 2.4rem);
+            color: #0f172a;
+            box-shadow: 0 24px 60px rgba(15, 23, 42, .18);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+        }
+
+        .ah-banner-align-left {
+            align-items: flex-start;
+            text-align: left;
+        }
+
+        .ah-banner-align-center {
+            align-items: center;
+            text-align: center;
+        }
+
+        .ah-banner-align-right {
+            align-items: flex-end;
+            text-align: right;
+        }
+
+        .ah-banner-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: .45rem;
+            width: fit-content;
+            margin-bottom: .7rem;
+            color: #ff7a00;
+            font-size: .72rem;
+            font-weight: 950;
+            letter-spacing: .18em;
+            text-transform: uppercase;
+        }
+
+        .ah-banner-title {
+            margin: 0;
+            color: #0f172a;
+            font-family: var(--font-logo-hero, 'Montserrat', 'Inter', system-ui, sans-serif);
+            font-size: clamp(2rem, 4vw, 3.7rem);
+            line-height: 1.02;
+            font-weight: 950;
+            letter-spacing: -.055em;
+        }
+
+        .ah-banner-subtitle {
+            max-width: 620px;
+            margin: .95rem 0 1.35rem;
+            color: #475569;
+            font-size: clamp(.95rem, 1.5vw, 1.1rem);
+            line-height: 1.5;
+            font-weight: 750;
+        }
+
+        .ah-banner-align-center .ah-banner-subtitle {
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .ah-banner-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .55rem;
+            width: fit-content;
+            min-height: 46px;
+            border-radius: 999px;
+            background: #ff7a00;
+            color: #fff;
+            padding: .82rem 1.35rem;
+            font-weight: 950;
+            text-decoration: none;
+            box-shadow: 0 18px 42px rgba(255, 122, 0, .28);
+            transition: transform .2s ease, background .2s ease;
+        }
+
+        .ah-banner-button:hover {
+            background: #f06f00;
+            transform: translateY(-2px);
+        }
+
+        .ah-banner-media {
+            height: 100%;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .ah-banner-media-stack {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: .85rem;
+            flex-wrap: wrap;
+        }
+
+        .ah-banner-media img,
+        .ah-banner-media-stack img {
+            width: var(--banner-img-width, min(100%, 500px));
+            height: var(--banner-img-height, auto);
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: var(--banner-img-fit, contain);
+            object-position: var(--banner-img-position, center center);
+            border-radius: 12px;
+            filter: drop-shadow(0 22px 32px rgba(0, 0, 0, .22));
+        }
+
+        .ah-banner-small-image {
+            max-height: 170px !important;
+        }
+
+        .ah-banner-nav {
+            position: absolute;
+            top: 50%;
+            z-index: 5;
+            width: 42px;
+            height: 72px;
+            border: 1px solid rgba(213, 217, 217, .8);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, .94);
+            color: #0f172a;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, .14);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transform: translateY(-50%);
+            cursor: pointer;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .2s ease, background .2s ease;
+        }
+
+        .ah-banner-carousel:hover .ah-banner-nav {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .ah-banner-prev {
+            left: .75rem;
+        }
+
+        .ah-banner-next {
+            right: .75rem;
+        }
+
+        .ah-banner-dots {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: .85rem;
+            z-index: 6;
+            display: flex;
+            justify-content: center;
+            gap: .42rem;
+        }
+
+        .ah-banner-dot {
+            width: .58rem;
+            height: .58rem;
+            border: 0;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, .55);
+            cursor: pointer;
+            transition: width .2s ease, background .2s ease;
+        }
+
+        .ah-banner-dot.is-active {
+            width: 1.55rem;
+            background: #ff7a00;
+        }
+
+        @media (max-width: 768px) {
+            .ah-banner-zone {
+                width: min(100% - 16px, 1480px);
+                margin-bottom: .85rem;
+            }
+
+            .ah-banner-slide {
+                height: var(--ah-banner-height-mobile, 520px);
+            }
+
+            .ah-banner-slide::after {
+                background:
+                    linear-gradient(
+                        180deg,
+                        rgba(7, 26, 68, .78) 0%,
+                        rgba(7, 26, 68, .40) 52%,
+                        rgba(7, 26, 68, .78) 100%
+                    );
+            }
+
+            .ah-banner-inner {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+                padding: 1rem;
+            }
+
+            .ah-banner-content {
+                width: 100%;
+                max-height: none;
+                align-items: center !important;
+                text-align: center !important;
+                padding: 1.1rem;
+                border-radius: 10px;
+            }
+
+            .ah-banner-eyebrow {
+                margin-left: auto;
+                margin-right: auto;
+                font-size: .62rem;
+            }
+
+            .ah-banner-title {
+                font-size: clamp(1.55rem, 8vw, 2.35rem);
+            }
+
+            .ah-banner-subtitle {
+                margin: .7rem auto 1rem;
+                font-size: .86rem;
+                line-height: 1.42;
+            }
+
+            .ah-banner-button {
+                width: min(100%, 270px);
+            }
+
+            .ah-banner-media {
+                min-height: 170px;
+                max-height: 210px;
+            }
+
+            .ah-banner-media img,
+            .ah-banner-media-stack img {
+                max-height: 200px;
+            }
+
+            .ah-banner-nav {
+                display: none;
+            }
+        }
+    </style>
+
+    <div class="ah-banner-carousel" data-ah-banner-carousel data-autoplay="5000">
+        <div class="ah-banner-track" data-ah-banner-track>
             {% for banner in banners %}
-            <div class="banner-slide w-full flex-shrink-0" data-index="{{ forloop.counter0 }}">
-                <!-- Banner Slide Content -->
-                <div class="homepage-banner-slide homepage-banner-slide--{{ banner.content_layout|default:'designed' }} relative overflow-hidden"
-                     style="background: linear-gradient(135deg, {{ banner.background_color_start|default:'#667eea' }}, {{ banner.background_color_end|default:'#764ba2' }}); --homepage-height-desktop: {{ banner.desktop_height|default:320 }}px; --homepage-height-tablet: {{ banner.tablet_height|default:300 }}px; --homepage-height-mobile: {{ banner.mobile_height|default:260 }}px; --homepage-bg-fit: {{ banner.background_fit|default:'cover' }}; --homepage-bg-position: {{ banner.background_position|default:'center center' }}; --homepage-bg-opacity: {% if banner.content_layout == 'image_only' %}1{% else %}{{ banner.background_opacity|default:'0.35' }}{% endif %}; --homepage-content-align: {{ banner.content_alignment|default:'center' }};">
-                    {% if banner.background_image and banner.background_image.image %}
-                        {% optimized_image_url banner.background_image.image 'hero' as banner_background_url %}
-                        <img src="{{ banner_background_url }}" alt="" class="homepage-banner-bg" loading="{% if forloop.first %}eager{% else %}lazy{% endif %}">
-                    {% endif %}
+            <article class="ah-banner-slide ah-banner-style-{{ banner.banner_style|default:'hero_slider' }}"
+                     data-ah-banner-slide
+                     style="
+                        --ah-banner-start: {{ banner.background_color_start|default:'#071A44' }};
+                        --ah-banner-end: {{ banner.background_color_end|default:'#6247D8' }};
+                        --ah-banner-height-desktop: {{ banner.desktop_height|default:420 }}px;
+                        --ah-banner-height-tablet: {{ banner.tablet_height|default:380 }}px;
+                        --ah-banner-height-mobile: {{ banner.mobile_height|default:520 }}px;
+                        --ah-banner-bg-fit: {{ banner.background_fit|default:'cover' }};
+                        --ah-banner-bg-position: {{ banner.background_position|default:'center center' }};
+                        --ah-banner-bg-opacity: {{ banner.background_opacity|default:'0.35' }};
+                     ">
 
-                    {% if banner.content_layout != 'image_only' or not banner.background_image %}
-                    <div class="container mx-auto px-4 py-10 md:py-16 relative z-10">
-                        <div class="homepage-banner-grid">
-                            
-                            <!-- Left Image/Video -->
-                            <div class="homepage-banner-media homepage-banner-media--left" data-aos="{{ banner.left_animation|default:'fade-right' }}">
-                                {% for banner_image in banner.left_images %}
-                                    {% optimized_image_url banner_image.image 'ad_card' as left_image_url %}
-                                    <img src="{{ left_image_url }}" alt="{{ banner.title }}" loading="lazy" style="{% if banner_image.width_px %}--banner-img-width: {{ banner_image.width_px }}px;{% endif %}{% if banner_image.height_px %}--banner-img-height: {{ banner_image.height_px }}px;{% endif %}--banner-img-fit: {{ banner_image.object_fit|default:'contain' }}; --banner-img-position: {{ banner_image.object_position|default:'center center' }};">
-                                {% empty %}
-                                    {% if banner.left_image %}
-                                        <img src="{{ banner.left_image }}" alt="{{ banner.title }}" loading="lazy">
-                                    {% endif %}
-                                {% endfor %}
-                            </div>
+                {% if banner.background_image and banner.background_image.image %}
+                    {% optimized_image_url banner.background_image.image 'hero' as banner_background_url %}
+                    <img src="{{ banner_background_url }}"
+                         alt="{{ banner.title|default:'Arolana banner' }}"
+                         class="ah-banner-bg"
+                         loading="{% if forloop.first %}eager{% else %}lazy{% endif %}"
+                         decoding="async">
+                {% endif %}
 
-                            <!-- Center Content -->
-                            <div class="homepage-banner-content" data-aos="{{ banner.center_animation|default:'fade-up' }}">
-                                {% if banner.center_images %}
-                                    <div class="homepage-banner-center-images">
-                                        {% for banner_image in banner.center_images %}
-                                            {% optimized_image_url banner_image.image 'ad_card' as center_image_url %}
-                                            <img src="{{ center_image_url }}" alt="{{ banner.title }}" loading="{% if forloop.parentloop.first %}eager{% else %}lazy{% endif %}" style="{% if banner_image.width_px %}--banner-img-width: {{ banner_image.width_px }}px;{% endif %}{% if banner_image.height_px %}--banner-img-height: {{ banner_image.height_px }}px;{% endif %}--banner-img-fit: {{ banner_image.object_fit|default:'contain' }}; --banner-img-position: {{ banner_image.object_position|default:'center center' }};">
-                                        {% endfor %}
-                                    </div>
+                <div class="ah-banner-inner">
+                    <div class="ah-banner-content ah-banner-align-{{ banner.content_alignment|default:'center' }}">
+                        <span class="ah-banner-eyebrow">
+                            <i class="fas fa-bag-shopping"></i>
+                            Arolana Marketplace
+                        </span>
+
+                        <h2 class="ah-banner-title">
+                            {{ banner.title|default:'Shop Smarter on Arolana' }}
+                        </h2>
+
+                        <p class="ah-banner-subtitle">
+                            {{ banner.subtitle|default:'Discover trusted products, verified vendors, and marketplace deals built for everyday shopping and business needs.' }}
+                        </p>
+
+                        {% if banner.show_button %}
+                        <a href="{{ banner.button_url }}" class="ah-banner-button">
+                            {{ banner.button_text }}
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+
+                    <div class="ah-banner-media">
+                        <div class="ah-banner-media-stack">
+                            {% for banner_image in banner.center_images %}
+                                {% optimized_image_url banner_image.image 'ad_card' as center_image_url %}
+                                <img src="{{ center_image_url }}"
+                                     alt="{{ banner.title|default:'Arolana banner' }}"
+                                     loading="lazy"
+                                     decoding="async"
+                                     style="{% if banner_image.width_px %}--banner-img-width: {{ banner_image.width_px }}px;{% endif %}{% if banner_image.height_px %}--banner-img-height: {{ banner_image.height_px }}px;{% endif %}--banner-img-fit: {{ banner_image.object_fit|default:'contain' }}; --banner-img-position: {{ banner_image.object_position|default:'center center' }};">
+                            {% endfor %}
+
+                            {% for banner_image in banner.left_images %}
+                                {% optimized_image_url banner_image.image 'ad_card' as left_image_url %}
+                                <img src="{{ left_image_url }}"
+                                     class="ah-banner-small-image"
+                                     alt="{{ banner.title|default:'Arolana banner' }}"
+                                     loading="lazy"
+                                     decoding="async"
+                                     style="{% if banner_image.width_px %}--banner-img-width: {{ banner_image.width_px }}px;{% endif %}{% if banner_image.height_px %}--banner-img-height: {{ banner_image.height_px }}px;{% endif %}--banner-img-fit: {{ banner_image.object_fit|default:'contain' }}; --banner-img-position: {{ banner_image.object_position|default:'center center' }};">
+                            {% endfor %}
+
+                            {% for banner_image in banner.right_images %}
+                                {% optimized_image_url banner_image.image 'ad_card' as right_image_url %}
+                                <img src="{{ right_image_url }}"
+                                     alt="{{ banner.title|default:'Arolana banner' }}"
+                                     loading="lazy"
+                                     decoding="async"
+                                     style="{% if banner_image.width_px %}--banner-img-width: {{ banner_image.width_px }}px;{% endif %}{% if banner_image.height_px %}--banner-img-height: {{ banner_image.height_px }}px;{% endif %}--banner-img-fit: {{ banner_image.object_fit|default:'contain' }}; --banner-img-position: {{ banner_image.object_position|default:'center center' }};">
+                            {% endfor %}
+
+                            {% if not banner.center_images and not banner.left_images and not banner.right_images %}
+                                {% if banner.center_image %}
+                                <img src="{{ banner.center_image }}"
+                                     alt="{{ banner.title|default:'Arolana banner' }}"
+                                     loading="lazy"
+                                     decoding="async">
+                                {% elif banner.left_image %}
+                                <img src="{{ banner.left_image }}"
+                                     class="ah-banner-small-image"
+                                     alt="{{ banner.title|default:'Arolana banner' }}"
+                                     loading="lazy"
+                                     decoding="async">
+                                {% elif banner.right_image %}
+                                <img src="{{ banner.right_image }}"
+                                     alt="{{ banner.title|default:'Arolana banner' }}"
+                                     loading="lazy"
+                                     decoding="async">
                                 {% endif %}
-                                <h2 class="homepage-banner-title">
-                                    {{ banner.title }}
-                                </h2>
-                                {% if banner.subtitle %}
-                                    <p class="homepage-banner-subtitle">
-                                        {{ banner.subtitle }}
-                                    </p>
-                                {% endif %}
-                                
-                                {% if banner.show_button %}
-                                    <a href="{{ banner.button_url }}" 
-                                       class="homepage-banner-button">
-                                        {{ banner.button_text }}
-                                        <i class="fas fa-arrow-right"></i>
-                                    </a>
-                                {% endif %}
-                            </div>
-                            
-                            <!-- Right Image/Video -->
-                            <div class="homepage-banner-media homepage-banner-media--right" data-aos="{{ banner.right_animation|default:'fade-left' }}">
-                                {% for banner_image in banner.right_images %}
-                                    {% optimized_image_url banner_image.image 'ad_card' as right_image_url %}
-                                    <img src="{{ right_image_url }}" alt="{{ banner.title }}" loading="lazy" style="{% if banner_image.width_px %}--banner-img-width: {{ banner_image.width_px }}px;{% endif %}{% if banner_image.height_px %}--banner-img-height: {{ banner_image.height_px }}px;{% endif %}--banner-img-fit: {{ banner_image.object_fit|default:'contain' }}; --banner-img-position: {{ banner_image.object_position|default:'center center' }};">
-                                {% empty %}
-                                    {% if banner.right_image %}
-                                        <img src="{{ banner.right_image }}" alt="{{ banner.title }}" loading="lazy">
-                                    {% endif %}
-                                {% endfor %}
-                            </div>
+                            {% endif %}
                         </div>
                     </div>
-                    {% endif %}
                 </div>
-            </div>
+            </article>
             {% endfor %}
         </div>
-        
-        <!-- Carousel Navigation Dots -->
+
         {% if banners|length > 1 %}
-        <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
-            {% for banner in banners %}
-            <button class="banner-dot w-2 h-2 rounded-full transition-all duration-300 
-                          {% if forloop.first %}bg-white w-6{% else %}bg-white/50{% endif %}"
-                    data-index="{{ forloop.counter0 }}"></button>
-            {% endfor %}
-        </div>
-        
-        <!-- Navigation Arrows -->
-        <button class="banner-prev absolute left-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white rounded-full p-3 transition-all duration-300 z-20 backdrop-blur-sm">
-            <i class="fas fa-chevron-left text-lg"></i>
+        <button type="button" class="ah-banner-nav ah-banner-prev" data-ah-banner-prev aria-label="Previous banner">
+            <i class="fas fa-chevron-left"></i>
         </button>
-        <button class="banner-next absolute right-4 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white rounded-full p-3 transition-all duration-300 z-20 backdrop-blur-sm">
-            <i class="fas fa-chevron-right text-lg"></i>
+
+        <button type="button" class="ah-banner-nav ah-banner-next" data-ah-banner-next aria-label="Next banner">
+            <i class="fas fa-chevron-right"></i>
         </button>
+
+        <div class="ah-banner-dots" data-ah-banner-dots></div>
         {% endif %}
     </div>
-</div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const carousel = document.querySelector('.banner-carousel-container');
-    if (!carousel) return;
-    
-    const track = carousel.querySelector('.banner-carousel-track');
-    const slides = carousel.querySelectorAll('.banner-slide');
-    const dots = carousel.querySelectorAll('.banner-dot');
-    const prevBtn = carousel.querySelector('.banner-prev');
-    const nextBtn = carousel.querySelector('.banner-next');
-    const autoplayInterval = parseInt(carousel.dataset.autoplay) || 5000;
-    
-    if (slides.length <= 1) return;
-    
-    let currentIndex = 0;
-    let autoPlayInterval;
-    let isTransitioning = false;
-    
-    function updateCarousel() {
-        if (isTransitioning) return;
-        isTransitioning = true;
-        
-        const slideWidth = slides[0].clientWidth;
-        track.style.transform = `translateX(-${currentIndex * slideWidth}px)`;
-        
-        // Update dots
-        dots.forEach((dot, index) => {
-            if (index === currentIndex) {
-                dot.classList.remove('bg-white/50', 'w-2');
-                dot.classList.add('bg-white', 'w-6');
-            } else {
-                dot.classList.remove('bg-white', 'w-6');
-                dot.classList.add('bg-white/50', 'w-2');
+    <script>
+    (function () {
+        document.querySelectorAll("[data-ah-banner-carousel]").forEach(function (carousel) {
+            if (!carousel || carousel.dataset.initialized === "true") return;
+            carousel.dataset.initialized = "true";
+
+            const track = carousel.querySelector("[data-ah-banner-track]");
+            const slides = Array.from(carousel.querySelectorAll("[data-ah-banner-slide]"));
+            const prevButton = carousel.querySelector("[data-ah-banner-prev]");
+            const nextButton = carousel.querySelector("[data-ah-banner-next]");
+            const dotsContainer = carousel.querySelector("[data-ah-banner-dots]");
+            const autoplayDelay = parseInt(carousel.dataset.autoplay || "5000", 10);
+
+            if (!track || slides.length <= 1) return;
+
+            let index = 0;
+            let timer = null;
+            let touchStartX = 0;
+            let touchDeltaX = 0;
+
+            function renderDots() {
+                if (!dotsContainer) return;
+                dotsContainer.innerHTML = "";
+
+                slides.forEach(function (_slide, slideIndex) {
+                    const dot = document.createElement("button");
+                    dot.type = "button";
+                    dot.className = "ah-banner-dot" + (slideIndex === index ? " is-active" : "");
+                    dot.setAttribute("aria-label", "Go to banner " + (slideIndex + 1));
+
+                    dot.addEventListener("click", function () {
+                        goTo(slideIndex);
+                        restart();
+                    });
+
+                    dotsContainer.appendChild(dot);
+                });
             }
+
+            function syncDots() {
+                if (!dotsContainer) return;
+
+                dotsContainer.querySelectorAll(".ah-banner-dot").forEach(function (dot, dotIndex) {
+                    dot.classList.toggle("is-active", dotIndex === index);
+                });
+            }
+
+            function goTo(nextIndex) {
+                index = (nextIndex + slides.length) % slides.length;
+                track.style.transform = "translateX(-" + (index * 100) + "%)";
+                syncDots();
+            }
+
+            function next() {
+                goTo(index + 1);
+            }
+
+            function prev() {
+                goTo(index - 1);
+            }
+
+            function start() {
+                if (timer) clearInterval(timer);
+                timer = setInterval(next, autoplayDelay);
+            }
+
+            function stop() {
+                if (timer) clearInterval(timer);
+                timer = null;
+            }
+
+            function restart() {
+                stop();
+                start();
+            }
+
+            if (nextButton) {
+                nextButton.addEventListener("click", function () {
+                    next();
+                    restart();
+                });
+            }
+
+            if (prevButton) {
+                prevButton.addEventListener("click", function () {
+                    prev();
+                    restart();
+                });
+            }
+
+            carousel.addEventListener("mouseenter", stop);
+            carousel.addEventListener("mouseleave", start);
+
+            carousel.addEventListener("touchstart", function (event) {
+                touchStartX = event.touches && event.touches[0] ? event.touches[0].clientX : 0;
+                touchDeltaX = 0;
+                stop();
+            }, { passive: true });
+
+            carousel.addEventListener("touchmove", function (event) {
+                if (!touchStartX) return;
+                touchDeltaX = (event.touches && event.touches[0] ? event.touches[0].clientX : 0) - touchStartX;
+            }, { passive: true });
+
+            carousel.addEventListener("touchend", function () {
+                if (Math.abs(touchDeltaX) > 45) {
+                    if (touchDeltaX < 0) {
+                        next();
+                    } else {
+                        prev();
+                    }
+                }
+
+                touchStartX = 0;
+                touchDeltaX = 0;
+                start();
+            });
+
+            renderDots();
+            goTo(0);
+            start();
         });
-        
-        setTimeout(() => {
-            isTransitioning = false;
-        }, 500);
-    }
-    
-    function nextSlide() {
-        if (isTransitioning) return;
-        currentIndex = (currentIndex + 1) % slides.length;
-        updateCarousel();
-        resetAutoPlay();
-    }
-    
-    function prevSlide() {
-        if (isTransitioning) return;
-        currentIndex = (currentIndex - 1 + slides.length) % slides.length;
-        updateCarousel();
-        resetAutoPlay();
-    }
-    
-    function startAutoPlay() {
-        if (autoPlayInterval) clearInterval(autoPlayInterval);
-        autoPlayInterval = setInterval(nextSlide, autoplayInterval);
-    }
-    
-    function resetAutoPlay() {
-        clearInterval(autoPlayInterval);
-        startAutoPlay();
-    }
-    
-    // Event listeners
-    if (nextBtn) nextBtn.addEventListener('click', nextSlide);
-    if (prevBtn) prevBtn.addEventListener('click', prevSlide);
-    
-    dots.forEach(dot => {
-        dot.addEventListener('click', function() {
-            if (isTransitioning) return;
-            currentIndex = parseInt(this.dataset.index);
-            updateCarousel();
-            resetAutoPlay();
-        });
-    });
-    
-    // Pause on hover
-    carousel.addEventListener('mouseenter', () => clearInterval(autoPlayInterval));
-    carousel.addEventListener('mouseleave', startAutoPlay);
-    
-    // Handle window resize
-    let resizeTimeout;
-    window.addEventListener('resize', () => {
-        clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(updateCarousel, 100);
-    });
-    
-    // Start autoplay
-    startAutoPlay();
-    
-    // Initial update
-    setTimeout(updateCarousel, 100);
-});
-</script>
-
-<style>
-.homepage-banner-wrap {
-    border-radius: 8px;
-}
-
-.banner-carousel-container {
-    position: relative;
-    width: 100%;
-    overflow: hidden;
-}
-
-.homepage-banner-slide {
-    height: var(--homepage-height-desktop, 320px);
-}
-
-.homepage-banner-bg {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: var(--homepage-bg-fit, cover);
-    object-position: var(--homepage-bg-position, center center);
-    opacity: var(--homepage-bg-opacity, 0.35);
-}
-
-.homepage-banner-slide > .container {
-    height: 100%;
-    display: flex;
-    align-items: center;
-}
-
-.homepage-banner-grid {
-    display: grid;
-    grid-template-columns: minmax(160px, 0.75fr) minmax(280px, 1.5fr) minmax(160px, 0.75fr);
-    align-items: center;
-    gap: clamp(1rem, 4vw, 2.5rem);
-    width: 100%;
-}
-
-.homepage-banner-content {
-    color: #fff;
-    text-align: var(--homepage-content-align, center);
-    min-width: 0;
-}
-
-.homepage-banner-title {
-    font-family: var(--font-logo-hero, 'Montserrat', 'Inter', system-ui, sans-serif);
-    font-size: clamp(2rem, 5vw, 4rem);
-    line-height: 1.05;
-    font-weight: 900;
-    letter-spacing: 0;
-    margin: 0 0 1rem;
-}
-
-.homepage-banner-subtitle {
-    max-width: 720px;
-    margin: 0 auto 1.5rem;
-    color: rgba(255, 255, 255, 0.92);
-    font-size: clamp(1rem, 2vw, 1.25rem);
-    line-height: 1.55;
-}
-
-.homepage-banner-button {
-    font-family: var(--font-heading, 'Montserrat', 'Inter', system-ui, sans-serif);
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    min-height: 46px;
-    border-radius: 8px;
-    background: #fff;
-    color: #111827;
-    padding: 0.75rem 1.5rem;
-    font-weight: 800;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.homepage-banner-button:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.22);
-}
-
-.homepage-banner-media,
-.homepage-banner-center-images {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 0;
-    gap: 1rem;
-}
-
-.homepage-banner-media img,
-.homepage-banner-center-images img {
-    width: var(--banner-img-width, min(100%, 320px));
-    height: var(--banner-img-height, auto);
-    max-height: min(100%, 280px);
-    object-fit: var(--banner-img-fit, contain);
-    object-position: var(--banner-img-position, center center);
-    border-radius: 8px;
-    filter: drop-shadow(0 18px 30px rgba(15, 23, 42, 0.25));
-}
-
-.homepage-banner-center-images {
-    margin-bottom: 1.25rem;
-}
-
-.homepage-banner-center-images img {
-    width: var(--banner-img-width, min(100%, 360px));
-    max-height: 180px;
-}
-
-.banner-carousel-track {
-    display: flex;
-    will-change: transform;
-}
-
-.banner-slide {
-    flex: 0 0 100%;
-    scroll-snap-align: start;
-}
-
-.banner-prev,
-.banner-next {
-    cursor: pointer;
-    transition: all 0.3s ease;
-    opacity: 0;
-    pointer-events: none;
-}
-
-.banner-carousel-container:hover .banner-prev,
-.banner-carousel-container:hover .banner-next {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-.banner-dot {
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.banner-dot:hover {
-    transform: scale(1.2);
-    background-color: white;
-}
-
-@media (max-width: 768px) {
-    .homepage-banner-slide {
-        height: var(--homepage-height-mobile, 260px);
-    }
-
-    .homepage-banner-grid {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-    }
-
-    .homepage-banner-media {
-        min-height: 80px;
-    }
-
-    .homepage-banner-media--left,
-    .homepage-banner-media--right {
-        display: none;
-    }
-
-    .homepage-banner-title {
-        font-size: clamp(1.7rem, 9vw, 2.6rem);
-    }
-
-    .homepage-banner-subtitle {
-        font-size: 1rem;
-    }
-
-    .homepage-banner-button {
-        width: min(100%, 280px);
-        justify-content: center;
-    }
-    
-    .banner-prev,
-    .banner-next {
-        padding: 0.5rem;
-    }
-}
-
-@media (min-width: 769px) and (max-width: 1023px) {
-    .homepage-banner-slide {
-        height: var(--homepage-height-tablet, 300px);
-    }
-}
-</style>
-
-{% else %}
-<!-- Fallback Banner when no banners available -->
-<div class="relative overflow-hidden rounded-2xl mb-12 bg-gradient-to-r from-gray-800 to-gray-900">
-    <div class="container mx-auto px-4 py-16 md:py-24 text-center">
-        <div class="max-w-2xl mx-auto">
-            <i class="fas fa-image text-5xl text-gray-600 mb-4"></i>
-            <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">Welcome to {{ site_settings.site_name }}</h2>
-            <p class="text-lg text-gray-300 mb-8">Discover amazing products and exclusive offers</p>
-            <a href="/products/" class="inline-flex items-center gap-2 bg-white text-gray-900 px-6 py-3 rounded-lg font-semibold hover:shadow-lg transition">
-                Shop Now <i class="fas fa-arrow-right"></i>
-            </a>
-        </div>
-    </div>
-</div>
+    })();
+    </script>
+</section>
 {% endif %}

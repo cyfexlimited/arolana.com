@@ -1,4 +1,5 @@
 {% load static hero_banners_tags footer_menu_tags ad_tags media_optimization %}
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -3610,15 +3611,23 @@
         <i class="fas fa-arrow-up text-xl"></i>
     </button>
 
-    <div id="cookie-consent" class="fixed bottom-0 left-0 right-0 bg-gray-900 text-white p-5 sm:p-6 z-50 translate-y-full transition-transform duration-300">
-        <div class="container mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div class="flex items-center gap-3">
-                <i class="fas fa-cookie-bite text-2xl text-brand"></i>
-                <p class="text-sm">We use cookies to enhance your experience. Continuing means you accept our policy.</p>
+    <div id="cookie-consent"
+         class="fixed left-3 right-3 bottom-[calc(env(safe-area-inset-bottom)+72px)] sm:left-6 sm:right-6 sm:bottom-6 bg-gray-900/95 backdrop-blur-xl text-white p-4 sm:p-6 z-[100000] translate-y-full transition-transform duration-300 shadow-2xl rounded-2xl border border-white/10">
+        <div class="mx-auto max-w-6xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div class="flex items-start gap-3 min-w-0">
+                <i class="fas fa-cookie-bite text-2xl text-brand mt-1 shrink-0"></i>
+                <p class="text-sm leading-6 text-gray-200">
+                    We use cookies to enhance your experience. Continuing means you accept our policy.
+                </p>
             </div>
-            <div class="flex gap-3 shrink-0">
-                <button type="button" onclick="acceptCookies()" class="btn-luxury btn-primary-luxury">Accept</button>
-                <button type="button" onclick="declineCookies()" class="btn-luxury btn-secondary-luxury">Decline</button>
+
+            <div class="flex gap-3 shrink-0 w-full sm:w-auto">
+                <button type="button" id="accept-cookies" class="flex-1 sm:flex-none btn-luxury btn-primary-luxury">
+                    Accept
+                </button>
+                <button type="button" id="decline-cookies" class="flex-1 sm:flex-none btn-luxury btn-secondary-luxury">
+                    Decline
+                </button>
             </div>
         </div>
     </div>
@@ -3646,25 +3655,39 @@
         }
 
         function initCookieConsent() {
-            if (!localStorage.getItem('cookieConsent')) {
-                setTimeout(() => {
-                    const banner = document.getElementById('cookie-consent');
-                    if (banner) banner.style.transform = 'translateY(0)';
-                }, 1600);
+            const banner = document.getElementById("cookie-consent");
+            const acceptBtn = document.getElementById("accept-cookies");
+            const declineBtn = document.getElementById("decline-cookies");
+
+            if (!banner) return;
+
+            if (!localStorage.getItem("cookieConsent")) {
+                setTimeout(function () {
+                    banner.classList.remove("translate-y-full");
+                    banner.style.transform = "translateY(0)";
+                }, 800);
             }
-        }
 
-        function acceptCookies() {
-            localStorage.setItem('cookieConsent', 'accepted');
-            const banner = document.getElementById('cookie-consent');
-            if (banner) banner.style.transform = 'translateY(100%)';
-            showToast('Thank you. Cookies accepted.', 'success');
-        }
+            function hideCookieBanner(value) {
+                localStorage.setItem("cookieConsent", value);
+                banner.style.transform = "translateY(140%)";
+                banner.classList.add("translate-y-full");
+            }
 
-        function declineCookies() {
-            localStorage.setItem('cookieConsent', 'declined');
-            const banner = document.getElementById('cookie-consent');
-            if (banner) banner.style.transform = 'translateY(100%)';
+            if (acceptBtn) {
+                acceptBtn.addEventListener("click", function () {
+                    hideCookieBanner("accepted");
+                    if (typeof showToast === "function") {
+                        showToast("Thank you. Cookies accepted.", "success");
+                    }
+                });
+            }
+
+            if (declineBtn) {
+                declineBtn.addEventListener("click", function () {
+                    hideCookieBanner("declined");
+                });
+            }
         }
 
         function showToast(message, type = 'success') {

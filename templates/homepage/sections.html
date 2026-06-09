@@ -1,517 +1,945 @@
 {% load static currency_filters media_optimization %}
 
+{% if sections %}
 <style>
-    .homepage-product-section {
+    .ah-product-sections {
+        width: min(100% - 24px, 1480px);
+        margin-inline: auto;
+        padding-bottom: 2rem;
+    }
+
+    /* ================================
+       AROLANA TRENDING DEALS IMAGE ROW
+       ================================ */
+    .ah-trending-strip {
+        position: relative;
+        margin-bottom: 1.25rem;
+        background: #ffffff;
+        border-radius: 0;
+        padding: 1.15rem 1.25rem 1.45rem;
+        box-shadow: none;
+        border: 0;
         overflow: hidden;
     }
 
-    .homepage-product-header {
-        align-items: flex-end;
-        border-bottom: 1px solid #e5e7eb;
+    .ah-trending-title {
+        margin: 0 0 .35rem;
+        color: #111827;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 1.35rem;
+        line-height: 1.15;
+        font-weight: 800;
+        letter-spacing: -.02em;
+    }
+
+    .ah-trending-subtitle {
+        margin: 0 0 .9rem;
+        color: #565959;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: .9rem;
+        line-height: 1.35;
+        font-weight: 500;
+    }
+
+    .ah-trending-shell {
+        position: relative;
+    }
+
+    .ah-trending-slider {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: 155px;
+        align-items: center;
+        gap: 1.35rem;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scroll-behavior: smooth;
+        overscroll-behavior-inline: contain;
+        scrollbar-width: none;
+        padding: .15rem 0 .25rem;
+    }
+
+    .ah-trending-slider::-webkit-scrollbar {
+        display: none;
+    }
+
+    .ah-trending-item {
         display: flex;
-        gap: 1rem;
+        align-items: center;
+        justify-content: center;
+        width: 155px;
+        height: 185px;
+        background: #ffffff;
+        text-decoration: none;
+        scroll-snap-align: start;
+    }
+
+    .ah-trending-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        mix-blend-mode: multiply;
+    }
+
+    .ah-trending-placeholder {
+        width: 100%;
+        height: 100%;
+        display: grid;
+        place-items: center;
+        background: #f8fafc;
+        color: #cbd5e1;
+        font-size: 2.5rem;
+    }
+
+    .ah-trending-nav {
+        position: absolute;
+        top: 50%;
+        z-index: 5;
+        width: 42px;
+        height: 82px;
+        border: 1px solid #d5d9d9;
+        background: rgba(255, 255, 255, .96);
+        color: #111827;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, .14);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transform: translateY(-50%);
+        cursor: pointer;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .18s ease, background .18s ease;
+    }
+
+    .ah-trending-strip:hover .ah-trending-nav {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .ah-trending-nav:hover {
+        background: #f7fafa;
+    }
+
+    .ah-trending-prev {
+        left: 0;
+        border-radius: 0 6px 6px 0;
+    }
+
+    .ah-trending-next {
+        right: 0;
+        border-radius: 6px 0 0 6px;
+    }
+
+    /* ================================
+       NORMAL PRODUCT SECTIONS
+       ================================ */
+    .ah-product-section {
+        position: relative;
+        margin-bottom: 1rem;
+        overflow: hidden;
+        background: rgba(255, 255, 255, .96);
+        border: 1px solid rgba(226, 232, 240, .95);
+        border-radius: 4px;
+        box-shadow: 0 18px 42px rgba(15, 23, 42, .08);
+        padding: 1rem;
+    }
+
+    .ah-product-header {
+        display: flex;
+        align-items: flex-end;
         justify-content: space-between;
-        margin-bottom: 1.25rem;
+        gap: 1rem;
+        border-bottom: 1px solid #e5e7eb;
+        margin-bottom: .95rem;
         padding-bottom: .85rem;
     }
 
-    .homepage-product-grid {
-        align-items: stretch;
-        display: grid;
-        gap: 1.25rem;
-        grid-template-columns: repeat(1, minmax(0, 1fr));
+    .ah-product-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: .45rem;
+        color: #ff7a00;
+        font-size: .72rem;
+        font-weight: 950;
+        letter-spacing: .16em;
+        text-transform: uppercase;
+        margin-bottom: .25rem;
     }
 
-    .homepage-product-card {
+    .ah-product-title-main {
+        margin: 0;
+        color: #0f172a;
+        font-size: clamp(1.3rem, 2.5vw, 1.85rem);
+        line-height: 1.1;
+        font-weight: 950;
+        letter-spacing: -.03em;
+    }
+
+    .ah-product-subtitle {
+        margin: .35rem 0 0;
+        color: #64748b;
+        font-size: .92rem;
+        font-weight: 650;
+    }
+
+    .ah-product-view-all {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        gap: .45rem;
+        color: #007185;
+        font-size: .88rem;
+        font-weight: 900;
+        text-decoration: none;
+    }
+
+    .ah-product-view-all:hover {
+        color: #c45500;
+        text-decoration: underline;
+    }
+
+    .ah-product-slider-shell {
+        position: relative;
+    }
+
+    .ah-product-slider {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(190px, 220px);
+        gap: .85rem;
+        overflow-x: auto;
+        overscroll-behavior-inline: contain;
+        scroll-snap-type: inline mandatory;
+        scroll-behavior: smooth;
+        scrollbar-width: thin;
+        padding: .15rem .1rem .8rem;
+    }
+
+    .ah-product-slider::-webkit-scrollbar {
+        height: 8px;
+    }
+
+    .ah-product-slider::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 999px;
+    }
+
+    .ah-product-slider::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 999px;
+    }
+
+    .ah-product-card {
+        scroll-snap-align: start;
         background: #fff;
         border: 1px solid #e8edf5;
-        border-radius: 16px;
-        box-shadow: 0 14px 32px rgba(15, 23, 42, .08);
+        border-radius: 14px;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, .06);
         display: flex;
         flex-direction: column;
-        height: 100%;
         min-width: 0;
         overflow: hidden;
         transition: border-color .22s ease, box-shadow .22s ease, transform .22s ease;
     }
 
-    .homepage-product-card:hover {
+    .ah-product-card:hover {
         border-color: #c7d7fe;
-        box-shadow: 0 22px 42px rgba(37, 99, 235, .14);
+        box-shadow: 0 22px 45px rgba(37, 99, 235, .14);
         transform: translateY(-3px);
     }
 
-    .homepage-product-media {
-        background: linear-gradient(180deg, #f8fafc 0%, #eef4ff 100%);
-        display: block;
-        flex: 0 0 auto;
-        overflow: hidden;
+    .ah-product-media {
         position: relative;
+        display: block;
+        overflow: hidden;
+        background: linear-gradient(180deg, #f8fafc 0%, #eef4ff 100%);
+        text-decoration: none;
     }
 
-    .homepage-product-media-box {
+    .ah-product-media-box {
         aspect-ratio: 1 / 1;
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: .8rem;
+        padding: .72rem;
     }
 
-    .homepage-product-media img {
+    .ah-product-media img {
+        width: 100% !important;
         height: 100% !important;
-        max-height: 100%;
         object-fit: contain !important;
         transition: transform .35s ease;
-        width: 100% !important;
     }
 
-    .homepage-product-card:hover .homepage-product-media img {
+    .ah-product-card:hover .ah-product-media img {
         transform: scale(1.045);
     }
 
-    .homepage-product-body {
+    .ah-product-placeholder {
+        width: 100%;
+        height: 100%;
+        display: grid;
+        place-items: center;
+        color: #94a3b8;
+        font-size: 2.5rem;
+    }
+
+    .ah-discount-badge,
+    .ah-condition-badge {
+        position: absolute;
+        z-index: 2;
+        border-radius: 999px;
+        color: #fff;
+        font-size: .68rem;
+        font-weight: 950;
+        padding: .32rem .5rem;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, .15);
+    }
+
+    .ah-discount-badge {
+        right: .55rem;
+        top: .55rem;
+        background: #ef4444;
+    }
+
+    .ah-condition-badge {
+        left: .55rem;
+        top: .55rem;
+        background: rgba(15, 23, 42, .92);
+    }
+
+    .ah-product-body {
         display: flex;
         flex: 1 1 auto;
         flex-direction: column;
+        padding: .78rem;
         min-height: 0;
-        padding: .95rem;
     }
 
-    .homepage-product-brand {
-        color: #64748b;
-        font-size: .78rem;
-        line-height: 1.1;
-        margin-bottom: .45rem;
+    .ah-product-brand {
         min-height: .9rem;
+        color: #64748b;
+        font-size: .72rem;
+        font-weight: 800;
+        line-height: 1.1;
+        margin-bottom: .35rem;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
 
-    .homepage-product-title {
+    .ah-product-title {
+        min-height: 2.28rem;
         color: #0f172a;
         display: -webkit-box;
-        font-size: 1rem;
-        font-weight: 800;
+        font-size: .88rem;
+        font-weight: 900;
         line-height: 1.28;
-        min-height: 2.56rem;
         overflow: hidden;
+        text-decoration: none;
         -webkit-box-orient: vertical;
         -webkit-line-clamp: 2;
     }
 
-    .homepage-product-title:hover {
+    .ah-product-title:hover {
         color: #2563eb;
     }
 
-    .homepage-product-rating {
-        align-items: center;
-        display: flex;
-        gap: .35rem;
-        min-height: 1.4rem;
-        margin-top: .65rem;
-    }
-
-    .homepage-product-vendor {
-        align-items: center;
+    .ah-product-vendor {
         display: flex;
         flex-wrap: wrap;
-        gap: .35rem;
-        margin-top: .65rem;
-        min-height: 1.65rem;
+        align-items: center;
+        gap: .3rem;
+        margin-top: .5rem;
+        min-height: 1.45rem;
     }
 
-    .homepage-product-vendor-name {
-        color: #334155;
-        font-size: .76rem;
-        font-weight: 800;
+    .ah-product-vendor-name {
         max-width: 100%;
         overflow: hidden;
+        color: #334155;
+        font-size: .68rem;
+        font-weight: 850;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
 
-    .homepage-product-badge {
-        align-items: center;
-        border-radius: 999px;
+    .ah-product-badge {
         display: inline-flex;
-        font-size: .66rem;
-        font-weight: 900;
-        gap: .25rem;
+        align-items: center;
+        gap: .24rem;
+        border-radius: 999px;
+        font-size: .58rem;
+        font-weight: 950;
         line-height: 1;
-        padding: .34rem .48rem;
+        padding: .3rem .42rem;
         white-space: nowrap;
     }
 
-    .homepage-product-badge--verified {
+    .ah-product-badge-verified {
         background: #ecfdf5;
         color: #047857;
     }
 
-    .homepage-product-badge--plan {
+    .ah-product-badge-plan {
         background: #fff7ed;
         color: #c2410c;
     }
 
-    .homepage-product-stars {
-        color: #facc15;
+    .ah-product-rating {
+        display: flex;
+        align-items: center;
+        gap: .35rem;
+        min-height: 1.15rem;
+        margin-top: .5rem;
+    }
+
+    .ah-product-stars {
         display: inline-flex;
-        font-size: .82rem;
-        gap: .08rem;
+        gap: .05rem;
+        color: #facc15;
+        font-size: .72rem;
         line-height: 1;
         white-space: nowrap;
     }
 
-    .homepage-product-price {
-        align-items: baseline;
-        display: flex;
-        flex-wrap: wrap;
-        gap: .3rem .55rem;
-        margin-top: .75rem;
-        min-height: 3rem;
+    .ah-product-rating-count {
+        color: #64748b;
+        font-size: .68rem;
+        font-weight: 800;
     }
 
-    .homepage-product-price-current {
-        color: #2563eb;
-        font-size: 1.28rem;
-        font-variant-numeric: tabular-nums;
-        font-weight: 900;
-        line-height: 1.1;
+    .ah-product-price {
+        display: flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: .18rem .4rem;
+        margin-top: .55rem;
+        min-height: 2.45rem;
+    }
+
+    .ah-product-price-current {
         max-width: 100%;
+        color: #2563eb;
+        font-size: 1rem;
+        font-variant-numeric: tabular-nums;
+        font-weight: 950;
+        line-height: 1.08;
         overflow-wrap: anywhere;
     }
 
-    .homepage-product-price-old {
+    .ah-product-price-old {
         color: #94a3b8;
-        font-size: .82rem;
+        font-size: .7rem;
+        font-weight: 750;
         text-decoration: line-through;
     }
 
-    .homepage-product-form {
+    .ah-product-form {
         margin-top: auto;
-        padding-top: .8rem;
+        padding-top: .65rem;
     }
 
-    .homepage-product-button {
-        align-items: center;
-        background: #2563eb;
-        border-radius: 12px;
-        color: #fff;
-        display: inline-flex;
-        font-size: .88rem;
-        font-weight: 800;
-        justify-content: center;
-        min-height: 2.75rem;
-        transition: background .2s ease, transform .2s ease;
+    .ah-product-button {
         width: 100%;
+        min-height: 2.45rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .4rem;
+        border: 0;
+        border-radius: 10px;
+        background: #2563eb;
+        color: #fff;
+        font-size: .78rem;
+        font-weight: 950;
+        cursor: pointer;
+        transition: background .2s ease, transform .2s ease;
     }
 
-    .homepage-product-button:hover {
+    .ah-product-button:hover {
         background: #1d4ed8;
         transform: translateY(-1px);
     }
 
-    .homepage-product-button i {
-        margin-right: .4rem;
+    .ah-row-nav {
+    position: absolute;
+    top: 50%;
+    z-index: 8;
+    width: 44px;
+    height: 72px;
+    border: 0;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, .95);
+    color: #0f172a;
+    box-shadow: 0 16px 34px rgba(15, 23, 42, .16);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(-50%);
+    cursor: pointer;
+
+    /* hide by default */
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+
+    transition:
+        background .18s ease,
+        color .18s ease,
+        opacity .18s ease,
+        visibility .18s ease;
+}
+
+/* show only when hovering the product slider area */
+.ah-product-slider-shell:hover .ah-row-nav {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+    .ah-row-nav:hover {
+        background: #0f2d6b;
+        color: #fff;
     }
 
-    @media (min-width: 640px) {
-        .homepage-product-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+    .ah-row-prev {
+        left: .35rem;
+    }
+
+    .ah-row-next {
+        right: .35rem;
+    }
+
+    .ah-empty-products {
+        grid-column: 1 / -1;
+        padding: 3rem 1rem;
+        text-align: center;
+        color: #64748b;
+    }
+
+    .ah-empty-products i {
+        display: block;
+        margin-bottom: .75rem;
+        color: #cbd5e1;
+        font-size: 3.5rem;
+    }
+
+    @media (min-width: 1440px) {
+        .ah-product-slider {
+            grid-auto-columns: minmax(205px, 235px);
+        }
+
+        .ah-trending-slider {
+            grid-auto-columns: 165px;
+            gap: 1.55rem;
+        }
+
+        .ah-trending-item {
+            width: 165px;
+            height: 195px;
         }
     }
 
-    @media (min-width: 768px) {
-        .homepage-product-grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-    }
-
-    @media (min-width: 1024px) {
-        .homepage-product-grid {
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-        }
-    }
-
-    @media (min-width: 1536px) {
-        .homepage-product-grid {
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-        }
-    }
-
-    @media (min-width: 1780px) {
-        .homepage-product-grid {
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-        }
-    }
-
-    @media (min-width: 641px) and (max-width: 1023px) {
-        .homepage-product-section {
-            margin-bottom: 3rem;
+    @media (max-width: 768px) {
+        .ah-product-sections {
+            width: min(100% - 16px, 1480px);
+            padding-bottom: 1rem;
         }
 
-        .homepage-product-header {
-            background: linear-gradient(135deg, rgba(37, 99, 235, .06), rgba(124, 58, 237, .05));
-            border: 1px solid #e5edff;
-            border-radius: 18px;
-            margin-bottom: 1.15rem;
-            padding: 1rem 1.1rem;
+        .ah-trending-strip {
+            padding: .9rem .85rem 1.05rem;
+            margin-bottom: .75rem;
         }
 
-        .homepage-product-grid {
-            gap: 1rem;
+        .ah-trending-title {
+            font-size: 1.05rem;
+            margin-bottom: .25rem;
         }
 
-        .homepage-product-card {
-            border-radius: 18px;
-            box-shadow: 0 16px 34px rgba(15, 23, 42, .09);
-        }
-
-        .homepage-product-media-box {
-            padding: .95rem;
-        }
-
-        .homepage-product-body {
-            padding: .95rem;
-        }
-
-        .homepage-product-title {
-            font-size: .98rem;
-        }
-
-        .homepage-product-price-current {
-            font-size: 1.2rem;
-        }
-    }
-
-    @media (max-width: 640px) {
-        .homepage-product-section {
-            margin-bottom: 2rem;
-        }
-
-        .homepage-product-header {
-            align-items: flex-start;
-            margin-bottom: .9rem;
-            padding-bottom: .7rem;
-        }
-
-        .homepage-product-header h2 {
-            font-size: 1.35rem;
-            line-height: 1.15;
-        }
-
-        .homepage-product-header p {
-            font-size: .82rem;
-        }
-
-        .homepage-product-header a {
-            flex: 0 0 auto;
-            font-size: .82rem;
-            padding-top: .15rem;
-        }
-
-        .homepage-product-grid,
-        section .homepage-product-grid {
-            display: grid !important;
-            gap: .72rem !important;
-            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-            width: 100% !important;
-        }
-
-        .homepage-product-card {
-            border-radius: 14px;
-            box-shadow: 0 9px 22px rgba(15, 23, 42, .1);
-        }
-
-        .homepage-product-card:hover,
-        .homepage-product-card:active {
-            transform: none;
-        }
-
-        .homepage-product-media-box {
-            padding: .55rem;
-        }
-
-        .homepage-product-card:hover .homepage-product-media img {
-            transform: none;
-        }
-
-        .homepage-product-body {
-            padding: .78rem .72rem .82rem;
-        }
-
-        .homepage-product-brand {
-            font-size: .74rem;
-            margin-bottom: .4rem;
-        }
-
-        .homepage-product-title {
-            font-size: .9rem;
-            line-height: 1.25;
-            min-height: 2.25rem;
-        }
-
-        .homepage-product-rating {
-            margin-top: .55rem;
-            min-height: 1.15rem;
-        }
-
-        .homepage-product-stars {
-            font-size: .74rem;
-            gap: .05rem;
-        }
-
-        .homepage-product-rating-count {
-            font-size: .72rem;
-        }
-
-        .homepage-product-price {
-            align-content: flex-start;
-            gap: .2rem .45rem;
-            margin-top: .58rem;
-            min-height: 2.6rem;
-        }
-
-        .homepage-product-price-current {
-            font-size: 1.08rem;
-            line-height: 1.08;
-        }
-
-        .homepage-product-price-old {
-            font-size: .72rem;
-        }
-
-        .homepage-product-form {
-            padding-top: .65rem;
-        }
-
-        .homepage-product-button {
-            border-radius: 11px;
+        .ah-trending-subtitle {
+            margin: 0 0 .65rem;
             font-size: .78rem;
-            min-height: 2.45rem;
-        }
-    }
-
-    @media (max-width: 374px) {
-        .homepage-product-grid,
-        section .homepage-product-grid {
-            gap: .55rem !important;
         }
 
-        .homepage-product-body {
-            padding-left: .6rem;
-            padding-right: .6rem;
+        .ah-trending-slider {
+            grid-auto-columns: 118px;
+            gap: .95rem;
         }
 
-        .homepage-product-price-current {
-            font-size: 1rem;
+        .ah-trending-item {
+            width: 118px;
+            height: 145px;
         }
 
-        .homepage-product-button {
-            font-size: .73rem;
+        .ah-trending-nav {
+            display: none;
+        }
+
+        .ah-product-section {
+            padding: .75rem;
+            margin-bottom: .75rem;
+        }
+
+        .ah-product-header {
+            align-items: flex-start;
+            margin-bottom: .75rem;
+            padding-bottom: .65rem;
+        }
+
+        .ah-product-title-main {
+            font-size: 1.08rem;
+        }
+
+        .ah-product-subtitle {
+            font-size: .8rem;
+        }
+
+        .ah-product-view-all {
+            font-size: .75rem;
+        }
+
+        .ah-product-slider {
+            grid-auto-columns: minmax(150px, 165px);
+            gap: .6rem;
+            padding-bottom: .65rem;
+        }
+
+        .ah-product-card {
+            border-radius: 12px;
+        }
+
+        .ah-product-card:hover,
+        .ah-product-card:active {
+            transform: none;
+        }
+
+        .ah-product-media-box {
+            padding: .52rem;
+        }
+
+        .ah-product-card:hover .ah-product-media img {
+            transform: none;
+        }
+
+        .ah-product-body {
+            padding: .68rem;
+        }
+
+        .ah-product-brand {
+            font-size: .68rem;
+        }
+
+        .ah-product-title {
+            font-size: .78rem;
+            min-height: 2rem;
+        }
+
+        .ah-product-stars {
+            font-size: .66rem;
+        }
+
+        .ah-product-rating-count {
+            font-size: .64rem;
+        }
+
+        .ah-product-price {
+            min-height: 2.15rem;
+        }
+
+        .ah-product-price-current {
+            font-size: .9rem;
+        }
+
+        .ah-product-button {
+            min-height: 2.25rem;
+            font-size: .72rem;
+        }
+
+        .ah-row-nav {
+            display: none;
         }
     }
 </style>
 
-{% for section in sections %}
-{% if section.is_active %}
-<section class="homepage-product-section mb-12" data-aos="fade-up">
-    <div class="homepage-product-header">
-        <div>
-            <h2 class="text-3xl font-bold">{{ section.title }}</h2>
-            {% if section.subtitle %}
-            <p class="text-gray-600 mt-1">{{ section.subtitle }}</p>
-            {% endif %}
-        </div>
-        <a href="{{ section.view_all_url|default:'/products/' }}" class="text-blue-600 hover:underline">View All →</a>
-    </div>
-    
-    <div class="homepage-product-grid">
-        {% for product in section.products %}
-        <div class="homepage-product-card product-card group">
-            <a href="{{ product.get_absolute_url }}" class="homepage-product-media">
-                <div class="homepage-product-media-box">
-                {% if product.main_image %}
-                    {% optimized_image_url product.main_image 'product_card' as product_image_url %}
-                    <img src="{{ product_image_url }}" alt="{{ product.name }}"
-                         loading="lazy" decoding="async">
-                {% else %}
-                    <div class="w-full h-full flex items-center justify-center">
-                        <i class="fas fa-image text-5xl text-gray-400"></i>
-                    </div>
-                {% endif %}
-                </div>
-                {% if product.discount_percent %}
-                <span class="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                    -{{ product.discount_percent }}%
-                </span>
-                {% endif %}
-                {% if product.condition != "brand_new" %}
-                <span class="absolute top-2 left-2 bg-slate-900/90 text-white text-xs px-2 py-1 rounded-full font-bold">
-                    {{ product.get_condition_display }}
-                </span>
-                {% endif %}
-            </a>
-            <div class="homepage-product-body">
-                <div class="homepage-product-brand">{{ product.brand.name|default:product.category.name }}</div>
-                <a href="{{ product.get_absolute_url }}" class="homepage-product-title">{{ product.name }}</a>
+<div class="ah-product-sections">
+    {% for section in sections %}
+        {% if section.is_active %}
 
-                {% with vendor_profile=product.vendor.vendor_profile %}
-                {% if vendor_profile %}
-                <div class="homepage-product-vendor">
-                    <span class="homepage-product-vendor-name">{{ vendor_profile.store_name }}</span>
-                    {% if vendor_profile.is_verified %}
-                    <span class="homepage-product-badge homepage-product-badge--verified">
-                        <i class="fas fa-check-circle"></i>
-                        Verified {{ vendor_profile.get_vendor_type_display }}
-                    </span>
-                    {% endif %}
-                    <span class="homepage-product-badge homepage-product-badge--plan">
-                        <i class="fas fa-gem"></i>
-                        {{ vendor_profile.badge_level|default:vendor_profile.subscription_plan_label }}
-                    </span>
-                </div>
-                {% endif %}
-                {% endwith %}
-                
-                <div class="homepage-product-rating">
-                    <div class="homepage-product-stars">
-                        {% for i in "12345"|make_list %}
-                            {% if forloop.counter <= product.rating_avg|add:"0" %}
-                                <i class="fas fa-star"></i>
-                            {% elif forloop.counter <= product.rating_avg|add:"0.5" %}
-                                <i class="fas fa-star-half-alt"></i>
+            {% if section.section_type == "trending" %}
+                    <section class="ah-trending-strip" data-aos="fade-up" aria-labelledby="ah-trending-title-{{ section.id }}">
+                        <h2 class="ah-trending-title" id="ah-trending-title-{{ section.id }}">
+                            {{ section.title|default:"Trending Deals" }}
+                        </h2>
+
+                        {% if section.subtitle %}
+                        <p class="ah-trending-subtitle">
+                            {{ section.subtitle }}
+                        </p>
+                        {% endif %}
+
+                <div class="ah-trending-shell">
+                    <button type="button" class="ah-trending-nav ah-trending-prev" data-ah-trending-prev aria-label="Previous trending products">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+
+                    <div class="ah-trending-slider" data-ah-trending-slider>
+                        {% for product in section.products %}
+                        <a href="{{ product.get_absolute_url }}" class="ah-trending-item" aria-label="{{ product.name }}">
+                            {% if product.main_image %}
+                                {% optimized_image_url product.main_image 'product_card' as product_image_url %}
+                                <img src="{{ product_image_url }}" alt="{{ product.name }}" loading="lazy" decoding="async">
+                            {% elif product.display_image %}
+                                {% optimized_image_url product.display_image 'product_card' as product_image_url %}
+                                <img src="{{ product_image_url }}" alt="{{ product.name }}" loading="lazy" decoding="async">
                             {% else %}
-                                <i class="far fa-star"></i>
+                                <div class="ah-trending-placeholder">
+                                    <i class="fas fa-image"></i>
+                                </div>
                             {% endif %}
+                        </a>
+                        {% empty %}
+                        <div class="ah-empty-products">
+                            <i class="fas fa-box-open"></i>
+                            <p>No trending products available yet.</p>
+                        </div>
                         {% endfor %}
                     </div>
-                    <span class="homepage-product-rating-count text-gray-500">({{ product.rating_count }})</span>
-                </div>
-                
-                <div class="homepage-product-price">
-                    <span class="homepage-product-price-current">{{ product.price|currency:request }}</span>
-                    {% if product.compare_price %}
-                        <span class="homepage-product-price-old">{{ product.compare_price|currency:request }}</span>
-                    {% endif %}
-                </div>
-                
-                <form method="POST" action="{% url 'products:add_to_cart' product.slug %}" class="homepage-product-form arolana-ajax-cart-form" data-cart-ajax="true">
-                    {% csrf_token %}
-                    <input type="hidden" name="quantity" value="1">
-                    <button type="submit" data-cart-button class="homepage-product-button">
-                        <i class="fas fa-cart-plus"></i> Add to Cart
+
+                    <button type="button" class="ah-trending-nav ah-trending-next" data-ah-trending-next aria-label="Next trending products">
+                        <i class="fas fa-chevron-right"></i>
                     </button>
-                </form>
-            </div>
-        </div>
-        {% empty %}
-        <div class="col-span-full text-center py-12">
-            <i class="fas fa-box-open text-6xl text-gray-400 mb-4"></i>
-            <p class="text-gray-500 text-lg">No products available in this section yet.</p>
-        </div>
-        {% endfor %}
-    </div>
-</section>
+                </div>
+            </section>
+
+            {% else %}
+            <section class="ah-product-section" data-aos="fade-up" aria-labelledby="ah-product-section-{{ section.id }}">
+                <div class="ah-product-header">
+                    <div>
+                        <span class="ah-product-kicker">
+                            <i class="fas fa-bolt"></i>
+                            {{ section.get_section_type_display }}
+                        </span>
+                        <h2 class="ah-product-title-main" id="ah-product-section-{{ section.id }}">{{ section.title }}</h2>
+                        {% if section.subtitle %}
+                        <p class="ah-product-subtitle">{{ section.subtitle }}</p>
+                        {% endif %}
+                    </div>
+
+                    <a href="{{ section.view_all_url|default:'/products/' }}" class="ah-product-view-all">
+                        View All
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+
+                <div class="ah-product-slider-shell">
+                    <button type="button" class="ah-row-nav ah-row-prev" data-ah-row-prev aria-label="Previous products">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+
+                    <div class="ah-product-slider" data-ah-product-slider>
+                        {% for product in section.products %}
+                        <article class="ah-product-card product-card group">
+                            <a href="{{ product.get_absolute_url }}" class="ah-product-media">
+                                <div class="ah-product-media-box">
+                                    {% if product.main_image %}
+                                        {% optimized_image_url product.main_image 'product_card' as product_image_url %}
+                                        <img src="{{ product_image_url }}" alt="{{ product.name }}" loading="lazy" decoding="async">
+                                    {% elif product.display_image %}
+                                        {% optimized_image_url product.display_image 'product_card' as product_image_url %}
+                                        <img src="{{ product_image_url }}" alt="{{ product.name }}" loading="lazy" decoding="async">
+                                    {% else %}
+                                        <div class="ah-product-placeholder">
+                                            <i class="fas fa-image"></i>
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                {% if product.discount_percent %}
+                                <span class="ah-discount-badge">-{{ product.discount_percent }}%</span>
+                                {% endif %}
+
+                                {% if product.condition and product.condition != "brand_new" %}
+                                <span class="ah-condition-badge">{{ product.get_condition_display }}</span>
+                                {% endif %}
+                            </a>
+
+                            <div class="ah-product-body">
+                                <div class="ah-product-brand">
+                                    {% if product.brand %}{{ product.brand.name }}{% elif product.category %}{{ product.category.name }}{% endif %}
+                                </div>
+
+                                <a href="{{ product.get_absolute_url }}" class="ah-product-title">{{ product.name }}</a>
+
+                                {% if product.vendor and product.vendor.vendor_profile %}
+                                {% with vendor_profile=product.vendor.vendor_profile %}
+                                <div class="ah-product-vendor">
+                                    <span class="ah-product-vendor-name">{{ vendor_profile.store_name }}</span>
+
+                                    {% if vendor_profile.is_verified %}
+                                    <span class="ah-product-badge ah-product-badge-verified">
+                                        <i class="fas fa-check-circle"></i>
+                                        Verified
+                                    </span>
+                                    {% endif %}
+
+                                    <span class="ah-product-badge ah-product-badge-plan">
+                                        <i class="fas fa-gem"></i>
+                                        {{ vendor_profile.badge_level|default:vendor_profile.subscription_plan_label }}
+                                    </span>
+                                </div>
+                                {% endwith %}
+                                {% endif %}
+
+                                <div class="ah-product-rating">
+                                    <div class="ah-product-stars">
+                                        {% for i in "12345"|make_list %}
+                                            {% if forloop.counter <= product.rating_avg|default:0|add:"0" %}
+                                                <i class="fas fa-star"></i>
+                                            {% elif forloop.counter <= product.rating_avg|default:0|add:"0.5" %}
+                                                <i class="fas fa-star-half-alt"></i>
+                                            {% else %}
+                                                <i class="far fa-star"></i>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                    <span class="ah-product-rating-count">({{ product.rating_count|default:0 }})</span>
+                                </div>
+
+                                <div class="ah-product-price">
+                                    <span class="ah-product-price-current">{{ product.price|currency:request }}</span>
+                                    {% if product.compare_price %}
+                                    <span class="ah-product-price-old">{{ product.compare_price|currency:request }}</span>
+                                    {% endif %}
+                                </div>
+
+                                <form method="POST"
+                                      action="{% url 'products:add_to_cart' product.slug %}"
+                                      class="ah-product-form arolana-ajax-cart-form"
+                                      data-cart-ajax="true">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="quantity" value="1">
+                                    <button type="submit" data-cart-button class="ah-product-button">
+                                        <i class="fas fa-cart-plus"></i>
+                                        Add to Cart
+                                    </button>
+                                </form>
+                            </div>
+                        </article>
+                        {% empty %}
+                        <div class="ah-empty-products">
+                            <i class="fas fa-box-open"></i>
+                            <p>No products available in this section yet.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <button type="button" class="ah-row-nav ah-row-next" data-ah-row-next aria-label="Next products">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </section>
+            {% endif %}
+
+        {% endif %}
+    {% endfor %}
+</div>
+
+<script>
+(function () {
+    function scrollAmount(slider) {
+        return Math.max(300, Math.floor(slider.clientWidth * 0.82));
+    }
+
+    document.querySelectorAll(".ah-product-slider-shell").forEach(function (shell) {
+        const slider = shell.querySelector("[data-ah-product-slider]");
+        const prev = shell.querySelector("[data-ah-row-prev]");
+        const next = shell.querySelector("[data-ah-row-next]");
+
+        if (!slider) return;
+
+        if (prev) {
+            prev.addEventListener("click", function () {
+                slider.scrollBy({
+                    left: -scrollAmount(slider),
+                    behavior: "smooth"
+                });
+            });
+        }
+
+        if (next) {
+            next.addEventListener("click", function () {
+                slider.scrollBy({
+                    left: scrollAmount(slider),
+                    behavior: "smooth"
+                });
+            });
+        }
+    });
+
+    document.querySelectorAll(".ah-trending-shell").forEach(function (shell) {
+        const slider = shell.querySelector("[data-ah-trending-slider]");
+        const prev = shell.querySelector("[data-ah-trending-prev]");
+        const next = shell.querySelector("[data-ah-trending-next]");
+
+        if (!slider) return;
+
+        function trendScrollAmount() {
+            return Math.max(350, Math.floor(slider.clientWidth * 0.78));
+        }
+
+        if (prev) {
+            prev.addEventListener("click", function () {
+                slider.scrollBy({
+                    left: -trendScrollAmount(),
+                    behavior: "smooth"
+                });
+            });
+        }
+
+        if (next) {
+            next.addEventListener("click", function () {
+                slider.scrollBy({
+                    left: trendScrollAmount(),
+                    behavior: "smooth"
+                });
+            });
+        }
+
+        let autoTimer = null;
+
+        function startAutoSlide() {
+            if (autoTimer) clearInterval(autoTimer);
+
+            autoTimer = setInterval(function () {
+                const nearEnd = slider.scrollLeft + slider.clientWidth >= slider.scrollWidth - 10;
+
+                if (nearEnd) {
+                    slider.scrollTo({
+                        left: 0,
+                        behavior: "smooth"
+                    });
+                } else {
+                    slider.scrollBy({
+                        left: trendScrollAmount(),
+                        behavior: "smooth"
+                    });
+                }
+            }, 3800);
+        }
+
+        function stopAutoSlide() {
+            if (autoTimer) clearInterval(autoTimer);
+            autoTimer = null;
+        }
+
+        shell.addEventListener("mouseenter", stopAutoSlide);
+        shell.addEventListener("mouseleave", startAutoSlide);
+        shell.addEventListener("touchstart", stopAutoSlide, { passive: true });
+        shell.addEventListener("touchend", startAutoSlide);
+
+        startAutoSlide();
+    });
+})();
+</script>
 {% endif %}
-{% endfor %}
