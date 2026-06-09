@@ -8,7 +8,7 @@ from django.db.models import Sum
 from datetime import timedelta
 from django.utils.timezone import now
 from django.conf import settings
-from .models import AdminAppearance, SiteSettings, PromoBanner
+from .models import AdminAppearance, SiteSettings, PromoBanner, HomePageAppearance
 from products.models import Product
 from orders.models import Order
 from vendors.models import VendorProfile
@@ -215,6 +215,95 @@ class SiteSettingsAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return not SiteSettings.objects.exists()
+
+
+
+
+# =========================
+# 🔥 HOMEPAGE APPEARANCE ADMIN
+# =========================
+@admin.register(HomePageAppearance)
+class HomePageAppearanceAdmin(admin.ModelAdmin):
+    list_display = ("title", "is_active", "desktop_preview", "mobile_preview", "updated_at")
+    list_editable = ("is_active",)
+    list_filter = ("is_active", "blur_background", "fixed_background", "make_sections_glass")
+    search_fields = ("title",)
+    readonly_fields = ("desktop_preview", "mobile_preview", "created_at", "updated_at")
+
+    fieldsets = (
+        ("Status", {
+            "fields": ("title", "is_active"),
+            "description": "Enable or disable the homepage background image from here.",
+        }),
+        ("Homepage Background Images", {
+            "fields": (
+                ("desktop_preview", "mobile_preview"),
+                ("desktop_background_image", "mobile_background_image"),
+            ),
+            "description": (
+                "Upload separate homepage background images for desktop and mobile. "
+                "Recommended desktop: 1920×1080 WebP. Recommended mobile: 1080×1350 WebP or 1080×1920 WebP."
+            ),
+        }),
+        ("Overlay and Position", {
+            "fields": (
+                ("desktop_overlay_opacity", "mobile_overlay_opacity"),
+                ("desktop_position", "mobile_position"),
+                ("blur_background", "fixed_background", "make_sections_glass"),
+            ),
+            "description": (
+                "Overlay opacity controls image visibility. "
+                "Lower value = image clearer. Higher value = image softer/more muted."
+            ),
+        }),
+        ("Timestamps", {
+            "fields": ("created_at", "updated_at"),
+            "classes": ("collapse",),
+        }),
+    )
+
+    def has_add_permission(self, request):
+        # Only one homepage appearance settings row is needed.
+        if HomePageAppearance.objects.exists():
+            return False
+        return super().has_add_permission(request)
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def desktop_preview(self, obj):
+        if not obj or not obj.desktop_background_image:
+            return mark_safe('<span style="color:#64748b;">No desktop background uploaded.</span>')
+        try:
+            return format_html(
+                '<div style="width:260px;height:105px;border-radius:14px;overflow:hidden;'
+                'border:1px solid #e5e7eb;background:#f8fafc;">'
+                '<img src="{}" style="width:100%;height:100%;object-fit:cover;" alt="Desktop homepage background">'
+                '</div>'
+                '<div style="font-size:11px;color:#6b7280;margin-top:4px;">Recommended: 1920×1080 WebP</div>',
+                obj.desktop_background_image.url,
+            )
+        except Exception:
+            return "Desktop image exists but preview failed."
+
+    desktop_preview.short_description = "Desktop Preview"
+
+    def mobile_preview(self, obj):
+        if not obj or not obj.mobile_background_image:
+            return mark_safe('<span style="color:#64748b;">No mobile background uploaded.</span>')
+        try:
+            return format_html(
+                '<div style="width:100px;height:130px;border-radius:14px;overflow:hidden;'
+                'border:1px solid #e5e7eb;background:#f8fafc;">'
+                '<img src="{}" style="width:100%;height:100%;object-fit:cover;" alt="Mobile homepage background">'
+                '</div>'
+                '<div style="font-size:11px;color:#6b7280;margin-top:4px;">Recommended: 1080×1350 WebP</div>',
+                obj.mobile_background_image.url,
+            )
+        except Exception:
+            return "Mobile image exists but preview failed."
+
+    mobile_preview.short_description = "Mobile Preview"
 
 
 # =========================

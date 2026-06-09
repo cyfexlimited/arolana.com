@@ -1,4 +1,4 @@
-from django.core.validators import RegexValidator
+from django.core.validators import RegexValidator, MinValueValidator, MaxValueValidator
 from django.db import models
 from core.local_cache import local_delete
 
@@ -126,3 +126,80 @@ class AdminAppearance(BaseModel):
         if self.is_active:
             AdminAppearance.objects.exclude(pk=self.pk).update(is_active=False)
         super().save(*args, **kwargs)
+
+class HomePageAppearance(BaseModel):
+    """
+    Singleton homepage appearance settings.
+    Controls desktop and mobile homepage background from admin.
+    """
+
+    title = models.CharField(max_length=120, default="Homepage Background Settings")
+
+    desktop_background_image = models.ImageField(
+        upload_to="homepage/backgrounds/desktop/",
+        blank=True,
+        null=True,
+        help_text="Desktop homepage background. Recommended: 1920×1080 WebP.",
+    )
+    mobile_background_image = models.ImageField(
+        upload_to="homepage/backgrounds/mobile/",
+        blank=True,
+        null=True,
+        help_text="Mobile homepage background. Recommended: 1080×1350 WebP or 1080×1920 WebP.",
+    )
+
+    desktop_overlay_opacity = models.DecimalField(
+        max_digits=3,
+        decimal_places=2,
+        default=0.35,
+        validators=[MinValueValidator(0), MaxValueValidator(1)],
+        help_text="Desktop overlay opacity. 0.15 = clear image, 0.35 = balanced, 0.70 = muted.",
+    )
+    mobile_overlay_opacity = models.DecimalField(
+        max_digits=3,
+        decimal_places=2,
+        default=0.50,
+        validators=[MinValueValidator(0), MaxValueValidator(1)],
+        help_text="Mobile overlay opacity. Mobile usually needs stronger overlay for readability.",
+    )
+
+    desktop_position = models.CharField(
+        max_length=50,
+        default="center center",
+        help_text="Desktop CSS background position. Example: center center, top center, center right.",
+    )
+    mobile_position = models.CharField(
+        max_length=50,
+        default="center center",
+        help_text="Mobile CSS background position. Example: center center, top center, center right.",
+    )
+
+    blur_background = models.BooleanField(
+        default=False,
+        help_text="Softly blur the homepage background image.",
+    )
+    fixed_background = models.BooleanField(
+        default=True,
+        help_text="Keep desktop background fixed while scrolling. Mobile uses scroll for performance.",
+    )
+    make_sections_glass = models.BooleanField(
+        default=True,
+        help_text="Make homepage cards and white sections slightly transparent so the background shows nicely.",
+    )
+
+    class Meta:
+        verbose_name = "Homepage Appearance"
+        verbose_name_plural = "Homepage Appearance"
+
+    def __str__(self):
+        return self.title
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+        local_delete("global_context:homepage_appearance")
+
+    @classmethod
+    def load(cls):
+        obj, _created = cls.objects.get_or_create(pk=1)
+        return obj

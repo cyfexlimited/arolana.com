@@ -1,0 +1,93 @@
+{% comment %}
+Arolana homepage background controlled from admin.
+This file should be saved as:
+templates/includes/homepage_background_css.html
+
+It works only on the homepage route where url_name == "home".
+{% endcomment %}
+
+{% if request.resolver_match.url_name == "home" and homepage_appearance and homepage_appearance.is_active %}
+<style>
+    body {
+        background: #F8FAFC !important;
+    }
+
+    body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: -2;
+        pointer-events: none;
+        background-image:
+            {% if homepage_appearance.desktop_background_image %}
+                url("{{ homepage_appearance.desktop_background_image.url }}")
+            {% else %}
+                none
+            {% endif %};
+        background-size: cover;
+        background-position: {{ homepage_appearance.desktop_position|default:"center center" }};
+        background-repeat: no-repeat;
+        background-attachment: {% if homepage_appearance.fixed_background %}fixed{% else %}scroll{% endif %};
+        filter: {% if homepage_appearance.blur_background %}blur(4px) saturate(1.08) contrast(1.05){% else %}saturate(1.08) contrast(1.05){% endif %};
+        transform: {% if homepage_appearance.blur_background %}scale(1.03){% else %}scale(1){% endif %};
+        transform-origin: center center;
+    }
+
+    body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
+        background:
+            linear-gradient(
+                135deg,
+                rgba(248, 250, 252, {{ homepage_appearance.desktop_overlay_opacity|default:"0.35" }}),
+                rgba(255, 255, 255, {{ homepage_appearance.desktop_overlay_opacity|default:"0.35" }})
+            );
+    }
+
+    {% if homepage_appearance.make_sections_glass %}
+    body .product-grid-card,
+    body .luxury-product-card,
+    body .category-card,
+    body .product-card {
+        background-color: rgba(255, 255, 255, 0.88) !important;
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+    }
+
+    body section,
+    body .home-section,
+    body .homepage-section {
+        position: relative;
+        z-index: 1;
+    }
+    {% endif %}
+
+    @media (max-width: 768px) {
+        body::before {
+            background-image:
+                {% if homepage_appearance.mobile_background_image %}
+                    url("{{ homepage_appearance.mobile_background_image.url }}")
+                {% elif homepage_appearance.desktop_background_image %}
+                    url("{{ homepage_appearance.desktop_background_image.url }}")
+                {% else %}
+                    none
+                {% endif %};
+            background-position: {{ homepage_appearance.mobile_position|default:"center center" }};
+            background-attachment: scroll;
+        }
+
+        body::after {
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(248, 250, 252, {{ homepage_appearance.mobile_overlay_opacity|default:"0.50" }}),
+                    rgba(255, 255, 255, {{ homepage_appearance.mobile_overlay_opacity|default:"0.50" }})
+                );
+        }
+    }
+</style>
+{% endif %}
+
