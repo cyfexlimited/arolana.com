@@ -4,12 +4,16 @@
 <section class="mb-10 sm:mb-14" data-aos="fade-up" aria-labelledby="homepage-category-title">
     <div class="mb-5 flex items-end justify-between gap-4 sm:mb-7">
         <div>
-            <span class="mb-1 block text-xs font-black uppercase tracking-[0.16em] text-orange-500">Browse Arolana</span>
-            <h2 id="homepage-category-title" class="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
+            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.16em] text-orange-500">
+                Browse Arolana
+            </span>
+
+            <h2 id="homepage-category-title" class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
                 Shop by Category
             </h2>
         </div>
-        <a href="{% url 'products:list' %}" class="inline-flex shrink-0 items-center gap-2 text-sm font-black text-blue-700 transition hover:text-orange-600">
+
+        <a href="{% url 'products:list' %}" class="inline-flex shrink-0 items-center gap-2 text-sm font-semibold text-blue-700 transition hover:text-orange-600">
             View All <i class="fas fa-arrow-right text-xs" aria-hidden="true"></i>
         </a>
     </div>
@@ -18,7 +22,8 @@
         {% for hp_category in categories %}
         <a href="{% url 'products:category' hp_category.category.slug %}"
            class="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl"
-           aria-label="Browse {{ hp_category.category.name }}, {{ hp_category.product_count }} product{{ hp_category.product_count|pluralize }}">
+           aria-label="Browse {{ hp_category.category.name }}">
+
             <div class="relative aspect-square overflow-hidden bg-gradient-to-br from-slate-100 to-blue-50">
                 {% if hp_category.category.image or hp_category.image_url %}
                     {% if hp_category.category.image %}
@@ -26,6 +31,7 @@
                     {% else %}
                         {% optimized_image_url hp_category.image_url 'category_card' as hp_category_image_url %}
                     {% endif %}
+
                     <img src="{{ hp_category_image_url }}"
                          alt="{{ hp_category.category.name }}"
                          class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
@@ -37,16 +43,10 @@
                         <i class="{{ hp_category.icon|default:'fas fa-folder-open' }} text-5xl text-blue-500" aria-hidden="true"></i>
                     </div>
                 {% endif %}
-
-                <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/75 to-transparent px-3 pb-3 pt-10">
-                    <span class="inline-flex rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-black text-slate-700 shadow-sm">
-                        {{ hp_category.product_count }} product{{ hp_category.product_count|pluralize }}
-                    </span>
-                </div>
             </div>
 
             <div class="p-3 text-center">
-                <h3 class="truncate text-sm font-black text-slate-900 transition-colors group-hover:text-blue-700">
+                <h3 class="truncate text-sm font-semibold text-slate-800 transition-colors group-hover:text-blue-700">
                     {{ hp_category.category.name }}
                 </h3>
             </div>
