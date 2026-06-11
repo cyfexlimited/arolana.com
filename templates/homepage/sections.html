@@ -8,37 +8,80 @@
         padding-bottom: 2rem;
     }
 
-    /* ================================
-       AROLANA TRENDING DEALS IMAGE ROW
-       ================================ */
-    .ah-trending-strip {
+    .ah-admin-product-section {
+        --ah-section-accent: #0f2d6b;
+        --ah-section-background: transparent;
+        background: var(--ah-section-background);
+        border-radius: 16px;
+        padding-inline: clamp(.25rem, 1.2vw, 1rem);
+    }
+
+    .ah-admin-product-section a[class*="view-all"] {
+        color: var(--ah-section-accent);
+    }
+
+    /* ============================================================
+       AROLANA TRENDING PRODUCTS — EDITORIAL LOOK
+       Looks like the reference: big image, strong title below,
+       clean spacing, sliding row, arrows hidden until hover.
+       Title/subtitle are controlled from Admin > Homepage Sections.
+       ============================================================ */
+
+    .ah-trending-section {
         position: relative;
-        margin-bottom: 1.25rem;
-        background: #ffffff;
-        border-radius: 0;
-        padding: 1.15rem 1.25rem 1.45rem;
-        box-shadow: none;
+        margin: 1.15rem 0 1.8rem;
+        padding: 1rem 0 1.25rem;
+        background: transparent;
         border: 0;
+        box-shadow: none;
         overflow: hidden;
     }
 
+    .ah-trending-heading {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .ah-trending-title-wrap {
+        min-width: 0;
+    }
+
+
     .ah-trending-title {
-        margin: 0 0 .35rem;
+        margin: 0;
         color: #111827;
         font-family: Arial, Helvetica, sans-serif;
-        font-size: 1.35rem;
+        font-size: clamp(1.25rem, 2.2vw, 1.7rem);
         line-height: 1.15;
-        font-weight: 800;
-        letter-spacing: -.02em;
+        font-weight: 750;
+        letter-spacing: -.025em;
     }
 
     .ah-trending-subtitle {
-        margin: 0 0 .9rem;
-        color: #565959;
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: .9rem;
-        line-height: 1.35;
+        margin: .35rem 0 0;
+        color: #64748b;
+        font-size: .92rem;
+        line-height: 1.4;
         font-weight: 500;
+    }
+
+    .ah-trending-view-all {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        gap: .45rem;
+        color: #007185;
+        font-size: .88rem;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+    .ah-trending-view-all:hover {
+        color: #c45500;
+        text-decoration: underline;
     }
 
     .ah-trending-shell {
@@ -48,37 +91,50 @@
     .ah-trending-slider {
         display: grid;
         grid-auto-flow: column;
-        grid-auto-columns: 155px;
-        align-items: center;
-        gap: 1.35rem;
+        grid-auto-columns: minmax(255px, 310px);
+        gap: clamp(1rem, 2.7vw, 2.4rem);
+        align-items: start;
         overflow-x: auto;
         overflow-y: hidden;
         scroll-behavior: smooth;
+        scroll-snap-type: inline mandatory;
         overscroll-behavior-inline: contain;
         scrollbar-width: none;
-        padding: .15rem 0 .25rem;
+        padding: .25rem .1rem .85rem;
     }
 
     .ah-trending-slider::-webkit-scrollbar {
         display: none;
     }
 
-    .ah-trending-item {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 155px;
-        height: 185px;
-        background: #ffffff;
-        text-decoration: none;
+    .ah-trending-card {
+        display: block;
+        min-width: 0;
         scroll-snap-align: start;
+        background: transparent;
+        text-decoration: none;
+        color: inherit;
     }
 
-    .ah-trending-item img {
+    .ah-trending-media {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        overflow: hidden;
+        background: #f3f4f6;
+    }
+
+    .ah-trending-media img {
         width: 100%;
         height: 100%;
-        object-fit: contain;
-        mix-blend-mode: multiply;
+        object-fit: cover;
+        display: block;
+        transition: transform .32s ease, filter .32s ease;
+    }
+
+    .ah-trending-card:hover .ah-trending-media img {
+        transform: scale(1.035);
+        filter: saturate(1.04) contrast(1.03);
     }
 
     .ah-trending-placeholder {
@@ -86,62 +142,793 @@
         height: 100%;
         display: grid;
         place-items: center;
-        background: #f8fafc;
-        color: #cbd5e1;
-        font-size: 2.5rem;
+        color: #94a3b8;
+        background: rgba(248, 250, 252, .75);
+        font-size: 3rem;
+    }
+
+    .ah-trending-card-title {
+        margin: .72rem 0 0;
+        color: #111827;
+        display: -webkit-box;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: clamp(.98rem, 1.35vw, 1.16rem);
+        line-height: 1.18;
+        font-weight: 700;
+        letter-spacing: -.015em;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
+        transition: color .18s ease;
+    }
+
+    .ah-trending-card:hover .ah-trending-card-title {
+        color: #0f2d6b;
+    }
+
+    .ah-trending-card-meta {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: .35rem .65rem;
+        margin-top: .5rem;
+        color: #64748b;
+        font-size: .78rem;
+        font-weight: 650;
+    }
+
+    .ah-trending-card-price {
+        color: var(--ah-section-accent);
+        font-size: .95rem;
+        font-weight: 850;
     }
 
     .ah-trending-nav {
         position: absolute;
-        top: 50%;
-        z-index: 5;
-        width: 42px;
-        height: 82px;
-        border: 1px solid #d5d9d9;
+        top: 43%;
+        z-index: 8;
+        width: 44px;
+        height: 78px;
+        border: 1px solid rgba(213, 217, 217, .85);
         background: rgba(255, 255, 255, .96);
         color: #111827;
-        box-shadow: 0 2px 8px rgba(15, 23, 42, .14);
+        box-shadow: 0 12px 28px rgba(15, 23, 42, .14);
         display: inline-flex;
         align-items: center;
         justify-content: center;
         transform: translateY(-50%);
         cursor: pointer;
         opacity: 0;
+        visibility: hidden;
         pointer-events: none;
-        transition: opacity .18s ease, background .18s ease;
+        transition:
+            opacity .18s ease,
+            visibility .18s ease,
+            background .18s ease,
+            color .18s ease;
     }
 
-    .ah-trending-strip:hover .ah-trending-nav {
+    .ah-trending-shell:hover .ah-trending-nav {
         opacity: 1;
+        visibility: visible;
         pointer-events: auto;
     }
 
     .ah-trending-nav:hover {
-        background: #f7fafa;
+        background: #ffffff;
+        color: #0f2d6b;
     }
 
     .ah-trending-prev {
         left: 0;
-        border-radius: 0 6px 6px 0;
+        border-radius: 0 8px 8px 0;
     }
 
     .ah-trending-next {
         right: 0;
-        border-radius: 6px 0 0 6px;
+        border-radius: 8px 0 0 8px;
     }
 
-    /* ================================
+
+    /* ============================================================
+       FEATURED PRODUCTS — ADMIN DEFAULT COMPACT GRID
+       Uses your real product/admin settings:
+       vendor name, verified badge, subscription/vendor badge,
+       condition badge such as New/Used, rating, price, old price,
+       and optional admin deal labels only when available.
+       ============================================================ */
+
+    .ah-featured-deals {
+        position: relative;
+        margin-bottom: 1.4rem;
+        padding: 1rem 0 1.35rem;
+        background: transparent;
+        border: 0;
+        box-shadow: none;
+        overflow: hidden;
+    }
+
+    .ah-featured-header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: .85rem;
+    }
+
+    .ah-featured-title {
+        margin: 0;
+        color: #111827;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: clamp(1.25rem, 2.2vw, 1.7rem);
+        line-height: 1.15;
+        font-weight: 750;
+        letter-spacing: -.025em;
+    }
+
+    .ah-featured-subtitle {
+        margin: .35rem 0 0;
+        color: #64748b;
+        font-size: .92rem;
+        line-height: 1.4;
+        font-weight: 500;
+    }
+
+    .ah-featured-view-all {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        gap: .45rem;
+        color: #007185;
+        font-size: .88rem;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+    .ah-featured-view-all:hover {
+        color: #c45500;
+        text-decoration: underline;
+    }
+
+    .ah-featured-shell {
+        position: relative;
+        border: 1px solid rgba(213, 217, 217, .95);
+        border-radius: 8px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, .78);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+
+    .ah-featured-slider {
+        display: grid;
+        grid-auto-flow: column;
+        grid-template-rows: repeat(2, minmax(172px, auto));
+        grid-auto-columns: minmax(330px, 1fr);
+        overflow-x: auto;
+        overflow-y: hidden;
+        scroll-behavior: smooth;
+        scroll-snap-type: inline mandatory;
+        overscroll-behavior-inline: contain;
+        scrollbar-width: none;
+    }
+
+    .ah-featured-slider::-webkit-scrollbar {
+        display: none;
+    }
+
+    .ah-featured-card {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: 118px minmax(0, 1fr);
+        gap: .82rem;
+        align-items: center;
+        padding: .9rem;
+        min-height: 172px;
+        background: rgba(255, 255, 255, .72);
+        border-right: 1px solid rgba(213, 217, 217, .82);
+        border-bottom: 1px solid rgba(213, 217, 217, .82);
+        color: inherit;
+        text-decoration: none;
+        scroll-snap-align: start;
+        transition: background .18s ease, box-shadow .18s ease;
+    }
+
+    .ah-featured-card:hover {
+        background: rgba(255, 255, 255, .96);
+        box-shadow: inset 0 0 0 1px rgba(37, 99, 235, .16);
+    }
+
+    .ah-featured-image-wrap {
+        position: relative;
+        width: 118px;
+        height: 118px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        background: transparent;
+    }
+
+    .ah-featured-image-wrap img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        display: block;
+        transition: transform .22s ease;
+    }
+
+    .ah-featured-card:hover .ah-featured-image-wrap img {
+        transform: scale(1.04);
+    }
+
+    .ah-featured-placeholder {
+        width: 100%;
+        height: 100%;
+        display: grid;
+        place-items: center;
+        color: #94a3b8;
+        background: rgba(248, 250, 252, .65);
+        border-radius: 8px;
+        font-size: 2.1rem;
+    }
+
+    .ah-featured-info {
+        min-width: 0;
+    }
+
+    .ah-featured-topline {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: .35rem;
+        min-height: 1.2rem;
+        margin-bottom: .35rem;
+    }
+
+    .ah-featured-vendor-name {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #334155;
+        font-size: .72rem;
+        font-weight: 700;
+        line-height: 1.1;
+    }
+
+    .ah-featured-mini-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: .22rem;
+        border-radius: 999px;
+        padding: .26rem .42rem;
+        font-size: .56rem;
+        font-weight: 800;
+        line-height: 1;
+        white-space: nowrap;
+    }
+
+    .ah-featured-mini-badge-verified {
+        background: #ecfdf5;
+        color: #047857;
+    }
+
+    .ah-featured-mini-badge-plan {
+        background: #fff7ed;
+        color: #c2410c;
+    }
+
+    .ah-featured-mini-badge-condition {
+        background: #eef2ff;
+        color: #3730a3;
+    }
+
+    .ah-featured-admin-badge {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        margin-bottom: .35rem;
+        border: 1px solid #dc2626;
+        color: #dc2626;
+        background: rgba(254, 242, 242, .78);
+        border-radius: 2px;
+        padding: .18rem .38rem;
+        font-size: .68rem;
+        font-weight: 750;
+        line-height: 1;
+    }
+
+    .ah-featured-timer {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        margin-bottom: .35rem;
+        color: #047857;
+        font-size: .76rem;
+        font-weight: 650;
+        line-height: 1.1;
+        white-space: nowrap;
+    }
+
+    .ah-featured-timer i {
+        font-size: .72rem;
+        color: #16a34a;
+    }
+
+    .ah-featured-name {
+        margin: 0;
+        color: #111827;
+        display: -webkit-box;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: .92rem;
+        line-height: 1.18;
+        font-weight: 700;
+        letter-spacing: -.01em;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+    }
+
+    .ah-featured-card:hover .ah-featured-name {
+        color: #0f2d6b;
+    }
+
+    .ah-featured-rating {
+        display: flex;
+        align-items: center;
+        gap: .3rem;
+        min-height: 1.05rem;
+        margin-top: .38rem;
+    }
+
+    .ah-featured-stars {
+        display: inline-flex;
+        gap: .02rem;
+        color: #111827;
+        font-size: .78rem;
+        line-height: 1;
+        white-space: nowrap;
+    }
+
+    .ah-featured-rating-count {
+        color: #111827;
+        font-size: .72rem;
+        font-weight: 500;
+    }
+
+    .ah-featured-price {
+        margin-top: .34rem;
+        display: flex;
+        align-items: baseline;
+        gap: .4rem;
+        flex-wrap: wrap;
+    }
+
+    .ah-featured-current {
+        color: #111827;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: clamp(1.18rem, 1.8vw, 1.45rem);
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: -.03em;
+        overflow-wrap: anywhere;
+    }
+
+    .ah-featured-old {
+        color: #9ca3af;
+        font-size: .76rem;
+        font-weight: 500;
+        text-decoration: line-through;
+    }
+
+    .ah-featured-save {
+        display: block;
+        margin-top: .32rem;
+        color: #15803d;
+        font-size: .78rem;
+        font-weight: 600;
+        line-height: 1.15;
+    }
+
+    .ah-featured-nav {
+        position: absolute;
+        top: 50%;
+        z-index: 8;
+        width: 44px;
+        height: 84px;
+        border: 1px solid rgba(213, 217, 217, .85);
+        background: rgba(255, 255, 255, .96);
+        color: #111827;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, .14);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transform: translateY(-50%);
+        cursor: pointer;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity .18s ease, visibility .18s ease, background .18s ease, color .18s ease;
+    }
+
+    .ah-featured-shell:hover .ah-featured-nav {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+    }
+
+    .ah-featured-nav:hover {
+        background: #ffffff;
+        color: #0f2d6b;
+    }
+
+    .ah-featured-prev {
+        left: 0;
+        border-radius: 0 8px 8px 0;
+    }
+
+    .ah-featured-next {
+        right: 0;
+        border-radius: 8px 0 0 8px;
+    }
+
+
+
+    /* ============================================================
+       NEW ARRIVALS — VERTICAL MARKETPLACE GRID
+       Inspired by the reference: compact marketplace cards,
+       same size, no arrows, vertical up/down scrolling.
+       Uses real Arolana product/vendor/admin information.
+       ============================================================ */
+
+    .ah-new-arrivals-section {
+        position: relative;
+        margin-bottom: 1.45rem;
+        padding: 1rem 0 1.35rem;
+        background: transparent;
+        border: 0;
+        box-shadow: none;
+        overflow: hidden;
+    }
+
+    .ah-new-arrivals-header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: .9rem;
+    }
+
+    .ah-new-arrivals-title {
+        margin: 0;
+        color: #111827;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: clamp(1.25rem, 2.2vw, 1.7rem);
+        line-height: 1.15;
+        font-weight: 750;
+        letter-spacing: -.025em;
+    }
+
+    .ah-new-arrivals-subtitle {
+        margin: .35rem 0 0;
+        color: #64748b;
+        font-size: .92rem;
+        line-height: 1.4;
+        font-weight: 500;
+    }
+
+    .ah-new-arrivals-view-all {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        gap: .45rem;
+        color: #007185;
+        font-size: .88rem;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+    .ah-new-arrivals-view-all:hover {
+        color: #c45500;
+        text-decoration: underline;
+    }
+
+    .ah-new-arrivals-shell {
+        position: relative;
+        max-height: 760px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        scroll-behavior: smooth;
+        padding: .25rem .35rem .35rem .25rem;
+        border-radius: 14px;
+        background: rgba(248, 250, 252, .42);
+        scrollbar-width: thin;
+        scrollbar-color: rgba(148, 163, 184, .75) rgba(241, 245, 249, .55);
+    }
+
+    .ah-new-arrivals-grid {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: .75rem;
+        align-items: stretch;
+    }
+
+    .ah-new-arrivals-card {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-height: 350px;
+        overflow: hidden;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, .94);
+        border: 1px solid rgba(226, 232, 240, .72);
+        box-shadow: 0 10px 24px rgba(15, 23, 42, .055);
+        color: inherit;
+        text-decoration: none;
+        transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
+    }
+
+    .ah-new-arrivals-card:hover {
+        transform: translateY(-2px);
+        background: #ffffff;
+        border-color: rgba(37, 99, 235, .22);
+        box-shadow: 0 18px 38px rgba(15, 23, 42, .11);
+    }
+
+    .ah-new-arrivals-media {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        overflow: hidden;
+        background: #f8fafc;
+    }
+
+    .ah-new-arrivals-media img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        transition: transform .28s ease, filter .28s ease;
+    }
+
+    .ah-new-arrivals-card:hover .ah-new-arrivals-media img {
+        transform: scale(1.035);
+        filter: saturate(1.03) contrast(1.03);
+    }
+
+    .ah-new-arrivals-placeholder {
+        width: 100%;
+        height: 100%;
+        display: grid;
+        place-items: center;
+        color: #94a3b8;
+        font-size: 2.8rem;
+        background: rgba(248, 250, 252, .85);
+    }
+
+    .ah-new-arrivals-body {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+        padding: .72rem .78rem .8rem;
+    }
+
+    .ah-new-arrivals-name {
+        margin: 0;
+        color: #111827;
+        display: -webkit-box;
+        min-height: 2.35rem;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: .9rem;
+        line-height: 1.22;
+        font-weight: 600;
+        letter-spacing: -.01em;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+    }
+
+    .ah-new-arrivals-card:hover .ah-new-arrivals-name {
+        color: #0f2d6b;
+    }
+
+    .ah-new-arrivals-meta-line {
+        margin-top: .38rem;
+        color: #374151;
+        font-size: .74rem;
+        line-height: 1.2;
+        font-weight: 500;
+    }
+
+    .ah-new-arrivals-condition {
+        color: #dc2626;
+        font-weight: 700;
+    }
+
+    .ah-new-arrivals-price {
+        margin-top: .5rem;
+        color: #111827;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 1.18rem;
+        font-weight: 850;
+        line-height: 1.05;
+        letter-spacing: -.035em;
+        overflow-wrap: anywhere;
+    }
+
+    .ah-new-arrivals-old {
+        margin-left: .35rem;
+        color: #9ca3af;
+        font-size: .75rem;
+        font-weight: 500;
+        text-decoration: line-through;
+    }
+
+    .ah-new-arrivals-moq {
+        margin-top: .28rem;
+        color: #111827;
+        font-size: .76rem;
+        font-weight: 500;
+        line-height: 1.2;
+    }
+
+    .ah-new-arrivals-sales {
+        color: #6b7280;
+    }
+
+    .ah-new-arrivals-vendor {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: .32rem;
+        margin-top: auto;
+        padding-top: .45rem;
+        min-height: 1.45rem;
+    }
+
+    .ah-new-arrivals-vendor-name {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #334155;
+        font-size: .72rem;
+        font-weight: 700;
+    }
+
+    .ah-new-arrivals-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: .22rem;
+        border-radius: 999px;
+        padding: .25rem .4rem;
+        font-size: .56rem;
+        font-weight: 800;
+        line-height: 1;
+        white-space: nowrap;
+    }
+
+    .ah-new-arrivals-badge-verified {
+        background: #ecfdf5;
+        color: #047857;
+    }
+
+    .ah-new-arrivals-badge-plan {
+        background: #fff7ed;
+        color: #c2410c;
+    }
+
+
+
+    .ah-new-arrivals-frame {
+        position: relative;
+    }
+
+    .ah-new-arrivals-nav {
+        position: absolute;
+        left: 50%;
+        z-index: 50;
+        width: 82px;
+        height: 42px;
+        border: 1px solid rgba(255, 255, 255, .78);
+        border-radius: 999px;
+        background: rgba(15, 45, 107, .96);
+        color: #ffffff;
+        box-shadow: 0 16px 36px rgba(15, 23, 42, .24);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transform: translateX(-50%);
+        cursor: pointer;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition:
+            opacity .18s ease,
+            visibility .18s ease,
+            background .18s ease,
+            transform .18s ease,
+            box-shadow .18s ease;
+    }
+
+    .ah-new-arrivals-frame:hover .ah-new-arrivals-nav {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+    }
+
+    .ah-new-arrivals-nav:hover {
+        background: #ff7a00;
+        box-shadow: 0 18px 42px rgba(255, 122, 0, .28);
+    }
+
+    .ah-new-arrivals-up {
+        top: .75rem;
+    }
+
+    .ah-new-arrivals-down {
+        bottom: .75rem;
+    }
+
+    .ah-new-arrivals-up:hover {
+        transform: translateX(-50%) translateY(-2px);
+    }
+
+    .ah-new-arrivals-down:hover {
+        transform: translateX(-50%) translateY(2px);
+    }
+
+    .ah-new-arrivals-nav i {
+        font-size: .95rem;
+        line-height: 1;
+    }
+
+
+    .ah-new-arrivals-empty {
+        grid-column: 1 / -1;
+        padding: 3rem 1rem;
+        text-align: center;
+        color: #64748b;
+    }
+
+    .ah-new-arrivals-empty i {
+        display: block;
+        margin-bottom: .75rem;
+        color: #cbd5e1;
+        font-size: 3.5rem;
+    }
+
+    .ah-new-arrivals-shell::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .ah-new-arrivals-shell::-webkit-scrollbar-track {
+        background: rgba(241, 245, 249, .55);
+        border-radius: 999px;
+    }
+
+    .ah-new-arrivals-shell::-webkit-scrollbar-thumb {
+        background: rgba(148, 163, 184, .75);
+        border-radius: 999px;
+    }
+
+
+    /* ============================================================
        NORMAL PRODUCT SECTIONS
-       ================================ */
+       ============================================================ */
+
     .ah-product-section {
         position: relative;
         margin-bottom: 1rem;
         overflow: hidden;
-        background: rgba(255, 255, 255, .96);
-        border: 1px solid rgba(226, 232, 240, .95);
+        background: transparent;
+        border: 0;
         border-radius: 4px;
-        box-shadow: 0 18px 42px rgba(15, 23, 42, .08);
-        padding: 1rem;
+        box-shadow: none;
+        padding: 1rem 0;
     }
 
     .ah-product-header {
@@ -149,29 +936,18 @@
         align-items: flex-end;
         justify-content: space-between;
         gap: 1rem;
-        border-bottom: 1px solid #e5e7eb;
+        border-bottom: 1px solid rgba(226, 232, 240, .72);
         margin-bottom: .95rem;
         padding-bottom: .85rem;
     }
 
-    .ah-product-kicker {
-        display: inline-flex;
-        align-items: center;
-        gap: .45rem;
-        color: #ff7a00;
-        font-size: .72rem;
-        font-weight: 950;
-        letter-spacing: .16em;
-        text-transform: uppercase;
-        margin-bottom: .25rem;
-    }
 
     .ah-product-title-main {
         margin: 0;
         color: #0f172a;
         font-size: clamp(1.3rem, 2.5vw, 1.85rem);
         line-height: 1.1;
-        font-weight: 950;
+        font-weight: 750;
         letter-spacing: -.03em;
     }
 
@@ -179,7 +955,7 @@
         margin: .35rem 0 0;
         color: #64748b;
         font-size: .92rem;
-        font-weight: 650;
+        font-weight: 500;
     }
 
     .ah-product-view-all {
@@ -189,7 +965,7 @@
         gap: .45rem;
         color: #007185;
         font-size: .88rem;
-        font-weight: 900;
+        font-weight: 700;
         text-decoration: none;
     }
 
@@ -220,29 +996,32 @@
     }
 
     .ah-product-slider::-webkit-scrollbar-track {
-        background: #f1f5f9;
+        background: rgba(241, 245, 249, .70);
         border-radius: 999px;
     }
 
     .ah-product-slider::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
+        background: rgba(148, 163, 184, .72);
         border-radius: 999px;
     }
 
     .ah-product-card {
         scroll-snap-align: start;
-        background: #fff;
-        border: 1px solid #e8edf5;
+        background: rgba(255, 255, 255, .82);
+        border: 1px solid rgba(226, 232, 240, .72);
         border-radius: 14px;
         box-shadow: 0 12px 28px rgba(15, 23, 42, .06);
         display: flex;
         flex-direction: column;
         min-width: 0;
         overflow: hidden;
-        transition: border-color .22s ease, box-shadow .22s ease, transform .22s ease;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        transition: border-color .22s ease, box-shadow .22s ease, transform .22s ease, background .22s ease;
     }
 
     .ah-product-card:hover {
+        background: rgba(255, 255, 255, .92);
         border-color: #c7d7fe;
         box-shadow: 0 22px 45px rgba(37, 99, 235, .14);
         transform: translateY(-3px);
@@ -252,7 +1031,7 @@
         position: relative;
         display: block;
         overflow: hidden;
-        background: linear-gradient(180deg, #f8fafc 0%, #eef4ff 100%);
+        background: rgba(248, 250, 252, .72);
         text-decoration: none;
     }
 
@@ -291,7 +1070,7 @@
         border-radius: 999px;
         color: #fff;
         font-size: .68rem;
-        font-weight: 950;
+        font-weight: 850;
         padding: .32rem .5rem;
         box-shadow: 0 10px 22px rgba(15, 23, 42, .15);
     }
@@ -320,7 +1099,7 @@
         min-height: .9rem;
         color: #64748b;
         font-size: .72rem;
-        font-weight: 800;
+        font-weight: 650;
         line-height: 1.1;
         margin-bottom: .35rem;
         overflow: hidden;
@@ -333,7 +1112,7 @@
         color: #0f172a;
         display: -webkit-box;
         font-size: .88rem;
-        font-weight: 900;
+        font-weight: 700;
         line-height: 1.28;
         overflow: hidden;
         text-decoration: none;
@@ -359,7 +1138,7 @@
         overflow: hidden;
         color: #334155;
         font-size: .68rem;
-        font-weight: 850;
+        font-weight: 700;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
@@ -370,7 +1149,7 @@
         gap: .24rem;
         border-radius: 999px;
         font-size: .58rem;
-        font-weight: 950;
+        font-weight: 800;
         line-height: 1;
         padding: .3rem .42rem;
         white-space: nowrap;
@@ -406,7 +1185,7 @@
     .ah-product-rating-count {
         color: #64748b;
         font-size: .68rem;
-        font-weight: 800;
+        font-weight: 650;
     }
 
     .ah-product-price {
@@ -423,7 +1202,7 @@
         color: #2563eb;
         font-size: 1rem;
         font-variant-numeric: tabular-nums;
-        font-weight: 950;
+        font-weight: 800;
         line-height: 1.08;
         overflow-wrap: anywhere;
     }
@@ -431,7 +1210,7 @@
     .ah-product-price-old {
         color: #94a3b8;
         font-size: .7rem;
-        font-weight: 750;
+        font-weight: 650;
         text-decoration: line-through;
     }
 
@@ -452,7 +1231,7 @@
         background: #2563eb;
         color: #fff;
         font-size: .78rem;
-        font-weight: 950;
+        font-weight: 750;
         cursor: pointer;
         transition: background .2s ease, transform .2s ease;
     }
@@ -463,40 +1242,36 @@
     }
 
     .ah-row-nav {
-    position: absolute;
-    top: 50%;
-    z-index: 8;
-    width: 44px;
-    height: 72px;
-    border: 0;
-    border-radius: 12px;
-    background: rgba(255, 255, 255, .95);
-    color: #0f172a;
-    box-shadow: 0 16px 34px rgba(15, 23, 42, .16);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transform: translateY(-50%);
-    cursor: pointer;
+        position: absolute;
+        top: 50%;
+        z-index: 8;
+        width: 44px;
+        height: 72px;
+        border: 0;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, .92);
+        color: #0f172a;
+        box-shadow: 0 16px 34px rgba(15, 23, 42, .16);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transform: translateY(-50%);
+        cursor: pointer;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition:
+            background .18s ease,
+            color .18s ease,
+            opacity .18s ease,
+            visibility .18s ease;
+    }
 
-    /* hide by default */
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-
-    transition:
-        background .18s ease,
-        color .18s ease,
-        opacity .18s ease,
-        visibility .18s ease;
-}
-
-/* show only when hovering the product slider area */
-.ah-product-slider-shell:hover .ah-row-nav {
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
-}
+    .ah-product-slider-shell:hover .ah-row-nav {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+    }
 
     .ah-row-nav:hover {
         background: #0f2d6b;
@@ -531,13 +1306,7 @@
         }
 
         .ah-trending-slider {
-            grid-auto-columns: 165px;
-            gap: 1.55rem;
-        }
-
-        .ah-trending-item {
-            width: 165px;
-            height: 195px;
+            grid-auto-columns: minmax(285px, 335px);
         }
     }
 
@@ -547,37 +1316,170 @@
             padding-bottom: 1rem;
         }
 
-        .ah-trending-strip {
-            padding: .9rem .85rem 1.05rem;
+        .ah-trending-section {
+            padding: .9rem 0 1rem;
             margin-bottom: .75rem;
         }
 
+        .ah-trending-heading {
+            align-items: flex-start;
+            margin-bottom: .85rem;
+        }
+
         .ah-trending-title {
-            font-size: 1.05rem;
-            margin-bottom: .25rem;
+            font-size: 1.15rem;
         }
 
         .ah-trending-subtitle {
-            margin: 0 0 .65rem;
-            font-size: .78rem;
+            font-size: .8rem;
+        }
+
+        .ah-trending-view-all {
+            font-size: .75rem;
         }
 
         .ah-trending-slider {
-            grid-auto-columns: 118px;
-            gap: .95rem;
+            grid-auto-columns: minmax(210px, 72vw);
+            gap: .9rem;
+            padding-bottom: .65rem;
         }
 
-        .ah-trending-item {
-            width: 118px;
-            height: 145px;
+        .ah-trending-card-title {
+            font-size: .95rem;
+            line-height: 1.22;
         }
 
         .ah-trending-nav {
             display: none;
         }
 
+
+        .ah-featured-deals {
+            padding: .75rem 0 1rem;
+            margin-bottom: .85rem;
+        }
+
+        .ah-featured-header {
+            align-items: flex-start;
+            margin-bottom: .75rem;
+        }
+
+        .ah-featured-title {
+            font-size: 1.15rem;
+        }
+
+        .ah-featured-subtitle {
+            font-size: .8rem;
+        }
+
+        .ah-featured-view-all {
+            font-size: .75rem;
+        }
+
+        .ah-featured-shell {
+            border-radius: 8px;
+        }
+
+        .ah-featured-slider {
+            grid-template-rows: repeat(2, minmax(150px, auto));
+            grid-auto-columns: minmax(285px, 86vw);
+        }
+
+        .ah-featured-card {
+            grid-template-columns: 92px minmax(0, 1fr);
+            min-height: 150px;
+            padding: .72rem;
+            gap: .65rem;
+        }
+
+        .ah-featured-image-wrap {
+            width: 92px;
+            height: 92px;
+        }
+
+        .ah-featured-vendor-name {
+            font-size: .66rem;
+        }
+
+        .ah-featured-name {
+            font-size: .82rem;
+        }
+
+        .ah-featured-stars {
+            font-size: .7rem;
+        }
+
+        .ah-featured-current {
+            font-size: 1.08rem;
+        }
+
+        .ah-featured-save {
+            font-size: .7rem;
+        }
+
+        .ah-featured-nav {
+            display: none;
+        }
+
+
+        .ah-new-arrivals-section {
+            padding: .75rem 0 1rem;
+            margin-bottom: .85rem;
+        }
+
+        .ah-new-arrivals-header {
+            align-items: flex-start;
+            margin-bottom: .75rem;
+        }
+
+        .ah-new-arrivals-title {
+            font-size: 1.15rem;
+        }
+
+        .ah-new-arrivals-subtitle {
+            font-size: .8rem;
+        }
+
+        .ah-new-arrivals-view-all {
+            font-size: .75rem;
+        }
+
+        .ah-new-arrivals-shell {
+            max-height: 720px;
+            padding: .2rem .3rem .3rem .2rem;
+        }
+
+        .ah-new-arrivals-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: .65rem;
+        }
+
+        .ah-new-arrivals-card {
+            min-height: 305px;
+            border-radius: 10px;
+        }
+
+        .ah-new-arrivals-name {
+            font-size: .8rem;
+            min-height: 2rem;
+        }
+
+        .ah-new-arrivals-price {
+            font-size: 1rem;
+        }
+
+        .ah-new-arrivals-moq,
+        .ah-new-arrivals-meta-line,
+        .ah-new-arrivals-vendor-name {
+            font-size: .66rem;
+        }
+
+        .ah-new-arrivals-nav {
+            display: none;
+        }
+
         .ah-product-section {
-            padding: .75rem;
+            padding: .75rem 0;
             margin-bottom: .75rem;
         }
 
@@ -666,8 +1568,13 @@
     {% for section in sections %}
         {% if section.is_active %}
 
-            {% if section.section_type == "trending" %}
-                    <section class="ah-trending-strip" data-aos="fade-up" aria-labelledby="ah-trending-title-{{ section.id }}">
+            {% if section.layout_style == "editorial" %}
+            <section class="ah-trending-section ah-admin-product-section"
+                     style="--ah-section-accent: {{ section.accent_color }}; --ah-section-background: {{ section.background_color }};"
+                     data-aos="fade-up"
+                     aria-labelledby="ah-trending-title-{{ section.id }}">
+                <div class="ah-trending-heading">
+                    <div class="ah-trending-title-wrap">
                         <h2 class="ah-trending-title" id="ah-trending-title-{{ section.id }}">
                             {{ section.title|default:"Trending Deals" }}
                         </h2>
@@ -677,6 +1584,15 @@
                             {{ section.subtitle }}
                         </p>
                         {% endif %}
+                    </div>
+
+                    {% if section.show_view_all and section.view_all_url %}
+                    <a href="{{ section.view_all_url }}" class="ah-trending-view-all">
+                        {{ section.view_all_text|default:"View All" }}
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                    {% endif %}
+                </div>
 
                 <div class="ah-trending-shell">
                     <button type="button" class="ah-trending-nav ah-trending-prev" data-ah-trending-prev aria-label="Previous trending products">
@@ -685,23 +1601,43 @@
 
                     <div class="ah-trending-slider" data-ah-trending-slider>
                         {% for product in section.products %}
-                        <a href="{{ product.get_absolute_url }}" class="ah-trending-item" aria-label="{{ product.name }}">
-                            {% if product.main_image %}
-                                {% optimized_image_url product.main_image 'product_card' as product_image_url %}
-                                <img src="{{ product_image_url }}" alt="{{ product.name }}" loading="lazy" decoding="async">
-                            {% elif product.display_image %}
-                                {% optimized_image_url product.display_image 'product_card' as product_image_url %}
-                                <img src="{{ product_image_url }}" alt="{{ product.name }}" loading="lazy" decoding="async">
-                            {% else %}
-                                <div class="ah-trending-placeholder">
-                                    <i class="fas fa-image"></i>
-                                </div>
+                        <a href="{{ product.get_absolute_url }}" class="ah-trending-card" aria-label="{{ product.name }}">
+                            <div class="ah-trending-media">
+                                {% if product.main_image %}
+                                    {% optimized_image_url product.main_image 'product_card' as product_image_url %}
+                                    <img src="{{ product_image_url }}" alt="{{ product.name }}" loading="lazy" decoding="async">
+                                {% elif product.display_image %}
+                                    {% optimized_image_url product.display_image 'product_card' as product_image_url %}
+                                    <img src="{{ product_image_url }}" alt="{{ product.name }}" loading="lazy" decoding="async">
+                                {% else %}
+                                    <div class="ah-trending-placeholder">
+                                        <i class="fas fa-image"></i>
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <h3 class="ah-trending-card-title">
+                                {{ product.name }}
+                            </h3>
+
+                            {% if section.show_vendor or section.show_rating or section.show_price %}
+                            <div class="ah-trending-card-meta">
+                                {% if section.show_vendor and product.vendor.vendor_profile %}
+                                <span>{{ product.vendor.vendor_profile.store_name }}</span>
+                                {% endif %}
+                                {% if section.show_rating %}
+                                <span>{{ product.rating_avg|default:0|rating_stars|safe }}</span>
+                                {% endif %}
+                                {% if section.show_price %}
+                                <span class="ah-trending-card-price">{{ product.price|currency:request }}</span>
+                                {% endif %}
+                            </div>
                             {% endif %}
                         </a>
                         {% empty %}
                         <div class="ah-empty-products">
                             <i class="fas fa-box-open"></i>
-                            <p>No trending products available yet.</p>
+                            <p>{{ section.empty_state_text|default:"No products available in this section yet." }}</p>
                         </div>
                         {% endfor %}
                     </div>
@@ -712,24 +1648,337 @@
                 </div>
             </section>
 
+
+            {% elif section.layout_style == "compact" %}
+            <section class="ah-featured-deals ah-admin-product-section"
+                     style="--ah-section-accent: {{ section.accent_color }}; --ah-section-background: {{ section.background_color }};"
+                     data-aos="fade-up"
+                     aria-labelledby="ah-featured-title-{{ section.id }}">
+                <div class="ah-featured-header">
+                    <div>
+                        <h2 class="ah-featured-title" id="ah-featured-title-{{ section.id }}">
+                            {{ section.title|default:"Featured Products" }}
+                        </h2>
+
+                        {% if section.subtitle %}
+                        <p class="ah-featured-subtitle">
+                            {{ section.subtitle }}
+                        </p>
+                        {% endif %}
+                    </div>
+
+                    {% if section.show_view_all and section.view_all_url %}
+                    <a href="{{ section.view_all_url }}" class="ah-featured-view-all">
+                        {{ section.view_all_text|default:"View All" }}
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                    {% endif %}
+                </div>
+
+                <div class="ah-featured-shell">
+                    <button type="button" class="ah-featured-nav ah-featured-prev" data-ah-featured-prev aria-label="Previous featured products">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+
+                    <div class="ah-featured-slider" data-ah-featured-slider>
+                        {% for product in section.products %}
+                        <a href="{{ product.get_absolute_url }}" class="ah-featured-card" aria-label="{{ product.name }}">
+                            <div class="ah-featured-image-wrap">
+                                {% if product.main_image %}
+                                    {% optimized_image_url product.main_image 'product_card' as product_image_url %}
+                                    <img src="{{ product_image_url }}" alt="{{ product.name }}" loading="lazy" decoding="async">
+                                {% elif product.display_image %}
+                                    {% optimized_image_url product.display_image 'product_card' as product_image_url %}
+                                    <img src="{{ product_image_url }}" alt="{{ product.name }}" loading="lazy" decoding="async">
+                                {% else %}
+                                    <div class="ah-featured-placeholder">
+                                        <i class="fas fa-image"></i>
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="ah-featured-info">
+                                {% comment %}
+                                Use real admin/product defaults only:
+                                - Vendor store name
+                                - Verified badge
+                                - Subscription/vendor badge such as Enterprise Vendor
+                                - Condition badge such as New/Used
+                                - Optional product/admin promo fields if they exist
+                                {% endcomment %}
+
+                                {% if section.show_vendor and product.vendor and product.vendor.vendor_profile %}
+                                {% with vendor_profile=product.vendor.vendor_profile %}
+                                <div class="ah-featured-topline">
+                                    <span class="ah-featured-vendor-name">{{ vendor_profile.store_name }}</span>
+
+                                    {% if vendor_profile.is_verified %}
+                                    <span class="ah-featured-mini-badge ah-featured-mini-badge-verified">
+                                        <i class="fas fa-check-circle"></i>
+                                        Verified
+                                    </span>
+                                    {% endif %}
+
+                                    {% if section.show_subscription_badge %}
+                                    <span class="ah-featured-mini-badge ah-featured-mini-badge-plan">
+                                        <i class="fas fa-gem"></i>
+                                        {{ vendor_profile.badge_level|default:vendor_profile.subscription_plan_label }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                {% endwith %}
+                                {% endif %}
+
+                                {% if product.condition %}
+                                    {% if product.condition != "brand_new" %}
+                                    <span class="ah-featured-mini-badge ah-featured-mini-badge-condition">
+                                        {{ product.get_condition_display }}
+                                    </span>
+                                    {% endif %}
+                                {% endif %}
+
+                                {% if product.deal_badge %}
+                                <span class="ah-featured-admin-badge">{{ product.deal_badge }}</span>
+                                {% elif product.badge_text %}
+                                <span class="ah-featured-admin-badge">{{ product.badge_text }}</span>
+                                {% elif product.promo_label %}
+                                <span class="ah-featured-admin-badge">{{ product.promo_label }}</span>
+                                {% elif product.is_flash_deal or product.flash_deal %}
+                                <span class="ah-featured-admin-badge">Flash Deal</span>
+                                {% elif product.deal_ends_at %}
+                                <span class="ah-featured-timer">
+                                    <i class="far fa-clock"></i>
+                                    Ends {{ product.deal_ends_at|date:"M d, H:i" }}
+                                </span>
+                                {% elif product.offer_ends_at %}
+                                <span class="ah-featured-timer">
+                                    <i class="far fa-clock"></i>
+                                    Ends {{ product.offer_ends_at|date:"M d, H:i" }}
+                                </span>
+                                {% endif %}
+
+                                <h3 class="ah-featured-name">
+                                    {{ product.name }}
+                                </h3>
+
+                                {% if section.show_rating %}
+                                <div class="ah-featured-rating">
+                                    <span class="ah-featured-stars">
+                                        {{ product.rating_avg|default:0|rating_stars|safe }}
+                                    </span>
+                                    <span class="ah-featured-rating-count">
+                                        {{ product.rating_count|default:0 }}
+                                    </span>
+                                </div>
+                                {% endif %}
+
+                                {% if section.show_price %}
+                                <div class="ah-featured-price">
+                                    <span class="ah-featured-current">
+                                        {{ product.price|currency:request }}
+                                    </span>
+
+                                    {% if product.compare_price %}
+                                    <span class="ah-featured-old">
+                                        {{ product.compare_price|currency:request }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+
+                                {% if product.savings_text %}
+                                <span class="ah-featured-save">
+                                    {{ product.savings_text }}
+                                </span>
+                                {% elif product.discount_percent %}
+                                <span class="ah-featured-save">
+                                    Save {{ product.discount_percent }}%
+                                </span>
+                                {% elif product.compare_price %}
+                                <span class="ah-featured-save">
+                                    Save on Arolana
+                                </span>
+                                {% endif %}
+                            </div>
+                        </a>
+                        {% empty %}
+                        <div class="ah-empty-products">
+                            <i class="fas fa-box-open"></i>
+                            <p>{{ section.empty_state_text|default:"No products available in this section yet." }}</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <button type="button" class="ah-featured-nav ah-featured-next" data-ah-featured-next aria-label="Next featured products">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </section>
+
+
+            {% elif section.layout_style == "market_grid" %}
+            <section class="ah-new-arrivals-section ah-admin-product-section"
+                     style="--ah-section-accent: {{ section.accent_color }}; --ah-section-background: {{ section.background_color }};"
+                     data-aos="fade-up"
+                     aria-labelledby="ah-new-arrivals-title-{{ section.id }}">
+                <div class="ah-new-arrivals-header">
+                    <div>
+                        <h2 class="ah-new-arrivals-title" id="ah-new-arrivals-title-{{ section.id }}">
+                            {{ section.title|default:"New Arrivals" }}
+                        </h2>
+
+                        {% if section.subtitle %}
+                        <p class="ah-new-arrivals-subtitle">
+                            {{ section.subtitle }}
+                        </p>
+                        {% endif %}
+                    </div>
+
+                    {% if section.show_view_all and section.view_all_url %}
+                    <a href="{{ section.view_all_url }}" class="ah-new-arrivals-view-all">
+                        {{ section.view_all_text|default:"View All" }}
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                    {% endif %}
+                </div>
+
+                <div class="ah-new-arrivals-frame">
+                    <button type="button" class="ah-new-arrivals-nav ah-new-arrivals-up" data-ah-new-arrivals-up aria-label="Scroll new arrivals up">
+                        <i class="fas fa-chevron-up"></i>
+                    </button>
+
+                    <div class="ah-new-arrivals-shell" data-ah-new-arrivals-scroll>
+                        <div class="ah-new-arrivals-grid">
+                            {% for product in section.products %}
+                            <a href="{{ product.get_absolute_url }}" class="ah-new-arrivals-card" aria-label="{{ product.name }}">
+                                <div class="ah-new-arrivals-media">
+                                    {% if product.main_image %}
+                                        {% optimized_image_url product.main_image 'product_card' as product_image_url %}
+                                        <img src="{{ product_image_url }}" alt="{{ product.name }}" loading="lazy" decoding="async">
+                                    {% elif product.display_image %}
+                                        {% optimized_image_url product.display_image 'product_card' as product_image_url %}
+                                        <img src="{{ product_image_url }}" alt="{{ product.name }}" loading="lazy" decoding="async">
+                                    {% else %}
+                                        <div class="ah-new-arrivals-placeholder">
+                                            <i class="fas fa-image"></i>
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="ah-new-arrivals-body">
+                                    <h3 class="ah-new-arrivals-name">
+                                        {{ product.name }}
+                                    </h3>
+
+                                    {% if product.condition and product.condition != "brand_new" %}
+                                    <div class="ah-new-arrivals-meta-line">
+                                        <span class="ah-new-arrivals-condition">
+                                            {{ product.get_condition_display }}
+                                        </span>
+                                    </div>
+                                    {% elif product.is_new or product.is_new_arrival %}
+                                    <div class="ah-new-arrivals-meta-line">
+                                        <span class="ah-new-arrivals-condition">
+                                            New Arrival
+                                        </span>
+                                    </div>
+                                    {% endif %}
+
+                                    {% if section.show_price %}
+                                    <div class="ah-new-arrivals-price">
+                                        {{ product.price|currency:request }}
+
+                                        {% if product.compare_price %}
+                                        <span class="ah-new-arrivals-old">
+                                            {{ product.compare_price|currency:request }}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+
+                                    <div class="ah-new-arrivals-moq">
+                                        {% if product.minimum_order_quantity %}
+                                            MOQ: {{ product.minimum_order_quantity }}
+                                        {% elif product.moq %}
+                                            MOQ: {{ product.moq }}
+                                        {% else %}
+                                            MOQ: 1
+                                        {% endif %}
+
+                                        {% if product.total_sales %}
+                                        <span class="ah-new-arrivals-sales">
+                                            {{ product.total_sales }} sold
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                    {% if section.show_rating %}
+                                    <div class="ah-product-rating">
+                                        <div class="ah-product-stars">
+                                            {{ product.rating_avg|default:0|rating_stars|safe }}
+                                        </div>
+                                        <span class="ah-product-rating-count">({{ product.rating_count|default:0 }})</span>
+                                    </div>
+                                    {% endif %}
+
+                                    {% if section.show_vendor and product.vendor and product.vendor.vendor_profile %}
+                                    {% with vendor_profile=product.vendor.vendor_profile %}
+                                    <div class="ah-new-arrivals-vendor">
+                                        <span class="ah-new-arrivals-vendor-name">{{ vendor_profile.store_name }}</span>
+
+                                        {% if vendor_profile.is_verified %}
+                                        <span class="ah-new-arrivals-badge ah-new-arrivals-badge-verified">
+                                            <i class="fas fa-check-circle"></i>
+                                            Verified
+                                        </span>
+                                        {% endif %}
+
+                                        {% if section.show_subscription_badge %}
+                                        <span class="ah-new-arrivals-badge ah-new-arrivals-badge-plan">
+                                            <i class="fas fa-gem"></i>
+                                            {{ vendor_profile.badge_level|default:vendor_profile.subscription_plan_label }}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                    {% endwith %}
+                                    {% endif %}
+                                </div>
+                            </a>
+                            {% empty %}
+                            <div class="ah-new-arrivals-empty">
+                                <i class="fas fa-box-open"></i>
+                                <p>{{ section.empty_state_text|default:"No products available in this section yet." }}</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <button type="button" class="ah-new-arrivals-nav ah-new-arrivals-down" data-ah-new-arrivals-down aria-label="Scroll new arrivals down">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                </div>
+            </section>
             {% else %}
-            <section class="ah-product-section" data-aos="fade-up" aria-labelledby="ah-product-section-{{ section.id }}">
+            <section class="ah-product-section ah-admin-product-section"
+                     style="--ah-section-accent: {{ section.accent_color }}; --ah-section-background: {{ section.background_color }};"
+                     data-aos="fade-up"
+                     aria-labelledby="ah-product-section-{{ section.id }}">
                 <div class="ah-product-header">
                     <div>
-                        <span class="ah-product-kicker">
-                            <i class="fas fa-bolt"></i>
-                            {{ section.get_section_type_display }}
-                        </span>
-                        <h2 class="ah-product-title-main" id="ah-product-section-{{ section.id }}">{{ section.title }}</h2>
+                        <h2 class="ah-product-title-main" id="ah-product-section-{{ section.id }}">
+                            {{ section.title }}
+                        </h2>
+
                         {% if section.subtitle %}
                         <p class="ah-product-subtitle">{{ section.subtitle }}</p>
                         {% endif %}
                     </div>
 
-                    <a href="{{ section.view_all_url|default:'/products/' }}" class="ah-product-view-all">
-                        View All
+                    {% if section.show_view_all and section.view_all_url %}
+                    <a href="{{ section.view_all_url }}" class="ah-product-view-all">
+                        {{ section.view_all_text|default:"View All" }}
                         <i class="fas fa-arrow-right"></i>
                     </a>
+                    {% endif %}
                 </div>
 
                 <div class="ah-product-slider-shell">
@@ -766,12 +2015,18 @@
 
                             <div class="ah-product-body">
                                 <div class="ah-product-brand">
-                                    {% if product.brand %}{{ product.brand.name }}{% elif product.category %}{{ product.category.name }}{% endif %}
+                                    {% if product.brand %}
+                                        {{ product.brand.name }}
+                                    {% elif product.category %}
+                                        {{ product.category.name }}
+                                    {% endif %}
                                 </div>
 
-                                <a href="{{ product.get_absolute_url }}" class="ah-product-title">{{ product.name }}</a>
+                                <a href="{{ product.get_absolute_url }}" class="ah-product-title">
+                                    {{ product.name }}
+                                </a>
 
-                                {% if product.vendor and product.vendor.vendor_profile %}
+                                {% if section.show_vendor and product.vendor and product.vendor.vendor_profile %}
                                 {% with vendor_profile=product.vendor.vendor_profile %}
                                 <div class="ah-product-vendor">
                                     <span class="ah-product-vendor-name">{{ vendor_profile.store_name }}</span>
@@ -783,45 +2038,55 @@
                                     </span>
                                     {% endif %}
 
+                                    {% if section.show_subscription_badge %}
                                     <span class="ah-product-badge ah-product-badge-plan">
                                         <i class="fas fa-gem"></i>
                                         {{ vendor_profile.badge_level|default:vendor_profile.subscription_plan_label }}
                                     </span>
+                                    {% endif %}
                                 </div>
                                 {% endwith %}
                                 {% endif %}
 
+                                {% if section.show_rating %}
                                 <div class="ah-product-rating">
                                     <div class="ah-product-stars">
                                         {{ product.rating_avg|default:0|rating_stars|safe }}
                                     </div>
                                     <span class="ah-product-rating-count">({{ product.rating_count|default:0 }})</span>
                                 </div>
+                                {% endif %}
 
+                                {% if section.show_price %}
                                 <div class="ah-product-price">
                                     <span class="ah-product-price-current">{{ product.price|currency:request }}</span>
+
                                     {% if product.compare_price %}
                                     <span class="ah-product-price-old">{{ product.compare_price|currency:request }}</span>
                                     {% endif %}
                                 </div>
+                                {% endif %}
 
+                                {% if section.show_add_to_cart %}
                                 <form method="POST"
                                       action="{% url 'products:add_to_cart' product.slug %}"
                                       class="ah-product-form arolana-ajax-cart-form"
                                       data-cart-ajax="true">
                                     {% csrf_token %}
                                     <input type="hidden" name="quantity" value="1">
+
                                     <button type="submit" data-cart-button class="ah-product-button">
                                         <i class="fas fa-cart-plus"></i>
                                         Add to Cart
                                     </button>
                                 </form>
+                                {% endif %}
                             </div>
                         </article>
                         {% empty %}
                         <div class="ah-empty-products">
                             <i class="fas fa-box-open"></i>
-                            <p>No products available in this section yet.</p>
+                            <p>{{ section.empty_state_text|default:"No products available in this section yet." }}</p>
                         </div>
                         {% endfor %}
                     </div>
@@ -839,114 +2104,221 @@
 
 <script>
 (function () {
-    function scrollAmount(slider) {
+    "use strict";
+
+    function horizontalScrollAmount(slider) {
         return Math.max(300, Math.floor(slider.clientWidth * 0.82));
     }
 
-    document.querySelectorAll(".ah-product-slider-shell").forEach(function (shell) {
-        if (shell.dataset.initialized === "true") return;
-        shell.dataset.initialized = "true";
+    function initNewArrivalsVerticalScroll() {
+        document.querySelectorAll(".ah-new-arrivals-frame").forEach(function (frame) {
+            if (frame.dataset.verticalInitialized === "true") return;
+            frame.dataset.verticalInitialized = "true";
 
-        const slider = shell.querySelector("[data-ah-product-slider]");
-        const prev = shell.querySelector("[data-ah-row-prev]");
-        const next = shell.querySelector("[data-ah-row-next]");
+            const scroller = frame.querySelector("[data-ah-new-arrivals-scroll]");
+            const up = frame.querySelector("[data-ah-new-arrivals-up]");
+            const down = frame.querySelector("[data-ah-new-arrivals-down]");
 
-        if (!slider) return;
+            if (!scroller) return;
 
-        if (prev) {
-            prev.addEventListener("click", function () {
-                slider.scrollBy({
-                    left: -scrollAmount(slider),
+            function verticalScrollAmount() {
+                const firstCard = scroller.querySelector(".ah-new-arrivals-card");
+
+                if (firstCard) {
+                    const cardHeight = firstCard.getBoundingClientRect().height || 0;
+                    return Math.max(260, Math.floor(cardHeight * 2.05));
+                }
+
+                return Math.max(280, Math.floor(scroller.clientHeight * 0.72));
+            }
+
+            function scrollUp(event) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                scroller.scrollBy({
+                    top: -verticalScrollAmount(),
                     behavior: "smooth"
                 });
-            });
-        }
+            }
 
-        if (next) {
-            next.addEventListener("click", function () {
-                slider.scrollBy({
-                    left: scrollAmount(slider),
+            function scrollDown(event) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                scroller.scrollBy({
+                    top: verticalScrollAmount(),
                     behavior: "smooth"
                 });
-            });
-        }
-    });
+            }
 
-    document.querySelectorAll(".ah-trending-shell").forEach(function (shell) {
-        if (shell.dataset.initialized === "true") return;
-        shell.dataset.initialized = "true";
+            if (up) {
+                up.addEventListener("click", scrollUp);
+            }
 
-        const slider = shell.querySelector("[data-ah-trending-slider]");
-        const prev = shell.querySelector("[data-ah-trending-prev]");
-        const next = shell.querySelector("[data-ah-trending-next]");
+            if (down) {
+                down.addEventListener("click", scrollDown);
+            }
+        });
+    }
 
-        if (!slider) return;
+    function initProductSliders() {
+        document.querySelectorAll(".ah-product-slider-shell").forEach(function (shell) {
+            if (shell.dataset.initialized === "true") return;
+            shell.dataset.initialized = "true";
 
-        function trendScrollAmount() {
-            return Math.max(350, Math.floor(slider.clientWidth * 0.78));
-        }
+            const slider = shell.querySelector("[data-ah-product-slider]");
+            const prev = shell.querySelector("[data-ah-row-prev]");
+            const next = shell.querySelector("[data-ah-row-next]");
 
-        if (prev) {
-            prev.addEventListener("click", function () {
-                slider.scrollBy({
-                    left: -trendScrollAmount(),
-                    behavior: "smooth"
-                });
-            });
-        }
+            if (!slider) return;
 
-        if (next) {
-            next.addEventListener("click", function () {
-                slider.scrollBy({
-                    left: trendScrollAmount(),
-                    behavior: "smooth"
-                });
-            });
-        }
-
-        let autoTimer = null;
-        const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-        function startAutoSlide() {
-            if (reduceMotion || document.hidden || slider.scrollWidth <= slider.clientWidth) return;
-            if (autoTimer) clearInterval(autoTimer);
-
-            autoTimer = setInterval(function () {
-                const nearEnd = slider.scrollLeft + slider.clientWidth >= slider.scrollWidth - 10;
-
-                if (nearEnd) {
-                    slider.scrollTo({
-                        left: 0,
+            if (prev) {
+                prev.addEventListener("click", function () {
+                    slider.scrollBy({
+                        left: -horizontalScrollAmount(slider),
                         behavior: "smooth"
                     });
-                } else {
+                });
+            }
+
+            if (next) {
+                next.addEventListener("click", function () {
+                    slider.scrollBy({
+                        left: horizontalScrollAmount(slider),
+                        behavior: "smooth"
+                    });
+                });
+            }
+        });
+    }
+
+    function initFeaturedSlider() {
+        document.querySelectorAll(".ah-featured-shell").forEach(function (shell) {
+            if (shell.dataset.initialized === "true") return;
+            shell.dataset.initialized = "true";
+
+            const slider = shell.querySelector("[data-ah-featured-slider]");
+            const prev = shell.querySelector("[data-ah-featured-prev]");
+            const next = shell.querySelector("[data-ah-featured-next]");
+
+            if (!slider) return;
+
+            function featuredScrollAmount() {
+                return Math.max(360, Math.floor(slider.clientWidth * 0.82));
+            }
+
+            if (prev) {
+                prev.addEventListener("click", function () {
+                    slider.scrollBy({
+                        left: -featuredScrollAmount(),
+                        behavior: "smooth"
+                    });
+                });
+            }
+
+            if (next) {
+                next.addEventListener("click", function () {
+                    slider.scrollBy({
+                        left: featuredScrollAmount(),
+                        behavior: "smooth"
+                    });
+                });
+            }
+        });
+    }
+
+    function initTrendingSlider() {
+        document.querySelectorAll(".ah-trending-shell").forEach(function (shell) {
+            if (shell.dataset.initialized === "true") return;
+            shell.dataset.initialized = "true";
+
+            const slider = shell.querySelector("[data-ah-trending-slider]");
+            const prev = shell.querySelector("[data-ah-trending-prev]");
+            const next = shell.querySelector("[data-ah-trending-next]");
+
+            if (!slider) return;
+
+            function trendScrollAmount() {
+                return Math.max(350, Math.floor(slider.clientWidth * 0.78));
+            }
+
+            if (prev) {
+                prev.addEventListener("click", function () {
+                    slider.scrollBy({
+                        left: -trendScrollAmount(),
+                        behavior: "smooth"
+                    });
+                });
+            }
+
+            if (next) {
+                next.addEventListener("click", function () {
                     slider.scrollBy({
                         left: trendScrollAmount(),
                         behavior: "smooth"
                     });
-                }
-            }, 3800);
-        }
-
-        function stopAutoSlide() {
-            if (autoTimer) clearInterval(autoTimer);
-            autoTimer = null;
-        }
-
-        shell.addEventListener("mouseenter", stopAutoSlide);
-        shell.addEventListener("mouseleave", startAutoSlide);
-        shell.addEventListener("touchstart", stopAutoSlide, { passive: true });
-        shell.addEventListener("touchend", startAutoSlide);
-        document.addEventListener("visibilitychange", function () {
-            if (document.hidden) {
-                stopAutoSlide();
-            } else {
-                startAutoSlide();
+                });
             }
-        });
 
-        startAutoSlide();
-    });
+            let autoTimer = null;
+            const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+            function startAutoSlide() {
+                if (reduceMotion || document.hidden || slider.scrollWidth <= slider.clientWidth) return;
+                if (autoTimer) clearInterval(autoTimer);
+
+                autoTimer = setInterval(function () {
+                    const nearEnd = slider.scrollLeft + slider.clientWidth >= slider.scrollWidth - 10;
+
+                    if (nearEnd) {
+                        slider.scrollTo({
+                            left: 0,
+                            behavior: "smooth"
+                        });
+                    } else {
+                        slider.scrollBy({
+                            left: trendScrollAmount(),
+                            behavior: "smooth"
+                        });
+                    }
+                }, 4200);
+            }
+
+            function stopAutoSlide() {
+                if (autoTimer) clearInterval(autoTimer);
+                autoTimer = null;
+            }
+
+            shell.addEventListener("mouseenter", stopAutoSlide);
+            shell.addEventListener("mouseleave", startAutoSlide);
+            shell.addEventListener("touchstart", stopAutoSlide, { passive: true });
+            shell.addEventListener("touchend", startAutoSlide);
+
+            document.addEventListener("visibilitychange", function () {
+                if (document.hidden) {
+                    stopAutoSlide();
+                } else {
+                    startAutoSlide();
+                }
+            });
+
+            startAutoSlide();
+        });
+    }
+
+    function initHomepageSections() {
+        initNewArrivalsVerticalScroll();
+        initProductSliders();
+        initFeaturedSlider();
+        initTrendingSlider();
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initHomepageSections);
+    } else {
+        initHomepageSections();
+    }
 })();
 </script>
 {% endif %}

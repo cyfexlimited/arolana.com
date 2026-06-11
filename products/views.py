@@ -26,6 +26,7 @@ from .models import (
 from accounts.models import User
 from currency.templatetags.currency_filters import currency as format_currency
 from arolana_payments.services import get_gateway_options
+from products.ranking import order_storefront_products
 
 try:
     from subscriptions.models import user_has_paid_subscription
@@ -843,6 +844,8 @@ def product_list(request):
     ).select_related(
         "category",
         "brand",
+        "vendor",
+        "vendor__vendor_profile",
     )
 
     # ====== Apply Filters ======
@@ -851,19 +854,19 @@ def product_list(request):
     # ====== Sorting ======
     sort_param = request.GET.get("sort", "featured")
     sort_mapping = {
-        "featured": "-is_featured",
-        "newest": "-created_at",
-        "bestsellers": "-sales_count",
-        "trending": "-views_count",
-        "price_low": "price",
-        "price_high": "-price",
-        "rating": "-rating_avg",
-        "name_asc": "name",
-        "name_desc": "-name",
+        "featured": ("-is_featured", "-rating_avg", "-created_at"),
+        "newest": ("-created_at",),
+        "bestsellers": ("-sales_count", "-rating_avg"),
+        "trending": ("-views_count", "-sales_count"),
+        "price_low": ("price",),
+        "price_high": ("-price",),
+        "rating": ("-rating_avg", "-rating_count"),
+        "name_asc": ("name",),
+        "name_desc": ("-name",),
     }
 
-    sort_field = sort_mapping.get(sort_param, "-is_featured")
-    products = products.order_by(sort_field)
+    sort_fields = sort_mapping.get(sort_param, sort_mapping["featured"])
+    products = order_storefront_products(products, *sort_fields)
 
     # ====== Pagination ======
     paginator = Paginator(products, 24)
@@ -1180,25 +1183,48 @@ def product_detail(request, slug):
         category=product.category,
         is_active=True,
         approval_status='approved'
-    ).exclude(id=product.id).select_related('brand').order_by('?')[:12]
+    ).exclude(id=product.id).select_related(
+        'brand', 'vendor', 'vendor__vendor_profile'
+    )
+    related_products = order_storefront_products(
+        related_products,
+        '-is_featured',
+        '-rating_avg',
+        '-sales_count',
+    )[:12]
 
     top_rated = Product.objects.filter(
         category=product.category,
         is_active=True,
         rating_avg__gt=0,
         approval_status='approved'
-    ).exclude(id=product.id).order_by('?')[:12]
+    ).exclude(id=product.id).select_related('vendor', 'vendor__vendor_profile')
+    top_rated = order_storefront_products(
+        top_rated,
+        '-rating_avg',
+        '-rating_count',
+    )[:12]
 
     bestsellers = Product.objects.filter(
         category=product.category,
         is_active=True,
         approval_status='approved'
-    ).exclude(id=product.id).order_by('?')[:12]
+    ).exclude(id=product.id).select_related('vendor', 'vendor__vendor_profile')
+    bestsellers = order_storefront_products(
+        bestsellers,
+        '-sales_count',
+        '-rating_avg',
+    )[:12]
 
     frequently_bought_together = Product.objects.filter(
         is_active=True,
         approval_status='approved'
-    ).exclude(id=product.id).order_by('?')[:12]
+    ).exclude(id=product.id).select_related('vendor', 'vendor__vendor_profile')
+    frequently_bought_together = order_storefront_products(
+        frequently_bought_together,
+        '-sales_count',
+        '-rating_avg',
+    )[:12]
 
     # ====== Recently Viewed ======
     recently_viewed = []
@@ -1211,7 +1237,13 @@ def product_detail(request, slug):
     ai_recommendations = Product.objects.filter(
         is_active=True,
         approval_status='approved'
-    ).exclude(id=product.id).order_by('?')[:12]
+    ).exclude(id=product.id).select_related('vendor', 'vendor__vendor_profile')
+    ai_recommendations = order_storefront_products(
+        ai_recommendations,
+        '-views_count',
+        '-rating_avg',
+        '-sales_count',
+    )[:12]
 
     # ====== Rating Percentages ======
     total_reviews = product.rating_count or 1
@@ -1307,23 +1339,23 @@ def category_view(request, slug):
         category_id__in=category_ids,
         is_active=True,
         approval_status='approved'
-    ).select_related('brand')
+    ).select_related('brand', 'vendor', 'vendor__vendor_profile')
     
     # ====== Sorting ======
     sort_param = request.GET.get('sort', 'featured')
     sort_mapping = {
-        'featured': '-is_featured',
-        'newest': '-created_at',
-        'bestsellers': '-sales_count',
-        'price_low': 'price',
-        'price_high': '-price',
-        'rating': '-rating_avg',
-        'name_asc': 'name',
-        'name_desc': '-name',
+        'featured': ('-is_featured', '-rating_avg', '-created_at'),
+        'newest': ('-created_at',),
+        'bestsellers': ('-sales_count', '-rating_avg'),
+        'price_low': ('price',),
+        'price_high': ('-price',),
+        'rating': ('-rating_avg', '-rating_count'),
+        'name_asc': ('name',),
+        'name_desc': ('-name',),
     }
     
-    sort_field = sort_mapping.get(sort_param, '-created_at')
-    products = products.order_by(sort_field)
+    sort_fields = sort_mapping.get(sort_param, sort_mapping['featured'])
+    products = order_storefront_products(products, *sort_fields)
     
     # ====== Vendor Count ======
     vendors_count = products.values('vendor').distinct().count()
@@ -2300,7 +2332,18 @@ def mobile_home_api(request):
     product_queryset = Product.objects.filter(
         is_active=True,
         approval_status="approved",
-    ).select_related("category", "brand", "vendor", "vendor__vendor_profile").prefetch_related("reviews").order_by("-id")[:80]
+    ).select_related(
+        "category",
+        "brand",
+        "vendor",
+        "vendor__vendor_profile",
+    ).prefetch_related("reviews")
+    product_queryset = order_storefront_products(
+        product_queryset,
+        "-is_featured",
+        "-sales_count",
+        "-created_at",
+    )[:80]
 
     banner_payloads = []
     if HomepageBanner:
@@ -2542,21 +2585,30 @@ def mobile_products_api(request):
         products = products.filter(stock_quantity__gt=0)
 
     if sort == "price_low":
-        products = products.order_by("price")
+        products = order_storefront_products(products, "price")
     elif sort == "price_high":
-        products = products.order_by("-price")
+        products = order_storefront_products(products, "-price")
     elif sort == "newest":
-        products = products.order_by("-created_at")
+        products = order_storefront_products(products, "-created_at")
     elif sort == "popular":
-        products = products.order_by("-sales_count", "-id")
+        products = order_storefront_products(products, "-sales_count")
     elif sort == "verified":
-        products = products.order_by("-vendor__vendor_profile__manufacturer_verified", "-vendor__vendor_profile__is_verified", "-rating_avg", "-id")
+        products = order_storefront_products(
+            products,
+            "-vendor__vendor_profile__manufacturer_verified",
+            "-vendor__vendor_profile__is_verified",
+            "-rating_avg",
+            priority_position=2,
+        )
     elif sort == "wholesale":
-        products = products.order_by(F("wholesale_price").desc(nulls_last=True), "-id")
+        products = order_storefront_products(
+            products,
+            F("wholesale_price").desc(nulls_last=True),
+        )
     elif sort == "top_rated":
-        products = products.order_by("-rating_avg", "-rating_count", "-id")
+        products = order_storefront_products(products, "-rating_avg", "-rating_count")
     else:
-        products = products.order_by("-id")
+        products = order_storefront_products(products, "-is_featured", "-created_at")
 
     data = [_mobile_product_payload(request, product) for product in products[:120]]
 
@@ -2765,7 +2817,18 @@ def mobile_product_detail_api(request, slug):
     related_queryset = Product.objects.filter(
         is_active=True,
         approval_status="approved",
-    ).exclude(id=product.id).select_related("category", "brand").order_by("-is_featured", "-rating_avg", "-created_at")
+    ).exclude(id=product.id).select_related(
+        "category",
+        "brand",
+        "vendor",
+        "vendor__vendor_profile",
+    )
+    related_queryset = order_storefront_products(
+        related_queryset,
+        "-is_featured",
+        "-rating_avg",
+        "-created_at",
+    )
 
     bought_together_ids = []
     try:

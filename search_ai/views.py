@@ -13,6 +13,7 @@ from core.media_optimization import get_optimized_image_url
 from currency.templatetags.currency_filters import currency as format_currency
 from manufacturers.models import Manufacturer
 from products.models import Category, Product
+from products.ranking import order_storefront_products
 from vendors.models import VendorProfile
 
 from .models import SearchHistory
@@ -156,21 +157,31 @@ def ai_search(request):
         product_matches = (
             Product.objects
             .filter(_product_search_q(query, terms), is_active=True, approval_status='approved')
-            .select_related('category', 'brand')
+            .select_related('category', 'brand', 'vendor', 'vendor__vendor_profile')
             .annotate(relevance=_product_relevance_case(query, terms))
             .distinct()
-            .order_by('-relevance', '-rating_avg', '-sales_count')[:8]
         )
+        product_matches = order_storefront_products(
+            product_matches,
+            '-relevance',
+            '-rating_avg',
+            '-sales_count',
+        )[:8]
     except Exception:
         terms = _query_terms(query)
         product_matches = (
             Product.objects
             .filter(_product_search_q(query, terms), is_active=True, approval_status='approved')
-            .select_related('category', 'brand')
+            .select_related('category', 'brand', 'vendor', 'vendor__vendor_profile')
             .annotate(relevance=_product_relevance_case(query, terms))
             .distinct()
-            .order_by('-relevance', '-rating_avg', '-sales_count')[:8]
         )
+        product_matches = order_storefront_products(
+            product_matches,
+            '-relevance',
+            '-rating_avg',
+            '-sales_count',
+        )[:8]
 
     categories = (
         Category.objects
@@ -297,7 +308,10 @@ def track_click(request):
 
 def advanced_search(request):
     """Advanced search page with filters."""
-    products = Product.objects.filter(is_active=True, approval_status='approved').select_related('category', 'brand')
+    products = Product.objects.filter(
+        is_active=True,
+        approval_status='approved',
+    ).select_related('category', 'brand', 'vendor', 'vendor__vendor_profile')
 
     query = _clean_query(request.GET.get('q', ''))
     category = request.GET.get('category')
@@ -342,12 +356,12 @@ def advanced_search(request):
         sort = '-created_at'
     if sort not in allowed_sorts:
         sort = '-created_at'
-    products = products.order_by(sort)
+    products = order_storefront_products(products, sort)
 
     also_search_products = Product.objects.filter(
         is_active=True,
         approval_status='approved',
-    ).select_related('category', 'brand')
+    ).select_related('category', 'brand', 'vendor', 'vendor__vendor_profile')
 
     if query:
         also_terms = _query_terms(query)
@@ -361,11 +375,12 @@ def advanced_search(request):
         if search_terms_q:
             also_search_products = also_search_products.filter(search_terms_q)
 
-    also_search_products = (
-        also_search_products
-        .distinct()
-        .order_by('-sales_count', '-rating_avg', '-created_at')[:10]
-    )
+    also_search_products = order_storefront_products(
+        also_search_products.distinct(),
+        '-sales_count',
+        '-rating_avg',
+        '-created_at',
+    )[:10]
 
     paginator = Paginator(products, 24)
     page_obj = paginator.get_page(request.GET.get('page'))
@@ -585,7 +600,12 @@ def _mobile_product_payload(request, product, score=0):
 
 
 def _mobile_base_products():
-    products = Product.objects.all().select_related('category', 'brand')
+    products = Product.objects.all().select_related(
+        'category',
+        'brand',
+        'vendor',
+        'vendor__vendor_profile',
+    )
 
     field_names = {field.name for field in Product._meta.fields}
 
@@ -667,10 +687,21 @@ def _mobile_ai_rank_products(query, category='', limit=60):
             .filter(search_q)
             .annotate(relevance=_product_relevance_case(query or category, terms))
             .distinct()
-            .order_by('-relevance', '-rating_avg', '-sales_count', '-created_at')[:limit]
         )
+        products = order_storefront_products(
+            products,
+            '-relevance',
+            '-rating_avg',
+            '-sales_count',
+            '-created_at',
+        )[:limit]
     else:
-        products = products.order_by('-sales_count', '-rating_avg', '-created_at')[:limit]
+        products = order_storefront_products(
+            products,
+            '-sales_count',
+            '-rating_avg',
+            '-created_at',
+        )[:limit]
 
     return list(products), intent
 

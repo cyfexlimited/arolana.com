@@ -2,7 +2,7 @@ from django.db import models
 from django.core.validators import MaxValueValidator, MinValueValidator
 from core.models import BaseModel
 from core.local_cache import local_delete, local_delete_prefix
-from products.models import Category, Product
+from products.models import Brand, Category, Product
 from vendors.models import VendorProfile
 import re
 
@@ -211,33 +211,117 @@ class HomepageBanner(BaseModel):
         return result
 
 class HomepageSection(BaseModel):
-    """Manageable sections on homepage"""
+    """Admin-managed product section and presentation settings."""
+
     SECTION_TYPES = [
         ('featured', 'Featured Products'),
         ('new', 'New Arrivals'),
         ('bestsellers', 'Best Sellers'),
-        ('trending', 'Trending'),
+        ('trending', 'Trending Deals'),
         ('custom', 'Custom Section'),
     ]
-    
+    LAYOUT_CHOICES = [
+        ('editorial', 'Editorial image slider'),
+        ('compact', 'Compact two-row deals'),
+        ('market_grid', 'Marketplace grid'),
+        ('carousel', 'Product card carousel'),
+    ]
+    SORT_CHOICES = [
+        ('automatic', 'Automatic for section type'),
+        ('newest', 'Newest first'),
+        ('best_selling', 'Best selling first'),
+        ('trending', 'Most viewed and selling'),
+        ('top_rated', 'Top rated first'),
+        ('featured', 'Featured first'),
+        ('price_low', 'Price: low to high'),
+        ('price_high', 'Price: high to low'),
+    ]
+    VENDOR_TYPE_CHOICES = [
+        ('', 'All vendor types'),
+        ('manufacturer', 'Manufacturers'),
+        ('distributor', 'Distributors'),
+        ('wholesaler', 'Wholesalers'),
+        ('retailer', 'Retailers'),
+        ('service_provider', 'Service providers'),
+    ]
+
     title = models.CharField(max_length=200)
     section_type = models.CharField(max_length=20, choices=SECTION_TYPES, default='featured')
     subtitle = models.CharField(max_length=500, blank=True)
+    layout_style = models.CharField(
+        max_length=30,
+        choices=LAYOUT_CHOICES,
+        default='carousel',
+        help_text="Controls the visual structure independently from the product source.",
+    )
+    sort_mode = models.CharField(
+        max_length=30,
+        choices=SORT_CHOICES,
+        default='automatic',
+        help_text="Choose how automatically selected products are ordered.",
+    )
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='homepage_product_sections',
+        help_text="Optional: limit this section to one category.",
+    )
+    brand = models.ForeignKey(
+        Brand,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='homepage_product_sections',
+        help_text="Optional: limit this section to one brand.",
+    )
+    vendor_type = models.CharField(
+        max_length=30,
+        choices=VENDOR_TYPE_CHOICES,
+        blank=True,
+        default='',
+    )
+    verified_vendors_only = models.BooleanField(default=False)
+    use_subscription_priority = models.BooleanField(
+        default=True,
+        help_text="Give active higher-tier vendors stronger placement after curated products.",
+    )
+    fill_automatically = models.BooleanField(
+        default=True,
+        help_text="Fill remaining slots automatically after curated products.",
+    )
     display_order = models.IntegerField(default=0)
-    products_limit = models.IntegerField(default=8, help_text="Number of products to show")
+    products_limit = models.PositiveIntegerField(default=8, help_text="Number of products to show")
     view_all_url = models.CharField(max_length=500, blank=True, default="/products/")
+    view_all_text = models.CharField(max_length=50, default="View All", blank=True)
+    show_view_all = models.BooleanField(default=True)
+    empty_state_text = models.CharField(
+        max_length=255,
+        default="No products available in this section yet.",
+        blank=True,
+    )
+    accent_color = models.CharField(max_length=20, default="#0F2D6B")
+    background_color = models.CharField(max_length=20, default="transparent")
+    show_vendor = models.BooleanField(default=True)
+    show_subscription_badge = models.BooleanField(default=True)
+    show_rating = models.BooleanField(default=True)
+    show_price = models.BooleanField(default=True)
+    show_add_to_cart = models.BooleanField(default=True)
     is_active = models.BooleanField(default=True)
-    
+
     class Meta:
         ordering = ['display_order']
         verbose_name = "Homepage Section"
         verbose_name_plural = "Homepage Sections"
-    
+
     def __str__(self):
         return f"{self.title} ({self.get_section_type_display()})"
-    
+
     def get_products(self):
-        """Get products based on section type - APPROVED ONLY"""
+        """Return curated products first, then filtered automatic products."""
+        from products.ranking import order_products_for_visibility
+
         queryset = Product.objects.filter(
             is_active=True,
             approval_status='approved',
@@ -247,16 +331,87 @@ class HomepageSection(BaseModel):
             'vendor',
             'vendor__vendor_profile',
         )
+
+        if self.category_id:
+            queryset = queryset.filter(category=self.category)
+        if self.brand_id:
+            queryset = queryset.filter(brand=self.brand)
+        if self.vendor_type:
+            queryset = queryset.filter(vendor__vendor_profile__vendor_type=self.vendor_type)
+        if self.verified_vendors_only:
+            queryset = queryset.filter(vendor__vendor_profile__is_verified=True)
+
+        curated = list(
+            queryset.filter(
+                homepage_section_links__section=self,
+                homepage_section_links__is_active=True,
+            ).order_by(
+                'homepage_section_links__display_order',
+                'homepage_section_links__id',
+            )[:self.products_limit]
+        )
+        remaining = max(self.products_limit - len(curated), 0)
+        if not self.fill_automatically or not remaining:
+            return curated
+
+        if curated:
+            queryset = queryset.exclude(pk__in=[product.pk for product in curated])
+
         if self.section_type == 'featured':
-            return queryset.filter(is_featured=True)[:self.products_limit]
+            queryset = queryset.filter(is_featured=True)
         elif self.section_type == 'new':
-            return queryset.filter(is_new=True)[:self.products_limit]
+            queryset = queryset.filter(is_new=True)
         elif self.section_type == 'bestsellers':
-            return queryset.filter(is_bestseller=True)[:self.products_limit]
-        elif self.section_type == 'trending':
-            return queryset.order_by('-sales_count')[:self.products_limit]
-        else:
-            return queryset[:self.products_limit]
+            queryset = queryset.filter(is_bestseller=True)
+
+        queryset = order_products_for_visibility(
+            queryset,
+            sort_mode=self.sort_mode,
+            section_type=self.section_type,
+            use_subscription_priority=self.use_subscription_priority,
+            homepage=True,
+        )
+        return curated + list(queryset[:remaining])
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        local_delete("homepage:sections")
+
+    def delete(self, *args, **kwargs):
+        result = super().delete(*args, **kwargs)
+        local_delete("homepage:sections")
+        return result
+
+
+class HomepageSectionProduct(BaseModel):
+    """Admin-curated product placement inside a homepage section."""
+
+    section = models.ForeignKey(
+        HomepageSection,
+        on_delete=models.CASCADE,
+        related_name='product_links',
+    )
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name='homepage_section_links',
+    )
+    display_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['display_order', 'id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['section', 'product'],
+                name='unique_homepage_section_product',
+            ),
+        ]
+        verbose_name = "Curated Homepage Product"
+        verbose_name_plural = "Curated Homepage Products"
+
+    def __str__(self):
+        return f"{self.section.title}: {self.product.name}"
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)

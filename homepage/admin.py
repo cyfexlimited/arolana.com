@@ -8,6 +8,7 @@ from .models import (
     HomepageBanner,
     HomepageBannerImage,
     HomepageSection,
+    HomepageSectionProduct,
     HomepageVendorSettings,
     HomepageNewsletterSettings,
     HomepageManufacturerSettings,
@@ -276,22 +277,41 @@ class HomepageBannerAdmin(admin.ModelAdmin):
 # HOMEPAGE PRODUCT SECTIONS
 # ============================================================
 
+class HomepageSectionProductInline(admin.TabularInline):
+    model = HomepageSectionProduct
+    extra = 0
+    autocomplete_fields = ["product"]
+    fields = ["product", "display_order", "is_active"]
+    ordering = ["display_order", "id"]
+
+
 @admin.register(HomepageSection)
 class HomepageSectionAdmin(admin.ModelAdmin):
     list_display = [
         "title",
         "section_type",
+        "layout_style",
+        "sort_mode",
         "products_limit",
+        "use_subscription_priority",
         "display_order",
         "is_active",
     ]
     list_editable = [
+        "layout_style",
+        "sort_mode",
         "products_limit",
+        "use_subscription_priority",
         "display_order",
         "is_active",
     ]
     list_filter = [
         "section_type",
+        "layout_style",
+        "sort_mode",
+        "vendor_type",
+        "verified_vendors_only",
+        "use_subscription_priority",
         "is_active",
     ]
     search_fields = [
@@ -299,6 +319,8 @@ class HomepageSectionAdmin(admin.ModelAdmin):
         "subtitle",
         "view_all_url",
     ]
+    autocomplete_fields = ["category", "brand"]
+    inlines = [HomepageSectionProductInline]
 
     fieldsets = (
         (
@@ -308,15 +330,43 @@ class HomepageSectionAdmin(admin.ModelAdmin):
                     "title",
                     "subtitle",
                     "section_type",
-                    "view_all_url",
+                    "layout_style",
+                    ("view_all_text", "view_all_url"),
+                    "show_view_all",
+                    "empty_state_text",
                 ),
             },
         ),
         (
-            "📦 Product Display",
+            "📦 Product Source & Ranking",
             {
                 "fields": (
+                    "sort_mode",
+                    ("category", "brand"),
+                    ("vendor_type", "verified_vendors_only"),
+                    ("use_subscription_priority", "fill_automatically"),
                     "products_limit",
+                ),
+                "description": (
+                    "Curated products below always appear first. Automatic products then fill "
+                    "the remaining slots using these filters and active vendor-plan priority."
+                ),
+            },
+        ),
+        (
+            "🎨 Card Content & Styling",
+            {
+                "fields": (
+                    ("accent_color", "background_color"),
+                    ("show_vendor", "show_subscription_badge"),
+                    ("show_rating", "show_price", "show_add_to_cart"),
+                ),
+            },
+        ),
+        (
+            "⚙️ Publishing",
+            {
+                "fields": (
                     "display_order",
                     "is_active",
                 ),
