@@ -672,7 +672,7 @@ AROLANA_RATE_LIMIT_RULES = [
     },
     {
         'name': 'smartchat',
-        'paths': ['/smartchat/api/'],
+        'paths': ['/smartchat/api/', '/api/smartchat/'],
         'methods': ['POST'],
         'limit': config('RATE_LIMIT_SMARTCHAT_LIMIT', default=60, cast=int),
         'window': config('RATE_LIMIT_SMARTCHAT_WINDOW', default=300, cast=int),
@@ -870,6 +870,11 @@ USE_TZ = True
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 SITE_URL = config('SITE_URL', default='https://arolana.com')
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+OPTIMIZED_MEDIA_GENERATE_ON_REQUEST = config(
+    'OPTIMIZED_MEDIA_GENERATE_ON_REQUEST',
+    default=False,
+    cast=bool,
+)
 
 # ============ CACHING ============
 if REDIS_URL:

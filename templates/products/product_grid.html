@@ -6,6 +6,9 @@
     }
 
     .arolana-product-grid .product-card {
+        contain: layout paint style;
+        content-visibility: auto;
+        contain-intrinsic-size: 390px;
         display: flex;
         flex-direction: column;
         height: 100%;
@@ -132,7 +135,7 @@
                     {% optimized_image_url product.main_image 'product_card' as product_image_url %}
                     <img src="{{ product_image_url }}" alt="{{ product.name }}"
                          class="w-full h-full object-contain p-4 transition-transform duration-500 group-hover:scale-110"
-                         loading="lazy">
+                         loading="lazy" decoding="async" width="640" height="640">
                 {% else %}
                     <div class="w-full h-full flex items-center justify-center">
                         <i class="fas fa-image text-5xl text-gray-300"></i>

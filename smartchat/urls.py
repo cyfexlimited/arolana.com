@@ -27,6 +27,9 @@ urlpatterns = [
     path("admin/conversation/<int:conversation_id>/close/", views.admin_close, name="admin_close"),
     path("admin/conversation/<int:conversation_id>/poll/", views.admin_poll, name="admin_poll"),
     path("admin/conversation/<int:conversation_id>/typing/", views.admin_typing, name="admin_typing"),
+    path("admin/knowledge/", views.admin_knowledge, name="admin_knowledge"),
+    path("admin/training/", views.admin_training, name="admin_training"),
+    path("admin/settings/", views.admin_settings, name="admin_settings"),
 
 
     path("api/mobile/start/", views.mobile_smartchat_start_api, name="mobile_smartchat_start_api"),

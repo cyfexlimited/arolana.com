@@ -26,6 +26,12 @@
     <meta name="apple-mobile-web-app-title" content="Arolana">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
 
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -83,12 +89,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Montserrat:wght@600;700;800;900&family=Roboto+Condensed:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
-    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
-    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/darkroomengineering/lenis@latest/bundled/lenis.js"></script>
 
     {% include "includes/homepage_background_css.html" %}
 
@@ -117,7 +117,7 @@
             width: 100%;
             max-width: 100%;
             overflow-x: hidden !important;
-            scroll-behavior: smooth;
+            scroll-behavior: auto;
         }
 
         body {
@@ -179,6 +179,12 @@
             height: 100%;
             min-width: 0;
             overflow: hidden;
+        }
+
+        .homepage-deferred-section {
+            contain: layout paint style;
+            content-visibility: auto;
+            contain-intrinsic-size: auto 480px;
         }
 
         .product-grid-image {
@@ -2564,15 +2570,20 @@
       x-data="{ mobileMenuOpen: false, scrolled: false, headerScrolled: false }"
       x-effect="document.body.classList.toggle('menu-open', mobileMenuOpen)"
       x-init="
-        if (window.AOS) {
-          AOS.init({ duration: 1000, once: true, offset: 100, easing: 'ease-in-out-cubic' });
-        }
         initCookieConsent();
-        initLenisScroll();
-        window.addEventListener('scroll', () => {
+        let scrollUpdatePending = false;
+        const updateScrollState = () => {
           scrolled = window.scrollY > 300;
           headerScrolled = window.scrollY > 50;
-        });
+          scrollUpdatePending = false;
+        };
+        window.addEventListener('scroll', () => {
+          if (!scrollUpdatePending) {
+            scrollUpdatePending = true;
+            window.requestAnimationFrame(updateScrollState);
+          }
+        }, { passive: true });
+        updateScrollState();
       ">
 
     <div class="premium-topbar text-white text-xs py-2">
@@ -3673,27 +3684,6 @@
     </div>
 
     <script>
-        function initLenisScroll() {
-            if (!window.Lenis) return;
-
-            const lenis = new Lenis({
-                duration: 1.2,
-                easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-                direction: 'vertical',
-                gestureDirection: 'vertical',
-                smooth: true,
-                smoothTouch: false,
-                touchMultiplier: 2
-            });
-
-            function raf(time) {
-                lenis.raf(time);
-                requestAnimationFrame(raf);
-            }
-
-            requestAnimationFrame(raf);
-        }
-
         function initCookieConsent() {
             const banner = document.getElementById("cookie-consent");
             const acceptBtn = document.getElementById("accept-cookies");
@@ -4066,8 +4056,16 @@
         }
 
         function updateNotificationCount() {
-            fetch('/notifications/api/latest/?limit=5')
-                .then(r => r.json())
+            fetch('/notifications/api/latest/?limit=5', {
+                headers: { 'Accept': 'application/json' },
+                redirect: 'error'
+            })
+                .then(r => {
+                    if (!r.ok || !r.headers.get('content-type')?.includes('application/json')) {
+                        throw new Error('Notification endpoint unavailable');
+                    }
+                    return r.json();
+                })
                 .then(d => {
                     const badge = document.getElementById('notification-badge');
                     if (badge && d.unread_count > 0) {
@@ -4183,21 +4181,25 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            const isAuthenticated = {{ user.is_authenticated|yesno:"true,false" }};
+
             setupNewsletterForm();
             setupLazyImageObserver();
             setupMobileFooterAccordions();
             initArolanaLiveSearch();
-            updateUnreadCount();
-            updateNotificationCount();
             updateCartCount();
             updateWishlistCount();
 
-            setInterval(() => {
+            if (isAuthenticated) {
                 updateUnreadCount();
                 updateNotificationCount();
-                updateCartCount();
-                updateWishlistCount();
-            }, 30000);
+
+                setInterval(() => {
+                    if (document.visibilityState !== 'visible') return;
+                    updateUnreadCount();
+                    updateNotificationCount();
+                }, 60000);
+            }
 
             document.body.addEventListener('click', () => {
                 if ('Notification' in window && Notification.permission === 'default') {

@@ -1,7 +1,7 @@
 {% extends 'base/base.html' %}
 {% load static %}
 {% load currency_filters %}
-{% load products_extras %}
+{% load products_extras media_optimization %}
 
 {% block title %}Explore Products | {{ block.super }}{% endblock %}
 
@@ -1078,10 +1078,13 @@
             <span>Products</span>
         </nav>
 
+        {% if shop_banner and shop_banner.background_image %}
+            {% optimized_image_url shop_banner.background_image 'hero' as shop_banner_background_url %}
+        {% endif %}
         <section
             class="arolana-shop-hero {% if shop_banner and shop_banner.background_image %}has-image{% endif %}"
             {% if shop_banner and shop_banner.background_image %}
-                style="background-image: url('{{ shop_banner.background_image.url }}'); --banner-primary: {{ shop_banner.primary_color|default:'#2563eb' }}; --banner-secondary: {{ shop_banner.secondary_color|default:'#7c3aed' }};{% if shop_banner.cta_background_color %} --banner-cta-bg: {{ shop_banner.cta_background_color }};{% endif %}{% if shop_banner.cta_text_color %} --banner-cta-text: {{ shop_banner.cta_text_color }};{% endif %}"
+                style="background-image: url('{{ shop_banner_background_url }}'); --banner-primary: {{ shop_banner.primary_color|default:'#2563eb' }}; --banner-secondary: {{ shop_banner.secondary_color|default:'#7c3aed' }};{% if shop_banner.cta_background_color %} --banner-cta-bg: {{ shop_banner.cta_background_color }};{% endif %}{% if shop_banner.cta_text_color %} --banner-cta-text: {{ shop_banner.cta_text_color }};{% endif %}"
             {% elif shop_banner %}
                 style="--banner-primary: {{ shop_banner.primary_color|default:'#2563eb' }}; --banner-secondary: {{ shop_banner.secondary_color|default:'#7c3aed' }};{% if shop_banner.cta_background_color %} --banner-cta-bg: {{ shop_banner.cta_background_color }};{% endif %}{% if shop_banner.cta_text_color %} --banner-cta-text: {{ shop_banner.cta_text_color }};{% endif %}"
             {% endif %}

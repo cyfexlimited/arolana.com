@@ -163,6 +163,12 @@
         box-shadow: 0 25px 40px rgba(0, 0, 0, 0.15);
     }
 
+    .arolana-deferred-content {
+        contain: layout paint style;
+        content-visibility: auto;
+        contain-intrinsic-size: auto 430px;
+    }
+
     /* Animated Price Tag */
     .price-pulse {
         animation: priceGlow 2s ease-in-out infinite;
@@ -527,7 +533,9 @@
 	                            <img src="{{ gallery_images.0.src }}" alt="{{ gallery_images.0.alt|default:product.name }}"
 	                                 class="w-full h-96 object-contain cursor-zoom-in transition-transform duration-700 group-hover:scale-105"
 	                                 id="main-product-image"
-	                                 data-gallery-index="0">
+	                                 data-gallery-index="0"
+                                     fetchpriority="high"
+                                     decoding="async">
 	                        {% else %}
 	                            <div class="w-full h-96 flex items-center justify-center">
 	                                <i class="fas fa-image text-6xl text-gray-400"></i>
@@ -571,7 +579,9 @@
 	                                data-gallery-alt="{{ image.alt|default:product.name }}">
 	                            <img src="{{ image.src }}"
 	                                 alt="{{ image.alt|default:product.name }}"
-	                                 class="w-20 h-20 object-cover rounded-lg cursor-pointer border-2 transition-all hover:border-blue-500 hover:scale-105 thumbnail-img {% if forloop.first %}active border-blue-500{% endif %}">
+	                                 class="w-20 h-20 object-cover rounded-lg cursor-pointer border-2 transition-all hover:border-blue-500 hover:scale-105 thumbnail-img {% if forloop.first %}active border-blue-500{% endif %}"
+                                     loading="{% if forloop.first %}eager{% else %}lazy{% endif %}"
+                                     decoding="async">
 	                        </button>
 	                        {% endfor %}
 	                    </div>
@@ -837,8 +847,8 @@
         <div class="border-b flex flex-wrap gap-2 px-6 pt-4 bg-gray-50">
             <button @click="tab='overview'" :class="{'modern-tab active': tab=='overview'}" class="px-6 py-3 font-semibold transition-all">Overview</button>
             <button @click="tab='specs'" :class="{'modern-tab active': tab=='specs'}" class="px-6 py-3 font-semibold transition-all">Specifications</button>
-            <button @click="tab='reviews'" :class="{'modern-tab active': tab=='reviews'}" class="px-6 py-3 font-semibold transition-all">Reviews ({{ product.reviews.count }})</button>
-	            <button @click="tab='qa'" :class="{'modern-tab active': tab=='qa'}" class="px-6 py-3 font-semibold transition-all">Q&A ({{ product.questions.count }})</button>
+            <button @click="tab='reviews'" :class="{'modern-tab active': tab=='reviews'}" class="px-6 py-3 font-semibold transition-all">Reviews ({{ product.rating_count }})</button>
+	            <button @click="tab='qa'" :class="{'modern-tab active': tab=='qa'}" class="px-6 py-3 font-semibold transition-all">Q&A ({{ question_count }})</button>
             <button data-product-videos-tab @click="tab='videos'" :class="{'modern-tab active': tab=='videos'}" class="px-6 py-3 font-semibold transition-all">Videos</button>
             {% if product_article_links_tab %}
             <button @click="tab='articles'" :class="{'modern-tab active': tab=='articles'}" class="px-6 py-3 font-semibold transition-all">Articles</button>
@@ -961,7 +971,7 @@
                     </div>
                     <div class="lg:col-span-2">
                         <div class="space-y-4 max-h-96 overflow-y-auto pr-4">
-                            {% for review in product.reviews.all|slice:":10" %}
+                            {% for review in product.visible_reviews %}
                             <div class="review-card border-b pb-4 hover:bg-gray-50 p-3 rounded-lg transition">
                                 <div class="flex items-center justify-between mb-2">
                                     <div class="flex text-yellow-400">{{ review.rating|rating_stars|safe }}</div>
@@ -1020,7 +1030,7 @@
             <!-- Q&A Tab -->
             <div x-show="tab=='qa'" x-transition.duration.300ms>
                 <div class="space-y-4 max-h-96 overflow-y-auto pr-4">
-	                    {% for qa in product.questions.all|slice:":10" %}
+	                    {% for qa in product.visible_questions %}
                     <div class="border-b pb-4 hover:bg-gray-50 p-3 rounded-lg transition">
                         <div class="flex items-start gap-3">
                             <i class="fas fa-question-circle text-blue-500 mt-1 text-xl"></i>
@@ -1183,18 +1193,19 @@
 
     <!-- Frequently Bought Together -->
     {% if frequently_bought_together %}
-    <div class="mt-12">
+    <div class="mt-12 arolana-deferred-content">
         <div class="section-header">
             <h2 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent">Frequently Bought Together</h2>
             <a href="#" class="text-blue-600 text-sm hover:underline">View All →</a>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {% for item in frequently_bought_together|slice:":12" %}
+            {% for item in frequently_bought_together %}
             <div class="ai-card bg-white rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300">
                 <a href="{{ item.get_absolute_url }}" class="block">
                     <div class="relative h-40 overflow-hidden">
                         {% if item.main_image %}
-                            <img src="{{ item.main_image.url }}" alt="{{ item.name }}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110">
+                            {% optimized_image_url item.main_image 'product_card' as recommendation_image_url %}
+                            <img src="{{ recommendation_image_url }}" alt="{{ item.name }}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110" loading="lazy" decoding="async">
                         {% else %}
                             <div class="w-full h-full bg-gray-100 flex items-center justify-center">
                                 <i class="fas fa-image text-4xl text-gray-400"></i>
@@ -1227,18 +1238,19 @@
 
     <!-- You May Also Like -->
     {% if related_products %}
-    <div class="mt-12">
+    <div class="mt-12 arolana-deferred-content">
         <div class="section-header">
             <h2 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent">You May Also Like</h2>
             <a href="#" class="text-blue-600 text-sm hover:underline">View All →</a>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {% for related in related_products|slice:":12" %}
+            {% for related in related_products %}
             <div class="ai-card bg-white rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300">
                 <a href="{{ related.get_absolute_url }}" class="block">
                     <div class="relative h-40 overflow-hidden">
                         {% if related.main_image %}
-                            <img src="{{ related.main_image.url }}" alt="{{ related.name }}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110">
+                            {% optimized_image_url related.main_image 'product_card' as recommendation_image_url %}
+                            <img src="{{ recommendation_image_url }}" alt="{{ related.name }}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110" loading="lazy" decoding="async">
                         {% else %}
                             <div class="w-full h-full bg-gray-100 flex items-center justify-center">
                                 <i class="fas fa-image text-4xl text-gray-400"></i>
@@ -1268,18 +1280,19 @@
 
     <!-- Top Rated Similar -->
     {% if top_rated_similar %}
-    <div class="mt-12">
+    <div class="mt-12 arolana-deferred-content">
         <div class="section-header">
             <h2 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent">Top Rated Similar</h2>
             <a href="#" class="text-blue-600 text-sm hover:underline">View All →</a>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {% for item in top_rated_similar|slice:":12" %}
+            {% for item in top_rated_similar %}
             <div class="ai-card bg-white rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300">
                 <a href="{{ item.get_absolute_url }}" class="block">
                     <div class="relative h-40 overflow-hidden">
                         {% if item.main_image %}
-                            <img src="{{ item.main_image.url }}" alt="{{ item.name }}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110">
+                            {% optimized_image_url item.main_image 'product_card' as recommendation_image_url %}
+                            <img src="{{ recommendation_image_url }}" alt="{{ item.name }}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110" loading="lazy" decoding="async">
                         {% else %}
                             <div class="w-full h-full bg-gray-100 flex items-center justify-center">
                                 <i class="fas fa-image text-4xl text-gray-400"></i>
@@ -1306,18 +1319,19 @@
 
     <!-- Best Sellers in Category -->
     {% if best_sellers %}
-    <div class="mt-12">
+    <div class="mt-12 arolana-deferred-content">
         <div class="section-header">
             <h2 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent">Best Sellers in {{ product.category.name }}</h2>
             <a href="#" class="text-blue-600 text-sm hover:underline">View All →</a>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {% for item in best_sellers|slice:":12" %}
+            {% for item in best_sellers %}
             <div class="ai-card bg-white rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300">
                 <a href="{{ item.get_absolute_url }}" class="block">
                     <div class="relative h-40 overflow-hidden">
                         {% if item.main_image %}
-                            <img src="{{ item.main_image.url }}" alt="{{ item.name }}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110">
+                            {% optimized_image_url item.main_image 'product_card' as recommendation_image_url %}
+                            <img src="{{ recommendation_image_url }}" alt="{{ item.name }}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110" loading="lazy" decoding="async">
                         {% else %}
                             <div class="w-full h-full bg-gray-100 flex items-center justify-center">
                                 <i class="fas fa-image text-4xl text-gray-400"></i>
@@ -1347,7 +1361,7 @@
 
     <!-- Recently Viewed -->
     {% if recently_viewed %}
-    <div class="mt-12">
+    <div class="mt-12 arolana-deferred-content">
         <div class="section-header">
             <h2 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent">Recently Viewed</h2>
             <a href="#" class="text-blue-600 text-sm hover:underline">Clear History</a>
@@ -1357,7 +1371,8 @@
             <a href="{{ item.product.get_absolute_url }}" class="ai-card bg-white rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300">
                 <div class="relative h-40 overflow-hidden">
                     {% if item.product.main_image %}
-                        <img src="{{ item.product.main_image.url }}" alt="{{ item.product.name }}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110">
+                        {% optimized_image_url item.product.main_image 'product_card' as recommendation_image_url %}
+                        <img src="{{ recommendation_image_url }}" alt="{{ item.product.name }}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110" loading="lazy" decoding="async">
                     {% else %}
                         <div class="w-full h-full bg-gray-100 flex items-center justify-center">
                             <i class="fas fa-image text-4xl text-gray-400"></i>
@@ -1378,7 +1393,7 @@
 
     <!-- Pick Up Where You Left Off -->
     {% if recently_viewed %}
-    <div class="mt-12 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-8 text-white">
+    <div class="mt-12 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-8 text-white arolana-deferred-content">
         <div class="flex items-center justify-between mb-6">
             <div>
                 <h2 class="text-2xl font-bold">Pick Up Where You Left Off</h2>
@@ -1391,7 +1406,8 @@
             <a href="{{ item.product.get_absolute_url }}" class="bg-white rounded-xl overflow-hidden text-gray-800 hover:shadow-2xl transition transform hover:scale-105">
                 <div class="h-32 overflow-hidden">
                     {% if item.product.main_image %}
-                        <img src="{{ item.product.main_image.url }}" alt="{{ item.product.name }}" class="w-full h-full object-cover">
+                        {% optimized_image_url item.product.main_image 'product_card' as recommendation_image_url %}
+                        <img src="{{ recommendation_image_url }}" alt="{{ item.product.name }}" class="w-full h-full object-cover" loading="lazy" decoding="async">
                     {% else %}
                         <div class="w-full h-full bg-gray-100 flex items-center justify-center">
                             <i class="fas fa-image text-3xl text-gray-400"></i>
@@ -1409,7 +1425,7 @@
     {% endif %}
 
     <!-- Explore More from Across the Store -->
-    <div class="mt-12">
+    <div class="mt-12 arolana-deferred-content">
         <div class="section-header">
             <h2 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent">Explore More from Across the Store</h2>
         </div>
@@ -1424,7 +1440,7 @@
                     {% endif %}
                 </div>
                 <p class="font-semibold text-sm group-hover:text-blue-600">{{ category.name }}</p>
-                <p class="text-xs text-gray-500">{{ category.product_count }} products</p>
+                <p class="text-xs text-gray-500">{{ category.approved_product_count }} products</p>
             </a>
             {% endfor %}
         </div>
@@ -1432,7 +1448,7 @@
 
     <!-- AI Smart Recommendations -->
     {% if ai_recommendations %}
-    <div class="mt-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white">
+    <div class="mt-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white arolana-deferred-content">
         <div class="flex items-center justify-between mb-6">
             <div>
                 <h2 class="text-2xl font-bold">Smart Recommendations</h2>
@@ -1441,12 +1457,13 @@
             <i class="fas fa-brain text-4xl"></i>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {% for item in ai_recommendations|slice:":12" %}
+            {% for item in ai_recommendations %}
             <div class="bg-white rounded-xl text-gray-800 overflow-hidden hover:shadow-2xl transition transform hover:scale-105">
                 <a href="{{ item.get_absolute_url }}">
                     <div class="h-32 overflow-hidden">
                         {% if item.main_image %}
-                            <img src="{{ item.main_image.url }}" class="w-full h-full object-cover">
+                            {% optimized_image_url item.main_image 'product_card' as recommendation_image_url %}
+                            <img src="{{ recommendation_image_url }}" alt="{{ item.name }}" class="w-full h-full object-cover" loading="lazy" decoding="async">
                         {% else %}
                             <div class="w-full h-full bg-gray-100 flex items-center justify-center">
                                 <i class="fas fa-image text-3xl text-gray-400"></i>

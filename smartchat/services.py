@@ -749,8 +749,16 @@ def operations_fallback_reply(conversation, user_message, context):
     )
 
 
-def ai_operations_reply(conversation, user_message, audience="customer", actor_user=None, rider=None):
+def ai_operations_reply(
+    conversation,
+    user_message,
+    audience="customer",
+    actor_user=None,
+    rider=None,
+    customer_memory=None,
+):
     context = build_operations_context(conversation, user_message, audience=audience, actor_user=actor_user, rider=rider)
+    context["customer_memory"] = customer_memory or []
     intent = context.get("intent", {})
     conversation.audience = audience or conversation.audience
     conversation.current_intent = intent.get("intent", "")

@@ -2,12 +2,19 @@ from django.core.management.base import BaseCommand
 
 from ads.models import AdBanner, AdCreative, Advertisement
 from core.media_optimization import get_optimized_image_url
-from core.models import SiteSettings
+from core.models import HomePageAppearance, SiteSettings
 from blog.models import BlogCategory, BlogPost
 from homepage.models import HomepageVideoSection
 from hero_banners.models import HeroBanner
 from manufacturers.models import Manufacturer
-from products.models import Category, Product, ProductImage, ProductVariant, ProductVariantImage
+from products.models import (
+    Category,
+    Product,
+    ProductImage,
+    ProductListingBanner,
+    ProductVariant,
+    ProductVariantImage,
+)
 from vendors.models import VendorProfile
 
 
@@ -21,7 +28,9 @@ class Command(BaseCommand):
         limit = options['limit']
         jobs = [
             (SiteSettings.objects.all(), [('site_logo', 'logo'), ('site_favicon', 'nav_icon'), ('footer_logo', 'logo')]),
+            (HomePageAppearance.objects.filter(is_active=True), [('desktop_background_image', 'hero'), ('mobile_background_image', 'hero')]),
             (Category.objects.filter(is_active=True), [('image', 'category_card'), ('background_image', 'hero')]),
+            (ProductListingBanner.objects.filter(is_active=True), [('background_image', 'hero'), ('side_image', 'category_card')]),
             (Product.objects.filter(is_active=True, approval_status='approved'), [('main_image', 'product_card'), ('video_thumbnail', 'product_card')]),
             (ProductImage.objects.filter(is_active=True), [('image', 'product_card')]),
             (ProductVariant.objects.filter(is_active=True), [('image', 'product_card')]),
@@ -49,7 +58,7 @@ class Command(BaseCommand):
                     if not image:
                         skipped += 1
                         continue
-                    get_optimized_image_url(image, preset)
+                    get_optimized_image_url(image, preset, force_generate=True)
                     generated += 1
 
         self.stdout.write(self.style.SUCCESS(f'Optimized media checked: {generated}; skipped empty fields: {skipped}'))

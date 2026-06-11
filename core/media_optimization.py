@@ -19,9 +19,10 @@ PRESETS = {
 }
 
 _LOCAL_URL_CACHE = {}
+_MISSING_OPTIMIZED = object()
 
 
-def get_optimized_image_url(image, preset='product_card'):
+def get_optimized_image_url(image, preset='product_card', force_generate=False):
     preset = _plain_string(preset or 'product_card')
 
     if not getattr(settings, 'OPTIMIZED_MEDIA_ENABLED', True):
@@ -44,12 +45,30 @@ def get_optimized_image_url(image, preset='product_card'):
     optimized_name = _optimized_name(original_name, preset)
     cache_key = f'optimized-image-url:{preset}:{original_name}'
 
+    if not force_generate and not getattr(
+        settings,
+        'OPTIMIZED_MEDIA_GENERATE_ON_REQUEST',
+        False,
+    ):
+        url = default_storage.url(optimized_name)
+        _local_cache_set(cache_key, url, 3600)
+        return url
+
     cached_url = _local_cache_get(cache_key)
+    if cached_url is _MISSING_OPTIMIZED:
+        return image.url
     if cached_url:
         return cached_url
 
     try:
         if not default_storage.exists(optimized_name):
+            if not force_generate and not getattr(
+                settings,
+                'OPTIMIZED_MEDIA_GENERATE_ON_REQUEST',
+                False,
+            ):
+                _local_cache_set(cache_key, _MISSING_OPTIMIZED, 3600)
+                return image.url
             _create_optimized_image(original_name, optimized_name, size)
         url = default_storage.url(optimized_name)
         _local_cache_set(cache_key, url, 3600)

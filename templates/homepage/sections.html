@@ -13,6 +13,9 @@
         --ah-section-background: transparent;
         background: var(--ah-section-background);
         border-radius: 16px;
+        contain: layout paint style;
+        content-visibility: auto;
+        contain-intrinsic-size: auto 720px;
         padding-inline: clamp(.25rem, 1.2vw, 1rem);
     }
 
@@ -295,9 +298,7 @@
         border: 1px solid rgba(213, 217, 217, .95);
         border-radius: 8px;
         overflow: hidden;
-        background: rgba(255, 255, 255, .78);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
+        background: rgba(255, 255, 255, .96);
     }
 
     .ah-featured-slider {
@@ -1007,7 +1008,7 @@
 
     .ah-product-card {
         scroll-snap-align: start;
-        background: rgba(255, 255, 255, .82);
+        background: rgba(255, 255, 255, .96);
         border: 1px solid rgba(226, 232, 240, .72);
         border-radius: 14px;
         box-shadow: 0 12px 28px rgba(15, 23, 42, .06);
@@ -1015,8 +1016,6 @@
         flex-direction: column;
         min-width: 0;
         overflow: hidden;
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
         transition: border-color .22s ease, box-shadow .22s ease, transform .22s ease, background .22s ease;
     }
 

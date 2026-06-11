@@ -1,0 +1,16 @@
+{% extends "admin/base_site.html" %}
+{% block title %}Smart Chat Settings{% endblock %}
+{% block content %}
+<h1>Smart Chat Settings</h1>
+<form method="post">{% csrf_token %}
+  <fieldset class="module aligned">
+    <div class="form-row"><label>Enabled</label><input type="checkbox" name="enabled" {% if ai_settings.enabled %}checked{% endif %}></div>
+    <div class="form-row"><label>Customer memory</label><input type="checkbox" name="memory_enabled" {% if ai_settings.memory_enabled %}checked{% endif %}></div>
+    <div class="form-row"><label>Learning candidates</label><input type="checkbox" name="learning_enabled" {% if ai_settings.learning_enabled %}checked{% endif %}></div>
+    <div class="form-row"><label for="model_name">Backend model</label><input id="model_name" name="model_name" value="{{ ai_settings.model_name }}"></div>
+    <div class="form-row"><label for="fallback_message">Low confidence response</label><input id="fallback_message" name="fallback_message" size="70" value="{{ ai_settings.fallback_message }}"></div>
+  </fieldset>
+  <div class="submit-row"><input type="submit" class="default" value="Save settings"></div>
+</form>
+<p>API keys are read only from server environment variables and are never displayed here.</p>
+{% endblock %}

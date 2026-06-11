@@ -16,6 +16,7 @@ from django.http import HttpResponse
 from decimal import Decimal, InvalidOperation
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
+from core.local_cache import local_get_or_set
 from .models import (
     Product, Category, ProductReview, Wishlist, RecentlyViewed, 
     ProductVariant, ProductQuestion, Accessory, AccessoryProduct,
@@ -85,10 +86,15 @@ def get_user_currency(request):
     user_currency = getattr(request, 'user_currency', None)
     
     if user_currency and isinstance(user_currency, str):
-        user_currency = Currency.objects.filter(
-            code=user_currency, 
-            is_active=True
-        ).first()
+        currency_code = user_currency.upper()
+        user_currency = local_get_or_set(
+            f"currency:active:{currency_code}",
+            lambda: Currency.objects.filter(
+                code=currency_code,
+                is_active=True,
+            ).first(),
+            300,
+        )
     
     if not user_currency:
         user_currency = get_base_currency()
@@ -107,14 +113,15 @@ def get_base_currency():
         or getattr(settings, 'CURRENCY_DEFAULT', None)
         or 'NGN'
     )
-    currency = Currency.objects.filter(code=base_code.upper(), is_active=True).first()
-    if currency:
-        return currency
-
-    return (
-        Currency.objects.filter(is_base=True, is_active=True).first()
-        or Currency.objects.filter(code='NGN', is_active=True).first()
-        or Currency.objects.filter(code='USD', is_active=True).first()
+    return local_get_or_set(
+        f"currency:base:{base_code.upper()}",
+        lambda: (
+            Currency.objects.filter(code=base_code.upper(), is_active=True).first()
+            or Currency.objects.filter(is_base=True, is_active=True).first()
+            or Currency.objects.filter(code='NGN', is_active=True).first()
+            or Currency.objects.filter(code='USD', is_active=True).first()
+        ),
+        300,
     )
 
 
@@ -965,7 +972,8 @@ def product_detail(request, slug):
         Product.objects.select_related(
             'category',
             'brand',
-            'vendor'
+            'vendor',
+            'vendor__vendor_profile',
         ).prefetch_related(
             Prefetch(
                 'images',
@@ -981,8 +989,18 @@ def product_detail(request, slug):
                 ).order_by('variant_type', 'name', 'value', 'id'),
                 to_attr='active_variants'
             ),
-            Prefetch('reviews', queryset=ProductReview.objects.select_related('user').order_by('-created_at')),
-            Prefetch('product_accessories__accessory', queryset=Accessory.objects.filter(is_active=True)),
+            Prefetch(
+                'reviews',
+                queryset=ProductReview.objects.select_related('user').order_by('-created_at')[:10],
+                to_attr='visible_reviews',
+            ),
+            Prefetch(
+                'product_accessories',
+                queryset=AccessoryProduct.objects.filter(
+                    accessory__is_active=True,
+                ).select_related('accessory'),
+                to_attr='active_accessory_links',
+            ),
             Prefetch(
                 'article_links',
                 queryset=ProductArticleLink.objects.filter(
@@ -991,10 +1009,18 @@ def product_detail(request, slug):
                 ).select_related('article', 'article__category', 'article__author').order_by('sort_order', '-article__published_at'),
                 to_attr='active_article_links'
             ),
-            'additional_videos',
+            Prefetch(
+                'additional_videos',
+                queryset=ProductVideo.objects.filter(is_active=True).order_by('display_order'),
+                to_attr='active_videos',
+            ),
             Prefetch(
                 'questions',
-                queryset=ProductQuestion.objects.filter(is_public=True).select_related('user', 'answered_by').order_by('-created_at')
+                queryset=ProductQuestion.objects.filter(is_public=True).select_related(
+                    'user',
+                    'answered_by',
+                ).order_by('-created_at')[:10],
+                to_attr='visible_questions',
             )
         ),
         slug=slug,
@@ -1165,12 +1191,10 @@ def product_detail(request, slug):
         }
 
     # ====== Accessories ======
-    accessories = product.product_accessories.filter(
-        accessory__is_active=True
-    ).select_related('accessory')
+    accessories = getattr(product, 'active_accessory_links', [])
 
     # ====== Videos ======
-    videos = product.additional_videos.order_by('display_order')
+    videos = getattr(product, 'active_videos', [])
 
     # ====== Editorial articles attached from admin ======
     product_article_links = list(getattr(product, 'active_article_links', []))
@@ -1191,7 +1215,7 @@ def product_detail(request, slug):
         '-is_featured',
         '-rating_avg',
         '-sales_count',
-    )[:12]
+    )[:8]
 
     top_rated = Product.objects.filter(
         category=product.category,
@@ -1203,7 +1227,7 @@ def product_detail(request, slug):
         top_rated,
         '-rating_avg',
         '-rating_count',
-    )[:12]
+    )[:8]
 
     bestsellers = Product.objects.filter(
         category=product.category,
@@ -1214,7 +1238,7 @@ def product_detail(request, slug):
         bestsellers,
         '-sales_count',
         '-rating_avg',
-    )[:12]
+    )[:8]
 
     frequently_bought_together = Product.objects.filter(
         is_active=True,
@@ -1224,7 +1248,7 @@ def product_detail(request, slug):
         frequently_bought_together,
         '-sales_count',
         '-rating_avg',
-    )[:12]
+    )[:8]
 
     # ====== Recently Viewed ======
     recently_viewed = []
@@ -1243,20 +1267,40 @@ def product_detail(request, slug):
         '-views_count',
         '-rating_avg',
         '-sales_count',
-    )[:12]
+    )[:8]
 
     # ====== Rating Percentages ======
     total_reviews = product.rating_count or 1
-    five_star_count = product.reviews.filter(rating=5).count()
-    four_star_count = product.reviews.filter(rating=4).count()
-    three_star_count = product.reviews.filter(rating=3).count()
+    review_breakdown = ProductReview.objects.filter(product=product).aggregate(
+        five_star_count=Count('id', filter=Q(rating=5)),
+        four_star_count=Count('id', filter=Q(rating=4)),
+        three_star_count=Count('id', filter=Q(rating=3)),
+    )
+    five_star_count = review_breakdown['five_star_count']
+    four_star_count = review_breakdown['four_star_count']
+    three_star_count = review_breakdown['three_star_count']
+    question_count = ProductQuestion.objects.filter(
+        product=product,
+        is_public=True,
+    ).count()
 
     five_star_percent = int((five_star_count / total_reviews) * 100)
     four_star_percent = int((four_star_count / total_reviews) * 100)
     three_star_percent = int((three_star_count / total_reviews) * 100)
 
     # ====== Explore Categories ======
-    all_categories = Category.objects.filter(is_active=True, parent=None).order_by('name')[:12]
+    all_categories = Category.objects.filter(
+        is_active=True,
+        parent=None,
+    ).annotate(
+        approved_product_count=Count(
+            'products',
+            filter=Q(
+                products__is_active=True,
+                products__approval_status='approved',
+            ),
+        )
+    ).order_by('name')[:12]
 
     # ====== Wishlist ======
     in_wishlist = False
@@ -1312,6 +1356,7 @@ def product_detail(request, slug):
         'five_star_percent': five_star_percent,
         'four_star_percent': four_star_percent,
         'three_star_percent': three_star_percent,
+        'question_count': question_count,
         'user_currency': user_currency,
         'product_detail_sections': ProductDetailSection.objects.filter(is_enabled=True, web_enabled=True).order_by('display_order', 'title'),
         'product_detail_fields': ProductDetailFieldConfig.objects.filter(is_enabled=True).order_by('display_order', 'label'),

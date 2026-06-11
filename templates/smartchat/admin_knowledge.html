@@ -1,0 +1,19 @@
+{% extends "admin/base_site.html" %}
+{% block title %}Smart Chat Knowledge{% endblock %}
+{% block content %}
+<h1>Smart Chat Knowledge</h1>
+<p><a class="button" href="{% url 'admin:smartchat_aiknowledgebase_add' %}">Add knowledge</a>
+  <a href="{% url 'admin:smartchat_aiknowledgebase_changelist' %}">Open full manager</a></p>
+<table>
+  <thead><tr><th>Question</th><th>Category</th><th>Audience</th><th>Approved</th><th>Active</th></tr></thead>
+  <tbody>
+  {% for item in knowledge %}
+    <tr>
+      <td><a href="{% url 'admin:smartchat_aiknowledgebase_change' item.id %}">{{ item.question }}</a></td>
+      <td>{{ item.category|default:"General" }}</td><td>{{ item.get_audience_display }}</td>
+      <td>{{ item.approved|yesno:"Yes,No" }}</td><td>{{ item.is_active|yesno:"Yes,No" }}</td>
+    </tr>
+  {% empty %}<tr><td colspan="5">No knowledge has been added yet.</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% endblock %}

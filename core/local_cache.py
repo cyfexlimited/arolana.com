@@ -1,23 +1,34 @@
 import time
 from threading import RLock
 
+from django.core.cache import cache
+
 
 _CACHE = {}
 _LOCK = RLock()
+_CACHE_MISS = object()
 
 
 def local_get(key):
     with _LOCK:
         cached = _CACHE.get(key)
-        if not cached:
-            return None
-
-        expires_at, value = cached
-        if expires_at <= time.monotonic():
+        if cached:
+            expires_at, value = cached
+            if expires_at > time.monotonic():
+                return value
             _CACHE.pop(key, None)
-            return None
 
-        return value
+    try:
+        value = cache.get(key, _CACHE_MISS)
+    except Exception:
+        return None
+
+    if value is _CACHE_MISS:
+        return None
+
+    with _LOCK:
+        _CACHE[key] = (time.monotonic() + 60, value)
+    return value
 
 
 def local_set(key, value, timeout):
@@ -25,17 +36,31 @@ def local_set(key, value, timeout):
         if len(_CACHE) > 10000:
             _prune_expired()
         _CACHE[key] = (time.monotonic() + timeout, value)
+    try:
+        cache.set(key, value, timeout)
+    except Exception:
+        pass
 
 
 def local_delete(key):
     with _LOCK:
         _CACHE.pop(key, None)
+    try:
+        cache.delete(key)
+    except Exception:
+        pass
 
 
 def local_delete_prefix(prefix):
     with _LOCK:
         for key in [key for key in _CACHE if key.startswith(prefix)]:
             _CACHE.pop(key, None)
+    try:
+        delete_pattern = getattr(cache, "delete_pattern", None)
+        if delete_pattern:
+            delete_pattern(f"{prefix}*")
+    except Exception:
+        pass
 
 
 def local_get_or_set(key, builder, timeout):
@@ -54,9 +79,7 @@ def local_get_or_set(key, builder, timeout):
             _CACHE.pop(key, None)
 
         value = builder()
-        if len(_CACHE) > 10000:
-            _prune_expired()
-        _CACHE[key] = (time.monotonic() + timeout, value)
+        local_set(key, value, timeout)
         return value
 
 

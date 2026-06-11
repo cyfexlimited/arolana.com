@@ -1,5 +1,7 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 
 
@@ -43,6 +45,13 @@ class SmartChatConversation(models.Model):
         blank=True,
         db_index=True,
         help_text="Visitor session key for guests.",
+    )
+    device_id = models.CharField(max_length=160, blank=True, db_index=True)
+    channel = models.CharField(
+        max_length=20,
+        choices=[("web", "Web"), ("mobile", "Mobile"), ("admin", "Admin")],
+        default="web",
+        db_index=True,
     )
 
     product = models.ForeignKey(
@@ -119,6 +128,7 @@ class SmartChatConversation(models.Model):
 
     ai_summary = models.TextField(blank=True)
     admin_requested_at = models.DateTimeField(null=True, blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
 
     last_message_at = models.DateTimeField(default=timezone.now, db_index=True)
 
@@ -238,7 +248,8 @@ class SmartChatConversation(models.Model):
 
     def close(self):
         self.status = self.STATUS_CLOSED
-        self.save(update_fields=["status", "updated_at"])
+        self.resolved_at = timezone.now()
+        self.save(update_fields=["status", "resolved_at", "updated_at"])
 
     def touch(self):
         self.last_message_at = timezone.now()
@@ -286,6 +297,12 @@ class SmartChatMessage(models.Model):
         help_text="Optional customer/admin image attachment.",
     )
     metadata = models.JSONField(default=dict, blank=True)
+    source_type = models.CharField(max_length=40, blank=True, db_index=True)
+    source_label = models.CharField(max_length=220, blank=True)
+    source_object_id = models.PositiveBigIntegerField(null=True, blank=True)
+    confidence = models.DecimalField(max_digits=5, decimal_places=4, null=True, blank=True)
+    is_read_by_customer = models.BooleanField(default=False, db_index=True)
+    is_read_by_admin = models.BooleanField(default=False, db_index=True)
 
     is_private_note = models.BooleanField(default=False)
 
@@ -320,6 +337,10 @@ class SmartChatMessage(models.Model):
         return "System"
 
     def save(self, *args, **kwargs):
+        if self.sender_type == self.SENDER_USER:
+            self.is_read_by_customer = True
+        elif self.sender_type in {self.SENDER_AI, self.SENDER_ADMIN, self.SENDER_SYSTEM}:
+            self.is_read_by_admin = True
         super().save(*args, **kwargs)
 
         SmartChatConversation.objects.filter(
@@ -412,3 +433,275 @@ class SmartChatSupportTicket(models.Model):
         self.status = self.STATUS_RESOLVED
         self.resolved_at = timezone.now()
         self.save(update_fields=["status", "resolved_at", "updated_at"])
+
+
+class AIConversation(SmartChatConversation):
+    class Meta:
+        proxy = True
+        verbose_name = "AI Conversation"
+        verbose_name_plural = "AI Conversations"
+
+
+class AIMessage(SmartChatMessage):
+    class Meta:
+        proxy = True
+        verbose_name = "AI Message"
+        verbose_name_plural = "AI Messages"
+
+
+class AIKnowledgeBase(models.Model):
+    AUDIENCE_CHOICES = [("all", "All")] + SmartChatConversation.AUDIENCE_CHOICES
+
+    question = models.CharField(max_length=500)
+    answer = models.TextField()
+    category = models.CharField(max_length=120, blank=True, db_index=True)
+    keywords = models.TextField(blank=True, help_text="Comma-separated search terms.")
+    audience = models.CharField(max_length=30, choices=AUDIENCE_CHOICES, default="all", db_index=True)
+    approved = models.BooleanField(default=False, db_index=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    priority = models.PositiveSmallIntegerField(default=50, db_index=True)
+    usage_count = models.PositiveIntegerField(default=0)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="created_ai_knowledge",
+    )
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="approved_ai_knowledge",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-priority", "question"]
+        indexes = [models.Index(fields=["approved", "is_active", "-priority"])]
+        verbose_name = "AI Knowledge Base"
+        verbose_name_plural = "AI Knowledge Base"
+
+    def __str__(self):
+        return self.question
+
+
+class AILearnedKnowledge(models.Model):
+    normalized_question = models.CharField(max_length=500, unique=True)
+    proposed_answer = models.TextField()
+    category = models.CharField(max_length=120, blank=True, db_index=True)
+    keywords = models.TextField(blank=True)
+    occurrence_count = models.PositiveIntegerField(default=1)
+    confidence = models.DecimalField(max_digits=5, decimal_places=4, default=0)
+    approved = models.BooleanField(default=False, db_index=True)
+    rejected = models.BooleanField(default=False, db_index=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    privacy_safe = models.BooleanField(default=False, db_index=True)
+    source_conversation = models.ForeignKey(
+        SmartChatConversation, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="learned_knowledge",
+    )
+    source_message = models.ForeignKey(
+        SmartChatMessage, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="learned_knowledge",
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="reviewed_ai_learning",
+    )
+    review_notes = models.TextField(blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-occurrence_count", "-updated_at"]
+        indexes = [models.Index(fields=["approved", "privacy_safe", "is_active"])]
+        verbose_name = "AI Learned Knowledge"
+        verbose_name_plural = "AI Learned Knowledge"
+
+    def __str__(self):
+        return self.normalized_question
+
+
+class AICustomerMemory(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True,
+        related_name="ai_customer_memories",
+    )
+    session_key = models.CharField(max_length=120, blank=True, db_index=True)
+    device_id = models.CharField(max_length=160, blank=True, db_index=True)
+    memory_key = models.CharField(max_length=120)
+    memory_value = models.TextField()
+    category = models.CharField(max_length=80, blank=True, db_index=True)
+    confidence = models.DecimalField(max_digits=5, decimal_places=4, default=1)
+    is_active = models.BooleanField(default=True, db_index=True)
+    source_conversation = models.ForeignKey(
+        SmartChatConversation, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="customer_memories",
+    )
+    source_message = models.ForeignKey(
+        SmartChatMessage, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="customer_memories",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(user__isnull=False) | ~Q(session_key="") | ~Q(device_id=""),
+                name="ai_memory_has_owner",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["user", "is_active"]),
+            models.Index(fields=["session_key", "is_active"]),
+            models.Index(fields=["device_id", "is_active"]),
+        ]
+        verbose_name = "AI Customer Memory"
+        verbose_name_plural = "AI Customer Memories"
+
+    def clean(self):
+        if not self.user_id and not self.session_key and not self.device_id:
+            raise ValidationError("Customer memory must have an owner.")
+
+    def __str__(self):
+        return f"{self.memory_key}: {self.memory_value[:80]}"
+
+
+class AIFeedback(models.Model):
+    conversation = models.ForeignKey(
+        SmartChatConversation, on_delete=models.CASCADE, related_name="feedback",
+    )
+    message = models.ForeignKey(
+        SmartChatMessage, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="feedback",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="ai_feedback",
+    )
+    session_key = models.CharField(max_length=120, blank=True, db_index=True)
+    device_id = models.CharField(max_length=160, blank=True, db_index=True)
+    rating = models.PositiveSmallIntegerField()
+    helpful = models.BooleanField(null=True, blank=True)
+    comment = models.TextField(blank=True)
+    is_reviewed = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "AI Feedback"
+        verbose_name_plural = "AI Feedback & Ratings"
+
+    def clean(self):
+        if not 1 <= int(self.rating or 0) <= 5:
+            raise ValidationError({"rating": "Rating must be from 1 to 5."})
+
+
+class AITrainingData(models.Model):
+    question = models.CharField(max_length=500)
+    answer = models.TextField()
+    category = models.CharField(max_length=120, blank=True, db_index=True)
+    keywords = models.TextField(blank=True)
+    audience = models.CharField(
+        max_length=30, choices=AIKnowledgeBase.AUDIENCE_CHOICES, default="all", db_index=True,
+    )
+    approved = models.BooleanField(default=False, db_index=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    priority = models.PositiveSmallIntegerField(default=50)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="created_ai_training_data",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-priority", "question"]
+        indexes = [models.Index(fields=["approved", "is_active", "-priority"])]
+        verbose_name = "AI Training Data"
+        verbose_name_plural = "AI Training Center"
+
+    def __str__(self):
+        return self.question
+
+
+class AISettings(models.Model):
+    enabled = models.BooleanField(default=True)
+    provider = models.CharField(max_length=40, default="openai")
+    model_name = models.CharField(max_length=120, default="gpt-5.5")
+    system_prompt = models.TextField(blank=True)
+    minimum_confidence = models.DecimalField(max_digits=5, decimal_places=4, default=0.45)
+    memory_enabled = models.BooleanField(default=True)
+    learning_enabled = models.BooleanField(default=True)
+    repeated_question_threshold = models.PositiveSmallIntegerField(default=3)
+    history_message_limit = models.PositiveSmallIntegerField(default=12)
+    polling_seconds = models.PositiveSmallIntegerField(default=6)
+    fallback_message = models.CharField(
+        max_length=300, default="Let me connect you with Arolana support.",
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="updated_ai_settings",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "AI Settings"
+        verbose_name_plural = "AI Settings"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return "Arolana Smart Chat Settings"
+
+
+class HumanTakeoverRequest(models.Model):
+    STATUS_PENDING = "pending"
+    STATUS_ASSIGNED = "assigned"
+    STATUS_RESOLVED = "resolved"
+    STATUS_CANCELLED = "cancelled"
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pending"),
+        (STATUS_ASSIGNED, "Assigned"),
+        (STATUS_RESOLVED, "Resolved"),
+        (STATUS_CANCELLED, "Cancelled"),
+    ]
+
+    conversation = models.ForeignKey(
+        SmartChatConversation, on_delete=models.CASCADE, related_name="takeover_requests",
+    )
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="ai_takeover_requests",
+    )
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="assigned_ai_takeovers", limit_choices_to={"is_staff": True},
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    priority = models.CharField(
+        max_length=20, choices=SmartChatSupportTicket.PRIORITY_CHOICES,
+        default=SmartChatSupportTicket.PRIORITY_NORMAL, db_index=True,
+    )
+    reason = models.TextField(blank=True)
+    requested_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    assigned_at = models.DateTimeField(null=True, blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-requested_at"]
+        indexes = [models.Index(fields=["status", "-requested_at"])]
+        verbose_name = "Human Takeover Request"
+        verbose_name_plural = "Human Takeover"
+
+    def __str__(self):
+        return f"Conversation #{self.conversation_id} - {self.get_status_display()}"

@@ -1,8 +1,25 @@
+import csv
+
 from django.contrib import admin
+from django.http import HttpResponse
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.html import format_html
 
-from .models import SmartChatConversation, SmartChatMessage, SmartChatSupportTicket
+from .models import (
+    AIConversation,
+    AICustomerMemory,
+    AIFeedback,
+    AIKnowledgeBase,
+    AILearnedKnowledge,
+    AIMessage,
+    AISettings,
+    AITrainingData,
+    HumanTakeoverRequest,
+    SmartChatConversation,
+    SmartChatMessage,
+    SmartChatSupportTicket,
+)
 
 
 class SmartChatMessageInline(admin.TabularInline):
@@ -539,3 +556,159 @@ class SmartChatSupportTicketAdmin(admin.ModelAdmin):
         self.message_user(request, f"{updated} ticket(s) closed.")
 
     mark_closed.short_description = "Close selected tickets"
+
+
+@admin.register(AIConversation)
+class AIConversationAdmin(admin.ModelAdmin):
+    list_display = ["id", "customer_display", "status", "channel", "assigned_admin", "last_message_at"]
+    list_filter = ["status", "channel", "audience", "assigned_admin"]
+    search_fields = ["title", "customer_name", "customer_email", "customer_phone", "messages__message"]
+    actions = ["mark_resolved", "assign_to_staff", "convert_answer_to_knowledge", "export_csv"]
+
+    @admin.action(description="Mark conversation resolved")
+    def mark_resolved(self, request, queryset):
+        queryset.update(status=SmartChatConversation.STATUS_CLOSED, resolved_at=timezone.now())
+
+    @admin.action(description="Assign selected conversations to me")
+    def assign_to_staff(self, request, queryset):
+        queryset.update(assigned_admin=request.user, status=SmartChatConversation.STATUS_ADMIN_ACTIVE)
+        HumanTakeoverRequest.objects.filter(
+            conversation__in=queryset,
+            status=HumanTakeoverRequest.STATUS_PENDING,
+        ).update(
+            status=HumanTakeoverRequest.STATUS_ASSIGNED,
+            assigned_to=request.user,
+            assigned_at=timezone.now(),
+        )
+
+    @admin.action(description="Convert latest answer to knowledge base")
+    def convert_answer_to_knowledge(self, request, queryset):
+        created = 0
+        for conversation in queryset:
+            answer = conversation.messages.filter(
+                sender_type__in=[SmartChatMessage.SENDER_AI, SmartChatMessage.SENDER_ADMIN],
+                is_private_note=False,
+            ).order_by("-id").first()
+            if not answer:
+                continue
+            question = conversation.messages.filter(
+                sender_type=SmartChatMessage.SENDER_USER,
+                id__lt=answer.id,
+            ).order_by("-id").first()
+            if not question:
+                continue
+            _, was_created = AIKnowledgeBase.objects.get_or_create(
+                question=question.message[:500],
+                defaults={
+                    "answer": answer.message,
+                    "created_by": request.user,
+                    "approved": False,
+                },
+            )
+            created += int(was_created)
+        self.message_user(request, f"{created} knowledge item(s) created for review.")
+
+    @admin.action(description="Export conversations CSV")
+    def export_csv(self, request, queryset):
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="smartchat-conversations.csv"'
+        writer = csv.writer(response)
+        writer.writerow(["ID", "Customer", "Email", "Phone", "Status", "Channel", "Created", "Last message"])
+        for item in queryset:
+            writer.writerow([
+                item.id, item.customer_display, item.customer_email, item.customer_phone,
+                item.status, item.channel, item.created_at.isoformat(), item.last_message_at.isoformat(),
+            ])
+        return response
+
+
+@admin.register(AIMessage)
+class AIMessageAdmin(admin.ModelAdmin):
+    list_display = ["id", "conversation", "sender_type", "source_type", "confidence", "created_at"]
+    list_filter = ["sender_type", "source_type", "is_read_by_customer", "is_read_by_admin"]
+    search_fields = ["message", "source_label", "conversation__customer_email"]
+    readonly_fields = ["created_at"]
+
+
+@admin.register(AIKnowledgeBase)
+class AIKnowledgeBaseAdmin(admin.ModelAdmin):
+    list_display = ["question", "category", "audience", "approved", "is_active", "priority", "usage_count"]
+    list_filter = ["approved", "is_active", "audience", "category"]
+    search_fields = ["question", "answer", "keywords"]
+    list_editable = ["approved", "is_active", "priority"]
+
+
+@admin.register(AILearnedKnowledge)
+class AILearnedKnowledgeAdmin(admin.ModelAdmin):
+    list_display = ["normalized_question", "occurrence_count", "confidence", "privacy_safe", "approved", "rejected", "is_active"]
+    list_filter = ["approved", "rejected", "privacy_safe", "is_active"]
+    search_fields = ["normalized_question", "proposed_answer", "keywords"]
+    actions = ["approve_learning", "reject_learning"]
+
+    @admin.action(description="Approve learned knowledge")
+    def approve_learning(self, request, queryset):
+        queryset.update(
+            approved=True, rejected=False, is_active=True, privacy_safe=True,
+            reviewed_by=request.user, approved_at=timezone.now(),
+        )
+
+    @admin.action(description="Reject learned knowledge")
+    def reject_learning(self, request, queryset):
+        queryset.update(
+            approved=False, rejected=True, is_active=False, reviewed_by=request.user,
+        )
+
+
+@admin.register(AICustomerMemory)
+class AICustomerMemoryAdmin(admin.ModelAdmin):
+    list_display = ["memory_key", "user", "category", "is_active", "confidence", "updated_at"]
+    list_filter = ["is_active", "category"]
+    search_fields = ["memory_key", "memory_value", "user__email", "session_key", "device_id"]
+    list_editable = ["is_active"]
+
+
+@admin.register(AIFeedback)
+class AIFeedbackAdmin(admin.ModelAdmin):
+    list_display = ["conversation", "rating", "helpful", "is_reviewed", "created_at"]
+    list_filter = ["rating", "helpful", "is_reviewed"]
+    search_fields = ["comment", "conversation__customer_email"]
+    list_editable = ["is_reviewed"]
+
+
+@admin.register(AITrainingData)
+class AITrainingDataAdmin(admin.ModelAdmin):
+    list_display = ["question", "category", "audience", "approved", "is_active", "priority"]
+    list_filter = ["approved", "is_active", "audience", "category"]
+    search_fields = ["question", "answer", "keywords"]
+    list_editable = ["approved", "is_active", "priority"]
+
+
+@admin.register(AISettings)
+class AISettingsAdmin(admin.ModelAdmin):
+    list_display = ["__str__", "enabled", "model_name", "memory_enabled", "learning_enabled", "updated_at"]
+
+    def has_add_permission(self, request):
+        return not AISettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(HumanTakeoverRequest)
+class HumanTakeoverRequestAdmin(admin.ModelAdmin):
+    list_display = ["conversation", "status", "priority", "assigned_to", "requested_at", "resolved_at"]
+    list_filter = ["status", "priority", "assigned_to"]
+    search_fields = ["reason", "conversation__customer_email", "conversation__customer_phone"]
+    actions = ["assign_to_me", "mark_resolved"]
+
+    @admin.action(description="Assign selected requests to me")
+    def assign_to_me(self, request, queryset):
+        queryset.update(
+            status=HumanTakeoverRequest.STATUS_ASSIGNED,
+            assigned_to=request.user,
+            assigned_at=timezone.now(),
+        )
+
+    @admin.action(description="Mark selected requests resolved")
+    def mark_resolved(self, request, queryset):
+        queryset.update(status=HumanTakeoverRequest.STATUS_RESOLVED, resolved_at=timezone.now())

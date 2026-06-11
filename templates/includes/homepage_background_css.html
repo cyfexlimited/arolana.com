@@ -6,7 +6,15 @@ templates/includes/homepage_background_css.html
 It works only on the homepage route where url_name == "home".
 {% endcomment %}
 
+{% load media_optimization %}
+
 {% if request.resolver_match.url_name == "home" and homepage_appearance and homepage_appearance.is_active %}
+{% if homepage_appearance.desktop_background_image %}
+    {% optimized_image_url homepage_appearance.desktop_background_image 'hero' as desktop_background_url %}
+{% endif %}
+{% if homepage_appearance.mobile_background_image %}
+    {% optimized_image_url homepage_appearance.mobile_background_image 'hero' as mobile_background_url %}
+{% endif %}
 <style>
     body {
         background: #F8FAFC !important;
@@ -19,8 +27,8 @@ It works only on the homepage route where url_name == "home".
         z-index: -2;
         pointer-events: none;
         background-image:
-            {% if homepage_appearance.desktop_background_image %}
-                url("{{ homepage_appearance.desktop_background_image.url }}")
+            {% if desktop_background_url %}
+                url("{{ desktop_background_url }}")
             {% else %}
                 none
             {% endif %};
@@ -28,9 +36,7 @@ It works only on the homepage route where url_name == "home".
         background-position: {{ homepage_appearance.desktop_position|default:"center center" }};
         background-repeat: no-repeat;
         background-attachment: {% if homepage_appearance.fixed_background %}fixed{% else %}scroll{% endif %};
-        filter: {% if homepage_appearance.blur_background %}blur(4px) saturate(1.08) contrast(1.05){% else %}saturate(1.08) contrast(1.05){% endif %};
-        transform: {% if homepage_appearance.blur_background %}scale(1.03){% else %}scale(1){% endif %};
-        transform-origin: center center;
+        filter: none;
     }
 
     body::after {
@@ -52,9 +58,7 @@ It works only on the homepage route where url_name == "home".
     body .luxury-product-card,
     body .category-card,
     body .product-card {
-        background-color: rgba(255, 255, 255, 0.88) !important;
-        backdrop-filter: blur(14px);
-        -webkit-backdrop-filter: blur(14px);
+        background-color: rgba(255, 255, 255, 0.96) !important;
     }
 
     body section,
@@ -68,10 +72,10 @@ It works only on the homepage route where url_name == "home".
     @media (max-width: 768px) {
         body::before {
             background-image:
-                {% if homepage_appearance.mobile_background_image %}
-                    url("{{ homepage_appearance.mobile_background_image.url }}")
-                {% elif homepage_appearance.desktop_background_image %}
-                    url("{{ homepage_appearance.desktop_background_image.url }}")
+                {% if mobile_background_url %}
+                    url("{{ mobile_background_url }}")
+                {% elif desktop_background_url %}
+                    url("{{ desktop_background_url }}")
                 {% else %}
                     none
                 {% endif %};
@@ -90,4 +94,3 @@ It works only on the homepage route where url_name == "home".
     }
 </style>
 {% endif %}
-

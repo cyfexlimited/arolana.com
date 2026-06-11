@@ -15,7 +15,16 @@ from django.db.models import Q
 from django.core.cache import cache
 
 from products.models import Product
-from .models import SmartChatConversation, SmartChatMessage, SmartChatSupportTicket
+from .models import (
+    AIKnowledgeBase,
+    AISettings,
+    AITrainingData,
+    HumanTakeoverRequest,
+    SmartChatConversation,
+    SmartChatMessage,
+    SmartChatSupportTicket,
+)
+from .ai_manager import create_managed_ai_message, request_human_takeover
 from .services import ai_operations_reply, openai_reply, should_handoff, make_conversation_title, create_system_message, create_support_ticket
 
 User = get_user_model()
@@ -464,18 +473,12 @@ def api_message(request):
     if product and not conversation.product_id:
         conversation.product = product
         conversation.save(update_fields=["product", "updated_at"])
-    reply, ai_context = ai_operations_reply(
+    ai_message = create_managed_ai_message(
         conversation,
-        message,
-        audience=SmartChatConversation.AUDIENCE_CUSTOMER,
-        actor_user=request.user if request.user.is_authenticated else None,
+        user_message,
+        request.user if request.user.is_authenticated else None,
     )
-    ai_message = SmartChatMessage.objects.create(
-        conversation=conversation,
-        sender_type=SmartChatMessage.SENDER_AI,
-        message=reply,
-        metadata={"model_mode": "ai_operations", "context": ai_context},
-    )
+    reply = ai_message.message
 
     return JsonResponse({
         "success": True,
@@ -593,6 +596,11 @@ def api_request_admin(request):
         SmartChatConversation.STATUS_ADMIN_ACTIVE,
     ]
     conversation.mark_admin_requested()
+    request_human_takeover(
+        conversation,
+        request.user if request.user.is_authenticated else None,
+        str(data.get("message", "Customer requested admin support.")).strip(),
+    )
     if not already_waiting:
         message = str(data.get("message", "Customer requested admin support.")).strip()
         create_system_message(conversation, message)
@@ -678,7 +686,19 @@ def admin_conversation(request, conversation_id):
     )
     if not conversation.assigned_admin:
         conversation.assign_admin(request.user)
+        HumanTakeoverRequest.objects.filter(
+            conversation=conversation,
+            status=HumanTakeoverRequest.STATUS_PENDING,
+        ).update(
+            status=HumanTakeoverRequest.STATUS_ASSIGNED,
+            assigned_to=request.user,
+            assigned_at=timezone.now(),
+        )
         create_system_message(conversation, f"{request.user.get_full_name() or request.user.username} joined the chat.")
+    conversation.messages.filter(
+        sender_type=SmartChatMessage.SENDER_USER,
+        is_private_note=False,
+    ).update(is_read_by_admin=True)
     messages = conversation.messages.select_related("user").order_by("created_at")
     return render(request, "smartchat/admin_conversation.html", {"conversation": conversation, "messages": messages})
 
@@ -702,6 +722,7 @@ def admin_reply(request, conversation_id):
             user=request.user,
             message=message,
             is_private_note=private_note,
+            is_read_by_customer=private_note,
         )
         _set_typing(conversation.id, "admin", False)
 
@@ -709,6 +730,27 @@ def admin_reply(request, conversation_id):
         if hasattr(conversation, "last_message_at"):
             conversation.last_message_at = admin_message.created_at
             conversation.save(update_fields=["last_message_at", "updated_at"])
+        if not private_note and conversation.user_id:
+            try:
+                from notifications.models import Notification
+
+                Notification.send(
+                    user=conversation.user,
+                    title="Arolana support replied",
+                    message=message[:500],
+                    notification_type="system",
+                    link=f"/smartchat/?conversation_id={conversation.id}",
+                    metadata={
+                        "screen": "ArolanaSmartChat",
+                        "smartchat_conversation_id": conversation.id,
+                    },
+                )
+            except Exception:
+                pass
+        if not private_note:
+            from .push import send_support_reply_push
+
+            send_support_reply_push(conversation, message)
     return redirect("smartchat:admin_conversation", conversation_id=conversation.id)
 
 
@@ -933,6 +975,7 @@ def _mobile_get_or_create_conversation(customer, payload):
     conversation = SmartChatConversation.objects.create(
         user=customer.user,
         session_key=f"mobile-{customer.id}",
+        channel="mobile",
         status=SmartChatConversation.STATUS_AI,
         audience=SmartChatConversation.AUDIENCE_CUSTOMER,
         title="Arolana Mobile Smart Chat",
@@ -1069,22 +1112,7 @@ def mobile_smartchat_send_api(request):
     if conversation.status in [SmartChatConversation.STATUS_ADMIN_REQUESTED, SmartChatConversation.STATUS_ADMIN_ACTIVE]:
         _mobile_notify_staff(conversation, user_message)
     else:
-        reply, ai_context = ai_operations_reply(
-            conversation,
-            message_text,
-            audience=SmartChatConversation.AUDIENCE_CUSTOMER,
-            actor_user=customer.user,
-        )
-        SmartChatMessage.objects.create(
-            conversation=conversation,
-            sender_type=SmartChatMessage.SENDER_AI,
-            message=reply,
-            metadata={
-                "model_mode": "ai_operations",
-                "context": ai_context,
-                "source": "arolana_mobile_app",
-            },
-        )
+        create_managed_ai_message(conversation, user_message, customer.user)
         if conversation.status in [SmartChatConversation.STATUS_ADMIN_REQUESTED, SmartChatConversation.STATUS_ADMIN_ACTIVE]:
             _mobile_notify_staff(conversation, user_message)
 
@@ -1205,8 +1233,10 @@ def mobile_smartchat_mark_read_api(request):
     except Exception as error:
         return _mobile_json_error(error, status=400)
 
-    # Your existing SmartChatMessage model does not currently have customer read flags,
-    # so this is intentionally a safe no-op for now.
+    conversation.messages.filter(
+        sender_type__in=[SmartChatMessage.SENDER_AI, SmartChatMessage.SENDER_ADMIN],
+        is_private_note=False,
+    ).update(is_read_by_customer=True)
     return JsonResponse(
         {
             "success": True,
@@ -1216,6 +1246,37 @@ def mobile_smartchat_mark_read_api(request):
             "messages": _mobile_conversation_payload(conversation)["messages"],
         }
     )
+
+
+@staff_member_required
+def admin_knowledge(request):
+    return render(request, "smartchat/admin_knowledge.html", {
+        "knowledge": AIKnowledgeBase.objects.select_related("approved_by").order_by("-updated_at")[:200],
+    })
+
+
+@staff_member_required
+def admin_training(request):
+    return render(request, "smartchat/admin_training.html", {
+        "training": AITrainingData.objects.order_by("-updated_at")[:200],
+    })
+
+
+@staff_member_required
+def admin_settings(request):
+    settings_obj = AISettings.load()
+    if request.method == "POST":
+        settings_obj.enabled = request.POST.get("enabled") == "on"
+        settings_obj.memory_enabled = request.POST.get("memory_enabled") == "on"
+        settings_obj.learning_enabled = request.POST.get("learning_enabled") == "on"
+        settings_obj.model_name = str(request.POST.get("model_name") or settings_obj.model_name)[:120]
+        settings_obj.fallback_message = str(
+            request.POST.get("fallback_message") or settings_obj.fallback_message
+        )[:300]
+        settings_obj.updated_by = request.user
+        settings_obj.save()
+        return redirect("smartchat:admin_settings")
+    return render(request, "smartchat/admin_settings.html", {"ai_settings": settings_obj})
 
 
 def _ticket_payload(ticket):

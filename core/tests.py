@@ -1,7 +1,12 @@
+from types import SimpleNamespace
+from unittest.mock import patch
+
 from django.core.cache import cache
 from django.http import HttpResponse
-from django.test import Client, RequestFactory, TestCase, override_settings
+from django.test import Client, RequestFactory, SimpleTestCase, TestCase, override_settings
 
+from . import local_cache
+from .media_optimization import get_optimized_image_url
 from .middleware import ArolanaRateLimitMiddleware, ArolanaSecurityHeadersMiddleware
 
 
@@ -58,3 +63,37 @@ class ArolanaSecurityMiddlewareTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "ok")
+
+
+class PerformanceHelperTests(SimpleTestCase):
+    def tearDown(self):
+        cache.clear()
+        local_cache._CACHE.clear()
+
+    def test_local_cache_falls_back_to_shared_cache(self):
+        local_cache.local_set("performance:test", {"ready": True}, 60)
+        local_cache._CACHE.clear()
+
+        self.assertEqual(
+            local_cache.local_get("performance:test"),
+            {"ready": True},
+        )
+
+    @override_settings(OPTIMIZED_MEDIA_GENERATE_ON_REQUEST=False)
+    def test_optimized_image_url_skips_storage_checks_during_request(self):
+        image = SimpleNamespace(
+            name="products/example.jpg",
+            url="/media/products/example.jpg",
+        )
+
+        with patch("core.media_optimization.default_storage") as storage:
+            storage.url.return_value = "/media/optimized/product_card/products/example.webp"
+
+            result = get_optimized_image_url(image, "product_card")
+
+        self.assertEqual(
+            result,
+            "/media/optimized/product_card/products/example.webp",
+        )
+        storage.exists.assert_not_called()
+        storage.open.assert_not_called()
