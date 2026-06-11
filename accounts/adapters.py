@@ -5,6 +5,8 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 
+from .utils.email_subjects import format_arolana_subject
+
 User = get_user_model()
 
 class CustomAccountAdapter(DefaultAccountAdapter):
@@ -37,6 +39,10 @@ class CustomAccountAdapter(DefaultAccountAdapter):
         """Custom email sending"""
         msg = self.render_mail(template_prefix, email, context)
         msg.send()
+
+    def format_email_subject(self, subject):
+        """Ensure allauth never repeats the Arolana subject prefix."""
+        return format_arolana_subject(subject)
     
     def clean_email(self, email):
         """Validate email"""
@@ -106,7 +112,10 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
         user.save(update_fields=['google_id', 'user_type', 'email_verified', 'updated_at'])
 
         from .models import UserProfile
-        from .utils.messaging import send_registration_messages, sync_newsletter_subscriber
+        from .utils.messaging import (
+            send_registration_messages_once,
+            sync_newsletter_subscriber,
+        )
 
         UserProfile.objects.get_or_create(
             user=user,
@@ -117,7 +126,7 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
             }
         )
         sync_newsletter_subscriber(user, subscribe=False, source=provider or 'social')
-        send_registration_messages(user, request)
+        send_registration_messages_once(user, request)
         return user
     
     def get_connect_redirect_url(self, request, socialaccount):

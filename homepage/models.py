@@ -1,7 +1,7 @@
 from django.db import models
 from django.core.validators import MaxValueValidator, MinValueValidator
 from core.models import BaseModel
-from core.local_cache import local_delete
+from core.local_cache import local_delete, local_delete_prefix
 from products.models import Category, Product
 from vendors.models import VendorProfile
 import re
@@ -20,6 +20,15 @@ class HomepageCategory(BaseModel):
     
     def __str__(self):
         return f"{self.category.name if self.category else 'No Category'} (Order: {self.display_order})"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        local_delete("homepage:categories")
+
+    def delete(self, *args, **kwargs):
+        result = super().delete(*args, **kwargs)
+        local_delete("homepage:categories")
+        return result
 
 class HomepageBanner(BaseModel):
     """Manageable promo banner on homepage"""
@@ -194,7 +203,12 @@ class HomepageBanner(BaseModel):
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        local_delete("homepage:banners:v4")
+        local_delete_prefix("homepage:banners:v4")
+
+    def delete(self, *args, **kwargs):
+        result = super().delete(*args, **kwargs)
+        local_delete_prefix("homepage:banners:v4")
+        return result
 
 class HomepageSection(BaseModel):
     """Manageable sections on homepage"""
@@ -243,6 +257,15 @@ class HomepageSection(BaseModel):
             return queryset.order_by('-sales_count')[:self.products_limit]
         else:
             return queryset[:self.products_limit]
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        local_delete("homepage:sections")
+
+    def delete(self, *args, **kwargs):
+        result = super().delete(*args, **kwargs)
+        local_delete("homepage:sections")
+        return result
 
 class HomepageVendorSettings(BaseModel):
     """Settings for vendor carousel on homepage"""
@@ -373,6 +396,15 @@ class HomepageBannerImage(BaseModel):
     
     def __str__(self):
         return f"Image for {self.banner.title} - {self.position}"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        local_delete_prefix("homepage:banners:v4")
+
+    def delete(self, *args, **kwargs):
+        result = super().delete(*args, **kwargs)
+        local_delete_prefix("homepage:banners:v4")
+        return result
 
 class HomepageManufacturerSettings(BaseModel):
     """Settings for manufacturers section on homepage"""

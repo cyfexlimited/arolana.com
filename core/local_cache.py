@@ -32,6 +32,12 @@ def local_delete(key):
         _CACHE.pop(key, None)
 
 
+def local_delete_prefix(prefix):
+    with _LOCK:
+        for key in [key for key in _CACHE if key.startswith(prefix)]:
+            _CACHE.pop(key, None)
+
+
 def local_get_or_set(key, builder, timeout):
     cached = local_get(key)
     if cached is not None:

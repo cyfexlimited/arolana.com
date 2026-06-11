@@ -11,6 +11,8 @@ from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from datetime import timedelta
 
+from accounts.utils.email_subjects import format_arolana_subject
+
 logger = logging.getLogger(__name__)
 
 def mask_destination(value, visible=4):
@@ -135,13 +137,15 @@ def send_otp_email(email, otp_code, otp_type='email', user=None):
         return False
 
     subject_map = {
-        'email': "Email Verification - Arolana",
-        'login': "Login Verification Code - Arolana",
-        'password_reset': "Password Reset Code - Arolana",
-        'two_factor': "Two-Factor Authentication - Arolana",
+        'email': "Email verification code",
+        'login': "Login verification code",
+        'password_reset': "Password reset code",
+        'two_factor': "Two-factor authentication code",
     }
     
-    subject = subject_map.get(otp_type, "Verification Code - Arolana")
+    subject = format_arolana_subject(
+        subject_map.get(otp_type, "Verification code")
+    )
     
     # Email verification intentionally uses OTP entry only. Do not include
     # one-click login/verification links in registration emails.

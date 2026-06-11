@@ -2,9 +2,11 @@ from collections import defaultdict
 
 from django.conf import settings
 from django.core.mail import send_mail
+from django.utils import timezone
 from django.urls import reverse
 
 from accounts.models import RegistrationMessageTemplate
+from accounts.utils.email_subjects import format_arolana_subject
 
 
 class SafeFormatDict(defaultdict):
@@ -105,7 +107,7 @@ def send_registration_messages(user, request=None):
 
     sent_count = 0
     for template in templates:
-        subject = template.render_subject(context)
+        subject = format_arolana_subject(template.render_subject(context))
         body = template.render_body(context)
         if template.channel in ['email', 'both']:
             send_mail(
@@ -125,3 +127,18 @@ def send_registration_messages(user, request=None):
                 link=template.notification_link or '/accounts/profile/',
             )
     return sent_count
+
+
+def send_registration_messages_once(user, request=None):
+    """Claim and send post-verification registration messages once per user."""
+    claimed_at = timezone.now()
+    claimed = user.__class__.objects.filter(
+        pk=user.pk,
+        registration_messages_sent_at__isnull=True,
+    ).update(registration_messages_sent_at=claimed_at)
+
+    if not claimed:
+        return 0
+
+    user.registration_messages_sent_at = claimed_at
+    return send_registration_messages(user, request)

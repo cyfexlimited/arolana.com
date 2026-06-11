@@ -3611,8 +3611,48 @@
         <i class="fas fa-arrow-up text-xl"></i>
     </button>
 
+    <style>
+        #cookie-consent {
+            bottom: max(0.75rem, env(safe-area-inset-bottom));
+            left: 0.75rem;
+            max-height: calc(100dvh - 1.5rem - env(safe-area-inset-bottom));
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            right: 0.75rem;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        #cookie-consent .cookie-consent-actions {
+            background: rgba(17, 24, 39, 0.98);
+            bottom: 0;
+            padding-top: 0.75rem;
+            position: sticky;
+        }
+
+        @media (min-width: 640px) {
+            #cookie-consent {
+                bottom: 1.5rem;
+                left: 1.5rem;
+                max-height: calc(100dvh - 3rem);
+                right: 1.5rem;
+            }
+
+            #cookie-consent .cookie-consent-actions {
+                background: transparent;
+                bottom: auto;
+                padding: 0;
+                position: static;
+            }
+        }
+    </style>
+
     <div id="cookie-consent"
-         class="fixed left-3 right-3 bottom-[calc(env(safe-area-inset-bottom)+72px)] sm:left-6 sm:right-6 sm:bottom-6 bg-gray-900/95 backdrop-blur-xl text-white p-4 sm:p-6 z-[100000] translate-y-full transition-transform duration-300 shadow-2xl rounded-2xl border border-white/10">
+         class="fixed bg-gray-900/95 backdrop-blur-xl text-white p-4 sm:p-6 z-[100001] translate-y-full transition-transform duration-300 shadow-2xl rounded-2xl border border-white/10"
+         role="dialog"
+         aria-label="Cookie preferences"
+         aria-live="polite"
+         aria-hidden="true"
+         inert>
         <div class="mx-auto max-w-6xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div class="flex items-start gap-3 min-w-0">
                 <i class="fas fa-cookie-bite text-2xl text-brand mt-1 shrink-0"></i>
@@ -3621,7 +3661,7 @@
                 </p>
             </div>
 
-            <div class="flex gap-3 shrink-0 w-full sm:w-auto">
+            <div class="cookie-consent-actions flex gap-3 shrink-0 w-full sm:w-auto">
                 <button type="button" id="accept-cookies" class="flex-1 sm:flex-none btn-luxury btn-primary-luxury">
                     Accept
                 </button>
@@ -3659,17 +3699,39 @@
             const acceptBtn = document.getElementById("accept-cookies");
             const declineBtn = document.getElementById("decline-cookies");
 
-            if (!banner) return;
+            if (!banner || banner.dataset.initialized === "true") return;
+            banner.dataset.initialized = "true";
 
-            if (!localStorage.getItem("cookieConsent")) {
+            function getStoredConsent() {
+                try {
+                    return window.localStorage.getItem("cookieConsent");
+                } catch (error) {
+                    return null;
+                }
+            }
+
+            function storeConsent(value) {
+                try {
+                    window.localStorage.setItem("cookieConsent", value);
+                } catch (error) {
+                    // The choice still applies for the current page when storage is unavailable.
+                }
+            }
+
+            if (!getStoredConsent()) {
                 setTimeout(function () {
                     banner.classList.remove("translate-y-full");
                     banner.style.transform = "translateY(0)";
+                    banner.setAttribute("aria-hidden", "false");
+                    banner.inert = false;
                 }, 800);
             }
 
             function hideCookieBanner(value) {
-                localStorage.setItem("cookieConsent", value);
+                storeConsent(value);
+                banner.setAttribute("aria-hidden", "true");
+                banner.inert = true;
+                banner.style.pointerEvents = "none";
                 banner.style.transform = "translateY(140%)";
                 banner.classList.add("translate-y-full");
             }

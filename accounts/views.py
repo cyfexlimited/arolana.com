@@ -23,7 +23,10 @@ from django.utils.http import urlsafe_base64_decode
 from .models import User, UserProfile, UserOTP, UserActivityLog, NewsletterSubscriber, Address
 from products.models import Product, RecentlyViewed, Wishlist
 from .utils.otp_utils import create_otp, verify_otp
-from .utils.messaging import send_registration_messages, sync_newsletter_subscriber
+from .utils.messaging import (
+    send_registration_messages_once,
+    sync_newsletter_subscriber,
+)
 from .tokens import account_activation_token
 from .forms import (
     normalize_and_validate_real_email,
@@ -379,13 +382,7 @@ def register_view(request):
             except Exception as e:
                 logger.warning(f'Could not create KYC record for {user.email}: {e}')
         
-        create_notification(
-            user, 'success', '🎉 Welcome to Arolana!',
-            'Thank you for joining Arolana.com. Start exploring our products and enjoy exclusive deals!',
-            '/products/'
-        )
         email_otp = create_otp(user, user.email, 'email')
-        send_registration_messages(user, request)
         
         log_user_activity(user, 'register', request, {'method': 'email'})
 
@@ -1060,9 +1057,10 @@ def verify_email_token(request, uidb64, token):
     if user is not None and account_activation_token.check_token(user, token):
         if not user.email_verified:
             user.email_verified = True
-            user.save()
+            user.save(update_fields=['email_verified', 'updated_at'])
             UserOTP.objects.filter(user=user, otp_type='email', is_used=False).update(is_used=True)
             create_notification(user, 'system', 'Email Verified', 'Your email address has been successfully verified!', '/accounts/profile/')
+            send_registration_messages_once(user, request)
             messages.success(request, 'Email verified successfully!')
         else:
             messages.info(request, 'Your email is already verified.')
@@ -1101,8 +1099,9 @@ def verify_email(request):
         
         if success:
             user.email_verified = True
-            user.save()
+            user.save(update_fields=['email_verified', 'updated_at'])
             create_notification(user, 'system', '✅ Email Verified', 'Your email address has been successfully verified!', '/accounts/profile/')
+            send_registration_messages_once(user, request)
             messages.success(request, "Email verified successfully!")
 
             if request.user.is_authenticated:

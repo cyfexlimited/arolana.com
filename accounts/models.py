@@ -27,6 +27,7 @@ class User(AbstractUser, BaseModel):
     
     # Verification fields
     email_verified = models.BooleanField(default=False)
+    registration_messages_sent_at = models.DateTimeField(null=True, blank=True)
     phone_verified = models.BooleanField(default=False)
     two_factor_enabled = models.BooleanField(default=False)
     

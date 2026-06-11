@@ -155,7 +155,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
 
     # Products API
-    path("api/", include("products.urls")),
+    path("api/", include("products.urls", namespace="products_api")),
 
     # Health check for Railway
     path("health/", health_check, name="health"),
@@ -318,7 +318,7 @@ urlpatterns = [
 
     # Search routes - keep AFTER mobile API routes
     path("search/", include("search_ai.urls")),
-    path("", include("search_ai.urls")),
+    path("", include("search_ai.urls", namespace="search_ai_legacy")),
 
     # Help & Debug
     path(

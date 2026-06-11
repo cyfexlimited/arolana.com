@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from core.local_cache import local_delete
+from core.local_cache import local_delete, local_delete_prefix
 
 from .models import (
     HomepageCategory,
@@ -22,39 +22,8 @@ from .models import (
 # ============================================================
 
 def clear_homepage_banner_cache():
-    """
-    Clear every homepage banner cache key.
-
-    Your homepage_banner tag uses keys like:
-    homepage:banners:v4:top:all
-    homepage:banners:v4:after_categories:all
-
-    So deleting only homepage:banners:v4 is not enough.
-    """
-    placements = [
-        "top",
-        "after_categories",
-        "after_products",
-        "after_manufacturers",
-        "after_vendors",
-        "before_newsletter",
-        "custom",
-    ]
-
-    styles = [
-        "all",
-        "hero_slider",
-        "wide_strip",
-        "two_column",
-        "image_only",
-        "card_grid",
-    ]
-
-    local_delete("homepage:banners:v4")
-
-    for placement in placements:
-        for style in styles:
-            local_delete(f"homepage:banners:v4:{placement}:{style}")
+    """Clear every placement and style variant of the banner cache."""
+    local_delete_prefix("homepage:banners:v4")
 
 
 def clear_homepage_all_cache():

@@ -1,4 +1,4 @@
-{% load static currency_filters media_optimization %}
+{% load static currency_filters media_optimization products_extras %}
 
 {% if sections %}
 <style>
@@ -793,15 +793,7 @@
 
                                 <div class="ah-product-rating">
                                     <div class="ah-product-stars">
-                                        {% for i in "12345"|make_list %}
-                                            {% if forloop.counter <= product.rating_avg|default:0|add:"0" %}
-                                                <i class="fas fa-star"></i>
-                                            {% elif forloop.counter <= product.rating_avg|default:0|add:"0.5" %}
-                                                <i class="fas fa-star-half-alt"></i>
-                                            {% else %}
-                                                <i class="far fa-star"></i>
-                                            {% endif %}
-                                        {% endfor %}
+                                        {{ product.rating_avg|default:0|rating_stars|safe }}
                                     </div>
                                     <span class="ah-product-rating-count">({{ product.rating_count|default:0 }})</span>
                                 </div>
@@ -852,6 +844,9 @@
     }
 
     document.querySelectorAll(".ah-product-slider-shell").forEach(function (shell) {
+        if (shell.dataset.initialized === "true") return;
+        shell.dataset.initialized = "true";
+
         const slider = shell.querySelector("[data-ah-product-slider]");
         const prev = shell.querySelector("[data-ah-row-prev]");
         const next = shell.querySelector("[data-ah-row-next]");
@@ -878,6 +873,9 @@
     });
 
     document.querySelectorAll(".ah-trending-shell").forEach(function (shell) {
+        if (shell.dataset.initialized === "true") return;
+        shell.dataset.initialized = "true";
+
         const slider = shell.querySelector("[data-ah-trending-slider]");
         const prev = shell.querySelector("[data-ah-trending-prev]");
         const next = shell.querySelector("[data-ah-trending-next]");
@@ -907,8 +905,10 @@
         }
 
         let autoTimer = null;
+        const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
         function startAutoSlide() {
+            if (reduceMotion || document.hidden || slider.scrollWidth <= slider.clientWidth) return;
             if (autoTimer) clearInterval(autoTimer);
 
             autoTimer = setInterval(function () {
@@ -937,6 +937,13 @@
         shell.addEventListener("mouseleave", startAutoSlide);
         shell.addEventListener("touchstart", stopAutoSlide, { passive: true });
         shell.addEventListener("touchend", startAutoSlide);
+        document.addEventListener("visibilitychange", function () {
+            if (document.hidden) {
+                stopAutoSlide();
+            } else {
+                startAutoSlide();
+            }
+        });
 
         startAutoSlide();
     });

@@ -35,7 +35,11 @@ def homepage_categories(context):
     def build_categories():
         categories = list(
             HomepageCategory.objects
-            .filter(is_active=True)
+            .filter(
+                is_active=True,
+                category__isnull=False,
+                category__is_active=True,
+            )
             .select_related("category")
             .annotate(
                 product_total=Count(
@@ -222,6 +226,7 @@ def homepage_banner(context, placement="top", style=""):
     return {
         "request": request,
         "banners": banners,
+        "has_full_width_banner": any(banner.full_width for banner in banners),
         "placement": placement,
         "style": style,
         "site_settings": context.get("site_settings"),
