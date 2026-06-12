@@ -12,8 +12,11 @@ PRESETS = {
     'nav_icon': (96, 96),
     'logo': (360, 160),
     'avatar': (160, 160),
+    'accessory_thumb': (240, 240),
     'category_card': (560, 420),
+    'product_thumb': (180, 180),
     'product_card': (640, 640),
+    'product_detail': (1100, 1100),
     'ad_card': (720, 360),
     'hero': (1600, 900),
 }

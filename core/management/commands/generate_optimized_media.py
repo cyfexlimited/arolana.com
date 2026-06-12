@@ -8,6 +8,7 @@ from homepage.models import HomepageVideoSection
 from hero_banners.models import HeroBanner
 from manufacturers.models import Manufacturer
 from products.models import (
+    Accessory,
     Category,
     Product,
     ProductImage,
@@ -23,18 +24,36 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument('--limit', type=int, default=None)
+        parser.add_argument(
+            '--only',
+            choices=['accessories', 'storefront'],
+            default=None,
+            help='Generate only one media group.',
+        )
 
     def handle(self, *args, **options):
         limit = options['limit']
+        only = options['only']
         jobs = [
             (SiteSettings.objects.all(), [('site_logo', 'logo'), ('site_favicon', 'nav_icon'), ('footer_logo', 'logo')]),
             (HomePageAppearance.objects.filter(is_active=True), [('desktop_background_image', 'hero'), ('mobile_background_image', 'hero')]),
-            (Category.objects.filter(is_active=True), [('image', 'category_card'), ('background_image', 'hero')]),
+            (Category.objects.filter(is_active=True), [
+                ('image', 'nav_icon'),
+                ('image', 'category_card'),
+                ('background_image', 'category_card'),
+                ('background_image', 'hero'),
+            ]),
             (ProductListingBanner.objects.filter(is_active=True), [('background_image', 'hero'), ('side_image', 'category_card')]),
-            (Product.objects.filter(is_active=True, approval_status='approved'), [('main_image', 'product_card'), ('video_thumbnail', 'product_card')]),
-            (ProductImage.objects.filter(is_active=True), [('image', 'product_card')]),
-            (ProductVariant.objects.filter(is_active=True), [('image', 'product_card')]),
-            (ProductVariantImage.objects.filter(is_active=True), [('image', 'product_card')]),
+            (Product.objects.filter(is_active=True, approval_status='approved'), [
+                ('main_image', 'product_thumb'),
+                ('main_image', 'product_card'),
+                ('main_image', 'product_detail'),
+                ('video_thumbnail', 'product_thumb'),
+            ]),
+            (ProductImage.objects.filter(is_active=True), [('image', 'product_thumb'), ('image', 'product_card'), ('image', 'product_detail')]),
+            (ProductVariant.objects.filter(is_active=True), [('image', 'product_thumb'), ('image', 'product_card'), ('image', 'product_detail')]),
+            (ProductVariantImage.objects.filter(is_active=True), [('image', 'product_thumb'), ('image', 'product_card'), ('image', 'product_detail')]),
+            (Accessory.objects.filter(is_active=True), [('image', 'accessory_thumb')]),
             (BlogPost.objects.filter(is_published=True), [('featured_image', 'hero'), ('thumbnail_image', 'category_card')]),
             (BlogCategory.objects.filter(is_active=True), [('featured_image', 'category_card')]),
             (VendorProfile.objects.filter(is_active=True), [('store_logo', 'avatar'), ('store_banner', 'hero')]),
@@ -45,6 +64,12 @@ class Command(BaseCommand):
             (HomepageVideoSection.objects.filter(is_active=True), [('poster_image', 'hero')]),
             (HeroBanner.objects.filter(is_active=True), [('image_desktop', 'hero'), ('image_tablet', 'hero'), ('image_mobile', 'hero')]),
         ]
+        if only == 'accessories':
+            jobs = [
+                (Accessory.objects.filter(is_active=True), [('image', 'accessory_thumb')]),
+            ]
+        elif only == 'storefront':
+            jobs = jobs[2:9]
 
         generated = 0
         skipped = 0

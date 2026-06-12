@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
-from django.test import SimpleTestCase, TestCase
+from django.test import RequestFactory, SimpleTestCase, TestCase
 from django.urls import reverse, resolve
 
 from currency.models import Currency
@@ -203,3 +203,53 @@ class CartCurrencyTests(TestCase):
         self.assertTrue(response.json()['in_wishlist'])
         self.assertEqual(response.json()['wishlist_count'], 1)
         self.assertEqual(self.client.get(reverse('accounts:wishlist_count')).json()['count'], 1)
+
+    def test_product_filters_convert_display_currency_to_catalog_currency(self):
+        product = self.create_product(slug='usd-filter-product')
+        product.price = Decimal('150000.00')
+        product.save(update_fields=['price', 'updated_at'])
+        request = RequestFactory().get(
+            reverse('products:list'),
+            {'min_price': '90', 'max_price': '110'},
+        )
+        request.user_currency = self.usd
+        request.session = {'user_currency': 'USD'}
+
+        filtered = views.apply_filters(Product.objects.all(), request)
+
+        self.assertEqual(list(filtered), [product])
+
+    def test_product_filters_support_all_condition_values(self):
+        open_box = self.create_product(slug='open-box-product')
+        open_box.condition = Product.CONDITION_OPEN_BOX
+        open_box.save(update_fields=['condition', 'updated_at'])
+        refurbished = self.create_product(slug='refurbished-product')
+        refurbished.condition = Product.CONDITION_REFURBISHED
+        refurbished.save(update_fields=['condition', 'updated_at'])
+        self.create_product(slug='brand-new-product')
+        request = RequestFactory().get(
+            reverse('products:list'),
+            {'conditions': 'open_box,refurbished'},
+        )
+        request.user_currency = self.ngn
+        request.session = {'user_currency': 'NGN'}
+
+        filtered = views.apply_filters(Product.objects.all(), request)
+
+        self.assertCountEqual(list(filtered), [open_box, refurbished])
+
+    def test_product_collection_filters_only_matching_products(self):
+        featured = self.create_product(slug='featured-collection-product')
+        featured.is_featured = True
+        featured.save(update_fields=['is_featured', 'updated_at'])
+        self.create_product(slug='regular-collection-product')
+        request = RequestFactory().get(
+            reverse('products:list'),
+            {'collection': 'featured'},
+        )
+        request.user_currency = self.ngn
+        request.session = {'user_currency': 'NGN'}
+
+        filtered = views.apply_filters(Product.objects.all(), request)
+
+        self.assertEqual(list(filtered), [featured])

@@ -2,20 +2,27 @@ import re
 from decimal import Decimal
 
 from django.db.models import F
+from django.urls import reverse
 from django.utils import timezone
 
 from .models import (
     AICustomerMemory,
+    AICategoryRouterLog,
+    AIIntentLog,
     AIKnowledgeBase,
     AILearnedKnowledge,
     AISettings,
     AITrainingData,
+    AIUnansweredQuestion,
     HumanTakeoverRequest,
     SmartChatConversation,
     SmartChatMessage,
 )
 from .services import ai_operations_reply
-from .product_intelligence import product_intelligence_reply
+from .brain import (
+    route_chat_response,
+    update_conversation_context,
+)
 
 
 PII_PATTERNS = [
@@ -179,7 +186,35 @@ def record_learning_candidate(conversation, user_message, answer, source_message
 
 def request_human_takeover(conversation, requested_by=None, reason="", priority="high"):
     conversation.mark_admin_requested()
-    takeover, _ = HumanTakeoverRequest.objects.update_or_create(
+    context = dict(conversation.context or {})
+    entity_name = (
+        context.get("current_product_name")
+        or context.get("current_property_name")
+        or context.get("current_vehicle_name")
+        or ""
+    )
+    summary_parts = [
+        f"Customer: {conversation.customer_display}",
+        f"Intent: {conversation.current_intent or context.get('last_intent') or 'unknown'}",
+        f"Category: {context.get('marketplace_category') or context.get('current_category') or 'general marketplace'}",
+    ]
+    if entity_name:
+        summary_parts.append(f"Current listing: {entity_name}")
+    if context.get("user_location") or context.get("delivery_location"):
+        summary_parts.append(
+            f"Location: {context.get('delivery_location') or context.get('user_location')}"
+        )
+    if context.get("user_budget"):
+        summary_parts.append(f"Budget: {context['user_budget']}")
+    if context.get("use_case"):
+        summary_parts.append(f"Use case: {context['use_case']}")
+    summary_parts.append(f"Escalation reason: {reason or 'Human support requested'}")
+    conversation.ai_summary = "\n".join(summary_parts)
+    context["support_status"] = conversation.status
+    context["handover_reason"] = reason or "Human support requested"
+    conversation.context = context
+    conversation.save(update_fields=["ai_summary", "context", "updated_at"])
+    takeover, created = HumanTakeoverRequest.objects.update_or_create(
         conversation=conversation,
         status=HumanTakeoverRequest.STATUS_PENDING,
         defaults={
@@ -188,6 +223,26 @@ def request_human_takeover(conversation, requested_by=None, reason="", priority=
             "priority": priority,
         },
     )
+    if created:
+        try:
+            from django.contrib.auth import get_user_model
+            from notifications.models import Notification
+
+            for admin in get_user_model().objects.filter(is_staff=True, is_active=True)[:25]:
+                Notification.send(
+                    user=admin,
+                    notification_type="message",
+                    title=f"Smart Chat handover #{conversation.id}",
+                    message=(reason or "A customer requested human support.")[:500],
+                    link=reverse("smartchat:admin_conversation", args=[conversation.id]),
+                    metadata={
+                        "smartchat_conversation_id": conversation.id,
+                        "takeover_request_id": takeover.id,
+                    },
+                    priority=4 if priority == "urgent" else 3,
+                )
+        except Exception:
+            pass
     return takeover
 
 
@@ -198,25 +253,48 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
             "source_type": "disabled", "source_label": "AI disabled", "confidence": 0,
         }
 
+    intent, routed_reply, routed_source, needs_handoff = route_chat_response(
+        conversation,
+        user_message,
+    )
+    if routed_source.get("source_object_id"):
+        conversation.product_id = routed_source["source_object_id"]
+        conversation.save(update_fields=["product", "updated_at"])
+        conversation.refresh_from_db(fields=["product"])
+    if routed_reply:
+        source = {
+            "source_type": routed_source.get("source_type", "conversation_router"),
+            "source_label": intent.replace("_", " ").title(),
+            "source_object_id": routed_source.get("source_object_id"),
+            "confidence": routed_source.get("confidence", 0.95),
+            "intent": intent,
+            **routed_source,
+        }
+        update_conversation_context(conversation, intent, routed_reply, source)
+        if needs_handoff:
+            request_human_takeover(conversation, actor_user, user_message)
+        return routed_reply, source
+
     item, confidence, source_type = search_approved_knowledge(user_message, conversation.audience)
     if item and confidence >= settings_obj.minimum_confidence:
         if source_type == "knowledge_base":
             AIKnowledgeBase.objects.filter(pk=item.pk).update(
                 usage_count=F("usage_count") + 1, last_used_at=timezone.now(),
             )
-        return item.answer if hasattr(item, "answer") else item.proposed_answer, {
+        reply = item.answer if hasattr(item, "answer") else item.proposed_answer
+        source = {
             "source_type": source_type,
             "source_label": str(item),
             "source_object_id": item.pk,
             "confidence": float(confidence),
+            "intent": intent,
+            "marketplace_category": routed_source.get(
+                "marketplace_category",
+                "general_marketplace",
+            ),
         }
-
-    product_result = product_intelligence_reply(conversation, user_message)
-    if product_result:
-        reply, product_source = product_result
-        if product_source.get("source_type") == "product_database_missing_spec":
-            request_human_takeover(conversation, actor_user, user_message)
-        return reply, product_source
+        update_conversation_context(conversation, intent, reply, source)
+        return reply, source
 
     private_memory = [
         {"key": memory.memory_key, "value": memory.memory_value}
@@ -241,15 +319,26 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
         reply = settings_obj.fallback_message
         source_type = "human_handoff"
 
-    return reply, {
+    source = {
         "source_type": source_type,
         "source_label": intent.replace("_", " ").title(),
         "confidence": float(confidence),
         "context": context,
+        "intent": intent,
+        "marketplace_category": routed_source.get(
+            "marketplace_category",
+            "general_marketplace",
+        ),
+        "category_confidence": routed_source.get("category_confidence", 0),
+        "category_matched_terms": routed_source.get("category_matched_terms", []),
     }
+    update_conversation_context(conversation, intent, reply, source)
+    return reply, source
 
 
 def create_managed_ai_message(conversation, user_message, actor_user=None):
+    settings_obj = AISettings.load()
+    previous_intent = conversation.current_intent
     remember_explicit_preference(conversation, user_message.message)
     reply, source = generate_managed_reply(conversation, user_message.message, actor_user)
     ai_message = SmartChatMessage.objects.create(
@@ -262,5 +351,72 @@ def create_managed_ai_message(conversation, user_message, actor_user=None):
         confidence=source.get("confidence"),
         metadata={"ai_manager": True, **source},
     )
+    intent = source.get("intent") or conversation.current_intent or "general_conversation"
+    marketplace_category = source.get("marketplace_category", "general_marketplace")
+    used_memory = bool(
+        conversation.product_id
+        or (conversation.context or {}).get("last_topic")
+        or customer_memories_for(conversation).exists()
+    )
+    AIIntentLog.objects.create(
+        conversation=conversation,
+        message=user_message,
+        intent=intent,
+        previous_intent=previous_intent,
+        confidence=source.get("confidence") or 0,
+        channel=conversation.channel,
+        used_memory=used_memory,
+        triggered_search=bool(source.get("product_ids")),
+        triggered_handover=conversation.status == SmartChatConversation.STATUS_ADMIN_REQUESTED,
+        metadata={
+            "source_type": source.get("source_type", ""),
+            "source_label": source.get("source_label", ""),
+        },
+    )
+    AICategoryRouterLog.objects.create(
+        conversation=conversation,
+        message=user_message,
+        marketplace_category=marketplace_category,
+        catalog_category_id=(
+            source.get("catalog_category_id")
+            or getattr(getattr(conversation, "product", None), "category_id", None)
+        ),
+        confidence=source.get("category_confidence") or 0,
+        matched_terms=source.get("category_matched_terms") or [],
+        route_source=source.get("category_route_source") or source.get("source_type", ""),
+        entity_type="product" if conversation.product_id else "",
+        entity_id=conversation.product_id,
+    )
+    confidence = Decimal(str(source.get("confidence") or 0))
+    if confidence < settings_obj.minimum_confidence or source.get("source_type") in {
+        "human_handoff",
+        "product_database_missing_spec",
+    }:
+        normalized = normalize_question(user_message.message)
+        unanswered, created = AIUnansweredQuestion.objects.get_or_create(
+            normalized_question=normalized,
+            is_resolved=False,
+            defaults={
+                "conversation": conversation,
+                "message": user_message,
+                "question": user_message.message,
+                "detected_intent": intent,
+                "marketplace_category": marketplace_category,
+                "confidence": confidence,
+                "reason": source.get("source_type", "low_confidence"),
+                "context_snapshot": conversation.context or {},
+            },
+        )
+        if not created:
+            unanswered.occurrence_count = F("occurrence_count") + 1
+            unanswered.conversation = conversation
+            unanswered.message = user_message
+            unanswered.context_snapshot = conversation.context or {}
+            unanswered.save(
+                update_fields=[
+                    "occurrence_count", "conversation", "message",
+                    "context_snapshot", "updated_at",
+                ]
+            )
     record_learning_candidate(conversation, user_message.message, reply, ai_message)
     return ai_message

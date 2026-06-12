@@ -4,6 +4,7 @@ from django.db import DatabaseError
 
 from currency.geo.ip_geolocation import COUNTRY_CURRENCY_MAP
 from currency.models import CountryCurrency, Currency
+from core.local_cache import local_get_or_set
 
 import logging
 
@@ -58,9 +59,12 @@ class CurrencyMiddleware(MiddlewareMixin):
 
     def get_currency_object(self, currency_code):
         try:
-            return Currency.objects.get(code=currency_code, is_active=True)
-        except Currency.DoesNotExist:
-            return None
+            code = str(currency_code or self.DEFAULT_CURRENCY).upper()
+            return local_get_or_set(
+                f"currency:middleware:{code}",
+                lambda: Currency.objects.filter(code=code, is_active=True).first(),
+                3600,
+            )
         except Exception as exc:
             logger.warning("Currency lookup failed for %s: %s", currency_code, exc)
             return None
@@ -80,9 +84,10 @@ class CurrencyMiddleware(MiddlewareMixin):
             request.currency_symbol = "₦"
             return
 
-        request.session["user_currency"] = currency.code
-        request.session["user_currency_source"] = source
-        request.session["user_country_code"] = country_code or ""
+        if getattr(request.user, "is_authenticated", False):
+            request.session["user_currency"] = currency.code
+            request.session["user_currency_source"] = source
+            request.session["user_country_code"] = country_code or ""
         request.user_currency = currency.code
         request.currency_symbol = currency.symbol
 
@@ -121,6 +126,9 @@ class CurrencyMiddleware(MiddlewareMixin):
             country_code = (request.META.get(header) or "").strip().upper()
             if len(country_code) == 2 and country_code != "XX":
                 return country_code
+
+        if not getattr(settings, "CURRENCY_IP_GEOLOCATION_ENABLED", False):
+            return None
 
         ip_address = self.get_client_ip(request)
 
@@ -193,7 +201,14 @@ class CurrencyMiddleware(MiddlewareMixin):
         return self.DEFAULT_CURRENCY
 
     def process_request(self, request):
-        if request.path == "/health/":
+        path = request.path_info or request.path
+        if (
+            path == "/health/"
+            or path.startswith("/api/")
+            or path.startswith("/smartchat/api/")
+            or path.startswith("/static/")
+            or path.startswith("/media/")
+        ):
             request.user_currency = self.DEFAULT_CURRENCY
             request.currency_symbol = "₦" if self.DEFAULT_CURRENCY == "NGN" else ""
             return
@@ -229,6 +244,14 @@ class CurrencyMiddleware(MiddlewareMixin):
             request.user_currency = self.DEFAULT_CURRENCY
             request.currency_symbol = "₦" if self.DEFAULT_CURRENCY == "NGN" else ""
             return
+
+        cookie_currency = request.COOKIES.get("user_currency")
+        if cookie_currency:
+            currency = self.get_currency_object(cookie_currency)
+            if currency:
+                request.user_currency = currency.code
+                request.currency_symbol = currency.symbol
+                return
 
         country_code = self.detect_country_code(request)
         detected_currency = self.currency_for_country(country_code) or self.detect_from_browser(request)

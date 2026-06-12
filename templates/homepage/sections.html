@@ -1585,8 +1585,8 @@
                         {% endif %}
                     </div>
 
-                    {% if section.show_view_all and section.view_all_url %}
-                    <a href="{{ section.view_all_url }}" class="ah-trending-view-all">
+                    {% if section.show_view_all and section.resolved_view_all_url %}
+                    <a href="{{ section.resolved_view_all_url }}" class="ah-trending-view-all">
                         {{ section.view_all_text|default:"View All" }}
                         <i class="fas fa-arrow-right"></i>
                     </a>
@@ -1666,8 +1666,8 @@
                         {% endif %}
                     </div>
 
-                    {% if section.show_view_all and section.view_all_url %}
-                    <a href="{{ section.view_all_url }}" class="ah-featured-view-all">
+                    {% if section.show_view_all and section.resolved_view_all_url %}
+                    <a href="{{ section.resolved_view_all_url }}" class="ah-featured-view-all">
                         {{ section.view_all_text|default:"View All" }}
                         <i class="fas fa-arrow-right"></i>
                     </a>
@@ -1833,8 +1833,8 @@
                         {% endif %}
                     </div>
 
-                    {% if section.show_view_all and section.view_all_url %}
-                    <a href="{{ section.view_all_url }}" class="ah-new-arrivals-view-all">
+                    {% if section.show_view_all and section.resolved_view_all_url %}
+                    <a href="{{ section.resolved_view_all_url }}" class="ah-new-arrivals-view-all">
                         {{ section.view_all_text|default:"View All" }}
                         <i class="fas fa-arrow-right"></i>
                     </a>
@@ -1972,8 +1972,8 @@
                         {% endif %}
                     </div>
 
-                    {% if section.show_view_all and section.view_all_url %}
-                    <a href="{{ section.view_all_url }}" class="ah-product-view-all">
+                    {% if section.show_view_all and section.resolved_view_all_url %}
+                    <a href="{{ section.resolved_view_all_url }}" class="ah-product-view-all">
                         {{ section.view_all_text|default:"View All" }}
                         <i class="fas fa-arrow-right"></i>
                     </a>

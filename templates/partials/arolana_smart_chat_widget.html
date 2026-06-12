@@ -23,11 +23,14 @@
         <div class="arolana-smartchat-header p-4 text-white" style="background: linear-gradient(135deg, #0F2D6B 0%, #1D4ED8 58%, #FF7A00 100%);">
             <div class="flex items-center justify-between gap-3">
                 <div class="flex items-center gap-3 min-w-0">
-                    <div class="arolana-chat-brand-mark relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl bg-white shadow-sm shrink-0">
+                    <div class="arolana-chat-brand-mark relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-lg ring-2 ring-white/70 shrink-0">
                         <img
                             src="{% if site_settings.smart_chat_bot_image %}{{ site_settings.smart_chat_bot_image.url }}{% else %}{% static 'admin/images/arolana-logo.png' %}{% endif %}"
                             alt="Arolana Chat"
-                            class="h-full w-full object-contain"
+                            class="block h-full w-full object-contain p-0.5"
+                            width="320"
+                            height="320"
+                            decoding="async"
                             onerror="this.hidden=true; this.nextElementSibling.hidden=false;"
                         >
                         <span class="arolana-chat-brand-fallback" hidden aria-hidden="true">A</span>
@@ -283,6 +286,88 @@
 
     .arolana-chat-message-text .arolana-chat-link:hover {
         background: #ea6c00;
+    }
+
+    .arolana-chat-product-grid {
+        display: grid;
+        gap: 0.65rem;
+        margin-top: 0.7rem;
+        width: min(100%, 22rem);
+    }
+
+    .arolana-chat-product-card {
+        background: #fff;
+        border: 1px solid rgba(15, 23, 42, 0.1);
+        border-radius: 0.9rem;
+        color: #0f172a;
+        display: grid;
+        gap: 0.7rem;
+        grid-template-columns: 4.5rem minmax(0, 1fr);
+        overflow: hidden;
+        padding: 0.65rem;
+    }
+
+    .arolana-chat-product-image {
+        align-items: center;
+        background: #f8fafc;
+        border-radius: 0.7rem;
+        display: flex;
+        height: 4.5rem;
+        justify-content: center;
+        overflow: hidden;
+        width: 4.5rem;
+    }
+
+    .arolana-chat-product-image img {
+        height: 100%;
+        object-fit: cover;
+        width: 100%;
+    }
+
+    .arolana-chat-product-title {
+        color: #0f172a;
+        display: block;
+        font-size: 0.8rem;
+        font-weight: 800;
+        line-height: 1.2;
+        text-decoration: none;
+    }
+
+    .arolana-chat-product-meta {
+        color: #64748b;
+        font-size: 0.68rem;
+        margin-top: 0.2rem;
+    }
+
+    .arolana-chat-product-price {
+        color: #0f2d6b;
+        font-size: 0.82rem;
+        font-weight: 900;
+        margin-top: 0.25rem;
+    }
+
+    .arolana-chat-product-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        grid-column: 1 / -1;
+    }
+
+    .arolana-chat-product-action {
+        background: #eff6ff;
+        border: 0;
+        border-radius: 999px;
+        color: #1d4ed8;
+        cursor: pointer;
+        font-size: 0.68rem;
+        font-weight: 800;
+        padding: 0.4rem 0.65rem;
+        text-decoration: none;
+    }
+
+    .arolana-chat-product-action.is-primary {
+        background: #ff7a00;
+        color: #fff;
     }
 
     .arolana-chat-attachment {
@@ -718,6 +803,33 @@
         });
     }
 
+    function renderProductCards(message) {
+        const cards = message?.metadata?.product_cards;
+        if (!Array.isArray(cards) || !cards.length) return "";
+
+        return `<div class="arolana-chat-product-grid">${cards.slice(0, 4).map(function (card) {
+            const rating = Number(card.rating || 0).toFixed(1);
+            const image = card.image_url
+                ? `<img src="${escapeHtml(card.image_url)}" alt="${escapeHtml(card.title)}" loading="lazy" decoding="async">`
+                : `<i class="fas fa-box-open text-xl text-gray-400"></i>`;
+            return `
+                <article class="arolana-chat-product-card">
+                    <a class="arolana-chat-product-image" href="${escapeHtml(card.product_url)}">${image}</a>
+                    <div>
+                        <a class="arolana-chat-product-title" href="${escapeHtml(card.product_url)}">${escapeHtml(card.title)}</a>
+                        <div class="arolana-chat-product-meta">${escapeHtml(card.brand || card.category || "")}</div>
+                        <div class="arolana-chat-product-meta"><i class="fas fa-star text-yellow-500"></i> ${rating} (${Number(card.review_count || 0)}) · ${card.in_stock ? "In stock" : "Out of stock"}</div>
+                        <div class="arolana-chat-product-price">${escapeHtml(card.price_display || card.price || "")}</div>
+                    </div>
+                    <div class="arolana-chat-product-actions">
+                        <a class="arolana-chat-product-action" href="${escapeHtml(card.product_url)}">View product</a>
+                        <a class="arolana-chat-product-action" href="${escapeHtml(card.compare_url || card.product_url)}">Compare</a>
+                        ${card.in_stock ? `<button type="button" class="arolana-chat-product-action is-primary" data-smartchat-add-url="${escapeHtml(card.add_to_cart_url)}">Add to cart</button>` : ""}
+                    </div>
+                </article>`;
+        }).join("")}</div>`;
+    }
+
 	    function scrollMessages() {
 	        const box = getEl("arolana-smartchat-messages");
 	        if (box) box.scrollTop = box.scrollHeight;
@@ -863,11 +975,13 @@
                     <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(imageName)}" loading="lazy">
                </a>`
             : "";
+        const productCards = renderProductCards(message);
 
         bubble.innerHTML =
             `<div class="text-[11px] font-bold opacity-70 mb-1">${escapeHtml(senderName)}</div>` +
             `${text ? `<div class="arolana-chat-message-text">${text}</div>` : ""}` +
-            attachment;
+            attachment +
+            productCards;
 
         box.appendChild(bubble);
         scrollMessages();
@@ -880,6 +994,38 @@
         if (!box || box.dataset.arolanaLinkHandoff === "true") return;
         box.dataset.arolanaLinkHandoff = "true";
         box.addEventListener("click", function (event) {
+            const addButton = event.target.closest("[data-smartchat-add-url]");
+            if (addButton) {
+                event.preventDefault();
+                const url = addButton.dataset.smartchatAddUrl;
+                const csrfToken = document.cookie
+                    .split("; ")
+                    .find((row) => row.startsWith("csrftoken="))
+                    ?.split("=")[1] || "";
+                addButton.disabled = true;
+                fetch(url, {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": decodeURIComponent(csrfToken),
+                        "X-Requested-With": "XMLHttpRequest",
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
+                    body: "quantity=1",
+                    credentials: "same-origin",
+                })
+                    .then((response) => response.json())
+                    .then((data) => {
+                        if (!data.success) throw new Error(data.message || "Could not add this product.");
+                        addButton.textContent = "Added";
+                        const cartCount = document.getElementById("cart-count");
+                        if (cartCount && data.cart_count !== undefined) cartCount.textContent = data.cart_count;
+                    })
+                    .catch(() => {
+                        addButton.textContent = "Try again";
+                        addButton.disabled = false;
+                    });
+                return;
+            }
             const link = event.target.closest("[data-arolana-chat-link='true']");
             if (!link) return;
             const href = link.getAttribute("href") || "";

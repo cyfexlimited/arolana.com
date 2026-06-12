@@ -127,6 +127,10 @@ def _message_payload(message):
         "image_url": image_url,
         "image_name": image_name,
         "has_image": bool(image_url),
+        "metadata": message.metadata or {},
+        "source_type": message.source_type,
+        "source_label": message.source_label,
+        "confidence": float(message.confidence) if message.confidence is not None else None,
         "created_at": message.created_at.isoformat(),
     }
 
@@ -437,7 +441,12 @@ def api_message(request):
             SmartChatConversation.STATUS_ADMIN_REQUESTED,
             SmartChatConversation.STATUS_ADMIN_ACTIVE,
         ]
-        conversation.mark_admin_requested()
+        request_human_takeover(
+            conversation,
+            request.user if request.user.is_authenticated else None,
+            message,
+            priority="high",
+        )
         if not was_already_waiting:
             create_system_message(conversation, "Customer requested admin support. Waiting for admin takeover.")
             create_support_ticket(
@@ -748,9 +757,10 @@ def admin_reply(request, conversation_id):
             except Exception:
                 pass
         if not private_note:
+            from core.background_tasks import submit_background
             from .push import send_support_reply_push
 
-            send_support_reply_push(conversation, message)
+            submit_background(send_support_reply_push, conversation, message)
     return redirect("smartchat:admin_conversation", conversation_id=conversation.id)
 
 

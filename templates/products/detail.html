@@ -498,6 +498,349 @@
         }
     }
 
+
+    /* ============================================================
+       AROLANA PRODUCT DETAIL POLISH THEME
+       Brand Colors:
+       Dark Blue: #071A44
+       Arolana Blue: #0066CC
+       Orange CTA: #FF7A00
+       Glow Accent: #00B8FF
+       ============================================================ */
+    :root {
+        --arolana-navy: #071A44;
+        --arolana-navy-2: #0A2E73;
+        --arolana-blue: #0066CC;
+        --arolana-blue-soft: #EAF4FF;
+        --arolana-orange: #FF7A00;
+        --arolana-orange-dark: #E86D00;
+        --arolana-glow: #00B8FF;
+        --arolana-text: #0F172A;
+        --arolana-muted: #64748B;
+        --arolana-border: rgba(0, 102, 204, 0.14);
+        --arolana-shadow: 0 24px 70px rgba(7, 26, 68, 0.12);
+    }
+
+    .apd-page {
+        color: var(--arolana-text);
+    }
+
+    .apd-page nav a {
+        font-weight: 700;
+    }
+
+    .apd-page nav a:hover,
+    .apd-page .hover\:text-blue-600:hover,
+    .apd-page .hover\:text-blue-700:hover {
+        color: var(--arolana-orange) !important;
+    }
+
+    .apd-page .bg-white.rounded-2xl,
+    .apd-page .rounded-2xl.bg-white,
+    .apd-page .glass-card {
+        border: 1px solid var(--arolana-border) !important;
+        box-shadow: var(--arolana-shadow) !important;
+    }
+
+    .apd-page .gallery-item {
+        background:
+            radial-gradient(circle at 18% 10%, rgba(0, 184, 255, .12), transparent 22rem),
+            linear-gradient(135deg, rgba(234, 244, 255, .94), rgba(255, 255, 255, .98)) !important;
+    }
+
+    .apd-page .thumbnail-img.active,
+    .apd-page .variant-option.active {
+        border-color: var(--arolana-orange) !important;
+        background: rgba(255, 122, 0, 0.08) !important;
+        box-shadow: 0 0 0 3px rgba(255, 122, 0, 0.16) !important;
+    }
+
+    .apd-page .hover\:border-blue-500:hover,
+    .apd-page .focus\:ring-blue-500:focus {
+        border-color: var(--arolana-blue) !important;
+        --tw-ring-color: rgba(0, 102, 204, .32) !important;
+    }
+
+    .apd-page .text-blue-600,
+    .apd-page .text-blue-700 {
+        color: var(--arolana-blue) !important;
+    }
+
+    .apd-page .text-green-600,
+    .apd-page .text-green-700 {
+        color: #047857 !important;
+    }
+
+    .apd-page .bg-blue-50,
+    .apd-page .from-blue-50 {
+        background-color: var(--arolana-blue-soft) !important;
+    }
+
+    .apd-page .bg-blue-100 {
+        background-color: rgba(0, 102, 204, 0.10) !important;
+    }
+
+    .apd-page .bg-blue-600,
+    .apd-page .hover\:bg-blue-700:hover {
+        background-color: var(--arolana-blue) !important;
+    }
+
+    .apd-page .border-blue-100,
+    .apd-page .ring-blue-100 {
+        border-color: rgba(0, 102, 204, 0.16) !important;
+        --tw-ring-color: rgba(0, 102, 204, 0.16) !important;
+    }
+
+    .apd-page .from-blue-600 {
+        --tw-gradient-from: var(--arolana-blue) var(--tw-gradient-from-position) !important;
+        --tw-gradient-to: rgba(0, 102, 204, 0) var(--tw-gradient-to-position) !important;
+        --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+    }
+
+    .apd-page .to-blue-700 {
+        --tw-gradient-to: var(--arolana-navy) var(--tw-gradient-to-position) !important;
+    }
+
+    .apd-page .from-green-600 {
+        --tw-gradient-from: var(--arolana-orange) var(--tw-gradient-from-position) !important;
+        --tw-gradient-to: rgba(255, 122, 0, 0) var(--tw-gradient-to-position) !important;
+        --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+    }
+
+    .apd-page .to-green-700 {
+        --tw-gradient-to: var(--arolana-orange-dark) var(--tw-gradient-to-position) !important;
+    }
+
+    .apd-page .from-purple-50,
+    .apd-page .to-purple-50 {
+        --tw-gradient-to: #FFF7ED var(--tw-gradient-to-position) !important;
+    }
+
+    .apd-page .from-gray-900,
+    .apd-page .to-gray-800 {
+        --tw-gradient-from: var(--arolana-navy) var(--tw-gradient-from-position) !important;
+        --tw-gradient-to: var(--arolana-navy-2) var(--tw-gradient-to-position) !important;
+        --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+    }
+
+    .apd-page #product-price,
+    .apd-page .price-pulse {
+        color: var(--arolana-blue) !important;
+        text-shadow: 0 12px 34px rgba(0, 102, 204, .18);
+    }
+
+    .apd-page #add-to-cart-submit {
+        background: linear-gradient(135deg, var(--arolana-blue), var(--arolana-navy)) !important;
+        box-shadow: 0 16px 36px rgba(0, 102, 204, .24);
+    }
+
+    .apd-page #add-to-cart-submit:hover {
+        background: linear-gradient(135deg, var(--arolana-navy-2), var(--arolana-navy)) !important;
+    }
+
+    .apd-page button[onclick="checkoutNow()"] {
+        background: linear-gradient(135deg, var(--arolana-orange), var(--arolana-orange-dark)) !important;
+        box-shadow: 0 16px 36px rgba(255, 122, 0, .24);
+    }
+
+    .apd-page button[onclick="checkoutNow()"]:hover {
+        background: linear-gradient(135deg, #FF8A1F, var(--arolana-orange-dark)) !important;
+    }
+
+    .apd-page .wishlist-btn:hover {
+        border-color: rgba(255, 122, 0, .38) !important;
+        background: rgba(255, 122, 0, .06) !important;
+    }
+
+    .apd-page .bg-gradient-to-r.from-blue-50,
+    .apd-page .bg-gradient-to-r.from-gray-50,
+    .apd-page .bg-gradient-to-br.from-gray-50 {
+        background:
+            radial-gradient(circle at 12% 12%, rgba(0, 184, 255, .10), transparent 18rem),
+            linear-gradient(135deg, rgba(234, 244, 255, .88), rgba(255, 247, 237, .78)) !important;
+    }
+
+    .modern-tab {
+        color: #475569;
+        font-weight: 800;
+    }
+
+    .modern-tab.active {
+        color: var(--arolana-orange) !important;
+    }
+
+    .modern-tab.active::after {
+        background: linear-gradient(90deg, var(--arolana-orange), var(--arolana-blue), var(--arolana-glow)) !important;
+        height: 3px;
+        border-radius: 999px;
+    }
+
+    .video-play-button {
+        background: rgba(255, 122, 0, 0.92) !important;
+        box-shadow: 0 0 0 12px rgba(255, 122, 0, .14), 0 18px 42px rgba(255, 122, 0, .32);
+    }
+
+    .video-play-button:hover {
+        background: var(--arolana-orange) !important;
+    }
+
+    .ai-chat-bubble,
+    .ai-message-user {
+        background: linear-gradient(135deg, var(--arolana-blue), var(--arolana-navy)) !important;
+    }
+
+    .ai-message-bot {
+        background: var(--arolana-blue-soft) !important;
+        color: var(--arolana-text) !important;
+        border: 1px solid rgba(0, 102, 204, 0.10);
+    }
+
+    .apd-page a[data-article-popup],
+    .apd-page .review-card,
+    .apd-page .variant-option,
+    .apd-page #product-share-menu {
+        border-color: rgba(0, 102, 204, .12) !important;
+    }
+
+    .apd-page a[data-article-popup]:hover {
+        border-color: rgba(255, 122, 0, .34) !important;
+        box-shadow: 0 18px 45px rgba(7, 26, 68, .10) !important;
+    }
+
+    .apd-page .bg-red-500,
+    .apd-page .from-red-500,
+    .apd-page .to-orange-500 {
+        background-color: var(--arolana-orange) !important;
+    }
+
+    .apd-page .from-red-500 {
+        --tw-gradient-from: #FF3D00 var(--tw-gradient-from-position) !important;
+        --tw-gradient-to: rgba(255, 61, 0, 0) var(--tw-gradient-to-position) !important;
+        --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+    }
+
+    .apd-page .to-orange-500 {
+        --tw-gradient-to: var(--arolana-orange) var(--tw-gradient-to-position) !important;
+    }
+
+    .reading-progress {
+        background: linear-gradient(90deg, var(--arolana-orange), var(--arolana-blue), var(--arolana-glow)) !important;
+        box-shadow: 0 0 18px rgba(0, 184, 255, .38);
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: linear-gradient(135deg, var(--arolana-blue), var(--arolana-orange)) !important;
+    }
+
+    .lightbox-close-btn,
+    .lightbox-nav-btn {
+        background: rgba(7, 26, 68, 0.72) !important;
+        border: 1px solid rgba(255, 255, 255, .18);
+    }
+
+    .lightbox-close-btn:hover,
+    .lightbox-nav-btn:hover {
+        background: rgba(255, 122, 0, 0.82) !important;
+    }
+
+    @keyframes priceGlow {
+        0%, 100% {
+            text-shadow: 0 0 0 rgba(0,102,204,0);
+        }
+        50% {
+            text-shadow: 0 0 22px rgba(0,184,255,.42);
+        }
+    }
+
+    @media (max-width: 640px) {
+        .apd-page {
+            padding-inline: .25rem;
+        }
+
+        .apd-page .bg-white.rounded-2xl,
+        .apd-page .rounded-2xl.bg-white {
+            box-shadow: 0 16px 42px rgba(7, 26, 68, .10) !important;
+        }
+
+        .apd-page #add-to-cart-submit,
+        .apd-page button[onclick="checkoutNow()"] {
+            min-height: 48px;
+        }
+    }
+
+
+    /* ============================================================
+       AROLANA ACCESSORIES CARD FIX
+       Removes plug placeholder, cleans HTML descriptions, and makes
+       accessory images sit properly inside the product card.
+       ============================================================ */
+    .apd-accessory-card {
+        border: 1px solid rgba(0, 102, 204, 0.16) !important;
+        box-shadow: 0 18px 50px rgba(7, 26, 68, 0.08) !important;
+    }
+
+    .apd-accessory-card:hover {
+        border-color: rgba(255, 122, 0, 0.34) !important;
+        box-shadow: 0 24px 70px rgba(7, 26, 68, 0.14) !important;
+    }
+
+    .apd-accessory-media {
+        background:
+            radial-gradient(circle at 14% 12%, rgba(0, 184, 255, .10), transparent 14rem),
+            linear-gradient(135deg, rgba(234, 244, 255, .72), rgba(255, 255, 255, .98), rgba(255, 247, 237, .62)) !important;
+    }
+
+    .apd-accessory-image {
+        width: min(100%, 220px) !important;
+        height: min(100%, 150px) !important;
+        max-width: 92% !important;
+        max-height: 150px !important;
+        object-fit: contain !important;
+        object-position: center center !important;
+        transform: scale(1.08);
+        filter: drop-shadow(0 14px 22px rgba(7, 26, 68, 0.10));
+    }
+
+    .apd-accessory-card:hover .apd-accessory-image {
+        transform: scale(1.16);
+    }
+
+    .apd-accessory-placeholder {
+        width: 100%;
+        height: 100%;
+        display: grid;
+        place-items: center;
+        color: rgba(7, 26, 68, 0.34);
+        font-weight: 900;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+    }
+
+    .apd-accessory-title {
+        color: var(--arolana-text) !important;
+        font-weight: 850 !important;
+        line-height: 1.28 !important;
+    }
+
+    .apd-accessory-description {
+        color: #475569 !important;
+    }
+
+    .apd-accessory-price {
+        color: var(--arolana-blue) !important;
+    }
+
+    .apd-accessory-button {
+        background: linear-gradient(135deg, var(--arolana-blue), var(--arolana-navy)) !important;
+        box-shadow: 0 16px 34px rgba(0, 102, 204, .18) !important;
+    }
+
+    .apd-accessory-button:hover {
+        background: linear-gradient(135deg, var(--arolana-orange), var(--arolana-orange-dark)) !important;
+        box-shadow: 0 18px 38px rgba(255, 122, 0, .22) !important;
+    }
+
+
 </style>
 {% endblock %}
 
@@ -505,7 +848,7 @@
 <!-- Reading Progress Bar -->
 <div id="reading-progress" class="reading-progress"></div>
 
-<div class="max-w-[1800px] mx-auto px-4">
+<div class="apd-page max-w-[1800px] mx-auto px-4">
     <!-- Breadcrumb with Micro-interactions -->
     <nav class="text-sm mb-6">
         <ol class="flex items-center space-x-2 flex-wrap">
@@ -534,8 +877,12 @@
 	                                 class="w-full h-96 object-contain cursor-zoom-in transition-transform duration-700 group-hover:scale-105"
 	                                 id="main-product-image"
 	                                 data-gallery-index="0"
+                                     data-fallback-src="{{ gallery_images.0.original }}"
                                      fetchpriority="high"
-                                     decoding="async">
+                                     decoding="async"
+                                     width="1100"
+                                     height="1100"
+                                     onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}">
 	                        {% else %}
 	                            <div class="w-full h-96 flex items-center justify-center">
 	                                <i class="fas fa-image text-6xl text-gray-400"></i>
@@ -576,12 +923,18 @@
 	                                class="thumbnail-item flex-shrink-0"
 	                                data-gallery-index="{{ forloop.counter0 }}"
 	                                data-gallery-src="{{ image.src }}"
+                                    data-gallery-thumb="{{ image.thumb }}"
+                                    data-gallery-original="{{ image.original }}"
 	                                data-gallery-alt="{{ image.alt|default:product.name }}">
-	                            <img src="{{ image.src }}"
+	                            <img src="{{ image.thumb }}"
 	                                 alt="{{ image.alt|default:product.name }}"
+                                     data-fallback-src="{{ image.original }}"
 	                                 class="w-20 h-20 object-cover rounded-lg cursor-pointer border-2 transition-all hover:border-blue-500 hover:scale-105 thumbnail-img {% if forloop.first %}active border-blue-500{% endif %}"
                                      loading="{% if forloop.first %}eager{% else %}lazy{% endif %}"
-                                     decoding="async">
+                                     decoding="async"
+                                     width="80"
+                                     height="80"
+                                     onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}">
 	                        </button>
 	                        {% endfor %}
 	                    </div>
@@ -825,8 +1178,16 @@
 	                <!-- AI Expert Support -->
 	                <div class="bg-gradient-to-r from-gray-900 to-gray-800 rounded-xl p-4 mb-4 text-white">
                     <div class="flex items-center gap-3">
-                        <div class="relative">
-                            <i class="fas fa-robot text-3xl"></i>
+                        <div class="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-white shadow-lg ring-2 ring-white/20">
+                            <img
+                                src="{% if site_settings.smart_chat_bot_image %}{{ site_settings.smart_chat_bot_image.url }}{% else %}{% static 'admin/images/arolana-logo.png' %}{% endif %}"
+                                alt="Arolana Smart Chat"
+                                class="block h-full w-full object-contain p-0.5"
+                                width="224"
+                                height="224"
+                                loading="lazy"
+                                decoding="async"
+                            >
                             <span class="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
                         </div>
                         <div class="flex-1">
@@ -1162,26 +1523,85 @@
 
             <!-- Accessories Tab -->
             <div x-show="tab=='accessories'" x-transition.duration.300ms>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-	                    {% for accessory_link in product_accessories %}
-	                    {% with accessory=accessory_link.accessory %}
-	                    <div class="border rounded-xl p-4 hover:shadow-xl transition-all hover:scale-105">
-                        <div class="flex gap-4">
+                <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
+                    <div>
+                        <p class="text-xs font-black uppercase tracking-[0.18em] text-blue-600">Complete your setup</p>
+                        <h3 class="mt-1 text-2xl font-black text-slate-950">Recommended Accessories</h3>
+                    </div>
+                    <span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">{{ product_accessories|length }} compatible options</span>
+                </div>
+
+                <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    {% for accessory_link in product_accessories %}
+                    {% with accessory=accessory_link.accessory %}
+                    <article class="apd-accessory-card group overflow-hidden rounded-2xl border bg-white shadow-sm transition duration-300 hover:-translate-y-1">
+                        <div class="apd-accessory-media relative flex h-48 items-center justify-center overflow-hidden p-5">
                             {% if accessory.image %}
-                            <img src="{{ accessory.image.url }}" class="w-20 h-20 object-cover rounded-lg">
-                            {% endif %}
-                            <div class="flex-1">
-                                <h4 class="font-semibold">{{ accessory.name }}</h4>
-                                <p class="text-sm text-gray-600">{{ accessory.description|truncatewords:10 }}</p>
-                                <div class="mt-2">
-                                    <span class="text-lg font-bold text-blue-600">{{ accessory.price|currency:request }}</span>
+                                {% optimized_image_url accessory.image 'accessory_thumb' as accessory_image_url %}
+                                <img src="{{ accessory_image_url }}"
+                                     data-fallback-src="{{ accessory.image.url }}"
+                                     alt="{{ accessory.name }}"
+                                     class="apd-accessory-image transition duration-500"
+                                     loading="lazy"
+                                     decoding="async"
+                                     width="260"
+                                     height="220"
+                                     onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}else{this.hidden=true;this.nextElementSibling.hidden=false;}">
+
+                                <div hidden class="apd-accessory-placeholder">
+                                    <span>Arolana</span>
                                 </div>
-	                                <button onclick="addAccessoryToCart({{ accessory.id }})" class="mt-2 w-full bg-gray-100 py-1 rounded-lg hover:bg-blue-600 hover:text-white transition">Add</button>
-	                            </div>
-	                        </div>
-	                    </div>
-	                    {% endwith %}
-	                    {% empty %}
+                            {% else %}
+                                <div class="apd-accessory-placeholder">
+                                    <span>Arolana</span>
+                                </div>
+                            {% endif %}
+
+                            {% if accessory_link.required %}
+                            <span class="absolute left-3 top-3 rounded-full bg-slate-950 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-white">Required</span>
+                            {% endif %}
+
+                            {% if accessory.discount_percent %}
+                            <span class="absolute right-3 top-3 rounded-full bg-orange-500 px-3 py-1 text-xs font-black text-white">Save {{ accessory.discount_percent }}%</span>
+                            {% endif %}
+                        </div>
+
+                        <div class="p-5">
+                            <h4 class="apd-accessory-title line-clamp-2 text-lg">
+                                {{ accessory.name }}
+                            </h4>
+
+                            <p class="apd-accessory-description mt-2 min-h-[44px] text-sm leading-5">
+                                {{ accessory.description|striptags|truncatewords:18 }}
+                            </p>
+
+                            <div class="mt-4 flex items-end justify-between gap-3">
+                                <div>
+                                    <span class="apd-accessory-price block text-xl font-black">{{ accessory.price|currency:request }}</span>
+                                    {% if accessory.compare_price %}
+                                    <span class="text-xs text-slate-400 line-through">{{ accessory.compare_price|currency:request }}</span>
+                                    {% endif %}
+                                </div>
+
+                                <span class="text-xs font-bold {% if accessory.stock_quantity > 0 %}text-emerald-600{% else %}text-red-500{% endif %}">
+                                    {% if accessory.stock_quantity > 0 %}
+                                        <i class="fas fa-check-circle"></i> In stock
+                                    {% else %}
+                                        Out of stock
+                                    {% endif %}
+                                </span>
+                            </div>
+
+                            <button onclick="addAccessoryToCart({{ accessory.id }})"
+                                    {% if accessory.stock_quantity <= 0 %}disabled{% endif %}
+                                    class="apd-accessory-button mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-black text-white transition disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none">
+                                <i class="fas fa-cart-plus"></i>
+                                Add accessory
+                            </button>
+                        </div>
+                    </article>
+                    {% endwith %}
+                    {% empty %}
                     <p class="text-gray-500 text-center py-8">No accessories available.</p>
                     {% endfor %}
                 </div>
@@ -1654,7 +2074,7 @@
         if (!image) return null;
 
         if (typeof image === 'string') {
-            return image ? { src: image, alt: fallbackAlt || '' } : null;
+            return image ? { src: image, thumb: image, original: image, alt: fallbackAlt || '' } : null;
         }
 
         const src = image.src || image.url || image.image || image.image_url || image.file || image.file_url || image.thumbnail || '';
@@ -1662,6 +2082,8 @@
 
         return {
             src: String(src),
+            thumb: String(image.thumb || image.thumbnail || src),
+            original: String(image.original || image.fallback || src),
             alt: String(image.alt || image.title || image.name || fallbackAlt || '')
         };
     }
@@ -1685,9 +2107,11 @@
 
         document.querySelectorAll('#product-image-thumbnails [data-gallery-src]').forEach(function (button) {
             const src = button.dataset.gallerySrc || '';
+            const thumb = button.dataset.galleryThumb || src;
+            const original = button.dataset.galleryOriginal || src;
             const alt = button.dataset.galleryAlt || '';
             if (src) {
-                images.push({ src: src, alt: alt });
+                images.push({ src: src, thumb: thumb, original: original, alt: alt });
             }
         });
 
@@ -1829,6 +2253,8 @@
 
         state.galleryIndex = Number(index) || 0;
         img.src = src;
+        const selectedImage = state.galleryImages[state.galleryIndex];
+        img.dataset.fallbackSrc = selectedImage?.original || src;
         img.alt = altText || state.productName;
         img.dataset.galleryIndex = String(state.galleryIndex);
 
@@ -1850,6 +2276,8 @@
         if (thumbnails) {
             thumbnails.innerHTML = state.galleryImages.map(function (image, index) {
                 const src = image.src || '';
+                const thumb = image.thumb || src;
+                const original = image.original || src;
                 const alt = image.alt || state.productName;
 
                 return `
@@ -1857,10 +2285,18 @@
                             class="thumbnail-item flex-shrink-0"
                             data-gallery-index="${index}"
                             data-gallery-src="${escapeHtml(src)}"
+                            data-gallery-thumb="${escapeHtml(thumb)}"
+                            data-gallery-original="${escapeHtml(original)}"
                             data-gallery-alt="${escapeHtml(alt)}"
                             aria-label="View image ${index + 1}">
-                        <img src="${escapeHtml(src)}"
+                        <img src="${escapeHtml(thumb)}"
+                             data-fallback-src="${escapeHtml(original)}"
                              alt="${escapeHtml(alt)}"
+                             loading="${index === 0 ? 'eager' : 'lazy'}"
+                             decoding="async"
+                             width="80"
+                             height="80"
+                             onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}"
                              class="w-20 h-20 object-cover rounded-lg cursor-pointer border-2 transition-all hover:border-blue-500 hover:scale-105 thumbnail-img ${index === 0 ? 'active border-blue-500' : ''}">
                     </button>
                 `;

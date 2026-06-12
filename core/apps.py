@@ -5,5 +5,4 @@ class CoreConfig(AppConfig):
     name = 'core'
     
     def ready(self):
-        # Import signals if any
-        pass
+        from . import signals  # noqa: F401

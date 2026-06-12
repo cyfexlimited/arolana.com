@@ -335,6 +335,11 @@ class HomepageSectionAdmin(admin.ModelAdmin):
                     "show_view_all",
                     "empty_state_text",
                 ),
+                "description": (
+                    "Featured, New Arrivals, Best Sellers, and Trending Deals automatically "
+                    "open their matching product collection. Enter a different View All URL "
+                    "only when this section should open a custom campaign page."
+                ),
             },
         ),
         (

@@ -738,14 +738,10 @@ def operations_fallback_reply(conversation, user_message, context):
     if intent == "faq":
         return _step_by_step_reply(conversation.audience)
     return (
-        "I’m here with you. Ask me in normal words and I’ll guide you like a real shopping assistant.\n\n"
-        "For example:\n"
-        "• “How do I shop?”\n"
-        "• “Do you have Samsung phones?”\n"
-        "• “Help me find a laptop under ₦500,000”\n"
-        "• “Track order ARO-12345”\n"
-        "• “How do I become a vendor?”\n"
-        "• “Why is my payment not showing?”"
+        "Tell me the product, brand, category, technology, order number, or shopping task you need help with. "
+        "For catalog questions I will check Arolana products, specifications, reviews, ratings, Q&A, stock, "
+        "warranty, delivery, and prices before answering. If the needed information is not listed, I will say so "
+        "and connect you with Arolana support."
     )
 
 

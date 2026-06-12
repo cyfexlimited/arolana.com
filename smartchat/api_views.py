@@ -299,3 +299,26 @@ def unread_count(request):
         is_read_by_customer=False,
     ).count()
     return JsonResponse({"success": True, "unread_count": count})
+
+
+@csrf_exempt
+@require_POST
+def mark_read(request):
+    data = _payload(request)
+    try:
+        identity = _identity(request, data)
+    except PermissionError as exc:
+        return _error(exc, 403)
+    conversation = _owned_conversation(identity, data.get("conversation_id"))
+    if not conversation:
+        return _error("Conversation not found.", 404)
+    updated = conversation.messages.filter(
+        sender_type__in=[SmartChatMessage.SENDER_ADMIN, SmartChatMessage.SENDER_AI],
+        is_private_note=False,
+        is_read_by_customer=False,
+    ).update(is_read_by_customer=True)
+    return JsonResponse({
+        "success": True,
+        "conversation_id": conversation.id,
+        "marked_read": updated,
+    })

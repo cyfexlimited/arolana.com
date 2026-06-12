@@ -5,6 +5,7 @@ from datetime import timedelta
 import warnings
 import logging
 import dj_database_url
+from botocore.config import Config as BotoConfig
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -70,6 +71,7 @@ WEB_PUSH_VAPID_PUBLIC_KEY = config('WEB_PUSH_VAPID_PUBLIC_KEY', default='')
 WEB_PUSH_VAPID_PRIVATE_KEY = config('WEB_PUSH_VAPID_PRIVATE_KEY', default='')
 WEB_PUSH_VAPID_SUBJECT = config('WEB_PUSH_VAPID_SUBJECT', default='mailto:contact@arolana.com')
 WEB_PUSH_TTL = config('WEB_PUSH_TTL', default=86400, cast=int)
+WEB_PUSH_ASYNC = config('WEB_PUSH_ASYNC', default=not DEBUG, cast=bool)
 
 
 CSRF_TRUSTED_ORIGINS = [
@@ -221,7 +223,7 @@ if DATABASE_URL:
     DATABASES = {
         'default': dj_database_url.config(
             default=DATABASE_URL,
-            conn_max_age=config('DATABASE_CONN_MAX_AGE', default=0, cast=int),
+            conn_max_age=config('DATABASE_CONN_MAX_AGE', default=60, cast=int),
             ssl_require=not DEBUG,
         )
     }
@@ -403,10 +405,21 @@ AWS_QUERYSTRING_EXPIRE = config('AWS_QUERYSTRING_EXPIRE', default=3600, cast=int
 AWS_S3_OBJECT_PARAMETERS = {
     'CacheControl': config('AWS_S3_CACHE_CONTROL', default='max-age=31536000, public'),
 }
+AWS_S3_CLIENT_CONFIG = BotoConfig(
+    max_pool_connections=config('AWS_S3_MAX_POOL_CONNECTIONS', default=50, cast=int),
+    connect_timeout=config('AWS_S3_CONNECT_TIMEOUT', default=3, cast=int),
+    read_timeout=config('AWS_S3_READ_TIMEOUT', default=15, cast=int),
+    retries={'max_attempts': 3, 'mode': 'adaptive'},
+)
 OPTIMIZED_MEDIA_ENABLED = config('OPTIMIZED_MEDIA_ENABLED', default=True, cast=bool)
+CURRENCY_IP_GEOLOCATION_ENABLED = config(
+    'CURRENCY_IP_GEOLOCATION_ENABLED',
+    default=False,
+    cast=bool,
+)
 MEDIA_PROXY_ENABLED = config(
     'MEDIA_PROXY_ENABLED',
-    default=bool(AWS_STORAGE_BUCKET_NAME and AWS_S3_ENDPOINT_URL),
+    default=False,
     cast=bool,
 )
 MEDIA_PROXY_PUBLIC_PREFIXES = tuple(csv_config(
@@ -884,6 +897,9 @@ if REDIS_URL:
             'LOCATION': REDIS_URL,
             'OPTIONS': {
                 'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'SOCKET_CONNECT_TIMEOUT': 2,
+                'SOCKET_TIMEOUT': 2,
+                'IGNORE_EXCEPTIONS': True,
             },
             'KEY_PREFIX': 'arolana',
             'TIMEOUT': 300,

@@ -18,7 +18,7 @@ class AIMessageSerializer(serializers.ModelSerializer):
         model = AIMessage
         fields = [
             "id", "conversation", "sender_type", "message", "image", "source_type",
-            "source_label", "confidence", "is_read_by_customer", "created_at",
+            "source_label", "confidence", "metadata", "is_read_by_customer", "created_at",
         ]
         read_only_fields = fields
 

@@ -4,9 +4,10 @@ import re
 
 from django.conf import settings
 from django.db.models import Q
+from django.urls import reverse
 from django.utils.html import strip_tags
 
-from products.models import Product
+from products.models import Brand, Category, Product
 
 
 MISSING_SPEC_MESSAGE = (
@@ -41,20 +42,36 @@ def _clean(value, limit=3500):
 
 def _is_product_question(message, conversation=None):
     text = str(message or "").lower()
-    return bool(getattr(conversation, "product_id", None)) or any(term in text for term in PRODUCT_QUESTION_TERMS)
+    return any(term in text for term in PRODUCT_QUESTION_TERMS)
 
 
 def _search_terms(message):
     text = re.sub(r"[^a-z0-9\s-]", " ", str(message or "").lower())
     stop = {
         "a", "about", "and", "are", "can", "do", "does", "for", "good", "how",
-        "i", "is", "it", "me", "of", "on", "please", "show", "tell", "the",
-        "this", "to", "what", "which", "with", "would", "you",
+        "i", "information", "is", "it", "know", "me", "more", "of", "on",
+        "please", "shop", "shopping", "show", "tell", "the", "this", "to",
+        "what", "which", "with", "would", "you",
     } | PRODUCT_QUESTION_TERMS
-    return [word for word in text.split() if len(word) > 2 and word not in stop][:10]
+    return [
+        word for word in text.split()
+        if len(word) > 2 and word not in stop and not word.isdigit()
+    ][:10]
 
 
-def find_products(message, conversation=None, limit=4):
+def _budget_range(message):
+    values = [
+        int(value.replace(",", ""))
+        for value in re.findall(r"(?:₦|n|\$)?\s*(\d[\d,]{3,})", str(message or "").lower())
+    ]
+    if len(values) >= 2:
+        return min(values), max(values)
+    if values:
+        return 0, values[0]
+    return None
+
+
+def find_products(message, conversation=None, limit=4, use_current_product=True):
     queryset = Product.objects.filter(
         is_active=True,
         approval_status="approved",
@@ -65,7 +82,7 @@ def find_products(message, conversation=None, limit=4):
         "product_accessories__accessory", "manufacturer_links__manufacturer",
     )
     attached = getattr(conversation, "product", None)
-    if attached and attached.is_active and attached.approval_status == "approved":
+    if use_current_product and attached and attached.is_active and attached.approval_status == "approved":
         first = queryset.filter(pk=attached.pk).first()
         related = queryset.filter(category=attached.category).exclude(pk=attached.pk).order_by(
             "-rating_avg", "-rating_count", "-sales_count",
@@ -73,11 +90,15 @@ def find_products(message, conversation=None, limit=4):
         return [first, *related] if first else list(related)
 
     terms = _search_terms(message)
+    context = dict(getattr(conversation, "context", {}) or {})
+    if not terms and context.get("current_category_locked") == "video_conferencing":
+        terms = ["conference", "conferencing", "meeting", "logitech"]
     if not terms:
         return []
     search = Q()
+    strict_search = Q()
     for term in terms:
-        search |= (
+        term_search = (
             Q(name__icontains=term)
             | Q(sku__icontains=term)
             | Q(manufacturer_sku__icontains=term)
@@ -89,11 +110,48 @@ def find_products(message, conversation=None, limit=4):
             | Q(brand__description__icontains=term)
             | Q(manufacturer_links__manufacturer__name__icontains=term)
         )
+        search |= term_search
+        strict_search &= term_search
+    strict_matches = queryset.filter(strict_search).distinct()
+    if strict_matches.exists():
+        queryset = strict_matches
+    else:
+        queryset = queryset.filter(search).distinct()
+    budget = _budget_range(message)
+    if budget:
+        minimum, maximum = budget
+        queryset = queryset.filter(price__gte=minimum, price__lte=maximum)
     return list(
-        queryset.filter(search).distinct().order_by(
+        queryset.order_by(
             "-rating_avg", "-rating_count", "-sales_count",
         )[:limit]
     )
+
+
+def _has_catalog_relevance(message, conversation=None):
+    if _is_product_question(message, conversation):
+        return True
+    terms = _search_terms(message)
+    context = dict(getattr(conversation, "context", {}) or {})
+    if not terms and context.get("current_category_locked"):
+        return bool(_budget_range(message))
+    if not terms:
+        return False
+    for term in terms:
+        if Brand.objects.filter(is_active=True, name__iexact=term).exists():
+            return True
+        if Category.objects.filter(is_active=True, name__iexact=term).exists():
+            return True
+        if Product.objects.filter(
+            Q(name__icontains=term)
+            | Q(brand__name__icontains=term)
+            | Q(category__name__icontains=term)
+            | Q(specifications__icontains=term),
+            is_active=True,
+            approval_status="approved",
+        ).exists():
+            return True
+    return False
 
 
 def product_facts(product):
@@ -208,6 +266,58 @@ def product_facts(product):
     }
 
 
+def _file_url(file_field):
+    if not file_field:
+        return ""
+    try:
+        return file_field.url
+    except Exception:
+        return ""
+
+
+def product_card(product):
+    image_url = _file_url(product.main_image)
+    if not image_url:
+        gallery_image = next(
+            (image for image in product.images.all() if image.is_main),
+            next(iter(product.images.all()), None),
+        )
+        image_url = _file_url(getattr(gallery_image, "image", None))
+    reviews = list(product.reviews.filter(is_active=True).order_by(
+        "-verified_purchase", "-helpful_count", "-created_at",
+    )[:3])
+    answered_questions = list(product.questions.filter(
+        is_active=True, is_public=True,
+    ).exclude(answer__isnull=True).exclude(answer="").order_by("-helpful_count")[:3])
+    return {
+        "id": product.id,
+        "slug": product.slug,
+        "title": product.name,
+        "brand": product.brand.name if product.brand else "",
+        "category": product.category.name,
+        "image_url": image_url,
+        "price": str(product.price),
+        "compare_price": str(product.compare_price or ""),
+        "price_display": f"₦{product.price:,.2f}",
+        "rating": float(product.rating_avg or 0),
+        "rating_count": int(product.rating_count or 0),
+        "review_count": int(product.rating_count or len(reviews)),
+        "review_summary": _clean(
+            reviews[0].review if reviews else "No customer review summary is available yet.",
+            180,
+        ),
+        "popular_qa": [{
+            "question": _clean(item.question, 160),
+            "answer": _clean(item.answer, 220),
+        } for item in answered_questions],
+        "stock_quantity": product.available_stock,
+        "in_stock": product.available_stock > 0 or product.allow_backorder,
+        "product_url": product.get_absolute_url(),
+        "add_to_cart_url": reverse("products:add_to_cart", args=[product.slug]),
+        "compare_url": f"{reverse('products:list')}?compare={product.id}",
+    }
+
+
 def _requested_missing_specs(message, facts):
     text = str(message or "").lower()
     searchable = " ".join([
@@ -237,8 +347,18 @@ def _requested_missing_specs(message, facts):
 
 def _deterministic_reply(message, products, facts):
     product = products[0]
+    brand_name = facts["brand"]["name"]
+    brand_description = facts["brand"]["description"]
     lines = [
-        f"Here is what Arolana lists for {product.name}:",
+        (
+            f"{brand_name}: {brand_description[:500]}"
+            if brand_name and brand_description
+            else f"Here is what Arolana lists for {product.name}:"
+        ),
+        "Top matching products: " + ", ".join(
+            f"{item.name} (₦{item.price:,.2f}, {item.rating_avg}/5)"
+            for item in products
+        ),
         f"• Price: ₦{product.price:,.2f}",
         f"• Stock: {facts['stock_quantity']} available" if facts["is_in_stock"] else "• Stock: currently unavailable",
         f"• Rating: {facts['rating']}/5 from {facts['rating_count']} rating(s)",
@@ -256,6 +376,10 @@ def _deterministic_reply(message, products, facts):
             f"• Review signal: {len(facts['reviews'])} recent review(s) were checked, "
             f"including {sum(1 for item in facts['reviews'] if item['verified_purchase'])} verified purchase review(s)."
         )
+        lines.append(f"• Review summary: {facts['reviews'][0]['review'][:350]}")
+    if facts["questions_and_answers"]:
+        popular = facts["questions_and_answers"][0]
+        lines.append(f"• Popular Q&A: {popular['question']} — {popular['answer']}")
     if len(products) > 1 and any(term in str(message).lower() for term in ("compare", "better", "recommend", "larger", "alternative")):
         lines.append(
             "• Related options to compare: "
@@ -265,13 +389,18 @@ def _deterministic_reply(message, products, facts):
     return "\n".join(lines)
 
 
-def product_intelligence_reply(conversation, message):
-    if not _is_product_question(message, conversation):
+def product_intelligence_reply(conversation, message, use_current_product=True):
+    if not _has_catalog_relevance(message, conversation):
         return None
-    products = find_products(message, conversation)
+    products = find_products(
+        message,
+        conversation,
+        use_current_product=use_current_product,
+    )
     if not products:
         return None
     facts = product_facts(products[0])
+    cards = [product_card(product) for product in products]
     missing = _requested_missing_specs(message, facts)
     if missing:
         return MISSING_SPEC_MESSAGE, {
@@ -281,6 +410,7 @@ def product_intelligence_reply(conversation, message):
             "confidence": 0.2,
             "missing_specs": missing,
             "product_ids": [item.id for item in products],
+            "product_cards": cards,
         }
 
     api_key = getattr(settings, "OPENAI_API_KEY", None) or os.environ.get("OPENAI_API_KEY")
@@ -317,6 +447,7 @@ def product_intelligence_reply(conversation, message):
         "source_object_id": products[0].id,
         "confidence": 0.9,
         "product_ids": [item.id for item in products],
+        "product_cards": cards,
         "facts_checked": [
             "description", "specifications", "accessories", "media", "reviews",
             "ratings", "questions_and_answers", "category", "brand", "manufacturer",

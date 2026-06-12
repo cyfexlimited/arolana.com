@@ -255,11 +255,12 @@
                     {% optimized_image_url banner.image_mobile 'hero' as hero_mobile_url %}
                 {% endif %}
                 <picture>
-                    <source media="(max-width: 767px)" srcset="{% if banner.image_mobile %}{{ hero_mobile_url }}{% elif banner.image_tablet %}{{ hero_tablet_url }}{% else %}{{ hero_image_url }}{% endif %}">
-                    <source media="(max-width: 1023px)" srcset="{% if banner.image_tablet %}{{ hero_tablet_url }}{% else %}{{ hero_image_url }}{% endif %}">
-                    <img src="{{ hero_image_url }}"
+                    <source media="(max-width: 767px)" {% if forloop.first %}srcset="{% if banner.image_mobile %}{{ hero_mobile_url }}{% elif banner.image_tablet %}{{ hero_tablet_url }}{% else %}{{ hero_image_url }}{% endif %}"{% else %}data-srcset="{% if banner.image_mobile %}{{ hero_mobile_url }}{% elif banner.image_tablet %}{{ hero_tablet_url }}{% else %}{{ hero_image_url }}{% endif %}"{% endif %}>
+                    <source media="(max-width: 1023px)" {% if forloop.first %}srcset="{% if banner.image_tablet %}{{ hero_tablet_url }}{% else %}{{ hero_image_url }}{% endif %}"{% else %}data-srcset="{% if banner.image_tablet %}{{ hero_tablet_url }}{% else %}{{ hero_image_url }}{% endif %}"{% endif %}>
+                    <img {% if forloop.first %}src="{{ hero_image_url }}"{% else %}data-src="{{ hero_image_url }}"{% endif %}
                          alt="{{ banner.title }}"
-                         {% if not forloop.first %}loading="lazy"{% endif %}>
+                         decoding="async"
+                         {% if forloop.first %}fetchpriority="high"{% else %}loading="lazy"{% endif %}>
                 </picture>
             {% else %}
                 <div style="width: 100%; height: 100%; background: linear-gradient(135deg, #1e3a8a, #7e22ce);"></div>
@@ -417,6 +418,7 @@
         const dots = document.querySelectorAll('.hero-dot');
         if (!slides.length || index < 0 || index >= slides.length) return;
 
+        loadSlideImage(slides[index]);
         const previousIndex = currentSlide;
         const previousSlide = slides[previousIndex];
         const nextSlideElement = slides[index];
@@ -521,12 +523,29 @@
         resetProgress();
         trackView(index);
     }
+
+    function loadSlideImage(slide) {
+        if (!slide || slide.dataset.imageLoaded === 'true') return;
+        slide.querySelectorAll('source[data-srcset]').forEach(source => {
+            source.srcset = source.dataset.srcset;
+            source.removeAttribute('data-srcset');
+        });
+        const image = slide.querySelector('img[data-src]');
+        if (image) {
+            image.src = image.dataset.src;
+            image.removeAttribute('data-src');
+        }
+        slide.dataset.imageLoaded = 'true';
+    }
     
+    const trackedBannerViews = new Set();
+
     function trackView(index) {
         const slide = document.querySelector(`.hero-slide[data-slide-index="${index}"]`);
         const bannerId = slide?.dataset.bannerId;
         
-        if (bannerId) {
+        if (bannerId && !trackedBannerViews.has(String(bannerId))) {
+            trackedBannerViews.add(String(bannerId));
             fetch('/hero-banners/track-view/', {
                 method: 'POST',
                 headers: {
@@ -651,6 +670,13 @@
     }
 
     window.addEventListener('resize', () => applySlideSizing(currentSlide));
+    window.addEventListener('load', () => {
+        if (totalSlides > 1) {
+            window.setTimeout(() => {
+                loadSlideImage(document.querySelector('.hero-slide[data-slide-index="1"]'));
+            }, 1500);
+        }
+    }, { once: true });
     
     applySlideSizing(0);
     startAutoSlide();

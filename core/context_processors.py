@@ -85,6 +85,7 @@ def _main_categories():
         .annotate(active_child_count=Count("children", filter=Q(children__is_active=True)))
         .prefetch_related(Prefetch("children", queryset=child_queryset))
         .order_by("order", "name")
+        [:10]
     )
 
 
@@ -123,7 +124,12 @@ def global_context(request):
 
     vendors = _safe_cached(
         "global_context:verified_vendors",
-        lambda: list(VendorProfile.objects.filter(is_verified=True, is_active=True)),
+        lambda: list(
+            VendorProfile.objects
+            .filter(is_verified=True, is_active=True)
+            .select_related("user")
+            .order_by("-priority_score", "-rating_avg")[:40]
+        ),
         [],
     )
     vendors = list(vendors)
@@ -141,6 +147,7 @@ def global_context(request):
         lambda: list(
             VendorProfile.objects
             .filter(is_verified=True, is_active=True)
+            .select_related("user")
             .order_by("-rating_avg")[:5]
         ),
         [],
@@ -151,6 +158,7 @@ def global_context(request):
         lambda: list(
             VendorProfile.objects
             .filter(is_verified=True, is_active=True)
+            .select_related("user")
             .order_by("-total_sales")[:5]
         ),
         [],
@@ -238,6 +246,7 @@ def global_context(request):
         "featured_products": featured_products,
         "vendors": vendors,
         "main_categories": main_categories,
+        "product_conditions": Product.PRODUCT_CONDITION_CHOICES,
         "top_vendors": top_vendors,
         "trending_vendors": trending_vendors,
         "manufacturer_categories": manufacturer_categories,

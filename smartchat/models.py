@@ -705,3 +705,132 @@ class HumanTakeoverRequest(models.Model):
 
     def __str__(self):
         return f"Conversation #{self.conversation_id} - {self.get_status_display()}"
+
+
+class AIUnansweredQuestion(models.Model):
+    conversation = models.ForeignKey(
+        SmartChatConversation,
+        on_delete=models.CASCADE,
+        related_name="unanswered_questions",
+    )
+    message = models.ForeignKey(
+        SmartChatMessage,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="unanswered_question_records",
+    )
+    question = models.TextField()
+    normalized_question = models.CharField(max_length=500, db_index=True)
+    detected_intent = models.CharField(max_length=80, blank=True, db_index=True)
+    marketplace_category = models.CharField(max_length=80, blank=True, db_index=True)
+    confidence = models.DecimalField(max_digits=5, decimal_places=4, default=0)
+    reason = models.CharField(max_length=240, blank=True)
+    context_snapshot = models.JSONField(default=dict, blank=True)
+    occurrence_count = models.PositiveIntegerField(default=1)
+    is_resolved = models.BooleanField(default=False, db_index=True)
+    resolved_knowledge = models.ForeignKey(
+        AIKnowledgeBase,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="resolved_unanswered_questions",
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_ai_unanswered_questions",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-occurrence_count", "-updated_at"]
+        indexes = [
+            models.Index(fields=["is_resolved", "-updated_at"], name="smartchat_a_is_reso_3877ec_idx"),
+            models.Index(fields=["marketplace_category", "detected_intent"], name="smartchat_a_marketp_472c1c_idx"),
+        ]
+        verbose_name = "AI Unanswered Question"
+        verbose_name_plural = "AI Unanswered Questions"
+
+    def __str__(self):
+        return self.question[:120]
+
+
+class AIIntentLog(models.Model):
+    conversation = models.ForeignKey(
+        SmartChatConversation,
+        on_delete=models.CASCADE,
+        related_name="intent_logs",
+    )
+    message = models.ForeignKey(
+        SmartChatMessage,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="intent_logs",
+    )
+    intent = models.CharField(max_length=80, db_index=True)
+    previous_intent = models.CharField(max_length=80, blank=True, db_index=True)
+    confidence = models.DecimalField(max_digits=5, decimal_places=4, default=1)
+    channel = models.CharField(max_length=20, blank=True, db_index=True)
+    used_memory = models.BooleanField(default=False)
+    triggered_search = models.BooleanField(default=False)
+    triggered_handover = models.BooleanField(default=False)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["intent", "-created_at"], name="smartchat_a_intent_841ee7_idx"),
+            models.Index(fields=["channel", "-created_at"], name="smartchat_a_channel_e581cf_idx"),
+        ]
+        verbose_name = "AI Intent Log"
+        verbose_name_plural = "AI Intent Analytics"
+
+    def __str__(self):
+        return f"{self.intent} - conversation #{self.conversation_id}"
+
+
+class AICategoryRouterLog(models.Model):
+    conversation = models.ForeignKey(
+        SmartChatConversation,
+        on_delete=models.CASCADE,
+        related_name="category_router_logs",
+    )
+    message = models.ForeignKey(
+        SmartChatMessage,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="category_router_logs",
+    )
+    marketplace_category = models.CharField(max_length=80, db_index=True)
+    catalog_category = models.ForeignKey(
+        "products.Category",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ai_router_logs",
+    )
+    confidence = models.DecimalField(max_digits=5, decimal_places=4, default=0)
+    matched_terms = models.JSONField(default=list, blank=True)
+    route_source = models.CharField(max_length=80, blank=True)
+    entity_type = models.CharField(max_length=40, blank=True)
+    entity_id = models.PositiveBigIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["marketplace_category", "-created_at"], name="smartchat_a_marketp_778797_idx"),
+            models.Index(fields=["entity_type", "entity_id"], name="smartchat_a_entity__5e38d9_idx"),
+        ]
+        verbose_name = "AI Category Router Log"
+        verbose_name_plural = "AI Category Analytics"
+
+    def __str__(self):
+        return f"{self.marketplace_category} - conversation #{self.conversation_id}"

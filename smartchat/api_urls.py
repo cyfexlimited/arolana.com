@@ -12,4 +12,5 @@ urlpatterns = [
     path("feedback/", api_views.feedback, name="feedback"),
     path("request-human/", api_views.request_human, name="request_human"),
     path("unread-count/", api_views.unread_count, name="unread_count"),
+    path("mark-read/", api_views.mark_read, name="mark_read"),
 ]

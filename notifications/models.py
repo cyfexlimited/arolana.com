@@ -250,9 +250,14 @@ class Notification(BaseModel):
         created_notifications = cls.objects.bulk_create(notifications)
         try:
             from .webpush import send_web_push_notification
+            if getattr(settings, "WEB_PUSH_ASYNC", not settings.DEBUG):
+                from core.background_tasks import submit_background
 
-            for notification in created_notifications:
-                send_web_push_notification(notification)
+                for notification in created_notifications:
+                    submit_background(send_web_push_notification, notification)
+            else:
+                for notification in created_notifications:
+                    send_web_push_notification(notification)
         except Exception:
             pass
         return created_notifications
@@ -380,8 +385,15 @@ def send_notification_web_push(sender, instance, created, raw=False, **kwargs):
 
     try:
         from .webpush import send_web_push_notification
+        if getattr(settings, "WEB_PUSH_ASYNC", not settings.DEBUG):
+            from django.db import transaction
+            from core.background_tasks import submit_background
 
-        send_web_push_notification(instance)
+            transaction.on_commit(
+                lambda: submit_background(send_web_push_notification, instance)
+            )
+        else:
+            send_web_push_notification(instance)
     except Exception:
         # Notification creation should never fail because a push provider is down.
         return

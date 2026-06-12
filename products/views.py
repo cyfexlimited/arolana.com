@@ -17,6 +17,7 @@ from decimal import Decimal, InvalidOperation
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from core.local_cache import local_get_or_set
+from core.media_optimization import get_optimized_image_url
 from .models import (
     Product, Category, ProductReview, Wishlist, RecentlyViewed, 
     ProductVariant, ProductQuestion, Accessory, AccessoryProduct,
@@ -247,6 +248,16 @@ def apply_product_search(queryset, query):
 
 def apply_filters(queryset, request):
     """Apply all filters to queryset"""
+    collection = request.GET.get('collection', '').strip().lower()
+    if collection == 'featured':
+        queryset = queryset.filter(is_featured=True)
+    elif collection == 'new':
+        queryset = queryset.filter(is_new=True)
+    elif collection == 'bestsellers':
+        queryset = queryset.filter(is_bestseller=True)
+    elif collection == 'trending':
+        queryset = queryset.filter(Q(views_count__gt=0) | Q(sales_count__gt=0))
+
     query = request.GET.get('q', '').strip()
     if query:
         queryset = apply_product_search(queryset, query)
@@ -263,17 +274,22 @@ def apply_filters(queryset, request):
     # ====== Price Range Filter ======
     min_price = request.GET.get('min_price')
     max_price = request.GET.get('max_price')
+    user_currency = get_user_currency(request)
+    base_currency = get_base_currency()
+
+    def price_in_catalog_currency(value):
+        return convert_price(Decimal(value), user_currency, base_currency)
     
     if min_price:
         try:
-            queryset = queryset.filter(price__gte=Decimal(min_price))
-        except (ValueError, TypeError):
+            queryset = queryset.filter(price__gte=price_in_catalog_currency(min_price))
+        except (InvalidOperation, ValueError, TypeError):
             pass
     
     if max_price:
         try:
-            queryset = queryset.filter(price__lte=Decimal(max_price))
-        except (ValueError, TypeError):
+            queryset = queryset.filter(price__lte=price_in_catalog_currency(max_price))
+        except (InvalidOperation, ValueError, TypeError):
             pass
     
     # ====== Brand Filter ======
@@ -284,6 +300,21 @@ def apply_filters(queryset, request):
             brand_slugs.extend([s.strip() for s in b.split(',') if s.strip()])
         if brand_slugs:
             queryset = queryset.filter(brand__slug__in=brand_slugs)
+
+    # ====== Product Condition Filter ======
+    conditions = request.GET.getlist('conditions')
+    if not conditions and request.GET.get('condition'):
+        conditions = [request.GET.get('condition')]
+    condition_values = []
+    valid_conditions = {value for value, _label in Product.PRODUCT_CONDITION_CHOICES}
+    for condition in conditions:
+        condition_values.extend([
+            value.strip()
+            for value in str(condition).split(',')
+            if value.strip() in valid_conditions
+        ])
+    if condition_values:
+        queryset = queryset.filter(condition__in=condition_values)
     
     # ====== Rating Filter ======
     min_rating = request.GET.get('rating')
@@ -859,7 +890,41 @@ def product_list(request):
     products = apply_filters(products, request)
 
     # ====== Sorting ======
-    sort_param = request.GET.get("sort", "featured")
+    collection = request.GET.get("collection", "").strip().lower()
+    collection_details = {
+        "featured": {
+            "title": "Featured Products",
+            "description": "Handpicked products selected by the Arolana team.",
+            "sort": "featured",
+            "icon": "star",
+        },
+        "new": {
+            "title": "New Arrivals",
+            "description": "The latest approved products from Arolana vendors.",
+            "sort": "newest",
+            "icon": "sparkles",
+        },
+        "bestsellers": {
+            "title": "Best Sellers",
+            "description": "Popular products customers are buying across Arolana.",
+            "sort": "bestsellers",
+            "icon": "trophy",
+        },
+        "trending": {
+            "title": "Trending Deals",
+            "description": "Products attracting the most interest and sales right now.",
+            "sort": "trending",
+            "icon": "fire",
+        },
+    }
+    collection_info = collection_details.get(collection)
+    if not collection_info:
+        collection = ""
+
+    sort_param = request.GET.get(
+        "sort",
+        collection_info["sort"] if collection_info else "featured",
+    )
     sort_mapping = {
         "featured": ("-is_featured", "-rating_avg", "-created_at"),
         "newest": ("-created_at",),
@@ -886,6 +951,38 @@ def product_list(request):
 
     # ====== Currency ======
     user_currency = get_user_currency(request)
+    base_currency = get_base_currency()
+    price_presets = []
+    catalog_ranges = (
+        ((0, 50000), (50000, 150000), (150000, 500000), (500000, 1000000), (1000000, None))
+        if base_currency.code == "NGN"
+        else ((0, 50), (50, 100), (100, 200), (200, 500), (500, None))
+    )
+    for minimum, maximum in catalog_ranges:
+        converted_minimum = convert_price(minimum, base_currency, user_currency)
+        converted_maximum = (
+            convert_price(maximum, base_currency, user_currency)
+            if maximum is not None else None
+        )
+        price_presets.append({
+            "value": (
+                f"{converted_minimum:.2f}+"
+                if converted_maximum is None
+                else f"{converted_minimum:.2f}-{converted_maximum:.2f}"
+            ),
+            "label": (
+                f"Over {user_currency.format_amount(converted_minimum)}"
+                if converted_maximum is None
+                else (
+                    f"Under {user_currency.format_amount(converted_maximum)}"
+                    if minimum == 0
+                    else (
+                        f"{user_currency.format_amount(converted_minimum)} - "
+                        f"{user_currency.format_amount(converted_maximum)}"
+                    )
+                )
+            ),
+        })
 
     # ====== Prepare categories and brands for template ======
     product_count_filter = Q(
@@ -951,11 +1048,15 @@ def product_list(request):
         "products": products_page,
         "categories": categories_list,
         "brands": brands_list,
+        "product_conditions": Product.PRODUCT_CONDITION_CHOICES,
+        "price_presets": price_presets,
         "filter_counts": filter_counts,
         "current_sort": sort_param,
         "user_currency": user_currency,
         "paginator": paginator,
         "shop_banner": shop_banner,
+        "current_collection": collection,
+        "collection_info": collection_info,
     })
 
 
@@ -1056,17 +1157,22 @@ def product_detail(request, slug):
         except Exception:
             return None
 
-    def push_image(images, src, alt):
+    def push_image(images, image_field, alt):
         """
         Add image once only. This prevents duplicates between:
         product.main_image + ProductImage marked as main,
         variant.image + ProductVariantImage marked as main.
         """
-        if not src:
+        original_src = safe_url(image_field)
+        if not original_src:
             return
-        if src not in {image['src'] for image in images}:
+        src = get_optimized_image_url(image_field, 'product_detail')
+        thumb = get_optimized_image_url(image_field, 'product_thumb')
+        if original_src not in {image['original'] for image in images}:
             images.append({
                 'src': src,
+                'thumb': thumb,
+                'original': original_src,
                 'alt': alt or product.name,
             })
 
@@ -1078,11 +1184,11 @@ def product_detail(request, slug):
         images = []
 
         # Main product image first
-        push_image(images, safe_url(product.main_image), product.name)
+        push_image(images, product.main_image, product.name)
 
         # Then all ProductImage rows from admin
         for image in product.images.all():
-            push_image(images, safe_url(image.image), image.alt_text or product.name)
+            push_image(images, image.image, image.alt_text or product.name)
 
         return images
 
@@ -1096,7 +1202,7 @@ def product_detail(request, slug):
         # Main variant image first
         push_image(
             images,
-            safe_url(variant.image),
+            variant.image,
             f"{product.name} - {variant.value}"
         )
 
@@ -1104,7 +1210,7 @@ def product_detail(request, slug):
         for image in variant.images.all():
             push_image(
                 images,
-                safe_url(image.image),
+                image.image,
                 image.alt_text or f"{product.name} - {variant.value}"
             )
 
@@ -2294,12 +2400,7 @@ def _mobile_product_payload(request, product):
 
     regular_price = _mobile_get_value(product, "regular_price", "compare_price", "old_price", default="")
     price = _mobile_get_value(product, "price", "sale_price", "current_price", "amount", default="")
-    rating = getattr(product, "average_rating", None)
-    if rating is None:
-        try:
-            rating = product.reviews.aggregate(avg=Avg("rating")).get("avg") or 0
-        except Exception:
-            rating = 0
+    rating = getattr(product, "rating_avg", 0) or 0
 
     minimum_order_quantity = getattr(product, "minimum_order_quantity", 1) or 1
     wholesale_price = getattr(product, "wholesale_price", None)
@@ -2353,7 +2454,7 @@ def _mobile_product_payload(request, product):
         "is_new": bool(getattr(product, "is_new", False)),
         "is_bestseller": bool(getattr(product, "is_bestseller", False)),
         "rating": str(rating or 0),
-        "rating_count": getattr(product, "review_count", None) or product.reviews.count(),
+        "rating_count": getattr(product, "rating_count", 0) or 0,
         "image": _mobile_get_image_url(request, product),
         "url": request.build_absolute_uri(reverse("products:detail", args=[product.slug])),
         "vendor_id": getattr(vendor_profile, "id", None),
@@ -2382,13 +2483,13 @@ def mobile_home_api(request):
         "brand",
         "vendor",
         "vendor__vendor_profile",
-    ).prefetch_related("reviews")
+    )
     product_queryset = order_storefront_products(
         product_queryset,
         "-is_featured",
         "-sales_count",
         "-created_at",
-    )[:80]
+    )[:48]
 
     banner_payloads = []
     if HomepageBanner:

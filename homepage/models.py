@@ -318,6 +318,24 @@ class HomepageSection(BaseModel):
     def __str__(self):
         return f"{self.title} ({self.get_section_type_display()})"
 
+    @property
+    def default_view_all_url(self):
+        collection_urls = {
+            'featured': '/products/?collection=featured',
+            'new': '/products/?collection=new',
+            'bestsellers': '/products/?collection=bestsellers',
+            'trending': '/products/?collection=trending',
+        }
+        return collection_urls.get(self.section_type, '/products/')
+
+    @property
+    def resolved_view_all_url(self):
+        """Use a real collection landing page unless admin supplied a custom URL."""
+        configured_url = (self.view_all_url or '').strip()
+        if configured_url and configured_url != '/products/':
+            return configured_url
+        return self.default_view_all_url
+
     def get_products(self):
         """Return curated products first, then filtered automatic products."""
         from products.ranking import order_products_for_visibility

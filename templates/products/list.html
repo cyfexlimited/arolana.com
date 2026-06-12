@@ -1076,6 +1076,10 @@
             <a href="/">Home</a>
             <i class="fas fa-chevron-right text-xs"></i>
             <span>Products</span>
+            {% if collection_info %}
+            <i class="fas fa-chevron-right text-xs"></i>
+            <span>{{ collection_info.title }}</span>
+            {% endif %}
         </nav>
 
         {% if shop_banner and shop_banner.background_image %}
@@ -1155,6 +1159,20 @@
             </div>
         </section>
 
+        {% if collection_info %}
+        <section class="mt-6 rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50 via-white to-indigo-50 px-5 py-5 shadow-sm sm:px-7">
+            <div class="flex items-center gap-4">
+                <span class="flex h-12 w-12 flex-none items-center justify-center rounded-2xl bg-blue-600 text-xl text-white shadow-lg shadow-blue-200">
+                    <i class="fas fa-{{ collection_info.icon }}"></i>
+                </span>
+                <div>
+                    <h2 class="text-2xl font-black text-slate-950">{{ collection_info.title }}</h2>
+                    <p class="mt-1 text-sm text-slate-600">{{ collection_info.description }}</p>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
         <div class="arolana-layout" id="products-section">
             <aside>
                 <button id="mobile-filter-btn" class="arolana-mobile-filter-btn mb-4" type="button">
@@ -1208,6 +1226,24 @@
 
                             <div class="filter-section">
                                 <button type="button" class="filter-title" onclick="toggleFilter(this)">
+                                    <span>Currency</span>
+                                    <i class="fas fa-chevron-down text-xs"></i>
+                                </button>
+                                <div class="filter-options">
+                                    <form method="POST" action="{% url 'currency:switch' %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                        <select name="code" class="price-range-input w-full" onchange="this.form.submit()" aria-label="Change product currency">
+                                            {% for currency in all_currencies %}
+                                            <option value="{{ currency.code }}" {% if current_currency_code == currency.code %}selected{% endif %}>{{ currency.code }} {{ currency.symbol }} - {{ currency.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </form>
+                                </div>
+                            </div>
+
+                            <div class="filter-section">
+                                <button type="button" class="filter-title" onclick="toggleFilter(this)">
                                     <span>Price Range</span>
                                     <i class="fas fa-chevron-down text-xs"></i>
                                 </button>
@@ -1219,12 +1255,26 @@
                                     </div>
                                     <button id="price-filter-btn" class="arolana-filter-apply" type="button">Apply Price</button>
                                     <div class="mt-3 space-y-1">
-                                        <label class="filter-option"><input type="radio" name="price" value="0-50" class="price-preset"> Under $50</label>
-                                        <label class="filter-option"><input type="radio" name="price" value="50-100" class="price-preset"> $50 - $100</label>
-                                        <label class="filter-option"><input type="radio" name="price" value="100-200" class="price-preset"> $100 - $200</label>
-                                        <label class="filter-option"><input type="radio" name="price" value="200-500" class="price-preset"> $200 - $500</label>
-                                        <label class="filter-option"><input type="radio" name="price" value="500+" class="price-preset"> Over $500</label>
+                                        {% for preset in price_presets %}
+                                        <label class="filter-option"><input type="radio" name="price" value="{{ preset.value }}" class="price-preset"> {{ preset.label }}</label>
+                                        {% endfor %}
                                     </div>
+                                </div>
+                            </div>
+
+                            <div class="filter-section">
+                                <button type="button" class="filter-title" onclick="toggleFilter(this)">
+                                    <span>Product Condition</span>
+                                    <i class="fas fa-chevron-down text-xs"></i>
+                                </button>
+                                <div class="filter-options">
+                                    {% for value, label in product_conditions %}
+                                    <label class="filter-option">
+                                        <input type="checkbox" value="{{ value }}" class="condition-filter"
+                                               {% if value in request.GET.conditions|default:request.GET.condition|default:"" %}checked{% endif %}>
+                                        <span>{{ label }}</span>
+                                    </label>
+                                    {% endfor %}
                                 </div>
                             </div>
 
@@ -1291,6 +1341,7 @@
                             <option value="price_high" {% if current_sort == 'price_high' %}selected{% endif %}>Price: High to Low</option>
                             <option value="rating" {% if current_sort == 'rating' %}selected{% endif %}>Highest Rated</option>
                             <option value="bestsellers" {% if current_sort == 'bestsellers' %}selected{% endif %}>Best Selling</option>
+                            <option value="trending" {% if current_sort == 'trending' %}selected{% endif %}>Trending</option>
                         </select>
                     </div>
                 </div>
@@ -1343,12 +1394,17 @@ document.querySelectorAll('.filter-options').forEach(el => {
 
 function buildFilterUrl(page = 1) {
     const params = new URLSearchParams();
+    const collection = '{{ current_collection|escapejs }}';
+    if (collection) params.set('collection', collection);
 
     const categories = Array.from(document.querySelectorAll('.category-filter:checked')).map(cb => cb.value);
     if (categories.length) params.set('categories', categories.join(','));
 
     const brands = Array.from(document.querySelectorAll('.brand-filter:checked')).map(cb => cb.value);
     if (brands.length) params.set('brands', brands.join(','));
+
+    const conditions = Array.from(document.querySelectorAll('.condition-filter:checked')).map(cb => cb.value);
+    if (conditions.length) params.set('conditions', conditions.join(','));
 
     const minPrice = document.getElementById('min-price')?.value;
     const maxPrice = document.getElementById('max-price')?.value;
@@ -1459,7 +1515,7 @@ function updateCartCount() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.category-filter, .brand-filter, .rating-filter').forEach(filter => {
+    document.querySelectorAll('.category-filter, .brand-filter, .condition-filter, .rating-filter').forEach(filter => {
         filter.addEventListener('change', () => applyFilters());
     });
 
@@ -1487,7 +1543,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('sort-select')?.addEventListener('change', () => applyFilters());
 
     document.getElementById('clear-filters')?.addEventListener('click', () => {
-        document.querySelectorAll('.category-filter, .brand-filter, .rating-filter').forEach(cb => cb.checked = false);
+        document.querySelectorAll('.category-filter, .brand-filter, .condition-filter, .rating-filter').forEach(cb => cb.checked = false);
         document.querySelectorAll('.price-preset').forEach(r => r.checked = false);
 
         const minPrice = document.getElementById('min-price');

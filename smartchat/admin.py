@@ -1,20 +1,26 @@
 import csv
+import io
+import json
 
 from django.contrib import admin
 from django.http import HttpResponse
-from django.urls import reverse
+from django.shortcuts import redirect, render
+from django.urls import path, reverse
 from django.utils import timezone
 from django.utils.html import format_html
 
 from .models import (
     AIConversation,
+    AICategoryRouterLog,
     AICustomerMemory,
     AIFeedback,
+    AIIntentLog,
     AIKnowledgeBase,
     AILearnedKnowledge,
     AIMessage,
     AISettings,
     AITrainingData,
+    AIUnansweredQuestion,
     HumanTakeoverRequest,
     SmartChatConversation,
     SmartChatMessage,
@@ -636,6 +642,106 @@ class AIKnowledgeBaseAdmin(admin.ModelAdmin):
     list_filter = ["approved", "is_active", "audience", "category"]
     search_fields = ["question", "answer", "keywords"]
     list_editable = ["approved", "is_active", "priority"]
+    change_list_template = "admin/smartchat/knowledge_change_list.html"
+    actions = ["export_selected_csv", "export_selected_json"]
+
+    def get_urls(self):
+        return [
+            path("import/", self.admin_site.admin_view(self.import_faqs), name="smartchat_faq_import"),
+            path("export/csv/", self.admin_site.admin_view(self.export_all_csv), name="smartchat_faq_export_csv"),
+            path("export/json/", self.admin_site.admin_view(self.export_all_json), name="smartchat_faq_export_json"),
+        ] + super().get_urls()
+
+    def _export_csv(self, queryset):
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="arolana-ai-faqs.csv"'
+        writer = csv.writer(response)
+        writer.writerow(["question", "answer", "category", "keywords", "audience", "approved", "is_active", "priority"])
+        for item in queryset:
+            writer.writerow([
+                item.question, item.answer, item.category, item.keywords,
+                item.audience, item.approved, item.is_active, item.priority,
+            ])
+        return response
+
+    def _export_json(self, queryset):
+        data = [{
+            "question": item.question,
+            "answer": item.answer,
+            "category": item.category,
+            "keywords": item.keywords,
+            "audience": item.audience,
+            "approved": item.approved,
+            "is_active": item.is_active,
+            "priority": item.priority,
+        } for item in queryset]
+        response = HttpResponse(
+            json.dumps(data, indent=2, ensure_ascii=True),
+            content_type="application/json",
+        )
+        response["Content-Disposition"] = 'attachment; filename="arolana-ai-faqs.json"'
+        return response
+
+    @admin.action(description="Export selected FAQs as CSV")
+    def export_selected_csv(self, request, queryset):
+        return self._export_csv(queryset)
+
+    @admin.action(description="Export selected FAQs as JSON")
+    def export_selected_json(self, request, queryset):
+        return self._export_json(queryset)
+
+    def export_all_csv(self, request):
+        return self._export_csv(self.get_queryset(request))
+
+    def export_all_json(self, request):
+        return self._export_json(self.get_queryset(request))
+
+    def import_faqs(self, request):
+        if request.method == "POST" and request.FILES.get("faq_file"):
+            uploaded = request.FILES["faq_file"]
+            content = uploaded.read().decode("utf-8-sig")
+            if uploaded.name.lower().endswith(".json"):
+                rows = json.loads(content)
+                if isinstance(rows, dict):
+                    rows = rows.get("faqs", [])
+            else:
+                rows = list(csv.DictReader(io.StringIO(content)))
+
+            created = updated = 0
+            for row in rows:
+                question = str(row.get("question") or "").strip()
+                answer = str(row.get("answer") or "").strip()
+                if not question or not answer:
+                    continue
+                try:
+                    priority = max(0, min(int(row.get("priority") or 50), 100))
+                except (TypeError, ValueError):
+                    priority = 50
+                audience = str(row.get("audience") or "all")
+                valid_audiences = {choice[0] for choice in AIKnowledgeBase.AUDIENCE_CHOICES}
+                if audience not in valid_audiences:
+                    audience = "all"
+                _, was_created = AIKnowledgeBase.objects.update_or_create(
+                    question=question[:500],
+                    defaults={
+                        "answer": answer,
+                        "category": str(row.get("category") or "")[:120],
+                        "keywords": str(row.get("keywords") or ""),
+                        "audience": audience,
+                        "approved": str(row.get("approved", "true")).lower() in {"1", "true", "yes"},
+                        "is_active": str(row.get("is_active", "true")).lower() in {"1", "true", "yes"},
+                        "priority": priority,
+                        "created_by": request.user,
+                    },
+                )
+                created += int(was_created)
+                updated += int(not was_created)
+            self.message_user(request, f"Imported {created} new and updated {updated} FAQ entries.")
+            return redirect("admin:smartchat_aiknowledgebase_changelist")
+        return render(request, "admin/smartchat/knowledge_import.html", {
+            **self.admin_site.each_context(request),
+            "title": "Import AI FAQs",
+        })
 
 
 @admin.register(AILearnedKnowledge)
@@ -712,3 +818,68 @@ class HumanTakeoverRequestAdmin(admin.ModelAdmin):
     @admin.action(description="Mark selected requests resolved")
     def mark_resolved(self, request, queryset):
         queryset.update(status=HumanTakeoverRequest.STATUS_RESOLVED, resolved_at=timezone.now())
+
+
+@admin.register(AIUnansweredQuestion)
+class AIUnansweredQuestionAdmin(admin.ModelAdmin):
+    list_display = [
+        "question_preview", "detected_intent", "marketplace_category",
+        "occurrence_count", "confidence", "is_resolved", "updated_at",
+    ]
+    list_filter = ["is_resolved", "marketplace_category", "detected_intent"]
+    search_fields = ["question", "normalized_question", "reason"]
+    readonly_fields = ["context_snapshot", "created_at", "updated_at"]
+    actions = ["convert_to_faq", "mark_resolved"]
+
+    def question_preview(self, obj):
+        return obj.question[:120]
+
+    @admin.action(description="Convert selected questions to draft FAQs")
+    def convert_to_faq(self, request, queryset):
+        created = 0
+        for item in queryset:
+            answer = item.conversation.messages.filter(
+                sender_type__in=[SmartChatMessage.SENDER_AI, SmartChatMessage.SENDER_ADMIN],
+                id__gt=item.message_id or 0,
+            ).order_by("id").first()
+            knowledge, was_created = AIKnowledgeBase.objects.get_or_create(
+                question=item.question[:500],
+                defaults={
+                    "answer": answer.message if answer else "Add the approved Arolana answer here.",
+                    "category": item.marketplace_category,
+                    "approved": False,
+                    "created_by": request.user,
+                },
+            )
+            item.resolved_knowledge = knowledge
+            item.reviewed_by = request.user
+            item.is_resolved = bool(answer)
+            item.save(update_fields=["resolved_knowledge", "reviewed_by", "is_resolved", "updated_at"])
+            created += int(was_created)
+        self.message_user(request, f"{created} draft FAQ entry or entries created.")
+
+    @admin.action(description="Mark selected unanswered questions resolved")
+    def mark_resolved(self, request, queryset):
+        queryset.update(is_resolved=True, reviewed_by=request.user)
+
+
+@admin.register(AIIntentLog)
+class AIIntentLogAdmin(admin.ModelAdmin):
+    list_display = [
+        "intent", "previous_intent", "channel", "confidence",
+        "used_memory", "triggered_search", "triggered_handover", "created_at",
+    ]
+    list_filter = ["intent", "channel", "used_memory", "triggered_search", "triggered_handover"]
+    search_fields = ["conversation__customer_email", "message__message"]
+    readonly_fields = [field.name for field in AIIntentLog._meta.fields]
+
+
+@admin.register(AICategoryRouterLog)
+class AICategoryRouterLogAdmin(admin.ModelAdmin):
+    list_display = [
+        "marketplace_category", "catalog_category", "confidence",
+        "route_source", "entity_type", "created_at",
+    ]
+    list_filter = ["marketplace_category", "route_source", "entity_type"]
+    search_fields = ["conversation__customer_email", "message__message", "catalog_category__name"]
+    readonly_fields = [field.name for field in AICategoryRouterLog._meta.fields]

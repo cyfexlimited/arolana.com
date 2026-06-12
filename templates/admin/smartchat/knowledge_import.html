@@ -1,0 +1,20 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div id="content-main">
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <fieldset class="module aligned">
+            <h2>Import approved knowledge</h2>
+            <div class="form-row">
+                <label class="required" for="id_faq_file">JSON or CSV file:</label>
+                <input id="id_faq_file" type="file" name="faq_file" accept=".json,.csv" required>
+            </div>
+            <p>Columns: question, answer, category, keywords, audience, approved, is_active, priority.</p>
+        </fieldset>
+        <div class="submit-row">
+            <input type="submit" value="Import FAQs" class="default">
+        </div>
+    </form>
+</div>
+{% endblock %}

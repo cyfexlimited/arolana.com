@@ -33,11 +33,12 @@
                     {% endif %}
 
                     <img src="{{ hp_category_image_url }}"
+                         data-fallback-src="{% if hp_category.category.image %}{{ hp_category.category.image.url }}{% else %}{{ hp_category.image_url }}{% endif %}"
                          alt="{{ hp_category.category.name }}"
                          class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                          loading="lazy"
                          decoding="async"
-                         onerror="this.onerror=null; this.src='https://placehold.co/400x400/3b82f6/white?text={{ hp_category.category.name|urlencode }}';">
+                         onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}else{this.onerror=null;this.src='https://placehold.co/400x400/3b82f6/white?text={{ hp_category.category.name|urlencode }}';}">
                 {% else %}
                     <div class="flex h-full w-full items-center justify-center">
                         <i class="{{ hp_category.icon|default:'fas fa-folder-open' }} text-5xl text-blue-500" aria-hidden="true"></i>

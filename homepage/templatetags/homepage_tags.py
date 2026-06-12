@@ -286,11 +286,16 @@ def vendor_carousel(context):
             "request": request,
         }
 
-    vendors = list(
-        VendorProfile.objects
-        .filter(is_verified=True, is_active=True)
-        .order_by("-rating_avg", "-total_sales")[:settings.vendor_count]
-    )
+    vendors = list(local_get_or_set(
+        f"homepage:vendor_carousel:{settings.vendor_count}",
+        lambda: list(
+            VendorProfile.objects
+            .filter(is_verified=True, is_active=True)
+            .select_related("user")
+            .order_by("-rating_avg", "-total_sales")[:settings.vendor_count]
+        ),
+        HOMEPAGE_CACHE_TIMEOUT,
+    ))
 
     random.shuffle(vendors)
 

@@ -2834,7 +2834,7 @@
                         <a href="{% url 'products:category' category.slug %}" class="flex items-center gap-2 px-4 py-4 hover:text-brand transition font-medium group">
                             {% if category.image %}
                                 {% optimized_image_url category.image 'nav_icon' as category_image_url %}
-                                <img src="{{ category_image_url }}" alt="{{ category.name }}" class="w-5 h-5 rounded-full object-cover group-hover:scale-110 transition">
+                                <img src="{{ category_image_url }}" data-fallback-src="{{ category.image.url }}" alt="{{ category.name }}" class="w-5 h-5 rounded-full object-cover group-hover:scale-110 transition" width="20" height="20" decoding="async" onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}">
                             {% elif category.icon %}
                                 <i class="fas fa-{{ category.icon }} group-hover:scale-125 transition"></i>
                             {% else %}
@@ -2849,9 +2849,11 @@
                                 <a href="{% url 'products:category' category.slug %}" class="mega-category-hero">
                                     <div class="mega-category-hero-media">
                                         {% if category.background_image %}
-                                            <img src="{{ category.background_image.url }}" alt="{{ category.name }}" loading="lazy" decoding="async">
+                                            {% optimized_image_url category.background_image 'category_card' as category_hero_url %}
+                                            <img data-src="{{ category_hero_url }}" data-fallback-src="{{ category.background_image.url }}" alt="{{ category.name }}" loading="lazy" decoding="async" width="560" height="420">
                                         {% elif category.image %}
-                                            <img src="{{ category.image.url }}" alt="{{ category.name }}" loading="lazy" decoding="async">
+                                            {% optimized_image_url category.image 'category_card' as category_hero_url %}
+                                            <img data-src="{{ category_hero_url }}" data-fallback-src="{{ category.image.url }}" alt="{{ category.name }}" loading="lazy" decoding="async" width="560" height="420">
                                         {% else %}
                                             <div class="mega-category-hero-fallback">
                                                 {% if category.icon %}
@@ -2873,14 +2875,16 @@
 
                                 <!-- Child Category Cards -->
                                 <div class="mega-category-card-grid">
-                                    {% for child in category.children.all|slice:":10" %}
+                                    {% for child in category.children.all|slice:":8" %}
                                     <div class="mega-category-card">
                                         <a href="{% url 'products:category' child.slug %}" class="mega-category-card-head">
                                             <span class="mega-category-card-image">
                                                 {% if child.image %}
-                                                    <img src="{{ child.image.url }}" alt="{{ child.name }}" loading="lazy" decoding="async">
+                                                    {% optimized_image_url child.image 'category_card' as child_image_url %}
+                                                    <img data-src="{{ child_image_url }}" data-fallback-src="{{ child.image.url }}" alt="{{ child.name }}" loading="lazy" decoding="async" width="160" height="120">
                                                 {% elif child.background_image %}
-                                                    <img src="{{ child.background_image.url }}" alt="{{ child.name }}" loading="lazy" decoding="async">
+                                                    {% optimized_image_url child.background_image 'category_card' as child_image_url %}
+                                                    <img data-src="{{ child_image_url }}" data-fallback-src="{{ child.background_image.url }}" alt="{{ child.name }}" loading="lazy" decoding="async" width="160" height="120">
                                                 {% elif child.icon %}
                                                     <span class="mega-category-icon-fallback"><i class="fas fa-{{ child.icon }}"></i></span>
                                                 {% else %}
@@ -2896,7 +2900,7 @@
 
                                         {% if child.active_child_count %}
                                         <div class="mega-grandchild-list">
-                                            {% for grandchild in child.children.all|slice:":5" %}
+                                            {% for grandchild in child.children.all|slice:":4" %}
                                             <a href="{% url 'products:category' grandchild.slug %}">
                                                 {{ grandchild.name }}
                                             </a>
@@ -2919,6 +2923,23 @@
                         {% endif %}
                     </li>
                     {% endfor %}
+
+                    <li class="mega-menu-container">
+                        <a href="{% url 'products:list' %}" class="flex items-center gap-2 px-4 py-4 hover:text-brand transition font-medium group">
+                            <i class="fas fa-grid-2 group-hover:scale-125 transition"></i> All Products
+                        </a>
+                        <div class="mega-menu-dropdown mega-menu-md">
+                            <h3><i class="fas fa-tags text-brand"></i> Shop by Condition</h3>
+                            <div class="grid grid-cols-2 gap-2 mt-3">
+                                {% for condition_value, condition_label in product_conditions %}
+                                <a href="{% url 'products:list' %}?conditions={{ condition_value }}" class="flex items-center gap-2 p-3 hover:bg-gray-100 rounded-lg transition">
+                                    <i class="fas fa-circle-check text-brand"></i>
+                                    <span class="font-medium">{{ condition_label }}</span>
+                                </a>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </li>
 
                     <li class="mega-menu-container">
                         <a href="{% url 'manufacturers:list' %}" class="flex items-center gap-2 px-4 py-4 hover:text-brand transition font-medium group">
@@ -3217,7 +3238,7 @@
                             <i class="fas fa-arrow-right text-xs"></i>
                         </a>
 
-                        {% for child in category.children.all|slice:":14" %}
+                        {% for child in category.children.all|slice:":10" %}
                         {% if child.active_child_count %}
                         <div x-data="{ childOpen: false }">
                             <button type="button" @click="childOpen = !childOpen" class="mobile-sub-parent">
@@ -3228,7 +3249,7 @@
                                 <a href="{% url 'products:category' child.slug %}" @click="mobileMenuOpen = false" class="mobile-grandchild-chip">
                                     All {{ child.name }}
                                 </a>
-                                {% for grandchild in child.children.all|slice:":10" %}
+                                {% for grandchild in child.children.all|slice:":6" %}
                                 <a href="{% url 'products:category' grandchild.slug %}" @click="mobileMenuOpen = false" class="mobile-grandchild-chip">
                                     {{ grandchild.name }}
                                 </a>
@@ -3263,6 +3284,32 @@
                     {% endif %}
                 </div>
                 {% endfor %}
+
+                <a href="{% url 'products:list' %}" @click="mobileMenuOpen = false" class="mobile-menu-link">
+                    <span class="mobile-menu-left">
+                        <span class="mobile-menu-icon"><i class="fas fa-grid-2"></i></span>
+                        <span class="mobile-menu-label">View All Products</span>
+                    </span>
+                    <i class="fas fa-chevron-right mobile-menu-arrow text-xs"></i>
+                </a>
+
+                <div x-data="{ open: false }">
+                    <button type="button" @click="open = !open" class="mobile-menu-link" :aria-expanded="open.toString()">
+                        <span class="mobile-menu-left">
+                            <span class="mobile-menu-icon"><i class="fas fa-tags"></i></span>
+                            <span class="mobile-menu-label">Shop by Condition</span>
+                        </span>
+                        <i class="fas fa-chevron-right mobile-menu-arrow text-xs" :class="open ? 'rotate-90 text-brand' : ''"></i>
+                    </button>
+                    <div x-show="open" class="mobile-sub-panel">
+                        {% for condition_value, condition_label in product_conditions %}
+                        <a href="{% url 'products:list' %}?conditions={{ condition_value }}" @click="mobileMenuOpen = false" class="mobile-sub-link">
+                            <span>{{ condition_label }}</span>
+                            <i class="fas fa-chevron-right text-xs text-gray-300"></i>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
 
             <!-- More -->
@@ -4309,11 +4356,27 @@
                 });
             }
 
+            function loadMegaImages(item) {
+                if (!item) return;
+                item.querySelectorAll('img[data-src]').forEach(function (image) {
+                    if (image.dataset.mediaBound !== 'true') {
+                        image.addEventListener('error', function () {
+                            const fallback = image.dataset.fallbackSrc;
+                            if (fallback && image.src !== fallback) image.src = fallback;
+                        });
+                        image.dataset.mediaBound = 'true';
+                    }
+                    image.src = image.dataset.src;
+                    image.removeAttribute('data-src');
+                });
+            }
+
             function openItem(item) {
                 if (!item || window.innerWidth < 1024) return;
 
                 clearCloseTimer();
                 closeAllMegaMenus(item);
+                loadMegaImages(item);
                 positionMegaDropdown(item);
                 item.classList.add(OPEN_CLASS);
                 activeItem = item;
