@@ -841,6 +841,258 @@
     }
 
 
+    /* ============================================================
+       AROLANA PRODUCT OVERVIEW ADMIN LAYOUT FIX
+       Keeps CKEditor/admin arrangement on the product page:
+       - respects left/right aligned images
+       - prevents giant images/empty gaps
+       - supports CKEditor figure/table layouts
+       - supports optional .overview-section blocks
+       ============================================================ */
+    .product-overview-content {
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
+        color: var(--arolana-text, #0F172A);
+        font-size: 15px;
+        line-height: 1.75;
+        word-break: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .product-overview-content::after {
+        content: "";
+        display: block;
+        clear: both;
+    }
+
+    .product-overview-content > *:first-child {
+        margin-top: 0 !important;
+    }
+
+    .product-overview-content h1,
+    .product-overview-content h2,
+    .product-overview-content h3,
+    .product-overview-content h4,
+    .product-overview-content h5,
+    .product-overview-content h6 {
+        color: var(--arolana-navy, #071A44);
+        font-weight: 900;
+        line-height: 1.25;
+        margin: 22px 0 10px;
+    }
+
+    .product-overview-content h2 { font-size: clamp(1.35rem, 2vw, 2rem); }
+    .product-overview-content h3 { font-size: clamp(1.1rem, 1.4vw, 1.45rem); }
+    .product-overview-content h4 { font-size: 1rem; }
+
+    .product-overview-content p,
+    .product-overview-content ul,
+    .product-overview-content ol {
+        margin: 0 0 14px;
+    }
+
+    .product-overview-content ul,
+    .product-overview-content ol {
+        padding-left: 1.35rem;
+    }
+
+    .product-overview-content li {
+        margin-bottom: 0.45rem;
+    }
+
+    .product-overview-content strong,
+    .product-overview-content b {
+        color: var(--arolana-navy, #071A44);
+        font-weight: 900;
+    }
+
+    .product-overview-content a {
+        color: var(--arolana-blue, #0066CC);
+        font-weight: 800;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+
+    /* Base image safety: no more huge product overview images */
+    .product-overview-content img {
+        max-width: 100% !important;
+        height: auto !important;
+        object-fit: contain;
+        display: block;
+        border-radius: 16px;
+    }
+
+    .product-overview-content p > img:only-child,
+    .product-overview-content figure > img,
+    .product-overview-content figure.image img,
+    .product-overview-content .image img {
+        margin-left: auto;
+        margin-right: auto;
+        max-height: 420px;
+    }
+
+    /* Respect admin/CKEditor left/right image layout */
+    .product-overview-content img[style*="float: left"],
+    .product-overview-content img[style*="float:left"],
+    .product-overview-content .image-style-align-left,
+    .product-overview-content .image-style-side {
+        float: left !important;
+        width: auto !important;
+        max-width: min(46%, 520px) !important;
+        max-height: 360px;
+        margin: 8px 26px 18px 0 !important;
+    }
+
+    .product-overview-content img[style*="float: right"],
+    .product-overview-content img[style*="float:right"],
+    .product-overview-content .image-style-align-right {
+        float: right !important;
+        width: auto !important;
+        max-width: min(46%, 520px) !important;
+        max-height: 360px;
+        margin: 8px 0 18px 26px !important;
+    }
+
+    .product-overview-content .image-style-align-center,
+    .product-overview-content .image-style-block-align-center,
+    .product-overview-content figure.image {
+        display: table;
+        margin: 18px auto;
+        text-align: center;
+        clear: both;
+    }
+
+    .product-overview-content figure {
+        max-width: 100%;
+        margin: 18px 0;
+    }
+
+    .product-overview-content figcaption {
+        color: #64748B;
+        font-size: 0.88rem;
+        line-height: 1.5;
+        text-align: center;
+        margin-top: 0.5rem;
+    }
+
+    /* Admin table/2-column layouts */
+    .product-overview-content table {
+        width: 100% !important;
+        max-width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        margin: 18px 0;
+    }
+
+    .product-overview-content table td,
+    .product-overview-content table th {
+        vertical-align: top;
+        padding: 14px;
+        border-color: rgba(15, 23, 42, 0.08);
+    }
+
+    .product-overview-content table img {
+        margin: 0 auto;
+        max-height: 360px;
+    }
+
+    /* Optional clean layout for future admin entries */
+    .product-overview-content .overview-section,
+    .product-overview-content .apd-overview-section {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 0.9fr);
+        gap: clamp(18px, 3vw, 40px);
+        align-items: center;
+        margin: 34px 0;
+        clear: both;
+    }
+
+    .product-overview-content .overview-section:nth-of-type(even),
+    .product-overview-content .apd-overview-section:nth-of-type(even) {
+        grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1fr);
+    }
+
+    .product-overview-content .overview-section:nth-of-type(even) .overview-image,
+    .product-overview-content .apd-overview-section:nth-of-type(even) .apd-overview-image {
+        order: -1;
+    }
+
+    .product-overview-content .overview-image img,
+    .product-overview-content .apd-overview-image img {
+        width: 100% !important;
+        max-height: 390px;
+        object-fit: contain;
+        filter: drop-shadow(0 18px 28px rgba(7, 26, 68, 0.10));
+    }
+
+    /* Keep admin-created side-by-side blocks from collapsing */
+    .product-overview-content .row,
+    .product-overview-content .ck-content .row {
+        display: flex;
+        gap: 22px;
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .product-overview-content .row > *,
+    .product-overview-content .ck-content .row > * {
+        flex: 1 1 260px;
+        min-width: 0;
+    }
+
+    /* Mobile: stack cleanly without breaking admin content */
+    @media (max-width: 768px) {
+        .product-overview-content {
+            font-size: 14px;
+            line-height: 1.68;
+        }
+
+        .product-overview-content img[style*="float: left"],
+        .product-overview-content img[style*="float:left"],
+        .product-overview-content img[style*="float: right"],
+        .product-overview-content img[style*="float:right"],
+        .product-overview-content .image-style-align-left,
+        .product-overview-content .image-style-align-right,
+        .product-overview-content .image-style-side {
+            float: none !important;
+            width: auto !important;
+            max-width: 100% !important;
+            max-height: 320px;
+            margin: 14px auto !important;
+        }
+
+        .product-overview-content table,
+        .product-overview-content tbody,
+        .product-overview-content tr,
+        .product-overview-content td,
+        .product-overview-content th {
+            display: block;
+            width: 100% !important;
+        }
+
+        .product-overview-content table td,
+        .product-overview-content table th {
+            padding: 8px 0;
+        }
+
+        .product-overview-content .overview-section,
+        .product-overview-content .apd-overview-section,
+        .product-overview-content .overview-section:nth-of-type(even),
+        .product-overview-content .apd-overview-section:nth-of-type(even) {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin: 24px 0;
+        }
+
+        .product-overview-content .overview-section:nth-of-type(even) .overview-image,
+        .product-overview-content .apd-overview-section:nth-of-type(even) .apd-overview-image {
+            order: 0;
+        }
+    }
+
+
 </style>
 {% endblock %}
 
@@ -1220,7 +1472,7 @@
         <div class="p-6">
             <!-- Overview Tab with Highlights -->
             <div x-show="tab=='overview'" x-transition.duration.300ms>
-                <div class="prose max-w-none">
+                <div class="product-overview-content" id="product-overview-content">
                     {{ product.description|safe }}
                 </div>
 
@@ -1410,7 +1662,7 @@
                     </div>
                     {% empty %}<p class="text-gray-500 text-center py-8">No questions yet. Ask our AI assistant!</p>{% endfor %}
                 </div>
-
+ 
                 {% if user.is_authenticated %}
                 <form method="POST" action="{% url 'products:ask_question' product.slug %}" class="mt-6">
                     {% csrf_token %}
