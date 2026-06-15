@@ -897,6 +897,16 @@
         padding-left: 1.35rem;
     }
 
+    .product-overview-content ul {
+        list-style-type: square;
+        list-style-position: outside;
+    }
+
+    .product-overview-content ol {
+        list-style-type: decimal;
+        list-style-position: outside;
+    }
+
     .product-overview-content li {
         margin-bottom: 0.45rem;
     }
@@ -1093,6 +1103,536 @@
     }
 
 
+    /* ============================================================
+       AROLANA PRODUCT OVERVIEW CONTENT-ONLY FIX
+       Removes the big white background/card under product overview.
+       Keeps only the content, tabs, text, images, and useful sections.
+       ============================================================ */
+    .apd-tabs-clean {
+        background: transparent !important;
+        box-shadow: none !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+    }
+
+    .apd-tabs-clean > .border-b {
+        background: transparent !important;
+        border-color: rgba(7, 26, 68, 0.10) !important;
+    }
+
+    .apd-tabs-clean [x-show],
+    .apd-tabs-clean .product-overview-content,
+    .apd-tabs-clean .prose {
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    .product-overview-content,
+    .product-overview-content div,
+    .product-overview-content section,
+    .product-overview-content article,
+    .product-overview-content p,
+    .product-overview-content span,
+    .product-overview-content strong,
+    .product-overview-content em,
+    .product-overview-content b,
+    .product-overview-content i,
+    .product-overview-content ul,
+    .product-overview-content ol,
+    .product-overview-content li,
+    .product-overview-content table,
+    .product-overview-content tbody,
+    .product-overview-content thead,
+    .product-overview-content tfoot,
+    .product-overview-content tr,
+    .product-overview-content td,
+    .product-overview-content th,
+    .product-overview-content figure,
+    .product-overview-content figcaption {
+        background: transparent !important;
+        background-color: transparent !important;
+        background-image: none !important;
+        box-shadow: none !important;
+    }
+
+    .product-overview-content [style*="background"],
+    .product-overview-content [style*="background-color"] {
+        background: transparent !important;
+        background-color: transparent !important;
+        background-image: none !important;
+    }
+
+    .product-overview-content img {
+        background: transparent !important;
+        background-color: transparent !important;
+    }
+
+    .apd-tabs-clean .bg-white {
+        background-color: transparent !important;
+    }
+
+    .apd-tabs-clean .shadow-2xl,
+    .apd-tabs-clean .shadow-xl,
+    .apd-tabs-clean .shadow-lg,
+    .apd-tabs-clean .shadow-md,
+    .apd-tabs-clean .shadow-sm {
+        box-shadow: none !important;
+    }
+
+    /* ============================================================
+       AROLANA PRODUCT HERO CONTENT-ONLY FIX
+       Removes the big white card/container under:
+       - product image/gallery area
+       - checkout/product info area
+       Keeps images, price box, buttons, chat cards and content visible.
+       ============================================================ */
+    .apd-hero-clean .apd-gallery-shell,
+    .apd-hero-clean .apd-buybox-shell {
+        background: transparent !important;
+        background-color: transparent !important;
+        background-image: none !important;
+        box-shadow: none !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        padding: 0 !important;
+    }
+
+    .apd-hero-clean .apd-gallery-shell::before,
+    .apd-hero-clean .apd-gallery-shell::after,
+    .apd-hero-clean .apd-buybox-shell::before,
+    .apd-hero-clean .apd-buybox-shell::after {
+        display: none !important;
+        content: none !important;
+    }
+
+    /* Keep the actual image area clean and premium, without a big white backing card */
+    .apd-hero-clean .gallery-item {
+        border: 1px solid rgba(0, 102, 204, 0.13) !important;
+        box-shadow: none !important;
+    }
+
+    /* Keep thumbnail and controls visible after removing the outer gallery card */
+    .apd-hero-clean #product-image-thumbnails {
+        padding-left: 0 !important;
+    }
+
+    /* Stop the global white-card polish rule from re-adding a card to these wrappers */
+    .apd-page .apd-gallery-shell,
+    .apd-page .apd-buybox-shell {
+        border: 0 !important;
+        box-shadow: none !important;
+        background: transparent !important;
+    }
+
+    @media (max-width: 640px) {
+        .apd-hero-clean .apd-gallery-shell,
+        .apd-hero-clean .apd-buybox-shell {
+            padding: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+        }
+    }
+
+    /* ============================================================
+       AROLANA HERO OVERVIEW SUMMARY
+       Shows a 10-line overview before Vendor Chat, with Read More
+       linking down to the full Overview tab/content.
+       ============================================================ */
+    .apd-hero-overview-summary {
+        border: 1px solid rgba(0, 102, 204, 0.14);
+        background:
+            radial-gradient(circle at 10% 0%, rgba(0, 184, 255, .08), transparent 14rem),
+            linear-gradient(135deg, rgba(234, 244, 255, .72), rgba(255, 247, 237, .52));
+        border-radius: 1rem;
+        padding: 1rem;
+    }
+
+    .apd-hero-overview-summary-title {
+        color: var(--arolana-navy, #071A44);
+        font-weight: 900;
+        font-size: 0.95rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.45rem;
+    }
+
+    .apd-hero-overview-summary-text {
+        color: #475569;
+        font-size: 0.875rem;
+        line-height: 1.55;
+        display: -webkit-box;
+        -webkit-line-clamp: 10;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        max-height: calc(1.55em * 10);
+    }
+
+    .apd-hero-overview-readmore {
+        margin-top: 0.65rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        color: var(--arolana-blue, #0066CC);
+        font-size: 0.82rem;
+        font-weight: 900;
+        transition: color .2s ease, transform .2s ease;
+    }
+
+    .apd-hero-overview-readmore:hover {
+        color: var(--arolana-orange, #FF7A00);
+        transform: translateX(2px);
+    }
+
+    /* ============================================================
+       AROLANA HERO OVERVIEW SUMMARY BOLDER FONT UPDATE
+       Makes the 10-line quick overview more readable and premium.
+       ============================================================ */
+    .apd-hero-overview-summary {
+        border-width: 1.5px !important;
+    }
+
+    .apd-hero-overview-summary-title {
+        font-weight: 950 !important;
+        font-size: 1.05rem !important;
+        letter-spacing: -0.01em;
+        color: var(--arolana-navy, #071A44) !important;
+    }
+
+    .apd-hero-overview-summary-title i {
+        font-size: 1rem;
+        color: var(--arolana-blue, #0066CC) !important;
+    }
+
+    .apd-hero-overview-summary-text {
+        color: var(--arolana-text, #0F172A) !important;
+        font-size: 0.95rem !important;
+        line-height: 1.62 !important;
+        font-weight: 750 !important;
+        letter-spacing: -0.005em;
+        max-height: calc(1.62em * 10) !important;
+    }
+
+    .apd-hero-overview-readmore {
+        font-size: 0.9rem !important;
+        font-weight: 950 !important;
+        letter-spacing: -0.005em;
+    }
+
+    /* Make important product hero labels/buttons feel stronger too */
+    .apd-buybox-shell h1 {
+        font-weight: 950 !important;
+        letter-spacing: -0.035em;
+    }
+
+    .apd-buybox-shell label,
+    .apd-buybox-shell .font-semibold,
+    .apd-buybox-shell .font-bold {
+        font-weight: 900 !important;
+    }
+
+    .apd-buybox-shell .text-sm,
+    .apd-buybox-shell .text-xs {
+        font-weight: 750;
+    }
+
+    /* ============================================================
+       AROLANA ADMIN BULLET LIST RESTORE
+       Tailwind/normal page reset can hide list bullets from admin/CKEditor.
+       This restores bullets in both Quick Overview and full Overview.
+       ============================================================ */
+    .apd-hero-overview-summary-text ul,
+    .product-overview-content ul {
+        list-style-type: square !important;
+        list-style-position: outside !important;
+        padding-left: 1.35rem !important;
+        margin: 0.45rem 0 0.85rem 0 !important;
+    }
+
+    .apd-hero-overview-summary-text ol,
+    .product-overview-content ol {
+        list-style-type: decimal !important;
+        list-style-position: outside !important;
+        padding-left: 1.45rem !important;
+        margin: 0.45rem 0 0.85rem 0 !important;
+    }
+
+    .apd-hero-overview-summary-text li,
+    .product-overview-content li {
+        display: list-item !important;
+        color: var(--arolana-text, #0F172A) !important;
+        font-weight: 800 !important;
+        margin-bottom: 0.3rem !important;
+        padding-left: 0.12rem !important;
+        line-height: 1.5 !important;
+    }
+
+    .apd-hero-overview-summary-text li::marker,
+    .product-overview-content li::marker {
+        color: var(--arolana-navy, #071A44) !important;
+        font-size: 0.9em;
+    }
+
+    /* Quick Overview should behave like admin text, but without images/media crowding the buy box */
+    .apd-hero-overview-summary-text h1,
+    .apd-hero-overview-summary-text h2,
+    .apd-hero-overview-summary-text h3,
+    .apd-hero-overview-summary-text h4,
+    .apd-hero-overview-summary-text h5,
+    .apd-hero-overview-summary-text h6 {
+        color: var(--arolana-navy, #071A44) !important;
+        font-weight: 950 !important;
+        line-height: 1.18 !important;
+        margin: 0 0 0.45rem !important;
+        font-size: 1rem !important;
+    }
+
+    .apd-hero-overview-summary-text p {
+        margin: 0 0 0.5rem !important;
+        font-weight: 800 !important;
+    }
+
+    .apd-hero-overview-summary-text strong,
+    .apd-hero-overview-summary-text b {
+        font-weight: 950 !important;
+        color: var(--arolana-navy, #071A44) !important;
+    }
+
+    .apd-hero-overview-summary-text img,
+    .apd-hero-overview-summary-text video,
+    .apd-hero-overview-summary-text iframe,
+    .apd-hero-overview-summary-text figure,
+    .apd-hero-overview-summary-text table {
+        display: none !important;
+    }
+
+    /* 10 visible lines max, while preserving bullets from admin */
+    .apd-hero-overview-summary-text {
+        color: var(--arolana-text, #0F172A) !important;
+        font-size: 0.95rem !important;
+        line-height: 1.55 !important;
+        font-weight: 800 !important;
+        max-height: calc(1.55em * 10) !important;
+        overflow: hidden !important;
+        display: block !important;
+        position: relative;
+    }
+
+    .apd-hero-overview-summary-text::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 1.7rem;
+        pointer-events: none;
+        background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(245,250,255,0.92));
+    }
+
+    /* ============================================================
+       AROLANA OVERVIEW URL VIDEO PLAYER
+       Allows YouTube/Vimeo/direct video URLs inside full overview.
+       Admin can paste:
+       - YouTube link
+       - Vimeo link
+       - .mp4/.webm/.ogg video URL
+       and frontend will render a playable video in Overview.
+       ============================================================ */
+    .product-overview-content .apd-overview-video,
+    .product-overview-content .media,
+    .product-overview-content .oembed,
+    .product-overview-content .embed-responsive {
+        width: 100% !important;
+        max-width: 920px !important;
+        margin: 1.25rem auto !important;
+        border-radius: 1.25rem !important;
+        overflow: hidden !important;
+        background: #000 !important;
+        box-shadow: 0 24px 70px rgba(7, 26, 68, 0.14) !important;
+        clear: both !important;
+    }
+
+    .product-overview-content .apd-overview-video {
+        position: relative !important;
+        aspect-ratio: 16 / 9 !important;
+    }
+
+    .product-overview-content .apd-overview-video iframe,
+    .product-overview-content .apd-overview-video video,
+    .product-overview-content iframe,
+    .product-overview-content video {
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 280px;
+        border: 0 !important;
+        display: block !important;
+        background: #000 !important;
+        border-radius: 1.25rem !important;
+    }
+
+    .product-overview-content iframe {
+        aspect-ratio: 16 / 9 !important;
+        height: auto !important;
+        min-height: 280px;
+    }
+
+    .product-overview-content video {
+        object-fit: contain !important;
+    }
+
+    .product-overview-content .apd-overview-video-link {
+        display: block !important;
+        margin-top: 0.55rem !important;
+        text-align: center !important;
+        color: var(--arolana-blue, #0066CC) !important;
+        font-weight: 900 !important;
+        font-size: 0.88rem !important;
+        text-decoration: none !important;
+    }
+
+    .product-overview-content .apd-overview-video-link:hover {
+        color: var(--arolana-orange, #FF7A00) !important;
+    }
+
+    @media (max-width: 768px) {
+        .product-overview-content .apd-overview-video,
+        .product-overview-content iframe,
+        .product-overview-content video {
+            min-height: 210px !important;
+            border-radius: 1rem !important;
+        }
+    }
+
+    /* ============================================================
+       AROLANA POLISHED STICKY GALLERY V3
+       Properly follows the checkout column and returns smoothly.
+       No layout jump, no weird scroll-up behaviour.
+       Desktop only. Mobile remains natural.
+       ============================================================ */
+    @media (min-width: 1024px) {
+        .apd-hero-clean {
+            align-items: stretch !important;
+            overflow: visible !important;
+            position: relative !important;
+        }
+
+        .apd-hero-clean > * {
+            min-width: 0;
+        }
+
+        .apd-gallery-stage {
+            position: relative !important;
+            min-height: 1px;
+            overflow: visible !important;
+            z-index: 15;
+        }
+
+        #apd-sticky-gallery {
+            position: relative !important;
+            top: auto !important;
+            left: auto !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            z-index: 25 !important;
+            transform: none !important;
+            will-change: auto;
+        }
+
+        #apd-sticky-gallery.apd-gallery-is-fixed {
+            position: fixed !important;
+            top: var(--apd-gallery-top, 104px) !important;
+            left: var(--apd-gallery-left, 0px) !important;
+            width: var(--apd-gallery-width, auto) !important;
+            transform: translateZ(0) !important;
+            will-change: transform;
+        }
+
+        #apd-sticky-gallery.apd-gallery-is-bottom {
+            position: absolute !important;
+            top: var(--apd-gallery-bottom-top, 0px) !important;
+            left: 0 !important;
+            width: 100% !important;
+            transform: none !important;
+            will-change: auto;
+        }
+
+        #apd-sticky-gallery.apd-gallery-is-fixed .gallery-item,
+        #apd-sticky-gallery.apd-gallery-is-bottom .gallery-item {
+            border-color: rgba(255, 122, 0, 0.28) !important;
+            box-shadow: 0 20px 56px rgba(7, 26, 68, 0.12) !important;
+        }
+    }
+
+    @media (max-width: 1023px) {
+        .apd-gallery-stage {
+            position: static !important;
+            min-height: auto !important;
+            overflow: visible !important;
+        }
+
+        #apd-sticky-gallery {
+            position: static !important;
+            top: auto !important;
+            left: auto !important;
+            width: auto !important;
+            transform: none !important;
+            will-change: auto !important;
+        }
+    }
+
+    /* ============================================================
+       AROLANA GALLERY CLICK LIGHTBOX FIX V2
+       Ensure gallery remains clickable after sticky movement.
+       ============================================================ */
+    #apd-sticky-gallery,
+    #apd-sticky-gallery * {
+        pointer-events: auto !important;
+    }
+
+    #main-product-image,
+    #apd-sticky-gallery .gallery-item {
+        cursor: zoom-in !important;
+    }
+
+    #image-lightbox {
+        z-index: 999999 !important;
+    }
+
+    /* ============================================================
+       AROLANA LIGHTBOX IMAGE SOURCE FIX V5
+       Fixes black/blank lightbox images by using the visible main image
+       first, then original image URL, then optimized src, then thumbnail.
+       ============================================================ */
+    #main-product-image {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        cursor: zoom-in !important;
+    }
+
+    #image-lightbox {
+        z-index: 999999 !important;
+    }
+
+    #lightbox-image {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        max-width: 96vw !important;
+        max-height: 82vh !important;
+        object-fit: contain !important;
+        background: transparent !important;
+        color: #fff !important;
+    }
+
+    #apd-sticky-gallery,
+    #apd-sticky-gallery *,
+    #product-image-thumbnails,
+    #product-image-thumbnails * {
+        pointer-events: auto !important;
+    }
+
 </style>
 {% endblock %}
 
@@ -1117,10 +1657,11 @@
     </div>
 
     <!-- Main Product Section with 3D Gallery -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 apd-hero-clean relative">
         <!-- 3D Image Gallery -->
-        <div class="gallery-3d">
-            <div class="bg-white rounded-2xl shadow-2xl p-6">
+        <div class="apd-gallery-stage" id="apd-gallery-stage">
+            <div class="gallery-3d" id="apd-sticky-gallery">
+            <div class="apd-gallery-shell">
                 <!-- Main Image with 3D Hover -->
 	                <div class="relative group">
 	                    <div class="gallery-item relative overflow-hidden rounded-xl bg-gray-100">
@@ -1212,9 +1753,11 @@
             </div>
         </div>
 
+        </div>
+
         <!-- Product Info with Modern Design -->
         <div class="space-y-6">
-            <div class="bg-white rounded-2xl shadow-2xl p-6 sticky top-24">
+            <div class="apd-buybox-shell sticky top-24">
                 <!-- Brand -->
                 <div class="text-sm text-gray-500 mb-2 flex flex-wrap items-center gap-2">
                     <span class="px-2 py-1 bg-blue-100 text-blue-600 rounded-full text-xs">{{ product.brand.name|default:product.category.name }}</span>
@@ -1401,6 +1944,22 @@
                     </button>
                 </div>
 
+
+                    <!-- 10-line Product Overview Summary -->
+                    <div class="apd-hero-overview-summary mb-4">
+                        <h2 class="apd-hero-overview-summary-title">
+                            <i class="fas fa-align-left text-blue-600"></i>
+                            Quick Overview
+                        </h2>
+                        <div class="apd-hero-overview-summary-text font-bold">
+                            {{ product.description|safe }}
+                        </div>
+                        <button type="button" onclick="scrollToProductOverview()" class="apd-hero-overview-readmore font-black">
+                            Read more in overview
+                            <i class="fas fa-arrow-down text-xs"></i>
+                        </button>
+                    </div>
+
 	                <!-- Vendor Product Chat -->
 	                <div class="bg-white border border-gray-200 rounded-xl p-4 mb-4">
 	                    <div class="flex items-center gap-3">
@@ -1456,9 +2015,9 @@
     </div>
 
     <!-- Modern Tabs with Smooth Animations -->
-    <div class="mt-12 bg-white rounded-2xl shadow-2xl overflow-hidden" x-data="{ tab: 'overview' }">
-        <div class="border-b flex flex-wrap gap-2 px-6 pt-4 bg-gray-50">
-            <button @click="tab='overview'" :class="{'modern-tab active': tab=='overview'}" class="px-6 py-3 font-semibold transition-all">Overview</button>
+    <div class="mt-12 overflow-visible apd-tabs-clean" x-data="{ tab: 'overview' }">
+        <div class="border-b flex flex-wrap gap-2 px-0 pt-4 bg-transparent">
+            <button id="product-overview-tab-button" @click="tab='overview'" :class="{'modern-tab active': tab=='overview'}" class="px-6 py-3 font-semibold transition-all">Overview</button>
             <button @click="tab='specs'" :class="{'modern-tab active': tab=='specs'}" class="px-6 py-3 font-semibold transition-all">Specifications</button>
             <button @click="tab='reviews'" :class="{'modern-tab active': tab=='reviews'}" class="px-6 py-3 font-semibold transition-all">Reviews ({{ product.rating_count }})</button>
 	            <button @click="tab='qa'" :class="{'modern-tab active': tab=='qa'}" class="px-6 py-3 font-semibold transition-all">Q&A ({{ question_count }})</button>
@@ -1469,7 +2028,7 @@
             <button @click="tab='accessories'" :class="{'modern-tab active': tab=='accessories'}" class="px-6 py-3 font-semibold transition-all">Accessories</button>
         </div>
 
-        <div class="p-6">
+        <div class="py-6 px-0">
             <!-- Overview Tab with Highlights -->
             <div x-show="tab=='overview'" x-transition.duration.300ms>
                 <div class="product-overview-content" id="product-overview-content">
@@ -1494,7 +2053,7 @@
                 </div>
 
                 {% if product_article_links_overview %}
-                <div class="mt-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                <div class="mt-6 rounded-2xl border border-gray-200 bg-transparent p-5 shadow-none">
                     <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                         <div>
                             <p class="text-xs font-black uppercase tracking-[0.18em] text-blue-600">Arolana articles</p>
@@ -2243,6 +2802,20 @@
 
 <script id="variant-data-json" type="application/json">{{ variant_data_json|safe }}</script>
 <script id="gallery-data-json" type="application/json">{{ gallery_images_json|safe }}</script>
+
+<script id="gallery-images-server-json" type="application/json">
+[
+{% for image in gallery_images %}
+    {
+        "src": "{{ image.src|escapejs }}",
+        "thumb": "{{ image.thumb|escapejs }}",
+        "original": "{{ image.original|escapejs }}",
+        "alt": "{{ image.alt|default:product.name|escapejs }}"
+    }{% if not forloop.last %},{% endif %}
+{% endfor %}
+]
+</script>
+
 
 <script>
 (function () {
@@ -3712,4 +4285,690 @@
     window.resetToMainProduct = resetToMainProduct;
 })();
 </script>
+
+<script>
+    function scrollToProductOverview() {
+        const overviewTab = document.getElementById('product-overview-tab-button');
+        if (overviewTab) {
+            overviewTab.click();
+        }
+
+        setTimeout(function () {
+            const overview = document.getElementById('product-overview-content');
+            if (overview) {
+                overview.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 120);
+    }
+</script>
+
+
+<script>
+    function arolanaGetOverviewVideoEmbed(url) {
+        if (!url) return null;
+
+        let cleanUrl = String(url).trim();
+        cleanUrl = cleanUrl.replace(/&amp;/g, '&');
+
+        try {
+            const parsed = new URL(cleanUrl);
+            const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
+            const path = parsed.pathname || '';
+
+            // YouTube normal URL
+            if (host === 'youtube.com' || host === 'm.youtube.com') {
+                const videoId = parsed.searchParams.get('v');
+                if (videoId) {
+                    return {
+                        type: 'iframe',
+                        embed: `https://www.youtube.com/embed/${videoId}`,
+                        label: 'Watch on YouTube'
+                    };
+                }
+
+                const shortsMatch = path.match(/\/shorts\/([^/?]+)/);
+                if (shortsMatch && shortsMatch[1]) {
+                    return {
+                        type: 'iframe',
+                        embed: `https://www.youtube.com/embed/${shortsMatch[1]}`,
+                        label: 'Watch on YouTube'
+                    };
+                }
+            }
+
+            // YouTube short URL
+            if (host === 'youtu.be') {
+                const videoId = path.replace('/', '').split('/')[0];
+                if (videoId) {
+                    return {
+                        type: 'iframe',
+                        embed: `https://www.youtube.com/embed/${videoId}`,
+                        label: 'Watch on YouTube'
+                    };
+                }
+            }
+
+            // Vimeo
+            if (host === 'vimeo.com' || host === 'player.vimeo.com') {
+                const match = cleanUrl.match(/vimeo\.com\/(?:video\/)?([0-9]+)/);
+                if (match && match[1]) {
+                    return {
+                        type: 'iframe',
+                        embed: `https://player.vimeo.com/video/${match[1]}`,
+                        label: 'Watch on Vimeo'
+                    };
+                }
+            }
+
+            // Direct video files
+            if (cleanUrl.match(/\.(mp4|webm|ogg)(\?.*)?$/i)) {
+                return {
+                    type: 'video',
+                    embed: cleanUrl,
+                    label: 'Open video'
+                };
+            }
+        } catch (error) {
+            return null;
+        }
+
+        return null;
+    }
+
+    function arolanaBuildOverviewVideo(videoData, originalUrl) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'apd-overview-video';
+
+        if (videoData.type === 'iframe') {
+            const iframe = document.createElement('iframe');
+            iframe.src = videoData.embed;
+            iframe.loading = 'lazy';
+            iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+            iframe.allowFullscreen = true;
+            iframe.title = 'Product overview video';
+            wrapper.appendChild(iframe);
+        } else {
+            const video = document.createElement('video');
+            video.src = videoData.embed;
+            video.controls = true;
+            video.playsInline = true;
+            video.preload = 'metadata';
+            wrapper.appendChild(video);
+        }
+
+        const link = document.createElement('a');
+        link.href = originalUrl;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.className = 'apd-overview-video-link';
+        link.innerHTML = '<i class="fas fa-external-link-alt"></i> ' + (videoData.label || 'Open video');
+
+        const container = document.createElement('div');
+        container.appendChild(wrapper);
+        container.appendChild(link);
+
+        return container;
+    }
+
+    function enhanceOverviewUrlVideos() {
+        const overview = document.getElementById('product-overview-content');
+        if (!overview || overview.dataset.videoEnhanced === 'true') return;
+
+        overview.dataset.videoEnhanced = 'true';
+
+        // Convert video links to playable embeds.
+        overview.querySelectorAll('a[href]').forEach(function (link) {
+            const href = link.getAttribute('href');
+            const videoData = arolanaGetOverviewVideoEmbed(href);
+
+            if (!videoData) return;
+            if (link.closest('.apd-overview-video')) return;
+
+            const embed = arolanaBuildOverviewVideo(videoData, href);
+            link.replaceWith(embed);
+        });
+
+        // Convert plain URL text in simple paragraphs/list items into embeds.
+        const urlRegex = /(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtube\.com\/shorts\/|youtu\.be\/|vimeo\.com\/|player\.vimeo\.com\/video\/)[^\s<]+|https?:\/\/[^\s<]+\.(?:mp4|webm|ogg)(?:\?[^\s<]+)?)/i;
+
+        overview.querySelectorAll('p, li').forEach(function (node) {
+            if (node.querySelector('iframe, video, a, img')) return;
+
+            const text = (node.textContent || '').trim();
+            const match = text.match(urlRegex);
+
+            if (!match || !match[0]) return;
+
+            const videoUrl = match[0].replace(/[),.;]+$/, '');
+            const videoData = arolanaGetOverviewVideoEmbed(videoUrl);
+
+            if (!videoData) return;
+
+            const embed = arolanaBuildOverviewVideo(videoData, videoUrl);
+
+            // If paragraph/list only contains the URL, replace it. Otherwise insert after it.
+            if (text === match[0] || text.length <= match[0].length + 4) {
+                node.replaceWith(embed);
+            } else {
+                node.insertAdjacentElement('afterend', embed);
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', enhanceOverviewUrlVideos);
+    document.addEventListener('alpine:init', function () {
+        setTimeout(enhanceOverviewUrlVideos, 250);
+    });
+</script>
+
+
+<script>
+    /*
+      Arolana Polished Sticky Gallery V3
+      Stable 3-state movement:
+      1. Natural position at the top.
+      2. Fixed while scrolling through the checkout/product info area.
+      3. Absolute at the bottom of the hero area before Overview.
+      It scrolls down and back up cleanly.
+    */
+    function setupArolanaPolishedStickyGalleryV3() {
+        const stage = document.getElementById('apd-gallery-stage');
+        const gallery = document.getElementById('apd-sticky-gallery');
+        const hero = document.querySelector('.apd-hero-clean');
+        const overview = document.getElementById('product-overview-content');
+
+        if (!stage || !gallery || !hero || !overview) return;
+
+        const topGap = 104;       // desktop header offset
+        const stopGap = 28;       // small space before Overview
+        let ticking = false;
+
+        function clearInlineMotion() {
+            gallery.style.removeProperty('--apd-gallery-top');
+            gallery.style.removeProperty('--apd-gallery-left');
+            gallery.style.removeProperty('--apd-gallery-width');
+            gallery.style.removeProperty('--apd-gallery-bottom-top');
+            gallery.style.left = '';
+            gallery.style.top = '';
+            gallery.style.width = '';
+            gallery.style.margin = '';
+            gallery.style.transform = '';
+        }
+
+        function setState(state, values) {
+            gallery.classList.toggle('apd-gallery-is-fixed', state === 'fixed');
+            gallery.classList.toggle('apd-gallery-is-bottom', state === 'bottom');
+
+            if (state === 'fixed') {
+                gallery.style.setProperty('--apd-gallery-top', `${topGap}px`);
+                gallery.style.setProperty('--apd-gallery-left', `${values.left}px`);
+                gallery.style.setProperty('--apd-gallery-width', `${values.width}px`);
+                gallery.style.removeProperty('--apd-gallery-bottom-top');
+            } else if (state === 'bottom') {
+                gallery.style.setProperty('--apd-gallery-bottom-top', `${values.bottomTop}px`);
+                gallery.style.removeProperty('--apd-gallery-top');
+                gallery.style.removeProperty('--apd-gallery-left');
+                gallery.style.removeProperty('--apd-gallery-width');
+            } else {
+                clearInlineMotion();
+            }
+        }
+
+        function resetToNatural() {
+            gallery.classList.remove('apd-gallery-is-fixed', 'apd-gallery-is-bottom');
+            clearInlineMotion();
+        }
+
+        function updateStickyGallery() {
+            if (window.innerWidth < 1024) {
+                resetToNatural();
+                return;
+            }
+
+            // Reset classes briefly for clean measurements.
+            const wasFixed = gallery.classList.contains('apd-gallery-is-fixed');
+            const wasBottom = gallery.classList.contains('apd-gallery-is-bottom');
+
+            if (wasFixed || wasBottom) {
+                gallery.classList.remove('apd-gallery-is-fixed', 'apd-gallery-is-bottom');
+                clearInlineMotion();
+            }
+
+            const scrollY = window.scrollY || window.pageYOffset;
+            const stageRect = stage.getBoundingClientRect();
+            const heroRect = hero.getBoundingClientRect();
+            const overviewRect = overview.getBoundingClientRect();
+
+            const stageTop = stageRect.top + scrollY;
+            const heroBottom = heroRect.bottom + scrollY;
+            const overviewTop = overviewRect.top + scrollY;
+
+            const galleryHeight = gallery.offsetHeight || gallery.getBoundingClientRect().height || 0;
+            const stageWidth = stageRect.width;
+            const stageLeft = stageRect.left;
+
+            /*
+              Stop point:
+              Use the smaller of hero bottom and overview top.
+              This prevents covering Overview and also prevents moving beyond the product hero area.
+            */
+            const stopY = Math.min(heroBottom, overviewTop) - stopGap;
+
+            const startScroll = stageTop - topGap;
+            const bottomScroll = stopY - galleryHeight - topGap;
+            const bottomTop = Math.max(0, stopY - stageTop - galleryHeight);
+
+            // If there is not enough vertical room, keep natural.
+            if (galleryHeight <= 0 || bottomScroll <= startScroll + 8) {
+                resetToNatural();
+                return;
+            }
+
+            if (scrollY < startScroll) {
+                resetToNatural();
+                return;
+            }
+
+            if (scrollY >= bottomScroll) {
+                setState('bottom', {
+                    bottomTop: Math.round(bottomTop)
+                });
+                return;
+            }
+
+            setState('fixed', {
+                left: Math.round(stageLeft),
+                width: Math.round(stageWidth)
+            });
+        }
+
+        function requestUpdate() {
+            if (ticking) return;
+            ticking = true;
+
+            window.requestAnimationFrame(function () {
+                updateStickyGallery();
+                ticking = false;
+            });
+        }
+
+        // Run after browser has painted once.
+        setTimeout(requestUpdate, 50);
+        setTimeout(requestUpdate, 350);
+        setTimeout(requestUpdate, 1000);
+
+        window.addEventListener('scroll', requestUpdate, { passive: true });
+        window.addEventListener('resize', requestUpdate);
+        window.addEventListener('load', requestUpdate);
+        window.addEventListener('pageshow', requestUpdate);
+
+        gallery.querySelectorAll('img').forEach(function (img) {
+            img.addEventListener('load', requestUpdate);
+            img.addEventListener('error', requestUpdate);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', setupArolanaPolishedStickyGalleryV3);
+</script>
+
+
+
+
+<script>
+    /*
+      AROLANA LIGHTBOX IMAGE SOURCE FIX V5
+
+      Fixes the black/blank lightbox problem:
+      - The product card/main gallery image can display correctly,
+        but the lightbox may receive an optimized URL that fails.
+      - This version uses candidate URLs:
+        current visible main image -> original URL -> optimized src -> thumbnail.
+      - If one URL fails, it automatically tries the next candidate.
+      - It keeps thumbnail click/main-image behavior stable.
+    */
+    (function () {
+        const MARKER = 'AROLANA_LIGHTBOX_IMAGE_SOURCE_FIX_V5';
+        if (window[MARKER]) return;
+        window[MARKER] = true;
+
+        let gallery = [];
+        let activeIndex = 0;
+
+        function getEl(id) {
+            return document.getElementById(id);
+        }
+
+        function clean(value) {
+            return String(value || '').trim();
+        }
+
+        function parseJSONScript(id) {
+            const el = getEl(id);
+            if (!el) return [];
+            try {
+                const raw = clean(el.textContent);
+                if (!raw) return [];
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (error) {
+                return [];
+            }
+        }
+
+        function addCandidate(list, url) {
+            url = clean(url);
+            if (!url) return;
+            if (!list.includes(url)) list.push(url);
+        }
+
+        function normalizeItem(item) {
+            if (!item) return null;
+
+            if (typeof item === 'string') {
+                const src = clean(item);
+                if (!src) return null;
+                return {
+                    src,
+                    thumb: src,
+                    original: src,
+                    alt: '{{ product.name|escapejs }}',
+                    candidates: [src]
+                };
+            }
+
+            const src = clean(item.src || item.url || item.image || item.image_url || item.file_url || item.thumbnail || item.thumb);
+            const original = clean(item.original || item.fallback || item.galleryOriginal || src);
+            const thumb = clean(item.thumb || item.thumbnail || src);
+            const alt = clean(item.alt || item.title || item.name || item.galleryAlt || '{{ product.name|escapejs }}');
+
+            if (!src && !original && !thumb) return null;
+
+            const candidates = [];
+            addCandidate(candidates, original);
+            addCandidate(candidates, src);
+            addCandidate(candidates, thumb);
+
+            return {
+                src: src || original || thumb,
+                original: original || src || thumb,
+                thumb: thumb || src || original,
+                alt,
+                candidates
+            };
+        }
+
+        function pushUnique(list, item) {
+            const img = normalizeItem(item);
+            if (!img) return;
+
+            const exists = list.some(function (old) {
+                return old.src === img.src ||
+                       old.original === img.original ||
+                       old.thumb === img.thumb ||
+                       old.candidates.some(function (url) { return img.candidates.includes(url); });
+            });
+
+            if (!exists) list.push(img);
+        }
+
+        function collectGallery() {
+            const list = [];
+
+            // 1. DOM thumbnail buttons: most accurate because these are what you see.
+            document.querySelectorAll('#product-image-thumbnails [data-gallery-src]').forEach(function (button) {
+                pushUnique(list, {
+                    src: button.getAttribute('data-gallery-src'),
+                    thumb: button.getAttribute('data-gallery-thumb'),
+                    original: button.getAttribute('data-gallery-original'),
+                    alt: button.getAttribute('data-gallery-alt')
+                });
+            });
+
+            // 2. Existing JSON fallback.
+            parseJSONScript('gallery-data-json').forEach(function (item) {
+                pushUnique(list, item);
+            });
+
+            // 3. Server-side fallback added by this fix.
+            parseJSONScript('gallery-images-server-json').forEach(function (item) {
+                pushUnique(list, item);
+            });
+
+            // 4. Current main image fallback.
+            const main = getEl('main-product-image');
+            if (main && clean(main.getAttribute('src'))) {
+                pushUnique(list, {
+                    src: main.getAttribute('src'),
+                    original: main.getAttribute('data-fallback-src') || main.getAttribute('src'),
+                    thumb: main.getAttribute('src'),
+                    alt: main.getAttribute('alt')
+                });
+            }
+
+            gallery = list;
+            return gallery;
+        }
+
+        function currentIndex() {
+            collectGallery();
+
+            const main = getEl('main-product-image');
+            const currentSrc = clean(main && main.getAttribute('src'));
+            const dataIndex = Number(main && main.dataset ? main.dataset.galleryIndex : 0);
+
+            if (currentSrc) {
+                const found = gallery.findIndex(function (img) {
+                    return img.src === currentSrc ||
+                           img.original === currentSrc ||
+                           img.thumb === currentSrc ||
+                           img.candidates.includes(currentSrc);
+                });
+                if (found >= 0) return found;
+            }
+
+            if (Number.isFinite(dataIndex) && dataIndex >= 0 && dataIndex < gallery.length) {
+                return dataIndex;
+            }
+
+            return 0;
+        }
+
+        function updateMainImage(index) {
+            collectGallery();
+            if (!gallery.length) return;
+
+            activeIndex = Math.max(0, Math.min(Number(index) || 0, gallery.length - 1));
+            const img = gallery[activeIndex];
+            const main = getEl('main-product-image');
+
+            if (!main || !img) return;
+
+            // Main image should use the same src as thumbnails/main gallery already expects.
+            main.src = img.src || img.original || img.thumb;
+            main.dataset.fallbackSrc = img.original || img.src || img.thumb;
+            main.dataset.galleryIndex = String(activeIndex);
+            main.alt = img.alt || '{{ product.name|escapejs }}';
+            main.style.display = 'block';
+            main.style.visibility = 'visible';
+            main.style.opacity = '1';
+
+            document.querySelectorAll('#product-image-thumbnails .thumbnail-img').forEach(function (thumb, thumbIndex) {
+                const active = thumbIndex === activeIndex;
+                thumb.classList.toggle('active', active);
+                thumb.classList.toggle('border-blue-500', active);
+            });
+        }
+
+        function setLightboxImageWithFallback(lightboxImage, item) {
+            if (!lightboxImage || !item) return;
+
+            const candidates = [];
+
+            // If the selected image is the currently visible main image,
+            // start with the currently visible src because we know browser can display it.
+            const main = getEl('main-product-image');
+            const currentSrc = clean(main && main.getAttribute('src'));
+            if (currentSrc) addCandidate(candidates, currentSrc);
+
+            (item.candidates || []).forEach(function (url) {
+                addCandidate(candidates, url);
+            });
+
+            addCandidate(candidates, item.original);
+            addCandidate(candidates, item.src);
+            addCandidate(candidates, item.thumb);
+
+            let attempt = 0;
+
+            lightboxImage.onerror = function () {
+                attempt += 1;
+                if (attempt < candidates.length) {
+                    lightboxImage.src = candidates[attempt];
+                } else {
+                    console.warn('Arolana lightbox: all image URLs failed.', candidates);
+                }
+            };
+
+            lightboxImage.onload = function () {
+                lightboxImage.style.display = 'block';
+                lightboxImage.style.visibility = 'visible';
+                lightboxImage.style.opacity = '1';
+            };
+
+            lightboxImage.src = candidates[0] || '';
+        }
+
+        function openLightbox(index) {
+            collectGallery();
+            if (!gallery.length) return;
+
+            activeIndex = Math.max(0, Math.min(Number(index) || 0, gallery.length - 1));
+            const item = gallery[activeIndex];
+
+            const lightbox = getEl('image-lightbox');
+            const lightboxImage = getEl('lightbox-image');
+            const caption = getEl('lightbox-caption');
+
+            if (!lightbox || !lightboxImage || !item) return;
+
+            lightboxImage.alt = item.alt || '{{ product.name|escapejs }}';
+            setLightboxImageWithFallback(lightboxImage, item);
+
+            if (caption) {
+                caption.textContent = `${activeIndex + 1} / ${gallery.length}${item.alt ? ' - ' + item.alt : ''}`;
+            }
+
+            lightbox.classList.remove('hidden');
+            lightbox.classList.add('flex');
+            lightbox.style.display = 'flex';
+            lightbox.style.zIndex = '999999';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLightbox() {
+            const lightbox = getEl('image-lightbox');
+            if (!lightbox) return;
+
+            lightbox.classList.add('hidden');
+            lightbox.classList.remove('flex');
+            lightbox.style.display = '';
+            document.body.style.overflow = '';
+        }
+
+        function nextImage() {
+            collectGallery();
+            if (!gallery.length) return;
+
+            activeIndex = (activeIndex + 1) % gallery.length;
+            updateMainImage(activeIndex);
+            openLightbox(activeIndex);
+        }
+
+        function prevImage() {
+            collectGallery();
+            if (!gallery.length) return;
+
+            activeIndex = (activeIndex - 1 + gallery.length) % gallery.length;
+            updateMainImage(activeIndex);
+            openLightbox(activeIndex);
+        }
+
+        function backdropClose(event) {
+            if (event && event.target && event.target.id === 'image-lightbox') {
+                closeLightbox();
+            }
+        }
+
+        function restoreMainIfBlank() {
+            const main = getEl('main-product-image');
+            if (!main) return;
+
+            collectGallery();
+
+            if (!clean(main.getAttribute('src')) && gallery[0]) {
+                updateMainImage(0);
+            }
+        }
+
+        // Override the global functions used by the existing inline onclick.
+        window.openImageLightbox = function (index) {
+            openLightbox(typeof index === 'number' ? index : currentIndex());
+        };
+        window.closeImageLightbox = closeLightbox;
+        window.showNextLightboxImage = nextImage;
+        window.showPreviousLightboxImage = prevImage;
+        window.handleLightboxBackdrop = backdropClose;
+
+        // Let the original thumbnail handler run first; then sync our index after it.
+        document.addEventListener('click', function (event) {
+            const thumbButton = event.target.closest('#product-image-thumbnails [data-gallery-src]');
+            if (!thumbButton) return;
+
+            setTimeout(function () {
+                const index = Number(thumbButton.dataset.galleryIndex || 0);
+                updateMainImage(index);
+            }, 30);
+        });
+
+        // Main image and "View image" open the lightbox.
+        document.addEventListener('click', function (event) {
+            const mainImage = event.target.closest('#main-product-image');
+            const viewButton = event.target.closest('button[onclick*="openImageLightbox"]');
+
+            if (!mainImage && !viewButton) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            openLightbox(currentIndex());
+        }, true);
+
+        document.addEventListener('keydown', function (event) {
+            const lightbox = getEl('image-lightbox');
+            if (!lightbox || lightbox.classList.contains('hidden')) return;
+
+            if (event.key === 'Escape') closeLightbox();
+            if (event.key === 'ArrowRight') nextImage();
+            if (event.key === 'ArrowLeft') prevImage();
+        });
+
+        document.addEventListener('DOMContentLoaded', function () {
+            collectGallery();
+            restoreMainIfBlank();
+            setTimeout(restoreMainIfBlank, 300);
+            setTimeout(restoreMainIfBlank, 1000);
+        });
+
+        window.addEventListener('load', function () {
+            collectGallery();
+            restoreMainIfBlank();
+        });
+
+        window.addEventListener('pageshow', function () {
+            collectGallery();
+            restoreMainIfBlank();
+        });
+    })();
+</script>
+
 {% endblock %}
