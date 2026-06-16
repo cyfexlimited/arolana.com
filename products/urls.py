@@ -49,9 +49,7 @@ urlpatterns = [
     path("mobile/rfqs/create/", views.mobile_rfq_create_api, name="mobile_rfq_create_api"),
     path("mobile/rfqs/<int:rfq_id>/", views.mobile_rfq_detail_api, name="mobile_rfq_detail_api"),
     path("mobile/rfqs/<int:rfq_id>/<str:action>/", views.mobile_rfq_status_api, name="mobile_rfq_status_api"),
-    # ================================
-    # Main Listing (empty slug)
-    # ================================
+    path('secure-payments/', views.secure_payments, name='secure_payments'),
     path('', views.product_list, name='list'),
     
     # ================================

@@ -747,10 +747,42 @@ def add_to_cart(request, slug):
     return redirect('products:cart')
 
 
+
+def _support_contact_context():
+    """
+    Support contact details for templates.
+
+    Do not hardcode admin/support numbers inside templates.
+    Add these values in settings.py or environment variables:
+    - AROLANA_SUPPORT_PHONE
+    - AROLANA_SUPPORT_WHATSAPP
+    - AROLANA_SUPPORT_EMAIL
+    """
+    support_phone = str(getattr(settings, 'AROLANA_SUPPORT_PHONE', '') or '').strip()
+    support_whatsapp = str(getattr(settings, 'AROLANA_SUPPORT_WHATSAPP', '') or support_phone).strip()
+    support_email = str(getattr(settings, 'AROLANA_SUPPORT_EMAIL', '') or '').strip()
+
+    def digits_only(value):
+        return ''.join(ch for ch in str(value or '') if ch.isdigit())
+
+    whatsapp_digits = digits_only(support_whatsapp)
+    phone_digits = digits_only(support_phone)
+
+    return {
+        'support_phone_display': support_phone,
+        'support_phone_tel': f'+{phone_digits}' if phone_digits else '',
+        'support_whatsapp_url': f'https://wa.me/{whatsapp_digits}' if whatsapp_digits else '',
+        'support_email': support_email,
+    }
+
 def cart_view(request):
     """Display shopping cart with currency conversion"""
     if not Cart or not CartItem:
-        return render(request, 'products/cart.html', {'cart': None, 'error': 'Cart feature not available'})
+        return render(request, 'products/cart.html', {
+            'cart': None,
+            'error': 'Cart feature not available',
+            **_support_contact_context(),
+        })
 
     if request.user.is_authenticated:
         cart = _merge_guest_cart_into_user_cart(request) or Cart.objects.get_or_create(
@@ -788,6 +820,7 @@ def cart_view(request):
         'total_converted': total_converted,
         'user_currency': user_currency,
         'base_currency': base_currency,
+        **_support_contact_context(),
     })
 
 
@@ -862,9 +895,15 @@ def remove_from_cart(request, item_id):
     return redirect('products:cart')
 
 
-# ================================
-# 🔥 PRODUCT VIEWS (WITH APPROVAL SYSTEM)
-# ================================
+def secure_payments(request):
+    """Customer-facing secure payments information page."""
+    return render(request, 'products/secure_payments.html', {
+        'meta_title': 'Secure Payments | Arolana',
+        'meta_description': (
+            'Learn how Arolana helps protect customers with secure checkout, '
+            'trusted payment processing, order tracking, and safer marketplace transactions.'
+        ),
+    })
 
 def product_list(request):
     """Display paginated product list with filtering and sorting - APPROVED ONLY"""
@@ -2156,6 +2195,7 @@ def checkout(request):
         'delivery_providers': delivery_providers,
         'delivery_origin': delivery_origin,
         'package_weight_kg': package_weight_kg,
+        **_support_contact_context(),
     })
 
 

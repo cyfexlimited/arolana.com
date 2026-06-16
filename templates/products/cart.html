@@ -2,160 +2,1239 @@
 {% load currency_filters %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto">
-    <h1 class="text-3xl font-bold mb-8">Shopping Cart</h1>
-    
-    {% if cart.items.exists %}
-        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full">
-                    <thead class="bg-gray-50 border-b">
-                        <tr>
-                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-600">Product</th>
-                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-600">Price</th>
-                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-600">Quantity</th>
-                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-600">Total</th>
-                            <th class="px-6 py-4 text-left text-sm font-semibold text-gray-600"></th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y">
-                        {% for item in cart.items.all %}
-                        <tr class="hover:bg-gray-50 transition">
-                            <td class="px-6 py-4">
-                                <div class="flex items-center gap-4">
-                                    {% if item.product and item.product.main_image %}
-                                        <img src="{{ item.product.main_image.url }}" class="w-16 h-16 object-cover rounded">
-                                    {% elif item.accessory and item.accessory.image %}
-                                        <img src="{{ item.accessory.image.url }}" class="w-16 h-16 object-cover rounded">
-                                    {% else %}
-                                        <div class="w-16 h-16 bg-gray-100 rounded flex items-center justify-center">
-                                            <i class="fas fa-image text-gray-400"></i>
-                                        </div>
-                                    {% endif %}
-                                    <div>
-                                        {% if item.product %}
-                                            <a href="{{ item.product.get_absolute_url }}" class="font-semibold hover:text-blue-600">
-                                                {{ item.product.name }}
-                                            </a>
-                                            <p class="text-sm text-gray-500">
-                                                SKU: {{ item.variant.sku|default:item.product.sku }}
-                                            </p>
-                                            {% if item.variant %}
-                                                <p class="text-xs text-gray-500">{{ item.variant.name }}: {{ item.variant.value }}</p>
-                                            {% endif %}
-                                        {% elif item.accessory %}
-                                            <p class="font-semibold">{{ item.accessory.name }}</p>
-                                            <p class="text-sm text-gray-500">Accessory</p>
-                                        {% else %}
-                                            <p class="font-semibold">{{ item.item_name }}</p>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4">
-                                <span class="font-semibold text-blue-600">{{ item.price_at_add|currency:request }}</span>
-                            </td>
-                            <td class="px-6 py-4">
-                                <div class="flex items-center gap-2">
-                                    <button onclick="updateQuantity('{{ item.id|escapejs }}', {{ item.quantity|add:'-1' }})"
-                                            class="w-8 h-8 border rounded-lg hover:bg-gray-100 transition">
-                                        -
-                                    </button>
-                                    <span id="qty-{{ item.id }}" class="w-12 text-center font-semibold">{{ item.quantity }}</span>
-                                    <button onclick="updateQuantity('{{ item.id|escapejs }}', {{ item.quantity|add:'1' }})"
-                                            class="w-8 h-8 border rounded-lg hover:bg-gray-100 transition">
-                                        +
-                                    </button>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4">
-                                <span class="font-semibold text-green-600">{{ item.subtotal|currency:request }}</span>
-                            </td>
-                            <td class="px-6 py-4">
-                                <button onclick="removeItem('{{ item.id|escapejs }}')" class="text-red-500 hover:text-red-700 transition">
-                                    <i class="fas fa-trash-alt"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                    <tfoot class="bg-gray-50 border-t">
-                        <tr>
-                            <td colspan="3" class="px-6 py-4 text-right font-semibold">Subtotal:</td>
-                            <td class="px-6 py-4 font-bold text-xl text-blue-600">
-                                {{ cart.subtotal|currency:request }}
-                            </td>
-                            <td></td>
-                        </tr>
-                        <tr>
-                            <td colspan="3" class="px-6 py-4 text-right font-semibold">Shipping:</td>
-                            <td class="px-6 py-4 text-blue-600 font-semibold">Calculated by location</td>
-                            <td></td>
-                        </tr>
-                        <tr class="border-t">
-                            <td colspan="3" class="px-6 py-4 text-right font-semibold text-lg">Total:</td>
-                            <td class="px-6 py-4 font-bold text-2xl text-green-600">
-                                {{ cart.subtotal|currency:request }}
-                            </td>
-                            <td></td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-            
-            <div class="p-6 bg-gray-50 border-t flex justify-between items-center">
-                <a href="/products/" class="text-blue-600 hover:underline flex items-center gap-2">
-                    <i class="fas fa-arrow-left"></i> Continue Shopping
-                </a>
-                <a href="{% url 'products:checkout' %}" class="bg-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-700 transition">
-                    Proceed to Checkout <i class="fas fa-arrow-right ml-2"></i>
-                </a>
-            </div>
-            <div class="border-t border-blue-100 bg-blue-50 px-6 py-4 text-sm text-blue-900">
-                <i class="fas fa-location-dot mr-1 text-blue-600"></i>
-                Delivery cost depends on your location, selected provider, package size, and rider availability. You will choose delivery options at checkout.
+<style>
+    :root {
+        --arolana-navy: #071A44;
+        --arolana-navy-2: #0A2E73;
+        --arolana-blue: #0066CC;
+        --arolana-orange: #FF7A00;
+        --arolana-orange-dark: #E86D00;
+        --arolana-glow: #00B8FF;
+        --arolana-border: rgba(0, 102, 204, 0.14);
+        --arolana-shadow: 0 24px 70px rgba(7, 26, 68, 0.12);
+    }
+
+    .cart-page { color: #0F172A; }
+
+    .cart-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 1.8rem;
+        background:
+            radial-gradient(circle at 10% 0%, rgba(0, 184, 255, .18), transparent 18rem),
+            radial-gradient(circle at 88% 8%, rgba(255, 122, 0, .18), transparent 18rem),
+            linear-gradient(135deg, var(--arolana-navy), var(--arolana-navy-2));
+        box-shadow: var(--arolana-shadow);
+    }
+
+    .cart-hero::before {
+        content: "";
+        position: absolute;
+        inset: -40%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,.09), transparent);
+        transform: rotate(12deg);
+        animation: cartShine 7s linear infinite;
+    }
+
+    @keyframes cartShine {
+        from { transform: translateX(-35%) rotate(12deg); }
+        to { transform: translateX(35%) rotate(12deg); }
+    }
+
+    .cart-hero-content { position: relative; z-index: 1; }
+
+    .cart-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: .45rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, .12);
+        border: 1px solid rgba(255, 255, 255, .18);
+        color: white;
+        padding: .45rem .75rem;
+        font-size: .75rem;
+        font-weight: 900;
+        backdrop-filter: blur(10px);
+    }
+
+    .cart-card {
+        border: 1px solid var(--arolana-border);
+        border-radius: 1.5rem;
+        background: rgba(255,255,255,.96);
+        box-shadow: var(--arolana-shadow);
+        overflow: hidden;
+    }
+
+    .cart-item {
+        position: relative;
+        border: 1px solid rgba(0, 102, 204, .11);
+        border-radius: 1.25rem;
+        background:
+            radial-gradient(circle at 5% 0%, rgba(0, 184, 255, .07), transparent 12rem),
+            linear-gradient(135deg, #fff, rgba(234, 244, 255, .72));
+        transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+    }
+
+    .cart-item:hover {
+        transform: translateY(-3px);
+        border-color: rgba(255, 122, 0, .28);
+        box-shadow: 0 22px 55px rgba(7, 26, 68, .11);
+    }
+
+    .cart-item-image,
+    .cart-item-placeholder {
+        width: 5.5rem;
+        height: 5.5rem;
+        border-radius: 1rem;
+        border: 1px solid rgba(0, 102, 204, .12);
+        flex: 0 0 auto;
+    }
+
+    .cart-item-image {
+        object-fit: cover;
+        background: #EEF6FF;
+    }
+
+    .cart-item-placeholder {
+        display: grid;
+        place-items: center;
+        background: linear-gradient(135deg, #EEF6FF, #FFF7ED);
+        color: var(--arolana-blue);
+    }
+
+    .qty-control {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        background: white;
+        border: 1px solid rgba(0, 102, 204, .16);
+        box-shadow: 0 10px 25px rgba(7, 26, 68, .06);
+        overflow: hidden;
+    }
+
+    .qty-btn {
+        width: 2.35rem;
+        height: 2.35rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--arolana-navy);
+        font-weight: 950;
+        transition: background .2s ease, color .2s ease, transform .2s ease;
+    }
+
+    .qty-btn:hover { background: var(--arolana-orange); color: white; }
+    .qty-btn:active { transform: scale(.95); }
+
+    .qty-value {
+        min-width: 2.5rem;
+        text-align: center;
+        font-weight: 950;
+        color: var(--arolana-navy);
+    }
+
+    .summary-card {
+        position: sticky;
+        top: 6rem;
+        border-radius: 1.5rem;
+        border: 1px solid rgba(0, 102, 204, .16);
+        background:
+            radial-gradient(circle at 15% 0%, rgba(0, 184, 255, .10), transparent 14rem),
+            linear-gradient(135deg, #fff, #F8FBFF);
+        box-shadow: var(--arolana-shadow);
+    }
+
+    .summary-line {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: .85rem 0;
+        border-bottom: 1px solid rgba(15, 23, 42, .08);
+    }
+
+    .summary-line:last-child { border-bottom: 0; }
+
+    .progress-track {
+        height: .55rem;
+        border-radius: 999px;
+        background: #EAF1FB;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        width: 72%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--arolana-orange), var(--arolana-blue), var(--arolana-glow));
+        animation: progressPulse 2.6s ease-in-out infinite;
+    }
+
+    @keyframes progressPulse {
+        0%, 100% { filter: saturate(1); }
+        50% { filter: saturate(1.5); }
+    }
+
+    .checkout-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .65rem;
+        width: 100%;
+        border-radius: 1rem;
+        padding: 1rem 1.2rem;
+        color: white;
+        font-weight: 950;
+        background: linear-gradient(135deg, var(--arolana-orange), var(--arolana-orange-dark));
+        box-shadow: 0 18px 40px rgba(255, 122, 0, .28);
+        transition: transform .22s ease, box-shadow .22s ease;
+    }
+
+    .checkout-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 24px 55px rgba(255, 122, 0, .34);
+    }
+
+    .continue-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .55rem;
+        border-radius: 1rem;
+        padding: .9rem 1rem;
+        color: var(--arolana-blue);
+        font-weight: 950;
+        background: #EAF4FF;
+        border: 1px solid rgba(0, 102, 204, .16);
+        transition: transform .2s ease, background .2s ease;
+    }
+
+    .continue-btn:hover { transform: translateY(-2px); background: #DDF0FF; }
+
+    .cart-tip-card {
+        border-radius: 1.2rem;
+        background: linear-gradient(135deg, rgba(7, 26, 68, .96), rgba(10, 46, 115, .96));
+        color: white;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .cart-tip-card::after {
+        content: "";
+        position: absolute;
+        right: -3rem;
+        top: -3rem;
+        width: 9rem;
+        height: 9rem;
+        border-radius: 999px;
+        background: rgba(255, 122, 0, .22);
+    }
+
+    .trust-pill {
+        display: flex;
+        align-items: center;
+        gap: .65rem;
+        border-radius: 1rem;
+        padding: .85rem;
+        background: rgba(255,255,255,.72);
+        border: 1px solid rgba(0, 102, 204, .10);
+    }
+
+    .trust-icon {
+        width: 2.25rem;
+        height: 2.25rem;
+        border-radius: .8rem;
+        display: grid;
+        place-items: center;
+        color: white;
+        background: linear-gradient(135deg, var(--arolana-blue), var(--arolana-navy));
+        flex: 0 0 auto;
+    }
+
+    .secure-payment-card {
+        border-radius: 1.25rem;
+        background:
+            radial-gradient(circle at 10% 0%, rgba(0, 184, 255, .10), transparent 10rem),
+            linear-gradient(135deg, #FFFFFF, #F8FBFF);
+        border: 1px solid rgba(0, 102, 204, .14);
+        box-shadow: 0 18px 42px rgba(7, 26, 68, .08);
+    }
+
+    .smart-delivery-card {
+        border-radius: 1.25rem;
+        background:
+            radial-gradient(circle at 10% 0%, rgba(255, 122, 0, .11), transparent 10rem),
+            radial-gradient(circle at 90% 0%, rgba(0, 184, 255, .10), transparent 10rem),
+            linear-gradient(135deg, #FFFFFF, #F8FBFF);
+        border: 1px solid rgba(255, 122, 0, .18);
+        box-shadow: 0 18px 42px rgba(7, 26, 68, .08);
+    }
+
+    .smart-delivery-card .trust-icon,
+    #smartDeliveryModal .secure-info-icon {
+        background: linear-gradient(135deg, var(--arolana-orange), var(--arolana-blue));
+    }
+
+    .expert-support-card {
+        border-radius: 1.25rem;
+        background:
+            radial-gradient(circle at 10% 0%, rgba(0, 102, 204, .10), transparent 10rem),
+            radial-gradient(circle at 90% 0%, rgba(255, 122, 0, .10), transparent 10rem),
+            linear-gradient(135deg, #FFFFFF, #F8FBFF);
+        border: 1px solid rgba(0, 102, 204, .16);
+        box-shadow: 0 18px 42px rgba(7, 26, 68, .08);
+    }
+
+    .expert-support-card .trust-icon,
+    #expertSupportModal .secure-info-icon {
+        background: linear-gradient(135deg, var(--arolana-blue), var(--arolana-orange));
+    }
+
+    .support-contact-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .5rem;
+        border-radius: .9rem;
+        padding: .72rem .95rem;
+        color: white;
+        background: linear-gradient(135deg, var(--arolana-blue), var(--arolana-navy));
+        border: 1px solid rgba(0, 102, 204, .16);
+        font-weight: 950;
+        transition: transform .2s ease, box-shadow .2s ease;
+        box-shadow: 0 14px 32px rgba(0, 102, 204, .18);
+    }
+
+    .support-contact-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 18px 42px rgba(0, 102, 204, .24);
+    }
+
+    .secure-learn-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .5rem;
+        border-radius: .9rem;
+        padding: .72rem .95rem;
+        color: var(--arolana-blue);
+        background: #EAF4FF;
+        border: 1px solid rgba(0, 102, 204, .16);
+        font-weight: 950;
+        transition: transform .2s ease, background .2s ease, color .2s ease;
+    }
+
+    .secure-learn-btn:hover {
+        transform: translateY(-2px);
+        background: #FFF3E8;
+        color: var(--arolana-orange-dark);
+    }
+
+    .secure-modal-open { overflow: hidden; }
+
+    .secure-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 100000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        background: rgba(7, 26, 68, .62);
+        backdrop-filter: blur(12px);
+    }
+
+    .secure-modal-backdrop.is-active {
+        display: flex;
+        animation: modalFadeIn .18s ease-out;
+    }
+
+    @keyframes modalFadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .secure-modal {
+        position: relative;
+        width: min(94vw, 760px);
+        max-height: min(88vh, 760px);
+        overflow-y: auto;
+        border-radius: 1.6rem;
+        background:
+            radial-gradient(circle at 8% 0%, rgba(0, 184, 255, .14), transparent 17rem),
+            radial-gradient(circle at 92% 8%, rgba(255, 122, 0, .16), transparent 17rem),
+            linear-gradient(135deg, #FFFFFF, #F8FBFF);
+        border: 1px solid rgba(255,255,255,.55);
+        box-shadow: 0 35px 90px rgba(0, 0, 0, .26);
+        animation: modalSlideUp .2s ease-out;
+    }
+
+    @keyframes modalSlideUp {
+        from { opacity: 0; transform: translateY(18px) scale(.98); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .secure-modal-header {
+        position: relative;
+        overflow: hidden;
+        border-radius: 1.6rem 1.6rem 0 0;
+        padding: 1.5rem;
+        color: white;
+        background:
+            radial-gradient(circle at 12% 0%, rgba(0, 184, 255, .22), transparent 13rem),
+            radial-gradient(circle at 86% 8%, rgba(255, 122, 0, .25), transparent 13rem),
+            linear-gradient(135deg, var(--arolana-navy), var(--arolana-navy-2));
+    }
+
+    .secure-modal-close {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        width: 2.35rem;
+        height: 2.35rem;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        color: white;
+        background: rgba(255,255,255,.13);
+        border: 1px solid rgba(255,255,255,.22);
+        transition: transform .2s ease, background .2s ease;
+    }
+
+    .secure-modal-close:hover {
+        transform: rotate(90deg);
+        background: rgba(255,255,255,.22);
+    }
+
+    .secure-modal-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: .45rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, .13);
+        border: 1px solid rgba(255, 255, 255, .22);
+        padding: .45rem .75rem;
+        font-size: .75rem;
+        font-weight: 950;
+    }
+
+    .secure-info-grid {
+        display: grid;
+        gap: .9rem;
+    }
+
+    .secure-info-item {
+        display: flex;
+        gap: .85rem;
+        border-radius: 1.1rem;
+        padding: 1rem;
+        background: rgba(255,255,255,.76);
+        border: 1px solid rgba(0, 102, 204, .10);
+    }
+
+    .secure-info-icon {
+        width: 2.35rem;
+        height: 2.35rem;
+        border-radius: .85rem;
+        display: grid;
+        place-items: center;
+        color: white;
+        background: linear-gradient(135deg, var(--arolana-blue), var(--arolana-navy));
+        flex: 0 0 auto;
+    }
+
+    .secure-warning {
+        border-radius: 1.1rem;
+        padding: 1rem;
+        background: #FFF7ED;
+        border: 1px solid rgba(255, 122, 0, .20);
+        color: #7C2D12;
+    }
+
+    .empty-cart {
+        border-radius: 1.8rem;
+        background:
+            radial-gradient(circle at 12% 0%, rgba(0, 184, 255, .12), transparent 16rem),
+            radial-gradient(circle at 82% 10%, rgba(255, 122, 0, .14), transparent 16rem),
+            linear-gradient(135deg, white, #F7FBFF);
+        border: 1px solid var(--arolana-border);
+        box-shadow: var(--arolana-shadow);
+    }
+
+    .floating-cart-icon {
+        width: 6rem;
+        height: 6rem;
+        border-radius: 2rem;
+        display: grid;
+        place-items: center;
+        margin: 0 auto;
+        color: white;
+        background: linear-gradient(135deg, var(--arolana-blue), var(--arolana-orange));
+        box-shadow: 0 22px 50px rgba(0, 102, 204, .22);
+        animation: cartFloat 3.2s ease-in-out infinite;
+    }
+
+    @keyframes cartFloat {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+
+    @media (max-width: 1023px) { .summary-card { position: static; } }
+
+    @media (max-width: 640px) {
+        .cart-item { padding: 1rem !important; }
+        .cart-item-image,
+        .cart-item-placeholder { width: 4.75rem; height: 4.75rem; }
+        .secure-modal-header { padding: 1.25rem; }
+        .secure-modal { border-radius: 1.35rem; }
+    }
+</style>
+
+<div class="cart-page max-w-7xl mx-auto px-4">
+    <div class="cart-hero mb-8 p-6 md:p-8">
+        <div class="cart-hero-content">
+            <div class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                    <div class="mb-4 flex flex-wrap gap-2">
+                        <button type="button" onclick="openSecurePaymentModal()" class="cart-chip">
+                            <i class="fas fa-shield-halved"></i> Secure payments
+                        </button>
+                        <button type="button" onclick="openSmartDeliveryModal()" class="cart-chip">
+                            <i class="fas fa-truck-fast"></i> Smart delivery
+                        </button>
+                        <button type="button" onclick="openExpertSupportModal()" class="cart-chip">
+                            <i class="fas fa-headset"></i> Arolana support
+                        </button>
+                    </div>
+                    <h1 class="text-3xl md:text-5xl font-black tracking-tight text-white">Your Arolana Cart</h1>
+                    <p class="mt-3 max-w-2xl text-white/80 font-semibold">
+                        Review your picks, adjust quantity, and checkout when you are ready. Delivery options will be matched to your location and package size.
+                    </p>
+                </div>
+
+                {% if cart.items.exists %}
+                <div class="rounded-2xl bg-white/12 p-4 text-white backdrop-blur-md border border-white/15 min-w-[220px]">
+                    <p class="text-xs font-black uppercase tracking-[0.14em] text-white/65">Cart Status</p>
+                    <p class="mt-1 text-2xl font-black">{{ cart.items.count }} item{% if cart.items.count != 1 %}s{% endif %}</p>
+                    <p class="text-sm text-white/75">Almost there — checkout is one step away.</p>
+                </div>
+                {% endif %}
             </div>
         </div>
+    </div>
+
+    {% if cart.items.exists %}
+        <div class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_390px]">
+            <div class="space-y-4">
+                <div class="cart-card p-4 md:p-5">
+                    <div class="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <h2 class="text-xl font-black text-slate-950">Items in your cart</h2>
+                            <p class="text-sm font-semibold text-slate-500">Make changes before moving to checkout.</p>
+                        </div>
+                        <a href="/products/" class="continue-btn"><i class="fas fa-plus"></i> Add more items</a>
+                    </div>
+
+                    <div class="space-y-4">
+                        {% for item in cart.items.all %}
+                        <article class="cart-item p-4 md:p-5">
+                            <div class="flex flex-col gap-4 md:flex-row md:items-center">
+                                <div class="flex min-w-0 flex-1 gap-4">
+                                    {% if item.product and item.product.main_image %}
+                                        <img src="{{ item.product.main_image.url }}" alt="{{ item.product.name }}" class="cart-item-image">
+                                    {% elif item.accessory and item.accessory.image %}
+                                        <img src="{{ item.accessory.image.url }}" alt="{{ item.accessory.name }}" class="cart-item-image">
+                                    {% else %}
+                                        <div class="cart-item-placeholder"><i class="fas fa-image text-xl"></i></div>
+                                    {% endif %}
+
+                                    <div class="min-w-0 flex-1">
+                                        {% if item.product %}
+                                            <a href="{{ item.product.get_absolute_url }}" class="line-clamp-2 text-lg font-black text-slate-950 transition hover:text-blue-700">
+                                                {{ item.product.name }}
+                                            </a>
+                                            <div class="mt-2 flex flex-wrap gap-2 text-xs font-bold text-slate-500">
+                                                <span class="rounded-full bg-white px-2.5 py-1 ring-1 ring-blue-100">SKU: {{ item.variant.sku|default:item.product.sku }}</span>
+                                                {% if item.variant %}
+                                                <span class="rounded-full bg-orange-50 px-2.5 py-1 text-orange-700 ring-1 ring-orange-100">{{ item.variant.name }}: {{ item.variant.value }}</span>
+                                                {% endif %}
+                                            </div>
+                                        {% elif item.accessory %}
+                                            <p class="line-clamp-2 text-lg font-black text-slate-950">{{ item.accessory.name }}</p>
+                                            <p class="mt-2 inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-700 ring-1 ring-blue-100">Accessory</p>
+                                        {% else %}
+                                            <p class="line-clamp-2 text-lg font-black text-slate-950">{{ item.item_name }}</p>
+                                        {% endif %}
+
+                                        <div class="mt-3 grid grid-cols-2 gap-3 text-sm md:hidden">
+                                            <div>
+                                                <p class="text-xs font-black uppercase tracking-wide text-slate-400">Price</p>
+                                                <p class="font-black text-blue-700">{{ item.price_at_add|currency:request }}</p>
+                                            </div>
+                                            <div>
+                                                <p class="text-xs font-black uppercase tracking-wide text-slate-400">Total</p>
+                                                <p class="font-black text-emerald-600">{{ item.subtotal|currency:request }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="hidden w-28 text-right md:block">
+                                    <p class="text-xs font-black uppercase tracking-wide text-slate-400">Price</p>
+                                    <p class="font-black text-blue-700">{{ item.price_at_add|currency:request }}</p>
+                                </div>
+
+                                <div class="flex items-center justify-between gap-4 md:block">
+                                    <div>
+                                        <p class="mb-1 text-xs font-black uppercase tracking-wide text-slate-400 md:text-center">Qty</p>
+                                        <div class="qty-control">
+                                            <button type="button" onclick="updateQuantity('{{ item.id|escapejs }}', {{ item.quantity|add:'-1' }})" class="qty-btn" aria-label="Reduce quantity">−</button>
+                                            <span id="qty-{{ item.id }}" class="qty-value">{{ item.quantity }}</span>
+                                            <button type="button" onclick="updateQuantity('{{ item.id|escapejs }}', {{ item.quantity|add:'1' }})" class="qty-btn" aria-label="Increase quantity">+</button>
+                                        </div>
+                                    </div>
+
+                                    <button type="button" onclick="removeItem('{{ item.id|escapejs }}')" class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-red-500 transition hover:bg-red-500 hover:text-white md:hidden" aria-label="Remove item">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
+
+                                <div class="hidden w-32 text-right md:block">
+                                    <p class="text-xs font-black uppercase tracking-wide text-slate-400">Total</p>
+                                    <p class="font-black text-emerald-600">{{ item.subtotal|currency:request }}</p>
+                                </div>
+
+                                <button type="button" onclick="removeItem('{{ item.id|escapejs }}')" class="hidden h-10 w-10 items-center justify-center rounded-full bg-red-50 text-red-500 transition hover:bg-red-500 hover:text-white md:inline-flex" aria-label="Remove item">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </article>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="grid gap-4 md:grid-cols-3">
+                    <button type="button" onclick="openSecurePaymentModal()" class="trust-pill text-left transition hover:-translate-y-0.5 hover:bg-white">
+                        <span class="trust-icon"><i class="fas fa-lock"></i></span>
+                        <div>
+                            <p class="font-black text-slate-950">Secure payments</p>
+                            <p class="text-xs font-semibold text-slate-500">Protected checkout and trusted payment processing</p>
+                        </div>
+                    </button>
+                    <button type="button" onclick="openSmartDeliveryModal()" class="trust-pill text-left transition hover:-translate-y-0.5 hover:bg-white">
+                        <span class="trust-icon"><i class="fas fa-location-dot"></i></span>
+                        <div>
+                            <p class="font-black text-slate-950">Smart delivery</p>
+                            <p class="text-xs font-semibold text-slate-500">Based on your location</p>
+                        </div>
+                    </button>
+                    <button type="button" onclick="openExpertSupportModal()" class="trust-pill text-left transition hover:-translate-y-0.5 hover:bg-white">
+                        <span class="trust-icon"><i class="fas fa-comments"></i></span>
+                        <div>
+                            <p class="font-black text-slate-950">Expert support</p>
+                            <p class="text-xs font-semibold text-slate-500">We are here to help</p>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <aside class="summary-card p-5 md:p-6">
+                <div class="mb-5">
+                    <p class="text-xs font-black uppercase tracking-[0.16em] text-blue-700">Order Summary</p>
+                    <h2 class="mt-1 text-2xl font-black text-slate-950">Ready when you are</h2>
+                    <p class="mt-1 text-sm font-semibold text-slate-500">Confirm your items and continue to delivery selection.</p>
+                </div>
+
+                <div class="mb-5 rounded-2xl bg-blue-50/80 p-4 ring-1 ring-blue-100">
+                    <div class="mb-2 flex items-center justify-between text-sm font-black text-slate-700">
+                        <span>Checkout progress</span>
+                        <span>Cart reviewed</span>
+                    </div>
+                    <div class="progress-track"><div class="progress-fill"></div></div>
+                    <p class="mt-2 text-xs font-bold text-slate-500">Next: choose delivery provider and confirm payment.</p>
+                </div>
+
+                <div class="space-y-1">
+                    <div class="summary-line"><span class="font-bold text-slate-500">Subtotal</span><span class="font-black text-blue-700">{{ cart.subtotal|currency:request }}</span></div>
+                    <div class="summary-line"><span class="font-bold text-slate-500">Shipping</span><span class="text-right font-black text-slate-700">Calculated by location</span></div>
+                    <div class="summary-line"><span class="font-black text-lg text-slate-950">Estimated Total</span><span class="font-black text-2xl text-emerald-600">{{ cart.subtotal|currency:request }}</span></div>
+                </div>
+
+                <div class="mt-5">
+                    <a href="{% url 'products:checkout' %}" class="checkout-btn">Proceed to Checkout <i class="fas fa-arrow-right"></i></a>
+                    <a href="/products/" class="mt-3 continue-btn w-full"><i class="fas fa-arrow-left"></i> Continue Shopping</a>
+                </div>
+
+                <div class="secure-payment-card mt-4 p-4">
+                    <div class="flex gap-3">
+                        <span class="trust-icon"><i class="fas fa-shield-halved"></i></span>
+                        <div>
+                            <h3 class="font-black text-slate-950">Secure payments on Arolana</h3>
+                            <p class="mt-1 text-xs font-semibold leading-relaxed text-slate-500">
+                                Your payment is processed through trusted payment channels. Arolana helps protect your checkout, track your order, and reduce risky marketplace transactions.
+                            </p>
+                            <button type="button" onclick="openSecurePaymentModal()" class="secure-learn-btn mt-3">
+                                Learn about secure payments <i class="fas fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="smart-delivery-card mt-4 p-4">
+                    <div class="flex gap-3">
+                        <span class="trust-icon"><i class="fas fa-truck-fast"></i></span>
+                        <div>
+                            <h3 class="font-black text-slate-950">Smart delivery based on your location</h3>
+                            <p class="mt-1 text-xs font-semibold leading-relaxed text-slate-500">
+                                Arolana helps match your order with delivery options based on your location, package size, distance, and available delivery providers. You can review delivery cost and options at checkout.
+                            </p>
+                            <button type="button" onclick="openSmartDeliveryModal()" class="secure-learn-btn mt-3">
+                                Learn about smart delivery <i class="fas fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="expert-support-card mt-4 p-4">
+                    <div class="flex gap-3">
+                        <span class="trust-icon"><i class="fas fa-headset"></i></span>
+                        <div>
+                            <h3 class="font-black text-slate-950">Expert support when you need help</h3>
+                            <p class="mt-1 text-xs font-semibold leading-relaxed text-slate-500">
+                                Need help with shopping, checkout, payment confirmation, delivery, order tracking, or product questions? Arolana support is here to guide you from product selection to delivery.
+                            </p>
+                            <button type="button" onclick="openExpertSupportModal()" class="secure-learn-btn mt-3">
+                                Learn about expert support <i class="fas fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cart-tip-card mt-5 p-4">
+                    <div class="relative z-10">
+                        <p class="text-sm font-black"><i class="fas fa-bolt mr-2 text-orange-300"></i>Quick delivery note</p>
+                        <p class="mt-1 text-xs font-semibold text-white/75">Delivery cost depends on your location, selected provider, package size, and rider availability. You will choose delivery options at checkout.</p>
+                    </div>
+                </div>
+            </aside>
+        </div>
     {% else %}
-        <div class="bg-white rounded-xl shadow-lg p-12 text-center">
-            <i class="fas fa-shopping-cart text-6xl text-gray-400 mb-4"></i>
-            <p class="text-gray-500 text-lg mb-4">Your cart is empty</p>
-            <a href="/products/" class="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
-                Start Shopping
-            </a>
+        <div class="empty-cart p-8 md:p-12 text-center">
+            <div class="floating-cart-icon"><i class="fas fa-shopping-cart text-4xl"></i></div>
+            <h2 class="mt-6 text-3xl md:text-4xl font-black text-slate-950">Your cart is waiting for something exciting</h2>
+            <p class="mx-auto mt-3 max-w-xl text-slate-500 font-semibold">Explore Arolana products, compare options, save your favorites, and come back here when you are ready to checkout.</p>
+            <div class="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                <a href="/products/" class="checkout-btn sm:w-auto">Start Shopping <i class="fas fa-arrow-right"></i></a>
+                <a href="/" class="continue-btn sm:w-auto"><i class="fas fa-home"></i> Back Home</a>
+            </div>
+
+            <div class="secure-payment-card mx-auto mt-6 max-w-2xl p-4 text-left">
+                <div class="flex gap-3">
+                    <span class="trust-icon"><i class="fas fa-shield-halved"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Shop with confidence</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">
+                            Arolana uses protected checkout, trusted payment processing, and order tracking to help make every purchase safer.
+                        </p>
+                        <button type="button" onclick="openSecurePaymentModal()" class="secure-learn-btn mt-3">
+                            Learn about secure payments <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="smart-delivery-card mx-auto mt-4 max-w-2xl p-4 text-left">
+                <div class="flex gap-3">
+                    <span class="trust-icon"><i class="fas fa-location-dot"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Delivery matched to your location</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">
+                            Delivery options and cost are calculated at checkout using your location, package size, distance, and provider availability.
+                        </p>
+                        <button type="button" onclick="openSmartDeliveryModal()" class="secure-learn-btn mt-3">
+                            Learn about smart delivery <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="expert-support-card mx-auto mt-4 max-w-2xl p-4 text-left">
+                <div class="flex gap-3">
+                    <span class="trust-icon"><i class="fas fa-headset"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Support from shopping to delivery</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">
+                            Customers can request help with product guidance, checkout, payment confirmation, delivery updates, and order questions.
+                        </p>
+                        <button type="button" onclick="openExpertSupportModal()" class="secure-learn-btn mt-3">
+                            Learn about expert support <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 grid gap-4 md:grid-cols-3">
+                <div class="trust-pill text-left"><span class="trust-icon"><i class="fas fa-camera"></i></span><div><p class="font-black text-slate-950">Discover products</p><p class="text-xs font-semibold text-slate-500">Shop multimedia, tech and electronics</p></div></div>
+                <div class="trust-pill text-left"><span class="trust-icon"><i class="fas fa-heart"></i></span><div><p class="font-black text-slate-950">Save favorites</p><p class="text-xs font-semibold text-slate-500">Wishlist items for later</p></div></div>
+                <div class="trust-pill text-left"><span class="trust-icon"><i class="fas fa-truck-fast"></i></span><div><p class="font-black text-slate-950">Checkout smoothly</p><p class="text-xs font-semibold text-slate-500">Delivery options at checkout</p></div></div>
+            </div>
         </div>
     {% endif %}
 </div>
 
+<div id="securePaymentModal" class="secure-modal-backdrop" aria-hidden="true" onclick="securePaymentBackdropClose(event)">
+    <div class="secure-modal" role="dialog" aria-modal="true" aria-labelledby="securePaymentTitle">
+        <div class="secure-modal-header">
+            <button type="button" onclick="closeSecurePaymentModal()" class="secure-modal-close" aria-label="Close secure payments popup">
+                <i class="fas fa-times"></i>
+            </button>
+
+            <span class="secure-modal-chip"><i class="fas fa-shield-halved"></i> Arolana payment protection</span>
+            <h2 id="securePaymentTitle" class="mt-4 pr-10 text-2xl md:text-4xl font-black tracking-tight">
+                Secure payments on Arolana
+            </h2>
+            <p class="mt-3 max-w-2xl text-sm md:text-base font-semibold text-white/78">
+                Shop with more confidence. Your payment is processed through trusted payment channels while your order is tracked from checkout to delivery.
+            </p>
+        </div>
+
+        <div class="p-5 md:p-6">
+            <div class="secure-info-grid md:grid-cols-2">
+                <div class="secure-info-item">
+                    <span class="secure-info-icon"><i class="fas fa-lock"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Protected checkout</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">Checkout is designed to keep your payment and order information safe during purchase.</p>
+                    </div>
+                </div>
+
+                <div class="secure-info-item">
+                    <span class="secure-info-icon"><i class="fas fa-credit-card"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Trusted payment channels</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">Payments are handled through trusted payment processing channels for safer transactions.</p>
+                    </div>
+                </div>
+
+                <div class="secure-info-item">
+                    <span class="secure-info-icon"><i class="fas fa-route"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Order tracking</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">After payment, your order can be tracked through processing, delivery selection, and delivery updates.</p>
+                    </div>
+                </div>
+
+                <div class="secure-info-item">
+                    <span class="secure-info-icon"><i class="fas fa-user-shield"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Fraud reduction</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">Arolana helps reduce suspicious activity, fake orders, and risky marketplace transactions.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="secure-warning mt-5">
+                <p class="font-black"><i class="fas fa-circle-info mr-2"></i>Important payment note</p>
+                <p class="mt-1 text-sm font-semibold">
+                    Your payment details are never displayed publicly to vendors. Arolana focuses on safer checkout, verified activity, and reliable order processing.
+                    We do not claim escrow unless escrow is fully available on the platform.
+                </p>
+            </div>
+
+            <div class="mt-5 flex flex-col gap-3 sm:flex-row">
+                {% if cart.items.exists %}
+                    <a href="{% url 'products:checkout' %}" class="checkout-btn sm:w-auto">Continue to Checkout <i class="fas fa-arrow-right"></i></a>
+                {% else %}
+                    <a href="/products/" class="checkout-btn sm:w-auto">Start Shopping <i class="fas fa-arrow-right"></i></a>
+                {% endif %}
+                <button type="button" onclick="closeSecurePaymentModal()" class="continue-btn sm:w-auto">
+                    Close <i class="fas fa-check"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="smartDeliveryModal" class="secure-modal-backdrop" aria-hidden="true" onclick="smartDeliveryBackdropClose(event)">
+    <div class="secure-modal" role="dialog" aria-modal="true" aria-labelledby="smartDeliveryTitle">
+        <div class="secure-modal-header">
+            <button type="button" onclick="closeSmartDeliveryModal()" class="secure-modal-close" aria-label="Close smart delivery popup">
+                <i class="fas fa-times"></i>
+            </button>
+
+            <span class="secure-modal-chip"><i class="fas fa-truck-fast"></i> Delivery matched to your location</span>
+            <h2 id="smartDeliveryTitle" class="mt-4 pr-10 text-2xl md:text-4xl font-black tracking-tight">
+                Smart Delivery Based on Your Location
+            </h2>
+            <p class="mt-3 max-w-2xl text-sm md:text-base font-semibold text-white/78">
+                Arolana helps make delivery easier by matching your order with available delivery options based on your location, package size, distance, and selected delivery method.
+            </p>
+        </div>
+
+        <div class="p-5 md:p-6">
+            <div class="secure-info-grid md:grid-cols-2">
+                <div class="secure-info-item">
+                    <span class="secure-info-icon"><i class="fas fa-location-dot"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Location-based delivery</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">Delivery options are matched using your address or selected delivery location during checkout.</p>
+                    </div>
+                </div>
+
+                <div class="secure-info-item">
+                    <span class="secure-info-icon"><i class="fas fa-calculator"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Calculated at checkout</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">Delivery cost is calculated using details such as distance, package size, item weight, selected provider, and rider or courier availability.</p>
+                    </div>
+                </div>
+
+                <div class="secure-info-item">
+                    <span class="secure-info-icon"><i class="fas fa-list-check"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Choose available options</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">Where multiple delivery options are available, customers can choose the method that best suits their timing and budget.</p>
+                    </div>
+                </div>
+
+                <div class="secure-info-item">
+                    <span class="secure-info-icon"><i class="fas fa-route"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Delivery tracking</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">After checkout, order movement can be tracked from processing to dispatch and delivery updates.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="secure-warning mt-5">
+                <p class="font-black"><i class="fas fa-circle-info mr-2"></i>Clear delivery note</p>
+                <p class="mt-1 text-sm font-semibold">
+                    Delivery cost may vary based on location, package size, provider availability, traffic, and delivery distance. Final delivery options and cost are confirmed at checkout.
+                </p>
+            </div>
+
+            <div class="mt-5 flex flex-col gap-3 sm:flex-row">
+                {% if cart.items.exists %}
+                    <a href="{% url 'products:checkout' %}" class="checkout-btn sm:w-auto">Continue to Checkout <i class="fas fa-arrow-right"></i></a>
+                {% else %}
+                    <a href="/products/" class="checkout-btn sm:w-auto">Start Shopping <i class="fas fa-arrow-right"></i></a>
+                {% endif %}
+                <button type="button" onclick="closeSmartDeliveryModal()" class="continue-btn sm:w-auto">
+                    Close <i class="fas fa-check"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div id="expertSupportModal" class="secure-modal-backdrop" aria-hidden="true" onclick="expertSupportBackdropClose(event)">
+    <div class="secure-modal" role="dialog" aria-modal="true" aria-labelledby="expertSupportTitle">
+        <div class="secure-modal-header">
+            <button type="button" onclick="closeExpertSupportModal()" class="secure-modal-close" aria-label="Close expert support popup">
+                <i class="fas fa-times"></i>
+            </button>
+
+            <span class="secure-modal-chip"><i class="fas fa-headset"></i> Arolana customer support</span>
+            <h2 id="expertSupportTitle" class="mt-4 pr-10 text-2xl md:text-4xl font-black tracking-tight">
+                Expert Support — We’re Here to Help
+            </h2>
+            <p class="mt-3 max-w-2xl text-sm md:text-base font-semibold text-white/78">
+                Arolana support is available to assist you with shopping, checkout, payment confirmation, delivery, order tracking, and product-related questions.
+            </p>
+        </div>
+
+        <div class="p-5 md:p-6">
+            <div class="secure-info-grid md:grid-cols-2">
+                <div class="secure-info-item">
+                    <span class="secure-info-icon"><i class="fas fa-magnifying-glass"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Product guidance</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">Get help when comparing products, checking specifications, or choosing the right item for your needs.</p>
+                    </div>
+                </div>
+
+                <div class="secure-info-item">
+                    <span class="secure-info-icon"><i class="fas fa-cart-shopping"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Checkout assistance</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">If you need help during checkout, Arolana support can guide you through the process.</p>
+                    </div>
+                </div>
+
+                <div class="secure-info-item">
+                    <span class="secure-info-icon"><i class="fas fa-credit-card"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Payment confirmation</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">Customers can request assistance when confirming payment status or resolving payment-related questions.</p>
+                    </div>
+                </div>
+
+                <div class="secure-info-item">
+                    <span class="secure-info-icon"><i class="fas fa-truck-fast"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Order & delivery support</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">Get help with order progress, delivery updates, and general tracking questions after checkout.</p>
+                    </div>
+                </div>
+
+                <div class="secure-info-item">
+                    <span class="secure-info-icon"><i class="fas fa-screwdriver-wrench"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Issue resolution</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">If something goes wrong with an order, customers can contact Arolana support for guidance and next steps.</p>
+                    </div>
+                </div>
+
+                <div class="secure-info-item">
+                    <span class="secure-info-icon"><i class="fas fa-comments"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Vendor & product questions</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">Arolana helps customers ask product-related questions and communicate better before completing a purchase.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="secure-warning mt-5">
+                <p class="font-black"><i class="fas fa-circle-info mr-2"></i>Support availability note</p>
+                <p class="mt-1 text-sm font-semibold">
+                    Arolana support is available to assist customers. Response time may depend on request volume and team availability.
+                </p>
+            </div>
+
+            <div class="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                {% if support_whatsapp_url %}
+                    <a href="{{ support_whatsapp_url }}" target="_blank" rel="noopener" class="support-contact-btn">
+                        <i class="fab fa-whatsapp"></i> Chat on WhatsApp
+                    </a>
+                {% endif %}
+
+                {% if support_phone_display %}
+                    <a href="tel:{{ support_phone_tel }}" class="support-contact-btn">
+                        <i class="fas fa-phone"></i> Call {{ support_phone_display }}
+                    </a>
+                {% endif %}
+
+                {% if support_email %}
+                    <a href="mailto:{{ support_email }}" class="support-contact-btn">
+                        <i class="fas fa-envelope"></i> Email Support
+                    </a>
+                {% endif %}
+
+                <button type="button" onclick="closeExpertSupportModal()" class="continue-btn sm:w-auto">
+                    Close <i class="fas fa-check"></i>
+                </button>
+            </div>
+
+            {% if not support_whatsapp_url and not support_phone_display and not support_email %}
+                <p class="mt-4 rounded-2xl bg-blue-50 p-4 text-sm font-semibold text-slate-600 ring-1 ring-blue-100">
+                    Support contact details are managed from Django settings or your admin/site configuration. No phone number is hardcoded in this cart template.
+                </p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
 <script>
-function updateQuantity(itemId, newQuantity) {
-    if (newQuantity < 1) return;
-    
-    fetch('/products/cart/update/', {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: `item_id=${encodeURIComponent(itemId)}&quantity=${encodeURIComponent(newQuantity)}`
-    }).then(response => response.json()).then(data => {
-        if (data.success) {
-            location.reload();
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return '{{ csrf_token }}';
+}
+
+function openSecurePaymentModal() {
+    const modal = document.getElementById('securePaymentModal');
+    if (!modal) return;
+
+    modal.classList.add('is-active');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('secure-modal-open');
+
+    const closeButton = modal.querySelector('.secure-modal-close');
+    if (closeButton) closeButton.focus();
+}
+
+function closeSecurePaymentModal() {
+    const modal = document.getElementById('securePaymentModal');
+    if (!modal) return;
+
+    modal.classList.remove('is-active');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('secure-modal-open');
+}
+
+function securePaymentBackdropClose(event) {
+    if (event.target && event.target.id === 'securePaymentModal') {
+        closeSecurePaymentModal();
+    }
+}
+
+function openSmartDeliveryModal() {
+    const modal = document.getElementById('smartDeliveryModal');
+    if (!modal) return;
+
+    modal.classList.add('is-active');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('secure-modal-open');
+
+    const closeButton = modal.querySelector('.secure-modal-close');
+    if (closeButton) closeButton.focus();
+}
+
+function closeSmartDeliveryModal() {
+    const modal = document.getElementById('smartDeliveryModal');
+    if (!modal) return;
+
+    modal.classList.remove('is-active');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('secure-modal-open');
+}
+
+function smartDeliveryBackdropClose(event) {
+    if (event.target && event.target.id === 'smartDeliveryModal') {
+        closeSmartDeliveryModal();
+    }
+}
+
+function openExpertSupportModal() {
+    const modal = document.getElementById('expertSupportModal');
+    if (!modal) return;
+
+    modal.classList.add('is-active');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('secure-modal-open');
+
+    const closeButton = modal.querySelector('.secure-modal-close');
+    if (closeButton) closeButton.focus();
+}
+
+function closeExpertSupportModal() {
+    const modal = document.getElementById('expertSupportModal');
+    if (!modal) return;
+
+    modal.classList.remove('is-active');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('secure-modal-open');
+}
+
+function expertSupportBackdropClose(event) {
+    if (event.target && event.target.id === 'expertSupportModal') {
+        closeExpertSupportModal();
+    }
+}
+
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeSecurePaymentModal();
+        closeSmartDeliveryModal();
+        closeExpertSupportModal();
+    }
+});
+
+function showCartToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    const bg = type === 'success'
+        ? 'linear-gradient(135deg, #059669, #10B981)'
+        : 'linear-gradient(135deg, #DC2626, #EF4444)';
+
+    toast.style.cssText = `
+        position: fixed;
+        right: 18px;
+        bottom: 24px;
+        z-index: 99999;
+        max-width: min(92vw, 360px);
+        color: white;
+        background: ${bg};
+        padding: 14px 16px;
+        border-radius: 16px;
+        box-shadow: 0 20px 45px rgba(7, 26, 68, .24);
+        font-weight: 900;
+        transform: translateY(18px);
+        opacity: 0;
+        transition: all .22s ease;
+    `;
+    toast.innerHTML = message;
+    document.body.appendChild(toast);
+
+    requestAnimationFrame(() => {
+        toast.style.transform = 'translateY(0)';
+        toast.style.opacity = '1';
+    });
+
+    setTimeout(() => {
+        toast.style.transform = 'translateY(18px)';
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 250);
+    }, 2600);
+}
+
+function setCartBusy(isBusy) {
+    document.querySelectorAll('.qty-btn, button[onclick^="removeItem"], a.checkout-btn').forEach((el) => {
+        if (isBusy) {
+            el.dataset.originalOpacity = el.style.opacity || '';
+            el.style.opacity = '.72';
+            el.style.pointerEvents = 'none';
+        } else {
+            el.style.opacity = el.dataset.originalOpacity || '';
+            el.style.pointerEvents = '';
         }
     });
 }
 
-function removeItem(itemId) {
-    if (confirm('Remove this item from cart?')) {
-        fetch(`/products/cart/remove/${itemId}/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}',
-            },
-        }).then(() => {
-            location.reload();
-        });
+function updateQuantity(itemId, newQuantity) {
+    if (newQuantity < 1) {
+        removeItem(itemId);
+        return;
     }
+
+    setCartBusy(true);
+
+    fetch('/products/cart/update/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: `item_id=${encodeURIComponent(itemId)}&quantity=${encodeURIComponent(newQuantity)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showCartToast('<i class="fas fa-check-circle mr-2"></i> Cart updated');
+            setTimeout(() => location.reload(), 450);
+        } else {
+            setCartBusy(false);
+            showCartToast('<i class="fas fa-circle-exclamation mr-2"></i> Unable to update cart', 'error');
+        }
+    })
+    .catch(() => {
+        setCartBusy(false);
+        showCartToast('<i class="fas fa-wifi mr-2"></i> Network error. Please try again.', 'error');
+    });
+}
+
+function removeItem(itemId) {
+    const confirmRemove = confirm('Remove this item from your Arolana cart?');
+    if (!confirmRemove) return;
+
+    setCartBusy(true);
+
+    fetch(`/products/cart/remove/${encodeURIComponent(itemId)}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+    })
+    .then(() => {
+        showCartToast('<i class="fas fa-trash-alt mr-2"></i> Item removed');
+        setTimeout(() => location.reload(), 450);
+    })
+    .catch(() => {
+        setCartBusy(false);
+        showCartToast('<i class="fas fa-circle-exclamation mr-2"></i> Could not remove item', 'error');
+    });
 }
 </script>
 {% endblock %}

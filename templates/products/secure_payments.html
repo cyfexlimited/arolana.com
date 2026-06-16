@@ -1,0 +1,223 @@
+{% extends 'base/base.html' %}
+
+{% block content %}
+<style>
+    :root {
+        --arolana-navy: #071A44;
+        --arolana-navy-2: #0A2E73;
+        --arolana-blue: #0066CC;
+        --arolana-orange: #FF7A00;
+        --arolana-orange-dark: #E86D00;
+        --arolana-glow: #00B8FF;
+        --arolana-border: rgba(0, 102, 204, 0.14);
+        --arolana-shadow: 0 24px 70px rgba(7, 26, 68, 0.12);
+    }
+
+    .secure-page {
+        color: #0F172A;
+    }
+
+    .secure-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 2rem;
+        background:
+            radial-gradient(circle at 12% 0%, rgba(0, 184, 255, .20), transparent 18rem),
+            radial-gradient(circle at 86% 8%, rgba(255, 122, 0, .22), transparent 18rem),
+            linear-gradient(135deg, var(--arolana-navy), var(--arolana-navy-2));
+        box-shadow: var(--arolana-shadow);
+    }
+
+    .secure-hero::before {
+        content: "";
+        position: absolute;
+        inset: -40%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,.10), transparent);
+        transform: rotate(12deg);
+        animation: secureShine 7s linear infinite;
+    }
+
+    @keyframes secureShine {
+        from { transform: translateX(-35%) rotate(12deg); }
+        to { transform: translateX(35%) rotate(12deg); }
+    }
+
+    .secure-hero-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .secure-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: .45rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, .12);
+        border: 1px solid rgba(255, 255, 255, .18);
+        color: white;
+        padding: .45rem .8rem;
+        font-size: .75rem;
+        font-weight: 900;
+        backdrop-filter: blur(10px);
+    }
+
+    .secure-card {
+        border-radius: 1.5rem;
+        border: 1px solid var(--arolana-border);
+        background:
+            radial-gradient(circle at 10% 0%, rgba(0, 184, 255, .07), transparent 12rem),
+            linear-gradient(135deg, #fff, #F8FBFF);
+        box-shadow: var(--arolana-shadow);
+        transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+    }
+
+    .secure-card:hover {
+        transform: translateY(-4px);
+        border-color: rgba(255, 122, 0, .28);
+        box-shadow: 0 26px 65px rgba(7, 26, 68, .14);
+    }
+
+    .secure-icon {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 1rem;
+        display: grid;
+        place-items: center;
+        color: white;
+        background: linear-gradient(135deg, var(--arolana-blue), var(--arolana-navy));
+        box-shadow: 0 15px 35px rgba(0, 102, 204, .18);
+    }
+
+    .secure-cta {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .65rem;
+        border-radius: 1rem;
+        padding: 1rem 1.3rem;
+        color: white;
+        font-weight: 950;
+        background: linear-gradient(135deg, var(--arolana-orange), var(--arolana-orange-dark));
+        box-shadow: 0 18px 40px rgba(255, 122, 0, .28);
+        transition: transform .22s ease, box-shadow .22s ease;
+    }
+
+    .secure-cta:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 24px 55px rgba(255, 122, 0, .34);
+    }
+
+    .secure-banner {
+        border-radius: 1.5rem;
+        background: linear-gradient(135deg, rgba(7, 26, 68, .96), rgba(10, 46, 115, .96));
+        color: white;
+        box-shadow: var(--arolana-shadow);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .secure-banner::after {
+        content: "";
+        position: absolute;
+        right: -4rem;
+        top: -4rem;
+        width: 12rem;
+        height: 12rem;
+        border-radius: 999px;
+        background: rgba(255, 122, 0, .22);
+    }
+</style>
+
+<div class="secure-page max-w-7xl mx-auto px-4">
+    <section class="secure-hero p-6 md:p-10 mb-8">
+        <div class="secure-hero-content">
+            <div class="mb-4 flex flex-wrap gap-2">
+                <span class="secure-chip"><i class="fas fa-lock"></i> Protected checkout</span>
+                <span class="secure-chip"><i class="fas fa-shield-halved"></i> Safer marketplace</span>
+                <span class="secure-chip"><i class="fas fa-truck-fast"></i> Order tracking</span>
+            </div>
+
+            <h1 class="text-3xl md:text-5xl font-black tracking-tight text-white">
+                Secure Payments on Arolana
+            </h1>
+
+            <p class="mt-4 max-w-3xl text-white/82 text-base md:text-lg font-semibold">
+                Shop with confidence. Your payment is processed safely through trusted payment channels while your order is tracked from checkout to delivery.
+            </p>
+
+            <div class="mt-6 flex flex-col gap-3 sm:flex-row">
+                <a href="{% url 'products:list' %}" class="secure-cta">
+                    Start Shopping <i class="fas fa-arrow-right"></i>
+                </a>
+                <a href="{% url 'products:cart' %}" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-white/12 px-5 py-4 font-black text-white ring-1 ring-white/20 transition hover:bg-white/18">
+                    View Cart <i class="fas fa-shopping-cart"></i>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <section class="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+        <div class="secure-card p-5">
+            <div class="secure-icon"><i class="fas fa-lock"></i></div>
+            <h2 class="mt-4 text-xl font-black text-slate-950">Protected Checkout</h2>
+            <p class="mt-2 text-sm font-semibold text-slate-500">
+                Arolana checkout is designed to keep customer payment and order information safe during the purchase process.
+            </p>
+        </div>
+
+        <div class="secure-card p-5">
+            <div class="secure-icon"><i class="fas fa-credit-card"></i></div>
+            <h2 class="mt-4 text-xl font-black text-slate-950">Trusted Payment Processing</h2>
+            <p class="mt-2 text-sm font-semibold text-slate-500">
+                Payments are processed through trusted payment channels, helping customers complete transactions with more confidence.
+            </p>
+        </div>
+
+        <div class="secure-card p-5">
+            <div class="secure-icon"><i class="fas fa-route"></i></div>
+            <h2 class="mt-4 text-xl font-black text-slate-950">Order Tracking</h2>
+            <p class="mt-2 text-sm font-semibold text-slate-500">
+                After payment, your order can be tracked from checkout to processing, delivery selection, and final delivery.
+            </p>
+        </div>
+
+        <div class="secure-card p-5">
+            <div class="secure-icon"><i class="fas fa-user-shield"></i></div>
+            <h2 class="mt-4 text-xl font-black text-slate-950">Fraud Reduction</h2>
+            <p class="mt-2 text-sm font-semibold text-slate-500">
+                Arolana helps reduce suspicious transactions, fake orders, and risky marketplace activity through safer order handling.
+            </p>
+        </div>
+
+        <div class="secure-card p-5">
+            <div class="secure-icon"><i class="fas fa-store"></i></div>
+            <h2 class="mt-4 text-xl font-black text-slate-950">Buyer & Vendor Confidence</h2>
+            <p class="mt-2 text-sm font-semibold text-slate-500">
+                Secure payments help buyers and vendors trade with more trust, transparency, and better order communication.
+            </p>
+        </div>
+
+        <div class="secure-card p-5">
+            <div class="secure-icon"><i class="fas fa-headset"></i></div>
+            <h2 class="mt-4 text-xl font-black text-slate-950">Arolana Support</h2>
+            <p class="mt-2 text-sm font-semibold text-slate-500">
+                If you need help with checkout, payment confirmation, or order tracking, Arolana support is available to assist.
+            </p>
+        </div>
+    </section>
+
+    <section class="secure-banner mt-8 p-6 md:p-8">
+        <div class="relative z-10 max-w-4xl">
+            <p class="text-sm font-black uppercase tracking-[0.16em] text-orange-300">
+                Payment trust note
+            </p>
+            <h2 class="mt-2 text-2xl md:text-3xl font-black">
+                Your payment details are never displayed publicly to vendors.
+            </h2>
+            <p class="mt-3 text-white/78 font-semibold">
+                Arolana focuses on safe transactions, verified activity, protected checkout, and reliable order processing. We do not claim escrow unless escrow is fully available on the platform.
+            </p>
+        </div>
+    </section>
+</div>
+{% endblock %}

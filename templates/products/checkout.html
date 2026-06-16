@@ -9,101 +9,813 @@
 {% get_exchange_rate checkout_currency_code as checkout_currency_rate %}
 {% base_currency_code as checkout_base_currency_code %}
 {% get_exchange_rate checkout_base_currency_code as checkout_base_currency_rate %}
-<div class="max-w-5xl mx-auto px-4 py-10">
-    <h1 class="text-3xl font-black mb-8 text-gray-900">Checkout</h1>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<style>
+    :root {
+        --arolana-navy: #071A44;
+        --arolana-navy-2: #0A2E73;
+        --arolana-blue: #0066CC;
+        --arolana-blue-soft: #EAF4FF;
+        --arolana-orange: #FF7A00;
+        --arolana-orange-dark: #E86D00;
+        --arolana-glow: #00B8FF;
+        --arolana-text: #0F172A;
+        --arolana-muted: #64748B;
+        --arolana-border: rgba(0, 102, 204, 0.14);
+        --arolana-shadow: 0 24px 70px rgba(7, 26, 68, 0.12);
+    }
+
+    .arolana-checkout-page {
+        color: var(--arolana-text);
+    }
+
+    .arolana-checkout-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 2rem;
+        background:
+            radial-gradient(circle at 10% 0%, rgba(0, 184, 255, .24), transparent 20rem),
+            radial-gradient(circle at 88% 8%, rgba(255, 122, 0, .24), transparent 18rem),
+            linear-gradient(135deg, var(--arolana-navy), var(--arolana-navy-2));
+        box-shadow: var(--arolana-shadow);
+    }
+
+    .arolana-checkout-hero::before {
+        content: "";
+        position: absolute;
+        inset: -55%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,.10), transparent);
+        transform: rotate(12deg);
+        animation: arolanaCheckoutShine 7s linear infinite;
+    }
+
+    @keyframes arolanaCheckoutShine {
+        from { transform: translateX(-35%) rotate(12deg); }
+        to { transform: translateX(35%) rotate(12deg); }
+    }
+
+    .arolana-checkout-hero-inner {
+        position: relative;
+        z-index: 1;
+    }
+
+    .arolana-checkout-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: .45rem;
+        border-radius: 999px;
+        padding: .48rem .82rem;
+        color: white;
+        background: rgba(255,255,255,.12);
+        border: 1px solid rgba(255,255,255,.18);
+        backdrop-filter: blur(10px);
+        font-size: .76rem;
+        font-weight: 950;
+        cursor: pointer;
+        transition: transform .18s ease, background .18s ease, border-color .18s ease;
+    }
+
+    .arolana-checkout-chip:hover {
+        transform: translateY(-2px);
+        background: rgba(255,255,255,.18);
+        border-color: rgba(255,255,255,.30);
+    }
+
+    .arolana-checkout-card,
+    .arolana-checkout-summary {
+        border: 1px solid var(--arolana-border);
+        background: rgba(255,255,255,.96);
+        border-radius: 1.65rem;
+        box-shadow: var(--arolana-shadow);
+    }
+
+    .arolana-checkout-card {
+        overflow: hidden;
+    }
+
+    .arolana-section-head {
+        display: flex;
+        gap: .9rem;
+        align-items: flex-start;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid rgba(15,23,42,.08);
+        margin-bottom: 1.25rem;
+    }
+
+    .arolana-section-icon {
+        width: 2.9rem;
+        height: 2.9rem;
+        display: grid;
+        place-items: center;
+        flex: 0 0 auto;
+        border-radius: 1rem;
+        color: white;
+        background: linear-gradient(135deg, var(--arolana-blue), var(--arolana-navy));
+        box-shadow: 0 14px 32px rgba(0,102,204,.20);
+    }
+
+    .arolana-form-field label {
+        display: flex;
+        align-items: center;
+        gap: .45rem;
+        margin-bottom: .5rem;
+        font-size: .86rem;
+        font-weight: 950;
+        color: #0f172a;
+    }
+
+    .arolana-form-field input {
+        width: 100%;
+        border-radius: 1rem;
+        border: 1.5px solid rgba(0,102,204,.14);
+        background: linear-gradient(135deg, #FFFFFF, #F8FBFF);
+        padding: .95rem 1rem;
+        font-weight: 800;
+        color: var(--arolana-text);
+        outline: none;
+        transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+    }
+
+    .arolana-form-field input:focus {
+        border-color: var(--arolana-blue);
+        box-shadow: 0 0 0 4px rgba(0,102,204,.12);
+        transform: translateY(-1px);
+    }
+
+    .arolana-location-button {
+        display: inline-flex;
+        align-items: center;
+        gap: .55rem;
+        border-radius: 999px;
+        background: var(--arolana-blue-soft);
+        border: 1px solid rgba(0,102,204,.14);
+        color: var(--arolana-blue);
+        padding: .7rem 1rem;
+        font-size: .86rem;
+        font-weight: 950;
+        transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
+    }
+
+    .arolana-location-button:hover {
+        transform: translateY(-2px);
+        background: #DDF0FF;
+        box-shadow: 0 14px 30px rgba(0,102,204,.12);
+    }
+
+    .arolana-info-strip {
+        border-radius: 1.25rem;
+        border: 1px solid rgba(0,102,204,.13);
+        background:
+            radial-gradient(circle at 5% 0%, rgba(0,184,255,.10), transparent 12rem),
+            linear-gradient(135deg, #EEF6FF, #FFF7ED);
+    }
+
+    .arolana-checkout-step {
+        position: relative;
+        display: flex;
+        gap: .75rem;
+        align-items: center;
+        padding: .85rem;
+        border-radius: 1rem;
+        background: rgba(255,255,255,.72);
+        border: 1px solid rgba(255,255,255,.26);
+    }
+
+    .arolana-checkout-step-num {
+        width: 2.1rem;
+        height: 2.1rem;
+        display: grid;
+        place-items: center;
+        border-radius: .75rem;
+        color: white;
+        background: linear-gradient(135deg, var(--arolana-orange), var(--arolana-orange-dark));
+        font-weight: 950;
+        flex: 0 0 auto;
+    }
+
+    .arolana-delivery-option {
+        cursor: pointer;
+        display: block;
+    }
+
+    .arolana-delivery-option input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .arolana-delivery-card {
+        align-items: center;
+        border: 1.5px solid rgba(0,102,204,.12);
+        border-radius: 1.25rem;
+        display: flex;
+        gap: .95rem;
+        min-height: 92px;
+        padding: 1rem;
+        background: linear-gradient(135deg, #FFFFFF, #F8FBFF);
+        transition: border-color .18s ease, background .18s ease, box-shadow .18s ease, transform .18s ease;
+    }
+
+    .arolana-delivery-option:hover .arolana-delivery-card {
+        transform: translateY(-2px);
+        border-color: rgba(255,122,0,.38);
+        box-shadow: 0 18px 40px rgba(7,26,68,.10);
+    }
+
+    .arolana-delivery-option input:checked + .arolana-delivery-card {
+        background:
+            radial-gradient(circle at 10% 0%, rgba(0,184,255,.12), transparent 12rem),
+            linear-gradient(135deg, #EFF6FF, #FFF7ED);
+        border-color: var(--arolana-orange);
+        box-shadow: 0 18px 40px rgba(255,122,0,.15);
+    }
+
+    .arolana-delivery-icon {
+        align-items: center;
+        background: linear-gradient(135deg, var(--arolana-blue), var(--arolana-navy));
+        border-radius: 1rem;
+        color: white;
+        display: inline-flex;
+        height: 3rem;
+        justify-content: center;
+        width: 3rem;
+        flex: 0 0 auto;
+        box-shadow: 0 14px 30px rgba(0,102,204,.18);
+    }
+
+    .arolana-delivery-card strong,
+    .arolana-delivery-card small {
+        display: block;
+    }
+
+    .arolana-delivery-card strong {
+        color: #0f172a;
+        font-weight: 950;
+    }
+
+    .arolana-delivery-card small {
+        color: #64748b;
+        line-height: 1.35;
+        margin-top: .15rem;
+        font-weight: 700;
+    }
+
+    .arolana-payment-option {
+        display: flex;
+        align-items: center;
+        gap: 0.95rem;
+        min-height: 94px;
+        padding: 1rem;
+        border: 1.5px solid rgba(0,102,204,.12);
+        border-radius: 1.25rem;
+        background: linear-gradient(135deg, #FFFFFF, #F8FBFF);
+        cursor: pointer;
+        text-align: left;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    }
+
+    .arolana-payment-option:hover {
+        transform: translateY(-3px);
+        border-color: var(--arolana-blue);
+        background:
+            radial-gradient(circle at 8% 0%, rgba(0,184,255,.10), transparent 12rem),
+            linear-gradient(135deg, #EFF6FF, #FFFFFF);
+        box-shadow: 0 20px 44px rgba(37, 99, 235, 0.13);
+    }
+
+    .arolana-payment-option i {
+        color: var(--arolana-blue);
+    }
+
+    .arolana-payment-option strong {
+        display: block;
+        color: #0f172a;
+        font-weight: 950;
+    }
+
+    .arolana-payment-option small {
+        display: block;
+        color: #64748b;
+        line-height: 1.35;
+        margin-top: 0.15rem;
+        font-weight: 700;
+    }
+
+    .arolana-payment-option-disabled,
+    .arolana-payment-option-disabled:hover {
+        cursor: not-allowed;
+        opacity: .58;
+        transform: none;
+        border-color: #e5e7eb;
+        background: #fff;
+        box-shadow: none;
+    }
+
+    .arolana-checkout-summary {
+        position: sticky;
+        top: 6rem;
+        overflow: hidden;
+        background:
+            radial-gradient(circle at 12% 0%, rgba(0,184,255,.11), transparent 14rem),
+            linear-gradient(135deg, #FFFFFF, #F8FBFF);
+    }
+
+    .arolana-summary-product {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: .85rem;
+        border-radius: 1rem;
+        background: rgba(255,255,255,.72);
+        border: 1px solid rgba(0,102,204,.08);
+    }
+
+    .arolana-summary-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: .9rem 0;
+        border-bottom: 1px solid rgba(15,23,42,.08);
+    }
+
+    .arolana-summary-row:last-child {
+        border-bottom: 0;
+    }
+
+    .arolana-progress {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: .55rem;
+    }
+
+    .arolana-progress-dot {
+        height: .5rem;
+        border-radius: 999px;
+        background: #DDEAF7;
+        overflow: hidden;
+    }
+
+    .arolana-progress-dot span {
+        display: block;
+        height: 100%;
+        width: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--arolana-orange), var(--arolana-blue), var(--arolana-glow));
+    }
+
+    .arolana-summary-note {
+        position: relative;
+        overflow: hidden;
+        border-radius: 1.25rem;
+        color: white;
+        background: linear-gradient(135deg, var(--arolana-navy), var(--arolana-navy-2));
+    }
+
+    .arolana-summary-note::after {
+        content: "";
+        position: absolute;
+        top: -4rem;
+        right: -4rem;
+        width: 10rem;
+        height: 10rem;
+        border-radius: 999px;
+        background: rgba(255,122,0,.22);
+    }
+
+    .arolana-trust-card {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+        padding: .95rem;
+        border-radius: 1.15rem;
+        background: rgba(255,255,255,.78);
+        border: 1px solid rgba(0,102,204,.10);
+    }
+
+    .arolana-trust-icon {
+        width: 2.45rem;
+        height: 2.45rem;
+        flex: 0 0 auto;
+        border-radius: .9rem;
+        display: grid;
+        place-items: center;
+        color: white;
+        background: linear-gradient(135deg, var(--arolana-blue), var(--arolana-navy));
+    }
+
+    .arolana-trust-card {
+        text-align: left;
+        width: 100%;
+        transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
+    }
+
+    .arolana-trust-card:hover {
+        transform: translateY(-3px);
+        background: #fff;
+        border-color: rgba(255,122,0,.24);
+        box-shadow: 0 18px 42px rgba(7,26,68,.10);
+    }
+
+    .arolana-learn-card {
+        border-radius: 1.25rem;
+        border: 1px solid rgba(0,102,204,.12);
+        background:
+            radial-gradient(circle at 8% 0%, rgba(0,184,255,.08), transparent 10rem),
+            linear-gradient(135deg, #FFFFFF, #F8FBFF);
+        box-shadow: 0 16px 36px rgba(7,26,68,.07);
+        padding: .95rem;
+    }
+
+    .arolana-learn-card-orange {
+        border-color: rgba(255,122,0,.18);
+        background:
+            radial-gradient(circle at 8% 0%, rgba(255,122,0,.10), transparent 10rem),
+            radial-gradient(circle at 90% 0%, rgba(0,184,255,.08), transparent 10rem),
+            linear-gradient(135deg, #FFFFFF, #F8FBFF);
+    }
+
+    .arolana-learn-card-support {
+        border-color: rgba(0,102,204,.18);
+        background:
+            radial-gradient(circle at 8% 0%, rgba(0,102,204,.10), transparent 10rem),
+            radial-gradient(circle at 90% 0%, rgba(255,122,0,.08), transparent 10rem),
+            linear-gradient(135deg, #FFFFFF, #F8FBFF);
+    }
+
+    .arolana-learn-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .45rem;
+        border-radius: .85rem;
+        padding: .68rem .85rem;
+        color: var(--arolana-blue);
+        background: var(--arolana-blue-soft);
+        border: 1px solid rgba(0,102,204,.14);
+        font-size: .8rem;
+        font-weight: 950;
+        transition: transform .18s ease, background .18s ease, color .18s ease;
+    }
+
+    .arolana-learn-button:hover {
+        transform: translateY(-2px);
+        background: #FFF3E8;
+        color: var(--arolana-orange-dark);
+    }
+
+    .checkout-modal-open {
+        overflow: hidden;
+    }
+
+    .checkout-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 100000;
+        display: none;
+        align-items: stretch;
+        justify-content: flex-end;
+        padding: 0;
+        background: linear-gradient(90deg, rgba(7,26,68,.08), rgba(7,26,68,.32));
+        backdrop-filter: blur(2px);
+    }
+
+    .checkout-modal-backdrop.is-active {
+        display: flex;
+        animation: checkoutModalFade .18s ease-out;
+    }
+
+    @keyframes checkoutModalFade {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .checkout-modal {
+        width: min(50vw, 640px);
+        height: 100vh;
+        max-height: 100vh;
+        overflow-y: auto;
+        border-radius: 1.65rem 0 0 1.65rem;
+        background:
+            radial-gradient(circle at 8% 0%, rgba(0,184,255,.14), transparent 17rem),
+            radial-gradient(circle at 92% 8%, rgba(255,122,0,.16), transparent 17rem),
+            linear-gradient(135deg, #FFFFFF, #F8FBFF);
+        border-left: 1px solid rgba(255,255,255,.60);
+        box-shadow: -28px 0 80px rgba(7,26,68,.28);
+        animation: checkoutDrawerSlide .24s ease-out;
+    }
+
+    @keyframes checkoutDrawerSlide {
+        from { opacity: 0; transform: translateX(100%); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+
+    .checkout-modal-header {
+        position: relative;
+        overflow: hidden;
+        border-radius: 1.65rem 0 0 0;
+        padding: 1.5rem;
+        color: white;
+        background:
+            radial-gradient(circle at 12% 0%, rgba(0,184,255,.22), transparent 13rem),
+            radial-gradient(circle at 86% 8%, rgba(255,122,0,.25), transparent 13rem),
+            linear-gradient(135deg, var(--arolana-navy), var(--arolana-navy-2));
+    }
+
+    .checkout-modal-close {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        width: 2.4rem;
+        height: 2.4rem;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        color: white;
+        background: rgba(255,255,255,.13);
+        border: 1px solid rgba(255,255,255,.22);
+        transition: transform .2s ease, background .2s ease;
+    }
+
+    .checkout-modal-close:hover {
+        transform: rotate(90deg);
+        background: rgba(255,255,255,.22);
+    }
+
+    .checkout-modal-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: .45rem;
+        border-radius: 999px;
+        background: rgba(255,255,255,.13);
+        border: 1px solid rgba(255,255,255,.22);
+        padding: .45rem .75rem;
+        font-size: .75rem;
+        font-weight: 950;
+    }
+
+    .checkout-info-grid {
+        display: grid;
+        gap: .9rem;
+    }
+
+    .checkout-info-item {
+        display: flex;
+        gap: .85rem;
+        border-radius: 1.1rem;
+        padding: 1rem;
+        background: rgba(255,255,255,.78);
+        border: 1px solid rgba(0,102,204,.10);
+    }
+
+    .checkout-info-icon {
+        width: 2.4rem;
+        height: 2.4rem;
+        border-radius: .9rem;
+        display: grid;
+        place-items: center;
+        color: white;
+        background: linear-gradient(135deg, var(--arolana-blue), var(--arolana-navy));
+        flex: 0 0 auto;
+    }
+
+    #checkoutSmartDeliveryModal .checkout-info-icon {
+        background: linear-gradient(135deg, var(--arolana-orange), var(--arolana-blue));
+    }
+
+    #checkoutExpertSupportModal .checkout-info-icon {
+        background: linear-gradient(135deg, var(--arolana-blue), var(--arolana-orange));
+    }
+
+    .checkout-warning {
+        border-radius: 1.1rem;
+        padding: 1rem;
+        background: #FFF7ED;
+        border: 1px solid rgba(255,122,0,.20);
+        color: #7C2D12;
+    }
+
+    .checkout-support-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .5rem;
+        border-radius: .9rem;
+        padding: .72rem .95rem;
+        color: white;
+        background: linear-gradient(135deg, var(--arolana-blue), var(--arolana-navy));
+        border: 1px solid rgba(0,102,204,.16);
+        font-weight: 950;
+        transition: transform .2s ease, box-shadow .2s ease;
+        box-shadow: 0 14px 32px rgba(0,102,204,.18);
+    }
+
+    .checkout-support-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 18px 42px rgba(0,102,204,.24);
+    }
+
+    @media (max-width: 1023px) {
+        .arolana-checkout-summary {
+            position: static;
+        }
+
+        .checkout-modal {
+            width: min(92vw, 560px);
+        }
+    }
+
+    @media (max-width: 640px) {
+        .checkout-modal-backdrop {
+            background: rgba(7,26,68,.38);
+        }
+
+        .checkout-modal {
+            width: 100vw;
+            border-radius: 1.25rem 1.25rem 0 0;
+            height: 92vh;
+            max-height: 92vh;
+            align-self: flex-end;
+            animation: checkoutMobileDrawerSlide .24s ease-out;
+        }
+
+        .checkout-modal-header {
+            border-radius: 1.25rem 1.25rem 0 0;
+        }
+    }
+
+    @keyframes checkoutMobileDrawerSlide {
+        from { opacity: 0; transform: translateY(100%); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+
+<div class="arolana-checkout-page max-w-7xl mx-auto px-4 py-8">
+    <section class="arolana-checkout-hero mb-8 p-6 md:p-9">
+        <div class="arolana-checkout-hero-inner">
+            <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                    <div class="mb-4 flex flex-wrap gap-2">
+                        <button type="button" onclick="openCheckoutSecurePaymentModal()" class="arolana-checkout-chip"><i class="fas fa-lock"></i> Secure payments</button>
+                        <button type="button" onclick="openCheckoutSmartDeliveryModal()" class="arolana-checkout-chip"><i class="fas fa-location-dot"></i> Smart delivery</button>
+                        <span class="arolana-checkout-chip"><i class="fas fa-truck-fast"></i> Rider/vendor dispatch</span>
+                        <button type="button" onclick="openCheckoutExpertSupportModal()" class="arolana-checkout-chip"><i class="fas fa-headset"></i> Arolana support</button>
+                    </div>
+                    <h1 class="text-3xl md:text-5xl font-black tracking-tight text-white">
+                        Complete Your Checkout
+                    </h1>
+                    <p class="mt-3 max-w-2xl text-white/80 font-semibold">
+                        Enter delivery details, choose a delivery method, confirm your order total, and pay securely. Arolana will calculate delivery from location, package weight, vendor pickup, and rider availability.
+                    </p>
+                </div>
+
+                <div class="min-w-[260px] rounded-2xl border border-white/15 bg-white/12 p-4 text-white backdrop-blur-md">
+                    <p class="text-xs font-black uppercase tracking-[0.16em] text-white/65">Checkout flow</p>
+                    <div class="mt-3 grid gap-2">
+                        <div class="arolana-checkout-step">
+                            <span class="arolana-checkout-step-num">1</span>
+                            <span>
+                                <strong class="block text-sm font-black">Address</strong>
+                                <small class="text-white/70 font-bold">Where should we deliver?</small>
+                            </span>
+                        </div>
+                        <div class="arolana-checkout-step">
+                            <span class="arolana-checkout-step-num">2</span>
+                            <span>
+                                <strong class="block text-sm font-black">Delivery</strong>
+                                <small class="text-white/70 font-bold">Choose speed and quote.</small>
+                            </span>
+                        </div>
+                        <div class="arolana-checkout-step">
+                            <span class="arolana-checkout-step-num">3</span>
+                            <span>
+                                <strong class="block text-sm font-black">Payment</strong>
+                                <small class="text-white/70 font-bold">Pay securely.</small>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_400px] gap-8">
         <!-- Checkout Form -->
-        <div class="lg:col-span-2">
-            <div class="bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
-                <h2 class="text-xl font-black mb-4 text-gray-900">Shipping Information</h2>
-
+        <div class="space-y-6">
+            <div class="arolana-checkout-card p-5 md:p-6">
                 <form method="POST" id="checkout-form" onsubmit="return false;">
                     {% csrf_token %}
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                        <div>
-                            <label class="block font-semibold mb-2">First Name</label>
-                            <input type="text" name="first_name" id="first_name" required class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-
-                        <div>
-                            <label class="block font-semibold mb-2">Last Name</label>
-                            <input type="text" name="last_name" id="last_name" required class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="block font-semibold mb-2">Email</label>
-                        <input type="email" name="email" id="email" required class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="block font-semibold mb-2">Phone Number</label>
-                        <input type="text" name="phone" id="phone" class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="block font-semibold mb-2">Address</label>
-                        <input type="text" name="address" id="address" required class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <input type="hidden" name="dropoff_latitude" id="dropoff_latitude">
-                        <input type="hidden" name="dropoff_longitude" id="dropoff_longitude">
-                        <button type="button" id="checkout-use-location" class="mt-3 inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100">
-                            <i class="fas fa-location-crosshairs"></i>
-                            Use my current location for accurate delivery fee
-                        </button>
-                        <p id="checkout-location-status" class="mt-2 text-xs text-gray-500"></p>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                        <div>
-                            <label class="block font-semibold mb-2">City</label>
-                            <input type="text" name="city" id="city" required class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-
-                        <div>
-                            <label class="block font-semibold mb-2">Postal Code</label>
-                            <input type="text" name="postal_code" id="postal_code" class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                        <div>
-                            <label class="block font-semibold mb-2">State</label>
-                            <input type="text" name="state" id="state" class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-
-                        <div>
-                            <label class="block font-semibold mb-2">Country</label>
-                            <input type="text" name="country" id="country" value="Nigeria" class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                    </div>
-
-                    <div class="mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
-                        <div class="flex items-start gap-3">
-                            <i class="fas fa-location-dot mt-1 text-blue-600"></i>
+                    <section>
+                        <div class="arolana-section-head">
+                            <span class="arolana-section-icon"><i class="fas fa-user-check"></i></span>
                             <div>
-                                <strong class="block text-gray-900">Delivery cost depends on your location.</strong>
-                                <span>We calculate the final delivery fee from your delivery address, map distance, package size, delivery speed, and rider availability before dispatch.</span>
+                                <p class="text-xs font-black uppercase tracking-[0.16em] text-blue-700">Step 1</p>
+                                <h2 class="text-2xl font-black text-gray-900">Customer & Delivery Information</h2>
+                                <p class="text-sm font-semibold text-gray-500">Fill in the correct delivery details so Arolana can calculate and dispatch properly.</p>
                             </div>
                         </div>
-                    </div>
 
-                    <h2 class="text-xl font-black mt-6 mb-4 text-gray-900">Delivery Method</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
-                        {% for option in delivery_options %}
-                        <label class="arolana-delivery-option">
-                            <input type="radio" name="delivery_service_level" value="{{ option.value }}" data-provider-type="{{ option.provider_type }}" {% if forloop.first %}checked{% endif %}>
-                            <span class="arolana-delivery-card">
-                                <span class="arolana-delivery-icon"><i class="fas {{ option.icon }}"></i></span>
-                                <span>
-                                    <strong>{{ option.label }}</strong>
-                                    <small>{{ option.description }}</small>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                            <div class="arolana-form-field">
+                                <label><i class="fas fa-user text-blue-600"></i> First Name</label>
+                                <input type="text" name="first_name" id="first_name" required placeholder="Enter first name">
+                            </div>
+
+                            <div class="arolana-form-field">
+                                <label><i class="fas fa-user text-blue-600"></i> Last Name</label>
+                                <input type="text" name="last_name" id="last_name" required placeholder="Enter last name">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                            <div class="arolana-form-field">
+                                <label><i class="fas fa-envelope text-blue-600"></i> Email</label>
+                                <input type="email" name="email" id="email" required placeholder="customer@email.com">
+                            </div>
+
+                            <div class="arolana-form-field">
+                                <label><i class="fas fa-phone text-blue-600"></i> Phone Number</label>
+                                <input type="text" name="phone" id="phone" placeholder="+234...">
+                            </div>
+                        </div>
+
+                        <div class="arolana-form-field mb-4">
+                            <label><i class="fas fa-map-location-dot text-blue-600"></i> Delivery Address</label>
+                            <input type="text" name="address" id="address" required placeholder="Street, building, landmark">
+                            <input type="hidden" name="dropoff_latitude" id="dropoff_latitude">
+                            <input type="hidden" name="dropoff_longitude" id="dropoff_longitude">
+
+                            <button type="button" id="checkout-use-location" class="arolana-location-button mt-3">
+                                <i class="fas fa-location-crosshairs"></i>
+                                Use my current location for accurate delivery fee
+                            </button>
+                            <p id="checkout-location-status" class="mt-2 text-xs font-bold text-gray-500"></p>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                            <div class="arolana-form-field">
+                                <label><i class="fas fa-city text-blue-600"></i> City</label>
+                                <input type="text" name="city" id="city" required placeholder="Lagos, Abuja, etc.">
+                            </div>
+
+                            <div class="arolana-form-field">
+                                <label><i class="fas fa-envelopes-bulk text-blue-600"></i> Postal Code</label>
+                                <input type="text" name="postal_code" id="postal_code" placeholder="Optional">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                            <div class="arolana-form-field">
+                                <label><i class="fas fa-map text-blue-600"></i> State</label>
+                                <input type="text" name="state" id="state" placeholder="State">
+                            </div>
+
+                            <div class="arolana-form-field">
+                                <label><i class="fas fa-earth-africa text-blue-600"></i> Country</label>
+                                <input type="text" name="country" id="country" value="Nigeria">
+                            </div>
+                        </div>
+
+                        <div class="arolana-info-strip p-4 text-sm text-blue-950">
+                            <div class="flex items-start gap-3">
+                                <i class="fas fa-circle-info mt-1 text-blue-600"></i>
+                                <div>
+                                    <strong class="block text-gray-900">Delivery cost depends on your location.</strong>
+                                    <span class="font-semibold text-gray-600">We calculate the final delivery fee from your address, map distance, package size, delivery speed, and rider availability before dispatch.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="mt-8">
+                        <div class="arolana-section-head">
+                            <span class="arolana-section-icon"><i class="fas fa-truck-fast"></i></span>
+                            <div>
+                                <p class="text-xs font-black uppercase tracking-[0.16em] text-blue-700">Step 2</p>
+                                <h2 class="text-2xl font-black text-gray-900">Delivery Method</h2>
+                                <p class="text-sm font-semibold text-gray-500">Choose how you want your order delivered. Price will update in the summary.</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+                            {% for option in delivery_options %}
+                            <label class="arolana-delivery-option">
+                                <input type="radio" name="delivery_service_level" value="{{ option.value }}" data-provider-type="{{ option.provider_type }}" {% if forloop.first %}checked{% endif %}>
+                                <span class="arolana-delivery-card">
+                                    <span class="arolana-delivery-icon"><i class="fas {{ option.icon }}"></i></span>
+                                    <span>
+                                        <strong>{{ option.label }}</strong>
+                                        <small>{{ option.description }}</small>
+                                    </span>
                                 </span>
-                            </span>
-                        </label>
-                        {% endfor %}
-                    </div>
+                            </label>
+                            {% empty %}
+                            <div class="rounded-2xl border border-yellow-200 bg-yellow-50 p-5 text-yellow-900 md:col-span-2">
+                                No delivery methods are active yet. Add delivery options in admin.
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </section>
 
                     <!-- Payment Data -->
                     <!-- Do not reference total_converted/subtotal_converted here unless the view passes them. -->
@@ -130,182 +842,452 @@
                         data-google-maps-api-key="{{ GOOGLE_MAPS_API_KEY|default:'' }}"
                     ></div>
 
-                    <h2 class="text-xl font-black mt-6 mb-4 text-gray-900">Choose Payment Method</h2>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
-                        {% for option in payment_options %}
-                        <button type="button"
-                                onclick="startArolanaPayment('{{ option.gateway }}', this)"
-                                class="arolana-payment-option {% if not option.available %}arolana-payment-option-disabled{% endif %}"
-                                {% if not option.available %}disabled title="{{ option.disabled_reason }}"{% endif %}>
-                            <i class="{{ option.icon_class }} text-2xl"></i>
-                            <span>
-                                <strong>{{ option.display_name }}</strong>
-                                <small>{% if option.available %}{{ option.description }}{% else %}{{ option.disabled_reason }}{% endif %}</small>
-                            </span>
-                        </button>
-                        {% empty %}
-                        <div class="rounded-2xl border border-yellow-200 bg-yellow-50 p-5 text-yellow-900 md:col-span-2">
-                            No payment gateways are active yet. Enable one in the admin payment gateway settings.
+                    <section class="mt-8">
+                        <div class="arolana-section-head">
+                            <span class="arolana-section-icon"><i class="fas fa-credit-card"></i></span>
+                            <div>
+                                <p class="text-xs font-black uppercase tracking-[0.16em] text-blue-700">Step 3</p>
+                                <h2 class="text-2xl font-black text-gray-900">Choose Payment Method</h2>
+                                <p class="text-sm font-semibold text-gray-500">Pick your preferred secure payment gateway to complete this order.</p>
+                            </div>
                         </div>
-                        {% endfor %}
-                    </div>
 
-                    <p class="text-sm text-gray-500 text-center">
-                        Choose one of the payment methods above to complete your order securely.
-                    </p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+                            {% for option in payment_options %}
+                            <button type="button"
+                                    onclick="startArolanaPayment('{{ option.gateway }}', this)"
+                                    class="arolana-payment-option {% if not option.available %}arolana-payment-option-disabled{% endif %}"
+                                    {% if not option.available %}disabled title="{{ option.disabled_reason }}"{% endif %}>
+                                <i class="{{ option.icon_class }} text-2xl"></i>
+                                <span>
+                                    <strong>{{ option.display_name }}</strong>
+                                    <small>{% if option.available %}{{ option.description }}{% else %}{{ option.disabled_reason }}{% endif %}</small>
+                                </span>
+                            </button>
+                            {% empty %}
+                            <div class="rounded-2xl border border-yellow-200 bg-yellow-50 p-5 text-yellow-900 md:col-span-2">
+                                No payment gateways are active yet. Enable one in the admin payment gateway settings.
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <p class="rounded-2xl bg-gray-50 p-4 text-center text-sm font-bold text-gray-500 ring-1 ring-gray-100">
+                            <i class="fas fa-lock mr-1 text-green-600"></i>
+                            Choose one of the payment methods above to complete your order securely.
+                        </p>
+                    </section>
                 </form>
             </div>
+
+            <section class="grid gap-4 md:grid-cols-3">
+                <button type="button" onclick="openCheckoutSecurePaymentModal()" class="arolana-trust-card">
+                    <span class="arolana-trust-icon"><i class="fas fa-shield-halved"></i></span>
+                    <div>
+                        <p class="font-black text-slate-950">Secure payments on Arolana</p>
+                        <p class="text-xs font-semibold text-slate-500">Protected checkout and trusted gateways</p>
+                    </div>
+                </button>
+                <button type="button" onclick="openCheckoutSmartDeliveryModal()" class="arolana-trust-card">
+                    <span class="arolana-trust-icon"><i class="fas fa-route"></i></span>
+                    <div>
+                        <p class="font-black text-slate-950">Smart delivery by location</p>
+                        <p class="text-xs font-semibold text-slate-500">Quote updates before payment</p>
+                    </div>
+                </button>
+                <button type="button" onclick="openCheckoutExpertSupportModal()" class="arolana-trust-card">
+                    <span class="arolana-trust-icon"><i class="fas fa-headset"></i></span>
+                    <div>
+                        <p class="font-black text-slate-950">Expert support when needed</p>
+                        <p class="text-xs font-semibold text-slate-500">Help before and after dispatch</p>
+                    </div>
+                </button>
+            </section>
         </div>
 
         <!-- Order Summary -->
-        <div class="lg:col-span-1">
-            <div class="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 sticky top-24">
-                <h2 class="text-xl font-black mb-4 text-gray-900">Order Summary</h2>
+        <aside>
+            <div class="arolana-checkout-summary p-5 md:p-6">
+                <div class="mb-5">
+                    <p class="text-xs font-black uppercase tracking-[0.16em] text-blue-700">Order Summary</p>
+                    <h2 class="mt-1 text-2xl font-black text-gray-900">Confirm & Pay</h2>
+                    <p class="mt-1 text-sm font-semibold text-gray-500">Your total updates after delivery fee calculation.</p>
+                </div>
+
+                <div class="mb-5">
+                    <div class="mb-2 flex items-center justify-between text-xs font-black uppercase tracking-wide text-slate-500">
+                        <span>Checkout progress</span>
+                        <span>3 steps</span>
+                    </div>
+                    <div class="arolana-progress">
+                        <div class="arolana-progress-dot"><span></span></div>
+                        <div class="arolana-progress-dot"><span></span></div>
+                        <div class="arolana-progress-dot"><span></span></div>
+                    </div>
+                </div>
 
                 <div class="space-y-3 mb-4">
                     {% for item in cart.items.all %}
-                    <div class="flex justify-between gap-4 text-sm">
-                        <span class="text-gray-700">{{ item.product.name }} × {{ item.quantity }}</span>
-                        <span class="font-semibold whitespace-nowrap">{{ item.subtotal|currency:request }}</span>
+                    <div class="arolana-summary-product text-sm">
+                        <span class="min-w-0 text-gray-700 font-bold">
+                            {% if item.product %}
+                                {{ item.product.name }}
+                            {% elif item.accessory %}
+                                {{ item.accessory.name }}
+                            {% else %}
+                                {{ item.item_name }}
+                            {% endif %}
+                            <span class="text-gray-400">× {{ item.quantity }}</span>
+                        </span>
+                        <span class="font-black whitespace-nowrap text-blue-700">{{ item.subtotal|currency:request }}</span>
                     </div>
                     {% empty %}
-                    <p class="text-sm text-gray-500">No items in cart.</p>
+                    <p class="rounded-xl bg-gray-50 p-3 text-sm font-bold text-gray-500">No items in cart.</p>
                     {% endfor %}
                 </div>
 
-                <div class="border-t pt-3 space-y-2">
-                    <div class="flex justify-between">
-                        <span>Subtotal</span>
-                        <span>{{ cart.subtotal|currency:request }}</span>
+                <div class="border-t border-slate-100 pt-3">
+                    <div class="arolana-summary-row">
+                        <span class="font-bold text-slate-500">Subtotal</span>
+                        <span class="font-black text-blue-700">{{ cart.subtotal|currency:request }}</span>
                     </div>
 
-                    <div class="flex justify-between">
-                        <span>Shipping</span>
-                        <span id="checkout-shipping-cost" class="text-blue-600 font-semibold">Calculating...</span>
+                    <div class="arolana-summary-row">
+                        <span class="font-bold text-slate-500">Shipping</span>
+                        <span id="checkout-shipping-cost" class="text-right font-black text-blue-600">Calculating...</span>
                     </div>
-                    <p id="checkout-delivery-message" class="text-xs text-gray-500 leading-relaxed"></p>
 
-                    <div class="border-t pt-3 mt-3">
-                        <div class="flex justify-between text-lg font-black">
-                            <span>Total</span>
-                            <span id="checkout-total" class="text-green-600">{{ cart.total|default:cart.subtotal|currency:request }}</span>
+                    <p id="checkout-delivery-message" class="mt-2 rounded-xl bg-blue-50 p-3 text-xs font-bold text-gray-600 leading-relaxed"></p>
+
+                    <div class="arolana-summary-row mt-2">
+                        <span class="font-black text-lg text-slate-950">Total</span>
+                        <span id="checkout-total" class="font-black text-2xl text-green-600">{{ cart.total|default:cart.subtotal|currency:request }}</span>
+                    </div>
+                </div>
+
+                <div class="mt-5 space-y-3">
+                    <div class="arolana-learn-card">
+                        <div class="flex gap-3">
+                            <span class="arolana-trust-icon"><i class="fas fa-shield-halved"></i></span>
+                            <div>
+                                <h3 class="font-black text-slate-950">Secure payments on Arolana</h3>
+                                <p class="mt-1 text-xs font-semibold leading-relaxed text-slate-500">
+                                    Your payment is processed through trusted gateways while Arolana helps protect checkout, order confirmation, and transaction communication.
+                                </p>
+                                <button type="button" onclick="openCheckoutSecurePaymentModal()" class="arolana-learn-button mt-3">
+                                    Learn about secure payments <i class="fas fa-arrow-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="arolana-learn-card arolana-learn-card-orange">
+                        <div class="flex gap-3">
+                            <span class="arolana-trust-icon"><i class="fas fa-truck-fast"></i></span>
+                            <div>
+                                <h3 class="font-black text-slate-950">Smart delivery based on your location</h3>
+                                <p class="mt-1 text-xs font-semibold leading-relaxed text-slate-500">
+                                    Delivery options and cost are calculated using your location, package weight, delivery method, pickup details, and rider availability.
+                                </p>
+                                <button type="button" onclick="openCheckoutSmartDeliveryModal()" class="arolana-learn-button mt-3">
+                                    Learn about smart delivery <i class="fas fa-arrow-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="arolana-learn-card arolana-learn-card-support">
+                        <div class="flex gap-3">
+                            <span class="arolana-trust-icon"><i class="fas fa-headset"></i></span>
+                            <div>
+                                <h3 class="font-black text-slate-950">Expert support when you need help</h3>
+                                <p class="mt-1 text-xs font-semibold leading-relaxed text-slate-500">
+                                    Need help with checkout, payment confirmation, delivery, order tracking, or product questions? Arolana support is available to guide you.
+                                </p>
+                                <button type="button" onclick="openCheckoutExpertSupportModal()" class="arolana-learn-button mt-3">
+                                    Learn about expert support <i class="fas fa-arrow-right"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="mt-5 rounded-xl bg-blue-50 p-4 text-sm text-blue-800">
-                    <i class="fas fa-lock mr-1"></i>
-                    Payments are securely processed by your selected gateway.
+                <div class="arolana-summary-note mt-5 p-4">
+                    <div class="relative z-10">
+                        <p class="text-sm font-black">
+                            <i class="fas fa-bolt mr-2 text-orange-300"></i>
+                            What happens after payment?
+                        </p>
+                        <p class="mt-1 text-xs font-semibold text-white/75">
+                            Arolana confirms your order, notifies the vendor/admin, prepares dispatch, and updates your order status as it moves from processing to delivery.
+                        </p>
+                    </div>
                 </div>
+
+                <div class="mt-4 rounded-2xl bg-blue-50 p-4 text-sm text-blue-800 ring-1 ring-blue-100">
+                    <i class="fas fa-lock mr-1"></i>
+                    Payments are securely processed by your selected gateway. Delivery quote updates before payment, and Arolana support is available if you need help.
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+
+
+<div id="checkoutSecurePaymentModal" class="checkout-modal-backdrop" aria-hidden="true" onclick="checkoutModalBackdropClose(event, 'checkoutSecurePaymentModal')">
+    <div class="checkout-modal" role="dialog" aria-modal="true" aria-labelledby="checkoutSecurePaymentTitle">
+        <div class="checkout-modal-header">
+            <button type="button" onclick="closeCheckoutModal('checkoutSecurePaymentModal')" class="checkout-modal-close" aria-label="Close secure payments popup">
+                <i class="fas fa-times"></i>
+            </button>
+            <span class="checkout-modal-chip"><i class="fas fa-shield-halved"></i> Payment protection</span>
+            <h2 id="checkoutSecurePaymentTitle" class="mt-4 pr-10 text-2xl md:text-4xl font-black tracking-tight">
+                Secure Payments on Arolana
+            </h2>
+            <p class="mt-3 max-w-2xl text-sm md:text-base font-semibold text-white/78">
+                Complete checkout with more confidence. Your payment is processed through trusted gateways while Arolana helps protect order confirmation, payment communication, and transaction flow.
+            </p>
+        </div>
+
+        <div class="p-5 md:p-6">
+            <div class="checkout-info-grid md:grid-cols-2">
+                <div class="checkout-info-item">
+                    <span class="checkout-info-icon"><i class="fas fa-lock"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Protected checkout</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">Checkout is designed to protect your order details while payment is processed through your selected gateway.</p>
+                    </div>
+                </div>
+                <div class="checkout-info-item">
+                    <span class="checkout-info-icon"><i class="fas fa-credit-card"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Trusted payment gateways</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">Arolana connects you to enabled payment gateways so you can complete your order using available secure options.</p>
+                    </div>
+                </div>
+                <div class="checkout-info-item">
+                    <span class="checkout-info-icon"><i class="fas fa-receipt"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Order confirmation</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">After payment, Arolana confirms your order and updates the order process for vendor/admin handling.</p>
+                    </div>
+                </div>
+                <div class="checkout-info-item">
+                    <span class="checkout-info-icon"><i class="fas fa-user-shield"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Safer transactions</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">Arolana helps reduce risky marketplace activity through better checkout, order tracking, and support visibility.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="checkout-warning mt-5">
+                <p class="font-black"><i class="fas fa-circle-info mr-2"></i>Payment note</p>
+                <p class="mt-1 text-sm font-semibold">
+                    Your payment details are never displayed publicly to vendors. Arolana focuses on safer checkout, verified activity, and reliable order processing.
+                </p>
+            </div>
+
+            <div class="mt-5 flex flex-col gap-3 sm:flex-row">
+                <button type="button" onclick="closeCheckoutModal('checkoutSecurePaymentModal')" class="arolana-location-button">
+                    Close <i class="fas fa-check"></i>
+                </button>
             </div>
         </div>
     </div>
 </div>
 
-<style>
-    .arolana-payment-option {
-        display: flex;
-        align-items: center;
-        gap: 0.9rem;
-        min-height: 88px;
-        padding: 1rem;
-        border: 1px solid #e5e7eb;
-        border-radius: 1rem;
-        background: #fff;
-        cursor: pointer;
-        text-align: left;
-        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
-    }
+<div id="checkoutSmartDeliveryModal" class="checkout-modal-backdrop" aria-hidden="true" onclick="checkoutModalBackdropClose(event, 'checkoutSmartDeliveryModal')">
+    <div class="checkout-modal" role="dialog" aria-modal="true" aria-labelledby="checkoutSmartDeliveryTitle">
+        <div class="checkout-modal-header">
+            <button type="button" onclick="closeCheckoutModal('checkoutSmartDeliveryModal')" class="checkout-modal-close" aria-label="Close smart delivery popup">
+                <i class="fas fa-times"></i>
+            </button>
+            <span class="checkout-modal-chip"><i class="fas fa-truck-fast"></i> Location-based delivery</span>
+            <h2 id="checkoutSmartDeliveryTitle" class="mt-4 pr-10 text-2xl md:text-4xl font-black tracking-tight">
+                Smart Delivery Based on Your Location
+            </h2>
+            <p class="mt-3 max-w-2xl text-sm md:text-base font-semibold text-white/78">
+                Arolana calculates delivery using your address, location coordinates, package weight, pickup details, delivery method, and rider or courier availability.
+            </p>
+        </div>
 
-    .arolana-payment-option:hover {
-        transform: translateY(-2px);
-        border-color: #2563eb;
-        background: #eff6ff;
-        box-shadow: 0 18px 40px rgba(37, 99, 235, 0.12);
-    }
+        <div class="p-5 md:p-6">
+            <div class="checkout-info-grid md:grid-cols-2">
+                <div class="checkout-info-item">
+                    <span class="checkout-info-icon"><i class="fas fa-location-dot"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Location-based quote</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">Delivery options are matched using your address, city, and available location coordinates during checkout.</p>
+                    </div>
+                </div>
+                <div class="checkout-info-item">
+                    <span class="checkout-info-icon"><i class="fas fa-scale-balanced"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Package details included</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">Delivery cost can consider package weight, item size, selected speed, and pickup location.</p>
+                    </div>
+                </div>
+                <div class="checkout-info-item">
+                    <span class="checkout-info-icon"><i class="fas fa-calculator"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Calculated before payment</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">Your checkout total updates after delivery fee calculation so you can review the amount before paying.</p>
+                    </div>
+                </div>
+                <div class="checkout-info-item">
+                    <span class="checkout-info-icon"><i class="fas fa-route"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Tracking after checkout</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">After payment, order movement can be followed from processing to dispatch and delivery updates.</p>
+                    </div>
+                </div>
+            </div>
 
-    .arolana-payment-option-disabled,
-    .arolana-payment-option-disabled:hover {
-        cursor: not-allowed;
-        opacity: .62;
-        transform: none;
-        border-color: #e5e7eb;
-        background: #fff;
-        box-shadow: none;
-    }
+            <div class="checkout-warning mt-5">
+                <p class="font-black"><i class="fas fa-circle-info mr-2"></i>Delivery note</p>
+                <p class="mt-1 text-sm font-semibold">
+                    Delivery cost and timing may vary by location, distance, traffic, package size, selected delivery method, pickup details, and provider availability.
+                </p>
+            </div>
 
-    .arolana-payment-option strong {
-        display: block;
-        color: #0f172a;
-        font-weight: 950;
-    }
+            <div class="mt-5 flex flex-col gap-3 sm:flex-row">
+                <button type="button" onclick="closeCheckoutModal('checkoutSmartDeliveryModal')" class="arolana-location-button">
+                    Close <i class="fas fa-check"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
-    .arolana-payment-option small {
-        display: block;
-        color: #64748b;
-        line-height: 1.35;
-        margin-top: 0.15rem;
-    }
+<div id="checkoutExpertSupportModal" class="checkout-modal-backdrop" aria-hidden="true" onclick="checkoutModalBackdropClose(event, 'checkoutExpertSupportModal')">
+    <div class="checkout-modal" role="dialog" aria-modal="true" aria-labelledby="checkoutExpertSupportTitle">
+        <div class="checkout-modal-header">
+            <button type="button" onclick="closeCheckoutModal('checkoutExpertSupportModal')" class="checkout-modal-close" aria-label="Close expert support popup">
+                <i class="fas fa-times"></i>
+            </button>
+            <span class="checkout-modal-chip"><i class="fas fa-headset"></i> Arolana customer support</span>
+            <h2 id="checkoutExpertSupportTitle" class="mt-4 pr-10 text-2xl md:text-4xl font-black tracking-tight">
+                Expert Support When You Need Help
+            </h2>
+            <p class="mt-3 max-w-2xl text-sm md:text-base font-semibold text-white/78">
+                Arolana support is available to assist with checkout, payment confirmation, delivery, order tracking, and product-related questions.
+            </p>
+        </div>
 
-    .arolana-delivery-option {
-        cursor: pointer;
-        display: block;
-    }
+        <div class="p-5 md:p-6">
+            <div class="checkout-info-grid md:grid-cols-2">
+                <div class="checkout-info-item">
+                    <span class="checkout-info-icon"><i class="fas fa-cart-shopping"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Checkout assistance</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">If you need help during checkout, Arolana support can guide you through the process.</p>
+                    </div>
+                </div>
+                <div class="checkout-info-item">
+                    <span class="checkout-info-icon"><i class="fas fa-credit-card"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Payment confirmation</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">Customers can request help when confirming payment status or resolving payment-related questions.</p>
+                    </div>
+                </div>
+                <div class="checkout-info-item">
+                    <span class="checkout-info-icon"><i class="fas fa-truck-fast"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Order & delivery support</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">Get help with order progress, dispatch questions, delivery updates, and tracking concerns.</p>
+                    </div>
+                </div>
+                <div class="checkout-info-item">
+                    <span class="checkout-info-icon"><i class="fas fa-comments"></i></span>
+                    <div>
+                        <h3 class="font-black text-slate-950">Product questions</h3>
+                        <p class="mt-1 text-sm font-semibold text-slate-500">Arolana helps customers ask product-related questions before or after checkout.</p>
+                    </div>
+                </div>
+            </div>
 
-    .arolana-delivery-option input {
-        position: absolute;
-        opacity: 0;
-        pointer-events: none;
-    }
+            <div class="checkout-warning mt-5">
+                <p class="font-black"><i class="fas fa-circle-info mr-2"></i>Support availability note</p>
+                <p class="mt-1 text-sm font-semibold">
+                    Arolana support is available to assist customers with checkout, payment confirmation, delivery updates, order tracking, and product-related questions. Response time may depend on request volume and team availability.
+                </p>
+            </div>
 
-    .arolana-delivery-card {
-        align-items: center;
-        border: 1px solid #e5e7eb;
-        border-radius: 1rem;
-        display: flex;
-        gap: .9rem;
-        min-height: 86px;
-        padding: 1rem;
-        transition: border-color .18s ease, background .18s ease, box-shadow .18s ease, transform .18s ease;
-    }
+            <div class="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                {% if support_whatsapp_url %}
+                    <a href="{{ support_whatsapp_url }}" target="_blank" rel="noopener" class="checkout-support-button">
+                        <i class="fab fa-whatsapp"></i> Chat on WhatsApp
+                    </a>
+                {% endif %}
+                {% if support_phone_display %}
+                    <a href="tel:{{ support_phone_tel }}" class="checkout-support-button">
+                        <i class="fas fa-phone"></i> Call {{ support_phone_display }}
+                    </a>
+                {% endif %}
+                {% if support_email %}
+                    <a href="mailto:{{ support_email }}" class="checkout-support-button">
+                        <i class="fas fa-envelope"></i> Email Support
+                    </a>
+                {% endif %}
+                <button type="button" onclick="closeCheckoutModal('checkoutExpertSupportModal')" class="arolana-location-button">
+                    Close <i class="fas fa-check"></i>
+                </button>
+            </div>
 
-    .arolana-delivery-option input:checked + .arolana-delivery-card {
-        background: #eff6ff;
-        border-color: #2563eb;
-        box-shadow: 0 14px 34px rgba(37, 99, 235, .12);
-    }
-
-    .arolana-delivery-icon {
-        align-items: center;
-        background: #eef2ff;
-        border-radius: 999px;
-        color: #2563eb;
-        display: inline-flex;
-        height: 2.75rem;
-        justify-content: center;
-        width: 2.75rem;
-        flex: 0 0 auto;
-    }
-
-    .arolana-delivery-card strong,
-    .arolana-delivery-card small {
-        display: block;
-    }
-
-    .arolana-delivery-card strong {
-        color: #0f172a;
-        font-weight: 950;
-    }
-
-    .arolana-delivery-card small {
-        color: #64748b;
-        line-height: 1.35;
-        margin-top: .15rem;
-    }
-</style>
+            {% if not support_whatsapp_url and not support_phone_display and not support_email %}
+                <p class="mt-4 rounded-2xl bg-blue-50 p-4 text-sm font-semibold text-slate-600 ring-1 ring-blue-100">
+                    Support contact details will appear here when available.
+                </p>
+            {% endif %}
+        </div>
+    </div>
+</div>
 
 <script>
+function openCheckoutModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+    modal.classList.add("is-active");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("checkout-modal-open");
+    const closeButton = modal.querySelector(".checkout-modal-close");
+    if (closeButton) closeButton.focus();
+}
+
+function closeCheckoutModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+    modal.classList.remove("is-active");
+    modal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("checkout-modal-open");
+}
+
+function checkoutModalBackdropClose(event, modalId) {
+    if (event.target && event.target.id === modalId) {
+        closeCheckoutModal(modalId);
+    }
+}
+
+function openCheckoutSecurePaymentModal() {
+    openCheckoutModal("checkoutSecurePaymentModal");
+}
+
+function openCheckoutSmartDeliveryModal() {
+    openCheckoutModal("checkoutSmartDeliveryModal");
+}
+
+function openCheckoutExpertSupportModal() {
+    openCheckoutModal("checkoutExpertSupportModal");
+}
+
+document.addEventListener("keydown", function(event) {
+    if (event.key === "Escape") {
+        closeCheckoutModal("checkoutSecurePaymentModal");
+        closeCheckoutModal("checkoutSmartDeliveryModal");
+        closeCheckoutModal("checkoutExpertSupportModal");
+    }
+});
+
 function getCheckoutValue(selector) {
     return document.querySelector(selector)?.value?.trim() || "";
 }
