@@ -1702,6 +1702,271 @@
         .apd-package-spec-grid { grid-template-columns: 1fr; }
     }
 
+
+    /* ============================================================
+       AROLANA XLSX-STYLE PRODUCT SPECIFICATIONS — CKEDITOR 5 SAFE
+       CKEditor 5 rewrites custom HTML into:
+       <p>Title</p>
+       <figure class="table"><table>...</table></figure>
+       This CSS styles that exact output into a clean Excel/XLSX table.
+       ============================================================ */
+
+    .apd-specs-xlsx-wrap {
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
+        border-radius: 1.15rem;
+        border: 1px solid rgba(7, 26, 68, 0.14);
+        background: #ffffff;
+        box-shadow: 0 20px 54px rgba(7, 26, 68, 0.09);
+    }
+
+    .apd-specs-xlsx-content {
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
+        background: #ffffff !important;
+    }
+
+    /* CKEditor saved title: <p>Logitech C920... Specifications</p> */
+    .apd-specs-xlsx-content > p:first-child,
+    .apd-specs-xlsx-title,
+    .apd-specs-sheet-title,
+    .arolana-spec-title,
+    .apd-specs-xlsx-content > h1:first-child,
+    .apd-specs-xlsx-content > h2:first-child,
+    .apd-specs-xlsx-content > h3:first-child,
+    .apd-specs-xlsx-content > h4:first-child {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 0.85rem !important;
+        margin: 0 !important;
+        padding: 1rem 1.15rem !important;
+        background:
+            radial-gradient(circle at 10% 0%, rgba(0, 184, 255, 0.10), transparent 16rem),
+            linear-gradient(135deg, #F8FAFC, #EAF4FF 58%, #FFF7ED) !important;
+        border-bottom: 1px solid rgba(7, 26, 68, 0.14) !important;
+        color: #071A44 !important;
+        font-size: clamp(0.95rem, 1.4vw, 1.08rem) !important;
+        line-height: 1.35 !important;
+        font-weight: 950 !important;
+        letter-spacing: -0.015em !important;
+        text-align: left !important;
+    }
+
+    .apd-specs-xlsx-content > p:first-child::before,
+    .apd-specs-xlsx-title::before,
+    .apd-specs-sheet-title::before,
+    .arolana-spec-title::before {
+        content: "\f1c3";
+        font-family: "Font Awesome 5 Free";
+        font-weight: 900;
+        color: var(--arolana-orange, #FF7A00);
+        flex: 0 0 auto;
+    }
+
+    .apd-specs-xlsx-content > p:first-child::after,
+    .apd-specs-xlsx-title::after,
+    .apd-specs-sheet-title::after,
+    .arolana-spec-title::after {
+        content: "Specs";
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        border-radius: 999px;
+        padding: 0.32rem 0.65rem;
+        background: rgba(0, 102, 204, 0.10);
+        color: var(--arolana-blue, #0066CC);
+        font-size: 0.68rem;
+        line-height: 1;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    /* CKEditor wraps tables in <figure class="table"> */
+    .apd-specs-xlsx-content figure.table {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        background: #ffffff !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+    }
+
+    .apd-specs-xlsx-content figure.table table,
+    .apd-specs-xlsx-content > table {
+        width: 100% !important;
+        min-width: 760px !important;
+        border-collapse: collapse !important;
+        table-layout: fixed !important;
+        margin: 0 !important;
+        background: #ffffff !important;
+        color: #0F172A !important;
+        font-size: 0.94rem !important;
+        line-height: 1.45 !important;
+    }
+
+    .apd-specs-xlsx-content thead tr,
+    .apd-specs-xlsx-content table tr:first-child {
+        background: linear-gradient(135deg, #071A44, #0A2E73) !important;
+        color: #ffffff !important;
+    }
+
+    .apd-specs-xlsx-content th,
+    .apd-specs-xlsx-content table tr:first-child td {
+        padding: 0.95rem 1rem !important;
+        border: 1px solid rgba(255, 255, 255, 0.20) !important;
+        background: transparent !important;
+        color: #ffffff !important;
+        font-size: 0.76rem !important;
+        font-weight: 950 !important;
+        text-align: left !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.06em !important;
+        vertical-align: middle !important;
+        white-space: nowrap !important;
+    }
+
+    .apd-specs-xlsx-content td {
+        padding: 0.9rem 1rem !important;
+        border: 1px solid rgba(15, 23, 42, 0.12) !important;
+        color: #0F172A !important;
+        font-size: 0.94rem !important;
+        font-weight: 750 !important;
+        vertical-align: top !important;
+        text-align: left !important;
+        background: #ffffff !important;
+        word-break: normal !important;
+        overflow-wrap: anywhere !important;
+    }
+
+    .apd-specs-xlsx-content tbody tr:nth-child(even) td {
+        background: #F8FAFC !important;
+    }
+
+    .apd-specs-xlsx-content tbody tr:hover td {
+        background: #EAF4FF !important;
+    }
+
+    .apd-specs-xlsx-content td:first-child {
+        width: 28% !important;
+        color: #071A44 !important;
+        font-weight: 950 !important;
+    }
+
+    .apd-specs-xlsx-content td:nth-child(2) {
+        width: 42% !important;
+        color: #0F172A !important;
+        font-weight: 850 !important;
+    }
+
+    .apd-specs-xlsx-content td:nth-child(3) {
+        width: 30% !important;
+        color: #64748B !important;
+        font-weight: 750 !important;
+    }
+
+    /* CKEditor often puts <p> inside table cells */
+    .apd-specs-xlsx-content td p,
+    .apd-specs-xlsx-content th p {
+        margin: 0 !important;
+        padding: 0 !important;
+        line-height: inherit !important;
+        color: inherit !important;
+        font-size: inherit !important;
+        font-weight: inherit !important;
+    }
+
+    /* Clean empty CKEditor cells */
+    .apd-specs-xlsx-content td:empty::after {
+        content: "—";
+        color: #CBD5E1;
+        font-weight: 800;
+    }
+
+    .apd-specs-xlsx-content td:nth-child(3):has(> p:only-child) p:empty::after {
+        content: "—";
+        color: #CBD5E1;
+        font-weight: 800;
+    }
+
+    /* Fallback cards below the main specs */
+    .apd-specs-fallback-card {
+        border: 1px solid rgba(7, 26, 68, 0.10);
+        border-radius: 1rem;
+        background: #ffffff;
+        box-shadow: 0 14px 34px rgba(7, 26, 68, 0.06);
+        overflow: hidden;
+    }
+
+    .apd-specs-fallback-card table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .apd-specs-fallback-card td {
+        border-bottom: 1px solid rgba(15, 23, 42, 0.10);
+        padding: 0.78rem 1rem;
+        font-size: 0.92rem;
+    }
+
+    .apd-specs-fallback-card tr:last-child td {
+        border-bottom: 0;
+    }
+
+    .apd-specs-fallback-card td:first-child {
+        width: 38%;
+        font-weight: 900;
+        color: #071A44;
+        background: #F8FAFC;
+    }
+
+    .apd-specs-fallback-card td:last-child {
+        font-weight: 750;
+        color: #0F172A;
+    }
+
+    @media (max-width: 640px) {
+        .apd-specs-xlsx-wrap {
+            border-radius: 0.95rem;
+        }
+
+        .apd-specs-xlsx-content > p:first-child,
+        .apd-specs-xlsx-title,
+        .apd-specs-sheet-title,
+        .arolana-spec-title {
+            padding: 0.85rem 0.95rem !important;
+            font-size: 0.94rem !important;
+        }
+
+        .apd-specs-xlsx-content > p:first-child::after,
+        .apd-specs-xlsx-title::after,
+        .apd-specs-sheet-title::after,
+        .arolana-spec-title::after {
+            display: none;
+        }
+
+        .apd-specs-xlsx-content figure.table table,
+        .apd-specs-xlsx-content > table {
+            min-width: 680px !important;
+            font-size: 0.86rem !important;
+        }
+
+        .apd-specs-xlsx-content th,
+        .apd-specs-xlsx-content td,
+        .apd-specs-xlsx-content table tr:first-child td {
+            padding: 0.72rem 0.82rem !important;
+        }
+    }
+
 </style>
 {% endblock %}
 
@@ -2218,23 +2483,63 @@
 
             <!-- Specifications Tab -->
             <div x-show="tab=='specs'" x-transition.duration.300ms>
-                <div class="prose max-w-none">
-                    {{ product.specifications|safe }}
+                <div class="mb-4">
+                    <h3 class="text-2xl font-black text-gray-950">{{ product.name }}</h3>
                 </div>
+
+                {% if product.specifications %}
+                <div class="apd-specs-xlsx-wrap">
+                    <div class="apd-specs-xlsx-content">
+                        {{ product.specifications|safe }}
+                    </div>
+                </div>
+                {% endif %}
+
                 <div class="mt-6 grid md:grid-cols-2 gap-4">
-                    <div class="bg-gray-50 rounded-lg p-4">
-                        <h4 class="font-bold mb-2">General Info</h4>
-                        <table class="w-full text-sm">
-                            <tr class="border-b"><td class="py-2 font-semibold">Brand</td><td>{{ product.brand.name|default:"Arolana" }}</td></tr>
-                            <tr class="border-b"><td class="py-2 font-semibold">Model</td><td>{{ product.sku }}</td></tr>
-                            {% if product.manufacturer_sku %}
-                            <tr class="border-b"><td class="py-2 font-semibold">Manufacturer SKU</td><td>{{ product.manufacturer_sku }}</td></tr>
-                            {% endif %}
-                            <tr class="border-b"><td class="py-2 font-semibold">Condition</td><td>{{ product.get_condition_display }}</td></tr>
-                            {% if product.manual_pdf %}
-                            <tr class="border-b"><td class="py-2 font-semibold">Manual / Brochure</td><td><a href="{{ product.manual_pdf.url }}" download class="text-blue-600 font-semibold hover:underline">Download PDF</a></td></tr>
-                            {% endif %}
-                            <tr class="border-b"><td class="py-2 font-semibold">Warranty</td><td>{{ product.warranty_years }} Years</td></tr>
+                    <div class="apd-specs-fallback-card">
+                        <div class="bg-gradient-to-r from-blue-50 to-orange-50 px-4 py-3">
+                            <h4 class="font-black text-gray-950">
+                                <i class="fas fa-circle-info text-blue-600 mr-2"></i>
+                                General Info
+                            </h4>
+                        </div>
+                        <table>
+                            <tbody>
+                                <tr>
+                                    <td>Brand</td>
+                                    <td>{{ product.brand.name|default:"Arolana" }}</td>
+                                </tr>
+                                <tr>
+                                    <td>Model / SKU</td>
+                                    <td>{{ product.sku }}</td>
+                                </tr>
+                                {% if product.manufacturer_sku %}
+                                <tr>
+                                    <td>Manufacturer SKU</td>
+                                    <td>{{ product.manufacturer_sku }}</td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <td>Condition</td>
+                                    <td>{{ product.get_condition_display }}</td>
+                                </tr>
+                                {% if product.manual_pdf %}
+                                <tr>
+                                    <td>Manual / Brochure</td>
+                                    <td>
+                                        <a href="{{ product.manual_pdf.url }}" download class="text-blue-600 font-black hover:underline">
+                                            Download PDF
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% if product.warranty_years %}
+                                <tr>
+                                    <td>Warranty</td>
+                                    <td>{{ product.warranty_years }} Years</td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
                         </table>
                     </div>
 
@@ -2267,7 +2572,6 @@
                         </div>
                     </div>
                     {% endif %}
-
                 </div>
             </div>
 
