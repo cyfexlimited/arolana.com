@@ -9,57 +9,15 @@ from .models import (
     VendorSubscription,
     apply_vendor_subscription_benefits,
 )
-from .services import enforce_vendor_product_visibility
-
-
-def sync_vendor_subscription_profile(user):
-    profile = getattr(user, 'vendor_profile', None)
-    if not profile:
-        return None
-
-    current = (
-        VendorSubscription.objects
-        .filter(vendor=user, is_active=True, end_date__gt=timezone.now())
-        .select_related('plan')
-        .order_by('-end_date', '-created_at')
-        .first()
-    )
-    if current:
-        profile.subscription_active = True
-        profile.subscription_started_at = current.start_date
-        profile.subscription_expires_at = current.end_date
-        profile.subscription_expiry = current.end_date
-        profile.save(update_fields=[
-            'subscription_active',
-            'subscription_started_at',
-            'subscription_expires_at',
-            'subscription_expiry',
-            'updated_at',
-        ])
-        apply_vendor_subscription_benefits(profile, current.plan)
-    else:
-        profile.subscription_active = False
-        profile.subscription_started_at = None
-        profile.subscription_expires_at = None
-        profile.subscription_expiry = None
-        profile.save(update_fields=[
-            'subscription_active',
-            'subscription_started_at',
-            'subscription_expires_at',
-            'subscription_expiry',
-            'updated_at',
-        ])
-        apply_vendor_subscription_benefits(profile, 'free')
-
-    enforce_vendor_product_visibility(profile)
-    return profile
+from .services import sync_vendor_subscription_profile
 
 @admin.register(SubscriptionPlan)
 class SubscriptionPlanAdmin(admin.ModelAdmin):
     list_display = [
         'display_name', 'tier_key', 'price_monthly', 'max_products',
         'max_images_per_product', 'max_variants_per_product', 'priority_score',
-        'commission_rate', 'chat_enabled', 'can_access_rfq', 'can_show_on_homepage',
+        'commission_rate', 'chat_enabled', 'can_access_rfq', 'can_show_phone',
+        'can_show_whatsapp', 'can_receive_callback_requests', 'can_show_on_homepage',
         'is_popular', 'is_active', 'icon_preview'
     ]
     list_filter = ['is_active', 'is_popular']
@@ -89,6 +47,8 @@ class SubscriptionPlanAdmin(admin.ModelAdmin):
             'fields': (
                 'can_upload_video', 'can_upload_pdf', 'can_upload_certificates',
                 'can_access_rfq', 'can_receive_direct_enquiries',
+                'can_show_phone', 'can_show_whatsapp', 'can_receive_callback_requests',
+                'can_show_direct_contact_badge', 'lead_tracking_enabled', 'hide_phone_until_click',
                 'can_use_boosting', 'can_show_on_homepage',
                 'can_access_analytics', 'can_access_advanced_analytics',
                 'can_access_ads', 'priority_support', 'analytics_access',

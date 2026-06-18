@@ -210,11 +210,25 @@ def api_convert_amount(request):
 def currency_info(request):
     """Get information about all currencies"""
     currencies = Currency.objects.filter(is_active=True)
-    user_currency = request.session.get('user_currency', 'USD')
+    user_currency = (
+        getattr(request, 'user_currency', None)
+        or request.session.get('user_currency')
+        or request.COOKIES.get('user_currency')
+        or 'NGN'
+    )
+    user_currency = str(user_currency).upper()
+    current_currency = currencies.filter(code=user_currency).first() or currencies.filter(code='NGN').first() or currencies.first()
+    if current_currency:
+        user_currency = current_currency.code
     
     data = {
         'success': True,
         'base_currency': user_currency,
+        'current_currency': user_currency,
+        'current_symbol': getattr(current_currency, 'symbol', ''),
+        'detected_country': request.session.get('user_country_code', ''),
+        'currency_source': request.session.get('user_currency_source', 'auto'),
+        'manual_override': bool(request.session.get('user_currency_set') or request.COOKIES.get('currency_manual') == '1'),
         'currencies': []
     }
     

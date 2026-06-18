@@ -31,6 +31,12 @@ TIER_LIMITS = {
         'can_upload_certificates': False,
         'can_access_rfq': False,
         'can_receive_direct_enquiries': False,
+        'can_show_phone': False,
+        'can_show_whatsapp': False,
+        'can_receive_callback_requests': False,
+        'can_show_direct_contact_badge': False,
+        'lead_tracking_enabled': False,
+        'hide_phone_until_click': True,
         'can_use_boosting': False,
         'can_show_on_homepage': False,
         'can_access_analytics': True,
@@ -54,6 +60,12 @@ TIER_LIMITS = {
         'can_upload_certificates': False,
         'can_access_rfq': False,
         'can_receive_direct_enquiries': True,
+        'can_show_phone': False,
+        'can_show_whatsapp': False,
+        'can_receive_callback_requests': False,
+        'can_show_direct_contact_badge': False,
+        'lead_tracking_enabled': False,
+        'hide_phone_until_click': True,
         'can_use_boosting': False,
         'can_show_on_homepage': False,
         'can_access_analytics': True,
@@ -77,6 +89,12 @@ TIER_LIMITS = {
         'can_upload_certificates': False,
         'can_access_rfq': True,
         'can_receive_direct_enquiries': True,
+        'can_show_phone': False,
+        'can_show_whatsapp': False,
+        'can_receive_callback_requests': True,
+        'can_show_direct_contact_badge': False,
+        'lead_tracking_enabled': True,
+        'hide_phone_until_click': True,
         'can_use_boosting': False,
         'can_show_on_homepage': True,
         'can_access_analytics': True,
@@ -100,6 +118,12 @@ TIER_LIMITS = {
         'can_upload_certificates': True,
         'can_access_rfq': True,
         'can_receive_direct_enquiries': True,
+        'can_show_phone': False,
+        'can_show_whatsapp': False,
+        'can_receive_callback_requests': True,
+        'can_show_direct_contact_badge': False,
+        'lead_tracking_enabled': True,
+        'hide_phone_until_click': True,
         'can_use_boosting': True,
         'can_show_on_homepage': True,
         'can_access_analytics': True,
@@ -123,6 +147,12 @@ TIER_LIMITS = {
         'can_upload_certificates': True,
         'can_access_rfq': True,
         'can_receive_direct_enquiries': True,
+        'can_show_phone': True,
+        'can_show_whatsapp': True,
+        'can_receive_callback_requests': True,
+        'can_show_direct_contact_badge': True,
+        'lead_tracking_enabled': True,
+        'hide_phone_until_click': False,
         'can_use_boosting': True,
         'can_show_on_homepage': True,
         'can_access_analytics': True,
@@ -146,6 +176,12 @@ TIER_LIMITS = {
         'can_upload_certificates': True,
         'can_access_rfq': True,
         'can_receive_direct_enquiries': True,
+        'can_show_phone': True,
+        'can_show_whatsapp': True,
+        'can_receive_callback_requests': True,
+        'can_show_direct_contact_badge': True,
+        'lead_tracking_enabled': True,
+        'hide_phone_until_click': False,
         'can_use_boosting': True,
         'can_show_on_homepage': True,
         'can_access_analytics': True,
@@ -185,6 +221,12 @@ def get_tier_limits(tier):
         'can_upload_certificates': 'can_upload_certificates',
         'can_access_rfq': 'can_access_rfq',
         'can_receive_direct_enquiries': 'can_receive_direct_enquiries',
+        'can_show_phone': 'can_show_phone',
+        'can_show_whatsapp': 'can_show_whatsapp',
+        'can_receive_callback_requests': 'can_receive_callback_requests',
+        'can_show_direct_contact_badge': 'can_show_direct_contact_badge',
+        'lead_tracking_enabled': 'lead_tracking_enabled',
+        'hide_phone_until_click': 'hide_phone_until_click',
         'can_use_boosting': 'can_use_boosting',
         'can_show_on_homepage': 'can_show_on_homepage',
         'can_access_analytics': 'can_access_analytics',
@@ -321,6 +363,12 @@ class SubscriptionPlan(BaseModel):
     can_upload_certificates = models.BooleanField(default=False)
     can_access_rfq = models.BooleanField(default=False)
     can_receive_direct_enquiries = models.BooleanField(default=False)
+    can_show_phone = models.BooleanField(default=False, help_text="Allow approved vendors on this plan to expose a direct phone number when the vendor also opts in.")
+    can_show_whatsapp = models.BooleanField(default=False, help_text="Allow approved vendors on this plan to expose WhatsApp when the vendor also opts in.")
+    can_receive_callback_requests = models.BooleanField(default=False, help_text="Allow customers to request a callback without exposing the vendor phone.")
+    can_show_direct_contact_badge = models.BooleanField(default=False, help_text="Show premium direct-contact badge on storefronts and mobile.")
+    lead_tracking_enabled = models.BooleanField(default=False, help_text="Record phone/WhatsApp/callback leads for this plan.")
+    hide_phone_until_click = models.BooleanField(default=True, help_text="Mask phone in listing payloads and reveal only through a tracked backend action.")
     can_use_boosting = models.BooleanField(default=False)
     can_show_on_homepage = models.BooleanField(default=False)
     can_access_analytics = models.BooleanField(default=True)

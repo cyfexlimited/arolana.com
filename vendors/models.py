@@ -45,6 +45,19 @@ class VendorProfile(BaseModel):
     warehouse_address = models.TextField(blank=True)
     support_email = models.EmailField(blank=True)
     support_phone = models.CharField(max_length=50, blank=True)
+    business_phone = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Customer-facing business phone. Exposed only when vendor and subscription permissions allow it."
+    )
+    whatsapp_number = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Customer-facing WhatsApp number. Exposed only when vendor and subscription permissions allow it."
+    )
+    allow_phone_display = models.BooleanField(default=False)
+    allow_whatsapp_display = models.BooleanField(default=False)
+    allow_callback_requests = models.BooleanField(default=True)
     website = models.URLField(blank=True)
     preferred_language = models.CharField(max_length=20, default='english', blank=True)
     preferred_currency = models.CharField(max_length=10, default='NGN', blank=True)
@@ -221,6 +234,14 @@ class VendorProfile(BaseModel):
 
     def has_verified_kyc(self):
         return self.is_verified and self.kyc_status in ['approved', 'verified']
+
+    @property
+    def direct_contact_eligible(self):
+        return bool(
+            self.is_active
+            and self.approval_status == 'approved'
+            and (self.is_verified or self.manufacturer_verified or self.has_verified_kyc())
+        )
 
     @property
     def profile_completion_percent(self):
@@ -511,6 +532,92 @@ class VendorReview(BaseModel):
         vendor = self.vendor
         super().delete(*args, **kwargs)
         vendor.update_rating()
+
+
+class VendorCallbackRequest(BaseModel):
+    STATUS_CHOICES = [
+        ('new', 'New'),
+        ('assigned', 'Assigned'),
+        ('contacted', 'Contacted'),
+        ('resolved', 'Resolved'),
+        ('closed', 'Closed'),
+    ]
+    URGENCY_CHOICES = [
+        ('normal', 'Normal'),
+        ('high', 'High'),
+        ('urgent', 'Urgent'),
+    ]
+
+    vendor = models.ForeignKey(VendorProfile, on_delete=models.CASCADE, related_name='callback_requests')
+    product = models.ForeignKey('products.Product', on_delete=models.SET_NULL, null=True, blank=True, related_name='vendor_callback_requests')
+    customer_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='vendor_callback_requests')
+    customer_name = models.CharField(max_length=180, blank=True)
+    customer_phone = models.CharField(max_length=50, blank=True)
+    customer_email = models.EmailField(blank=True)
+    message = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new', db_index=True)
+    urgency = models.CharField(max_length=20, choices=URGENCY_CHOICES, default='normal', db_index=True)
+    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_vendor_callback_requests')
+    contacted_at = models.DateTimeField(null=True, blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    admin_note = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['vendor', 'status', '-created_at']),
+            models.Index(fields=['customer_phone', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f"Callback for {self.vendor.store_name} - {self.customer_name or self.customer_phone or 'Customer'}"
+
+
+class VendorLead(BaseModel):
+    ACTION_CHOICES = [
+        ('callback_request', 'Callback request'),
+        ('phone_reveal', 'Phone reveal'),
+        ('phone_call', 'Phone call'),
+        ('call_click', 'Call click'),
+        ('whatsapp_click', 'WhatsApp click'),
+        ('product_link_shared_to_whatsapp', 'Product link shared to WhatsApp'),
+        ('chat_started', 'Chat started'),
+        ('chat_message_sent', 'Chat message sent'),
+        ('chat_click', 'Chat click'),
+        ('add_to_cart', 'Add to cart'),
+        ('buy_now_click', 'Buy now click'),
+        ('checkout_started', 'Checkout started'),
+        ('order_created', 'Order created'),
+    ]
+
+    vendor = models.ForeignKey(VendorProfile, on_delete=models.CASCADE, related_name='contact_leads')
+    product = models.ForeignKey('products.Product', on_delete=models.SET_NULL, null=True, blank=True, related_name='vendor_contact_leads')
+    customer_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='vendor_contact_leads')
+    guest_session_key = models.CharField(max_length=80, blank=True, db_index=True)
+    action_type = models.CharField(max_length=40, choices=ACTION_CHOICES, db_index=True)
+    customer_name = models.CharField(max_length=180, blank=True)
+    customer_phone = models.CharField(max_length=50, blank=True)
+    customer_email = models.EmailField(blank=True)
+    source = models.CharField(max_length=40, blank=True, db_index=True)
+    page_url = models.URLField(max_length=800, blank=True)
+    product_url = models.URLField(max_length=800, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    country = models.CharField(max_length=8, blank=True, db_index=True)
+    currency = models.CharField(max_length=10, blank=True, db_index=True)
+    user_agent = models.TextField(blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    extra_data = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['vendor', 'action_type', '-created_at']),
+            models.Index(fields=['product', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.get_action_type_display()} - {self.vendor.store_name}"
+
 
 class VendorSubscriptionPlan(BaseModel):
     """Vendor subscription plans for premium features"""

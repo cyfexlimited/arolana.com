@@ -12,6 +12,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 import json
 import re
+from urllib.parse import quote
 from django.http import HttpResponse
 from decimal import Decimal, InvalidOperation
 from django.template.loader import render_to_string
@@ -32,8 +33,11 @@ from arolana_payments.services import get_gateway_options
 from products.ranking import order_storefront_products
 
 try:
-    from subscriptions.models import user_has_paid_subscription
+    from subscriptions.models import get_tier_limits, user_has_paid_subscription
 except ImportError:
+    def get_tier_limits(tier):
+        return {}
+
     def user_has_paid_subscription(user):
         return False
 
@@ -78,8 +82,10 @@ except ImportError:
     _auth_mobile_customer_from_request_data = None
 
 try:
-    from vendors.models import VendorProfile, VendorFollow, VendorRFQ
+    from vendors.models import VendorCallbackRequest, VendorLead, VendorProfile, VendorFollow, VendorRFQ
 except ImportError:
+    VendorCallbackRequest = None
+    VendorLead = None
     VendorProfile = None
     VendorFollow = None
     VendorRFQ = None
@@ -379,6 +385,7 @@ def get_filter_counts(queryset):
 
 GUEST_CART_SESSION_KEY = 'guest_cart'
 GUEST_WISHLIST_SESSION_KEY = 'guest_wishlist'
+GUEST_RECENTLY_VIEWED_SESSION_KEY = 'guest_recently_viewed_products'
 
 
 class GuestCartItems:
@@ -477,6 +484,61 @@ def _save_guest_cart(request, cart_data):
     request.session['cart_count'] = _guest_cart_count(cleaned)
     request.session.modified = True
     return cleaned
+
+
+def _guest_recently_viewed_ids(request):
+    values = request.session.get(GUEST_RECENTLY_VIEWED_SESSION_KEY, [])
+    cleaned = []
+    for value in values:
+        try:
+            product_id = int(value)
+        except (TypeError, ValueError):
+            continue
+        if product_id not in cleaned:
+            cleaned.append(product_id)
+    return cleaned
+
+
+def _save_guest_recently_viewed(request, product):
+    if not product:
+        return
+    product_ids = _guest_recently_viewed_ids(request)
+    product_ids = [product.id] + [item for item in product_ids if item != product.id]
+    request.session[GUEST_RECENTLY_VIEWED_SESSION_KEY] = product_ids[:20]
+    request.session.modified = True
+
+
+def _cart_product_ids(cart):
+    ids = set()
+    try:
+        items = cart.items.all()
+    except Exception:
+        return ids
+    for item in items:
+        product = getattr(item, 'product', None)
+        if product:
+            ids.add(product.id)
+    return ids
+
+
+def _recently_viewed_for_cart(request, cart, limit=12):
+    exclude_ids = _cart_product_ids(cart)
+    if request.user.is_authenticated:
+        recent_ids = list(
+            RecentlyViewed.objects.filter(user=request.user)
+            .exclude(product_id__in=exclude_ids)
+            .values_list('product_id', flat=True)[:limit]
+        )
+    else:
+        recent_ids = [item for item in _guest_recently_viewed_ids(request) if item not in exclude_ids][:limit]
+    if not recent_ids:
+        return []
+    products_by_id = Product.objects.filter(
+        id__in=recent_ids,
+        is_active=True,
+        approval_status='approved',
+    ).select_related('category', 'brand', 'vendor').in_bulk()
+    return [products_by_id[item] for item in recent_ids if item in products_by_id]
 
 
 def _guest_cart_key(product=None, variant=None, accessory=None):
@@ -742,6 +804,22 @@ def add_to_cart(request, slug):
         cart_data = _save_guest_cart(request, cart_data)
         cart_count = _guest_cart_count(cart_data)
 
+    vendor_profile = getattr(getattr(product, 'vendor', None), 'vendor_profile', None)
+    if vendor_profile:
+        _create_vendor_lead(
+            request,
+            vendor_profile,
+            'add_to_cart',
+            product=product,
+            payload={
+                'source': request.POST.get('source') or request.GET.get('source') or 'web',
+                'quantity': quantity,
+                'variant_id': variant.id if variant else '',
+                'page_url': request.META.get('HTTP_REFERER', ''),
+            },
+            metadata={'cart_count': cart_count},
+        )
+
     messages.success(request, message)
     request.session['cart_count'] = cart_count
     
@@ -835,6 +913,7 @@ def cart_view(request):
         'total_converted': total_converted,
         'user_currency': user_currency,
         'base_currency': base_currency,
+        'recently_viewed_products': _recently_viewed_for_cart(request, cart),
         **_support_contact_context(),
     })
 
@@ -1193,6 +1272,8 @@ def product_detail(request, slug):
             product=product,
             defaults={'viewed_at': timezone.now()}
         )
+    else:
+        _save_guest_recently_viewed(request, product)
 
     # ====== Currency ======
     user_currency = get_user_currency(request)
@@ -1473,6 +1554,9 @@ def product_detail(request, slug):
         guest_wishlist = {str(product_id) for product_id in request.session.get(GUEST_WISHLIST_SESSION_KEY, [])}
         in_wishlist = str(product.id) in guest_wishlist
 
+    vendor_profile = getattr(product.vendor, "vendor_profile", None)
+    vendor_contact_options = _vendor_contact_options(vendor_profile, product=product, request=request)
+
     context = {
         'product': product,
         'size_variants': size_variants,
@@ -1496,7 +1580,8 @@ def product_detail(request, slug):
         'current_price': current_price,
         'current_compare_price': current_compare_price,
 
-        'vendor_chat_available': user_has_paid_subscription(product.vendor),
+        'vendor_chat_available': vendor_contact_options.get('can_chat', False),
+        'vendor_contact_options': vendor_contact_options,
         'accessories': accessories,
         'product_accessories': accessories,
         'videos': videos,
@@ -2172,6 +2257,22 @@ def checkout(request):
     if not cart or cart.items.count() == 0:
         messages.info(request, 'Your cart is empty.')
         return redirect('products:list')
+
+    try:
+        for item in cart.items.select_related('product', 'product__vendor', 'product__vendor__vendor_profile'):
+            product = getattr(item, 'product', None)
+            vendor_profile = getattr(getattr(product, 'vendor', None), 'vendor_profile', None)
+            if vendor_profile:
+                _create_vendor_lead(
+                    request,
+                    vendor_profile,
+                    'checkout_started',
+                    product=product,
+                    payload={'source': 'web', 'quantity': item.quantity},
+                    metadata={'cart_id': cart.id},
+                )
+    except Exception:
+        pass
     
     # Checkout now exposes only service levels. Arolana chooses the matching
     # delivery provider behind the scenes so customers do not see confusing
@@ -2399,6 +2500,187 @@ def _mobile_category_payload(request, category, include_children=True):
     }
 
 
+def _digits_only(value):
+    return re.sub(r"\D+", "", str(value or ""))
+
+
+def _product_absolute_url(request, product):
+    if not product:
+        return ""
+    if request is None:
+        try:
+            return product.get_absolute_url()
+        except Exception:
+            return ""
+    try:
+        return request.build_absolute_uri(product.get_absolute_url())
+    except Exception:
+        try:
+            return request.build_absolute_uri(reverse("products:detail", args=[product.slug]))
+        except Exception:
+            return ""
+
+
+def _product_whatsapp_message(product, product_url):
+    product_name = getattr(product, "name", "") or "this product"
+    product_price = ""
+    if product is not None:
+        try:
+            product_price = format_currency(getattr(product, "price", ""))
+        except Exception:
+            product_price = str(getattr(product, "price", "") or "")
+    return (
+        "Hello, I saw this product on Arolana and I’m interested.\n\n"
+        f"Product: {product_name}\n"
+        f"Price: {product_price or 'Not provided'}\n"
+        f"Link: {product_url or 'Not provided'}\n\n"
+        "Please confirm availability. For safety, I prefer to complete payment and order tracking through Arolana."
+    )
+
+
+def _vendor_plan_limits(vendor_profile):
+    try:
+        return get_tier_limits(getattr(vendor_profile, "subscription_tier", "free"))
+    except Exception:
+        return {}
+
+
+def _vendor_contact_options(vendor_profile, product=None, reveal_phone=False, request=None):
+    if not vendor_profile:
+        return {
+            "can_chat": False,
+            "can_request_callback": False,
+            "can_show_phone": False,
+            "can_show_whatsapp": False,
+            "phone": "",
+            "whatsapp": "",
+            "direct_contact_badge": False,
+            "lead_tracking_enabled": False,
+            "hide_phone_until_click": True,
+            "safety_note": "For your safety, keep payment and order confirmation inside Arolana.",
+        }
+
+    vendor_user = getattr(vendor_profile, "user", None)
+    limits = _vendor_plan_limits(vendor_profile)
+    eligible = bool(getattr(vendor_profile, "direct_contact_eligible", False))
+    active_plan = bool(vendor_user and user_has_paid_subscription(vendor_user))
+    phone_number = (getattr(vendor_profile, "business_phone", "") or getattr(vendor_profile, "support_phone", "") or "").strip()
+    whatsapp_number = (getattr(vendor_profile, "whatsapp_number", "") or getattr(vendor_profile, "business_phone", "") or getattr(vendor_profile, "support_phone", "") or "").strip()
+    hide_phone_until_click = bool(limits.get("hide_phone_until_click", True))
+
+    can_chat = bool(vendor_user and limits.get("chat_enabled") and active_plan)
+    can_request_callback = bool(
+        eligible
+        and active_plan
+        and getattr(vendor_profile, "allow_callback_requests", False)
+        and limits.get("can_receive_callback_requests", False)
+    )
+    can_show_phone = bool(
+        eligible
+        and active_plan
+        and getattr(vendor_profile, "allow_phone_display", False)
+        and limits.get("can_show_phone", False)
+        and phone_number
+    )
+    can_show_whatsapp = bool(
+        eligible
+        and active_plan
+        and getattr(vendor_profile, "allow_whatsapp_display", False)
+        and limits.get("can_show_whatsapp", False)
+        and whatsapp_number
+    )
+
+    phone_visible = can_show_phone and (reveal_phone or not hide_phone_until_click)
+    whatsapp_visible = can_show_whatsapp
+    product_url = _product_absolute_url(request, product)
+    whatsapp_message = _product_whatsapp_message(product, product_url)
+    return {
+        "can_chat": can_chat,
+        "can_request_callback": can_request_callback,
+        "can_show_phone": can_show_phone,
+        "can_show_whatsapp": can_show_whatsapp,
+        "phone": phone_number if phone_visible else "",
+        "phone_masked": bool(can_show_phone and not phone_visible),
+        "whatsapp": whatsapp_number if whatsapp_visible else "",
+        "whatsapp_url": f"https://wa.me/{_digits_only(whatsapp_number)}?text={quote(whatsapp_message)}" if whatsapp_visible and _digits_only(whatsapp_number) else "",
+        "whatsapp_message": whatsapp_message if whatsapp_visible else "",
+        "direct_contact_badge": bool(eligible and active_plan and limits.get("can_show_direct_contact_badge", False)),
+        "lead_tracking_enabled": bool(active_plan and limits.get("lead_tracking_enabled", False)),
+        "hide_phone_until_click": hide_phone_until_click,
+        "safety_note": "For your safety, keep payment and order confirmation inside Arolana.",
+        "product_id": getattr(product, "id", None),
+    }
+
+
+def _request_ip_address(request):
+    forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR", "")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    real_ip = request.META.get("HTTP_X_REAL_IP")
+    if real_ip:
+        return real_ip.strip()
+    return request.META.get("REMOTE_ADDR")
+
+
+def _request_country_code(request):
+    for header in ("HTTP_CF_IPCOUNTRY", "HTTP_CLOUDFRONT_VIEWER_COUNTRY", "HTTP_X_COUNTRY_CODE", "HTTP_X_FORWARDED_COUNTRY", "HTTP_X_APPENGINE_COUNTRY", "HTTP_FLY_CLIENT_IP_COUNTRY"):
+        country_code = (request.META.get(header) or "").strip().upper()
+        if len(country_code) == 2 and country_code != "XX":
+            return country_code
+    return request.session.get("user_country_code", "")
+
+
+def _request_page_url(request):
+    try:
+        return request.build_absolute_uri()
+    except Exception:
+        return request.META.get("HTTP_REFERER", "") or ""
+
+
+def _create_vendor_lead(request, vendor_profile, action_type, product=None, customer=None, payload=None, metadata=None):
+    if VendorLead is None or not vendor_profile:
+        return None
+    options = _vendor_contact_options(vendor_profile, product=product, request=request)
+    if not options.get("lead_tracking_enabled"):
+        return None
+    payload = payload or {}
+    customer_user = getattr(customer, "user", None)
+    if customer_user is not None and not getattr(customer_user, "is_authenticated", True):
+        customer_user = None
+    if customer_user is None and getattr(request.user, "is_authenticated", False):
+        customer_user = request.user
+    if not request.session.session_key:
+        request.session.save()
+    product_url = payload.get("product_url") or ""
+    if product and not product_url:
+        product_url = _product_absolute_url(request, product)
+    page_url = payload.get("page_url") or payload.get("current_url") or request.META.get("HTTP_REFERER") or _request_page_url(request)
+    source = (payload.get("source") or payload.get("platform") or "web").strip()
+    extra_data = {
+        "payload": payload,
+        "metadata": metadata or {},
+    }
+    return VendorLead.objects.create(
+        vendor=vendor_profile,
+        product=product,
+        customer_user=customer_user,
+        guest_session_key=request.session.session_key or "",
+        action_type=action_type,
+        customer_name=(payload.get("full_name") or payload.get("customer_name") or getattr(customer, "full_name", "") or "").strip(),
+        customer_phone=(payload.get("phone_number") or payload.get("customer_phone") or getattr(customer, "phone_number", "") or "").strip(),
+        customer_email=(payload.get("email") or payload.get("customer_email") or getattr(customer, "email", "") or "").strip(),
+        source=source,
+        page_url=page_url[:800],
+        product_url=product_url[:800],
+        ip_address=_request_ip_address(request),
+        country=_request_country_code(request),
+        currency=(payload.get("currency") or getattr(request, "user_currency", "") or request.session.get("user_currency", "") or "").upper()[:10],
+        user_agent=request.META.get("HTTP_USER_AGENT", ""),
+        metadata=metadata or {},
+        extra_data=extra_data,
+    )
+
+
 def _mobile_vendor_payload(request, vendor_profile, include_products=False):
     if not vendor_profile:
         return None
@@ -2454,7 +2736,6 @@ def _mobile_vendor_payload(request, vendor_profile, include_products=False):
         "fulfillment_rate": str(getattr(vendor_profile, "fulfillment_rate", "") or ""),
         "return_rate": str(getattr(vendor_profile, "return_rate", "") or ""),
         "support_email": getattr(vendor_profile, "support_email", ""),
-        "support_phone": getattr(vendor_profile, "support_phone", ""),
         "website": getattr(vendor_profile, "website", ""),
         "business_address": getattr(vendor_profile, "business_address", ""),
         "manufacturer_address": getattr(vendor_profile, "manufacturer_address", ""),
@@ -2468,7 +2749,8 @@ def _mobile_vendor_payload(request, vendor_profile, include_products=False):
         "quality_control_details": getattr(vendor_profile, "quality_control_details", ""),
         "export_countries": getattr(vendor_profile, "export_countries", ""),
         "main_product_categories": getattr(vendor_profile, "main_product_categories", ""),
-        "chat_available": bool(vendor_user and user_has_paid_subscription(vendor_user)),
+        "chat_available": _vendor_contact_options(vendor_profile, request=request).get("can_chat", False),
+        "vendor_contact_options": _vendor_contact_options(vendor_profile, request=request),
         "url": request.build_absolute_uri(vendor_profile.get_absolute_url()) if hasattr(vendor_profile, "get_absolute_url") else "",
     }
 
@@ -3531,6 +3813,7 @@ def mobile_product_detail_api(request, slug):
             vendor_url = request.build_absolute_uri(vendor_profile.get_absolute_url())
         except Exception:
             vendor_url = ""
+    vendor_contact_options = _vendor_contact_options(vendor_profile, product=product, request=request)
 
     chat_url = ""
     if vendor:
@@ -3583,10 +3866,12 @@ def mobile_product_detail_api(request, slug):
                 "id": vendor.id if vendor else None,
                 "name": getattr(vendor, "get_full_name", lambda: "")() or getattr(vendor, "email", "Arolana vendor"),
             }),
-            "chat_available": vendor_chat_available,
+            "chat_available": vendor_contact_options.get("can_chat", vendor_chat_available),
+            "vendor_contact_options": vendor_contact_options,
             "chat_url": chat_url,
             "url": vendor_url,
         },
+        "vendor_contact_options": vendor_contact_options,
         "image": main_image,
         "images": images,
         "variants": variants,
@@ -3622,6 +3907,231 @@ def _mobile_customer_from_payload(payload):
     if _auth_mobile_customer_from_request_data is None:
         raise ValueError("Mobile customer app is not available.")
     return _auth_mobile_customer_from_request_data(payload)
+
+
+def _get_vendor_and_product_from_payload(payload):
+    vendor_profile = None
+    product = None
+    product_id = payload.get("product_id")
+    vendor_id = payload.get("vendor_id")
+    if product_id:
+        product = Product.objects.select_related("vendor", "vendor__vendor_profile").filter(id=product_id, is_active=True).first()
+        if product and getattr(product, "vendor", None):
+            vendor_profile = getattr(product.vendor, "vendor_profile", None)
+    if not vendor_profile and vendor_id and VendorProfile is not None:
+        vendor_profile = VendorProfile.objects.select_related("user").filter(id=vendor_id).first()
+    return vendor_profile, product
+
+
+def _provided(value):
+    value = str(value or "").strip()
+    return value or "Not provided"
+
+
+def _notify_vendor_callback_request(request, callback, vendor_profile, product, payload):
+    if Notification is None or not vendor_profile:
+        return
+    product_name = getattr(product, "name", "") or "Not provided"
+    product_url = _product_absolute_url(request, product) or "Not provided"
+    customer_name = _provided(callback.customer_name)
+    customer_phone = _provided(callback.customer_phone)
+    customer_email = _provided(callback.customer_email)
+    customer_message = _provided(callback.message)
+    created_at = callback.created_at.strftime("%d %b %Y %I:%M %p") if getattr(callback, "created_at", None) else "Not provided"
+
+    vendor_message = (
+        "A customer requested a callback for one of your products on Arolana.\n\n"
+        f"Product: {product_name}\n"
+        f"Product Link: {product_url}\n"
+        f"Customer Name: {customer_name}\n"
+        f"Customer Phone: {customer_phone}\n"
+        f"Customer Email: {customer_email}\n"
+        f"Message: {customer_message}\n\n"
+        "Please contact the customer professionally and encourage them to complete payment and order tracking through Arolana for safety.\n\n"
+        "For trust and fraud prevention, this contact request has also been logged for Arolana admin review."
+    )
+    Notification.send(
+        user=vendor_profile.user,
+        notification_type="vendor",
+        title="New Callback Request",
+        message=vendor_message,
+        link=product_url if product_url != "Not provided" else "",
+        metadata={
+            "callback_request_id": callback.id,
+            "vendor_id": vendor_profile.id,
+            "product_id": getattr(product, "id", None),
+            "product_url": product_url,
+            "action_type": "callback_request",
+            "source": payload.get("source") or "web",
+        },
+        priority=3,
+    )
+
+    admin_message = (
+        "A customer requested a callback from a vendor.\n\n"
+        f"Vendor: {vendor_profile.store_name}\n"
+        f"Product: {product_name}\n"
+        f"Product Link: {product_url}\n"
+        f"Customer: {customer_name}\n"
+        f"Customer Phone: {customer_phone}\n"
+        "Action Type: Callback Request\n"
+        f"Date/Time: {created_at}\n\n"
+        "This request has been logged for platform safety, fraud prevention, and dispute investigation if needed."
+    )
+    admin_users = User.objects.filter(Q(is_staff=True) | Q(is_superuser=True), is_active=True).distinct()[:30]
+    for admin_user in admin_users:
+        Notification.send(
+            user=admin_user,
+            notification_type="security",
+            title="Vendor Callback Request Logged",
+            message=admin_message,
+            link=product_url if product_url != "Not provided" else "",
+            metadata={
+                "callback_request_id": callback.id,
+                "vendor_id": vendor_profile.id,
+                "product_id": getattr(product, "id", None),
+                "product_url": product_url,
+                "action_type": "callback_request",
+                "source": payload.get("source") or "web",
+            },
+            priority=3,
+        )
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def mobile_vendor_request_callback_api(request):
+    if VendorProfile is None or VendorCallbackRequest is None:
+        return JsonResponse({"success": False, "message": "Vendor contact system is not available."}, status=500)
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "message": "Invalid JSON payload."}, status=400)
+
+    customer = None
+    if _auth_mobile_customer_from_request_data is not None and payload.get("api_token"):
+        try:
+            customer = _mobile_customer_from_payload(payload)
+        except Exception:
+            customer = None
+
+    vendor_profile, product = _get_vendor_and_product_from_payload(payload)
+    if not vendor_profile:
+        return JsonResponse({"success": False, "message": "Choose a valid supplier before requesting a callback."}, status=400)
+
+    options = _vendor_contact_options(vendor_profile, product=product, request=request)
+    if not options.get("can_request_callback"):
+        return JsonResponse({"success": False, "message": "This supplier is not enabled for callback requests. Please use Arolana Chat."}, status=403)
+
+    customer_phone = (payload.get("phone_number") or payload.get("customer_phone") or getattr(customer, "phone_number", "") or "").strip()
+    customer_email = (payload.get("email") or payload.get("customer_email") or getattr(customer, "email", "") or "").strip()
+    customer_name = (payload.get("full_name") or payload.get("customer_name") or getattr(customer, "full_name", "") or "").strip()
+    request_user = getattr(request, "user", None)
+    if request_user is not None and getattr(request_user, "is_authenticated", False):
+        customer_name = customer_name or request_user.get_full_name() or request_user.username
+        customer_email = customer_email or getattr(request_user, "email", "")
+    if not customer_phone and not customer_email:
+        return JsonResponse({"success": False, "message": "Add a phone number or email so the supplier can respond."}, status=400)
+
+    customer_user = getattr(customer, "user", None)
+    if not customer_user and request_user is not None and getattr(request_user, "is_authenticated", False):
+        customer_user = request_user
+    callback = VendorCallbackRequest.objects.create(
+        vendor=vendor_profile,
+        product=product,
+        customer_user=customer_user,
+        customer_name=customer_name,
+        customer_phone=customer_phone,
+        customer_email=customer_email,
+        message=(payload.get("message") or "").strip(),
+        urgency=payload.get("urgency") if payload.get("urgency") in {"normal", "high", "urgent"} else "normal",
+    )
+    _create_vendor_lead(
+        request,
+        vendor_profile,
+        "callback_request",
+        product=product,
+        customer=customer,
+        payload=payload,
+        metadata={"callback_request_id": callback.id},
+    )
+    _notify_vendor_callback_request(request, callback, vendor_profile, product, payload)
+    return JsonResponse({
+        "success": True,
+        "message": "Your callback request has been sent successfully. The vendor has received your request and product details. For your safety, please complete payment and order tracking through Arolana.",
+        "callback_request_id": callback.id,
+    })
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def mobile_vendor_reveal_phone_api(request):
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "message": "Invalid JSON payload."}, status=400)
+
+    vendor_profile, product = _get_vendor_and_product_from_payload(payload)
+    if not vendor_profile:
+        return JsonResponse({"success": False, "message": "Supplier not found."}, status=404)
+
+    options = _vendor_contact_options(vendor_profile, product=product, reveal_phone=True, request=request)
+    if not options.get("can_show_phone") or not options.get("phone"):
+        return JsonResponse({"success": False, "message": "This supplier phone is not available. Please use Arolana Chat."}, status=403)
+
+    customer = None
+    if _auth_mobile_customer_from_request_data is not None and payload.get("api_token"):
+        try:
+            customer = _mobile_customer_from_payload(payload)
+        except Exception:
+            customer = None
+    _create_vendor_lead(request, vendor_profile, "phone_reveal", product=product, customer=customer, payload=payload)
+    return JsonResponse({"success": True, "vendor_contact_options": options})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def mobile_vendor_track_contact_api(request):
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "message": "Invalid JSON payload."}, status=400)
+
+    action_type = payload.get("action_type")
+    allowed_actions = {
+        "phone_call",
+        "call_click",
+        "whatsapp_click",
+        "product_link_shared_to_whatsapp",
+        "chat_click",
+        "chat_started",
+        "chat_message_sent",
+        "add_to_cart",
+        "buy_now_click",
+        "checkout_started",
+        "order_created",
+    }
+    if action_type not in allowed_actions:
+        return JsonResponse({"success": False, "message": "Invalid contact action."}, status=400)
+
+    vendor_profile, product = _get_vendor_and_product_from_payload(payload)
+    if not vendor_profile:
+        return JsonResponse({"success": False, "message": "Supplier not found."}, status=404)
+
+    options = _vendor_contact_options(vendor_profile, product=product, request=request)
+    if action_type in {"phone_call", "call_click"} and not options.get("can_show_phone"):
+        return JsonResponse({"success": False, "message": "Phone contact is not enabled for this supplier."}, status=403)
+    if action_type in {"whatsapp_click", "product_link_shared_to_whatsapp"} and not options.get("can_show_whatsapp"):
+        return JsonResponse({"success": False, "message": "WhatsApp contact is not enabled for this supplier."}, status=403)
+
+    customer = None
+    if _auth_mobile_customer_from_request_data is not None and payload.get("api_token"):
+        try:
+            customer = _mobile_customer_from_payload(payload)
+        except Exception:
+            customer = None
+    _create_vendor_lead(request, vendor_profile, action_type, product=product, customer=customer, payload=payload)
+    return JsonResponse({"success": True})
 
 
 def _rfq_payload(request, rfq):

@@ -92,6 +92,93 @@ def enforce_vendor_product_visibility(profile):
 
 
 @transaction.atomic
+def sync_vendor_subscription_profile(user_or_profile, now=None, enforce_visibility=True):
+    """Make VendorProfile match the current non-expired subscription source of truth."""
+    now = now or timezone.now()
+    profile = user_or_profile if isinstance(user_or_profile, VendorProfile) else getattr(user_or_profile, "vendor_profile", None)
+    if not profile:
+        return None
+    user = profile.user
+
+    expired = (
+        VendorSubscription.objects
+        .filter(vendor=user, is_active=True, end_date__lte=now)
+        .update(is_active=False, auto_renew=False, updated_at=now)
+    )
+
+    current = (
+        VendorSubscription.objects
+        .filter(vendor=user, is_active=True, end_date__gt=now)
+        .select_related("plan")
+        .order_by("-end_date", "-created_at")
+        .first()
+    )
+
+    if current:
+        profile.subscription_active = True
+        profile.subscription_started_at = current.start_date
+        profile.subscription_expires_at = current.end_date
+        profile.subscription_expiry = current.end_date
+        profile.save(update_fields=[
+            "subscription_active",
+            "subscription_started_at",
+            "subscription_expires_at",
+            "subscription_expiry",
+            "updated_at",
+        ])
+        apply_vendor_subscription_benefits(profile, current.plan)
+    else:
+        profile.subscription_active = False
+        profile.subscription_started_at = None
+        profile.subscription_expires_at = None
+        profile.subscription_expiry = None
+        profile.save(update_fields=[
+            "subscription_active",
+            "subscription_started_at",
+            "subscription_expires_at",
+            "subscription_expiry",
+            "updated_at",
+        ])
+        apply_vendor_subscription_benefits(profile, "free")
+
+    profile.refresh_from_db()
+    visibility = enforce_vendor_product_visibility(profile) if enforce_visibility else None
+    return {
+        "profile": profile,
+        "current_subscription": current,
+        "expired_count": expired,
+        "visibility": visibility,
+    }
+
+
+def sync_all_vendor_subscription_profiles(now=None, enforce_visibility=True):
+    now = now or timezone.now()
+    vendor_ids = set(
+        VendorSubscription.objects.values_list("vendor_id", flat=True)
+    )
+    vendor_ids.update(
+        VendorProfile.objects.exclude(subscription_tier="free").values_list("user_id", flat=True)
+    )
+    vendor_ids.update(
+        VendorProfile.objects.filter(subscription_active=True).values_list("user_id", flat=True)
+    )
+    stats = {"synced": 0, "active": 0, "free": 0, "expired": 0, "visibility_hidden": 0}
+    for profile in VendorProfile.objects.select_related("user").filter(user_id__in=vendor_ids):
+        result = sync_vendor_subscription_profile(profile, now=now, enforce_visibility=enforce_visibility)
+        if not result:
+            continue
+        stats["synced"] += 1
+        stats["expired"] += result.get("expired_count", 0)
+        if result.get("current_subscription"):
+            stats["active"] += 1
+        else:
+            stats["free"] += 1
+        visibility = result.get("visibility") or {}
+        stats["visibility_hidden"] += visibility.get("hidden", 0)
+    return stats
+
+
+@transaction.atomic
 def run_subscription_robot(now=None):
     now = now or timezone.now()
     stats = {"expiring": 0, "expired": 0, "visibility_updated": 0}
@@ -122,19 +209,8 @@ def run_subscription_robot(now=None):
                 stats["expiring"] += 1
 
         if subscription.end_date <= now:
-            subscription.is_active = False
-            subscription.auto_renew = False
-            subscription.save(update_fields=["is_active", "auto_renew", "updated_at"])
-            profile.subscription_tier = "free"
-            profile.subscription_active = False
-            profile.subscription_started_at = None
-            profile.subscription_expires_at = None
-            profile.subscription_expiry = None
-            profile.priority_score = get_tier_limits("free")["priority_score"]
-            profile.save(update_fields=["subscription_tier", "subscription_active", "subscription_started_at", "subscription_expires_at", "subscription_expiry", "priority_score", "updated_at"])
-            apply_vendor_subscription_benefits(profile, "free")
-            profile.refresh_from_db()
-            visibility = enforce_vendor_product_visibility(profile)
+            result = sync_vendor_subscription_profile(profile, now=now, enforce_visibility=True)
+            visibility = (result or {}).get("visibility") or {"hidden": 0}
             message = (
                 "Your Arolana subscription has ended, so your account has returned to Free. "
                 "Your first approved product remains public. Additional approved products are kept safely in your vendor product list "

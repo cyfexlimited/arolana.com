@@ -1967,6 +1967,84 @@
         }
     }
 
+
+    /* ============================================================
+       AROLANA VENDOR CHAT MODAL STACKING FIX
+       Keeps vendor chat above sticky gallery, thumbnails, lightbox
+       product UI, floating controls, and any transformed parent layer.
+       ============================================================ */
+    #vendor-chat-modal {
+        position: fixed !important;
+        inset: 0 !important;
+        z-index: 2147483000 !important;
+        isolation: isolate !important;
+    }
+
+    #vendor-chat-modal.vendor-chat-open {
+        display: flex !important;
+    }
+
+    #vendor-chat-modal::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        background: rgba(7, 26, 68, 0.72);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+
+    .vendor-chat-panel {
+        position: relative !important;
+        z-index: 2 !important;
+        width: min(100%, 520px) !important;
+        height: min(760px, calc(100dvh - 32px)) !important;
+        max-height: calc(100dvh - 32px) !important;
+        background: #ffffff !important;
+        box-shadow: 0 30px 90px rgba(7, 26, 68, 0.38) !important;
+    }
+
+    body.vendor-chat-is-open,
+    html.vendor-chat-is-open {
+        overflow: hidden !important;
+    }
+
+    /* While chat is open, stop sticky gallery from sitting above the modal */
+    body.vendor-chat-is-open #apd-sticky-gallery {
+        z-index: 1 !important;
+        pointer-events: none !important;
+    }
+
+    body.vendor-chat-is-open #apd-sticky-gallery * {
+        pointer-events: none !important;
+    }
+
+    @media (min-width: 768px) {
+        #vendor-chat-modal {
+            align-items: center !important;
+            justify-content: flex-end !important;
+        }
+
+        .vendor-chat-panel {
+            margin-right: clamp(1rem, 4vw, 4rem) !important;
+            border-radius: 1.5rem !important;
+        }
+    }
+
+    @media (max-width: 767px) {
+        #vendor-chat-modal {
+            align-items: flex-end !important;
+            justify-content: center !important;
+        }
+
+        .vendor-chat-panel {
+            width: 100% !important;
+            height: min(88dvh, 720px) !important;
+            max-height: 88dvh !important;
+            border-radius: 1.5rem 1.5rem 0 0 !important;
+        }
+    }
+
 </style>
 {% endblock %}
 
@@ -2367,27 +2445,85 @@
 	                        <div class="w-11 h-11 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
 	                            <i class="fas fa-store"></i>
 	                        </div>
-	                        <div class="flex-1 min-w-0">
-	                            <p class="font-semibold truncate">{{ product.vendor.vendor_profile.store_name|default:product.vendor.get_full_name|default:product.vendor.email }}</p>
-	                            {% if vendor_chat_available %}
-	                                <p class="text-xs text-green-600">Paid vendor support is available for this product.</p>
-	                            {% else %}
-	                                <p class="text-xs text-gray-500">Chat Lock Contact Support Assistant</p>
-	                            {% endif %}
-	                        </div>
+		                        <div class="flex-1 min-w-0">
+			                            <p class="font-semibold truncate">{{ product.vendor.vendor_profile.store_name|default:product.vendor.get_full_name|default:product.vendor.email }}</p>
+			                            {% if vendor_contact_options.direct_contact_badge %}
+			                                <p class="text-xs text-orange-600 font-bold">Premium direct contact available</p>
+			                            {% endif %}
+			                            {% if vendor_chat_available %}
+			                                <p class="text-xs text-green-600">Paid vendor support is available for this product.</p>
+			                            {% else %}
+			                                <p class="text-xs text-gray-500">Chat Lock Contact Support Assistant</p>
+			                            {% endif %}
+			                        </div>
 	                        {% if vendor_chat_available %}
-	                        <a href="{% url 'chat:start_vendor_product' product.vendor.id product.id %}" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
-	                            <i class="fas fa-comments mr-1"></i> Chat Vendor
-	                        </a>
+		                        <button type="button" id="vendor-chat-open-btn" data-chat-url="{% url 'chat:vendor_context_product_api' product.vendor.id product.id %}" data-vendor-name="{{ product.vendor.vendor_profile.store_name|default:product.vendor.get_full_name|default:product.vendor.email|escape }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
+		                            <i class="fas fa-comments mr-1"></i> Chat Vendor
+		                        </button>
 	                        {% else %}
 	                        <a href="{% url 'subscriptions:plans' %}" class="bg-gray-100 text-gray-500 px-4 py-2 rounded-lg text-sm font-semibold cursor-not-allowed" aria-disabled="true">
 	                            Chat Locked
 	                        </a>
 	                        {% endif %}
-	                    </div>
-	                </div>
+		                    </div>
+		                    {% if vendor_contact_options.can_request_callback or vendor_contact_options.phone or vendor_contact_options.whatsapp_url %}
+		                    <div class="mt-4 grid gap-2 sm:grid-cols-3">
+		                        {% if vendor_contact_options.phone %}
+		                        <a href="tel:{{ vendor_contact_options.phone }}" class="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-center text-sm font-bold text-blue-700 hover:bg-blue-100">
+		                            <i class="fas fa-phone mr-1"></i> Call Supplier
+		                        </a>
+		                        {% endif %}
+		                        {% if vendor_contact_options.whatsapp_url %}
+		                        <a href="{{ vendor_contact_options.whatsapp_url }}" target="_blank" rel="noopener" data-vendor-contact-action="product_link_shared_to_whatsapp" data-vendor-id="{{ product.vendor.vendor_profile.id }}" data-product-id="{{ product.id }}" class="rounded-lg border border-green-100 bg-green-50 px-3 py-2 text-center text-sm font-bold text-green-700 hover:bg-green-100">
+		                            <i class="fab fa-whatsapp mr-1"></i> WhatsApp
+		                        </a>
+		                        {% endif %}
+		                        {% if vendor_contact_options.can_request_callback %}
+		                        <button type="button" id="vendor-callback-request-btn" data-vendor-id="{{ product.vendor.vendor_profile.id }}" data-product-id="{{ product.id }}" data-customer-name="{% if request.user.is_authenticated %}{{ request.user.get_full_name|default:request.user.username }}{% endif %}" data-customer-email="{% if request.user.is_authenticated %}{{ request.user.email }}{% endif %}" class="rounded-lg border border-orange-100 bg-orange-50 px-3 py-2 text-sm font-bold text-orange-700 hover:bg-orange-100">
+		                            <i class="fas fa-headset mr-1"></i> Request Callback
+		                        </button>
+		                        {% endif %}
+		                    </div>
+		                    <div id="vendor-callback-status" class="mt-3 hidden rounded-2xl border border-[#00B8FF]/30 bg-[#071A44] px-4 py-3 text-sm font-bold text-white shadow-lg shadow-[#00B8FF]/10"></div>
+		                    <p class="mt-3 text-xs text-gray-500">{{ vendor_contact_options.safety_note }}</p>
+		                    {% endif %}
+			                </div>
 
-	                <!-- AI Expert Support -->
+		                <div id="vendor-chat-modal"
+		                     class="fixed inset-0 z-[2147483000] hidden items-end justify-center p-0 md:items-center md:justify-end md:p-6"
+		                     aria-hidden="true">
+		                    <div class="vendor-chat-panel flex w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-white md:rounded-3xl">
+		                        <div class="bg-gradient-to-r from-[#071A44] via-[#0F2D6B] to-[#0066CC] p-5 text-white">
+		                            <div class="flex items-start justify-between gap-3">
+		                                <div>
+		                                    <p class="text-xs font-black uppercase tracking-[0.16em] text-white/65">Arolana vendor chat</p>
+		                                    <h3 id="vendor-chat-title" class="mt-1 text-xl font-black">Chat Vendor</h3>
+		                                    <p class="mt-1 text-sm font-semibold text-white/75">Product context is shared so the vendor knows what you need.</p>
+		                                </div>
+		                                <button type="button" id="vendor-chat-close-btn" class="grid h-10 w-10 place-items-center rounded-full bg-white/15 text-white hover:bg-white/25" aria-label="Close vendor chat">
+		                                    <i class="fas fa-times"></i>
+		                                </button>
+		                            </div>
+		                            <div class="mt-4 rounded-2xl bg-white/10 p-3 text-sm font-semibold">
+		                                <i class="fas fa-box-open mr-2 text-orange-300"></i>{{ product.name }}
+		                            </div>
+		                        </div>
+		                        <div id="vendor-chat-messages" class="min-h-[18rem] flex-1 space-y-3 overflow-y-auto bg-slate-50 p-4">
+		                            <div class="rounded-2xl bg-white p-4 text-sm font-semibold text-slate-500 shadow-sm">Open chat to load messages.</div>
+		                        </div>
+		                        <form id="vendor-chat-form" class="border-t border-slate-200 bg-white p-4">
+		                            <div class="flex gap-2">
+		                                <input id="vendor-chat-input" type="text" class="min-w-0 flex-1 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100" placeholder="Write a message to the vendor..." autocomplete="off">
+		                                <button type="submit" class="rounded-2xl bg-[#FF7A00] px-5 py-3 text-sm font-black text-white shadow-lg shadow-orange-500/20 hover:bg-[#e96f00]">
+		                                    Send
+		                                </button>
+		                            </div>
+		                            <p class="mt-2 text-xs font-semibold text-slate-500">For your safety, keep payment and order confirmation inside Arolana.</p>
+		                        </form>
+		                    </div>
+		                </div>
+
+		                <!-- AI Expert Support -->
 	                <div class="bg-gradient-to-r from-gray-900 to-gray-800 rounded-xl p-4 mb-4 text-white">
                     <div class="flex items-center gap-3">
                         <div class="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-white shadow-lg ring-2 ring-white/20">
@@ -4430,7 +4566,7 @@
             });
     }
 
-    function showToast(message, type) {
+	    function showToast(message, type) {
         const toast = document.createElement('div');
         const colorClass = type === 'success' ? 'bg-green-500' : 'bg-red-500';
 
@@ -4441,10 +4577,205 @@
 
         setTimeout(function () {
             toast.remove();
-        }, 3000);
-    }
+	        }, 3000);
+	    }
 
-    function setupRatingStars() {
+		    function setupVendorDirectContactActions() {
+	        const callbackButton = document.getElementById('vendor-callback-request-btn');
+	        const callbackStatus = document.getElementById('vendor-callback-status');
+	        const contactEndpoint = "{% url 'products:mobile_vendor_request_callback_api' %}";
+	        const trackEndpoint = "{% url 'products:mobile_vendor_track_contact_api' %}";
+
+	        function showCallbackStatus(message, isSuccess) {
+	            if (!callbackStatus) {
+	                showToast(message, isSuccess ? 'success' : 'error');
+	                return;
+	            }
+	            callbackStatus.classList.remove('hidden', 'bg-[#071A44]', 'bg-red-700', 'border-[#00B8FF]/30', 'border-red-200');
+	            callbackStatus.classList.add(isSuccess ? 'bg-[#071A44]' : 'bg-red-700', isSuccess ? 'border-[#00B8FF]/30' : 'border-red-200');
+	            callbackStatus.innerHTML = escapeHtml(message);
+	        }
+
+	        if (callbackButton) {
+	            callbackButton.addEventListener('click', async function () {
+	                if (callbackButton.disabled) return;
+	                callbackButton.disabled = true;
+	                const originalText = callbackButton.innerHTML;
+	                callbackButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Sending...';
+	                try {
+	                    const response = await fetch(contactEndpoint, {
+	                        method: 'POST',
+	                        headers: {
+	                            'Content-Type': 'application/json',
+	                            'X-CSRFToken': '{{ csrf_token }}',
+	                            'X-Requested-With': 'XMLHttpRequest',
+	                        },
+	                        body: JSON.stringify({
+	                            vendor_id: callbackButton.dataset.vendorId,
+	                            product_id: callbackButton.dataset.productId,
+	                            full_name: callbackButton.dataset.customerName || '',
+	                            email: callbackButton.dataset.customerEmail || '',
+	                            message: 'Customer requested a callback about {{ product.name|escapejs }}.',
+	                            source: 'web',
+	                        }),
+	                    });
+	                    const data = await response.json();
+	                    if (!response.ok || !data.success) {
+	                        throw new Error(data.message || 'Could not send callback request.');
+	                    }
+	                    showCallbackStatus(data.message, true);
+	                } catch (error) {
+	                    showCallbackStatus(error.message || 'Could not send callback request.', false);
+	                } finally {
+	                    callbackButton.disabled = false;
+	                    callbackButton.innerHTML = originalText;
+	                }
+	            });
+	        }
+
+	        document.querySelectorAll('[data-vendor-contact-action]').forEach(function (element) {
+	            element.addEventListener('click', function () {
+	                fetch(trackEndpoint, {
+	                    method: 'POST',
+	                    headers: {
+	                        'Content-Type': 'application/json',
+	                        'X-CSRFToken': '{{ csrf_token }}',
+	                        'X-Requested-With': 'XMLHttpRequest',
+	                    },
+	                    body: JSON.stringify({
+	                        vendor_id: element.dataset.vendorId,
+	                        product_id: element.dataset.productId,
+	                        action_type: element.dataset.vendorContactAction,
+	                        source: 'web',
+	                    }),
+	                }).catch(function () {});
+	            });
+		        });
+		    }
+
+		    function setupVendorChatModal() {
+		        const openButton = document.getElementById('vendor-chat-open-btn');
+		        const modal = document.getElementById('vendor-chat-modal');
+		        const closeButton = document.getElementById('vendor-chat-close-btn');
+		        const title = document.getElementById('vendor-chat-title');
+		        const messagesBox = document.getElementById('vendor-chat-messages');
+		        const form = document.getElementById('vendor-chat-form');
+		        const input = document.getElementById('vendor-chat-input');
+		        let sendUrl = '';
+
+		        if (!openButton || !modal || !messagesBox || !form || !input) return;
+
+		        // Move modal directly under <body> so it escapes product/gallery stacking contexts.
+		        if (modal.parentElement !== document.body) {
+		            document.body.appendChild(modal);
+		        }
+
+		        function setOpen(isOpen) {
+		            modal.classList.toggle('hidden', !isOpen);
+		            modal.classList.toggle('flex', isOpen);
+		            modal.classList.toggle('vendor-chat-open', isOpen);
+		            modal.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+
+		            document.documentElement.classList.toggle('vendor-chat-is-open', isOpen);
+		            document.body.classList.toggle('vendor-chat-is-open', isOpen);
+		            document.body.classList.toggle('overflow-hidden', isOpen);
+		        }
+
+		        function renderMessages(messages) {
+		            if (!Array.isArray(messages) || !messages.length) {
+		                messagesBox.innerHTML = '<div data-empty-chat="true" class="rounded-2xl bg-white p-4 text-sm font-semibold text-slate-500 shadow-sm">No messages yet. Send the first message and the vendor will receive this product context.</div>';
+		                return;
+		            }
+		            messagesBox.innerHTML = messages.map(function (message) {
+		                const mine = Boolean(message.is_mine);
+		                const bubbleClass = mine
+		                    ? 'ml-auto bg-blue-600 text-white'
+		                    : 'mr-auto bg-white text-slate-800 ring-1 ring-slate-200';
+		                const metaClass = mine ? 'text-blue-100' : 'text-slate-400';
+		                return '<div class="max-w-[82%] rounded-2xl px-4 py-3 text-sm font-semibold shadow-sm ' + bubbleClass + '">' +
+		                    '<div>' + escapeHtml(message.message || '') + '</div>' +
+		                    '<div class="mt-1 text-[11px] font-bold ' + metaClass + '">' + escapeHtml(message.sender_name || '') + ' • ' + escapeHtml(message.timestamp || '') + '</div>' +
+		                '</div>';
+		            }).join('');
+		            messagesBox.scrollTop = messagesBox.scrollHeight;
+		        }
+
+		        openButton.addEventListener('click', async function () {
+		            setOpen(true);
+		            messagesBox.innerHTML = '<div class="rounded-2xl bg-white p-4 text-sm font-bold text-slate-600 shadow-sm"><i class="fas fa-spinner fa-spin mr-2 text-blue-600"></i>Loading vendor chat...</div>';
+		            try {
+		                const response = await fetch(openButton.dataset.chatUrl, {
+		                    headers: {
+		                        'Accept': 'application/json',
+		                        'X-Requested-With': 'XMLHttpRequest',
+		                    },
+		                });
+		                const data = await response.json();
+		                if (!response.ok || !data.success) {
+		                    throw new Error(data.message || 'Could not open vendor chat.');
+		                }
+		                sendUrl = data.room.send_url;
+		                if (title) title.textContent = 'Chat ' + (data.vendor.store_name || data.vendor.name || openButton.dataset.vendorName || 'Vendor');
+		                renderMessages(data.messages || []);
+		                setTimeout(function () { input.focus(); }, 50);
+		            } catch (error) {
+		                messagesBox.innerHTML = '<div class="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-bold text-red-700">' + escapeHtml(error.message || 'Could not open vendor chat.') + '</div>';
+		            }
+		        });
+
+		        closeButton?.addEventListener('click', function () { setOpen(false); });
+		        modal.addEventListener('click', function (event) {
+		            if (event.target === modal) setOpen(false);
+		        });
+
+		        document.addEventListener('keydown', function (event) {
+		            if (event.key === 'Escape' && !modal.classList.contains('hidden')) {
+		                setOpen(false);
+		            }
+		        });
+
+		        form.addEventListener('submit', async function (event) {
+		            event.preventDefault();
+		            const message = input.value.trim();
+		            if (!message || !sendUrl) return;
+		            input.value = '';
+		            try {
+		                const response = await fetch(sendUrl, {
+		                    method: 'POST',
+		                    headers: {
+		                        'Content-Type': 'application/x-www-form-urlencoded',
+		                        'X-CSRFToken': '{{ csrf_token }}',
+		                        'X-Requested-With': 'XMLHttpRequest',
+		                    },
+		                    body: new URLSearchParams({ message: message, source: 'web_product_detail' }),
+		                });
+		                const data = await response.json();
+		                if (!response.ok || !data.success) {
+		                    throw new Error(data.error || 'Message could not be sent.');
+		                }
+		                const newMessage = {
+		                    message: data.message,
+		                    sender_name: 'You',
+		                    timestamp: data.timestamp,
+		                    is_mine: true,
+		                };
+		                if (messagesBox.querySelector('[data-empty-chat="true"]')) {
+		                    renderMessages([newMessage]);
+		                } else {
+		                    messagesBox.insertAdjacentHTML('beforeend',
+		                        '<div class="ml-auto max-w-[82%] rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm">' +
+		                        '<div>' + escapeHtml(newMessage.message || '') + '</div>' +
+		                        '<div class="mt-1 text-[11px] font-bold text-blue-100">You • ' + escapeHtml(newMessage.timestamp || '') + '</div></div>'
+		                    );
+		                    messagesBox.scrollTop = messagesBox.scrollHeight;
+		                }
+		            } catch (error) {
+		                showToast(error.message || 'Message could not be sent.', 'error');
+		            }
+		        });
+		    }
+
+		    function setupRatingStars() {
         document.querySelectorAll('#rating-stars i').forEach(function (star) {
             star.addEventListener('click', function () {
                 const rating = Number(this.dataset.rating || 5);
@@ -4527,11 +4858,13 @@
 
     document.addEventListener('DOMContentLoaded', function () {
         captureDefaultUI();
-        setupReadingProgress();
-        setupRatingStars();
-        setupLazyImages();
+	        setupReadingProgress();
+	        setupRatingStars();
+		        setupLazyImages();
+		        setupVendorDirectContactActions();
+		        setupVendorChatModal();
 
-        /*
+	        /*
             MAIN FIX:
             Every normal refresh starts from the main product gallery.
             No saved variant input, no browser-restored variant, no stale variant image.
@@ -5027,6 +5360,10 @@
         }
 
         function updateStickyGallery() {
+            if (document.body.classList.contains('vendor-chat-is-open')) {
+                return;
+            }
+
             if (window.innerWidth < 1024) {
                 resetToNatural();
                 return;

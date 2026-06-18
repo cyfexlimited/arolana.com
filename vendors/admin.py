@@ -3,7 +3,9 @@ from django.utils import timezone
 from django.utils.html import format_html
 from .models import (
     VendorBankAccount,
+    VendorCallbackRequest,
     VendorFactoryPhoto,
+    VendorLead,
     VendorProfile,
     VendorRFQ,
     VendorReview,
@@ -20,9 +22,9 @@ class VendorFactoryPhotoInline(admin.TabularInline):
 
 @admin.register(VendorProfile)
 class VendorProfileAdmin(admin.ModelAdmin):
-    list_display = ['store_name', 'user', 'vendor_type', 'approval_status', 'is_verified', 'manufacturer_verified', 'kyc_status', 'pickup_ready', 'subscription_tier', 'subscription_active', 'subscription_expires_at', 'priority_score', 'profile_completion_display', 'rating_avg', 'total_sales', 'logo_preview', 'banner_preview']
-    list_filter = ['vendor_type', 'approval_status', 'is_verified', 'manufacturer_verified', 'is_active', 'subscription_tier', 'subscription_active']
-    search_fields = ['store_name', 'company_name', 'user__email', 'user__username', 'support_phone', 'pickup_phone']
+    list_display = ['store_name', 'user', 'vendor_type', 'approval_status', 'is_verified', 'manufacturer_verified', 'direct_contact_status', 'kyc_status', 'pickup_ready', 'subscription_tier', 'subscription_active', 'subscription_expires_at', 'priority_score', 'profile_completion_display', 'rating_avg', 'total_sales', 'logo_preview', 'banner_preview']
+    list_filter = ['vendor_type', 'approval_status', 'is_verified', 'manufacturer_verified', 'allow_phone_display', 'allow_whatsapp_display', 'allow_callback_requests', 'is_active', 'subscription_tier', 'subscription_active']
+    search_fields = ['store_name', 'company_name', 'user__email', 'user__username', 'support_phone', 'business_phone', 'whatsapp_number', 'pickup_phone']
     prepopulated_fields = {'store_slug': ['store_name']}
     readonly_fields = ['rating_avg', 'total_sales', 'followers_count', 'priority_score', 'pickup_map_preview', 'approved_at', 'profile_completion_display', 'logo_preview', 'banner_preview']
     inlines = [VendorFactoryPhotoInline]
@@ -35,7 +37,7 @@ class VendorProfileAdmin(admin.ModelAdmin):
         ('Company / Manufacturer Profile', {
             'fields': (
                 'company_name', 'vendor_type', 'country', 'business_address', 'manufacturer_address',
-                'warehouse_address', 'support_email', 'support_phone', 'website',
+                'warehouse_address', 'support_email', 'support_phone', 'business_phone', 'whatsapp_number', 'website',
                 'preferred_language', 'preferred_currency', 'profile_completion_display',
                 'factory_name', 'factory_video_url', 'years_in_business', 'number_of_employees',
                 'production_capacity', 'quality_control_details', 'export_countries', 'main_product_categories',
@@ -46,6 +48,12 @@ class VendorProfileAdmin(admin.ModelAdmin):
                 'approval_status', 'approval_note', 'rejection_reason', 'approved_by', 'approved_at',
                 'is_verified', 'verification_documents', 'manufacturer_verified', 'manufacturer_badge_label'
             )
+        }),
+        ('Controlled Direct Contact', {
+            'fields': (
+                'allow_phone_display', 'allow_whatsapp_display', 'allow_callback_requests',
+            ),
+            'description': 'Backend-gated customer contact. Phone/WhatsApp are exposed only when vendor opts in, the subscription plan allows it, and the vendor is approved, verified, and active.'
         }),
         ('Subscription Controls', {
             'fields': (
@@ -95,6 +103,12 @@ class VendorProfileAdmin(admin.ModelAdmin):
             return format_html('<span style="color:#16a34a;font-weight:700;">Ready</span>')
         return format_html('<span style="color:#dc2626;font-weight:700;">Missing pin</span>')
     pickup_ready.short_description = 'Pickup'
+
+    def direct_contact_status(self, obj):
+        if getattr(obj, 'direct_contact_eligible', False):
+            return format_html('<span style="color:#16a34a;font-weight:700;">Eligible</span>')
+        return format_html('<span style="color:#dc2626;font-weight:700;">Blocked</span>')
+    direct_contact_status.short_description = 'Contact gate'
 
     def pickup_map_preview(self, obj):
         if not obj or not obj.pickup_latitude or not obj.pickup_longitude:
@@ -176,6 +190,62 @@ class VendorReviewAdmin(admin.ModelAdmin):
             review.vendor.update_rating()
         self.message_user(request, f'{queryset.count()} vendor review(s) hidden.')
     hide_reviews.short_description = 'Hide selected vendor reviews'
+
+
+@admin.register(VendorCallbackRequest)
+class VendorCallbackRequestAdmin(admin.ModelAdmin):
+    list_display = ['id', 'vendor', 'product', 'customer_name', 'customer_phone', 'status', 'urgency', 'assigned_to', 'created_at']
+    list_filter = ['status', 'urgency', 'created_at', 'vendor__subscription_tier']
+    search_fields = ['vendor__store_name', 'product__name', 'customer_name', 'customer_phone', 'customer_email', 'message']
+    readonly_fields = ['created_at', 'updated_at']
+    autocomplete_fields = ['vendor', 'product', 'customer_user', 'assigned_to']
+    actions = ['assign_to_me', 'mark_contacted', 'mark_resolved', 'mark_closed']
+
+    fieldsets = (
+        ('Request', {
+            'fields': ('vendor', 'product', 'customer_user', 'customer_name', 'customer_phone', 'customer_email', 'message')
+        }),
+        ('Support Workflow', {
+            'fields': ('status', 'urgency', 'assigned_to', 'contacted_at', 'resolved_at', 'admin_note')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at')
+        }),
+    )
+
+    def assign_to_me(self, request, queryset):
+        queryset.update(assigned_to=request.user, status='assigned')
+        self.message_user(request, f'{queryset.count()} callback request(s) assigned to you.')
+    assign_to_me.short_description = 'Assign selected callback requests to me'
+
+    def mark_contacted(self, request, queryset):
+        queryset.update(status='contacted', contacted_at=timezone.now())
+        self.message_user(request, f'{queryset.count()} callback request(s) marked contacted.')
+    mark_contacted.short_description = 'Mark selected callback requests contacted'
+
+    def mark_resolved(self, request, queryset):
+        queryset.update(status='resolved', resolved_at=timezone.now())
+        self.message_user(request, f'{queryset.count()} callback request(s) marked resolved.')
+    mark_resolved.short_description = 'Mark selected callback requests resolved'
+
+    def mark_closed(self, request, queryset):
+        queryset.update(status='closed')
+        self.message_user(request, f'{queryset.count()} callback request(s) closed.')
+    mark_closed.short_description = 'Close selected callback requests'
+
+
+@admin.register(VendorLead)
+class VendorLeadAdmin(admin.ModelAdmin):
+    list_display = ['id', 'vendor', 'product', 'action_type', 'source', 'country', 'currency', 'customer_name', 'customer_phone', 'created_at']
+    list_filter = ['action_type', 'source', 'country', 'currency', 'created_at', 'vendor__subscription_tier']
+    search_fields = ['vendor__store_name', 'product__name', 'customer_name', 'customer_phone', 'customer_email', 'page_url', 'product_url', 'guest_session_key']
+    readonly_fields = [
+        'vendor', 'product', 'customer_user', 'guest_session_key', 'action_type',
+        'customer_name', 'customer_phone', 'customer_email', 'source', 'page_url',
+        'product_url', 'ip_address', 'country', 'currency', 'user_agent', 'metadata',
+        'extra_data', 'created_at', 'updated_at'
+    ]
+    autocomplete_fields = ['vendor', 'product', 'customer_user']
 
 
 @admin.register(VendorBankAccount)

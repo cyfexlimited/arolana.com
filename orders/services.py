@@ -329,6 +329,29 @@ def mark_order_paid(payment):
             subtotal=item.subtotal,
         )
 
+    try:
+        from vendors.models import VendorLead
+        for item in cart.items.select_related('product', 'product__vendor', 'product__vendor__vendor_profile'):
+            product = item.product
+            vendor_profile = getattr(getattr(product, 'vendor', None), 'vendor_profile', None)
+            if not vendor_profile:
+                continue
+            VendorLead.objects.create(
+                vendor=vendor_profile,
+                product=product,
+                customer_user=payment.user,
+                action_type='order_created',
+                customer_name=payment.user.get_full_name() or payment.user.username,
+                customer_email=payment.user.email or '',
+                source='checkout',
+                country=(checkout_data.get('country') or '')[:8],
+                currency=(getattr(payment, 'currency', '') or checkout_data.get('currency') or '')[:10],
+                metadata={'order_number': order.order_number, 'cart_id': cart.id, 'payment_id': payment.id},
+                extra_data={'quantity': item.quantity, 'subtotal': str(item.subtotal)},
+            )
+    except Exception:
+        pass
+
     quote_details = (checkout_data.get('delivery_quote_details') or '').strip()
     quote_route_type = (checkout_data.get('delivery_route_type') or '').strip()
     admin_notes = ''

@@ -85,6 +85,74 @@ def _send_message_notification(user, sender, message, link, room_type='chat', ro
         pass
 
 
+def _request_ip_address(request):
+    forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR", "")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    real_ip = request.META.get("HTTP_X_REAL_IP")
+    if real_ip:
+        return real_ip.strip()
+    return request.META.get("REMOTE_ADDR")
+
+
+def _request_country_code(request):
+    for header in ("HTTP_CF_IPCOUNTRY", "HTTP_CLOUDFRONT_VIEWER_COUNTRY", "HTTP_X_COUNTRY_CODE", "HTTP_X_FORWARDED_COUNTRY", "HTTP_X_APPENGINE_COUNTRY", "HTTP_FLY_CLIENT_IP_COUNTRY"):
+        country_code = (request.META.get(header) or "").strip().upper()
+        if len(country_code) == 2 and country_code != "XX":
+            return country_code
+    return request.session.get("user_country_code", "")
+
+
+def _product_absolute_url(request, product):
+    if not product:
+        return ""
+    try:
+        return request.build_absolute_uri(product.get_absolute_url())
+    except Exception:
+        return ""
+
+
+def _record_vendor_chat_lead(request, room, action_type, message=None, extra=None):
+    try:
+        from vendors.models import VendorLead
+        vendor_profile = room.vendor.vendor_profile
+        if not request.session.session_key:
+            request.session.save()
+        product_url = _product_absolute_url(request, room.product)
+        VendorLead.objects.create(
+            vendor=vendor_profile,
+            product=room.product,
+            customer_user=room.customer,
+            guest_session_key=request.session.session_key or "",
+            action_type=action_type,
+            customer_name=room.customer.get_full_name() or room.customer.username,
+            customer_email=room.customer.email or "",
+            source=(request.POST.get("source") or request.GET.get("source") or "web")[:40],
+            page_url=(request.META.get("HTTP_REFERER") or product_url or request.build_absolute_uri())[:800],
+            product_url=product_url[:800],
+            ip_address=_request_ip_address(request),
+            country=_request_country_code(request),
+            currency=(getattr(request, "user_currency", "") or request.session.get("user_currency", "") or "").upper()[:10],
+            user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            metadata={"room_id": room.id, "message_id": getattr(message, "id", None)},
+            extra_data=extra or {},
+        )
+    except Exception:
+        pass
+
+
+def _vendor_chat_message_payload(message, request_user):
+    return {
+        "id": message.id,
+        "message": message.message,
+        "sender_id": message.sender_id,
+        "sender_name": _user_display_name(message.sender),
+        "is_mine": message.sender_id == request_user.id,
+        "timestamp": message.created_at.strftime("%H:%M"),
+        "created_at": message.created_at.isoformat(),
+    }
+
+
 def _total_chat_unread(user):
     direct_unread = ChatMessage.objects.filter(
         room__participants=user,
@@ -394,6 +462,7 @@ def vendor_send_message(request, room_id):
                 message=message_text
             )
             _report_vendor_chat_to_admin(room, message)
+            _record_vendor_chat_lead(request, room, 'chat_message_sent', message=message, extra={'sender_role': 'vendor'})
             
             room.last_message = message_text
             room.last_message_time = timezone.now()
@@ -440,6 +509,7 @@ def customer_send_message(request, room_id):
                 message=message_text
             )
             _report_vendor_chat_to_admin(room, message)
+            _record_vendor_chat_lead(request, room, 'chat_message_sent', message=message, extra={'sender_role': 'customer'})
             
             room.last_message = message_text
             room.last_message_time = timezone.now()
@@ -493,8 +563,62 @@ def start_vendor_chat(request, vendor_id, product_id=None):
             product=product
         )
         _report_vendor_chat_to_admin(room, event='started')
+        _record_vendor_chat_lead(request, room, 'chat_started', extra={'created_from': 'redirect_start'})
     
     return redirect('chat:customer_room', room_id=room.id)
+
+
+@login_required
+@require_GET
+def vendor_chat_context_api(request, vendor_id, product_id=None):
+    """Create/load a vendor chat room for same-page web and mobile chat UIs."""
+    vendor = get_object_or_404(User, id=vendor_id, user_type='vendor')
+    product = get_object_or_404(Product, id=product_id) if product_id else None
+
+    if not user_has_paid_subscription(vendor):
+        return JsonResponse({
+            'success': False,
+            'message': 'Vendor chat is available only for sellers with an active paid subscription. You can request a callback or use Arolana support.',
+        }, status=403)
+
+    room, created = VendorChatRoom.objects.get_or_create(
+        vendor=vendor,
+        customer=request.user,
+        product=product,
+        defaults={},
+    )
+    if created:
+        _report_vendor_chat_to_admin(room, event='started')
+        _record_vendor_chat_lead(request, room, 'chat_started', extra={'created_from': 'ajax_context'})
+    else:
+        _record_vendor_chat_lead(request, room, 'chat_click', extra={'created_from': 'ajax_context'})
+
+    room.messages.filter(is_read=False).exclude(sender=request.user).update(is_read=True, read_at=timezone.now())
+    room.customer_unread = 0
+    room.save(update_fields=['customer_unread', 'updated_at'])
+
+    messages_list = room.messages.select_related('sender').order_by('created_at')[:80]
+    vendor_profile = _vendor_profile_for(vendor)
+    return JsonResponse({
+        'success': True,
+        'room': {
+            'id': room.id,
+            'send_url': reverse('chat:customer_send', args=[room.id]),
+            'typing_url': reverse('chat:vendor_typing', args=[room.id]),
+            'typing_status_url': reverse('chat:vendor_typing_status', args=[room.id]),
+        },
+        'vendor': {
+            'id': vendor.id,
+            'name': _vendor_display_name(vendor),
+            'store_name': getattr(vendor_profile, 'store_name', '') if vendor_profile else '',
+        },
+        'product': {
+            'id': product.id,
+            'name': product.name,
+            'url': _product_absolute_url(request, product),
+        } if product else None,
+        'messages': [_vendor_chat_message_payload(message, request.user) for message in messages_list],
+    })
 
 @login_required
 def customer_chat_room(request, room_id):
