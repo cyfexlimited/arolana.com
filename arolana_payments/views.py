@@ -13,6 +13,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET
 
 from .models import ManualCryptoWallet, PayPalWebhookLog, PaymentMethod, PaymentStatus, PaymentTransaction
 from .services import (
@@ -56,6 +57,18 @@ def _json_body(request):
 
 def _json_error(message, status=400):
     return JsonResponse({"success": False, "message": str(message), "error": str(message)}, status=status)
+
+
+@require_GET
+def mobile_payment_options_api(request):
+    options = [
+        option for option in get_gateway_options()
+        if option.get("available") and option.get("gateway") in MOBILE_HOSTED_PAYMENT_METHODS
+    ]
+    return JsonResponse({
+        "success": True,
+        "payment_options": options,
+    })
 
 
 def _paypal_request_headers(request):

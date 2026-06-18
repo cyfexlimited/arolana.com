@@ -37,6 +37,7 @@ urlpatterns = [
     path("mobile/home/", views.mobile_home_api, name="mobile_home_api"),
     path("mobile/product-config/", views.mobile_product_config_api, name="mobile_product_config_api"),
     path("mobile/products/", views.mobile_products_api, name="mobile_products_api"),
+    path("mobile/categories/<slug:slug>/", views.mobile_category_detail_api, name="mobile_category_detail_api"),
     path("mobile/products/<slug:slug>/review/", views.mobile_product_review_api, name="mobile_product_review_api"),
     path("mobile/products/<slug:slug>/question/", views.mobile_product_question_api, name="mobile_product_question_api"),
     path("mobile/products/<slug:slug>/", views.mobile_product_detail_api, name="mobile_product_detail_api"),

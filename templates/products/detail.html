@@ -4751,63 +4751,88 @@
 
 
 <script>
+    /* ============================================================
+       AROLANA CKEDITOR / OVERVIEW VIDEO FIX
+       Fixes YouTube/Vimeo/direct video URLs pasted inside CKEditor.
+       Supports:
+       - CKEditor 5 mediaEmbed output: <figure class="media"><oembed url="..."></oembed></figure>
+       - normal links: <a href="https://youtu.be/...">
+       - plain URL text inside paragraphs/list items
+       - existing iframes/videos
+       ============================================================ */
     function arolanaGetOverviewVideoEmbed(url) {
         if (!url) return null;
 
         let cleanUrl = String(url).trim();
-        cleanUrl = cleanUrl.replace(/&amp;/g, '&');
+        cleanUrl = cleanUrl.replace(/&amp;/g, '&').replace(/[),.;]+$/, '');
 
         try {
             const parsed = new URL(cleanUrl);
             const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
             const path = parsed.pathname || '';
 
-            // YouTube normal URL
-            if (host === 'youtube.com' || host === 'm.youtube.com') {
-                const videoId = parsed.searchParams.get('v');
+            let videoId = '';
+
+            if (host === 'youtube.com' || host === 'm.youtube.com' || host === 'music.youtube.com') {
+                videoId = parsed.searchParams.get('v') || '';
+
+                if (!videoId) {
+                    const embedMatch = path.match(/\/embed\/([^/?]+)/);
+                    if (embedMatch && embedMatch[1]) videoId = embedMatch[1];
+                }
+
+                if (!videoId) {
+                    const shortsMatch = path.match(/\/shorts\/([^/?]+)/);
+                    if (shortsMatch && shortsMatch[1]) videoId = shortsMatch[1];
+                }
+
+                if (!videoId) {
+                    const liveMatch = path.match(/\/live\/([^/?]+)/);
+                    if (liveMatch && liveMatch[1]) videoId = liveMatch[1];
+                }
+
                 if (videoId) {
                     return {
                         type: 'iframe',
-                        embed: `https://www.youtube.com/embed/${videoId}`,
-                        label: 'Watch on YouTube'
-                    };
-                }
-
-                const shortsMatch = path.match(/\/shorts\/([^/?]+)/);
-                if (shortsMatch && shortsMatch[1]) {
-                    return {
-                        type: 'iframe',
-                        embed: `https://www.youtube.com/embed/${shortsMatch[1]}`,
+                        embed: 'https://www.youtube.com/embed/' + encodeURIComponent(videoId) + '?rel=0&modestbranding=1&playsinline=1',
                         label: 'Watch on YouTube'
                     };
                 }
             }
 
-            // YouTube short URL
             if (host === 'youtu.be') {
-                const videoId = path.replace('/', '').split('/')[0];
+                videoId = path.replace(/^\//, '').split('/')[0];
                 if (videoId) {
                     return {
                         type: 'iframe',
-                        embed: `https://www.youtube.com/embed/${videoId}`,
+                        embed: 'https://www.youtube.com/embed/' + encodeURIComponent(videoId) + '?rel=0&modestbranding=1&playsinline=1',
                         label: 'Watch on YouTube'
                     };
                 }
             }
 
-            // Vimeo
+            if (host === 'youtube-nocookie.com') {
+                const noCookieMatch = path.match(/\/embed\/([^/?]+)/);
+                if (noCookieMatch && noCookieMatch[1]) {
+                    return {
+                        type: 'iframe',
+                        embed: 'https://www.youtube.com/embed/' + encodeURIComponent(noCookieMatch[1]) + '?rel=0&modestbranding=1&playsinline=1',
+                        label: 'Watch on YouTube'
+                    };
+                }
+            }
+
             if (host === 'vimeo.com' || host === 'player.vimeo.com') {
                 const match = cleanUrl.match(/vimeo\.com\/(?:video\/)?([0-9]+)/);
                 if (match && match[1]) {
                     return {
                         type: 'iframe',
-                        embed: `https://player.vimeo.com/video/${match[1]}`,
+                        embed: 'https://player.vimeo.com/video/' + match[1],
                         label: 'Watch on Vimeo'
                     };
                 }
             }
 
-            // Direct video files
             if (cleanUrl.match(/\.(mp4|webm|ogg)(\?.*)?$/i)) {
                 return {
                     type: 'video',
@@ -4832,7 +4857,8 @@
             iframe.loading = 'lazy';
             iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
             iframe.allowFullscreen = true;
-            iframe.title = 'Product overview video';
+            iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+            iframe.title = 'Arolana product overview video';
             wrapper.appendChild(iframe);
         } else {
             const video = document.createElement('video');
@@ -4851,50 +4877,73 @@
         link.innerHTML = '<i class="fas fa-external-link-alt"></i> ' + (videoData.label || 'Open video');
 
         const container = document.createElement('div');
+        container.className = 'apd-overview-video-wrap';
         container.appendChild(wrapper);
         container.appendChild(link);
 
         return container;
     }
 
+    function arolanaExtractPlainVideoUrl(text) {
+        if (!text) return '';
+        const urlRegex = /(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/|youtu\.be\/|vimeo\.com\/|player\.vimeo\.com\/video\/)[^\s<]+|https?:\/\/[^\s<]+\.(?:mp4|webm|ogg)(?:\?[^\s<]+)?)/i;
+        const match = String(text).trim().match(urlRegex);
+        return match && match[0] ? match[0].replace(/[),.;]+$/, '') : '';
+    }
+
     function enhanceOverviewUrlVideos() {
         const overview = document.getElementById('product-overview-content');
-        if (!overview || overview.dataset.videoEnhanced === 'true') return;
+        if (!overview) return;
 
-        overview.dataset.videoEnhanced = 'true';
+        // 1) Convert CKEditor 5 media embeds: <figure class="media"><oembed url="..."></oembed></figure>
+        overview.querySelectorAll('oembed[url]').forEach(function (oembed) {
+            if (oembed.dataset.arolanaVideoDone === 'true') return;
 
-        // Convert video links to playable embeds.
-        overview.querySelectorAll('a[href]').forEach(function (link) {
-            const href = link.getAttribute('href');
-            const videoData = arolanaGetOverviewVideoEmbed(href);
-
+            const videoUrl = oembed.getAttribute('url') || '';
+            const videoData = arolanaGetOverviewVideoEmbed(videoUrl);
             if (!videoData) return;
-            if (link.closest('.apd-overview-video')) return;
 
+            const embed = arolanaBuildOverviewVideo(videoData, videoUrl);
+            const parentFigure = oembed.closest('figure.media, figure');
+
+            if (parentFigure && parentFigure.parentNode) {
+                parentFigure.replaceWith(embed);
+            } else {
+                oembed.replaceWith(embed);
+            }
+        });
+
+        // 2) Convert normal YouTube/Vimeo/direct-video links to playable embeds.
+        overview.querySelectorAll('a[href]').forEach(function (link) {
+            if (link.dataset.arolanaVideoDone === 'true') return;
+            if (link.closest('.apd-overview-video-wrap, .apd-overview-video')) return;
+
+            const href = link.getAttribute('href') || '';
+            const videoData = arolanaGetOverviewVideoEmbed(href);
+            if (!videoData) return;
+
+            link.dataset.arolanaVideoDone = 'true';
             const embed = arolanaBuildOverviewVideo(videoData, href);
             link.replaceWith(embed);
         });
 
-        // Convert plain URL text in simple paragraphs/list items into embeds.
-        const urlRegex = /(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtube\.com\/shorts\/|youtu\.be\/|vimeo\.com\/|player\.vimeo\.com\/video\/)[^\s<]+|https?:\/\/[^\s<]+\.(?:mp4|webm|ogg)(?:\?[^\s<]+)?)/i;
-
-        overview.querySelectorAll('p, li').forEach(function (node) {
-            if (node.querySelector('iframe, video, a, img')) return;
+        // 3) Convert plain URL text inside simple paragraphs/list items/divs into embeds.
+        overview.querySelectorAll('p, li, div').forEach(function (node) {
+            if (node.closest('.apd-overview-video-wrap, .apd-overview-video')) return;
+            if (node.querySelector('iframe, video, a, img, oembed, table, figure')) return;
+            if (node.dataset.arolanaVideoDone === 'true') return;
 
             const text = (node.textContent || '').trim();
-            const match = text.match(urlRegex);
+            const videoUrl = arolanaExtractPlainVideoUrl(text);
+            if (!videoUrl) return;
 
-            if (!match || !match[0]) return;
-
-            const videoUrl = match[0].replace(/[),.;]+$/, '');
             const videoData = arolanaGetOverviewVideoEmbed(videoUrl);
-
             if (!videoData) return;
 
+            node.dataset.arolanaVideoDone = 'true';
             const embed = arolanaBuildOverviewVideo(videoData, videoUrl);
 
-            // If paragraph/list only contains the URL, replace it. Otherwise insert after it.
-            if (text === match[0] || text.length <= match[0].length + 4) {
+            if (text === videoUrl || text.length <= videoUrl.length + 6) {
                 node.replaceWith(embed);
             } else {
                 node.insertAdjacentElement('afterend', embed);
@@ -4902,9 +4951,20 @@
         });
     }
 
-    document.addEventListener('DOMContentLoaded', enhanceOverviewUrlVideos);
+    document.addEventListener('DOMContentLoaded', function () {
+        enhanceOverviewUrlVideos();
+        setTimeout(enhanceOverviewUrlVideos, 350);
+        setTimeout(enhanceOverviewUrlVideos, 1000);
+    });
+
     document.addEventListener('alpine:init', function () {
         setTimeout(enhanceOverviewUrlVideos, 250);
+    });
+
+    document.addEventListener('click', function (event) {
+        if (event.target && event.target.closest('#product-overview-tab-button')) {
+            setTimeout(enhanceOverviewUrlVideos, 120);
+        }
     });
 </script>
 

@@ -17,6 +17,7 @@ from decimal import Decimal, InvalidOperation
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from core.local_cache import local_get_or_set
+from core.models import HomePageAppearance
 from core.media_optimization import get_optimized_image_url
 from .models import (
     Product, Category, ProductReview, Wishlist, RecentlyViewed, 
@@ -51,11 +52,25 @@ except ImportError:
     CurrencyConverter = None
 
 try:
-    from homepage.models import HomepageBanner, HomepageCategory, HomepageVendorSection
+    from homepage.models import HomepageBanner, HomepageCategory, HomepageVendorSection, HomepageVideoSection
 except ImportError:
     HomepageBanner = None
     HomepageCategory = None
     HomepageVendorSection = None
+    HomepageVideoSection = None
+
+try:
+    from hero_banners.models import HeroBanner
+except ImportError:
+    HeroBanner = None
+
+try:
+    from ads.models import Advertisement, AdBanner, AdCreative, AdPlacement
+except ImportError:
+    Advertisement = None
+    AdBanner = None
+    AdCreative = None
+    AdPlacement = None
 
 try:
     from mobile_customers.views import _auth_mobile_customer_from_request_data
@@ -2325,6 +2340,32 @@ def _mobile_file_url(request, file_field):
     return request.build_absolute_uri(file_url)
 
 
+def _category_descendant_ids(category):
+    if not category:
+        return []
+
+    category_ids = [category.id]
+    stack = list(category.children.filter(is_active=True).only("id"))
+
+    while stack:
+        child = stack.pop()
+        category_ids.append(child.id)
+        stack.extend(child.children.filter(is_active=True).only("id"))
+
+    return category_ids
+
+
+def _mobile_category_product_count(category):
+    if not category:
+        return 0
+
+    return Product.objects.filter(
+        category_id__in=_category_descendant_ids(category),
+        is_active=True,
+        approval_status="approved",
+    ).count()
+
+
 def _mobile_category_payload(request, category, include_children=True):
     if not category:
         return None
@@ -2333,7 +2374,7 @@ def _mobile_category_payload(request, category, include_children=True):
     if include_children:
         children = [
             _mobile_category_payload(request, child, include_children=False)
-            for child in category.children.filter(is_active=True).order_by("name")[:12]
+            for child in category.children.filter(is_active=True).order_by("name")
         ]
         children = [child for child in children if child]
 
@@ -2345,7 +2386,15 @@ def _mobile_category_payload(request, category, include_children=True):
         "image": _mobile_file_url(request, getattr(category, "image", None)),
         "background_image": _mobile_file_url(request, getattr(category, "background_image", None)),
         "url": request.build_absolute_uri(reverse("products:category", args=[category.slug])),
-        "product_count": category.get_total_products() if hasattr(category, "get_total_products") else 0,
+        "hero_title": getattr(category, "hero_title", "") or "",
+        "hero_subtitle": getattr(category, "hero_subtitle", "") or "",
+        "show_hero_title": bool(getattr(category, "show_hero_title", True)),
+        "show_hero_subtitle": bool(getattr(category, "show_hero_subtitle", True)),
+        "show_hero_text": bool(getattr(category, "show_hero_title", True) or getattr(category, "show_hero_subtitle", True)),
+        "hero_height_mobile": getattr(category, "hero_height_mobile", None) or 360,
+        "hero_image_brightness": getattr(category, "hero_image_brightness", None) or 62,
+        "hero_text_color": getattr(category, "hero_text_color", "") or "",
+        "product_count": _mobile_category_product_count(category),
         "children": children,
     }
 
@@ -2427,6 +2476,159 @@ def _mobile_vendor_payload(request, vendor_profile, include_products=False):
         payload["products"] = [_mobile_product_payload(request, product) for product in product_qs.select_related("category", "brand", "vendor")[:60]]
 
     return payload
+
+
+def _mobile_ad_payload(request, ad, ad_type):
+    if ad_type == "creative":
+        image = _mobile_file_url(request, getattr(ad, "image_mobile", None) or getattr(ad, "image", None))
+        return {
+            "id": f"creative-{ad.id}",
+            "type": "creative",
+            "title": ad.headline,
+            "description": ad.description,
+            "cta_text": ad.cta_text,
+            "cta_background_color": ad.cta_background_color,
+            "cta_text_color": ad.cta_text_color,
+            "url": ad.clickthrough_url,
+            "image": image,
+            "creative_type": ad.creative_type,
+        }
+
+    if ad_type == "banner":
+        image = _mobile_file_url(request, getattr(ad, "image_mobile", None) or getattr(ad, "image", None))
+        placement = getattr(ad, "placement", None)
+        return {
+            "id": f"banner-{ad.id}",
+            "type": "banner",
+            "title": ad.title,
+            "description": ad.description,
+            "cta_text": ad.cta_text,
+            "cta_background_color": ad.cta_background_color,
+            "cta_text_color": ad.cta_text_color,
+            "url": ad.target_url,
+            "image": image,
+            "video_url": ad.video_url,
+            "mobile_height": ad.mobile_height_override or ad.height_override or (placement.height if placement else 220),
+            "mobile_width": ad.mobile_width_override or ad.width_override or (placement.width if placement else 1200),
+            "mobile_image_fit": ad.mobile_image_fit,
+            "image_fit": ad.image_fit,
+        }
+
+    image = _mobile_file_url(request, getattr(ad, "image", None))
+    return {
+        "id": f"ad-{ad.id}",
+        "type": "simple",
+        "title": ad.title,
+        "description": ad.description,
+        "cta_text": ad.button_text,
+        "cta_background_color": ad.button_background_color,
+        "cta_text_color": ad.button_text_color,
+        "url": ad.target_url,
+        "image": image,
+        "is_featured": ad.is_featured,
+    }
+
+
+def _mobile_home_ads_payload(request, limit=8):
+    now = timezone.now()
+    ads_payload = []
+
+    if AdCreative:
+        creatives = (
+            AdCreative.objects.filter(
+                is_active=True,
+                campaign__status="active",
+                campaign__approved=True,
+                campaign__start_date__lte=now,
+            )
+            .filter(Q(campaign__end_date__isnull=True) | Q(campaign__end_date__gte=now))
+            .select_related("campaign")
+            .order_by("-ab_weight", "-created_at")[:limit]
+        )
+        ads_payload.extend(_mobile_ad_payload(request, creative, "creative") for creative in creatives)
+
+    if AdBanner and AdPlacement:
+        placement = AdPlacement.objects.filter(slug="homepage", is_active=True).first()
+        if placement:
+            banners = (
+                AdBanner.objects.filter(
+                    placement=placement,
+                    is_active=True,
+                    start_date__lte=now,
+                )
+                .filter(Q(end_date__isnull=True) | Q(end_date__gte=now))
+                .select_related("placement", "creative", "campaign")
+                .order_by("-priority", "-created_at")[:limit]
+            )
+            ads_payload.extend(_mobile_ad_payload(request, banner, "banner") for banner in banners)
+
+    if Advertisement:
+        simple_ads = Advertisement.objects.filter(
+            placement="homepage",
+            is_active=True,
+            start_date__lte=now,
+        ).filter(Q(end_date__isnull=True) | Q(end_date__gte=now))
+        if request.user.is_authenticated:
+            simple_ads = simple_ads.filter(show_to_logged_in=True)
+        else:
+            simple_ads = simple_ads.filter(show_to_guests=True)
+        ads_payload.extend(_mobile_ad_payload(request, ad, "simple") for ad in simple_ads.order_by("-is_featured", "-created_at")[:limit])
+
+    seen = set()
+    unique_ads = []
+    for ad in ads_payload:
+        if ad["id"] in seen:
+            continue
+        seen.add(ad["id"])
+        unique_ads.append(ad)
+        if len(unique_ads) >= limit:
+            break
+    return unique_ads
+
+
+def _mobile_home_video_payload(request):
+    if not HomepageVideoSection:
+        return {}
+
+    video = HomepageVideoSection.objects.filter(is_active=True).order_by("display_order", "id").first()
+    if not video:
+        return {}
+
+    video_url = ""
+    embed_url = ""
+    if video.video_source == "local" and video.local_video:
+        video_url = _mobile_file_url(request, video.local_video)
+    elif video.video_source == "youtube":
+        video_url = video.youtube_url
+        if video.youtube_id:
+            embed_url = f"https://www.youtube.com/embed/{video.youtube_id}"
+    elif video.video_source == "vimeo":
+        video_url = video.vimeo_url
+        if video.vimeo_id:
+            embed_url = f"https://player.vimeo.com/video/{video.vimeo_id}"
+
+    return {
+        "id": video.id,
+        "title": video.title,
+        "subtitle": video.subtitle,
+        "video_source": video.video_source,
+        "video_url": video_url,
+        "embed_url": embed_url,
+        "youtube_id": video.youtube_id,
+        "vimeo_id": video.vimeo_id,
+        "poster_image": _mobile_file_url(request, video.poster_image),
+        "position": video.position,
+        "info_position": video.info_position,
+        "video_height": video.video_height,
+        "autoplay": video.autoplay,
+        "loop": video.loop,
+        "show_controls": video.show_controls,
+        "background_color": video.background_color,
+        "text_color": video.text_color,
+        "button_text": video.button_text,
+        "button_url": video.button_url,
+        "button_color": video.button_color,
+    }
 
 
 def _mobile_product_payload(request, product):
@@ -2531,10 +2733,56 @@ def mobile_home_api(request):
         "-created_at",
     )[:48]
 
-    banner_payloads = []
+    hero_banner_payloads = []
+    if HeroBanner:
+        hero_banners = HeroBanner.objects.filter(is_active=True).order_by("display_order", "-created_at")[:8]
+        for banner in hero_banners:
+            hero_banner_payloads.append({
+                "id": banner.id,
+                "title": banner.title,
+                "subtitle": banner.subtitle,
+                "description": banner.description,
+                "show_content": banner.show_content,
+                "show_title": banner.show_title,
+                "show_subtitle": banner.show_subtitle,
+                "show_description": banner.show_description,
+                "show_button": banner.show_buttons,
+                "button_text": banner.button1_text,
+                "button_url": banner.button1_url,
+                "button1_text": banner.button1_text,
+                "button1_url": banner.button1_url,
+                "button2_text": banner.button2_text,
+                "button2_url": banner.button2_url,
+                "button3_text": banner.button3_text,
+                "button3_url": banner.button3_url,
+                "effective_slide_link_url": banner.effective_slide_link_url,
+                "slide_link_url": banner.slide_link_url,
+                "enable_slide_link": banner.enable_slide_link,
+                "mobile_content_layout": banner.mobile_content_layout,
+                "content_layout": banner.mobile_content_layout,
+                "text_alignment": banner.text_alignment,
+                "content_position": banner.content_position,
+                "overlay_color": banner.overlay_color,
+                "overlay_opacity": banner.overlay_opacity,
+                "text_color": banner.text_color,
+                "desktop_height": banner.desktop_height,
+                "tablet_height": banner.tablet_height,
+                "mobile_height": banner.mobile_height,
+                "image_fit_mobile": banner.image_fit_mobile,
+                "image_fit_tablet": banner.image_fit_tablet,
+                "image_fit_desktop": banner.image_fit_desktop,
+                "image_position_mobile": banner.image_position_mobile,
+                "image_mobile": _mobile_file_url(request, banner.image_mobile),
+                "image_tablet": _mobile_file_url(request, banner.image_tablet),
+                "image_desktop": _mobile_file_url(request, banner.image_desktop),
+                "image": _mobile_file_url(request, banner.image_mobile or banner.image_tablet or banner.image_desktop),
+                "source": "hero_banners",
+            })
+
+    promo_banner_payloads = []
     if HomepageBanner:
         banners = (
-            HomepageBanner.objects.filter(is_active=True)
+            HomepageBanner.objects.filter(is_active=True, show_on_homepage=True)
             .prefetch_related("uploaded_images")
             .order_by("display_order", "-id")[:8]
         )
@@ -2542,8 +2790,10 @@ def mobile_home_api(request):
             uploaded_images = [image for image in banner.uploaded_images.all() if image.is_active]
             background = next((image for image in uploaded_images if image.position == "background"), None)
             center = next((image for image in uploaded_images if image.position == "center"), None)
+            left = next((image for image in uploaded_images if image.position == "left"), None)
+            right = next((image for image in uploaded_images if image.position == "right"), None)
             image = background or center or (uploaded_images[0] if uploaded_images else None)
-            banner_payloads.append({
+            promo_banner_payloads.append({
                 "id": banner.id,
                 "title": banner.title,
                 "subtitle": banner.subtitle,
@@ -2560,8 +2810,34 @@ def mobile_home_api(request):
                 "tablet_height": banner.tablet_height,
                 "mobile_height": banner.mobile_height,
                 "image": _mobile_file_url(request, image.image) if image else None,
+                "background_image": _mobile_file_url(request, background.image) if background else None,
+                "center_image_upload": _mobile_file_url(request, center.image) if center else None,
+                "left_image_upload": _mobile_file_url(request, left.image) if left else None,
+                "right_image_upload": _mobile_file_url(request, right.image) if right else None,
+                "left_image": banner.left_image,
+                "right_image": banner.right_image,
+                "center_image": banner.center_image,
+                "banner_style": banner.banner_style,
+                "placement": banner.placement,
+                "show_content": banner.content_layout != "image_only",
                 "show_button": banner.show_button,
+                "source": "homepage_banners",
             })
+
+    homepage_background = {}
+    appearance = HomePageAppearance.objects.filter(is_active=True).order_by("-updated_at", "-id").first()
+    if appearance:
+        homepage_background = {
+            "desktop_background_image": _mobile_file_url(request, appearance.desktop_background_image),
+            "mobile_background_image": _mobile_file_url(request, appearance.mobile_background_image),
+            "image": _mobile_file_url(request, appearance.mobile_background_image or appearance.desktop_background_image),
+            "desktop_overlay_opacity": str(appearance.desktop_overlay_opacity),
+            "mobile_overlay_opacity": str(appearance.mobile_overlay_opacity),
+            "desktop_position": appearance.desktop_position,
+            "mobile_position": appearance.mobile_position,
+            "blur_background": appearance.blur_background,
+            "make_sections_glass": appearance.make_sections_glass,
+        }
 
     category_payloads = []
     if HomepageCategory:
@@ -2645,7 +2921,12 @@ def mobile_home_api(request):
     ][:12]
 
     return JsonResponse({
-        "hero_banners": banner_payloads,
+        "hero_banners": hero_banner_payloads,
+        "promo_banners": promo_banner_payloads,
+        "homepage_banners": promo_banner_payloads,
+        "homepage_background": homepage_background,
+        "homepage_ads": _mobile_home_ads_payload(request),
+        "homepage_video": _mobile_home_video_payload(request),
         "mega_categories": [category for category in category_payloads if category],
         "products": products,
         "recommended_products": products[:12],
@@ -2719,6 +3000,69 @@ def mobile_product_config_api(request):
 
 
 @require_GET
+def mobile_category_detail_api(request, slug):
+    category = get_object_or_404(Category, slug=slug, is_active=True)
+    sort = request.GET.get("sort", "").strip().lower()
+    page = request.GET.get("page", "1").strip()
+    page_size = request.GET.get("page_size", "24").strip()
+
+    try:
+        page_number = max(int(page), 1)
+    except (TypeError, ValueError):
+        page_number = 1
+
+    try:
+        per_page = min(max(int(page_size), 1), 60)
+    except (TypeError, ValueError):
+        per_page = 24
+
+    category_ids = _category_descendant_ids(category)
+    products = Product.objects.filter(
+        category_id__in=category_ids,
+        is_active=True,
+        approval_status="approved",
+    ).select_related("category", "brand", "vendor", "vendor__vendor_profile").prefetch_related("reviews")
+
+    if sort == "price_low":
+        products = order_storefront_products(products, "price")
+    elif sort == "price_high":
+        products = order_storefront_products(products, "-price")
+    elif sort == "newest":
+        products = order_storefront_products(products, "-created_at")
+    elif sort in {"top_rated", "rated"}:
+        products = order_storefront_products(products, "-rating_avg", "-rating_count")
+    else:
+        products = order_storefront_products(products, "-is_featured", "-created_at")
+
+    paginator = Paginator(products, per_page)
+    page_obj = paginator.get_page(page_number)
+    category_payload = _mobile_category_payload(request, category, include_children=True)
+
+    return JsonResponse({
+        "success": True,
+        "category": category_payload,
+        "breadcrumbs": [
+            {"name": ancestor.name, "slug": ancestor.slug}
+            for ancestor in category.get_ancestors()
+        ] + [{"name": category.name, "slug": category.slug}],
+        "subcategories": category_payload.get("children", []),
+        "products": [_mobile_product_payload(request, product) for product in page_obj.object_list],
+        "product_count": paginator.count,
+        "count": paginator.count,
+        "page": page_obj.number,
+        "page_size": per_page,
+        "has_next": page_obj.has_next(),
+        "has_previous": page_obj.has_previous(),
+        "sort_options": [
+            {"value": "featured", "label": "Featured"},
+            {"value": "newest", "label": "Newest"},
+            {"value": "price_low", "label": "Low price"},
+            {"value": "price_high", "label": "High price"},
+        ],
+    })
+
+
+@require_GET
 def mobile_products_api(request):
     products = Product.objects.filter(
         is_active=True,
@@ -2742,7 +3086,14 @@ def mobile_products_api(request):
     if query:
         products = apply_product_search(products, query)
     if category:
-        products = products.filter(Q(category__name__iexact=category) | Q(category__slug=category))
+        category_obj = Category.objects.filter(
+            Q(name__iexact=category) | Q(slug=category),
+            is_active=True,
+        ).first()
+        if category_obj:
+            products = products.filter(category_id__in=_category_descendant_ids(category_obj))
+        else:
+            products = products.filter(Q(category__name__iexact=category) | Q(category__slug=category))
     if brand:
         products = products.filter(Q(brand__name__iexact=brand) | Q(brand__slug=brand))
     if condition:
@@ -3130,6 +3481,23 @@ def mobile_product_detail_api(request, slug):
         "weight": str(getattr(shipping_info, "weight_shipping", "") or getattr(product, "weight", "") or ""),
         "dimensions": getattr(shipping_info, "dimensions_package", "") if shipping_info else "",
         "restrictions": getattr(shipping_info, "shipping_restrictions", "") if shipping_info else "",
+        "hazmat": bool(getattr(shipping_info, "hazmat", False)) if shipping_info else False,
+    }
+    package_details = {
+        "weight": str(getattr(product, "weight", "") or ""),
+        "weight_unit": getattr(product, "weight_unit", "") or "",
+        "package_weight": str(getattr(shipping_info, "weight_shipping", "") or ""),
+        "dimensions_length": str(getattr(product, "dimensions_length", "") or ""),
+        "dimensions_width": str(getattr(product, "dimensions_width", "") or ""),
+        "dimensions_height": str(getattr(product, "dimensions_height", "") or ""),
+        "dimension_unit": getattr(product, "dimension_unit", "") or "",
+        "package_dimensions": getattr(shipping_info, "dimensions_package", "") if shipping_info else getattr(product, "dimensions", "") or "",
+        "free_shipping": getattr(shipping_info, "free_shipping", False) if shipping_info else False,
+        "estimated_delivery": shipping_info.delivery_estimate() if shipping_info else "",
+        "estimated_delivery_days_min": getattr(shipping_info, "estimated_delivery_days_min", None) if shipping_info else None,
+        "estimated_delivery_days_max": getattr(shipping_info, "estimated_delivery_days_max", None) if shipping_info else None,
+        "shipping_restrictions": getattr(shipping_info, "shipping_restrictions", "") if shipping_info else "",
+        "hazmat": bool(getattr(shipping_info, "hazmat", False)) if shipping_info else False,
     }
 
     wholesale_tiers = [
@@ -3194,6 +3562,7 @@ def mobile_product_detail_api(request, slug):
         "sample_price": str(getattr(product, "sample_price", "") or ""),
         "shipping_weight": getattr(product, "formatted_weight", "") or str(getattr(product, "weight", "") or ""),
         "package_dimensions": getattr(product, "dimensions", "") or "",
+        "package_details": package_details,
         "wholesale_tiers": wholesale_tiers,
         "accessories": accessories,
         "rfq_available": bool(vendor_profile),

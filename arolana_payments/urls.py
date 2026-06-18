@@ -15,6 +15,7 @@ urlpatterns = [
     path("verify/<str:reference>/", views.verify_payment, name="verify"),
     path("api/mobile/initialize/", views.mobile_initialize_payment_api, name="mobile_initialize"),
     path("api/mobile/verify/", views.mobile_verify_payment_api, name="mobile_verify"),
+    path("api/mobile/options/", views.mobile_payment_options_api, name="mobile_options"),
 
     path("paypal/webhook/", views.paypal_webhook, name="paypal_webhook"),
     path("webhooks/flutterwave/", views.flutterwave_webhook, name="flutterwave_webhook"),
