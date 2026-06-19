@@ -165,6 +165,8 @@
             <h3 class="text-sm font-semibold text-gray-800 truncate hover:text-blue-600">
                 <a href="{{ product.get_absolute_url }}">{{ product.name }}</a>
             </h3>
+
+            {% include "products/partials/product_vendor_meta.html" with product=product %}
             
             <div class="flex items-center mt-2">
                 <div class="flex text-yellow-400">

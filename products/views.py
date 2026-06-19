@@ -1634,6 +1634,11 @@ def product_detail(request, slug):
 
     vendor_profile = getattr(product.vendor, "vendor_profile", None)
     vendor_contact_options = _vendor_contact_options(vendor_profile, product=product, request=request)
+    condition_value = getattr(product, "condition", "") or ""
+    condition_label = getattr(product, "condition_label", "") or condition_value.replace("_", " ").title()
+    vendor_name = getattr(product, "vendor_display_name", "") or (getattr(vendor_profile, "store_name", "") if vendor_profile else "")
+    vendor_package = getattr(product, "vendor_package_name", "") or (getattr(vendor_profile, "active_plan_name", "") if vendor_profile else "")
+    location_label = getattr(product, "location_label", "") or ""
 
     context = {
         'product': product,
@@ -2833,7 +2838,7 @@ def _mobile_vendor_payload(request, vendor_profile, include_products=False):
         badges.append("Trusted Supplier")
     if getattr(vendor_profile, "is_top_rated", False):
         badges.append("Top Supplier")
-    subscription_badge = getattr(vendor_profile, "badge_level", "") or getattr(vendor_profile, "subscription_plan_label", "")
+    subscription_badge = getattr(vendor_profile, "active_plan_name", "") or getattr(vendor_profile, "badge_level", "") or getattr(vendor_profile, "subscription_plan_label", "")
     if subscription_badge:
         badges.append(subscription_badge)
 
@@ -2846,6 +2851,11 @@ def _mobile_vendor_payload(request, vendor_profile, include_products=False):
         "vendor_type": vendor_type,
         "vendor_type_display": vendor_type_display,
         "country": getattr(vendor_profile, "country", ""),
+        "address_line_1": getattr(vendor_profile, "address_line_1", ""),
+        "city": getattr(vendor_profile, "city", ""),
+        "state": getattr(vendor_profile, "state", ""),
+        "location": getattr(vendor_profile, "location_label", ""),
+        "location_label": getattr(vendor_profile, "location_label", ""),
         "logo": _mobile_file_url(request, getattr(vendor_profile, "store_logo", None)),
         "banner": _mobile_file_url(request, getattr(vendor_profile, "store_banner", None)),
         "description": getattr(vendor_profile, "description", ""),
@@ -2855,6 +2865,8 @@ def _mobile_vendor_payload(request, vendor_profile, include_products=False):
         "manufacturer_badge_label": getattr(vendor_profile, "manufacturer_badge_label", "") or "Verified Manufacturer",
         "badges": badges,
         "subscription_tier": getattr(vendor_profile, "subscription_tier", "free"),
+        "vendor_package": subscription_badge,
+        "vendor_package_name": subscription_badge,
         "subscription_label": subscription_badge,
         "subscription_badge": subscription_badge,
         "rating_avg": str(getattr(vendor_profile, "rating_avg", "0") or "0"),
@@ -2866,7 +2878,20 @@ def _mobile_vendor_payload(request, vendor_profile, include_products=False):
         "fulfillment_rate": str(getattr(vendor_profile, "fulfillment_rate", "") or ""),
         "return_rate": str(getattr(vendor_profile, "return_rate", "") or ""),
         "support_email": getattr(vendor_profile, "support_email", ""),
+        "support_phone": getattr(vendor_profile, "support_phone", ""),
+        "business_phone": getattr(vendor_profile, "business_phone", ""),
+        "whatsapp_number": getattr(vendor_profile, "whatsapp_number", ""),
         "website": getattr(vendor_profile, "website", ""),
+        "store_slogan": getattr(vendor_profile, "store_slogan", ""),
+        "storefront_accent_color": getattr(vendor_profile, "storefront_accent", "#FF7A00"),
+        "store_video_url": getattr(vendor_profile, "store_video_url", ""),
+        "featured_categories": getattr(vendor_profile, "featured_category_list", []),
+        "store_gallery": getattr(vendor_profile, "store_gallery_list", []),
+        "featured_products_note": getattr(vendor_profile, "featured_products_note", ""),
+        "business_hours": getattr(vendor_profile, "business_hours", ""),
+        "return_policy": getattr(vendor_profile, "return_policy", ""),
+        "warranty_note": getattr(vendor_profile, "warranty_note", ""),
+        "delivery_note": getattr(vendor_profile, "delivery_note", ""),
         "business_address": getattr(vendor_profile, "business_address", ""),
         "manufacturer_address": getattr(vendor_profile, "manufacturer_address", ""),
         "warehouse_address": getattr(vendor_profile, "warehouse_address", ""),
@@ -2885,7 +2910,7 @@ def _mobile_vendor_payload(request, vendor_profile, include_products=False):
     }
 
     if include_products:
-        payload["products"] = [_mobile_product_payload(request, product) for product in product_qs.select_related("category", "brand", "vendor")[:60]]
+        payload["products"] = [_mobile_product_payload(request, product) for product in product_qs.select_related("category", "brand", "vendor", "vendor__vendor_profile")[:60]]
 
     return payload
 
@@ -3063,7 +3088,11 @@ def _mobile_product_payload(request, product):
     vendor_type_display = vendor_profile.get_vendor_type_display() if vendor_profile and hasattr(vendor_profile, "get_vendor_type_display") else vendor_type.replace("_", " ").title()
     manufacturer_verified = bool(vendor_type == "manufacturer" and getattr(vendor_profile, "manufacturer_verified", False)) if vendor_profile else False
     vendor_verified = bool(getattr(vendor_profile, "is_verified", False)) if vendor_profile else False
-    vendor_name = getattr(vendor_profile, "store_name", "") if vendor_profile else ""
+    vendor_name = getattr(product, "vendor_display_name", "") or (getattr(vendor_profile, "store_name", "") if vendor_profile else "")
+    vendor_package = getattr(product, "vendor_package_name", "") or (getattr(vendor_profile, "active_plan_name", "") if vendor_profile else "")
+    condition_value = getattr(product, "condition", "") or ""
+    condition_label = getattr(product, "condition_label", "") or condition_value.replace("_", " ").title()
+    location_label = getattr(product, "location_label", "") or ""
 
     badges = []
     if vendor_verified:
@@ -3099,7 +3128,10 @@ def _mobile_product_payload(request, product):
         "category_slug": getattr(category, "slug", "") if category else "",
         "brand_name": brand_name,
         "brand": brand_name,
-        "condition": getattr(product, "condition", "") or "",
+        "condition": condition_label,
+        "condition_label": condition_label,
+        "condition_value": condition_value,
+        "product_condition": condition_value,
         "sku": getattr(product, "sku", "") or "",
         "arolana_sku": getattr(product, "sku", "") or "",
         "stock_quantity": getattr(product, "stock_quantity", 0) or 0,
@@ -3114,9 +3146,13 @@ def _mobile_product_payload(request, product):
         "vendor_id": getattr(vendor_profile, "id", None),
         "vendor_user_id": getattr(vendor_user, "id", None),
         "vendor_name": vendor_name,
+        "vendor_package": vendor_package,
+        "vendor_package_name": vendor_package,
         "vendor_type": vendor_type,
         "vendor_type_display": vendor_type_display,
         "vendor_verified": vendor_verified,
+        "location": location_label,
+        "location_label": location_label,
         "manufacturer_verified": manufacturer_verified,
         "subscription_tier": getattr(vendor_profile, "subscription_tier", "free") if vendor_profile else "free",
         "subscription_label": subscription_badge,
@@ -3694,7 +3730,7 @@ def mobile_product_question_api(request, slug):
 @require_GET
 def mobile_product_detail_api(request, slug):
     product = get_object_or_404(
-        Product.objects.select_related("category", "brand", "vendor").prefetch_related(
+        Product.objects.select_related("category", "brand", "vendor", "vendor__vendor_profile").prefetch_related(
             "images",
             "variants",
             "variants__images",
@@ -3954,6 +3990,11 @@ def mobile_product_detail_api(request, slug):
         except Exception:
             vendor_url = ""
     vendor_contact_options = _vendor_contact_options(vendor_profile, product=product, request=request)
+    condition_value = getattr(product, "condition", "") or ""
+    condition_label = getattr(product, "condition_label", "") or condition_value.replace("_", " ").title()
+    vendor_name = getattr(product, "vendor_display_name", "") or (getattr(vendor_profile, "store_name", "") if vendor_profile else "")
+    vendor_package = getattr(product, "vendor_package_name", "") or (getattr(vendor_profile, "active_plan_name", "") if vendor_profile else "")
+    location_label = getattr(product, "location_label", "") or ""
 
     chat_url = ""
     if vendor:
@@ -3969,7 +4010,10 @@ def mobile_product_detail_api(request, slug):
         "sku": product.sku,
         "arolana_sku": product.sku,
         "manufacturer_sku": getattr(product, "manufacturer_sku", ""),
-        "condition": product.get_condition_display() if hasattr(product, "get_condition_display") else getattr(product, "condition", ""),
+        "condition": condition_label,
+        "condition_label": condition_label,
+        "condition_value": condition_value,
+        "product_condition": condition_value,
         "price": str(product.price),
         "compare_price": str(getattr(product, "compare_price", "") or ""),
         "wholesale_price": str(getattr(product, "wholesale_price", "") or ""),
@@ -3996,6 +4040,12 @@ def mobile_product_detail_api(request, slug):
         "specifications_text": strip_tags(getattr(product, "specifications", "") or ""),
         "category_name": category.name if category else "Arolana",
         "brand_name": brand.name if brand else "",
+        "vendor_name": vendor_name,
+        "vendor_verified": getattr(product, "vendor_verified", False),
+        "vendor_package": vendor_package,
+        "vendor_package_name": vendor_package,
+        "location": location_label,
+        "location_label": location_label,
         "stock_quantity": getattr(product, "stock_quantity", 0),
         "rating_avg": str(getattr(product, "rating_avg", "0") or "0"),
         "rating_count": getattr(product, "rating_count", 0),

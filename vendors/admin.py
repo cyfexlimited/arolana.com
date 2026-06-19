@@ -22,41 +22,48 @@ class VendorFactoryPhotoInline(admin.TabularInline):
 
 @admin.register(VendorProfile)
 class VendorProfileAdmin(admin.ModelAdmin):
-    list_display = ['store_name', 'user', 'vendor_type', 'approval_status', 'is_verified', 'manufacturer_verified', 'direct_contact_status', 'kyc_status', 'pickup_ready', 'subscription_tier', 'subscription_active', 'subscription_expires_at', 'priority_score', 'profile_completion_display', 'rating_avg', 'total_sales', 'logo_preview', 'banner_preview']
+    list_display = ['store_name', 'user', 'vendor_type', 'approval_status', 'is_verified', 'manufacturer_verified', 'marketplace_location', 'direct_contact_status', 'kyc_status', 'pickup_ready', 'subscription_tier', 'subscription_active', 'subscription_expires_at', 'priority_score', 'profile_completion_display', 'rating_avg', 'total_sales', 'logo_preview', 'banner_preview']
     list_filter = ['vendor_type', 'approval_status', 'is_verified', 'manufacturer_verified', 'allow_phone_display', 'allow_whatsapp_display', 'allow_callback_requests', 'is_active', 'subscription_tier', 'subscription_active']
     search_fields = ['store_name', 'company_name', 'user__email', 'user__username', 'support_phone', 'business_phone', 'whatsapp_number', 'pickup_phone']
     prepopulated_fields = {'store_slug': ['store_name']}
-    readonly_fields = ['rating_avg', 'total_sales', 'followers_count', 'priority_score', 'pickup_map_preview', 'approved_at', 'profile_completion_display', 'logo_preview', 'banner_preview']
+    readonly_fields = ['rating_avg', 'total_sales', 'followers_count', 'priority_score', 'pickup_map_preview', 'approved_at', 'profile_completion_display', 'logo_preview', 'banner_preview', 'created_at', 'updated_at']
     inlines = [VendorFactoryPhotoInline]
     actions = ['approve_vendors', 'reject_vendors', 'suspend_vendors', 'activate_vendors', 'mark_verified', 'mark_unverified', 'mark_manufacturer_verified']
 
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        for field_name in ("address_line_1", "city", "state", "country"):
+            if field_name in form.base_fields:
+                form.base_fields[field_name].required = True
+                form.base_fields[field_name].widget.attrs.setdefault("required", "required")
+        return form
+
     fieldsets = (
-        ('Store', {
-            'fields': ('user', 'store_name', 'store_slug', 'description', 'store_logo', 'logo_preview', 'store_banner', 'banner_preview')
+        ('Business Identity', {
+            'fields': ('user', 'store_name', 'store_slug', 'company_name', 'vendor_type', 'description', 'website', 'preferred_language', 'preferred_currency', 'profile_completion_display')
         }),
-        ('Company / Manufacturer Profile', {
+        ('Storefront Design', {
+            'fields': ('store_slogan', 'storefront_accent_color', 'featured_categories', 'featured_products_note')
+        }),
+        ('Storefront Media', {
+            'fields': ('store_logo', 'logo_preview', 'store_banner', 'banner_preview', 'store_video_url', 'store_gallery_notes')
+        }),
+        ('Address & Location', {
+            'fields': ('address_line_1', 'city', 'state', 'country', 'business_address', 'manufacturer_address', 'warehouse_address')
+        }),
+        ('Policies & Support', {
+            'fields': ('support_email', 'support_phone', 'business_phone', 'whatsapp_number', 'business_hours', 'return_policy', 'warranty_note', 'delivery_note')
+        }),
+        ('Manufacturer Profile', {
             'fields': (
-                'company_name', 'vendor_type', 'country', 'business_address', 'manufacturer_address',
-                'warehouse_address', 'support_email', 'support_phone', 'business_phone', 'whatsapp_number', 'website',
-                'preferred_language', 'preferred_currency', 'profile_completion_display',
                 'factory_name', 'factory_video_url', 'years_in_business', 'number_of_employees',
                 'production_capacity', 'quality_control_details', 'export_countries', 'main_product_categories',
             )
         }),
-        ('Verification', {
+        ('Verification & Plan', {
             'fields': (
                 'approval_status', 'approval_note', 'rejection_reason', 'approved_by', 'approved_at',
-                'is_verified', 'verification_documents', 'manufacturer_verified', 'manufacturer_badge_label'
-            )
-        }),
-        ('Controlled Direct Contact', {
-            'fields': (
-                'allow_phone_display', 'allow_whatsapp_display', 'allow_callback_requests',
-            ),
-            'description': 'Backend-gated customer contact. Phone/WhatsApp are exposed only when vendor opts in, the subscription plan allows it, and the vendor is approved, verified, and active.'
-        }),
-        ('Subscription Controls', {
-            'fields': (
+                'is_verified', 'verification_documents', 'manufacturer_verified', 'manufacturer_badge_label',
                 'subscription_tier', 'subscription_active', 'subscription_started_at', 'subscription_expires_at', 'subscription_expiry',
                 'product_limit', 'image_limit', 'variant_limit',
                 'can_upload_video', 'can_upload_pdf', 'can_upload_certificates', 'can_access_rfq',
@@ -65,7 +72,13 @@ class VendorProfileAdmin(admin.ModelAdmin):
                 'priority_score', 'support_level', 'badge_level',
             )
         }),
-        ('Performance', {
+        ('Controlled Direct Contact', {
+            'fields': (
+                'allow_phone_display', 'allow_whatsapp_display', 'allow_callback_requests',
+            ),
+            'description': 'Backend-gated customer contact. Phone/WhatsApp are exposed only when vendor opts in, the subscription plan allows it, and the vendor is approved, verified, and active.'
+        }),
+        ('Performance Metrics', {
             'fields': ('rating_avg', 'total_sales', 'total_reviews', 'followers_count', 'response_time', 'fulfillment_rate', 'return_rate')
         }),
         ('Delivery Pickup Location', {
@@ -75,8 +88,9 @@ class VendorProfileAdmin(admin.ModelAdmin):
         ('Badges', {
             'fields': ('is_top_rated', 'is_best_seller', 'is_trusted')
         }),
-        ('Status', {
-            'fields': ('is_active',)
+        ('Timestamps', {
+            'fields': ('is_active', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
         }),
     )
     
@@ -97,6 +111,12 @@ class VendorProfileAdmin(admin.ModelAdmin):
             return "0%"
         return f"{obj.profile_completion_percent}%"
     profile_completion_display.short_description = 'Profile completion'
+
+    def marketplace_location(self, obj):
+        if getattr(obj, 'address_is_complete', False):
+            return format_html('<span style="color:#16a34a;font-weight:700;">{}</span>', obj.location_label or obj.country)
+        return format_html('<span style="color:#dc2626;font-weight:700;">Missing address</span>')
+    marketplace_location.short_description = 'Location'
 
     def pickup_ready(self, obj):
         if obj.pickup_location_is_ready:

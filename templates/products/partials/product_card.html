@@ -26,6 +26,7 @@
     <div class="p-3">
         <div class="text-xs text-gray-500 mb-1 truncate">{{ product.brand.name|default:product.category.name }}</div>
         <a href="{{ product.get_absolute_url }}" class="font-semibold text-sm hover:text-blue-600 line-clamp-2 block">{{ product.name }}</a>
+        {% include "products/partials/product_vendor_meta.html" with product=product %}
         <div class="product-grid-rating mt-1">
             {% for i in "12345"|make_list %}
                 {% if forloop.counter <= product.rating_avg|add:"0" %}

@@ -608,6 +608,11 @@ class Product(BaseModel):
             raise ValidationError("Stock quantity cannot be negative")
         if self.manual_pdf and not str(self.manual_pdf.name).lower().endswith('.pdf'):
             raise ValidationError({"manual_pdf": "Only PDF manuals or brochures are allowed."})
+        vendor_profile = self.vendor_profile
+        if self.approval_status == 'approved' and vendor_profile and not vendor_profile.address_is_complete:
+            raise ValidationError({
+                "vendor": "Vendor address, city, state, and country must be completed before publishing approved products."
+            })
     
     def save(self, *args, **kwargs):
         self.clean()
@@ -638,6 +643,48 @@ class Product(BaseModel):
     
     def get_absolute_url(self):
         return reverse('products:detail', kwargs={'slug': self.slug})
+
+    @property
+    def vendor_profile(self):
+        vendor_user = getattr(self, "vendor", None)
+        if not vendor_user:
+            return None
+        try:
+            return vendor_user.vendor_profile
+        except Exception:
+            return None
+
+    @property
+    def vendor_display_name(self):
+        profile = self.vendor_profile
+        if profile:
+            return profile.display_name
+        vendor_user = getattr(self, "vendor", None)
+        if vendor_user:
+            return vendor_user.get_full_name() or vendor_user.username or vendor_user.email or "Arolana Vendor"
+        return "Arolana Vendor"
+
+    @property
+    def vendor_verified(self):
+        profile = self.vendor_profile
+        return bool(profile and (profile.is_verified or profile.manufacturer_verified or profile.has_verified_kyc()))
+
+    @property
+    def vendor_package_name(self):
+        profile = self.vendor_profile
+        return profile.active_plan_name if profile else "Vendor"
+
+    @property
+    def condition_label(self):
+        try:
+            return self.get_condition_display()
+        except Exception:
+            return str(self.condition or "").replace("_", " ").title()
+
+    @property
+    def location_label(self):
+        profile = self.vendor_profile
+        return profile.location_label if profile else ""
     
     @property
     def discount_percent(self):

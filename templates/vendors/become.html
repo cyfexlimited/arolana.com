@@ -108,6 +108,29 @@
                               placeholder="Tell customers about your store, what products you sell, and why they should buy from you..."></textarea>
                 </div>
 
+                <div class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <h3 class="text-xl font-black text-gray-900">Marketplace Address</h3>
+                    <p class="mt-1 text-sm text-gray-600">Customers will see your city/state as the product location. This also helps Arolana trust and delivery checks.</p>
+                    <div class="mt-4">
+                        <label class="block text-gray-700 font-semibold mb-2">Business address *</label>
+                        <input type="text" name="address_line_1" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Building, street, area">
+                    </div>
+                    <div class="mt-4 grid gap-4 md:grid-cols-3">
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2">City *</label>
+                            <input type="text" name="city" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ikeja">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2">State *</label>
+                            <input type="text" name="state" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Lagos">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2">Country *</label>
+                            <input type="text" name="country" required value="Nigeria" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nigeria">
+                        </div>
+                    </div>
+                </div>
+
                 <div class="mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
                     <h3 class="text-xl font-black text-gray-900">Exact Pickup Location</h3>
                     <p class="mt-1 text-sm text-gray-600">This is what Arolana uses to calculate delivery fees and send nearby riders to the right store or warehouse.</p>

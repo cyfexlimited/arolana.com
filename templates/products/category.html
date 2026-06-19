@@ -27,6 +27,7 @@
                 </a>
                 <div class="p-4">
                     <a href="{{ product.get_absolute_url }}" class="font-semibold text-lg hover:text-blue-600">{{ product.name }}</a>
+                    {% include "products/partials/product_vendor_meta.html" with product=product %}
                     <div class="mt-2">
                         <span class="text-2xl font-bold text-blue-600">{{ product.price|currency:request }}</span>
                         {% if product.compare_price %}

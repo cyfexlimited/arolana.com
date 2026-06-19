@@ -207,14 +207,18 @@ def become_vendor(request):
         store_name = request.POST.get("store_name", "").strip()
         store_slug = request.POST.get("store_slug", "").strip()
         description = request.POST.get("description", "").strip()
+        address_line_1 = request.POST.get("address_line_1", "").strip()
+        city = request.POST.get("city", "").strip()
+        state = request.POST.get("state", "").strip()
+        country = request.POST.get("country", "Nigeria").strip() or "Nigeria"
         pickup_contact_name = request.POST.get("pickup_contact_name", "").strip()
         pickup_phone = request.POST.get("pickup_phone", "").strip()
         pickup_address = request.POST.get("pickup_address", "").strip()
         pickup_latitude = _decimal_or_none(request.POST.get("pickup_latitude"))
         pickup_longitude = _decimal_or_none(request.POST.get("pickup_longitude"))
 
-        if not store_name or not store_slug or not description or not pickup_address or pickup_latitude is None or pickup_longitude is None:
-            messages.error(request, "Please fill in all required fields and set an accurate pickup map pin.")
+        if not store_name or not store_slug or not description or not address_line_1 or not city or not state or not country or not pickup_address or pickup_latitude is None or pickup_longitude is None:
+            messages.error(request, "Please fill in all required fields, including vendor address, city, state, country, and an accurate pickup map pin.")
             return render(request, "vendors/become.html")
 
         if VendorProfile.objects.filter(store_slug=store_slug).exists():
@@ -226,6 +230,11 @@ def become_vendor(request):
             store_name=store_name,
             store_slug=store_slug,
             description=description,
+            address_line_1=address_line_1,
+            city=city,
+            state=state,
+            country=country,
+            business_address=address_line_1,
             pickup_contact_name=pickup_contact_name,
             pickup_phone=pickup_phone,
             pickup_address=pickup_address,

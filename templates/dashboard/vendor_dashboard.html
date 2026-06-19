@@ -204,11 +204,19 @@
                 <label class="text-sm font-bold text-slate-700">Store name<input name="store_name" value="{{ vendor_profile.store_name }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
                 <label class="text-sm font-bold text-slate-700">Company name<input name="company_name" value="{{ vendor_profile.company_name }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
                 <label class="text-sm font-bold text-slate-700">Vendor type<select name="vendor_type" class="mt-1 w-full rounded-xl border border-slate-200 p-3">{% for value,label in vendor_profile.VENDOR_TYPE_CHOICES %}<option value="{{ value }}" {% if vendor_profile.vendor_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+                <label class="text-sm font-bold text-slate-700">Address<input name="address_line_1" value="{{ vendor_profile.address_line_1 }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
+                <label class="text-sm font-bold text-slate-700">City<input name="city" value="{{ vendor_profile.city }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
+                <label class="text-sm font-bold text-slate-700">State<input name="state" value="{{ vendor_profile.state }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
                 <label class="text-sm font-bold text-slate-700">Country<input name="country" value="{{ vendor_profile.country }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
                 <label class="text-sm font-bold text-slate-700">Support email<input name="support_email" value="{{ vendor_profile.support_email }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
                 <label class="text-sm font-bold text-slate-700">Support phone<input name="support_phone" value="{{ vendor_profile.support_phone }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
+                <label class="text-sm font-bold text-slate-700">Business phone<input name="business_phone" value="{{ vendor_profile.business_phone }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
+                <label class="text-sm font-bold text-slate-700">WhatsApp<input name="whatsapp_number" value="{{ vendor_profile.whatsapp_number }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
                 <label class="text-sm font-bold text-slate-700">Website<input name="website" value="{{ vendor_profile.website }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
                 <label class="text-sm font-bold text-slate-700">Pickup phone<input name="pickup_phone" value="{{ vendor_profile.pickup_phone }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
+                <label class="text-sm font-bold text-slate-700">Store slogan<input name="store_slogan" value="{{ vendor_profile.store_slogan }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3" placeholder="Premium AV solutions for modern teams"></label>
+                <label class="text-sm font-bold text-slate-700">Accent color<input name="storefront_accent_color" value="{{ vendor_profile.storefront_accent }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3" placeholder="#FF7A00"></label>
+                <label class="text-sm font-bold text-slate-700 md:col-span-2">Store video URL<input name="store_video_url" value="{{ vendor_profile.store_video_url }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3" placeholder="https://youtube.com/..."></label>
                 <label class="text-sm font-bold text-slate-700">Language<select name="preferred_language" class="mt-1 w-full rounded-xl border border-slate-200 p-3">
                     <option value="english" {% if vendor_profile.preferred_language == "english" %}selected{% endif %}>English</option>
                     <option value="french" {% if vendor_profile.preferred_language == "french" %}selected{% endif %}>French</option>
@@ -229,6 +237,15 @@
             </div>
             <label class="mt-4 block text-sm font-bold text-slate-700">Store description<textarea name="description" rows="3" class="mt-1 w-full rounded-xl border border-slate-200 p-3">{{ vendor_profile.description }}</textarea></label>
             <label class="mt-4 block text-sm font-bold text-slate-700">Business address<textarea name="business_address" rows="2" class="mt-1 w-full rounded-xl border border-slate-200 p-3">{{ vendor_profile.business_address }}</textarea></label>
+            <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                <label class="text-sm font-bold text-slate-700">Featured categories<textarea name="featured_categories" rows="4" class="mt-1 w-full rounded-xl border border-slate-200 p-3" placeholder="One category per line">{{ vendor_profile.featured_categories }}</textarea></label>
+                <label class="text-sm font-bold text-slate-700">Gallery notes / image URLs<textarea name="store_gallery_notes" rows="4" class="mt-1 w-full rounded-xl border border-slate-200 p-3" placeholder="One image URL or note per line">{{ vendor_profile.store_gallery_notes }}</textarea></label>
+                <label class="text-sm font-bold text-slate-700">Business hours<textarea name="business_hours" rows="3" class="mt-1 w-full rounded-xl border border-slate-200 p-3">{{ vendor_profile.business_hours }}</textarea></label>
+                <label class="text-sm font-bold text-slate-700">Featured products note<textarea name="featured_products_note" rows="3" class="mt-1 w-full rounded-xl border border-slate-200 p-3">{{ vendor_profile.featured_products_note }}</textarea></label>
+                <label class="text-sm font-bold text-slate-700">Warranty/support note<textarea name="warranty_note" rows="3" class="mt-1 w-full rounded-xl border border-slate-200 p-3">{{ vendor_profile.warranty_note }}</textarea></label>
+                <label class="text-sm font-bold text-slate-700">Delivery note<textarea name="delivery_note" rows="3" class="mt-1 w-full rounded-xl border border-slate-200 p-3">{{ vendor_profile.delivery_note }}</textarea></label>
+            </div>
+            <label class="mt-4 block text-sm font-bold text-slate-700">Return policy<textarea name="return_policy" rows="3" class="mt-1 w-full rounded-xl border border-slate-200 p-3">{{ vendor_profile.return_policy }}</textarea></label>
         </form>
         <form method="post" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             {% csrf_token %}

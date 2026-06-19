@@ -82,6 +82,42 @@
             -webkit-line-clamp: 2;
         }
 
+        .homepage-vendor-badges,
+        .homepage-vendor-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .4rem;
+            margin-top: .55rem;
+        }
+
+        .homepage-vendor-chip {
+            align-items: center;
+            border-radius: 999px;
+            display: inline-flex;
+            gap: .3rem;
+            font-size: .68rem;
+            font-weight: 900;
+            line-height: 1;
+            padding: .35rem .55rem;
+        }
+
+        .homepage-vendor-chip.verified { background: #ecfdf5; color: #047857; }
+        .homepage-vendor-chip.plan { background: #fff7ed; color: #c2410c; }
+        .homepage-vendor-chip.location { background: #eff6ff; color: #1d4ed8; }
+        .homepage-vendor-chip.type { background: #f8fafc; color: #334155; }
+
+        .homepage-vendor-stats {
+            display: grid;
+            gap: .35rem;
+            margin-top: .7rem;
+        }
+
+        .homepage-vendor-statline {
+            color: #475569;
+            font-size: .72rem;
+            font-weight: 800;
+        }
+
         .homepage-vendor-actions {
             display: flex;
             gap: .55rem;
@@ -235,19 +271,24 @@
                         </div>
                         <div class="homepage-vendor-body">
                             <h3 class="homepage-vendor-title">{{ vendor.store_name }}</h3>
-                            <div class="flex items-center gap-2 mt-1">
-                                <div class="flex text-yellow-400 text-sm">
-                                    {% for i in "12345"|make_list %}
-                                        {% if forloop.counter <= vendor.rating_avg|add:"0" %}
-                                            <i class="fas fa-star"></i>
-                                        {% else %}
-                                            <i class="far fa-star"></i>
-                                        {% endif %}
-                                    {% endfor %}
-                                </div>
-                                <span class="text-xs text-gray-500">{{ vendor.rating_avg }} ★</span>
+                            <div class="homepage-vendor-badges">
+                                {% if vendor.is_verified %}
+                                    <span class="homepage-vendor-chip verified"><i class="fas fa-check-circle"></i> Verified</span>
+                                {% endif %}
+                                <span class="homepage-vendor-chip plan"><i class="fas fa-gem"></i> {{ vendor.active_plan_name }}</span>
+                                {% if vendor.location_label %}
+                                    <span class="homepage-vendor-chip location"><i class="fas fa-location-dot"></i> {{ vendor.location_label }}</span>
+                                {% endif %}
+                                {% if vendor.vendor_type %}
+                                    <span class="homepage-vendor-chip type">{{ vendor.get_vendor_type_display }}</span>
+                                {% endif %}
                             </div>
-                            <p class="homepage-vendor-description">{{ vendor.description|truncatewords:15 }}</p>
+                            <div class="homepage-vendor-stats">
+                                <span class="homepage-vendor-statline">{{ vendor.rating_avg|floatformat:1 }} rating · {{ vendor.total_reviews }} review{{ vendor.total_reviews|pluralize }}</span>
+                                {% if vendor.fulfillment_rate %}<span class="homepage-vendor-statline">{{ vendor.fulfillment_rate }}% fulfillment</span>{% endif %}
+                                {% if vendor.response_time %}<span class="homepage-vendor-statline">Response: {{ vendor.response_time }}</span>{% endif %}
+                            </div>
+                            <p class="homepage-vendor-description">{{ vendor.store_slogan|default:vendor.description|truncatewords:15 }}</p>
                             <div class="homepage-vendor-actions">
                                 <a href="{% url 'vendors:detail' vendor.store_slug %}" class="flex-1 bg-blue-600 text-white text-center py-2 rounded-lg hover:bg-blue-700 transition text-sm">
                                     View Store

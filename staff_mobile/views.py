@@ -1800,6 +1800,9 @@ def _product_payload(product):
         ]
     except Exception:
         variants = []
+    vendor_profile = getattr(getattr(product, "vendor", None), "vendor_profile", None)
+    condition_value = getattr(product, "condition", "") or ""
+    condition_label = getattr(product, "condition_label", "") or condition_value.replace("_", " ").title()
     return {
         "id": product.id,
         "name": product.name,
@@ -1818,8 +1821,16 @@ def _product_payload(product):
         "minimum_order_quantity": product.minimum_order_quantity,
         "lead_time_days": product.lead_time_days,
         "country_of_origin": product.country_of_origin,
-        "condition": product.condition,
-        "product_condition": product.condition,
+        "condition": condition_label,
+        "condition_label": condition_label,
+        "condition_value": condition_value,
+        "product_condition": condition_value,
+        "vendor_name": getattr(product, "vendor_display_name", "") or (getattr(vendor_profile, "store_name", "") if vendor_profile else ""),
+        "vendor_verified": bool(getattr(product, "vendor_verified", False)),
+        "vendor_package": getattr(product, "vendor_package_name", "") or (getattr(vendor_profile, "active_plan_name", "") if vendor_profile else ""),
+        "vendor_package_name": getattr(product, "vendor_package_name", "") or (getattr(vendor_profile, "active_plan_name", "") if vendor_profile else ""),
+        "location": getattr(product, "location_label", "") or "",
+        "location_label": getattr(product, "location_label", "") or "",
         "warranty_description": product.warranty_description,
         "image": image,
         "main_image": image,

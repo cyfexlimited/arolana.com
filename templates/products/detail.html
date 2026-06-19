@@ -2222,9 +2222,17 @@
 	                        {% else %}
 	                            <span id="product-stock-status" class="text-red-600 text-sm"><i class="fas fa-clock"></i> Backorder Available</span>
 	                            <span id="product-stock-count" class="text-gray-500 text-xs ml-2"></span>
-	                        {% endif %}
-	                    </div>
-                        {% if product.manual_pdf %}
+		                        {% endif %}
+		                    </div>
+                        <div class="mt-3 rounded-2xl border border-slate-200 bg-white/85 px-4 py-3 shadow-sm">
+                            {% include "products/partials/product_vendor_meta.html" with product=product %}
+                            {% if product.vendor_profile %}
+                                <a href="{{ product.vendor_profile.get_absolute_url }}" class="mt-2 inline-flex items-center gap-1 text-xs font-black text-[#0066CC] hover:text-[#FF7A00]">
+                                    View vendor storefront <i class="fas fa-arrow-right text-[10px]" aria-hidden="true"></i>
+                                </a>
+                            {% endif %}
+                        </div>
+	                        {% if product.manual_pdf %}
                         <div class="mt-3">
                             <a href="{{ product.manual_pdf.url }}" download class="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-bold text-blue-700 shadow-sm ring-1 ring-blue-100 transition hover:bg-blue-50">
                                 <i class="fas fa-file-pdf"></i>
@@ -2312,9 +2320,14 @@
                         <div class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white text-blue-600 ring-1 ring-blue-100">
                             {% if article_link.article.display_image %}
                                 {% optimized_image_url article_link.article.display_image 'avatar' as article_thumb_url %}
-                                <img src="{{ article_thumb_url }}" alt="{{ article_link.display_label }}" class="h-full w-full object-cover" loading="lazy" decoding="async" width="64" height="64">
+                                <img src="{{ article_thumb_url }}" data-fallback-src="{{ article_link.article.display_image.url }}" alt="{{ article_link.display_label }}" class="h-full w-full object-cover" loading="lazy" decoding="async" width="64" height="64" onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}else{this.hidden=true;this.nextElementSibling.hidden=false;}">
+                                <div hidden class="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#071A44] to-[#0066CC] text-white">
+                                    <i class="fas fa-newspaper text-xl"></i>
+                                </div>
                             {% else %}
-                                <i class="fas fa-newspaper text-xl"></i>
+                                <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#071A44] to-[#0066CC] text-white">
+                                    <i class="fas fa-newspaper text-xl"></i>
+                                </div>
                             {% endif %}
                         </div>
                         <div class="min-w-0">
@@ -3037,9 +3050,10 @@
                             <span class="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">-{{ item.discount_percent }}%</span>
                         {% endif %}
                     </div>
-                    <div class="p-3">
-                        <h3 class="font-semibold text-sm line-clamp-2 hover:text-blue-600">{{ item.name }}</h3>
-                        <div class="flex items-center gap-1 mt-1">
+	                    <div class="p-3">
+	                        <h3 class="font-semibold text-sm line-clamp-2 hover:text-blue-600">{{ item.name }}</h3>
+	                        {% include "products/partials/product_vendor_meta.html" with product=item %}
+	                        <div class="flex items-center gap-1 mt-1">
                             <div class="flex text-yellow-400 text-xs">{{ item.rating_avg|rating_stars|safe }}</div>
                             <span class="text-xs text-gray-500">({{ item.rating_count }})</span>
                         </div>
@@ -3082,9 +3096,10 @@
                             <span class="absolute top-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">NEW</span>
                         {% endif %}
                     </div>
-                    <div class="p-3">
-                        <h3 class="font-semibold text-sm line-clamp-2 hover:text-blue-600">{{ related.name }}</h3>
-                        <div class="flex items-center gap-1 mt-1">
+	                    <div class="p-3">
+	                        <h3 class="font-semibold text-sm line-clamp-2 hover:text-blue-600">{{ related.name }}</h3>
+	                        {% include "products/partials/product_vendor_meta.html" with product=related %}
+	                        <div class="flex items-center gap-1 mt-1">
                             <div class="flex text-yellow-400 text-xs">{{ related.rating_avg|rating_stars|safe }}</div>
                             <span class="text-xs text-gray-500">({{ related.rating_count }})</span>
                         </div>
@@ -3121,9 +3136,10 @@
                             </div>
                         {% endif %}
                     </div>
-                    <div class="p-3">
-                        <h3 class="font-semibold text-sm line-clamp-2 hover:text-blue-600">{{ item.name }}</h3>
-                        <div class="flex items-center gap-1 mt-1">
+	                    <div class="p-3">
+	                        <h3 class="font-semibold text-sm line-clamp-2 hover:text-blue-600">{{ item.name }}</h3>
+	                        {% include "products/partials/product_vendor_meta.html" with product=item %}
+	                        <div class="flex items-center gap-1 mt-1">
                             <div class="flex text-yellow-400 text-xs">{{ item.rating_avg|rating_stars|safe }}</div>
                             <span class="text-xs text-gray-500">({{ item.rating_count }})</span>
                         </div>
@@ -3163,9 +3179,10 @@
                             <span class="absolute top-2 left-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded-full">Bestseller</span>
                         {% endif %}
                     </div>
-                    <div class="p-3">
-                        <h3 class="font-semibold text-sm line-clamp-2 hover:text-blue-600">{{ item.name }}</h3>
-                        <div class="flex items-center gap-1 mt-1">
+	                    <div class="p-3">
+	                        <h3 class="font-semibold text-sm line-clamp-2 hover:text-blue-600">{{ item.name }}</h3>
+	                        {% include "products/partials/product_vendor_meta.html" with product=item %}
+	                        <div class="flex items-center gap-1 mt-1">
                             <div class="flex text-yellow-400 text-xs">{{ item.rating_avg|rating_stars|safe }}</div>
                             <span class="text-xs text-gray-500">{{ item.sales_count }} sold</span>
                         </div>
@@ -3201,9 +3218,10 @@
                         </div>
                     {% endif %}
                 </div>
-                <div class="p-3">
-                    <h3 class="font-semibold text-sm line-clamp-2">{{ item.product.name }}</h3>
-                    <div class="mt-2">
+	                <div class="p-3">
+	                    <h3 class="font-semibold text-sm line-clamp-2">{{ item.product.name }}</h3>
+	                    {% include "products/partials/product_vendor_meta.html" with product=item.product %}
+	                    <div class="mt-2">
                         <span class="font-bold text-blue-600">{{ item.product.price|currency:request }}</span>
                     </div>
                 </div>
@@ -3235,9 +3253,10 @@
                         </div>
                     {% endif %}
                 </div>
-                <div class="p-2">
-                    <p class="text-xs font-semibold line-clamp-2">{{ item.product.name }}</p>
-                    <p class="text-blue-600 font-bold text-xs mt-1">{{ item.product.price|currency:request }}</p>
+	                <div class="p-2">
+	                    <p class="text-xs font-semibold line-clamp-2">{{ item.product.name }}</p>
+	                    {% include "products/partials/product_vendor_meta.html" with product=item.product %}
+	                    <p class="text-blue-600 font-bold text-xs mt-1">{{ item.product.price|currency:request }}</p>
                 </div>
             </a>
             {% endfor %}
@@ -3291,9 +3310,10 @@
                         {% endif %}
                     </div>
                 </a>
-                <div class="p-2">
-                    <a href="{{ item.get_absolute_url }}" class="font-semibold text-sm hover:text-blue-600 line-clamp-2">{{ item.name }}</a>
-                    <div class="mt-1 flex items-center justify-between">
+	                <div class="p-2">
+	                    <a href="{{ item.get_absolute_url }}" class="font-semibold text-sm hover:text-blue-600 line-clamp-2">{{ item.name }}</a>
+	                    {% include "products/partials/product_vendor_meta.html" with product=item %}
+	                    <div class="mt-1 flex items-center justify-between">
                         <span class="text-sm font-bold text-blue-600">{{ item.price|currency:request }}</span>
                         <div class="flex text-yellow-400 text-xs">{{ item.rating_avg|rating_stars|safe }}</div>
                     </div>

@@ -282,10 +282,13 @@ def vendor_dashboard(request):
         action = request.POST.get('dashboard_action')
         if action == 'profile_settings':
             editable = [
-                'store_name', 'company_name', 'vendor_type', 'country', 'description',
+                'store_name', 'company_name', 'vendor_type', 'country', 'address_line_1', 'city', 'state', 'description',
                 'business_address', 'manufacturer_address', 'warehouse_address',
                 'pickup_address', 'pickup_phone', 'support_email', 'support_phone', 'website',
                 'preferred_language', 'preferred_currency',
+                'store_slogan', 'storefront_accent_color', 'store_video_url', 'store_gallery_notes',
+                'featured_categories', 'featured_products_note', 'business_hours',
+                'return_policy', 'warranty_note', 'delivery_note', 'business_phone', 'whatsapp_number',
             ]
             for field in editable:
                 if field in request.POST:
@@ -298,6 +301,9 @@ def vendor_dashboard(request):
                         value = value.upper()
                         if value not in ['NGN', 'USD', 'GBP', 'EUR', 'CNY', 'CAD']:
                             continue
+                    if field == 'storefront_accent_color':
+                        if not (value.startswith('#') and len(value) in (4, 7)):
+                            value = vendor_profile.storefront_accent
                     setattr(vendor_profile, field, value)
             if request.FILES.get('store_logo'):
                 vendor_profile.store_logo = request.FILES['store_logo']

@@ -1615,11 +1615,12 @@
                                 {% endif %}
                             </div>
 
-                            <h3 class="ah-trending-card-title">
-                                {{ product.name }}
-                            </h3>
+	                            <h3 class="ah-trending-card-title">
+	                                {{ product.name }}
+	                            </h3>
+                                {% include "products/partials/product_vendor_meta.html" with product=product %}
 
-                            {% if section.show_vendor or section.show_rating or section.show_price %}
+	                            {% if section.show_vendor or section.show_rating or section.show_price %}
                             <div class="ah-trending-card-meta">
                                 {% if section.show_vendor and product.vendor.vendor_profile %}
                                 <span>{{ product.vendor.vendor_profile.store_name }}</span>
@@ -1756,11 +1757,12 @@
                                 </span>
                                 {% endif %}
 
-                                <h3 class="ah-featured-name">
-                                    {{ product.name }}
-                                </h3>
+	                                <h3 class="ah-featured-name">
+	                                    {{ product.name }}
+	                                </h3>
+                                    {% include "products/partials/product_vendor_meta.html" with product=product %}
 
-                                {% if section.show_rating %}
+	                                {% if section.show_rating %}
                                 <div class="ah-featured-rating">
                                     <span class="ah-featured-stars">
                                         {{ product.rating_avg|default:0|rating_stars|safe }}
@@ -1865,11 +1867,12 @@
                                 </div>
 
                                 <div class="ah-new-arrivals-body">
-                                    <h3 class="ah-new-arrivals-name">
-                                        {{ product.name }}
-                                    </h3>
+	                                    <h3 class="ah-new-arrivals-name">
+	                                        {{ product.name }}
+	                                    </h3>
+                                        {% include "products/partials/product_vendor_meta.html" with product=product %}
 
-                                    {% if product.condition and product.condition != "brand_new" %}
+	                                    {% if product.condition and product.condition != "brand_new" %}
                                     <div class="ah-new-arrivals-meta-line">
                                         <span class="ah-new-arrivals-condition">
                                             {{ product.get_condition_display }}
@@ -2021,11 +2024,12 @@
                                     {% endif %}
                                 </div>
 
-                                <a href="{{ product.get_absolute_url }}" class="ah-product-title">
-                                    {{ product.name }}
-                                </a>
+	                                <a href="{{ product.get_absolute_url }}" class="ah-product-title">
+	                                    {{ product.name }}
+	                                </a>
+                                    {% include "products/partials/product_vendor_meta.html" with product=product %}
 
-                                {% if section.show_vendor and product.vendor and product.vendor.vendor_profile %}
+	                                {% if section.show_vendor and product.vendor and product.vendor.vendor_profile %}
                                 {% with vendor_profile=product.vendor.vendor_profile %}
                                 <div class="ah-product-vendor">
                                     <span class="ah-product-vendor-name">{{ vendor_profile.store_name }}</span>

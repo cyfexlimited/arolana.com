@@ -236,7 +236,7 @@ def landing_page_detail(request, slug):
         status=LandingPage.STATUS_PUBLISHED,
         is_active=True,
     )
-    return render(request, "landing_pages/detail.html", _context_for_page(page))
+    return render(request, "landing_pages/landing_page_detail.html", _context_for_page(page))
 
 
 @staff_member_required
@@ -246,4 +246,4 @@ def landing_page_preview(request, slug):
         raise Http404("Landing page not found.")
 
     page = get_object_or_404(_landing_page_queryset(), slug=slug)
-    return render(request, "landing_pages/detail.html", _context_for_page(page, preview=True))
+    return render(request, "landing_pages/landing_page_detail.html", _context_for_page(page, preview=True))

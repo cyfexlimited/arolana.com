@@ -40,6 +40,9 @@ class VendorProfile(BaseModel):
     company_name = models.CharField(max_length=220, blank=True)
     vendor_type = models.CharField(max_length=30, choices=VENDOR_TYPE_CHOICES, default='retailer', db_index=True)
     country = models.CharField(max_length=100, blank=True, default='Nigeria')
+    address_line_1 = models.CharField(max_length=255, blank=True, default='')
+    city = models.CharField(max_length=120, blank=True, default='')
+    state = models.CharField(max_length=120, blank=True, default='')
     business_address = models.TextField(blank=True)
     manufacturer_address = models.TextField(blank=True)
     warehouse_address = models.TextField(blank=True)
@@ -91,6 +94,26 @@ class VendorProfile(BaseModel):
     support_level = models.CharField(max_length=40, default='basic')
     badge_level = models.CharField(max_length=80, default='Free Vendor')
     priority_score = models.IntegerField(default=0, help_text="Higher score = better placement")
+
+    # Storefront customization
+    store_slogan = models.CharField(max_length=180, blank=True, default='')
+    storefront_accent_color = models.CharField(
+        max_length=20,
+        blank=True,
+        default='#FF7A00',
+        help_text="Storefront accent color. Example: #FF7A00."
+    )
+    store_video_url = models.URLField(blank=True)
+    store_gallery_notes = models.TextField(
+        blank=True,
+        help_text="Optional storefront gallery image URLs or notes, one per line."
+    )
+    featured_categories = models.TextField(blank=True, help_text="Featured storefront categories, one per line.")
+    featured_products_note = models.TextField(blank=True, help_text="Optional featured product notes for the storefront.")
+    business_hours = models.TextField(blank=True)
+    return_policy = models.TextField(blank=True)
+    warranty_note = models.TextField(blank=True)
+    delivery_note = models.TextField(blank=True)
     
     # Ratings and sales
     rating_avg = models.DecimalField(max_digits=3, decimal_places=2, default=0)
@@ -161,6 +184,53 @@ class VendorProfile(BaseModel):
     
     def __str__(self):
         return self.store_name
+
+    @property
+    def display_name(self):
+        user_name = ''
+        if self.user_id:
+            user_name = self.user.get_full_name() or self.user.username or self.user.email
+        return self.company_name or self.store_name or user_name or "Arolana Vendor"
+
+    @property
+    def active_plan_name(self):
+        try:
+            return self.get_subscription_display().get('text') or self.badge_level or "Free Vendor"
+        except Exception:
+            return self.badge_level or "Free Vendor"
+
+    @property
+    def location_label(self):
+        parts = [self.city, self.state]
+        location = ", ".join([str(part).strip() for part in parts if str(part or "").strip()])
+        if location:
+            return location
+        parts = [self.state, self.country]
+        return ", ".join([str(part).strip() for part in parts if str(part or "").strip()])
+
+    @property
+    def storefront_accent(self):
+        value = (self.storefront_accent_color or '').strip()
+        if value.startswith('#') and len(value) in (4, 7):
+            return value
+        return '#FF7A00'
+
+    @property
+    def featured_category_list(self):
+        return [item.strip() for item in (self.featured_categories or '').splitlines() if item.strip()]
+
+    @property
+    def store_gallery_list(self):
+        return [item.strip() for item in (self.store_gallery_notes or '').splitlines() if item.strip()]
+
+    @property
+    def address_is_complete(self):
+        return bool(
+            (self.address_line_1 or self.business_address or self.pickup_address)
+            and self.city
+            and self.state
+            and self.country
+        )
 
     @property
     def pickup_location_is_ready(self):
