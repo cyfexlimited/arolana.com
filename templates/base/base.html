@@ -90,8 +90,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
-    {% include "includes/homepage_background_css.html" %}
-
     <style>
         :root {
             --color-primary: {{ site_settings.primary_color|default:"#d4af37" }};
@@ -2484,89 +2482,58 @@
     </style>
 
     {% block extra_css %}{% endblock %}
-</head>
-<!-- Arolana Scroll Up Button -->
-<button id="arolanaScrollTop"
-        type="button"
-        aria-label="Scroll to top"
-        class="arolana-scroll-top">
-    <i class="fas fa-arrow-up"></i>
-</button>
 
-<style>
-    .arolana-scroll-top {
-        position: fixed;
-        right: 24px;
-        bottom: 100px;
-        z-index: 9998;
-        width: 52px;
-        height: 52px;
-        border: none;
-        border-radius: 999px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #fff;
-        background: linear-gradient(135deg, #2563eb, #7c3aed);
-        box-shadow: 0 18px 45px rgba(37, 99, 235, 0.35);
-        cursor: pointer;
-        opacity: 0;
-        visibility: hidden;
-        transform: translateY(14px) scale(0.92);
-        transition: opacity 0.25s ease, visibility 0.25s ease, transform 0.25s ease;
-    }
-
-    .arolana-scroll-top.show {
-        opacity: 1;
-        visibility: visible;
-        transform: translateY(0) scale(1);
-    }
-
-    .arolana-scroll-top:hover {
-        transform: translateY(-4px) scale(1.05);
-        box-shadow: 0 24px 60px rgba(37, 99, 235, 0.45);
-    }
-
-    .arolana-scroll-top i {
-        font-size: 1.2rem;
-    }
-
-    @media (max-width: 768px) {
+    <style>
         .arolana-scroll-top {
-            right: 16px;
-            bottom: 92px;
-            width: 46px;
-            height: 46px;
+            position: fixed;
+            right: 24px;
+            bottom: 100px;
+            z-index: 9998;
+            width: 52px;
+            height: 52px;
+            border: none;
+            border-radius: 999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
+            box-shadow: 0 18px 45px rgba(37, 99, 235, 0.35);
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(14px) scale(0.92);
+            transition: opacity 0.25s ease, visibility 0.25s ease, transform 0.25s ease;
         }
-    }
-</style>
 
-<script>
-    (function () {
-        const scrollBtn = document.getElementById("arolanaScrollTop");
+        .arolana-scroll-top.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0) scale(1);
+        }
 
-        if (!scrollBtn) return;
+        .arolana-scroll-top:hover {
+            transform: translateY(-4px) scale(1.05);
+            box-shadow: 0 24px 60px rgba(37, 99, 235, 0.45);
+        }
 
-        function toggleScrollButton() {
-            if (window.scrollY > 350) {
-                scrollBtn.classList.add("show");
-            } else {
-                scrollBtn.classList.remove("show");
+        .arolana-scroll-top i {
+            font-size: 1.2rem;
+        }
+
+        @media (max-width: 768px) {
+            .arolana-scroll-top {
+                right: 16px;
+                bottom: 92px;
+                width: 46px;
+                height: 46px;
             }
         }
+    </style>
 
-        scrollBtn.addEventListener("click", function () {
-            window.scrollTo({
-                top: 0,
-                behavior: "smooth"
-            });
-        });
-
-        window.addEventListener("scroll", toggleScrollButton, { passive: true });
-        toggleScrollButton();
-    })();
-</script>
-<body class="bg-gradient-to-b from-white to-gray-50 {% block body_class %}{% endblock %}"
+    {% include "includes/homepage_background_css.html" %}
+</head>
+<body class="bg-gradient-to-b from-white to-gray-50 {% if homepage_appearance and homepage_appearance.is_active %}{% if request.path == '/' or request.resolver_match.url_name == 'home' or request.resolver_match.url_name == 'homepage' or request.resolver_match.url_name == 'index' %}arolana-home-bg-active{% endif %}{% endif %} {% block body_class %}{% endblock %}"
       x-data="{ mobileMenuOpen: false, scrolled: false, headerScrolled: false }"
       x-effect="document.body.classList.toggle('menu-open', mobileMenuOpen)"
       x-init="
@@ -2585,6 +2552,14 @@
         }, { passive: true });
         updateScrollState();
       ">
+
+    <!-- Arolana Scroll Up Button -->
+    <button id="arolanaScrollTop"
+            type="button"
+            aria-label="Scroll to top"
+            class="arolana-scroll-top">
+        <i class="fas fa-arrow-up"></i>
+    </button>
 
     <div class="premium-topbar text-white text-xs py-2">
         <div class="container mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-3">
@@ -5051,6 +5026,32 @@
     </script>
 
     {% block extra_js %}{% endblock %}
+
+    <script>
+        (function () {
+            const scrollBtn = document.getElementById("arolanaScrollTop");
+
+            if (!scrollBtn) return;
+
+            function toggleScrollButton() {
+                if (window.scrollY > 350) {
+                    scrollBtn.classList.add("show");
+                } else {
+                    scrollBtn.classList.remove("show");
+                }
+            }
+
+            scrollBtn.addEventListener("click", function () {
+                window.scrollTo({
+                    top: 0,
+                    behavior: "smooth"
+                });
+            });
+
+            window.addEventListener("scroll", toggleScrollButton, { passive: true });
+            toggleScrollButton();
+        })();
+    </script>
 
 
 

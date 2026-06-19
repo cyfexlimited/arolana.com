@@ -1,127 +1,198 @@
 {% comment %}
 Arolana homepage background controlled from admin.
-This file should be saved as:
+Save this file as:
 templates/includes/homepage_background_css.html
 
-It works only on the homepage route where url_name == "home".
+BACKGROUND-ONLY FIX:
+- Only controls the homepage background and homepage content transparency.
+- Does NOT style or override the topbar, header, nav, footer, cookie banner, or chat widget.
+- Background spreads across the full homepage behind all homepage content.
+- Admin overlay opacity, positions, blur, fixed background, and glass sections still work.
 {% endcomment %}
 
 {% load media_optimization %}
 
-{% if request.resolver_match.url_name == "home" and homepage_appearance and homepage_appearance.is_active %}
-{% if homepage_appearance.desktop_background_image %}
-    {% optimized_image_url homepage_appearance.desktop_background_image 'hero' as desktop_background_url %}
-{% endif %}
-{% if homepage_appearance.mobile_background_image %}
-    {% optimized_image_url homepage_appearance.mobile_background_image 'hero' as mobile_background_url %}
-{% endif %}
-<style>
-    body {
-        position: relative;
-        background: #071A44 !important;
-        isolation: isolate;
+{% if homepage_appearance and homepage_appearance.is_active %}
+    {% if homepage_appearance.desktop_background_image %}
+        {% optimized_image_url homepage_appearance.desktop_background_image 'hero' as desktop_background_url %}
+    {% endif %}
+    {% if homepage_appearance.mobile_background_image %}
+        {% optimized_image_url homepage_appearance.mobile_background_image 'hero' as mobile_background_url %}
+    {% endif %}
+
+<style id="arolana-homepage-background-css">
+    html.arolana-home-bg-active,
+    html.arolana-home-bg-active body,
+    body.arolana-home-bg-active {
+        min-height: 100%;
+        overflow-x: hidden !important;
     }
 
-    body::before {
+    body.arolana-home-bg-active,
+    html.arolana-home-bg-active body {
+        --home-bg-overlay-opacity: {{ homepage_appearance.desktop_overlay_opacity|default_if_none:"0.35" }};
+        --home-mobile-bg-overlay-opacity: {{ homepage_appearance.mobile_overlay_opacity|default_if_none:"0.45" }};
+        --home-bg-position-desktop: {{ homepage_appearance.desktop_position|default:"center center" }};
+        --home-bg-position-mobile: {{ homepage_appearance.mobile_position|default:"center center" }};
+        position: relative;
+        isolation: isolate;
+        background-color: #F6F9FC !important;
+    }
+
+    /*
+       Full homepage background layer.
+       This intentionally does NOT target topbar/header/nav/footer styles.
+    */
+    body.arolana-home-bg-active::before,
+    html.arolana-home-bg-active body::before {
         content: "";
-        position: fixed;
+        position: {% if homepage_appearance.fixed_background %}fixed{% else %}absolute{% endif %};
         inset: 0;
-        z-index: 0;
+        min-height: 100%;
+        z-index: -2;
         pointer-events: none;
         background-image:
             {% if desktop_background_url %}
                 url("{{ desktop_background_url }}")
+            {% elif homepage_appearance.desktop_background_image %}
+                url("{{ homepage_appearance.desktop_background_image.url }}")
+            {% elif homepage_appearance.mobile_background_image %}
+                url("{{ homepage_appearance.mobile_background_image.url }}")
             {% else %}
                 none
             {% endif %};
         background-size: cover;
-        background-position: {{ homepage_appearance.desktop_position|default:"center center" }};
+        background-position: var(--home-bg-position-desktop);
         background-repeat: no-repeat;
         background-attachment: {% if homepage_appearance.fixed_background %}fixed{% else %}scroll{% endif %};
-        filter: none;
+        filter: saturate(1.05) contrast(1.03){% if homepage_appearance.blur_background or homepage_appearance.background_blur %} blur(8px){% endif %};
+        transform: scale({% if homepage_appearance.blur_background or homepage_appearance.background_blur %}1.035{% else %}1{% endif %}) translateZ(0);
+        transform-origin: center center;
     }
 
-    body::after {
+    /*
+       Admin-controlled overlay.
+       Lower opacity = clearer image. Higher opacity = muted/soft image.
+    */
+    body.arolana-home-bg-active::after,
+    html.arolana-home-bg-active body::after {
         content: "";
-        position: fixed;
+        position: {% if homepage_appearance.fixed_background %}fixed{% else %}absolute{% endif %};
         inset: 0;
-        z-index: 1;
+        min-height: 100%;
+        z-index: -1;
         pointer-events: none;
         background:
+            radial-gradient(circle at 16% 10%, rgba(0, 184, 255, 0.05), transparent 30rem),
+            radial-gradient(circle at 88% 16%, rgba(255, 122, 0, 0.045), transparent 28rem),
             linear-gradient(
                 135deg,
-                rgba(248, 250, 252, {{ homepage_appearance.desktop_overlay_opacity|default:"0.35" }}),
-                rgba(255, 255, 255, {{ homepage_appearance.desktop_overlay_opacity|default:"0.35" }})
+                rgba(255, 255, 255, var(--home-bg-overlay-opacity)),
+                rgba(246, 249, 252, calc(var(--home-bg-overlay-opacity) * 0.92))
             );
     }
 
-    body > * {
-        position: relative;
-        z-index: 2;
-    }
-
-    body main,
-    body .main-content,
-    body .homepage-wrapper,
-    body .home-page,
-    body .arolana-homepage {
-        background: transparent !important;
-    }
-
-    body .site-footer {
-        background: rgba(7, 18, 38, 0.84) !important;
-        backdrop-filter: blur(18px) saturate(1.08);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-        margin-top: 0 !important;
-    }
-
-    body .site-footer-newsletter,
-    body .site-footer-main,
-    body .site-footer-bottom {
+    /* Make only homepage content wrappers transparent so the background can show. */
+    body.arolana-home-bg-active main,
+    body.arolana-home-bg-active .site-main-wrap,
+    body.arolana-home-bg-active .main-content,
+    body.arolana-home-bg-active .homepage-wrapper,
+    body.arolana-home-bg-active .home-page,
+    body.arolana-home-bg-active .arolana-homepage,
+    html.arolana-home-bg-active body main,
+    html.arolana-home-bg-active body .site-main-wrap,
+    html.arolana-home-bg-active body .main-content,
+    html.arolana-home-bg-active body .homepage-wrapper,
+    html.arolana-home-bg-active body .home-page,
+    html.arolana-home-bg-active body .arolana-homepage {
         background: transparent !important;
     }
 
     {% if homepage_appearance.make_sections_glass %}
-    body .product-grid-card,
-    body .luxury-product-card,
-    body .category-card,
-    body .product-card {
-        background-color: rgba(255, 255, 255, 0.78) !important;
-        backdrop-filter: blur(16px) saturate(1.08);
-    }
-
-    body section,
-    body .home-section,
-    body .homepage-section {
-        position: relative;
-        z-index: 1;
-        background-color: rgba(255, 255, 255, 0.58) !important;
-        backdrop-filter: blur(18px) saturate(1.08);
+    /* Glass effect only inside homepage content, not topbar/header/footer. */
+    body.arolana-home-bg-active main .product-grid-card,
+    body.arolana-home-bg-active main .luxury-product-card,
+    body.arolana-home-bg-active main .category-card,
+    body.arolana-home-bg-active main .product-card,
+    body.arolana-home-bg-active main .home-section-card,
+    body.arolana-home-bg-active main .homepage-card,
+    body.arolana-home-bg-active .site-main-wrap .product-grid-card,
+    body.arolana-home-bg-active .site-main-wrap .luxury-product-card,
+    body.arolana-home-bg-active .site-main-wrap .category-card,
+    body.arolana-home-bg-active .site-main-wrap .product-card,
+    body.arolana-home-bg-active .site-main-wrap .home-section-card,
+    body.arolana-home-bg-active .site-main-wrap .homepage-card {
+        background-color: rgba(255, 255, 255, 0.92) !important;
+        border-color: rgba(255, 255, 255, 0.58) !important;
+        backdrop-filter: blur(12px) saturate(1.04);
+        -webkit-backdrop-filter: blur(12px) saturate(1.04);
     }
     {% endif %}
 
     @media (max-width: 768px) {
-        body::before {
+        body.arolana-home-bg-active,
+        html.arolana-home-bg-active body {
+            --home-bg-position-mobile: {{ homepage_appearance.mobile_position|default:"center center" }};
+        }
+
+        body.arolana-home-bg-active::before,
+        html.arolana-home-bg-active body::before {
+            position: absolute;
             background-image:
                 {% if mobile_background_url %}
                     url("{{ mobile_background_url }}")
+                {% elif homepage_appearance.mobile_background_image %}
+                    url("{{ homepage_appearance.mobile_background_image.url }}")
                 {% elif desktop_background_url %}
                     url("{{ desktop_background_url }}")
+                {% elif homepage_appearance.desktop_background_image %}
+                    url("{{ homepage_appearance.desktop_background_image.url }}")
                 {% else %}
                     none
                 {% endif %};
-            background-position: {{ homepage_appearance.mobile_position|default:"center center" }};
-            background-attachment: scroll;
+            background-position: var(--home-bg-position-mobile);
+            background-attachment: scroll !important;
+            filter: saturate(1.05) contrast(1.03){% if homepage_appearance.blur_background or homepage_appearance.background_blur %} blur(7px){% endif %};
+            transform: scale({% if homepage_appearance.blur_background or homepage_appearance.background_blur %}1.035{% else %}1{% endif %}) translateZ(0);
         }
 
-        body::after {
+        body.arolana-home-bg-active::after,
+        html.arolana-home-bg-active body::after {
+            position: absolute;
             background:
+                radial-gradient(circle at 18% 8%, rgba(0, 184, 255, 0.045), transparent 18rem),
+                radial-gradient(circle at 88% 14%, rgba(255, 122, 0, 0.040), transparent 18rem),
                 linear-gradient(
                     135deg,
-                    rgba(248, 250, 252, {{ homepage_appearance.mobile_overlay_opacity|default:"0.50" }}),
-                    rgba(255, 255, 255, {{ homepage_appearance.mobile_overlay_opacity|default:"0.50" }})
+                    rgba(255, 255, 255, var(--home-mobile-bg-overlay-opacity)),
+                    rgba(246, 249, 252, calc(var(--home-mobile-bg-overlay-opacity) * 0.92))
                 );
         }
     }
 </style>
+
+<script id="arolana-homepage-background-boot">
+    (function () {
+        function isHomePage() {
+            var path = window.location.pathname || "/";
+            return path === "/" || path === "";
+        }
+
+        function applyHomepageBackgroundClass() {
+            if (!isHomePage()) return;
+            document.documentElement.classList.add("arolana-home-bg-active");
+            if (document.body) {
+                document.body.classList.add("arolana-home-bg-active");
+            }
+        }
+
+        applyHomepageBackgroundClass();
+
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", applyHomepageBackgroundClass);
+        } else {
+            applyHomepageBackgroundClass();
+        }
+    })();
+</script>
 {% endif %}

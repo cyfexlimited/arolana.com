@@ -226,8 +226,10 @@
             --lp-mobile-bg-image: none;
         {% endif %}
 
-        --lp-page-bg-opacity: {{ page.page_background_overlay_opacity|default:'0.35' }};
+        --lp-page-bg-opacity: {{ page.page_background_overlay_opacity|default_if_none:'0.35' }};
+        --lp-mobile-bg-opacity: {{ page.page_mobile_background_overlay_opacity|default_if_none:page.page_background_overlay_opacity|default_if_none:'0.45' }};
         --lp-page-bg-position: {{ page.page_background_position|default:'center center' }};
+        --lp-mobile-bg-position: {{ page.page_mobile_background_position|default:page.page_background_position|default:'center center' }};
         --lp-page-bg-attachment: {% if page.page_background_fixed %}fixed{% else %}scroll{% endif %};
         --lp-page-bg-filter: {% if page.page_background_blur %}blur(4px) saturate(1.08) contrast(1.05){% else %}saturate(1.08) contrast(1.05){% endif %};
         --lp-page-bg-scale: {% if page.page_background_blur %}1.03{% else %}1{% endif %};
