@@ -328,15 +328,13 @@ class ProductAdmin(admin.ModelAdmin):
         return (
             super()
             .get_queryset(request)
+            .select_related("category", "brand", "vendor")
             .annotate(
-                product_count=Count(
-    "user__products",
-    filter=Q(
-        user__products__is_active=True,
-        user__products__approval_status="approved",
-    ),
-)
-                active_article_link_count=Count('article_links', filter=Q(article_links__is_active=True), distinct=True),
+                active_article_link_count=Count(
+                    "article_links",
+                    filter=Q(article_links__is_active=True),
+                    distinct=True,
+                ),
             )
         )
     
