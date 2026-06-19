@@ -6,7 +6,6 @@ from django.views.generic import TemplateView
 from django.views.static import serve
 from django.shortcuts import render
 from django.http import JsonResponse
-from django.contrib.sitemaps.views import sitemap
 
 from pages.views import (
     page_by_slug,
@@ -178,24 +177,8 @@ urlpatterns = [
         name="service_worker",
     ),
 
-    # Homepage
-    path("", home_view, name="home"),
-
-    # Sitemap
-    path("sitemap/", sitemap_page, name="sitemap"),
-    path(
-        "sitemap.xml",
-        sitemap,
-        {"sitemaps": sitemaps},
-        name="django.contrib.sitemaps.views.sitemap",
-    ),
-
-    # Arolana SEO Engine
-    # This provides:
-    # /robots.txt
-    # /merchant-feed.xml
-    # /products/sitemap.xml
     path("", include("arolana_seo.urls")),
+    path("", home_view, name="home"),
 
     # Authentication
     path("accounts/", include("accounts.urls")),

@@ -54,6 +54,49 @@ def robots_txt(request):
     return HttpResponse("\n".join(lines), content_type="text/plain; charset=utf-8")
 
 
+def main_sitemap_xml(request):
+    site_url = getattr(settings, "SITE_URL", "https://arolana.com").rstrip("/")
+    today = timezone.now().date().isoformat()
+
+    rows = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+        "  <url>",
+        f"    <loc>{escape(site_url + '/')}</loc>",
+        f"    <lastmod>{today}</lastmod>",
+        "    <changefreq>daily</changefreq>",
+        "    <priority>1.00</priority>",
+        "  </url>",
+        "  <url>",
+        f"    <loc>{escape(site_url + '/about/')}</loc>",
+        f"    <lastmod>{today}</lastmod>",
+        "    <changefreq>monthly</changefreq>",
+        "    <priority>0.60</priority>",
+        "  </url>",
+        "  <url>",
+        f"    <loc>{escape(site_url + '/contact/')}</loc>",
+        f"    <lastmod>{today}</lastmod>",
+        "    <changefreq>monthly</changefreq>",
+        "    <priority>0.60</priority>",
+        "  </url>",
+        "  <url>",
+        f"    <loc>{escape(site_url + '/privacy/')}</loc>",
+        f"    <lastmod>{today}</lastmod>",
+        "    <changefreq>monthly</changefreq>",
+        "    <priority>0.40</priority>",
+        "  </url>",
+        "  <url>",
+        f"    <loc>{escape(site_url + '/terms/')}</loc>",
+        f"    <lastmod>{today}</lastmod>",
+        "    <changefreq>monthly</changefreq>",
+        "    <priority>0.40</priority>",
+        "  </url>",
+        "</urlset>",
+    ]
+
+    return _xml_response("\n".join(rows))
+
+
 def google_merchant_feed(request):
     currency_code = GOOGLE_MERCHANT_CURRENCY
     site_url = getattr(settings, "SITE_URL", "https://arolana.com").rstrip("/")
