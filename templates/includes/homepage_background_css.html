@@ -6,6 +6,7 @@ templates/includes/homepage_background_css.html
 PRODUCTION-SAFE BACKGROUND ONLY FIX:
 - Fixes production issue where development shows background but production does not.
 - Does NOT style or override topbar, header, nav, footer, cookie banner, or chat widget.
+- Uses responsive images: 1080×1350 WebP recommended for mobile
 - Does not depend on optimized image variants that may not exist in production.
 - Uses the original uploaded media URL from storage/CDN.
 - Does not use negative z-index, because negative body pseudo-elements can disappear behind the page in production stacking contexts.
@@ -146,6 +147,7 @@ PRODUCTION-SAFE BACKGROUND ONLY FIX:
         -webkit-backdrop-filter: blur(14px) saturate(1.06);
     }
 
+    /* Mobile optimization: 1080×1350 WebP recommended */
     @media (max-width: 768px) {
         body {
             --home-bg-position-mobile: {{ homepage_appearance.mobile_position|default:"center center" }};
@@ -168,6 +170,7 @@ PRODUCTION-SAFE BACKGROUND ONLY FIX:
                 {% endif %};
             background-position: var(--home-bg-position-mobile);
             background-attachment: scroll !important;
+            background-size: cover;
         }
 
         body::before {
@@ -183,6 +186,7 @@ PRODUCTION-SAFE BACKGROUND ONLY FIX:
                 {% endif %};
             background-position: var(--home-bg-position-mobile);
             background-attachment: scroll !important;
+            background-size: cover;
             filter: saturate(1.05) contrast(1.03) blur(var(--home-mobile-bg-blur));
             transform: scale(var(--home-bg-scale)) translateZ(0);
         }
