@@ -13,41 +13,40 @@
 {% block title %}{{ seo_title|default:product.name }}{% endblock %}
 
 {% block extra_css %}
-{# ============================================================
-   AROLANA PRODUCT SEO / GOOGLE MERCHANT HEAD
-   Uses Product admin SEO fields and forces structured data currency to NGN.
-   Keep this inside the head-rendered extra_css block from base/base.html.
-   ============================================================ #}
 <meta name="description" content="{{ seo_description|default:product.meta_description|default:product.description|striptags|truncatechars:160 }}">
 {% if product.meta_keywords %}
 <meta name="keywords" content="{{ product.meta_keywords }}">
 {% endif %}
+
+{% if canonical_url %}
 <link rel="canonical" href="{{ canonical_url }}">
+{% endif %}
 
 <meta property="og:type" content="product">
 <meta property="og:site_name" content="Arolana">
 <meta property="og:title" content="{{ seo_title|default:product.name }}">
 <meta property="og:description" content="{{ seo_description|default:product.meta_description|default:product.description|striptags|truncatechars:160 }}">
+{% if canonical_url %}
 <meta property="og:url" content="{{ canonical_url }}">
+{% endif %}
+
 {% if product.main_image %}
-<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ product.main_image.url }}">
+<meta property="og:image" content="{{ product.main_image.url }}">
+<meta name="twitter:image" content="{{ product.main_image.url }}">
 {% elif gallery_images and gallery_images.0.src %}
 <meta property="og:image" content="{{ gallery_images.0.src }}">
+<meta name="twitter:image" content="{{ gallery_images.0.src }}">
 {% endif %}
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{{ seo_title|default:product.name }}">
 <meta name="twitter:description" content="{{ seo_description|default:product.meta_description|default:product.description|striptags|truncatechars:160 }}">
-{% if product.main_image %}
-<meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{{ product.main_image.url }}">
-{% elif gallery_images and gallery_images.0.src %}
-<meta name="twitter:image" content="{{ gallery_images.0.src }}">
-{% endif %}
 
 {% if product.price %}
 <meta property="product:price:amount" content="{{ product.price }}">
 <meta property="product:price:currency" content="NGN">
 {% endif %}
+
 {% if product.is_in_stock %}
 <meta property="product:availability" content="in stock">
 {% else %}
