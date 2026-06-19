@@ -3,15 +3,11 @@ Arolana homepage background controlled from admin.
 Save this file as:
 templates/includes/homepage_background_css.html
 
-PRODUCTION-SAFE BACKGROUND ONLY FIX:
-- Fixes production issue where development shows background but production does not.
-- Does NOT style or override topbar, header, nav, footer, cookie banner, or chat widget.
-- Uses responsive images: 1080×1350 WebP recommended for mobile
-- Does not depend on optimized image variants that may not exist in production.
-- Uses the original uploaded media URL from storage/CDN.
-- Does not use negative z-index, because negative body pseudo-elements can disappear behind the page in production stacking contexts.
-- Server-side limits this CSS to the homepage, with JS class only as backup/debug.
-- Fully editable from admin through homepage_appearance fields.
+PRODUCTION-SAFE BACKGROUND FIX:
+- Background controlled from admin.
+- Does NOT style topbar, header, nav, footer, cookie banner, or chat widget.
+- Uses original uploaded media URL.
+- Mobile fix: background fills the full long homepage without over-zooming or ending early.
 {% endcomment %}
 
 {% if homepage_appearance and homepage_appearance.is_active %}
@@ -25,12 +21,13 @@ PRODUCTION-SAFE BACKGROUND ONLY FIX:
 
     body {
         --home-bg-overlay-opacity: {{ homepage_appearance.desktop_overlay_opacity|default_if_none:"0.35" }};
-        --home-mobile-bg-overlay-opacity: {{ homepage_appearance.mobile_overlay_opacity|default_if_none:"0.45" }};
+        --home-mobile-bg-overlay-opacity: {{ homepage_appearance.mobile_overlay_opacity|default_if_none:"0.35" }};
         --home-bg-position-desktop: {{ homepage_appearance.desktop_position|default:"center center" }};
-        --home-bg-position-mobile: {{ homepage_appearance.mobile_position|default:"center center" }};
+        --home-bg-position-mobile: {{ homepage_appearance.mobile_position|default:"center top" }};
         --home-bg-blur: {% if homepage_appearance.blur_background or homepage_appearance.background_blur %}8px{% else %}0px{% endif %};
-        --home-mobile-bg-blur: {% if homepage_appearance.blur_background or homepage_appearance.background_blur %}7px{% else %}0px{% endif %};
+        --home-mobile-bg-blur: {% if homepage_appearance.blur_background or homepage_appearance.background_blur %}0px{% else %}0px{% endif %};
         --home-bg-scale: {% if homepage_appearance.blur_background or homepage_appearance.background_blur %}1.035{% else %}1{% endif %};
+
         position: relative !important;
         isolation: isolate !important;
         background-color: #F6F9FC !important;
@@ -51,23 +48,21 @@ PRODUCTION-SAFE BACKGROUND ONLY FIX:
             {% else %}
                 none
             {% endif %};
+
         background-size: cover;
         background-position: var(--home-bg-position-desktop);
         background-repeat: no-repeat;
         background-attachment: {% if homepage_appearance.fixed_background %}fixed{% else %}scroll{% endif %};
     }
 
-    /*
-       Production-safe layer:
-       Use z-index 0 instead of negative z-index so the image cannot disappear
-       behind body/html backgrounds on Railway/gunicorn/production CSS stacking.
-    */
     body::before {
         content: "";
         position: {% if homepage_appearance.fixed_background %}fixed{% else %}absolute{% endif %};
         inset: 0;
+        min-height: 100%;
         z-index: 0;
         pointer-events: none;
+
         background-image:
             {% if homepage_appearance.desktop_background_image %}
                 url("{{ homepage_appearance.desktop_background_image.url|safe }}")
@@ -76,6 +71,7 @@ PRODUCTION-SAFE BACKGROUND ONLY FIX:
             {% else %}
                 none
             {% endif %};
+
         background-size: cover;
         background-position: var(--home-bg-position-desktop);
         background-repeat: no-repeat;
@@ -89,8 +85,10 @@ PRODUCTION-SAFE BACKGROUND ONLY FIX:
         content: "";
         position: {% if homepage_appearance.fixed_background %}fixed{% else %}absolute{% endif %};
         inset: 0;
+        min-height: 100%;
         z-index: 0;
         pointer-events: none;
+
         background:
             radial-gradient(circle at 16% 10%, rgba(0, 184, 255, 0.05), transparent 30rem),
             radial-gradient(circle at 88% 16%, rgba(255, 122, 0, 0.045), transparent 28rem),
@@ -101,13 +99,11 @@ PRODUCTION-SAFE BACKGROUND ONLY FIX:
             );
     }
 
-    /* Keep every real page element above the background layers without changing their design. */
     body > * {
         position: relative;
         z-index: 1;
     }
 
-    /* Only make homepage content wrappers transparent so the background can show. */
     body main,
     body .site-main-wrap,
     body .main-content,
@@ -118,7 +114,6 @@ PRODUCTION-SAFE BACKGROUND ONLY FIX:
     }
 
     {% if homepage_appearance.make_sections_glass %}
-    /* Glass effect only inside homepage content. No topbar/header/footer styling here. */
     body main .product-grid-card,
     body main .luxury-product-card,
     body main .category-card,
@@ -147,79 +142,91 @@ PRODUCTION-SAFE BACKGROUND ONLY FIX:
         -webkit-backdrop-filter: blur(14px) saturate(1.06);
     }
 
-@media (max-width: 768px) {
-    body {
-        --home-bg-position-mobile: {{ homepage_appearance.mobile_position|default:"center top" }};
+    @media (max-width: 768px) {
+        html,
+        body {
+            min-height: 100%;
+        }
+
+        body {
+            --home-bg-position-mobile: {{ homepage_appearance.mobile_position|default:"center top" }};
+            --home-mobile-bg-overlay-opacity: {{ homepage_appearance.mobile_overlay_opacity|default_if_none:"0.32" }};
+        }
+
+        body.homepage-body,
+        body.arolana-home-bg-active {
+            background-image:
+                linear-gradient(
+                    135deg,
+                    rgba(248, 250, 252, var(--home-mobile-bg-overlay-opacity)),
+                    rgba(255, 255, 255, calc(var(--home-mobile-bg-overlay-opacity) * 0.92))
+                ),
+                {% if homepage_appearance.mobile_background_image %}
+                    url("{{ homepage_appearance.mobile_background_image.url|safe }}")
+                {% elif homepage_appearance.desktop_background_image %}
+                    url("{{ homepage_appearance.desktop_background_image.url|safe }}")
+                {% else %}
+                    none
+                {% endif %};
+
+            background-position: center top;
+            background-repeat: repeat-y;
+            background-attachment: scroll !important;
+
+            /* Best mobile balance: not too zoomed, not short */
+            background-size: 100% auto;
+        }
+
+        body::before {
+            position: absolute;
+            inset: 0;
+            min-height: 100%;
+            height: 100%;
+            background-image:
+                {% if homepage_appearance.mobile_background_image %}
+                    url("{{ homepage_appearance.mobile_background_image.url|safe }}")
+                {% elif homepage_appearance.desktop_background_image %}
+                    url("{{ homepage_appearance.desktop_background_image.url|safe }}")
+                {% else %}
+                    none
+                {% endif %};
+
+            background-position: center top;
+            background-repeat: repeat-y;
+            background-attachment: scroll !important;
+            background-size: 100% auto;
+
+            filter: saturate(1.05) contrast(1.03) blur(var(--home-mobile-bg-blur));
+            transform: none;
+        }
+
+        body::after {
+            position: absolute;
+            inset: 0;
+            min-height: 100%;
+            height: 100%;
+            background:
+                radial-gradient(circle at 18% 8%, rgba(0, 184, 255, 0.045), transparent 18rem),
+                radial-gradient(circle at 88% 14%, rgba(255, 122, 0, 0.040), transparent 18rem),
+                linear-gradient(
+                    135deg,
+                    rgba(255, 255, 255, var(--home-mobile-bg-overlay-opacity)),
+                    rgba(246, 249, 252, calc(var(--home-mobile-bg-overlay-opacity) * 0.92))
+                );
+        }
     }
-
-    body.homepage-body,
-    body.arolana-home-bg-active {
-        background-image:
-            linear-gradient(
-                135deg,
-                rgba(248, 250, 252, var(--home-mobile-bg-overlay-opacity)),
-                rgba(255, 255, 255, calc(var(--home-mobile-bg-overlay-opacity) * 0.92))
-            ),
-            {% if homepage_appearance.mobile_background_image %}
-                url("{{ homepage_appearance.mobile_background_image.url|safe }}")
-            {% elif homepage_appearance.desktop_background_image %}
-                url("{{ homepage_appearance.desktop_background_image.url|safe }}")
-            {% else %}
-                none
-            {% endif %};
-
-        background-position: center top;
-        background-repeat: repeat-y;
-        background-attachment: scroll !important;
-        background-size: auto 100%;
-    }
-
-    body::before {
-        position: absolute;
-        min-height: 100%;
-
-        background-image:
-            {% if homepage_appearance.mobile_background_image %}
-                url("{{ homepage_appearance.mobile_background_image.url|safe }}")
-            {% elif homepage_appearance.desktop_background_image %}
-                url("{{ homepage_appearance.desktop_background_image.url|safe }}")
-            {% else %}
-                none
-            {% endif %};
-
-        background-position: center top;
-        background-repeat: repeat-y;
-        background-attachment: scroll !important;
-        background-size: auto 100%;
-
-        filter: saturate(1.05) contrast(1.03) blur(var(--home-mobile-bg-blur));
-        transform: scale(var(--home-bg-scale)) translateZ(0);
-    }
-
-    body::after {
-        position: absolute;
-        min-height: 100%;
-
-        background:
-            radial-gradient(circle at 18% 8%, rgba(0, 184, 255, 0.045), transparent 18rem),
-            radial-gradient(circle at 88% 14%, rgba(255, 122, 0, 0.040), transparent 18rem),
-            linear-gradient(
-                135deg,
-                rgba(255, 255, 255, var(--home-mobile-bg-overlay-opacity)),
-                rgba(246, 249, 252, calc(var(--home-mobile-bg-overlay-opacity) * 0.92))
-            );
-    }
-}
 </style>
 
 <script id="arolana-homepage-background-boot">
     (function () {
         document.documentElement.classList.add("arolana-home-bg-active");
+
         function applyHomepageBackgroundClass() {
             if (document.body) {
                 document.body.classList.add("arolana-home-bg-active");
             }
         }
+
         if (document.readyState === "loading") {
             document.addEventListener("DOMContentLoaded", applyHomepageBackgroundClass);
         } else {
