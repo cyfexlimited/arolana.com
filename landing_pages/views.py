@@ -145,6 +145,7 @@ def _context_for_page(page, preview=False):
     video_guides = list(getattr(page, "active_video_guides", []))
 
     benefits_section = _first_section(section_by_type, LandingPageSection.SECTION_BENEFITS)
+    hero_section = _first_section(section_by_type, LandingPageSection.SECTION_HERO)
     offers_section = _first_section(section_by_type, LandingPageSection.SECTION_OFFERS)
     steps_section = _first_section(section_by_type, LandingPageSection.SECTION_HOW_IT_WORKS)
     categories_section = _first_section(section_by_type, LandingPageSection.SECTION_ELIGIBLE_CATEGORIES)
@@ -192,6 +193,7 @@ def _context_for_page(page, preview=False):
         "section_by_type": section_by_type,
 
         "benefits_section": benefits_section,
+        "hero_section": hero_section,
         "offers_section": offers_section,
         "steps_section": steps_section,
         "categories_section": categories_section,

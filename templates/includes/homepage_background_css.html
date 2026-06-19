@@ -17,14 +17,16 @@ It works only on the homepage route where url_name == "home".
 {% endif %}
 <style>
     body {
-        background: #F8FAFC !important;
+        position: relative;
+        background: #071A44 !important;
+        isolation: isolate;
     }
 
     body::before {
         content: "";
         position: fixed;
         inset: 0;
-        z-index: -2;
+        z-index: 0;
         pointer-events: none;
         background-image:
             {% if desktop_background_url %}
@@ -43,7 +45,7 @@ It works only on the homepage route where url_name == "home".
         content: "";
         position: fixed;
         inset: 0;
-        z-index: -1;
+        z-index: 1;
         pointer-events: none;
         background:
             linear-gradient(
@@ -53,12 +55,39 @@ It works only on the homepage route where url_name == "home".
             );
     }
 
+    body > * {
+        position: relative;
+        z-index: 2;
+    }
+
+    body main,
+    body .main-content,
+    body .homepage-wrapper,
+    body .home-page,
+    body .arolana-homepage {
+        background: transparent !important;
+    }
+
+    body .site-footer {
+        background: rgba(7, 18, 38, 0.84) !important;
+        backdrop-filter: blur(18px) saturate(1.08);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        margin-top: 0 !important;
+    }
+
+    body .site-footer-newsletter,
+    body .site-footer-main,
+    body .site-footer-bottom {
+        background: transparent !important;
+    }
+
     {% if homepage_appearance.make_sections_glass %}
     body .product-grid-card,
     body .luxury-product-card,
     body .category-card,
     body .product-card {
-        background-color: rgba(255, 255, 255, 0.96) !important;
+        background-color: rgba(255, 255, 255, 0.78) !important;
+        backdrop-filter: blur(16px) saturate(1.08);
     }
 
     body section,
@@ -66,6 +95,8 @@ It works only on the homepage route where url_name == "home".
     body .homepage-section {
         position: relative;
         z-index: 1;
+        background-color: rgba(255, 255, 255, 0.58) !important;
+        backdrop-filter: blur(18px) saturate(1.08);
     }
     {% endif %}
 

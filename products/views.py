@@ -24,7 +24,7 @@ from .models import (
     Product, Category, ProductReview, Wishlist, RecentlyViewed, 
     ProductVariant, ProductQuestion, Accessory, AccessoryProduct,
     ProductImage, ProductVideo, ProductVariantImage, Brand, ProductListingBanner,
-    ProductArticleLink, ProductWholesaleTier, ProductDetailSection,
+    ProductArticleLink, CategoryArticleLink, ProductWholesaleTier, ProductDetailSection,
     ProductDetailFieldConfig, ProductVariantTypeConfig
 )
 from accounts.models import User
@@ -89,6 +89,12 @@ except ImportError:
     VendorProfile = None
     VendorFollow = None
     VendorRFQ = None
+
+try:
+    from chat.models import VendorChatRoom, VendorChatMessage
+except ImportError:
+    VendorChatRoom = None
+    VendorChatMessage = None
 
 try:
     from notifications.models import Notification
@@ -441,6 +447,64 @@ class GuestCart:
     @property
     def total(self):
         return self.subtotal
+
+
+def _prefetch_cart_items(cart):
+    """
+    Keep cart page/update reads lean for product, variant, and accessory images.
+    GuestCart already carries hydrated item objects, so only database carts need this.
+    """
+    if not cart or isinstance(cart, GuestCart):
+        return cart
+
+    prefetched_items = (
+        CartItem.objects
+        .filter(cart=cart)
+        .select_related(
+            'product',
+            'product__category',
+            'product__brand',
+            'variant',
+            'variant__product',
+            'accessory',
+        )
+        .order_by('created_at', 'id')
+    )
+    return (
+        Cart.objects
+        .filter(pk=cart.pk)
+        .prefetch_related(Prefetch('items', queryset=prefetched_items))
+        .first()
+    ) or cart
+
+
+def _cart_ajax_payload(request, cart, item=None, deleted=False):
+    """Return all cart numbers the frontend needs to update without a refresh."""
+    subtotal = getattr(cart, 'subtotal', Decimal('0.00')) or Decimal('0.00')
+    total = getattr(cart, 'total', subtotal) or subtotal
+    cart_count = getattr(cart, 'total_items', 0) or 0
+
+    payload = {
+        'success': True,
+        'deleted': bool(deleted),
+        'cart_count': cart_count,
+        'subtotal': str(subtotal),
+        'total': str(total),
+        'subtotal_display': format_currency(subtotal, request),
+        'total_display': format_currency(total, request),
+    }
+
+    if item is not None:
+        item_subtotal = getattr(item, 'subtotal', Decimal('0.00')) or Decimal('0.00')
+        payload.update({
+            'item_id': str(getattr(item, 'id', '')),
+            'quantity': getattr(item, 'quantity', 0),
+            'item_subtotal': str(item_subtotal),
+            'item_subtotal_display': format_currency(item_subtotal, request),
+            'item_price_display': format_currency(getattr(item, 'price_at_add', Decimal('0.00')), request),
+        })
+
+    return payload
 
 
 def _safe_quantity(value, default=1):
@@ -882,6 +946,7 @@ def cart_view(request):
             user=request.user,
             is_active=True
         )[0]
+        cart = _prefetch_cart_items(cart)
     else:
         cart = _build_guest_cart(request)
 
@@ -941,22 +1006,37 @@ def update_cart(request):
             if quantity <= 0:
                 cart_data.pop(item_id, None)
                 _save_guest_cart(request, cart_data)
-                return JsonResponse({'success': True, 'deleted': True, 'cart_count': _guest_cart_count(cart_data)})
+                cart = _build_guest_cart(request)
+                payload = _cart_ajax_payload(request, cart, deleted=True)
+                request.session['cart_count'] = payload['cart_count']
+                return JsonResponse(payload)
 
             cart_data[item_id]['quantity'] = quantity
             cart_data = _save_guest_cart(request, cart_data)
-            return JsonResponse({'success': True, 'cart_count': _guest_cart_count(cart_data)})
+            cart = _build_guest_cart(request)
+            updated_item = next((item for item in cart.items.all() if str(item.id) == str(item_id)), None)
+            payload = _cart_ajax_payload(request, cart, item=updated_item)
+            request.session['cart_count'] = payload['cart_count']
+            return JsonResponse(payload)
 
         cart_item = get_object_or_404(CartItem, id=item_id, cart__user=request.user)
         
         if quantity <= 0:
+            cart = cart_item.cart
             cart_item.delete()
-            return JsonResponse({'success': True, 'deleted': True})
+            cart = _prefetch_cart_items(cart)
+            payload = _cart_ajax_payload(request, cart, deleted=True)
+            request.session['cart_count'] = payload['cart_count']
+            return JsonResponse(payload)
         
         cart_item.quantity = quantity
         cart_item.save(update_fields=['quantity'])
-        
-        return JsonResponse({'success': True})
+
+        cart_item.refresh_from_db()
+        cart = _prefetch_cart_items(cart_item.cart)
+        payload = _cart_ajax_payload(request, cart, item=cart_item)
+        request.session['cart_count'] = payload['cart_count']
+        return JsonResponse(payload)
     except ValueError:
         return JsonResponse({'success': False, 'error': 'Invalid quantity'}, status=400)
 
@@ -981,10 +1061,8 @@ def remove_from_cart(request, item_id):
     messages.success(request, 'Item removed from cart')
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return JsonResponse({
-            'success': True,
-            'cart_count': cart_count
-        })
+        cart = _prefetch_cart_items(cart) if request.user.is_authenticated else _build_guest_cart(request)
+        return JsonResponse(_cart_ajax_payload(request, cart, deleted=True))
     
     return redirect('products:cart')
 
@@ -1612,15 +1690,29 @@ def product_detail(request, slug):
 
 def category_view(request, slug):
     """Display category view with all subcategories and dynamic background - APPROVED ONLY"""
-    category = get_object_or_404(Category, slug=slug, is_active=True)
+    category = get_object_or_404(
+        Category.objects.prefetch_related(
+            Prefetch(
+                'article_links',
+                queryset=CategoryArticleLink.objects.filter(
+                    is_active=True,
+                    article__is_published=True,
+                ).select_related('article').order_by('sort_order', '-article__published_at'),
+                to_attr='active_article_links',
+            )
+        ),
+        slug=slug,
+        is_active=True,
+    )
     
     # ====== Get All Subcategories ======
     category_ids = [category.id]
-    subcategories = category.children.filter(is_active=True)
+    subcategories = list(category.children.filter(is_active=True).order_by('order', 'name'))
     
     # Also collect products from subcategories
     for child in subcategories:
         category_ids.append(child.id)
+        child.approved_product_count = _mobile_category_product_count(child)
         for grandchild in child.children.filter(is_active=True):
             category_ids.append(grandchild.id)
     
@@ -1690,6 +1782,10 @@ def category_view(request, slug):
             "end_index": products_page.end_index() if products_page.paginator.count else 0,
         })
 
+    category_article_links = list(getattr(category, 'active_article_links', []))
+    category_article_links_overview = [link for link in category_article_links if link.placement == 'overview']
+    category_article_links_cards = [link for link in category_article_links if link.placement in {'guide_card', 'articles_tab'}]
+
     return render(request, 'products/category_landing.html', {
         'category': category,
         'subcategories': subcategories,
@@ -1698,6 +1794,9 @@ def category_view(request, slug):
         'current_sort': sort_param,
         'user_currency': user_currency,
         'breadcrumbs': breadcrumbs,
+        'category_article_links': category_article_links,
+        'category_article_links_overview': category_article_links_overview,
+        'category_article_links_cards': category_article_links_cards,
     })
 
 
@@ -2408,15 +2507,7 @@ def _mobile_get_image_url(request, product):
     if not image:
         return None
 
-    try:
-        image_url = image.url
-    except Exception:
-        return None
-
-    if image_url.startswith("http://") or image_url.startswith("https://"):
-        return image_url
-
-    return request.build_absolute_uri(image_url)
+    return _mobile_file_url(request, image, preset="product_card")
 
 
 def parse_price_safe(value):
@@ -2426,14 +2517,17 @@ def parse_price_safe(value):
         return Decimal("0")
 
 
-def _mobile_file_url(request, file_field):
+def _mobile_file_url(request, file_field, preset=None):
     if not file_field:
         return None
 
     try:
-        file_url = file_field.url
+        file_url = get_optimized_image_url(file_field, preset) if preset else file_field.url
     except Exception:
-        return None
+        try:
+            file_url = file_field.url
+        except Exception:
+            return None
 
     if file_url.startswith("http://") or file_url.startswith("https://"):
         return file_url
@@ -2460,11 +2554,36 @@ def _mobile_category_product_count(category):
     if not category:
         return 0
 
-    return Product.objects.filter(
-        category_id__in=_category_descendant_ids(category),
-        is_active=True,
-        approval_status="approved",
-    ).count()
+    cache_key = f"mobile-category-product-count:{category.id}:{category.updated_at.timestamp() if getattr(category, 'updated_at', None) else '0'}"
+    return local_get_or_set(
+        cache_key,
+        lambda: Product.objects.filter(
+            category_id__in=_category_descendant_ids(category),
+            is_active=True,
+            approval_status="approved",
+        ).count(),
+        120,
+    )
+
+
+def _mobile_category_article_payload(request, article_link):
+    if not article_link:
+        return None
+    article = getattr(article_link, "article", None)
+    if not article:
+        return None
+    image = getattr(article, "display_image", None)
+    return {
+        "id": article_link.id,
+        "article_id": article.id,
+        "title": article_link.display_label,
+        "teaser": strip_tags(article_link.display_teaser or "")[:220],
+        "placement": article_link.placement,
+        "open_behavior": article_link.open_behavior,
+        "image": _mobile_file_url(request, image, preset="ad_card") if image else "",
+        "url": request.build_absolute_uri(article_link.article_url),
+        "reading_time": getattr(article, "reading_time", None),
+    }
 
 
 def _mobile_category_payload(request, category, include_children=True):
@@ -2479,13 +2598,21 @@ def _mobile_category_payload(request, category, include_children=True):
         ]
         children = [child for child in children if child]
 
+    product_count = _mobile_category_product_count(category)
+    direct_product_count = Product.objects.filter(
+        category=category,
+        is_active=True,
+        approval_status="approved",
+    ).count()
+    subcategory_count = category.children.filter(is_active=True).count()
+
     return {
         "id": category.id,
         "name": category.name,
         "slug": category.slug,
         "description": strip_tags(category.description or "")[:180],
-        "image": _mobile_file_url(request, getattr(category, "image", None)),
-        "background_image": _mobile_file_url(request, getattr(category, "background_image", None)),
+        "image": _mobile_file_url(request, getattr(category, "image", None), preset="category_card"),
+        "background_image": _mobile_file_url(request, getattr(category, "background_image", None), preset="hero"),
         "url": request.build_absolute_uri(reverse("products:category", args=[category.slug])),
         "hero_title": getattr(category, "hero_title", "") or "",
         "hero_subtitle": getattr(category, "hero_subtitle", "") or "",
@@ -2495,7 +2622,10 @@ def _mobile_category_payload(request, category, include_children=True):
         "hero_height_mobile": getattr(category, "hero_height_mobile", None) or 360,
         "hero_image_brightness": getattr(category, "hero_image_brightness", None) or 62,
         "hero_text_color": getattr(category, "hero_text_color", "") or "",
-        "product_count": _mobile_category_product_count(category),
+        "product_count": product_count,
+        "direct_product_count": direct_product_count,
+        "subcategory_count": subcategory_count,
+        "children_count": subcategory_count,
         "children": children,
     }
 
@@ -2762,7 +2892,7 @@ def _mobile_vendor_payload(request, vendor_profile, include_products=False):
 
 def _mobile_ad_payload(request, ad, ad_type):
     if ad_type == "creative":
-        image = _mobile_file_url(request, getattr(ad, "image_mobile", None) or getattr(ad, "image", None))
+        image = _mobile_file_url(request, getattr(ad, "image_mobile", None) or getattr(ad, "image", None), preset="ad_card")
         return {
             "id": f"creative-{ad.id}",
             "type": "creative",
@@ -2777,7 +2907,7 @@ def _mobile_ad_payload(request, ad, ad_type):
         }
 
     if ad_type == "banner":
-        image = _mobile_file_url(request, getattr(ad, "image_mobile", None) or getattr(ad, "image", None))
+        image = _mobile_file_url(request, getattr(ad, "image_mobile", None) or getattr(ad, "image", None), preset="ad_card")
         placement = getattr(ad, "placement", None)
         return {
             "id": f"banner-{ad.id}",
@@ -2796,7 +2926,7 @@ def _mobile_ad_payload(request, ad, ad_type):
             "image_fit": ad.image_fit,
         }
 
-    image = _mobile_file_url(request, getattr(ad, "image", None))
+    image = _mobile_file_url(request, getattr(ad, "image", None), preset="ad_card")
     return {
         "id": f"ad-{ad.id}",
         "type": "simple",
@@ -3054,10 +3184,10 @@ def mobile_home_api(request):
                 "image_fit_tablet": banner.image_fit_tablet,
                 "image_fit_desktop": banner.image_fit_desktop,
                 "image_position_mobile": banner.image_position_mobile,
-                "image_mobile": _mobile_file_url(request, banner.image_mobile),
-                "image_tablet": _mobile_file_url(request, banner.image_tablet),
-                "image_desktop": _mobile_file_url(request, banner.image_desktop),
-                "image": _mobile_file_url(request, banner.image_mobile or banner.image_tablet or banner.image_desktop),
+                "image_mobile": _mobile_file_url(request, banner.image_mobile, preset="hero"),
+                "image_tablet": _mobile_file_url(request, banner.image_tablet, preset="hero"),
+                "image_desktop": _mobile_file_url(request, banner.image_desktop, preset="hero"),
+                "image": _mobile_file_url(request, banner.image_mobile or banner.image_tablet or banner.image_desktop, preset="hero"),
                 "source": "hero_banners",
             })
 
@@ -3091,11 +3221,11 @@ def mobile_home_api(request):
                 "desktop_height": banner.desktop_height,
                 "tablet_height": banner.tablet_height,
                 "mobile_height": banner.mobile_height,
-                "image": _mobile_file_url(request, image.image) if image else None,
-                "background_image": _mobile_file_url(request, background.image) if background else None,
-                "center_image_upload": _mobile_file_url(request, center.image) if center else None,
-                "left_image_upload": _mobile_file_url(request, left.image) if left else None,
-                "right_image_upload": _mobile_file_url(request, right.image) if right else None,
+                "image": _mobile_file_url(request, image.image, preset="hero") if image else None,
+                "background_image": _mobile_file_url(request, background.image, preset="hero") if background else None,
+                "center_image_upload": _mobile_file_url(request, center.image, preset="hero") if center else None,
+                "left_image_upload": _mobile_file_url(request, left.image, preset="category_card") if left else None,
+                "right_image_upload": _mobile_file_url(request, right.image, preset="category_card") if right else None,
                 "left_image": banner.left_image,
                 "right_image": banner.right_image,
                 "center_image": banner.center_image,
@@ -3110,9 +3240,9 @@ def mobile_home_api(request):
     appearance = HomePageAppearance.objects.filter(is_active=True).order_by("-updated_at", "-id").first()
     if appearance:
         homepage_background = {
-            "desktop_background_image": _mobile_file_url(request, appearance.desktop_background_image),
-            "mobile_background_image": _mobile_file_url(request, appearance.mobile_background_image),
-            "image": _mobile_file_url(request, appearance.mobile_background_image or appearance.desktop_background_image),
+            "desktop_background_image": _mobile_file_url(request, appearance.desktop_background_image, preset="hero"),
+            "mobile_background_image": _mobile_file_url(request, appearance.mobile_background_image, preset="hero"),
+            "image": _mobile_file_url(request, appearance.mobile_background_image or appearance.desktop_background_image, preset="hero"),
             "desktop_overlay_opacity": str(appearance.desktop_overlay_opacity),
             "mobile_overlay_opacity": str(appearance.mobile_overlay_opacity),
             "desktop_position": appearance.desktop_position,
@@ -3126,7 +3256,7 @@ def mobile_home_api(request):
         homepage_categories = (
             HomepageCategory.objects.filter(is_active=True, category__is_active=True)
             .select_related("category")
-            .order_by("display_order")[:12]
+            .order_by("display_order", "id")[:80]
         )
         category_payloads = [
             _mobile_category_payload(request, item.category)
@@ -3135,7 +3265,7 @@ def mobile_home_api(request):
         ]
 
     if not category_payloads:
-        roots = Category.objects.filter(is_active=True, parent=None).order_by("name")[:12]
+        roots = Category.objects.filter(is_active=True, parent=None).order_by("name")[:80]
         category_payloads = [_mobile_category_payload(request, category) for category in roots]
 
     products = [_mobile_product_payload(request, product) for product in product_queryset]
@@ -3319,6 +3449,15 @@ def mobile_category_detail_api(request, slug):
     paginator = Paginator(products, per_page)
     page_obj = paginator.get_page(page_number)
     category_payload = _mobile_category_payload(request, category, include_children=True)
+    category_articles = [
+        _mobile_category_article_payload(request, link)
+        for link in CategoryArticleLink.objects.filter(
+            category=category,
+            is_active=True,
+            article__is_published=True,
+        ).select_related("article").order_by("sort_order", "-article__published_at")[:12]
+    ]
+    category_articles = [item for item in category_articles if item]
 
     return JsonResponse({
         "success": True,
@@ -3328,6 +3467,7 @@ def mobile_category_detail_api(request, slug):
             for ancestor in category.get_ancestors()
         ] + [{"name": category.name, "slug": category.slug}],
         "subcategories": category_payload.get("children", []),
+        "articles": category_articles,
         "products": [_mobile_product_payload(request, product) for product in page_obj.object_list],
         "product_count": paginator.count,
         "count": paginator.count,
@@ -4132,6 +4272,168 @@ def mobile_vendor_track_contact_api(request):
             customer = None
     _create_vendor_lead(request, vendor_profile, action_type, product=product, customer=customer, payload=payload)
     return JsonResponse({"success": True})
+
+
+def _mobile_vendor_chat_message_payload(message, user):
+    return {
+        "id": message.id,
+        "message": message.message,
+        "sender_id": message.sender_id,
+        "sender_name": message.sender.get_full_name() or message.sender.username or message.sender.email,
+        "is_mine": message.sender_id == user.id,
+        "timestamp": message.created_at.strftime("%H:%M"),
+        "created_at": message.created_at.isoformat(),
+    }
+
+
+def _mobile_vendor_chat_room_payload(request, room, customer_user):
+    messages = room.messages.select_related("sender").order_by("created_at")[:80]
+    product = room.product
+    return {
+        "id": room.id,
+        "vendor_id": room.vendor_id,
+        "product_id": getattr(product, "id", None),
+        "product_name": getattr(product, "name", ""),
+        "product_url": _product_absolute_url(request, product) if product else "",
+        "messages": [_mobile_vendor_chat_message_payload(message, customer_user) for message in messages],
+    }
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def mobile_vendor_chat_context_api(request):
+    if VendorChatRoom is None or VendorChatMessage is None:
+        return JsonResponse({"success": False, "message": "Vendor chat is not available."}, status=500)
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "message": "Invalid JSON payload."}, status=400)
+
+    try:
+        customer = _mobile_customer_from_payload(payload)
+    except Exception:
+        return JsonResponse({"success": False, "message": "Login is required before chatting with a vendor."}, status=401)
+
+    vendor_profile, product = _get_vendor_and_product_from_payload(payload)
+    if not vendor_profile or not getattr(vendor_profile, "user", None):
+        return JsonResponse({"success": False, "message": "Supplier not found."}, status=404)
+
+    vendor_user = vendor_profile.user
+    if not user_has_paid_subscription(vendor_user):
+        return JsonResponse({
+            "success": False,
+            "message": "This supplier chat is not active. You can request a callback or contact Arolana support.",
+        }, status=403)
+
+    room, created = VendorChatRoom.objects.get_or_create(
+        vendor=vendor_user,
+        customer=customer.user,
+        product=product,
+        defaults={},
+    )
+    if created:
+        _create_vendor_lead(
+            request,
+            vendor_profile,
+            "chat_started",
+            product=product,
+            customer=customer,
+            payload=payload,
+            metadata={"room_id": room.id, "source": "mobile_vendor_chat"},
+        )
+    else:
+        _create_vendor_lead(
+            request,
+            vendor_profile,
+            "chat_click",
+            product=product,
+            customer=customer,
+            payload=payload,
+            metadata={"room_id": room.id, "source": "mobile_vendor_chat"},
+        )
+
+    room.messages.filter(is_read=False).exclude(sender=customer.user).update(is_read=True, read_at=timezone.now())
+    room.customer_unread = 0
+    room.save(update_fields=["customer_unread", "updated_at"])
+
+    return JsonResponse({
+        "success": True,
+        "room": _mobile_vendor_chat_room_payload(request, room, customer.user),
+        "vendor": _mobile_vendor_payload(request, vendor_profile),
+    })
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def mobile_vendor_chat_send_api(request, room_id):
+    if VendorChatRoom is None or VendorChatMessage is None:
+        return JsonResponse({"success": False, "message": "Vendor chat is not available."}, status=500)
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "message": "Invalid JSON payload."}, status=400)
+
+    try:
+        customer = _mobile_customer_from_payload(payload)
+    except Exception:
+        return JsonResponse({"success": False, "message": "Login is required before sending a message."}, status=401)
+
+    room = get_object_or_404(
+        VendorChatRoom.objects.select_related("vendor", "vendor__vendor_profile", "customer", "product"),
+        id=room_id,
+        customer=customer.user,
+        is_active=True,
+    )
+    vendor_profile = getattr(room.vendor, "vendor_profile", None)
+    if not user_has_paid_subscription(room.vendor):
+        return JsonResponse({"success": False, "message": "This supplier chat is not active."}, status=403)
+
+    message_text = str(payload.get("message") or "").strip()
+    if not message_text:
+        return JsonResponse({"success": False, "message": "Type a message before sending."}, status=400)
+
+    message = VendorChatMessage.objects.create(
+        room=room,
+        sender=customer.user,
+        message=message_text[:4000],
+    )
+    room.last_message = message.message
+    room.last_message_time = timezone.now()
+    room.vendor_unread += 1
+    room.save(update_fields=["last_message", "last_message_time", "vendor_unread", "updated_at"])
+
+    if vendor_profile:
+        _create_vendor_lead(
+            request,
+            vendor_profile,
+            "chat_message_sent",
+            product=room.product,
+            customer=customer,
+            payload=payload,
+            metadata={"room_id": room.id, "message_id": message.id, "source": "mobile_vendor_chat"},
+        )
+    try:
+        if Notification:
+            Notification.send(
+                user=room.vendor,
+                notification_type="message",
+                title=f"New product chat from {customer.full_name or customer.phone_number}",
+                message=(message.message[:140] + "...") if len(message.message) > 140 else message.message,
+                link=reverse("chat:vendor_room", args=[room.id]),
+                metadata={"room_type": "vendor_customer", "room_id": room.id, "product_id": getattr(room.product, "id", None)},
+                priority=3,
+            )
+    except Exception:
+        pass
+
+    return JsonResponse({
+        "success": True,
+        "message": _mobile_vendor_chat_message_payload(message, customer.user),
+        "room": {
+            "id": room.id,
+            "vendor_unread": room.vendor_unread,
+        },
+    })
 
 
 def _rfq_payload(request, rfq):

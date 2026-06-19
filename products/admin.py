@@ -3,13 +3,13 @@ from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django import forms
 from django_ckeditor_5.widgets import CKEditor5Widget
-from django.db.models import F, Q
+from django.db.models import Count, F, Q
 from .models import (
     Category, Brand, Product, ProductImage, ProductVariant, 
     ProductVariantImage, ProductReview, RecentlyViewed, 
     Wishlist, ProductVideo, ReviewVideo, ProductQnA,
     Accessory, AccessoryProduct, ManufacturerWarranty, ShippingInfo, ProductListingBanner,
-    ProductArticleLink, ProductWholesaleTier, ProductDetailSection,
+    ProductArticleLink, CategoryArticleLink, ProductWholesaleTier, ProductDetailSection,
     ProductDetailFieldConfig, ProductVariantTypeConfig
 )
 
@@ -213,6 +213,13 @@ class ProductArticleLinkInline(admin.TabularInline):
     autocomplete_fields = ['article']
 
 
+class CategoryArticleLinkInline(admin.TabularInline):
+    model = CategoryArticleLink
+    extra = 1
+    fields = ['article', 'label', 'teaser', 'placement', 'open_behavior', 'sort_order', 'is_active']
+    autocomplete_fields = ['article']
+
+
 class ProductWholesaleTierInline(admin.TabularInline):
     model = ProductWholesaleTier
     extra = 1
@@ -316,6 +323,16 @@ class ProductAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .annotate(
+                product_count=Count('products', filter=Q(products__is_active=True, products__approval_status='approved')),
+                active_article_link_count=Count('article_links', filter=Q(article_links__is_active=True), distinct=True),
+            )
+        )
     
     def image_preview(self, obj):
         if obj.main_image:
@@ -457,11 +474,12 @@ class CategoryAdmin(OptionalColorFieldAdminMixin, admin.ModelAdmin):
         'hero_button_background_color',
         'hero_button_text_color',
     }
-    list_display = ['name', 'parent', 'order', 'is_active', 'image_preview', 'has_background_status', 'product_count_display']
+    list_display = ['name', 'parent', 'order', 'is_active', 'image_preview', 'has_background_status', 'article_links_display', 'product_count_display']
     list_filter = ['is_active', 'parent']
     search_fields = ['name', 'slug', 'description']
     prepopulated_fields = {'slug': ['name']}
     list_editable = ['order', 'is_active']
+    inlines = [CategoryArticleLinkInline]
     
     fieldsets = (
         ('Basic Information', {
@@ -512,6 +530,22 @@ class CategoryAdmin(OptionalColorFieldAdminMixin, admin.ModelAdmin):
             return mark_safe(f'<span style="color: #3b82f6; font-weight: bold;">{count} products</span>')
         return mark_safe('<span style="color: #9ca3af;">0 products</span>')
     product_count_display.short_description = 'Products'
+
+    def article_links_display(self, obj):
+        count = getattr(obj, 'active_article_link_count', 0)
+        if count:
+            return mark_safe(f'<span style="color: #f97316; font-weight: bold;">{count} article link(s)</span>')
+        return mark_safe('<span style="color: #9ca3af;">No articles</span>')
+    article_links_display.short_description = 'Articles'
+
+
+@admin.register(CategoryArticleLink)
+class CategoryArticleLinkAdmin(admin.ModelAdmin):
+    list_display = ['category', 'article', 'placement', 'open_behavior', 'sort_order', 'is_active']
+    list_filter = ['is_active', 'placement', 'open_behavior', 'category']
+    search_fields = ['category__name', 'article__title', 'label', 'teaser']
+    autocomplete_fields = ['category', 'article']
+    list_editable = ['sort_order', 'is_active']
 
 
 # =================================

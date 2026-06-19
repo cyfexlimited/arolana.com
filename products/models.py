@@ -839,6 +839,56 @@ class ProductArticleLink(BaseModel):
         return self.article.display_image_url
 
 
+class CategoryArticleLink(BaseModel):
+    """Attach editable editorial articles to category landing pages."""
+
+    OPEN_BEHAVIOR_CHOICES = ProductArticleLink.OPEN_BEHAVIOR_CHOICES
+
+    PLACEMENT_CHOICES = [
+        ('overview', 'Below category hero'),
+        ('guide_card', 'Category guide card'),
+        ('articles_tab', 'Articles section'),
+    ]
+
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='article_links')
+    article = models.ForeignKey('blog.BlogPost', on_delete=models.CASCADE, related_name='category_links')
+    label = models.CharField(max_length=120, blank=True, help_text="Optional button/card title override")
+    teaser = models.TextField(blank=True, help_text="Optional short teaser override")
+    placement = models.CharField(max_length=30, choices=PLACEMENT_CHOICES, default='guide_card')
+    open_behavior = models.CharField(max_length=20, choices=OPEN_BEHAVIOR_CHOICES, default='same_page')
+    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['sort_order', 'article__published_at']
+        unique_together = [('category', 'article', 'placement')]
+        verbose_name = 'Category Article Link'
+        verbose_name_plural = 'Category Article Links'
+        indexes = [
+            models.Index(fields=['category', 'is_active', 'sort_order']),
+            models.Index(fields=['placement', 'is_active']),
+        ]
+
+    def __str__(self):
+        return f"{self.category.name} -> {self.article.title}"
+
+    @property
+    def display_label(self):
+        return self.label or self.article.title
+
+    @property
+    def display_teaser(self):
+        return self.teaser or self.article.excerpt
+
+    @property
+    def article_url(self):
+        return self.article.get_absolute_url()
+
+    @property
+    def article_image_url(self):
+        return self.article.display_image_url
+
+
 # =========================
 # 🔥 ACCESSORY MODEL
 # =========================

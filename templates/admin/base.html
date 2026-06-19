@@ -19,15 +19,40 @@
         --ar-admin-sidebar-text: {{ admin_appearance.sidebar_text_color|default:"#1F2937" }};
     }
 
-    #jazzy-logo .brand-image,
-    #jazzy-navbar .brand-link .brand-image {
-        max-height: 38px;
-        max-width: 46px;
-        object-fit: contain;
-        background: #fff;
-    }
-</style>
-{% endblock %}
+	    #jazzy-logo .brand-image,
+	    #jazzy-navbar .brand-link .brand-image {
+	        max-height: 38px;
+	        max-width: 46px;
+	        object-fit: contain;
+	        background: #fff;
+	    }
+
+	    .ar-admin-nav-badge {
+	        display: inline-flex;
+	        align-items: center;
+	        justify-content: center;
+	        min-width: 1.35rem;
+	        height: 1.35rem;
+	        margin-left: auto;
+	        padding: 0 .38rem;
+	        border-radius: 999px;
+	        background: linear-gradient(135deg, #ff7a00, #ff3d00);
+	        color: #fff !important;
+	        font-size: .68rem;
+	        font-weight: 900;
+	        line-height: 1;
+	        box-shadow: 0 8px 20px rgba(255, 122, 0, .25);
+	    }
+
+	    #jazzy-sidebar .nav-link p,
+	    .main-sidebar .nav-link p {
+	        width: 100%;
+	        display: inline-flex !important;
+	        align-items: center;
+	        gap: .45rem;
+	    }
+	</style>
+	{% endblock %}
 
 {% block extrajs %}
 {{ block.super }}
@@ -50,6 +75,44 @@ document.addEventListener('DOMContentLoaded', function () {
         label.textContent = siteName;
     });
 });
-</script>
-{% endif %}
-{% endblock %}
+	</script>
+	{% endif %}
+	{% if admin_sidebar_badges_json %}
+	<script>
+	document.addEventListener('DOMContentLoaded', function () {
+	    const badgeMap = {{ admin_sidebar_badges_json|safe }};
+	    const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim().toLowerCase();
+
+	    function badgeForLink(link) {
+	        const text = normalize(link.textContent);
+	        const href = link.getAttribute('href') || '';
+	        if (badgeMap[text]) return badgeMap[text];
+	        return Object.values(badgeMap).find(function (badge) {
+	            return Array.isArray(badge.href_contains) && badge.href_contains.some(function (part) {
+	                return part && href.indexOf(part) !== -1;
+	            });
+	        });
+	    }
+
+	    function applyBadges() {
+	        document.querySelectorAll('#jazzy-sidebar a.nav-link, .main-sidebar a.nav-link').forEach(function (link) {
+	            const badge = badgeForLink(link);
+	            if (!badge || link.querySelector('.ar-admin-nav-badge')) return;
+	            const target = link.querySelector('p') || link;
+	            const count = Number(badge.count || 0);
+	            if (!count) return;
+	            const bubble = document.createElement('span');
+	            bubble.className = 'ar-admin-nav-badge';
+	            bubble.textContent = count > 99 ? '99+' : String(count);
+	            bubble.title = badge.title || '';
+	            target.appendChild(bubble);
+	            if (badge.title) link.title = badge.title;
+	        });
+	    }
+
+	    applyBadges();
+	    window.setTimeout(applyBadges, 400);
+	});
+	</script>
+	{% endif %}
+	{% endblock %}

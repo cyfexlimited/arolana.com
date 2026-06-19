@@ -1,10 +1,82 @@
 import json
 from datetime import timedelta
-from django.db.models import F, Sum
+from django.db.models import F, Q, Sum
 from django.contrib.auth import get_user_model
 from django.conf import settings
 from django.utils import timezone
 from decimal import Decimal
+from core.local_cache import local_get_or_set
+
+
+def _build_admin_sidebar_badges(user, stats, notification_count):
+    """Small cached counts for Jazzmin sidebar badges."""
+
+    def build():
+        badges = {}
+
+        def add(label, count, title="", href_contains=None):
+            count = int(count or 0)
+            if count <= 0:
+                return
+            badges[label.lower()] = {
+                "label": label,
+                "count": count,
+                "title": title or f"{count} item(s) need attention",
+                "href_contains": href_contains or [],
+            }
+
+        category_alerts = 0
+        vendor_alerts = stats.get("pending_vendors", 0)
+        chat_alerts = 0
+        smartchat_alerts = 0
+        kyc_alerts = 0
+
+        try:
+            from products.models import Category
+            category_alerts = Category.objects.filter(
+                is_active=True,
+            ).filter(
+                Q(image="") | Q(image__isnull=True) | Q(background_image="") | Q(background_image__isnull=True)
+            ).count()
+        except Exception:
+            category_alerts = 0
+
+        try:
+            from chat.models import ChatNotification, VendorChatRoom
+            chat_alerts = (
+                ChatNotification.objects.filter(user=user, is_read=False).count()
+                + VendorChatRoom.objects.filter(is_active=True, vendor_unread__gt=0).count()
+            )
+        except Exception:
+            chat_alerts = 0
+
+        try:
+            from smartchat.models import AIMessage, HumanTakeoverRequest
+            smartchat_alerts = (
+                AIMessage.objects.filter(is_read_by_admin=False).exclude(sender_type="admin").count()
+                + HumanTakeoverRequest.objects.exclude(status__in=["resolved", "cancelled"]).count()
+            )
+        except Exception:
+            smartchat_alerts = 0
+
+        try:
+            from kyc.models import KYCSubmission
+            kyc_alerts = KYCSubmission.objects.filter(status="pending").count()
+        except Exception:
+            kyc_alerts = 0
+
+        add("Products", stats.get("pending_products", 0) + stats.get("low_stock_products", 0) + stats.get("out_of_stock_products", 0), "Products waiting, low stock, or out of stock", ["/products/product/"])
+        add("Categories", category_alerts, "Categories/subcategories missing thumbnail or hero image", ["/products/category/"])
+        add("Orders", stats.get("pending_orders", 0), "Pending orders", ["/orders/order/"])
+        add("Vendors", vendor_alerts, "Vendors waiting for verification", ["/vendors/vendorprofile/"])
+        add("Notifications", notification_count, "Unread admin notifications", ["/notifications/notification/"])
+        add("Chat", chat_alerts, "Unread chat messages", ["/chat/"])
+        add("KYC", kyc_alerts, "KYC submissions waiting for review", ["/kyc/"])
+        add("Arolana Smart Chat", smartchat_alerts, "Smart Chat messages or human takeover requests need attention", ["/smartchat/"])
+
+        return badges
+
+    return local_get_or_set(f"admin-sidebar-badges:{user.id}", build, 60)
 
 def admin_context(request):
     """Comprehensive context processor for admin panel"""
@@ -14,6 +86,8 @@ def admin_context(request):
     user = getattr(request, 'user', None)
     if not user or not user.is_authenticated or not user.is_staff:
         return {}
+
+    is_dashboard_view = request.path.rstrip('/') in {'/admin', ''}
 
     User = get_user_model()
     admin_appearance = None
@@ -107,37 +181,42 @@ def admin_context(request):
         'inventory_health_percent': inventory_health_percent,
     }
     
-    # Chart data for last 30 days
     chart_labels = []
     chart_data = []
-    
-    for i in range(29, -1, -1):
-        day = today - timedelta(days=i)
-        chart_labels.append(day.strftime('%b %d'))
-        revenue = Order.objects.filter(
-            created_at__date=day,
-            status='delivered'
-        ).aggregate(total=Sum('total'))['total'] or Decimal('0')
-        chart_data.append(float(revenue))
-    
-    # Recent orders
-    latest_orders = Order.objects.select_related('user').order_by('-created_at')[:10]
-    latest_users = User.objects.order_by('-date_joined')[:8]
-    
-    # Top products
-    top_products = approved_products.order_by('-sales_count')[:6]
-    low_stock_items = low_stock_qs.select_related('category', 'brand', 'vendor').order_by('stock_quantity', 'name')[:8]
-    out_of_stock_items = out_of_stock_qs.select_related('category', 'brand', 'vendor').order_by('name')[:6]
-    pending_product_list = pending_products_qs.select_related('category', 'brand', 'vendor').order_by('-submitted_for_review_at')[:8]
-    pending_vendor_profiles = vendor_pending_qs.select_related('user').order_by('-created_at')[:6]
+    latest_orders = []
+    latest_users = []
+    top_products = []
+    low_stock_items = []
+    out_of_stock_items = []
+    pending_product_list = []
+    pending_vendor_profiles = []
+
+    if is_dashboard_view:
+        for i in range(29, -1, -1):
+            day = today - timedelta(days=i)
+            chart_labels.append(day.strftime('%b %d'))
+            revenue = Order.objects.filter(
+                created_at__date=day,
+                status='delivered'
+            ).aggregate(total=Sum('total'))['total'] or Decimal('0')
+            chart_data.append(float(revenue))
+
+        latest_orders = Order.objects.select_related('user').order_by('-created_at')[:10]
+        latest_users = User.objects.order_by('-date_joined')[:8]
+        top_products = approved_products.order_by('-sales_count')[:6]
+        low_stock_items = low_stock_qs.select_related('category', 'brand', 'vendor').order_by('stock_quantity', 'name')[:8]
+        out_of_stock_items = out_of_stock_qs.select_related('category', 'brand', 'vendor').order_by('name')[:6]
+        pending_product_list = pending_products_qs.select_related('category', 'brand', 'vendor').order_by('-submitted_for_review_at')[:8]
+        pending_vendor_profiles = vendor_pending_qs.select_related('user').order_by('-created_at')[:6]
     
     # Recent activities (if UserActivityLog exists)
     recent_activities = []
-    try:
-        from accounts.models import UserActivityLog
-        recent_activities = UserActivityLog.objects.select_related('user').order_by('-timestamp')[:10]
-    except:
-        pass
+    if is_dashboard_view:
+        try:
+            from accounts.models import UserActivityLog
+            recent_activities = UserActivityLog.objects.select_related('user').order_by('-timestamp')[:10]
+        except:
+            pass
     
     # Today's stats for header
     today_orders = Order.objects.filter(created_at__date=today).count()
@@ -198,6 +277,8 @@ def admin_context(request):
             'label': 'Read notifications',
         })
 
+    admin_sidebar_badges = _build_admin_sidebar_badges(request.user, stats, notification_count)
+
     return {
         # Admin specific context
         'site_url': getattr(settings, 'SITE_URL', 'http://localhost:8000'),
@@ -236,6 +317,8 @@ def admin_context(request):
         'site_settings': site_settings,
         'admin_appearance': admin_appearance,
         'admin_pending_count': stats['pending_vendors'] + stats['pending_orders'] + stats['pending_products'] + stats['low_stock_products'],
+        'admin_sidebar_badges': admin_sidebar_badges,
+        'admin_sidebar_badges_json': json.dumps(admin_sidebar_badges),
     }
 
 def admin_notifications(request):

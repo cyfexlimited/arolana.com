@@ -585,7 +585,7 @@
 
                     <div class="space-y-4">
                         {% for item in cart.items.all %}
-                        <article class="cart-item p-4 md:p-5">
+                        <article class="cart-item p-4 md:p-5" data-cart-item="{{ item.id }}">
                             <div class="flex flex-col gap-4 md:flex-row md:items-center">
                                 <div class="flex min-w-0 flex-1 gap-4">
                                     {% if item.product and item.product.main_image %}
@@ -621,7 +621,7 @@
                                             </div>
                                             <div>
                                                 <p class="text-xs font-black uppercase tracking-wide text-slate-400">Total</p>
-                                                <p class="font-black text-emerald-600">{{ item.subtotal|currency:request }}</p>
+                                                <p id="item-mobile-total-{{ item.id }}" class="font-black text-emerald-600">{{ item.subtotal|currency:request }}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -636,9 +636,9 @@
                                     <div>
                                         <p class="mb-1 text-xs font-black uppercase tracking-wide text-slate-400 md:text-center">Qty</p>
                                         <div class="qty-control">
-                                            <button type="button" onclick="updateQuantity('{{ item.id|escapejs }}', {{ item.quantity|add:'-1' }})" class="qty-btn" aria-label="Reduce quantity">−</button>
+                                            <button type="button" onclick="changeQuantity('{{ item.id|escapejs }}', -1)" class="qty-btn" aria-label="Reduce quantity">−</button>
                                             <span id="qty-{{ item.id }}" class="qty-value">{{ item.quantity }}</span>
-                                            <button type="button" onclick="updateQuantity('{{ item.id|escapejs }}', {{ item.quantity|add:'1' }})" class="qty-btn" aria-label="Increase quantity">+</button>
+                                            <button type="button" onclick="changeQuantity('{{ item.id|escapejs }}', 1)" class="qty-btn" aria-label="Increase quantity">+</button>
                                         </div>
                                     </div>
 
@@ -649,7 +649,7 @@
 
                                 <div class="hidden w-32 text-right md:block">
                                     <p class="text-xs font-black uppercase tracking-wide text-slate-400">Total</p>
-                                    <p class="font-black text-emerald-600">{{ item.subtotal|currency:request }}</p>
+                                    <p id="item-total-{{ item.id }}" class="font-black text-emerald-600">{{ item.subtotal|currency:request }}</p>
                                 </div>
 
                                 <button type="button" onclick="removeItem('{{ item.id|escapejs }}')" class="hidden h-10 w-10 items-center justify-center rounded-full bg-red-50 text-red-500 transition hover:bg-red-500 hover:text-white md:inline-flex" aria-label="Remove item">
@@ -703,9 +703,9 @@
                 </div>
 
                 <div class="space-y-1">
-                    <div class="summary-line"><span class="font-bold text-slate-500">Subtotal</span><span class="font-black text-blue-700">{{ cart.subtotal|currency:request }}</span></div>
+                    <div class="summary-line"><span class="font-bold text-slate-500">Subtotal</span><span id="cart-subtotal" class="font-black text-blue-700">{{ cart.subtotal|currency:request }}</span></div>
                     <div class="summary-line"><span class="font-bold text-slate-500">Shipping</span><span class="text-right font-black text-slate-700">Calculated by location</span></div>
-                    <div class="summary-line"><span class="font-black text-lg text-slate-950">Estimated Total</span><span class="font-black text-2xl text-emerald-600">{{ cart.subtotal|currency:request }}</span></div>
+                    <div class="summary-line"><span class="font-black text-lg text-slate-950">Estimated Total</span><span id="cart-total" class="font-black text-2xl text-emerald-600">{{ cart.subtotal|currency:request }}</span></div>
                 </div>
 
                 <div class="mt-5">
@@ -1259,6 +1259,54 @@ function setCartBusy(isBusy) {
     });
 }
 
+function updateCartBadges(cartCount) {
+    document.querySelectorAll('[data-cart-count], .cart-count, #cart-count').forEach((el) => {
+        el.textContent = cartCount;
+        el.classList.toggle('hidden', Number(cartCount) <= 0);
+    });
+}
+
+function applyCartResponse(data, itemId) {
+    if (!data || !data.success) return;
+
+    const row = Array.from(document.querySelectorAll('[data-cart-item]')).find(
+        (item) => item.dataset.cartItem === String(itemId)
+    );
+    const qty = document.getElementById(`qty-${itemId}`);
+    const desktopTotal = document.getElementById(`item-total-${itemId}`);
+    const mobileTotal = document.getElementById(`item-mobile-total-${itemId}`);
+    const subtotal = document.getElementById('cart-subtotal');
+    const total = document.getElementById('cart-total');
+
+    if (data.deleted && row) {
+        row.style.opacity = '0';
+        row.style.transform = 'translateY(8px)';
+        setTimeout(() => row.remove(), 180);
+    } else {
+        if (qty && data.quantity !== undefined) qty.textContent = data.quantity;
+        if (desktopTotal && data.item_subtotal_display) desktopTotal.textContent = data.item_subtotal_display;
+        if (mobileTotal && data.item_subtotal_display) mobileTotal.textContent = data.item_subtotal_display;
+    }
+
+    if (subtotal && data.subtotal_display) subtotal.textContent = data.subtotal_display;
+    if (total && data.total_display) total.textContent = data.total_display;
+    if (data.cart_count !== undefined) updateCartBadges(data.cart_count);
+
+    if (Number(data.cart_count || 0) <= 0) {
+        setTimeout(() => location.reload(), 300);
+    }
+}
+
+function currentQuantity(itemId) {
+    const qty = document.getElementById(`qty-${itemId}`);
+    const value = Number(qty ? qty.textContent : 1);
+    return Number.isFinite(value) ? value : 1;
+}
+
+function changeQuantity(itemId, delta) {
+    updateQuantity(itemId, currentQuantity(itemId) + Number(delta || 0));
+}
+
 function updateQuantity(itemId, newQuantity) {
     if (newQuantity < 1) {
         removeItem(itemId);
@@ -1279,8 +1327,9 @@ function updateQuantity(itemId, newQuantity) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            applyCartResponse(data, itemId);
+            setCartBusy(false);
             showCartToast('<i class="fas fa-check-circle mr-2"></i> Cart updated');
-            setTimeout(() => location.reload(), 450);
         } else {
             setCartBusy(false);
             showCartToast('<i class="fas fa-circle-exclamation mr-2"></i> Unable to update cart', 'error');
@@ -1305,13 +1354,16 @@ function removeItem(itemId) {
             'X-Requested-With': 'XMLHttpRequest',
         },
     })
-    .then(() => {
-        showCartToast('<i class="fas fa-trash-alt mr-2"></i> Item removed');
-        setTimeout(() => location.reload(), 450);
-    })
-    .catch(() => {
+    .then(response => response.json())
+    .then((data) => {
+        if (!data.success) throw new Error(data.error || 'Could not remove item');
+        applyCartResponse(data, itemId);
         setCartBusy(false);
-        showCartToast('<i class="fas fa-circle-exclamation mr-2"></i> Could not remove item', 'error');
+        showCartToast('<i class="fas fa-trash-alt mr-2"></i> Item removed');
+    })
+    .catch((error) => {
+        setCartBusy(false);
+        showCartToast(`<i class="fas fa-circle-exclamation mr-2"></i> ${error.message || 'Could not remove item'}`, 'error');
     });
 }
 </script>
