@@ -147,8 +147,6 @@ PRODUCTION-SAFE BACKGROUND ONLY FIX:
         -webkit-backdrop-filter: blur(14px) saturate(1.06);
     }
 
-    /* Mobile optimization: 1080×1350 WebP recommended */
-    /* Mobile optimization: 1080×1350 WebP recommended */
 @media (max-width: 768px) {
     body {
         --home-bg-position-mobile: {{ homepage_appearance.mobile_position|default:"center top" }};
@@ -171,11 +169,9 @@ PRODUCTION-SAFE BACKGROUND ONLY FIX:
             {% endif %};
 
         background-position: center top;
-        background-repeat: no-repeat;
+        background-repeat: repeat-y;
         background-attachment: scroll !important;
-
-        /* Prevent aggressive zooming */
-        background-size: 100% auto;
+        background-size: auto 100%;
     }
 
     body::before {
@@ -192,11 +188,9 @@ PRODUCTION-SAFE BACKGROUND ONLY FIX:
             {% endif %};
 
         background-position: center top;
-        background-repeat: no-repeat;
+        background-repeat: repeat-y;
         background-attachment: scroll !important;
-
-        /* Prevent aggressive zooming */
-        background-size: 100% auto;
+        background-size: auto 100%;
 
         filter: saturate(1.05) contrast(1.03) blur(var(--home-mobile-bg-blur));
         transform: scale(var(--home-bg-scale)) translateZ(0);
