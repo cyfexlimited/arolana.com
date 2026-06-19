@@ -13,14 +13,22 @@ GOOGLE_MERCHANT_CURRENCY = getattr(settings, "GOOGLE_MERCHANT_CURRENCY", "NGN")
 GOOGLE_MERCHANT_FEED_LABEL = getattr(settings, "GOOGLE_MERCHANT_FEED_LABEL", "NG")
 
 
+def _xml_response(xml):
+    response = HttpResponse(
+        xml,
+        content_type="application/xml; charset=utf-8",
+    )
+    response["X-Content-Type-Options"] = "nosniff"
+    response["Cache-Control"] = "public, max-age=1800"
+    return response
+
+
 def robots_txt(request):
     site_url = getattr(settings, "SITE_URL", "https://arolana.com").rstrip("/")
 
     lines = [
         "User-agent: *",
         "Allow: /",
-
-        # Public pages Google can crawl
         "Allow: /products/",
         "Allow: /vendors/",
         "Allow: /blog/",
@@ -28,8 +36,6 @@ def robots_txt(request):
         "Allow: /media/ads/",
         "Allow: /media/advertisements/",
         "Allow: /media/promo/",
-
-        # Private/system pages Google should not index
         "Disallow: /admin/",
         "Disallow: /dashboard/",
         "Disallow: /accounts/",
@@ -37,28 +43,18 @@ def robots_txt(request):
         "Disallow: /checkout/",
         "Disallow: /products/cart/",
         "Disallow: /products/checkout/",
-
-        # Tracking endpoints should not be indexed
         "Disallow: /ads/track-click/",
         "Disallow: /ads/track-impression/",
         "Disallow: /ads/api/",
-
         "",
         f"Sitemap: {site_url}/sitemap.xml",
         f"Sitemap: {site_url}/products/sitemap.xml",
     ]
 
-    return HttpResponse("\n".join(lines), content_type="text/plain")
+    return HttpResponse("\n".join(lines), content_type="text/plain; charset=utf-8")
 
 
 def google_merchant_feed(request):
-    """
-    Google Merchant Center feed.
-
-    For Arolana launch, keep Merchant feed Nigeria + NGN only.
-    Do not use visitor IP currency here.
-    """
-
     currency_code = GOOGLE_MERCHANT_CURRENCY
     site_url = getattr(settings, "SITE_URL", "https://arolana.com").rstrip("/")
 
@@ -69,7 +65,15 @@ def google_merchant_feed(request):
         .order_by("-updated_at")[:5000]
     )
 
-    items = []
+    rows = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">',
+        "  <channel>",
+        "    <title>Arolana Nigeria Product Feed</title>",
+        f"    <link>{escape(site_url)}</link>",
+        "    <description>Arolana approved marketplace products for Nigeria in NGN</description>",
+        f"    <lastBuildDate>{timezone.now().strftime('%a, %d %b %Y %H:%M:%S +0000')}</lastBuildDate>",
+    ]
 
     for product in products:
         data = merchant_metadata(product, request, currency_code)
@@ -78,46 +82,32 @@ def google_merchant_feed(request):
         amount = raw_price.split()[0] if raw_price else "0.00"
         price = f"{amount} {currency_code}"
 
-        items.append(f"""
-        <item>
-            <g:id>{escape(data.get("id", ""))}</g:id>
-            <g:title>{escape(data.get("title", ""))}</g:title>
-            <g:description>{escape(data.get("description", ""))}</g:description>
-            <g:link>{escape(data.get("link", ""))}</g:link>
-            <g:image_link>{escape(data.get("image_link", ""))}</g:image_link>
-            <g:availability>{escape(data.get("availability", "in stock"))}</g:availability>
-            <g:price>{escape(price)}</g:price>
-            <g:brand>{escape(data.get("brand", "Arolana"))}</g:brand>
-            <g:condition>{escape(data.get("condition", "new"))}</g:condition>
-            <g:google_product_category>{escape(data.get("google_product_category", ""))}</g:google_product_category>
-            <g:target_country>{escape(GOOGLE_MERCHANT_COUNTRY)}</g:target_country>
-            <g:feed_label>{escape(GOOGLE_MERCHANT_FEED_LABEL)}</g:feed_label>
-        </item>
-        """)
+        rows.extend([
+            "    <item>",
+            f"      <g:id>{escape(data.get('id', ''))}</g:id>",
+            f"      <g:title>{escape(data.get('title', ''))}</g:title>",
+            f"      <g:description>{escape(data.get('description', ''))}</g:description>",
+            f"      <g:link>{escape(data.get('link', ''))}</g:link>",
+            f"      <g:image_link>{escape(data.get('image_link', ''))}</g:image_link>",
+            f"      <g:availability>{escape(data.get('availability', 'in stock'))}</g:availability>",
+            f"      <g:price>{escape(price)}</g:price>",
+            f"      <g:brand>{escape(data.get('brand', 'Arolana'))}</g:brand>",
+            f"      <g:condition>{escape(data.get('condition', 'new'))}</g:condition>",
+            f"      <g:google_product_category>{escape(data.get('google_product_category', ''))}</g:google_product_category>",
+            f"      <g:target_country>{escape(GOOGLE_MERCHANT_COUNTRY)}</g:target_country>",
+            f"      <g:feed_label>{escape(GOOGLE_MERCHANT_FEED_LABEL)}</g:feed_label>",
+            "    </item>",
+        ])
 
-    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">
-    <channel>
-        <title>Arolana Nigeria Product Feed</title>
-        <link>{escape(site_url)}</link>
-        <description>Arolana approved marketplace products for Nigeria in NGN</description>
-        <lastBuildDate>{timezone.now().strftime("%a, %d %b %Y %H:%M:%S +0000")}</lastBuildDate>
-        {''.join(items)}
-    </channel>
-</rss>
-"""
+    rows.extend([
+        "  </channel>",
+        "</rss>",
+    ])
 
-    return HttpResponse(xml, content_type="application/xml")
+    return _xml_response("\n".join(rows))
 
 
 def product_sitemap_xml(request):
-    """
-    Clean Google-friendly XML sitemap for approved products.
-
-    URL:
-    /products/sitemap.xml
-    """
-
     site_url = getattr(settings, "SITE_URL", "https://arolana.com").rstrip("/")
 
     products = (
@@ -126,7 +116,10 @@ def product_sitemap_xml(request):
         .order_by("-updated_at")[:50000]
     )
 
-    urls = []
+    rows = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ]
 
     for product in products:
         try:
@@ -134,23 +127,17 @@ def product_sitemap_xml(request):
         except Exception:
             continue
 
-        if getattr(product, "updated_at", None):
-            lastmod = product.updated_at.date().isoformat()
-        else:
-            lastmod = timezone.now().date().isoformat()
+        lastmod = getattr(product, "updated_at", None) or timezone.now()
 
-        urls.append(f"""
-    <url>
-        <loc>{escape(loc)}</loc>
-        <lastmod>{lastmod}</lastmod>
-        <changefreq>daily</changefreq>
-        <priority>0.90</priority>
-    </url>""")
+        rows.extend([
+            "  <url>",
+            f"    <loc>{escape(loc)}</loc>",
+            f"    <lastmod>{lastmod.date().isoformat()}</lastmod>",
+            "    <changefreq>daily</changefreq>",
+            "    <priority>0.90</priority>",
+            "  </url>",
+        ])
 
-    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-{''.join(urls)}
-</urlset>
-"""
+    rows.append("</urlset>")
 
-    return HttpResponse(xml, content_type="application/xml")
+    return _xml_response("\n".join(rows))
