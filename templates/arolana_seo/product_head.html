@@ -3,7 +3,9 @@
 {% product_seo_description product as seo_description %}
 {% product_canonical_url product as canonical_url %}
 
+<title>{{ seo_title }}</title>
 <meta name="description" content="{{ seo_description }}">
+<meta name="keywords" content="{{ product.meta_keywords|default:'' }}">
 <link rel="canonical" href="{{ canonical_url }}">
 
 <meta property="og:type" content="product">
