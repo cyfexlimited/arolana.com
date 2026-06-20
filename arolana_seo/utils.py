@@ -26,12 +26,17 @@ def get_site_url(request=None):
 def absolute_url(path_or_url, request=None):
     if not path_or_url:
         return ""
+
     value = str(path_or_url).strip()
+
     if value.startswith(("http://", "https://")):
         return value
+
     site_url = get_site_url(request)
+
     if not value.startswith("/"):
-        value = f"/{value}"
+        value = "/" + value
+
     return f"{site_url}{value}"
 
 
