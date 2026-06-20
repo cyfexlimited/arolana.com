@@ -23,11 +23,11 @@ def get_site_url(request=None):
     return getattr(settings, "SITE_URL", "https://arolana.com").rstrip("/")
 
 
-def absolute_url(path_or_url, request=None):
-    if not path_or_url:
+def absolute_url(value, request=None):
+    if not value:
         return ""
 
-    value = str(path_or_url).strip()
+    value = str(value).strip()
 
     if value.startswith(("http://", "https://")):
         return value
