@@ -24,11 +24,13 @@
     {% endblock %}
 
     {% block meta_robots %}
-    <meta name="robots" content="{{ site_settings.meta_robots|default:'index, follow' }}">
+    <meta name="robots" content="{{ site_settings.meta_robots|default:'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1' }}">
+    <meta name="googlebot" content="{{ site_settings.meta_robots|default:'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1' }}">
     {% endblock %}
 
     {% if site_settings.site_logo %}
         {% optimized_image_url site_settings.site_logo 'logo' as site_logo_url %}
+        {% seo_media_url site_settings.site_logo as site_logo_seo_url %}
     {% endif %}
 
     {% block canonical_url %}
@@ -60,10 +62,11 @@
     {% endblock %}
 
     {% block social_image %}
-    {% if site_logo_url %}
-    <meta property="og:image" content="{{ site_logo_url }}">
+    {% if site_logo_seo_url %}
+    <meta property="og:image" content="{{ site_logo_seo_url }}">
+    <meta property="og:image:secure_url" content="{{ site_logo_seo_url }}">
     <meta property="og:image:alt" content="Arolana">
-    <meta name="twitter:image" content="{{ site_logo_url }}">
+    <meta name="twitter:image" content="{{ site_logo_seo_url }}">
     <meta name="twitter:image:alt" content="Arolana">
     {% endif %}
     {% endblock %}
@@ -75,7 +78,7 @@
       "@type": "Organization",
       "name": "{{ site_settings.site_name|default:'Arolana'|escapejs }}",
       "url": "{% if request %}{{ request.scheme }}://{{ request.get_host }}{% else %}https://arolana.com{% endif %}",
-      {% if site_logo_url %}"logo": "{{ site_logo_url|escapejs }}",{% endif %}
+      {% if site_logo_seo_url %}"logo": "{{ site_logo_seo_url|escapejs }}",{% endif %}
       "description": "{{ site_settings.site_description|default:'Arolana is a smart global marketplace connecting customers, vendors, and manufacturers through seamless shopping, secure payments, and trusted commerce.'|escapejs }}"
     }
     </script>
@@ -97,7 +100,7 @@
     {% block seo_extra %}{% endblock %}
 
     {% if site_settings.site_favicon %}
-        {% optimized_image_url site_settings.site_favicon 'nav_icon' as site_favicon_url %}
+        {% seo_media_url site_settings.site_favicon as site_favicon_url %}
         <link rel="icon" type="image/x-icon" href="{{ site_favicon_url }}">
     {% endif %}
     <link rel="manifest" href="{% url 'web_manifest' %}">

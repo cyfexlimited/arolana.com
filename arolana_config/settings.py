@@ -445,6 +445,9 @@ if AWS_STORAGE_BUCKET_NAME and AWS_S3_ENDPOINT_URL:
         'BACKEND': 'core.storages.CachedS3MediaStorage',
     }
 
+AROLANA_PUBLIC_MEDIA_BASE_URL = "https://arolana.com/media/"
+SITE_URL = "https://arolana.com"
+
 # ============ CKEDITOR 5 ============
 CKEDITOR_5_CONFIGS = {
     'default': {
