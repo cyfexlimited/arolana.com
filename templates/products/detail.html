@@ -11,13 +11,6 @@
 {% product_canonical_url product as canonical_url %}
 {% product_merchant_metadata product "NGN" as merchant_data %}
 
-{# FINAL AROLANA PRODUCT SEO IMAGE FIX.
-   One source of truth only:
-   product_seo_image_url searches product fields, merchant image, visible gallery images,
-   and related product image managers. It skips Arolana/settings logo paths, then returns
-   a clean permanent /media/ URL for og:image, twitter:image, and Product JSON-LD. #}
-{% product_seo_image_url product merchant_data gallery_images as product_final_seo_image_url %}
-
 {% block title %}{{ seo_title|default:product.name }}{% endblock %}
 
 {% block meta_description %}
@@ -75,7 +68,10 @@
 {% endblock %}
 
 {% block social_image %}
-{# FINAL: product image only first. Arolana logo is emergency fallback only. #}
+{# FINAL: calculate inside this block. Product image first, Arolana logo emergency fallback only. #}
+{% product_merchant_metadata product "NGN" as merchant_data %}
+{% product_seo_image_url product merchant_data gallery_images as product_final_seo_image_url %}
+
 {% if product_final_seo_image_url %}
 <meta property="og:image" content="{{ product_final_seo_image_url }}">
 <meta property="og:image:secure_url" content="{{ product_final_seo_image_url }}">
@@ -92,6 +88,10 @@
 {% endblock %}
 
 {% block seo_extra %}
+{# FINAL: calculate inside this block so Product JSON-LD receives the image. #}
+{% product_merchant_metadata product "NGN" as merchant_data %}
+{% product_seo_image_url product merchant_data gallery_images as product_final_seo_image_url %}
+
 <script type="application/ld+json">
 {
   "@context": "https://schema.org/",
