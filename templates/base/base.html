@@ -27,19 +27,74 @@
     <meta name="robots" content="{{ site_settings.meta_robots|default:'index, follow' }}">
     {% endblock %}
 
-    {% block canonical_url %}{% endblock %}
-    {% block seo_extra %}{% endblock %}
-
     {% if site_settings.site_logo %}
         {% optimized_image_url site_settings.site_logo 'logo' as site_logo_url %}
     {% endif %}
 
+    {% block canonical_url %}
+    {% if request %}
+    <link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
+    {% else %}
+    <link rel="canonical" href="https://arolana.com/">
+    {% endif %}
+    {% endblock %}
+
+    {% block social_meta %}
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="{{ site_settings.site_name|default:'Arolana' }}">
+    <meta property="og:title" content="{{ site_settings.site_name|default:'Arolana' }}{% if site_settings.site_tagline %} - {{ site_settings.site_tagline }}{% endif %}">
+    <meta property="og:description" content="{{ site_settings.site_description|default:'Arolana is a smart global marketplace connecting customers, vendors, and manufacturers through seamless shopping, secure payments, and trusted commerce.' }}">
+    {% if request %}
+    <meta property="og:url" content="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
+    {% else %}
+    <meta property="og:url" content="https://arolana.com/">
+    {% endif %}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ site_settings.site_name|default:'Arolana' }}{% if site_settings.site_tagline %} - {{ site_settings.site_tagline }}{% endif %}">
+    <meta name="twitter:description" content="{{ site_settings.site_description|default:'Arolana is a smart global marketplace connecting customers, vendors, and manufacturers through seamless shopping, secure payments, and trusted commerce.' }}">
+    {% if request %}
+    <meta name="twitter:url" content="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
+    {% else %}
+    <meta name="twitter:url" content="https://arolana.com/">
+    {% endif %}
+    {% endblock %}
+
     {% block social_image %}
     {% if site_logo_url %}
     <meta property="og:image" content="{{ site_logo_url }}">
+    <meta property="og:image:alt" content="Arolana">
     <meta name="twitter:image" content="{{ site_logo_url }}">
+    <meta name="twitter:image:alt" content="Arolana">
     {% endif %}
     {% endblock %}
+
+    {% block structured_data %}
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "{{ site_settings.site_name|default:'Arolana'|escapejs }}",
+      "url": "{% if request %}{{ request.scheme }}://{{ request.get_host }}{% else %}https://arolana.com{% endif %}",
+      {% if site_logo_url %}"logo": "{{ site_logo_url|escapejs }}",{% endif %}
+      "description": "{{ site_settings.site_description|default:'Arolana is a smart global marketplace connecting customers, vendors, and manufacturers through seamless shopping, secure payments, and trusted commerce.'|escapejs }}"
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "{{ site_settings.site_name|default:'Arolana'|escapejs }}",
+      "url": "{% if request %}{{ request.scheme }}://{{ request.get_host }}{% else %}https://arolana.com{% endif %}",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "{% if request %}{{ request.scheme }}://{{ request.get_host }}{% else %}https://arolana.com{% endif %}/search/?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+    {% endblock %}
+
+    {% block seo_extra %}{% endblock %}
 
     {% if site_settings.site_favicon %}
         {% optimized_image_url site_settings.site_favicon 'nav_icon' as site_favicon_url %}
