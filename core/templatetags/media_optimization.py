@@ -31,19 +31,6 @@ PUBLIC_MEDIA_PREFIXES = {
 }
 
 
-PRODUCT_RELATED_NAMES = [
-    "gallery_images",
-    "images",
-    "product_images",
-    "media",
-    "media_images",
-    "additional_images",
-    "photos",
-    "variant_images",
-    "variants",
-]
-
-
 IMAGE_FIELD_NAMES = [
     "main_image",
     "image",
@@ -63,14 +50,24 @@ IMAGE_FIELD_NAMES = [
 ]
 
 
+PRODUCT_RELATED_NAMES = [
+    "gallery_images",
+    "images",
+    "product_images",
+    "media",
+    "media_images",
+    "additional_images",
+    "photos",
+    "variant_images",
+    "variants",
+]
+
+
 @register.simple_tag
 def optimized_image_url(image, preset="product_card"):
     """
-    Use this for visible website images only:
-    product cards, category cards, galleries, banners, and normal frontend images.
-
-    Do not use this for SEO/meta/schema images because storage backends can return
-    signed temporary URLs.
+    Use this only for visible frontend images.
+    It may return signed storage URLs depending on storage backend settings.
     """
     return get_optimized_image_url(image, preset)
 
@@ -78,17 +75,7 @@ def optimized_image_url(image, preset="product_card"):
 @register.simple_tag(takes_context=True)
 def seo_media_url(context, image):
     """
-    Clean permanent public URL for one media file.
-
-    Use for:
-    - og:image
-    - twitter:image
-    - Product JSON-LD image
-    - Organization logo schema
-    - favicon
-
-    Output example:
-    https://arolana.com/media/products/2026/06/image.webp
+    Clean permanent public URL for SEO/media metadata.
     """
     request = context.get("request")
     name = _clean_file_name(image)
@@ -100,22 +87,14 @@ def seo_media_url(context, image):
 
 
 @register.simple_tag(takes_context=True)
-def product_seo_image_url(context, product, merchant_data=None, gallery_images=None):
+def product_seo_image_url(context, product=None, merchant_data=None, gallery_images=None):
     """
-    Strong product image fallback for SEO.
+    Final product image fallback for SEO.
 
     Template use:
     {% product_seo_image_url product merchant_data gallery_images as product_final_seo_image_url %}
 
-    Fallback order:
-    1. product.main_image and other direct product image fields
-    2. merchant_data.image_link
-    3. gallery_images original/src/thumb/image/url
-    4. product related image managers
-    5. empty string
-
-    It intentionally skips Arolana/site logo paths so product pages do not use
-    the Arolana logo as og:image unless the template falls back to site_logo_seo_url.
+    It returns a clean public product image URL and skips Arolana/settings logo paths.
     """
     request = context.get("request")
 
@@ -128,7 +107,8 @@ def product_seo_image_url(context, product, merchant_data=None, gallery_images=N
     return ""
 
 
-def _product_image_candidates(product, merchant_data=None, gallery_images=None):
+def _product_image_candidates(product=None, merchant_data=None, gallery_images=None):
+    # 1. Direct product fields.
     if product:
         for field_name in IMAGE_FIELD_NAMES:
             value = _safe_getattr(product, field_name)
@@ -144,30 +124,34 @@ def _product_image_candidates(product, merchant_data=None, gallery_images=None):
             "main_media",
         ):
             method = _safe_getattr(product, method_name)
+
             if callable(method):
                 try:
                     value = method()
                 except Exception:
                     value = None
+
                 if value:
                     yield value
 
-    # Merchant metadata normally contains the image already chosen for product feeds.
-    for key in ("image_link", "image", "image_url", "main_image", "thumbnail", "url", "src"):
+    # 2. Merchant/feed metadata.
+    for key in IMAGE_FIELD_NAMES:
         value = _extract_from_mapping_or_object(merchant_data, key)
+
         if value:
             yield value
 
-    # View-provided gallery context. This is important when product.main_image is empty.
+    # 3. Gallery images passed by the product detail view.
     yield from _yield_images_from_collection(gallery_images)
 
+    # 4. Related managers on product.
     if product:
         for related_name in PRODUCT_RELATED_NAMES:
             related = _safe_getattr(product, related_name)
+
             if not related:
                 continue
 
-            # Related manager / queryset
             try:
                 items = related.all()
             except Exception:
@@ -180,16 +164,14 @@ def _yield_images_from_collection(collection):
     if not collection:
         return
 
+    if isinstance(collection, (str, bytes)):
+        yield collection
+        return
+
     try:
-        # QuerySet slicing is safe; list slicing is safe too.
         items = collection[:40]
     except Exception:
         items = collection
-
-    # Do not iterate over a plain string as a collection.
-    if isinstance(items, (str, bytes)):
-        yield items
-        return
 
     try:
         iterator = iter(items)
@@ -200,7 +182,6 @@ def _yield_images_from_collection(collection):
         if not item:
             continue
 
-        # If item itself is a file/url, try it first.
         if isinstance(item, (str, bytes)):
             yield item
             continue
@@ -210,18 +191,22 @@ def _yield_images_from_collection(collection):
 
         for key in IMAGE_FIELD_NAMES:
             value = _extract_from_mapping_or_object(item, key)
+
             if value:
                 yield value
 
-        # Variant objects can have nested image managers.
         for related_name in ("images", "gallery_images", "variant_images", "media"):
             nested = _safe_getattr(item, related_name)
-            if nested:
-                try:
-                    nested_items = nested.all()
-                except Exception:
-                    nested_items = nested
-                yield from _yield_images_from_collection(nested_items)
+
+            if not nested:
+                continue
+
+            try:
+                nested_items = nested.all()
+            except Exception:
+                nested_items = nested
+
+            yield from _yield_images_from_collection(nested_items)
 
 
 def _looks_like_file_object(value):
@@ -235,7 +220,10 @@ def _extract_from_mapping_or_object(obj, key):
     if isinstance(obj, dict):
         return obj.get(key)
 
-    return _safe_getattr(obj, key)
+    try:
+        return getattr(obj, key, None)
+    except Exception:
+        return None
 
 
 def _safe_getattr(obj, name):
@@ -250,10 +238,23 @@ def _clean_file_name(image):
         return ""
 
     if isinstance(image, dict):
-        for key in IMAGE_FIELD_NAMES:
+        for key in (
+            "original",
+            "image",
+            "main_image",
+            "src",
+            "url",
+            "image_url",
+            "thumbnail",
+            "thumb",
+            "file",
+            "photo",
+        ):
             value = image.get(key)
+
             if value:
                 return _clean_file_name(value)
+
         return ""
 
     name = getattr(image, "name", "") or ""
@@ -275,16 +276,18 @@ def _clean_file_name(image):
         name = name[len("media/"):]
 
     bucket_name = str(getattr(settings, "AWS_STORAGE_BUCKET_NAME", "") or "").strip()
+
     if bucket_name and name.startswith(f"{bucket_name}/"):
         name = name[len(bucket_name) + 1:]
 
     parts = name.split("/", 1)
-    if (
-        len(parts) == 2
-        and parts[0] not in PUBLIC_MEDIA_PREFIXES
-        and parts[1].split("/", 1)[0] in PUBLIC_MEDIA_PREFIXES
-    ):
-        name = parts[1]
+
+    if len(parts) == 2:
+        first = parts[0]
+        second_first = parts[1].split("/", 1)[0]
+
+        if first not in PUBLIC_MEDIA_PREFIXES and second_first in PUBLIC_MEDIA_PREFIXES:
+            name = parts[1]
 
     return name
 
@@ -305,16 +308,18 @@ def _extract_path_from_any_url(raw):
             path = parsed.path.split("/media/", 1)[1].lstrip("/")
 
         bucket_name = str(getattr(settings, "AWS_STORAGE_BUCKET_NAME", "") or "").strip()
+
         if bucket_name and path.startswith(f"{bucket_name}/"):
             path = path[len(bucket_name) + 1:]
 
         parts = path.split("/", 1)
-        if (
-            len(parts) == 2
-            and parts[0] not in PUBLIC_MEDIA_PREFIXES
-            and parts[1].split("/", 1)[0] in PUBLIC_MEDIA_PREFIXES
-        ):
-            path = parts[1]
+
+        if len(parts) == 2:
+            first = parts[0]
+            second_first = parts[1].split("/", 1)[0]
+
+            if first not in PUBLIC_MEDIA_PREFIXES and second_first in PUBLIC_MEDIA_PREFIXES:
+                path = parts[1]
 
         return path
 
@@ -330,6 +335,7 @@ def _build_public_media_url(name, request=None):
     encoded_name = quote(name, safe="/")
 
     public_base = str(getattr(settings, "AROLANA_PUBLIC_MEDIA_BASE_URL", "") or "").strip()
+
     if public_base:
         return urljoin(public_base.rstrip("/") + "/", encoded_name)
 
@@ -345,6 +351,7 @@ def _build_public_media_url(name, request=None):
         return request.build_absolute_uri(clean_path)
 
     site_url = str(getattr(settings, "SITE_URL", "https://arolana.com") or "https://arolana.com")
+
     return urljoin(site_url.rstrip("/") + "/", clean_path.lstrip("/"))
 
 
@@ -355,5 +362,5 @@ def _looks_like_site_logo(name):
         lowered.startswith("settings/")
         or "arolana_logo" in lowered
         or "arolana-logo" in lowered
-        or "arolana.com" in lowered and "settings" in lowered
+        or ("arolana.com" in lowered and "settings" in lowered)
     )

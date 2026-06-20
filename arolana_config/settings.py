@@ -445,8 +445,17 @@ if AWS_STORAGE_BUCKET_NAME and AWS_S3_ENDPOINT_URL:
         'BACKEND': 'core.storages.CachedS3MediaStorage',
     }
 
-AROLANA_PUBLIC_MEDIA_BASE_URL = "https://arolana.com/media/"
-SITE_URL = "https://arolana.com"
+
+SITE_URL = config("SITE_URL", default="https://arolana.com").rstrip("/")
+
+
+AROLANA_PUBLIC_MEDIA_BASE_URL = config(
+    "AROLANA_PUBLIC_MEDIA_BASE_URL",
+    default=f"{SITE_URL}/media/",
+).strip()
+
+if not AROLANA_PUBLIC_MEDIA_BASE_URL.endswith("/"):
+    AROLANA_PUBLIC_MEDIA_BASE_URL = f"{AROLANA_PUBLIC_MEDIA_BASE_URL}/"
 
 # ============ CKEDITOR 5 ============
 CKEDITOR_5_CONFIGS = {
@@ -888,7 +897,6 @@ USE_I18N = True
 USE_TZ = True
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-SITE_URL = config('SITE_URL', default='https://arolana.com')
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 OPTIMIZED_MEDIA_GENERATE_ON_REQUEST = config(
     'OPTIMIZED_MEDIA_GENERATE_ON_REQUEST',
