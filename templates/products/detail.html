@@ -10,7 +10,8 @@
 {% product_seo_description product as seo_description %}
 {% product_canonical_url product as canonical_url %}
 {% product_merchant_metadata product "NGN" as merchant_data %}
-{% first_seo_media_url product.main_image merchant_data.image_link gallery_images.0.original gallery_images.0.src gallery_images.0.thumb as product_main_seo_image_url %}
+{% seo_media_url product.main_image as product_main_seo_image_url %}
+{% product_seo_image_url product merchant_data gallery_images as product_final_seo_image_url %}
 
 {% block title %}{{ seo_title|default:product.name }}{% endblock %}
 
@@ -69,7 +70,14 @@
 {% endblock %}
 
 {% block social_image %}
-{% if product_main_seo_image_url %}
+{# AROLANA PRODUCT SEO IMAGE FIX ACTIVE: product image first, logo only emergency fallback. #}
+{% if product_final_seo_image_url %}
+<meta property="og:image" content="{{ product_final_seo_image_url }}">
+<meta property="og:image:secure_url" content="{{ product_final_seo_image_url }}">
+<meta property="og:image:alt" content="{{ product.name }}">
+<meta name="twitter:image" content="{{ product_final_seo_image_url }}">
+<meta name="twitter:image:alt" content="{{ product.name }}">
+{% elif product_main_seo_image_url %}
 <meta property="og:image" content="{{ product_main_seo_image_url }}">
 <meta property="og:image:secure_url" content="{{ product_main_seo_image_url }}">
 <meta property="og:image:alt" content="{{ product.name }}">
@@ -95,7 +103,7 @@
   {% if product.mpn %}"mpn": "{{ product.mpn|escapejs }}",{% endif %}
   {% if product.brand %}"brand": {"@type": "Brand", "name": "{{ product.brand.name|default:product.brand|escapejs }}"},{% endif %}
   {% if product.category %}"category": "{{ product.category.name|escapejs }}",{% endif %}
-  {% if product_main_seo_image_url %}"image": ["{{ product_main_seo_image_url|escapejs }}"],{% endif %}
+  {% if product_final_seo_image_url %}"image": ["{{ product_final_seo_image_url|escapejs }}"],{% elif product_main_seo_image_url %}"image": ["{{ product_main_seo_image_url|escapejs }}"],{% endif %}
   {% if canonical_url %}"url": "{{ canonical_url|escapejs }}",{% else %}"url": "{{ request.scheme }}://{{ request.get_host }}{{ product.get_absolute_url }}",{% endif %}
   "offers": {
     "@type": "Offer",
