@@ -6,27 +6,42 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <meta name="referrer" content="strict-origin-when-cross-origin">
-    <title>{% block title %}{{ site_settings.site_name }} - {{ site_settings.site_tagline }}{% endblock %}</title>
+    <title>{% block title %}{{ site_settings.site_name|default:"Arolana" }}{% if site_settings.site_tagline %} - {{ site_settings.site_tagline }}{% endif %}{% endblock %}</title>
+
+    {#
+        SEO blocks are intentionally overridable.
+        Product/category/vendor/blog templates can replace these without the base template
+        printing duplicate generic meta tags first.
+    #}
     {% block meta_description %}
-    <meta name="description" content="{{ site_settings.site_description }}">
+    <meta name="description" content="{{ site_settings.site_description|default:'Arolana is a smart global marketplace connecting customers, vendors, and manufacturers through seamless shopping, secure payments, and trusted commerce.' }}">
     {% endblock %}
 
     {% block meta_keywords %}
+    {% if site_settings.site_keywords %}
     <meta name="keywords" content="{{ site_settings.site_keywords }}">
+    {% endif %}
     {% endblock %}
 
     {% block meta_author %}
-    <meta name="author" content="{{ site_settings.meta_author }}">
+    <meta name="author" content="{{ site_settings.meta_author|default:'Arolana' }}">
     {% endblock %}
 
     {% block meta_robots %}
-    <meta name="robots" content="{{ site_settings.meta_robots }}">
+    <meta name="robots" content="{{ site_settings.meta_robots|default:'index, follow' }}">
     {% endblock %}
-    
+
+    {% block canonical_url %}{% endblock %}
+    {% block seo_extra %}{% endblock %}
+
     {% if site_settings.site_logo %}
-    {% optimized_image_url site_settings.site_logo 'logo' as site_logo_url %}
+        {% optimized_image_url site_settings.site_logo 'logo' as site_logo_url %}
     {% endif %}
 
+    {#
+        Social image fallback. Product pages override this block with product image.
+        Keep this as a block so product pages do not get the Arolana logo first.
+    #}
     {% block social_image %}
     {% if site_logo_url %}
     <meta property="og:image" content="{{ site_logo_url }}">
@@ -2499,6 +2514,7 @@
         }
     </style>
 
+    {# Page-specific head content. Product pages place canonical, OG tags, Twitter tags, JSON-LD and CSS here. #}
     {% block extra_css %}{% endblock %}
 
     <style>
