@@ -39,12 +39,12 @@
 {% endif %}
 {% endblock %}
 
-{% block seo_extra %}
+{# Product pages must override base social_meta so generic Arolana OG/Twitter tags do not duplicate before product tags. #}
+{% block social_meta %}
 <meta property="og:type" content="product">
 <meta property="og:site_name" content="Arolana">
 <meta property="og:title" content="{{ seo_title|default:product.name }}">
 <meta property="og:description" content="{{ seo_description|default:product.meta_description|default:product.description|striptags|truncatechars:160 }}">
-
 {% if canonical_url %}
 <meta property="og:url" content="{{ canonical_url }}">
 <meta name="twitter:url" content="{{ canonical_url }}">
@@ -52,22 +52,37 @@
 <meta property="og:url" content="{{ request.scheme }}://{{ request.get_host }}{{ product.get_absolute_url }}">
 <meta name="twitter:url" content="{{ request.scheme }}://{{ request.get_host }}{{ product.get_absolute_url }}">
 {% endif %}
-
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{{ seo_title|default:product.name }}">
 <meta name="twitter:description" content="{{ seo_description|default:product.meta_description|default:product.description|striptags|truncatechars:160 }}">
-
 {% if product.price %}
 <meta property="product:price:amount" content="{{ product.price }}">
 <meta property="product:price:currency" content="NGN">
 {% endif %}
-
 {% if product.is_in_stock %}
 <meta property="product:availability" content="in stock">
 {% else %}
 <meta property="product:availability" content="out of stock">
 {% endif %}
+{% endblock %}
 
+{% block social_image %}
+{% if merchant_data.image_link %}
+<meta property="og:image" content="{{ merchant_data.image_link }}">
+<meta property="og:image:secure_url" content="{{ merchant_data.image_link }}">
+<meta property="og:image:alt" content="{{ product.name }}">
+<meta name="twitter:image" content="{{ merchant_data.image_link }}">
+<meta name="twitter:image:alt" content="{{ product.name }}">
+{% elif gallery_images and gallery_images.0.src %}
+<meta property="og:image" content="{{ gallery_images.0.src }}">
+<meta property="og:image:secure_url" content="{{ gallery_images.0.src }}">
+<meta property="og:image:alt" content="{{ product.name }}">
+<meta name="twitter:image" content="{{ gallery_images.0.src }}">
+<meta name="twitter:image:alt" content="{{ product.name }}">
+{% endif %}
+{% endblock %}
+
+{% block seo_extra %}
 <script type="application/ld+json">
 {% product_schema_ld product "NGN" %}
 </script>
@@ -115,22 +130,6 @@
   ]
 }
 </script>
-{% endblock %}
-
-{% block social_image %}
-{% if merchant_data.image_link %}
-<meta property="og:image" content="{{ merchant_data.image_link }}">
-<meta property="og:image:secure_url" content="{{ merchant_data.image_link }}">
-<meta property="og:image:alt" content="{{ product.name }}">
-<meta name="twitter:image" content="{{ merchant_data.image_link }}">
-<meta name="twitter:image:alt" content="{{ product.name }}">
-{% elif gallery_images and gallery_images.0.src %}
-<meta property="og:image" content="{{ gallery_images.0.src }}">
-<meta property="og:image:secure_url" content="{{ gallery_images.0.src }}">
-<meta property="og:image:alt" content="{{ product.name }}">
-<meta name="twitter:image" content="{{ gallery_images.0.src }}">
-<meta name="twitter:image:alt" content="{{ product.name }}">
-{% endif %}
 {% endblock %}
 
 {% block extra_css %}
