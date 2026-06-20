@@ -12,12 +12,25 @@
 
 {% block title %}{{ seo_title|default:product.name }}{% endblock %}
 
-{% block extra_css %}
+{% block meta_description %}
 <meta name="description" content="{{ seo_description|default:product.meta_description|default:product.description|striptags|truncatechars:160 }}">
+{% endblock %}
+
+{% block meta_keywords %}
 {% if product.meta_keywords %}
 <meta name="keywords" content="{{ product.meta_keywords }}">
 {% endif %}
+{% endblock %}
 
+{% block meta_author %}
+<meta name="author" content="Arolana">
+{% endblock %}
+
+{% block meta_robots %}
+<meta name="robots" content="index, follow">
+{% endblock %}
+
+{% block extra_css %}
 {% if canonical_url %}
 <link rel="canonical" href="{{ canonical_url }}">
 {% endif %}
@@ -31,8 +44,8 @@
 {% endif %}
 
 {% if product.main_image %}
-<meta property="og:image" content="{{ product.main_image.url }}">
-<meta name="twitter:image" content="{{ product.main_image.url }}">
+<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ product.main_image.url }}">
+<meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{{ product.main_image.url }}">
 {% elif gallery_images and gallery_images.0.src %}
 <meta property="og:image" content="{{ gallery_images.0.src }}">
 <meta name="twitter:image" content="{{ gallery_images.0.src }}">
