@@ -1,5 +1,5 @@
 {% extends 'base/base.html' %}
-{% load static optimized_images %}
+{% load ai_search static optimized_images %}
 {% load currency_filters %}
 {% load products_extras %}
 {% load ad_tags %}
@@ -119,6 +119,13 @@
   }
 }
 </script>
+
+{% product_faq_schema_json product as product_faq_schema %}
+{% if product_faq_schema %}
+<script type="application/ld+json">
+{{ product_faq_schema|safe }}
+</script>
+{% endif %}
 
 <script type="application/ld+json">
 {
@@ -2584,6 +2591,8 @@
                             Quick Overview
                         </h2>
                         <div class="apd-hero-overview-summary-text font-bold">
+                            {% include 'products/includes/ai_answer_summary.html' %}
+
                             {{ product.description|safe }}
                         </div>
                         <button type="button" onclick="scrollToProductOverview()" class="apd-hero-overview-readmore font-black">
