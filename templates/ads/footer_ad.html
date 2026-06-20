@@ -1,9 +1,10 @@
+{% load optimized_images %}
 
 {% for ad in ads %}
     <div class="footer-ad bg-gray-800 rounded-lg p-4 mb-4">
         {% if ad.image %}
             <a href="{{ ad.url }}" target="_blank" rel="noopener noreferrer">
-                <img src="{{ ad.image.url }}" alt="{{ ad.title }}" 
+                <img src="{{ ad.image|optimized_image_url:'banner' }}" alt="{{ ad.title }}"
                      class="max-h-32 w-auto mx-auto">
             </a>
         {% else %}

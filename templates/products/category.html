@@ -1,5 +1,5 @@
 {% extends 'base/base.html' %}
-{% load currency_filters %}
+{% load currency_filters optimized_images %}
 
 {% block content %}
 <div class="max-w-[1800px] mx-auto">
@@ -15,7 +15,7 @@
             <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-2xl transition">
                 <a href="{{ product.get_absolute_url }}" class="relative block bg-gray-50">
                     {% if product.main_image %}
-                        <img src="{{ product.main_image.url }}" class="w-full aspect-square object-contain p-4">
+                        <img src="{{ product.main_image|optimized_image_url:'product_card' }}" class="w-full aspect-square object-contain p-4">
                     {% else %}
                         <div class="w-full aspect-square bg-gray-100 flex items-center justify-center">
                             <i class="fas fa-image text-4xl text-gray-400"></i>

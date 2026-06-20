@@ -1,4 +1,5 @@
 {% extends 'base/base.html' %}
+{% load optimized_images %}
 
 {% block content %}
 <div class="bg-white rounded-lg shadow-md p-6">
@@ -13,8 +14,8 @@
                     <div class="bg-gray-100 p-4 rounded">
                         <p class="font-semibold">{{ banner.title }}</p>
                         {% if banner.image %}
-                            <img src="{{ banner.image.url }}" alt="{{ banner.title }}" class="mt-2 border">
-                            <p class="text-xs text-gray-500 mt-1">Image URL: {{ banner.image.url }}</p>
+                            <img src="{{ banner.image|optimized_image_url:'banner' }}" alt="{{ banner.title }}" class="mt-2 border">
+                            <p class="text-xs text-gray-500 mt-1">Image URL: {{ banner.image|optimized_image_url:'banner' }}</p>
                         {% else %}
                             <p class="text-red-500">No image</p>
                         {% endif %}
@@ -31,8 +32,8 @@
                     <div class="bg-gray-100 p-4 rounded">
                         <p class="font-semibold">{{ banner.title }}</p>
                         {% if banner.image %}
-                            <img src="{{ banner.image.url }}" alt="{{ banner.title }}" class="mt-2 border">
-                            <p class="text-xs text-gray-500 mt-1">Image URL: {{ banner.image.url }}</p>
+                            <img src="{{ banner.image|optimized_image_url:'banner' }}" alt="{{ banner.title }}" class="mt-2 border">
+                            <p class="text-xs text-gray-500 mt-1">Image URL: {{ banner.image|optimized_image_url:'banner' }}</p>
                         {% else %}
                             <p class="text-red-500">No image</p>
                         {% endif %}
@@ -57,7 +58,7 @@
         {% for banner in banners %}
             <div class="mb-4">
                 <p><strong>{{ banner.title }}</strong> - {{ banner.placement.slug }}</p>
-                <img src="{{ banner.image.url }}" style="max-width: 100%; border: 1px solid #ccc;">
+                <img src="{{ banner.image|optimized_image_url:'banner' }}" style="max-width: 100%; border: 1px solid #ccc;">
             </div>
         {% endfor %}
     </div>

@@ -1,9 +1,9 @@
-{% load currency_filters %}
+{% load currency_filters optimized_images %}
 <div class="product-grid-card" data-product-id="{{ product.id }}">
     <div class="product-grid-image">
         <a href="{{ product.get_absolute_url }}" aria-label="{{ product.name }}">
             {% if product.main_image %}
-                <img src="{{ product.main_image.url }}" alt="{{ product.name }}" loading="lazy">
+                <img src="{{ product.main_image|optimized_image_url:'product_card' }}" alt="{{ product.name }}" loading="lazy">
             {% else %}
                 <div class="w-full h-full bg-gray-100 flex items-center justify-center">
                     <i class="fas fa-image text-4xl text-gray-400"></i>

@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load static %}
+{% load static optimized_images %}
 
 {% block body_class %}landing-page-body{% endblock %}
 {% block title %}{{ page.meta_title|default:page.public_title }} | Arolana{% endblock %}
@@ -92,8 +92,8 @@
         --lp-dark: {{ page.dark_color|default:'#0F172A' }};
         --lp-bg: {{ page.background_color|default:'#F8FAFC' }};
         --lp-text: {{ page.text_color|default:'#0F172A' }};
-        {% if page.page_background_image %}--lp-page-bg-image: url('{{ page.page_background_image.url }}');{% else %}--lp-page-bg-image: none;{% endif %}
-        {% if page.page_mobile_background_image %}--lp-mobile-bg-image: url('{{ page.page_mobile_background_image.url }}');{% elif page.page_background_image %}--lp-mobile-bg-image: url('{{ page.page_background_image.url }}');{% else %}--lp-mobile-bg-image: none;{% endif %}
+        {% if page.page_background_image %}--lp-page-bg-image: url('{{ page.page_background_image|optimized_image_url:'background_desktop' }}');{% else %}--lp-page-bg-image: none;{% endif %}
+        {% if page.page_mobile_background_image %}--lp-mobile-bg-image: url('{{ page.page_mobile_background_image|optimized_image_url:'background_mobile' }}');{% elif page.page_background_image %}--lp-mobile-bg-image: url('{{ page.page_background_image|optimized_image_url:'background_desktop' }}');{% else %}--lp-mobile-bg-image: none;{% endif %}
         --lp-page-bg-opacity: {{ page.page_background_overlay_opacity|default_if_none:'0.35' }};
         --lp-mobile-bg-opacity: {{ page.page_mobile_background_overlay_opacity|default_if_none:page.page_background_overlay_opacity|default_if_none:'0.45' }};
         --lp-page-bg-position: {{ page.page_background_position|default:'center center' }};
@@ -110,8 +110,8 @@
     <section class="lp-hero" id="top">
         {% if page.hero_background_image %}
             <picture>
-                {% if page.hero_mobile_image %}<source media="(max-width: 640px)" srcset="{{ page.hero_mobile_image.url }}">{% endif %}
-                <img src="{{ page.hero_background_image.url }}" alt="{{ page.hero_headline|default:page.title }}" class="lp-hero-image" fetchpriority="high" decoding="async">
+                {% if page.hero_mobile_image %}<source media="(max-width: 640px)" srcset="{{ page.hero_mobile_image|optimized_image_url:'mobile_hero' }}">{% endif %}
+                <img src="{{ page.hero_background_image|optimized_image_url:'landing_hero' }}" alt="{{ page.hero_headline|default:page.title }}" class="lp-hero-image" fetchpriority="high" decoding="async">
             </picture>
         {% endif %}
         <div class="lp-hero-overlay" style="opacity: {{ page.hero_overlay_opacity|default:'0.60' }}"></div>
@@ -167,7 +167,7 @@
             {% if section.image or section.video_url or section.content or section.button_text %}
             <div class="lp-admin-section-card">
                 {% if section.image %}
-                <div class="lp-section-media"><img src="{{ section.image.url }}" alt="{{ section.title|default:page.title }}" loading="lazy" decoding="async"></div>
+                <div class="lp-section-media"><img src="{{ section.image|optimized_image_url:'landing_hero' }}" alt="{{ section.title|default:page.title }}" loading="lazy" decoding="async"></div>
                 {% endif %}
                 {% if section.video_url %}
                 <article class="lp-video-card lp-section-video-card" data-video-url="{{ section.video_url }}" data-video-title="{{ section.title|default:page.title }}">
@@ -190,7 +190,7 @@
             {% if section.section_type == "offers" %}
             <div class="lp-offer-grid">
                 {% for item in page.offers.all %}{% if item.is_active %}{% if not item.section or item.section_id == section.id %}
-                <article class="lp-card lp-offer-card">{% if item.offer_label %}<span class="lp-offer-label">{{ item.offer_label }}</span>{% endif %}{% if item.image %}<img src="{{ item.image.url }}" alt="{{ item.title }}" loading="lazy" decoding="async">{% else %}<div class="lp-card-image-placeholder"><i class="fas fa-tags"></i></div>{% endif %}<div class="lp-icon"><i class="{{ item.icon|default:'fas fa-tags' }}"></i></div><h3>{{ item.title }}</h3><p>{{ item.description }}</p>{% if item.price_text or item.discount_text %}<div class="lp-price-line">{% if item.price_text %}<strong>{{ item.price_text }}</strong>{% endif %}{% if item.discount_text %}<span>{{ item.discount_text }}</span>{% endif %}</div>{% endif %}{% if item.button_text and item.button_url %}<a class="lp-card-link" href="{{ item.button_url }}">{{ item.button_text }} <i class="fas fa-arrow-right"></i></a>{% endif %}</article>
+                <article class="lp-card lp-offer-card">{% if item.offer_label %}<span class="lp-offer-label">{{ item.offer_label }}</span>{% endif %}{% if item.image %}<img src="{{ item.image|optimized_image_url:'category_card' }}" alt="{{ item.title }}" loading="lazy" decoding="async">{% else %}<div class="lp-card-image-placeholder"><i class="fas fa-tags"></i></div>{% endif %}<div class="lp-icon"><i class="{{ item.icon|default:'fas fa-tags' }}"></i></div><h3>{{ item.title }}</h3><p>{{ item.description }}</p>{% if item.price_text or item.discount_text %}<div class="lp-price-line">{% if item.price_text %}<strong>{{ item.price_text }}</strong>{% endif %}{% if item.discount_text %}<span>{{ item.discount_text }}</span>{% endif %}</div>{% endif %}{% if item.button_text and item.button_url %}<a class="lp-card-link" href="{{ item.button_url }}">{{ item.button_text }} <i class="fas fa-arrow-right"></i></a>{% endif %}</article>
                 {% endif %}{% endif %}{% endfor %}
             </div>
             {% endif %}
@@ -206,7 +206,7 @@
             {% if section.section_type == "eligible_categories" or section.section_type == "product_grid" %}
             <div class="lp-category-grid">
                 {% for item in page.category_cards.all %}{% if item.is_active %}{% if not item.section or item.section_id == section.id %}
-                <a class="lp-card lp-category-card" href="{{ item.resolved_url }}">{% if item.image %}<img src="{{ item.image.url }}" alt="{{ item.title }}" loading="lazy" decoding="async">{% else %}<div class="lp-card-image-placeholder"><i class="fas fa-box-open"></i></div>{% endif %}<div class="lp-icon"><i class="{{ item.icon|default:'fas fa-box-open' }}"></i></div><h3>{{ item.title }}</h3><p>{{ item.description }}</p><span>{{ item.button_text|default:'View products' }} <i class="fas fa-arrow-right"></i></span></a>
+                <a class="lp-card lp-category-card" href="{{ item.resolved_url }}">{% if item.image %}<img src="{{ item.image|optimized_image_url:'category_card' }}" alt="{{ item.title }}" loading="lazy" decoding="async">{% else %}<div class="lp-card-image-placeholder"><i class="fas fa-box-open"></i></div>{% endif %}<div class="lp-icon"><i class="{{ item.icon|default:'fas fa-box-open' }}"></i></div><h3>{{ item.title }}</h3><p>{{ item.description }}</p><span>{{ item.button_text|default:'View products' }} <i class="fas fa-arrow-right"></i></span></a>
                 {% endif %}{% endif %}{% endfor %}
             </div>
             {% endif %}
@@ -214,7 +214,7 @@
             {% if section.section_type == "testimonials" %}
             <div class="lp-testimonial-grid">
                 {% for item in page.testimonials.all %}{% if item.is_active %}{% if not item.section or item.section_id == section.id %}
-                <article class="lp-card lp-testimonial-card"><div class="lp-stars">{% for i in "12345" %}<i class="fas fa-star"></i>{% endfor %}</div><blockquote>{{ item.quote }}</blockquote><div class="lp-person">{% if item.image %}<img src="{{ item.image.url }}" alt="{{ item.customer_name }}" loading="lazy" decoding="async">{% else %}<span class="lp-avatar-fallback"><i class="fas fa-user"></i></span>{% endif %}<div><strong>{{ item.customer_name }}</strong><span>{{ item.customer_title }}{% if item.customer_location %} · {{ item.customer_location }}{% endif %}</span></div></div></article>
+                <article class="lp-card lp-testimonial-card"><div class="lp-stars">{% for i in "12345" %}<i class="fas fa-star"></i>{% endfor %}</div><blockquote>{{ item.quote }}</blockquote><div class="lp-person">{% if item.image %}<img src="{{ item.image|optimized_image_url:'category_card' }}" alt="{{ item.customer_name }}" loading="lazy" decoding="async">{% else %}<span class="lp-avatar-fallback"><i class="fas fa-user"></i></span>{% endif %}<div><strong>{{ item.customer_name }}</strong><span>{{ item.customer_title }}{% if item.customer_location %} · {{ item.customer_location }}{% endif %}</span></div></div></article>
                 {% endif %}{% endif %}{% endfor %}
             </div>
             {% endif %}

@@ -1,4 +1,4 @@
-{% load static %}
+{% load static optimized_images %}
 
 {% for section in sections %}
     {% if section.vendors or section.show_when_empty %}
@@ -22,11 +22,11 @@
                 <a href="{% url 'vendors:detail' vendor.store_slug %}" class="group bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition">
                     <div class="h-28 bg-gradient-to-br from-blue-950 to-blue-700 relative">
                         {% if vendor.store_banner %}
-                            <img src="{{ vendor.store_banner.url }}" alt="" class="w-full h-full object-cover" loading="lazy" decoding="async">
+                            <img src="{{ vendor.store_banner|optimized_image_url:'banner' }}" alt="" class="w-full h-full object-cover" loading="lazy" decoding="async">
                         {% endif %}
                         <div class="absolute -bottom-7 left-4 w-14 h-14 rounded-2xl bg-white border border-slate-200 shadow flex items-center justify-center overflow-hidden">
                             {% if vendor.store_logo %}
-                                <img src="{{ vendor.store_logo.url }}" alt="{{ vendor.store_name }}" class="w-full h-full object-cover" loading="lazy" decoding="async">
+                                <img src="{{ vendor.store_logo|optimized_image_url:'logo' }}" alt="{{ vendor.store_name }}" class="w-full h-full object-cover" loading="lazy" decoding="async">
                             {% else %}
                                 <span class="text-xl font-black text-orange-500">{{ vendor.store_name|first|upper }}</span>
                             {% endif %}

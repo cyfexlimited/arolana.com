@@ -1,4 +1,4 @@
-{% load static media_optimization %}
+{% load static media_optimization optimized_images %}
 
 {% if categories %}
 <section class="mb-10 sm:mb-14 homepage-deferred-section" data-aos="fade-up" aria-labelledby="homepage-category-title">
@@ -33,7 +33,7 @@
                     {% endif %}
 
                     <img src="{{ hp_category_image_url }}"
-                         data-fallback-src="{% if hp_category.category.image %}{{ hp_category.category.image.url }}{% else %}{{ hp_category.image_url }}{% endif %}"
+                         data-fallback-src="{% if hp_category.category.image %}{{ hp_category.category.image|optimized_image_url:'category_card' }}{% else %}{{ hp_category.image_url }}{% endif %}"
                          alt="{{ hp_category.category.name }}"
                          class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                          loading="lazy"

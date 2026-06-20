@@ -1,5 +1,5 @@
 {% extends 'base/base.html' %}
-{% load static %}
+{% load static optimized_images %}
 {% load currency_filters %}
 {% load products_extras %}
 {% load ad_tags %}
@@ -2288,7 +2288,7 @@
                     {% if product.get_video_embed_url %}
                     <div class="thumbnail-item flex-shrink-0 relative cursor-pointer" onclick="openProductVideosTab()">
                         {% if product.video_thumbnail %}
-                            <img src="{{ product.video_thumbnail.url }}" class="w-20 h-20 object-cover rounded-lg">
+                            <img src="{{ product.video_thumbnail|optimized_image_url:'product_thumb' }}" class="w-20 h-20 object-cover rounded-lg">
                         {% elif product.video_type == 'youtube' or product.video_type == 'vimeo' %}
                             <img src="{{ product.video_url|get_thumbnail:'hqdefault' }}" class="w-20 h-20 object-cover rounded-lg">
                         {% else %}
@@ -2460,7 +2460,7 @@
                         <div class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white text-blue-600 ring-1 ring-blue-100">
                             {% if article_link.article.display_image %}
                                 {% optimized_image_url article_link.article.display_image 'avatar' as article_thumb_url %}
-                                <img src="{{ article_thumb_url }}" data-fallback-src="{{ article_link.article.display_image.url }}" alt="{{ article_link.display_label }}" class="h-full w-full object-cover" loading="lazy" decoding="async" width="64" height="64" onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}else{this.hidden=true;this.nextElementSibling.hidden=false;}">
+                                <img src="{{ article_thumb_url }}" data-fallback-src="{{ article_link.article.display_image|optimized_image_url:'seo' }}" alt="{{ article_link.display_label }}" class="h-full w-full object-cover" loading="lazy" decoding="async" width="64" height="64" onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}else{this.hidden=true;this.nextElementSibling.hidden=false;}">
                                 <div hidden class="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#071A44] to-[#0066CC] text-white">
                                     <i class="fas fa-newspaper text-xl"></i>
                                 </div>
@@ -2681,7 +2681,7 @@
                     <div class="flex items-center gap-3">
                         <div class="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-white shadow-lg ring-2 ring-white/20">
                             <img
-                                src="{% if site_settings.smart_chat_bot_image %}{{ site_settings.smart_chat_bot_image.url }}{% else %}{% static 'admin/images/arolana-logo.png' %}{% endif %}"
+                                src="{% if site_settings.smart_chat_bot_image %}{{ site_settings.smart_chat_bot_image|optimized_image_url:'thumbnail' }}{% else %}{% static 'admin/images/arolana-logo.png' %}{% endif %}"
                                 alt="Arolana Smart Chat"
                                 class="block h-full w-full object-contain p-0.5"
                                 width="224"
@@ -2751,7 +2751,7 @@
                             <div class="aspect-[16/9] bg-gradient-to-br from-blue-100 to-slate-100">
                                 {% if article_link.article.display_image %}
                                     {% optimized_image_url article_link.article.display_image 'category_card' as article_card_url %}
-	                                    <img src="{{ article_card_url }}" data-fallback-src="{{ article_link.article.display_image.url }}" alt="{{ article_link.display_label }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" decoding="async" width="560" height="315" onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}else{this.hidden=true;this.nextElementSibling.hidden=false;}">
+	                                    <img src="{{ article_card_url }}" data-fallback-src="{{ article_link.article.display_image|optimized_image_url:'seo' }}" alt="{{ article_link.display_label }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" decoding="async" width="560" height="315" onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}else{this.hidden=true;this.nextElementSibling.hidden=false;}">
 	                                    <div hidden class="flex h-full items-center justify-center text-blue-500">
 	                                        <i class="fas fa-newspaper text-4xl"></i>
 	                                    </div>
@@ -2980,7 +2980,7 @@
                         <div class="product-video-frame">
                             {% if product.video_type == 'local' and product.local_video %}
                                 <video id="product-video-main" controls preload="metadata"
-                                       {% if product.video_thumbnail %}poster="{{ product.video_thumbnail.url }}"{% endif %}>
+                                       {% if product.video_thumbnail %}poster="{{ product.video_thumbnail|optimized_image_url:'product_thumb' }}"{% endif %}>
                                     <source src="{{ product.local_video.url }}" type="video/mp4">
                                     Your browser does not support the video tag.
                                 </video>
@@ -3005,7 +3005,7 @@
                         <div class="product-video-frame">
                             {% if video.is_local_video %}
                                 <video controls preload="metadata"
-                                       {% if video.thumbnail %}poster="{{ video.thumbnail.url }}"{% endif %}>
+                                       {% if video.thumbnail %}poster="{{ video.thumbnail|optimized_image_url:'product_thumb' }}"{% endif %}>
                                     <source src="{{ video.local_video.url }}" type="video/mp4">
                                     Your browser does not support the video tag.
                                 </video>
@@ -3048,7 +3048,7 @@
                         <div class="aspect-[16/10] bg-gradient-to-br from-blue-100 to-slate-100">
                             {% if article_link.article.display_image %}
                                 {% optimized_image_url article_link.article.display_image 'category_card' as article_tab_url %}
-	                                <img src="{{ article_tab_url }}" data-fallback-src="{{ article_link.article.display_image.url }}" alt="{{ article_link.display_label }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" decoding="async" width="560" height="350" onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}else{this.hidden=true;this.nextElementSibling.hidden=false;}">
+	                                <img src="{{ article_tab_url }}" data-fallback-src="{{ article_link.article.display_image|optimized_image_url:'seo' }}" alt="{{ article_link.display_label }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" decoding="async" width="560" height="350" onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}else{this.hidden=true;this.nextElementSibling.hidden=false;}">
 	                                <div hidden class="flex h-full items-center justify-center text-blue-500">
 	                                    <i class="fas fa-newspaper text-5xl"></i>
 	                                </div>
@@ -3094,7 +3094,7 @@
                             {% if accessory.image %}
                                 {% optimized_image_url accessory.image 'accessory_thumb' as accessory_image_url %}
                                 <img src="{{ accessory_image_url }}"
-                                     data-fallback-src="{{ accessory.image.url }}"
+                                     data-fallback-src="{{ accessory.image|optimized_image_url:'accessory_thumb' }}"
                                      alt="{{ accessory.name }}"
                                      class="apd-accessory-image transition duration-500"
                                      loading="lazy"

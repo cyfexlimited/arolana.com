@@ -1,5 +1,5 @@
 {% extends 'base/base.html' %}
-{% load static %}
+{% load static optimized_images %}
 {% load currency_filters %}
 {% load products_extras media_optimization %}
 
@@ -1153,7 +1153,7 @@
 
                 {% if shop_banner and shop_banner.show_side_image and shop_banner.side_image %}
                 <div class="arolana-hero-orb" aria-hidden="true">
-                    <img src="{{ shop_banner.side_image.url }}" alt="">
+                    <img src="{{ shop_banner.side_image|optimized_image_url:'banner' }}" alt="">
                 </div>
                 {% endif %}
             </div>

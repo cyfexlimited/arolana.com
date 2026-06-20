@@ -1,5 +1,5 @@
 {% extends 'base/base.html' %}
-{% load static %}
+{% load static optimized_images %}
 {% load currency_filters %}
 
 {% block title %}{{ vendor.store_name }} Store | Arolana{% endblock %}
@@ -642,7 +642,7 @@
     <section class="vendor-store-hero" style="--vendor-accent: {{ vendor.storefront_accent }};">
         <div class="vendor-store-banner">
             {% if vendor.store_banner %}
-                <img src="{{ vendor.store_banner.url }}" alt="{{ vendor.store_name }} banner">
+                <img src="{{ vendor.store_banner|optimized_image_url:'banner' }}" alt="{{ vendor.store_name }} banner">
             {% endif %}
         </div>
 
@@ -650,7 +650,7 @@
             <div class="vendor-store-profile-inner">
                 <div class="vendor-logo-wrap">
                     {% if vendor.store_logo %}
-                        <img src="{{ vendor.store_logo.url }}" alt="{{ vendor.store_name }}">
+                        <img src="{{ vendor.store_logo|optimized_image_url:'logo' }}" alt="{{ vendor.store_name }}">
                     {% else %}
                         <div class="vendor-logo-fallback">
                             <i class="fas fa-store"></i>
@@ -932,8 +932,8 @@
             <article class="vendor-product-card" data-price="{{ product.price }}">
                 <a href="{{ product.get_absolute_url }}" class="block">
                     <div class="vendor-product-media">
-                        {% if product.main_image and product.main_image.url %}
-                            <img src="{{ product.main_image.url }}" alt="{{ product.name }}" loading="lazy">
+                        {% if product.main_image %}
+                            <img src="{{ product.main_image|optimized_image_url:'product_card' }}" alt="{{ product.name }}" loading="lazy">
                         {% else %}
                             <div class="vendor-product-fallback">
                                 <i class="fas fa-image"></i>
@@ -1006,7 +1006,7 @@
             <a href="{% url 'vendors:detail' similar.store_slug %}" class="similar-vendor-card group">
                 <div class="similar-vendor-logo">
                     {% if similar.store_logo %}
-                        <img src="{{ similar.store_logo.url }}" alt="{{ similar.store_name }}">
+                        <img src="{{ similar.store_logo|optimized_image_url:'logo' }}" alt="{{ similar.store_name }}">
                     {% else %}
                         <i class="fas fa-store"></i>
                     {% endif %}

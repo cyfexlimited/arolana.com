@@ -1,5 +1,5 @@
 {% extends 'base/base.html' %}
-{% load static %}
+{% load static optimized_images %}
 {% load currency_filters %}
 {% load products_extras %}
 {% load ad_tags %}
@@ -451,7 +451,7 @@
                     {% if product.get_video_embed_url %}
                     <div class="thumbnail-item flex-shrink-0 relative cursor-pointer" onclick="openProductVideosTab()">
                         {% if product.video_thumbnail %}
-                            <img src="{{ product.video_thumbnail.url }}" class="w-20 h-20 object-cover rounded-lg">
+                            <img src="{{ product.video_thumbnail|optimized_image_url:'product_thumb' }}" class="w-20 h-20 object-cover rounded-lg">
                         {% elif product.video_type == 'youtube' or product.video_type == 'vimeo' %}
                             <img src="{{ product.video_url|get_thumbnail:'hqdefault' }}" class="w-20 h-20 object-cover rounded-lg">
                         {% else %}
@@ -832,7 +832,7 @@
                         <div class="product-video-frame">
                             {% if product.video_type == 'local' and product.local_video %}
                                 <video id="product-video-main" controls preload="metadata"
-                                       {% if product.video_thumbnail %}poster="{{ product.video_thumbnail.url }}"{% endif %}>
+                                       {% if product.video_thumbnail %}poster="{{ product.video_thumbnail|optimized_image_url:'product_thumb' }}"{% endif %}>
                                     <source src="{{ product.local_video.url }}" type="video/mp4">
                                     Your browser does not support the video tag.
                                 </video>
@@ -857,7 +857,7 @@
                         <div class="product-video-frame">
                             {% if video.is_local_video %}
                                 <video controls preload="metadata"
-                                       {% if video.thumbnail %}poster="{{ video.thumbnail.url }}"{% endif %}>
+                                       {% if video.thumbnail %}poster="{{ video.thumbnail|optimized_image_url:'product_thumb' }}"{% endif %}>
                                     <source src="{{ video.local_video.url }}" type="video/mp4">
                                     Your browser does not support the video tag.
                                 </video>
@@ -895,7 +895,7 @@
 	                    <div class="border rounded-xl p-4 hover:shadow-xl transition-all hover:scale-105">
                         <div class="flex gap-4">
                             {% if accessory.image %}
-                            <img src="{{ accessory.image.url }}" class="w-20 h-20 object-cover rounded-lg">
+                            <img src="{{ accessory.image|optimized_image_url:'accessory_thumb' }}" class="w-20 h-20 object-cover rounded-lg">
                             {% endif %}
                             <div class="flex-1">
                                 <h4 class="font-semibold">{{ accessory.name }}</h4>
@@ -931,7 +931,7 @@
                 <a href="{{ item.get_absolute_url }}" class="block">
                     <div class="relative h-40 overflow-hidden">
                         {% if item.main_image %}
-                            <img src="{{ item.main_image.url }}" alt="{{ item.name }}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110">
+                            <img src="{{ item.main_image|optimized_image_url:'product_card' }}" alt="{{ item.name }}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110">
                         {% else %}
                             <div class="w-full h-full bg-gray-100 flex items-center justify-center">
                                 <i class="fas fa-image text-4xl text-gray-400"></i>
@@ -975,7 +975,7 @@
                 <a href="{{ related.get_absolute_url }}" class="block">
                     <div class="relative h-40 overflow-hidden">
                         {% if related.main_image %}
-                            <img src="{{ related.main_image.url }}" alt="{{ related.name }}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110">
+                            <img src="{{ related.main_image|optimized_image_url:'product_card' }}" alt="{{ related.name }}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110">
                         {% else %}
                             <div class="w-full h-full bg-gray-100 flex items-center justify-center">
                                 <i class="fas fa-image text-4xl text-gray-400"></i>
@@ -1016,7 +1016,7 @@
                 <a href="{{ item.get_absolute_url }}" class="block">
                     <div class="relative h-40 overflow-hidden">
                         {% if item.main_image %}
-                            <img src="{{ item.main_image.url }}" alt="{{ item.name }}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110">
+                            <img src="{{ item.main_image|optimized_image_url:'product_card' }}" alt="{{ item.name }}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110">
                         {% else %}
                             <div class="w-full h-full bg-gray-100 flex items-center justify-center">
                                 <i class="fas fa-image text-4xl text-gray-400"></i>
@@ -1054,7 +1054,7 @@
                 <a href="{{ item.get_absolute_url }}" class="block">
                     <div class="relative h-40 overflow-hidden">
                         {% if item.main_image %}
-                            <img src="{{ item.main_image.url }}" alt="{{ item.name }}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110">
+                            <img src="{{ item.main_image|optimized_image_url:'product_card' }}" alt="{{ item.name }}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110">
                         {% else %}
                             <div class="w-full h-full bg-gray-100 flex items-center justify-center">
                                 <i class="fas fa-image text-4xl text-gray-400"></i>
@@ -1094,7 +1094,7 @@
             <a href="{{ item.product.get_absolute_url }}" class="ai-card bg-white rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300">
                 <div class="relative h-40 overflow-hidden">
                     {% if item.product.main_image %}
-                        <img src="{{ item.product.main_image.url }}" alt="{{ item.product.name }}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110">
+                        <img src="{{ item.product.main_image|optimized_image_url:'product_card' }}" alt="{{ item.product.name }}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110">
                     {% else %}
                         <div class="w-full h-full bg-gray-100 flex items-center justify-center">
                             <i class="fas fa-image text-4xl text-gray-400"></i>
@@ -1128,7 +1128,7 @@
             <a href="{{ item.product.get_absolute_url }}" class="bg-white rounded-xl overflow-hidden text-gray-800 hover:shadow-2xl transition transform hover:scale-105">
                 <div class="h-32 overflow-hidden">
                     {% if item.product.main_image %}
-                        <img src="{{ item.product.main_image.url }}" alt="{{ item.product.name }}" class="w-full h-full object-cover">
+                        <img src="{{ item.product.main_image|optimized_image_url:'product_card' }}" alt="{{ item.product.name }}" class="w-full h-full object-cover">
                     {% else %}
                         <div class="w-full h-full bg-gray-100 flex items-center justify-center">
                             <i class="fas fa-image text-3xl text-gray-400"></i>
@@ -1183,7 +1183,7 @@
                 <a href="{{ item.get_absolute_url }}">
                     <div class="h-32 overflow-hidden">
                         {% if item.main_image %}
-                            <img src="{{ item.main_image.url }}" class="w-full h-full object-cover">
+                            <img src="{{ item.main_image|optimized_image_url:'product_card' }}" class="w-full h-full object-cover">
                         {% else %}
                             <div class="w-full h-full bg-gray-100 flex items-center justify-center">
                                 <i class="fas fa-image text-3xl text-gray-400"></i>

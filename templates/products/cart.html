@@ -1,5 +1,5 @@
 {% extends 'base/base.html' %}
-{% load currency_filters %}
+{% load currency_filters optimized_images %}
 
 {% block content %}
 <style>
@@ -589,9 +589,9 @@
                             <div class="flex flex-col gap-4 md:flex-row md:items-center">
                                 <div class="flex min-w-0 flex-1 gap-4">
                                     {% if item.product and item.product.main_image %}
-                                        <img src="{{ item.product.main_image.url }}" alt="{{ item.product.name }}" class="cart-item-image">
+                                        <img src="{{ item.product.main_image|optimized_image_url:'product_thumb' }}" alt="{{ item.product.name }}" class="cart-item-image">
                                     {% elif item.accessory and item.accessory.image %}
-                                        <img src="{{ item.accessory.image.url }}" alt="{{ item.accessory.name }}" class="cart-item-image">
+                                        <img src="{{ item.accessory.image|optimized_image_url:'accessory_thumb' }}" alt="{{ item.accessory.name }}" class="cart-item-image">
                                     {% else %}
                                         <div class="cart-item-placeholder"><i class="fas fa-image text-xl"></i></div>
                                     {% endif %}
@@ -843,7 +843,7 @@
             {% for recent_product in recently_viewed_products %}
             <a href="{{ recent_product.get_absolute_url }}" class="checked-product">
                 {% if recent_product.main_image %}
-                    <img src="{{ recent_product.main_image.url }}" alt="{{ recent_product.name }}" class="checked-product-image" loading="lazy" decoding="async">
+                    <img src="{{ recent_product.main_image|optimized_image_url:'product_card' }}" alt="{{ recent_product.name }}" class="checked-product-image" loading="lazy" decoding="async">
                 {% else %}
                     <div class="checked-product-placeholder"><i class="fas fa-image text-2xl"></i></div>
                 {% endif %}
