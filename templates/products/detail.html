@@ -9,6 +9,7 @@
 {% product_seo_title product as seo_title %}
 {% product_seo_description product as seo_description %}
 {% product_canonical_url product as canonical_url %}
+{% product_merchant_metadata product "NGN" as merchant_data %}
 
 {% block title %}{{ seo_title|default:product.name }}{% endblock %}
 
@@ -30,6 +31,16 @@
 <meta name="robots" content="index, follow">
 {% endblock %}
 
+{% block social_image %}
+{% if merchant_data.image_link %}
+<meta property="og:image" content="{{ merchant_data.image_link }}">
+<meta name="twitter:image" content="{{ merchant_data.image_link }}">
+{% elif gallery_images and gallery_images.0.src %}
+<meta property="og:image" content="{{ gallery_images.0.src }}">
+<meta name="twitter:image" content="{{ gallery_images.0.src }}">
+{% endif %}
+{% endblock %}
+
 {% block extra_css %}
 {% if canonical_url %}
 <link rel="canonical" href="{{ canonical_url }}">
@@ -42,25 +53,6 @@
 {% if canonical_url %}
 <meta property="og:url" content="{{ canonical_url }}">
 {% endif %}
-
-{% block social_image %}
-{% if product.main_image %}
-<meta property="og:image"
-      content="{{ request.scheme }}://{{ request.get_host }}{{ product.main_image.url }}">
-
-<meta name="twitter:image"
-      content="{{ request.scheme }}://{{ request.get_host }}{{ product.main_image.url }}">
-
-{% elif gallery_images and gallery_images.0.src %}
-
-<meta property="og:image"
-      content="{{ gallery_images.0.src }}">
-
-<meta name="twitter:image"
-      content="{{ gallery_images.0.src }}">
-
-{% endif %}
-{% endblock %}
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{{ seo_title|default:product.name }}">
