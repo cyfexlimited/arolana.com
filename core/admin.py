@@ -153,7 +153,14 @@ class SiteSettingsAdmin(admin.ModelAdmin):
             'description': 'Upload the storefront/admin logo and a separate square avatar for Arolana Smart Chat.',
         }),
         ('Contact Information', {
-            'fields': ('contact_email', 'contact_phone', 'address'),
+            'fields': (
+                'contact_email',
+                'contact_phone',
+                'support_whatsapp_number',
+                'cart_whatsapp_message',
+                'address',
+            ),
+            'description': 'Control Arolana support contact details, including the WhatsApp number and first cart support message customers send from the cart page.',
         }),
         ('Social Media', {
             'fields': ('facebook_url', 'twitter_url', 'instagram_url', 'linkedin_url', 'youtube_url'),
