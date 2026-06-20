@@ -31,21 +31,13 @@
 <meta name="robots" content="index, follow">
 {% endblock %}
 
-{% block social_image %}
-{% if merchant_data.image_link %}
-<meta property="og:image" content="{{ merchant_data.image_link }}">
-<meta name="twitter:image" content="{{ merchant_data.image_link }}">
-{% elif gallery_images and gallery_images.0.src %}
-<meta property="og:image" content="{{ gallery_images.0.src }}">
-<meta name="twitter:image" content="{{ gallery_images.0.src }}">
-{% endif %}
-{% endblock %}
-
-{% block extra_css %}
+{% block canonical_url %}
 {% if canonical_url %}
 <link rel="canonical" href="{{ canonical_url }}">
 {% endif %}
+{% endblock %}
 
+{% block seo_extra %}
 <meta property="og:type" content="product">
 <meta property="og:site_name" content="Arolana">
 <meta property="og:title" content="{{ seo_title|default:product.name }}">
@@ -72,7 +64,19 @@
 <script type="application/ld+json">
 {% product_schema_ld product "NGN" %}
 </script>
+{% endblock %}
 
+{% block social_image %}
+{% if merchant_data.image_link %}
+<meta property="og:image" content="{{ merchant_data.image_link }}">
+<meta name="twitter:image" content="{{ merchant_data.image_link }}">
+{% elif gallery_images and gallery_images.0.src %}
+<meta property="og:image" content="{{ gallery_images.0.src }}">
+<meta name="twitter:image" content="{{ gallery_images.0.src }}">
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
 <style>
     /* Futuristic Glassmorphism Effects */
     .glass-card {

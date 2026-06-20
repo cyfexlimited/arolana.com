@@ -8,11 +8,7 @@
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <title>{% block title %}{{ site_settings.site_name|default:"Arolana" }}{% if site_settings.site_tagline %} - {{ site_settings.site_tagline }}{% endif %}{% endblock %}</title>
 
-    {#
-        SEO blocks are intentionally overridable.
-        Product/category/vendor/blog templates can replace these without the base template
-        printing duplicate generic meta tags first.
-    #}
+
     {% block meta_description %}
     <meta name="description" content="{{ site_settings.site_description|default:'Arolana is a smart global marketplace connecting customers, vendors, and manufacturers through seamless shopping, secure payments, and trusted commerce.' }}">
     {% endblock %}
@@ -38,10 +34,6 @@
         {% optimized_image_url site_settings.site_logo 'logo' as site_logo_url %}
     {% endif %}
 
-    {#
-        Social image fallback. Product pages override this block with product image.
-        Keep this as a block so product pages do not get the Arolana logo first.
-    #}
     {% block social_image %}
     {% if site_logo_url %}
     <meta property="og:image" content="{{ site_logo_url }}">
@@ -295,12 +287,6 @@
         .gradient-luxury {
             background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
         }
-
-        /* ============================================================
-           AROLANA BOUNDED FOLLOWING ADVERTISEMENT
-           Starts below the hero/content top, follows the viewport through
-           content, and yields before the footer.
-           ============================================================ */
 
         .arolana-following-ad {
             align-self: stretch;
