@@ -22,10 +22,17 @@
     {% block meta_robots %}
     <meta name="robots" content="{{ site_settings.meta_robots }}">
     {% endblock %}
+    
     {% if site_settings.site_logo %}
-        {% optimized_image_url site_settings.site_logo 'logo' as site_logo_url %}
+    {% optimized_image_url site_settings.site_logo 'logo' as site_logo_url %}
     {% endif %}
-    <meta property="og:image" content="{% if site_logo_url %}{{ site_logo_url }}{% endif %}">
+
+    {% block social_image %}
+    {% if site_logo_url %}
+    <meta property="og:image" content="{{ site_logo_url }}">
+    <meta name="twitter:image" content="{{ site_logo_url }}">
+    {% endif %}
+    {% endblock %}
 
     {% if site_settings.site_favicon %}
         {% optimized_image_url site_settings.site_favicon 'nav_icon' as site_favicon_url %}

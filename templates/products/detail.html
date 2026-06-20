@@ -43,13 +43,24 @@
 <meta property="og:url" content="{{ canonical_url }}">
 {% endif %}
 
+{% block social_image %}
 {% if product.main_image %}
-<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ product.main_image.url }}">
-<meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{{ product.main_image.url }}">
+<meta property="og:image"
+      content="{{ request.scheme }}://{{ request.get_host }}{{ product.main_image.url }}">
+
+<meta name="twitter:image"
+      content="{{ request.scheme }}://{{ request.get_host }}{{ product.main_image.url }}">
+
 {% elif gallery_images and gallery_images.0.src %}
-<meta property="og:image" content="{{ gallery_images.0.src }}">
-<meta name="twitter:image" content="{{ gallery_images.0.src }}">
+
+<meta property="og:image"
+      content="{{ gallery_images.0.src }}">
+
+<meta name="twitter:image"
+      content="{{ gallery_images.0.src }}">
+
 {% endif %}
+{% endblock %}
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{{ seo_title|default:product.name }}">
