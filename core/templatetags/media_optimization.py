@@ -128,7 +128,9 @@ def product_seo_image_url(context, product=None, merchant_data=None, gallery_ima
         if not _looks_like_public_image(name):
             continue
 
-        return _build_public_media_url(name, request=request)
+        optimized_url = get_optimized_image_url(candidate, "seo")
+        optimized_name = _clean_file_name(optimized_url) or name
+        return _build_public_media_url(optimized_name, request=request)
 
     return ""
 
