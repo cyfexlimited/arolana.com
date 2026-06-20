@@ -10,20 +10,7 @@
 {% product_seo_description product as seo_description %}
 {% product_canonical_url product as canonical_url %}
 {% product_merchant_metadata product "NGN" as merchant_data %}
-{% seo_media_url product.main_image as product_main_seo_image_url %}
-{% seo_media_url merchant_data.image_link as merchant_seo_image_url %}
-
-{% if gallery_images and gallery_images.0.src %}
-    {% seo_media_url gallery_images.0.src as gallery_src_seo_image_url %}
-{% endif %}
-
-{% if gallery_images and gallery_images.0.original %}
-    {% seo_media_url gallery_images.0.original as gallery_original_seo_image_url %}
-{% endif %}
-
-{% if gallery_images and gallery_images.0.thumb %}
-    {% seo_media_url gallery_images.0.thumb as gallery_thumb_seo_image_url %}
-{% endif %}
+{% first_seo_media_url product.main_image merchant_data.image_link gallery_images.0.original gallery_images.0.src gallery_images.0.thumb as product_main_seo_image_url %}
 
 {% block title %}{{ seo_title|default:product.name }}{% endblock %}
 
@@ -88,30 +75,6 @@
 <meta property="og:image:alt" content="{{ product.name }}">
 <meta name="twitter:image" content="{{ product_main_seo_image_url }}">
 <meta name="twitter:image:alt" content="{{ product.name }}">
-{% elif merchant_seo_image_url %}
-<meta property="og:image" content="{{ merchant_seo_image_url }}">
-<meta property="og:image:secure_url" content="{{ merchant_seo_image_url }}">
-<meta property="og:image:alt" content="{{ product.name }}">
-<meta name="twitter:image" content="{{ merchant_seo_image_url }}">
-<meta name="twitter:image:alt" content="{{ product.name }}">
-{% elif gallery_src_seo_image_url %}
-<meta property="og:image" content="{{ gallery_src_seo_image_url }}">
-<meta property="og:image:secure_url" content="{{ gallery_src_seo_image_url }}">
-<meta property="og:image:alt" content="{{ product.name }}">
-<meta name="twitter:image" content="{{ gallery_src_seo_image_url }}">
-<meta name="twitter:image:alt" content="{{ product.name }}">
-{% elif gallery_original_seo_image_url %}
-<meta property="og:image" content="{{ gallery_original_seo_image_url }}">
-<meta property="og:image:secure_url" content="{{ gallery_original_seo_image_url }}">
-<meta property="og:image:alt" content="{{ product.name }}">
-<meta name="twitter:image" content="{{ gallery_original_seo_image_url }}">
-<meta name="twitter:image:alt" content="{{ product.name }}">
-{% elif gallery_thumb_seo_image_url %}
-<meta property="og:image" content="{{ gallery_thumb_seo_image_url }}">
-<meta property="og:image:secure_url" content="{{ gallery_thumb_seo_image_url }}">
-<meta property="og:image:alt" content="{{ product.name }}">
-<meta name="twitter:image" content="{{ gallery_thumb_seo_image_url }}">
-<meta name="twitter:image:alt" content="{{ product.name }}">
 {% elif site_logo_seo_url %}
 <meta property="og:image" content="{{ site_logo_seo_url }}">
 <meta property="og:image:secure_url" content="{{ site_logo_seo_url }}">
@@ -132,11 +95,7 @@
   {% if product.mpn %}"mpn": "{{ product.mpn|escapejs }}",{% endif %}
   {% if product.brand %}"brand": {"@type": "Brand", "name": "{{ product.brand.name|default:product.brand|escapejs }}"},{% endif %}
   {% if product.category %}"category": "{{ product.category.name|escapejs }}",{% endif %}
-  {% if product_main_seo_image_url %}"image": ["{{ product_main_seo_image_url|escapejs }}"],
-  {% elif merchant_seo_image_url %}"image": ["{{ merchant_seo_image_url|escapejs }}"],
-  {% elif gallery_src_seo_image_url %}"image": ["{{ gallery_src_seo_image_url|escapejs }}"],
-  {% elif gallery_original_seo_image_url %}"image": ["{{ gallery_original_seo_image_url|escapejs }}"],
-  {% elif gallery_thumb_seo_image_url %}"image": ["{{ gallery_thumb_seo_image_url|escapejs }}"],{% endif %}
+  {% if product_main_seo_image_url %}"image": ["{{ product_main_seo_image_url|escapejs }}"],{% endif %}
   {% if canonical_url %}"url": "{{ canonical_url|escapejs }}",{% else %}"url": "{{ request.scheme }}://{{ request.get_host }}{{ product.get_absolute_url }}",{% endif %}
   "offers": {
     "@type": "Offer",
