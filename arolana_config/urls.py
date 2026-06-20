@@ -24,19 +24,6 @@ from core import admin_views as core_admin_views
 from accounts import views as accounts_views
 from landing_pages import views as landing_page_views
 
-from .sitemaps import (
-    StaticViewSitemap,
-    ProductSitemap,
-    CategorySitemap,
-    VendorSitemap,
-    BlogSitemap,
-)
-
-from arolana_seo.sitemaps import (
-    ArolanaProductSitemap,
-    ArolanaCategorySitemap,
-)
-
 from products.models import Product, Category
 from vendors.models import VendorProfile
 
@@ -65,20 +52,6 @@ def sitemap_page(request):
             "vendors": vendors,
         },
     )
-
-
-sitemaps = {
-    "static": StaticViewSitemap,
-    "products": ProductSitemap,
-    "categories": CategorySitemap,
-    "vendors": VendorSitemap,
-    "blog": BlogSitemap,
-
-    # Arolana SEO Engine
-    "seo_products": ArolanaProductSitemap,
-    "seo_categories": ArolanaCategorySitemap,
-}
-
 
 def home_view(request):
     """Custom home view with video section and proper context"""
@@ -177,9 +150,13 @@ urlpatterns = [
         name="service_worker",
     ),
 
-    path("", include("arolana_seo.urls")),
-    path("", home_view, name="home"),
 
+    path("", include("arolana_seo.urls")),
+
+    # Homepage
+    path("", home_view, name="home"),
+    
+    path("sitemap/", sitemap_page, name="sitemap"),
     # Authentication
     path("accounts/", include("accounts.urls")),
     path("accounts/", include("allauth.urls")),
