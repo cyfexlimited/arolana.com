@@ -47,6 +47,9 @@ IMAGE_FIELD_NAMES = [
     "primary_image",
     "default_image",
     "cover_image",
+    "picture",
+    "display_image",
+    "optimized_image",
 ]
 
 
@@ -54,6 +57,7 @@ PRODUCT_RELATED_NAMES = [
     "gallery_images",
     "images",
     "product_images",
+    "productimage_set",
     "media",
     "media_images",
     "additional_images",
@@ -89,31 +93,51 @@ def seo_media_url(context, image):
 @register.simple_tag(takes_context=True)
 def product_seo_image_url(context, product=None, merchant_data=None, gallery_images=None):
     """
-    Final product image fallback for SEO.
+    FINAL product image fallback for SEO.
 
     Template use:
     {% product_seo_image_url product merchant_data gallery_images as product_final_seo_image_url %}
 
-    It returns a clean public product image URL and skips Arolana/settings logo paths.
+    It searches:
+    1. Product image/file fields
+    2. Product image helper methods
+    3. Merchant/feed metadata
+    4. gallery_images passed by the view
+    5. Known related managers
+    6. Every reverse related object on the Product model
+
+    It skips Arolana/settings logo paths and returns a clean permanent /media/ URL.
     """
     request = context.get("request")
+    seen_names = set()
 
     for candidate in _product_image_candidates(product, merchant_data, gallery_images):
         name = _clean_file_name(candidate)
 
-        if name and not _looks_like_site_logo(name):
-            return _build_public_media_url(name, request=request)
+        if not name:
+            continue
+
+        if name in seen_names:
+            continue
+
+        seen_names.add(name)
+
+        if _looks_like_site_logo(name):
+            continue
+
+        if not _looks_like_public_image(name):
+            continue
+
+        return _build_public_media_url(name, request=request)
 
     return ""
 
 
 def _product_image_candidates(product=None, merchant_data=None, gallery_images=None):
-    # 1. Direct product fields.
+    # 1. Direct product fields and FileField/ImageField fields.
     if product:
-        for field_name in IMAGE_FIELD_NAMES:
-            value = _safe_getattr(product, field_name)
-            if value:
-                yield value
+        yield from _yield_named_image_fields(product)
+        yield from _yield_model_file_fields(product)
 
         for method_name in (
             "get_main_image",
@@ -122,6 +146,8 @@ def _product_image_candidates(product=None, merchant_data=None, gallery_images=N
             "get_thumbnail",
             "primary_media",
             "main_media",
+            "get_first_image",
+            "get_image",
         ):
             method = _safe_getattr(product, method_name)
 
@@ -135,16 +161,12 @@ def _product_image_candidates(product=None, merchant_data=None, gallery_images=N
                     yield value
 
     # 2. Merchant/feed metadata.
-    for key in IMAGE_FIELD_NAMES:
-        value = _extract_from_mapping_or_object(merchant_data, key)
+    yield from _yield_named_image_fields(merchant_data)
 
-        if value:
-            yield value
-
-    # 3. Gallery images passed by the product detail view.
+    # 3. View gallery context.
     yield from _yield_images_from_collection(gallery_images)
 
-    # 4. Related managers on product.
+    # 4. Known related managers on product.
     if product:
         for related_name in PRODUCT_RELATED_NAMES:
             related = _safe_getattr(product, related_name)
@@ -152,12 +174,86 @@ def _product_image_candidates(product=None, merchant_data=None, gallery_images=N
             if not related:
                 continue
 
-            try:
-                items = related.all()
-            except Exception:
-                items = related
+            yield from _yield_manager_or_collection(related)
 
-            yield from _yield_images_from_collection(items)
+    # 5. Every reverse relation from the Product model.
+    if product:
+        yield from _yield_reverse_related_images(product)
+
+
+def _yield_named_image_fields(obj):
+    if not obj:
+        return
+
+    for key in IMAGE_FIELD_NAMES:
+        value = _extract_from_mapping_or_object(obj, key)
+
+        if value:
+            yield value
+
+
+def _yield_model_file_fields(obj):
+    meta = _safe_getattr(obj, "_meta")
+
+    if not meta:
+        return
+
+    try:
+        fields = meta.get_fields()
+    except Exception:
+        return
+
+    for field in fields:
+        field_name = getattr(field, "name", "")
+
+        if not field_name:
+            continue
+
+        # FileField/ImageField have upload_to.
+        if not hasattr(field, "upload_to"):
+            continue
+
+        value = _safe_getattr(obj, field_name)
+
+        if value:
+            yield value
+
+
+def _yield_reverse_related_images(product):
+    meta = _safe_getattr(product, "_meta")
+
+    if not meta:
+        return
+
+    try:
+        related_objects = meta.related_objects
+    except Exception:
+        return
+
+    for relation in related_objects:
+        try:
+            accessor_name = relation.get_accessor_name()
+        except Exception:
+            accessor_name = ""
+
+        if not accessor_name:
+            continue
+
+        manager = _safe_getattr(product, accessor_name)
+
+        if not manager:
+            continue
+
+        yield from _yield_manager_or_collection(manager)
+
+
+def _yield_manager_or_collection(value):
+    try:
+        collection = value.all()
+    except Exception:
+        collection = value
+
+    yield from _yield_images_from_collection(collection)
 
 
 def _yield_images_from_collection(collection):
@@ -189,24 +285,17 @@ def _yield_images_from_collection(collection):
         if _looks_like_file_object(item):
             yield item
 
-        for key in IMAGE_FIELD_NAMES:
-            value = _extract_from_mapping_or_object(item, key)
+        yield from _yield_named_image_fields(item)
+        yield from _yield_model_file_fields(item)
 
-            if value:
-                yield value
-
-        for related_name in ("images", "gallery_images", "variant_images", "media"):
+        # One nested level for variant/media objects.
+        for related_name in ("images", "gallery_images", "variant_images", "media", "photos"):
             nested = _safe_getattr(item, related_name)
 
             if not nested:
                 continue
 
-            try:
-                nested_items = nested.all()
-            except Exception:
-                nested_items = nested
-
-            yield from _yield_images_from_collection(nested_items)
+            yield from _yield_manager_or_collection(nested)
 
 
 def _looks_like_file_object(value):
@@ -364,3 +453,17 @@ def _looks_like_site_logo(name):
         or "arolana-logo" in lowered
         or ("arolana.com" in lowered and "settings" in lowered)
     )
+
+
+def _looks_like_public_image(name):
+    lowered = str(name or "").lower().split("?", 1)[0]
+
+    return lowered.endswith((
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp",
+        ".gif",
+        ".avif",
+        ".svg",
+    ))
