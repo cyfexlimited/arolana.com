@@ -9,8 +9,15 @@ PRODUCTION-SAFE BACKGROUND FIX:
 - Uses original uploaded media URL.
 - Mobile fix: uses one clean full-screen background image, no repeat/cutting.
 {% endcomment %}
+{% load media_optimization %}
 
 {% if homepage_appearance and homepage_appearance.is_active %}
+{% if homepage_appearance.desktop_background_image %}
+    {% optimized_image_url homepage_appearance.desktop_background_image 'hero' as home_desktop_bg_url %}
+{% endif %}
+{% if homepage_appearance.mobile_background_image %}
+    {% optimized_image_url homepage_appearance.mobile_background_image 'hero' as home_mobile_bg_url %}
+{% endif %}
 {% if request.resolver_match.url_name == "home" or request.path == "/" %}
 <style id="arolana-homepage-background-css">
     html,
@@ -42,9 +49,9 @@ PRODUCTION-SAFE BACKGROUND FIX:
                 rgba(255, 255, 255, calc(var(--home-bg-overlay-opacity) * 0.92))
             ),
             {% if homepage_appearance.desktop_background_image %}
-                url("{{ homepage_appearance.desktop_background_image.url|safe }}")
+                url("{{ home_desktop_bg_url|safe }}")
             {% elif homepage_appearance.mobile_background_image %}
-                url("{{ homepage_appearance.mobile_background_image.url|safe }}")
+                url("{{ home_mobile_bg_url|safe }}")
             {% else %}
                 none
             {% endif %};
@@ -65,9 +72,9 @@ PRODUCTION-SAFE BACKGROUND FIX:
 
         background-image:
             {% if homepage_appearance.desktop_background_image %}
-                url("{{ homepage_appearance.desktop_background_image.url|safe }}")
+                url("{{ home_desktop_bg_url|safe }}")
             {% elif homepage_appearance.mobile_background_image %}
-                url("{{ homepage_appearance.mobile_background_image.url|safe }}")
+                url("{{ home_mobile_bg_url|safe }}")
             {% else %}
                 none
             {% endif %};
@@ -162,9 +169,9 @@ PRODUCTION-SAFE BACKGROUND FIX:
                     rgba(255, 255, 255, calc(var(--home-mobile-bg-overlay-opacity) * 0.92))
                 ),
                 {% if homepage_appearance.mobile_background_image %}
-                    url("{{ homepage_appearance.mobile_background_image.url|safe }}")
+                    url("{{ home_mobile_bg_url|safe }}")
                 {% elif homepage_appearance.desktop_background_image %}
-                    url("{{ homepage_appearance.desktop_background_image.url|safe }}")
+                    url("{{ home_desktop_bg_url|safe }}")
                 {% else %}
                     none
                 {% endif %};
@@ -183,9 +190,9 @@ PRODUCTION-SAFE BACKGROUND FIX:
 
             background-image:
                 {% if homepage_appearance.mobile_background_image %}
-                    url("{{ homepage_appearance.mobile_background_image.url|safe }}")
+                    url("{{ home_mobile_bg_url|safe }}")
                 {% elif homepage_appearance.desktop_background_image %}
-                    url("{{ homepage_appearance.desktop_background_image.url|safe }}")
+                    url("{{ home_desktop_bg_url|safe }}")
                 {% else %}
                     none
                 {% endif %};
