@@ -34,24 +34,28 @@
 {% block canonical_url %}
 {% if canonical_url %}
 <link rel="canonical" href="{{ canonical_url }}">
+{% else %}
+<link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ product.get_absolute_url }}">
 {% endif %}
 {% endblock %}
 
-{% block social_meta %}
+{% block seo_extra %}
 <meta property="og:type" content="product">
 <meta property="og:site_name" content="Arolana">
 <meta property="og:title" content="{{ seo_title|default:product.name }}">
 <meta property="og:description" content="{{ seo_description|default:product.meta_description|default:product.description|striptags|truncatechars:160 }}">
+
 {% if canonical_url %}
 <meta property="og:url" content="{{ canonical_url }}">
+<meta name="twitter:url" content="{{ canonical_url }}">
+{% else %}
+<meta property="og:url" content="{{ request.scheme }}://{{ request.get_host }}{{ product.get_absolute_url }}">
+<meta name="twitter:url" content="{{ request.scheme }}://{{ request.get_host }}{{ product.get_absolute_url }}">
 {% endif %}
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{{ seo_title|default:product.name }}">
 <meta name="twitter:description" content="{{ seo_description|default:product.meta_description|default:product.description|striptags|truncatechars:160 }}">
-{% if canonical_url %}
-<meta name="twitter:url" content="{{ canonical_url }}">
-{% endif %}
 
 {% if product.price %}
 <meta property="product:price:amount" content="{{ product.price }}">
@@ -63,30 +67,11 @@
 {% else %}
 <meta property="product:availability" content="out of stock">
 {% endif %}
-{% endblock %}
 
-{% block social_image %}
-{% if merchant_data.image_link %}
-<meta property="og:image" content="{{ merchant_data.image_link }}">
-<meta property="og:image:secure_url" content="{{ merchant_data.image_link }}">
-<meta property="og:image:alt" content="{{ product.name|default:'Arolana product image' }}">
-<meta name="twitter:image" content="{{ merchant_data.image_link }}">
-<meta name="twitter:image:alt" content="{{ product.name|default:'Arolana product image' }}">
-{% elif gallery_images and gallery_images.0.src %}
-<meta property="og:image" content="{{ gallery_images.0.src }}">
-<meta property="og:image:secure_url" content="{{ gallery_images.0.src }}">
-<meta property="og:image:alt" content="{{ product.name|default:'Arolana product image' }}">
-<meta name="twitter:image" content="{{ gallery_images.0.src }}">
-<meta name="twitter:image:alt" content="{{ product.name|default:'Arolana product image' }}">
-{% endif %}
-{% endblock %}
-
-{% block seo_extra %}
 <script type="application/ld+json">
 {% product_schema_ld product "NGN" %}
 </script>
 
-{% if canonical_url %}
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -96,23 +81,55 @@
       "@type": "ListItem",
       "position": 1,
       "name": "Home",
-      "item": "{% if request %}{{ request.scheme }}://{{ request.get_host }}/{% else %}https://arolana.com/{% endif %}"
-    }{% if product.category %},
+      "item": "{{ request.scheme }}://{{ request.get_host }}/"
+    },
+    {% if product.category %}
     {
       "@type": "ListItem",
       "position": 2,
       "name": "{{ product.category.name|escapejs }}",
-      "item": "{% if request %}{{ request.scheme }}://{{ request.get_host }}{{ product.category.get_absolute_url }}{% else %}https://arolana.com{{ product.category.get_absolute_url }}{% endif %}"
-    }{% endif %},
+      "item": "{{ request.scheme }}://{{ request.get_host }}{{ product.category.get_absolute_url }}"
+    },
     {
       "@type": "ListItem",
-      "position": {% if product.category %}3{% else %}2{% endif %},
+      "position": 3,
       "name": "{{ product.name|escapejs }}",
-      "item": "{{ canonical_url|escapejs }}"
+      {% if canonical_url %}
+      "item": "{{ canonical_url }}"
+      {% else %}
+      "item": "{{ request.scheme }}://{{ request.get_host }}{{ product.get_absolute_url }}"
+      {% endif %}
     }
+    {% else %}
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "{{ product.name|escapejs }}",
+      {% if canonical_url %}
+      "item": "{{ canonical_url }}"
+      {% else %}
+      "item": "{{ request.scheme }}://{{ request.get_host }}{{ product.get_absolute_url }}"
+      {% endif %}
+    }
+    {% endif %}
   ]
 }
 </script>
+{% endblock %}
+
+{% block social_image %}
+{% if merchant_data.image_link %}
+<meta property="og:image" content="{{ merchant_data.image_link }}">
+<meta property="og:image:secure_url" content="{{ merchant_data.image_link }}">
+<meta property="og:image:alt" content="{{ product.name }}">
+<meta name="twitter:image" content="{{ merchant_data.image_link }}">
+<meta name="twitter:image:alt" content="{{ product.name }}">
+{% elif gallery_images and gallery_images.0.src %}
+<meta property="og:image" content="{{ gallery_images.0.src }}">
+<meta property="og:image:secure_url" content="{{ gallery_images.0.src }}">
+<meta property="og:image:alt" content="{{ product.name }}">
+<meta name="twitter:image" content="{{ gallery_images.0.src }}">
+<meta name="twitter:image:alt" content="{{ product.name }}">
 {% endif %}
 {% endblock %}
 
