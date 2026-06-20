@@ -30,7 +30,7 @@
 
     {% if site_settings.site_logo %}
         {% optimized_image_url site_settings.site_logo 'logo' as site_logo_url %}
-        {% seo_media_url site_settings.site_logo as site_logo_seo_url %}
+        {% seo_media_url site_settings.site_logo 'logo' as site_logo_seo_url %}
     {% endif %}
 
     {% block canonical_url %}
@@ -101,7 +101,12 @@
 
     {% if site_settings.site_favicon %}
         {% seo_media_url site_settings.site_favicon as site_favicon_url %}
-        <link rel="icon" type="image/x-icon" href="{{ site_favicon_url }}">
+        {% seo_media_url site_settings.site_favicon 'nav_icon' as site_favicon_optimized_url %}
+        <link rel="icon" href="{{ site_favicon_url }}">
+        <link rel="shortcut icon" href="{{ site_favicon_url }}">
+        {% if site_favicon_optimized_url %}
+        <link rel="apple-touch-icon" href="{{ site_favicon_optimized_url }}">
+        {% endif %}
     {% endif %}
     <link rel="manifest" href="{% url 'web_manifest' %}">
     <meta name="theme-color" content="{{ site_settings.primary_color|default:'#2563eb' }}">

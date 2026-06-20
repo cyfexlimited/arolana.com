@@ -77,11 +77,22 @@ def optimized_image_url(image, preset="product_card"):
 
 
 @register.simple_tag(takes_context=True)
-def seo_media_url(context, image):
+def seo_media_url(context, image, preset=None):
     """
     Clean permanent public URL for SEO/media metadata.
+
+    If preset is provided, prefer the optimized media version first.
+    Example:
+    {% seo_media_url site_settings.site_logo 'logo' as site_logo_seo_url %}
     """
     request = context.get("request")
+
+    if preset:
+        optimized_url = get_optimized_image_url(image, preset)
+        optimized_name = _clean_file_name(optimized_url)
+        if optimized_name:
+            return _build_public_media_url(optimized_name, request=request)
+
     name = _clean_file_name(image)
 
     if not name:
