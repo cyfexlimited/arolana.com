@@ -40,6 +40,24 @@ class SiteSettings(BaseModel):
     # Contact Information
     contact_email = models.EmailField(default='contact@arolana.com')
     contact_phone = models.CharField(max_length=50, default='1-800-AROLANA')
+
+    support_whatsapp_number = models.CharField(
+    max_length=40,
+    blank=True,
+    default='2349132924620',
+    help_text='Arolana admin/support WhatsApp number. Use international format, for example: 2349132924620.',
+)
+
+    cart_whatsapp_message = models.TextField(
+    blank=True,
+    default=(
+        'Hello Arolana Support, I am contacting you from the cart page.\n\n'
+        'I need help with my cart, checkout, delivery, payment, or order support '
+        'before completing my purchase.'
+    ),
+    help_text='First WhatsApp message customers send when contacting support from the cart page.',
+)
+
     address = models.TextField(blank=True)
     
     # Social Media
@@ -63,6 +81,13 @@ class SiteSettings(BaseModel):
     meta_author = models.CharField(max_length=100, blank=True)
     meta_robots = models.CharField(max_length=100, default='index, follow', blank=True)
     
+    @classmethod
+    def load(cls):
+        obj = cls.objects.first()
+        if obj:
+            return obj
+        return cls.objects.create()
+
     class Meta:
         verbose_name = 'Site Setting'
         verbose_name_plural = 'Site Settings'

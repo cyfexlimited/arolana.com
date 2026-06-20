@@ -1,5 +1,5 @@
 {% extends 'base/base.html' %}
-{% load currency_filters optimized_images %}
+{% load currency_filters optimized_images support_links %}
 
 {% block content %}
 <style>
@@ -1080,8 +1080,9 @@
             </div>
 
             <div class="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                {% if support_whatsapp_url %}
-                    <a href="{{ support_whatsapp_url }}" target="_blank" rel="noopener" class="support-contact-btn">
+                {% cart_whatsapp_support_url as cart_support_whatsapp_url %}
+                {% if cart_support_whatsapp_url %}
+                    <a href="{{ cart_support_whatsapp_url }}" target="_blank" rel="noopener" class="support-contact-btn">
                         <i class="fab fa-whatsapp"></i> Chat on WhatsApp
                     </a>
                 {% endif %}
@@ -1103,7 +1104,7 @@
                 </button>
             </div>
 
-            {% if not support_whatsapp_url and not support_phone_display and not support_email %}
+            {% if not cart_support_whatsapp_url and not support_phone_display and not support_email %}
                 <p class="mt-4 rounded-2xl bg-blue-50 p-4 text-sm font-semibold text-slate-600 ring-1 ring-blue-100">
                     Support contact details are managed from Django settings or your admin/site configuration. No phone number is hardcoded in this cart template.
                 </p>
