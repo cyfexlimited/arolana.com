@@ -1,12 +1,15 @@
 from .models import PageVisit
 from .utils import (
+    detect_traffic_source,
     get_browser,
     get_client_ip,
     get_country,
     get_device_type,
     get_operating_system,
     get_referrer,
+    get_referrer_domain,
     get_user_agent,
+    get_utm_data,
     is_bot_user_agent,
     normalize_path,
     should_skip_tracking,
@@ -14,16 +17,6 @@ from .utils import (
 
 
 class PageVisitTrackingMiddleware:
-    """
-    Records page visits without affecting the website if analytics fails.
-
-    It skips:
-    - admin
-    - static/media files
-    - analytics endpoint
-    - health checks
-    """
-
     def __init__(self, get_response):
         self.get_response = get_response
 
@@ -57,7 +50,9 @@ class PageVisitTrackingMiddleware:
                     request.session.save()
                 session_key = request.session.session_key or ""
 
+            referrer = get_referrer(request)
             page_url = request.build_absolute_uri()[:1000]
+            utm = get_utm_data(page_url)
 
             PageVisit.objects.create(
                 user=user,
@@ -67,7 +62,14 @@ class PageVisitTrackingMiddleware:
                 device_type=get_device_type(user_agent),
                 browser=get_browser(user_agent),
                 operating_system=get_operating_system(user_agent),
-                referrer=get_referrer(request),
+                referrer=referrer,
+                referrer_domain=get_referrer_domain(referrer),
+                traffic_source=detect_traffic_source(referrer=referrer, page_url=page_url),
+                utm_source=utm.get("utm_source", ""),
+                utm_medium=utm.get("utm_medium", ""),
+                utm_campaign=utm.get("utm_campaign", ""),
+                utm_content=utm.get("utm_content", ""),
+                utm_term=utm.get("utm_term", ""),
                 page_url=page_url,
                 path=normalize_path(request.path),
                 session_key=session_key,
@@ -78,7 +80,6 @@ class PageVisitTrackingMiddleware:
             )
 
         except Exception:
-            # Never break Arolana because analytics failed.
             pass
 
         return response

@@ -13,7 +13,7 @@ class PageVisit(models.Model):
     )
 
     ip_address = models.GenericIPAddressField(null=True, blank=True)
-    country = models.CharField(max_length=10, blank=True)
+    country = models.CharField(max_length=10, blank=True, db_index=True)
 
     user_agent = models.TextField(blank=True)
     device_type = models.CharField(max_length=50, blank=True, db_index=True)
@@ -21,6 +21,16 @@ class PageVisit(models.Model):
     operating_system = models.CharField(max_length=100, blank=True, db_index=True)
 
     referrer = models.URLField(max_length=1000, blank=True)
+
+    # Marketing/source tracking
+    referrer_domain = models.CharField(max_length=255, blank=True, db_index=True)
+    traffic_source = models.CharField(max_length=100, blank=True, db_index=True)
+    utm_source = models.CharField(max_length=255, blank=True, db_index=True)
+    utm_medium = models.CharField(max_length=255, blank=True)
+    utm_campaign = models.CharField(max_length=255, blank=True, db_index=True)
+    utm_content = models.CharField(max_length=255, blank=True)
+    utm_term = models.CharField(max_length=255, blank=True)
+
     page_url = models.URLField(max_length=1000, blank=True, db_index=True)
     path = models.CharField(max_length=1000, blank=True, db_index=True)
 
@@ -42,6 +52,10 @@ class PageVisit(models.Model):
             models.Index(fields=["created_at", "country"]),
             models.Index(fields=["created_at", "device_type"]),
             models.Index(fields=["created_at", "browser"]),
+            models.Index(fields=["created_at", "traffic_source"]),
+            models.Index(fields=["created_at", "utm_source"]),
+            models.Index(fields=["created_at", "utm_campaign"]),
+            models.Index(fields=["created_at", "referrer_domain"]),
             models.Index(fields=["path", "created_at"]),
             models.Index(fields=["session_key", "created_at"]),
         ]
@@ -86,7 +100,7 @@ class ClickEvent(models.Model):
     )
 
     ip_address = models.GenericIPAddressField(null=True, blank=True)
-    country = models.CharField(max_length=10, blank=True)
+    country = models.CharField(max_length=10, blank=True, db_index=True)
 
     user_agent = models.TextField(blank=True)
     device_type = models.CharField(max_length=50, blank=True, db_index=True)
@@ -94,6 +108,16 @@ class ClickEvent(models.Model):
     operating_system = models.CharField(max_length=100, blank=True, db_index=True)
 
     referrer = models.URLField(max_length=1000, blank=True)
+
+    # Marketing/source tracking
+    referrer_domain = models.CharField(max_length=255, blank=True, db_index=True)
+    traffic_source = models.CharField(max_length=100, blank=True, db_index=True)
+    utm_source = models.CharField(max_length=255, blank=True, db_index=True)
+    utm_medium = models.CharField(max_length=255, blank=True)
+    utm_campaign = models.CharField(max_length=255, blank=True, db_index=True)
+    utm_content = models.CharField(max_length=255, blank=True)
+    utm_term = models.CharField(max_length=255, blank=True)
+
     page_url = models.URLField(max_length=1000, blank=True, db_index=True)
     path = models.CharField(max_length=1000, blank=True, db_index=True)
 
@@ -131,6 +155,10 @@ class ClickEvent(models.Model):
             models.Index(fields=["created_at", "country"]),
             models.Index(fields=["created_at", "device_type"]),
             models.Index(fields=["created_at", "browser"]),
+            models.Index(fields=["created_at", "traffic_source"]),
+            models.Index(fields=["created_at", "utm_source"]),
+            models.Index(fields=["created_at", "utm_campaign"]),
+            models.Index(fields=["created_at", "referrer_domain"]),
             models.Index(fields=["event_type", "created_at"]),
             models.Index(fields=["clicked_url", "created_at"]),
             models.Index(fields=["clicked_text", "created_at"]),

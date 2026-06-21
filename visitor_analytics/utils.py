@@ -1,4 +1,5 @@
 import re
+from urllib.parse import urlparse, parse_qs
 
 
 BOT_KEYWORDS = [
@@ -38,13 +39,20 @@ def get_client_ip(request):
 
 def get_country(request):
     """
-    Use Cloudflare country header if available.
-    Keep blank if unavailable.
-    Later, this can be upgraded with GeoIP.
+    Country from Cloudflare.
+    This only works when Cloudflare proxy is enabled.
+    If unavailable, keep blank instead of slowing website with external API calls.
     """
-    country = request.META.get("HTTP_CF_IPCOUNTRY", "")
-    if country and country.upper() != "XX":
-        return country.upper()
+    possible_headers = [
+        "HTTP_CF_IPCOUNTRY",
+        "CF-IPCountry",
+    ]
+
+    for header in possible_headers:
+        country = request.META.get(header, "")
+        if country and country.upper() != "XX":
+            return country.upper()
+
     return ""
 
 
@@ -54,6 +62,91 @@ def get_user_agent(request):
 
 def get_referrer(request):
     return request.META.get("HTTP_REFERER", "")[:1000]
+
+
+def get_referrer_domain(referrer):
+    if not referrer:
+        return ""
+
+    try:
+        parsed = urlparse(referrer)
+        return parsed.netloc.lower().replace("www.", "")[:255]
+    except Exception:
+        return ""
+
+
+def get_utm_data(url):
+    """
+    Read marketing tracking data from URL:
+    ?utm_source=whatsapp&utm_medium=status&utm_campaign=coming_soon
+    """
+    data = {
+        "utm_source": "",
+        "utm_medium": "",
+        "utm_campaign": "",
+        "utm_content": "",
+        "utm_term": "",
+    }
+
+    if not url:
+        return data
+
+    try:
+        parsed = urlparse(url)
+        query = parse_qs(parsed.query)
+
+        for key in data.keys():
+            value = query.get(key, [""])[0]
+            data[key] = str(value).strip()[:255]
+
+    except Exception:
+        pass
+
+    return data
+
+
+def detect_traffic_source(referrer="", page_url=""):
+    """
+    Gives a founder-friendly traffic source name.
+    """
+    utm = get_utm_data(page_url)
+
+    if utm.get("utm_source"):
+        return utm.get("utm_source", "")[:100]
+
+    domain = get_referrer_domain(referrer)
+
+    if not domain:
+        return "direct"
+
+    if "arolana.com" in domain:
+        return "internal"
+
+    if "google." in domain:
+        return "google"
+
+    if "facebook." in domain or "fb." in domain:
+        return "facebook"
+
+    if "instagram." in domain:
+        return "instagram"
+
+    if "tiktok." in domain:
+        return "tiktok"
+
+    if "youtube." in domain or "youtu.be" in domain:
+        return "youtube"
+
+    if "linkedin." in domain:
+        return "linkedin"
+
+    if "x.com" in domain or "twitter." in domain:
+        return "x-twitter"
+
+    if "whatsapp" in domain:
+        return "whatsapp"
+
+    return domain[:100]
 
 
 def is_bot_user_agent(user_agent):
@@ -133,10 +226,6 @@ def normalize_path(path):
 
 
 def should_skip_tracking(request):
-    """
-    Keep analytics fast and clean.
-    Do not track admin, static, media, health checks, analytics endpoints, etc.
-    """
     path = request.path or ""
 
     skip_prefixes = (
@@ -201,9 +290,6 @@ def clean_event_type(event_type):
 
 
 def guess_event_type(clicked_url="", clicked_text="", element_tag="", data_event_type=""):
-    """
-    Detect click type automatically from URL/text/tag/data attribute.
-    """
     if data_event_type:
         return clean_event_type(data_event_type)
 
