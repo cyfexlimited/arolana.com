@@ -1,6 +1,8 @@
 {% extends "base/base.html" %}
 {% load static optimized_images %}
 
+{# Arolana image rule: never use raw {{ image.url }} for uploaded images. Use optimized_image_url, for example {{ image|optimized_image_url:'product_card' }} or the correct preset for that image type. #}
+
 {% block body_class %}landing-page-body{% endblock %}
 {% block title %}{{ page.meta_title|default:page.public_title }} | Arolana{% endblock %}
 
@@ -48,7 +50,11 @@
         inset: 0;
         z-index: -1;
         pointer-events: none;
-        background: linear-gradient(135deg, rgba(248, 250, 252, var(--lp-page-bg-opacity, 0.35)), rgba(255, 255, 255, var(--lp-page-bg-opacity, 0.35)));
+        background: linear-gradient(
+            135deg,
+            rgba(248, 250, 252, var(--lp-page-bg-opacity, 0.35)),
+            rgba(255, 255, 255, var(--lp-page-bg-opacity, 0.35))
+        );
     }
 
     .lp-section,
@@ -75,7 +81,501 @@
         }
 
         .arolana-landing-page::after {
-            background: linear-gradient(135deg, rgba(248, 250, 252, var(--lp-mobile-bg-opacity, 0.45)), rgba(255, 255, 255, var(--lp-mobile-bg-opacity, 0.45)));
+            background: linear-gradient(
+                135deg,
+                rgba(248, 250, 252, var(--lp-mobile-bg-opacity, 0.45)),
+                rgba(255, 255, 255, var(--lp-mobile-bg-opacity, 0.45))
+            );
+        }
+    }
+
+    /* =========================================================
+       AROLANA LANDING PAGE — LUXURY MOBILE POLISH
+       Mobile-only rich layout refinement
+       ========================================================= */
+    @media (max-width: 768px) {
+        .arolana-landing-page {
+            background:
+                radial-gradient(circle at 18% 0%, rgba(0, 184, 255, 0.16), transparent 34%),
+                radial-gradient(circle at 92% 10%, rgba(255, 122, 0, 0.14), transparent 30%),
+                linear-gradient(180deg, rgba(7, 26, 68, 0.04), rgba(248, 250, 252, 0.96));
+            overflow-x: hidden;
+        }
+
+        .arolana-landing-page::before {
+            opacity: 0.72;
+            filter: saturate(1.08) contrast(1.08);
+            transform: scale(1.02);
+        }
+
+        .arolana-landing-page::after {
+            background:
+                linear-gradient(180deg, rgba(7, 26, 68, 0.50), rgba(15, 45, 107, 0.34) 34%, rgba(248, 250, 252, 0.94) 72%),
+                radial-gradient(circle at top, rgba(0, 184, 255, 0.16), transparent 48%);
+        }
+
+        .lp-container {
+            width: 100%;
+            max-width: 100%;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+
+        .lp-hero {
+            min-height: auto;
+            padding: 0;
+            border-radius: 0 0 2rem 2rem;
+            overflow: hidden;
+            background: linear-gradient(135deg, #071A44, #0A2E73);
+            box-shadow: 0 24px 60px rgba(7, 26, 68, 0.22);
+        }
+
+        .lp-hero picture {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+        }
+
+        .lp-hero-image {
+            width: 100%;
+            height: 100%;
+            min-height: 100%;
+            object-fit: cover;
+            object-position: center center;
+            transform: scale(1.02);
+        }
+
+        .lp-hero-overlay {
+            opacity: 0.68 !important;
+            background:
+                linear-gradient(180deg, rgba(7, 26, 68, 0.76), rgba(7, 26, 68, 0.56) 48%, rgba(7, 26, 68, 0.82)),
+                radial-gradient(circle at 18% 12%, rgba(0, 184, 255, 0.24), transparent 34%) !important;
+        }
+
+        .lp-hero-inner {
+            position: relative;
+            z-index: 2;
+            display: grid;
+            gap: 1rem;
+            min-height: 78vh;
+            padding-top: 4.5rem;
+            padding-bottom: 2rem;
+            align-content: end;
+        }
+
+        .lp-hero-copy {
+            max-width: 100%;
+            padding: 1.15rem;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 1.5rem;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.08));
+            box-shadow: 0 24px 65px rgba(0, 0, 0, 0.22);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+
+        .lp-badge {
+            display: inline-flex;
+            max-width: 100%;
+            margin-bottom: 0.85rem;
+            padding: 0.48rem 0.78rem;
+            border-radius: 999px;
+            background: rgba(255, 122, 0, 0.96);
+            color: #ffffff;
+            font-size: 0.68rem;
+            font-weight: 950;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            box-shadow: 0 12px 28px rgba(255, 122, 0, 0.28);
+        }
+
+        .lp-hero-copy h1 {
+            color: #ffffff;
+            font-size: clamp(2rem, 10vw, 3.45rem);
+            line-height: 0.98;
+            letter-spacing: -0.055em;
+            text-wrap: balance;
+            margin-bottom: 0.9rem;
+            text-shadow: 0 12px 34px rgba(0, 0, 0, 0.32);
+        }
+
+        .lp-hero-copy p {
+            color: rgba(255, 255, 255, 0.88);
+            font-size: 0.98rem;
+            line-height: 1.62;
+            margin-bottom: 1.15rem;
+        }
+
+        .lp-hero-actions {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.72rem;
+            width: 100%;
+        }
+
+        .lp-btn,
+        .lp-section-button,
+        .lp-card-link,
+        .lp-watch-btn {
+            width: 100%;
+            min-height: 3.15rem;
+            justify-content: center;
+            border-radius: 999px;
+            font-size: 0.84rem;
+            font-weight: 950;
+            letter-spacing: 0.02em;
+        }
+
+        .lp-btn-primary {
+            background: linear-gradient(135deg, #FF7A00, #ff9d3d) !important;
+            color: #ffffff !important;
+            box-shadow: 0 18px 38px rgba(255, 122, 0, 0.28);
+        }
+
+        .lp-btn-secondary {
+            background: rgba(255, 255, 255, 0.12) !important;
+            color: #ffffff !important;
+            border: 1px solid rgba(255, 255, 255, 0.26) !important;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        .lp-trust-row {
+            display: flex;
+            gap: 0.55rem;
+            overflow-x: auto;
+            padding: 0.2rem 0 0.1rem;
+            margin-top: 1rem;
+            scrollbar-width: none;
+        }
+
+        .lp-trust-row::-webkit-scrollbar {
+            display: none;
+        }
+
+        .lp-trust-row span {
+            flex: 0 0 auto;
+            padding: 0.55rem 0.75rem;
+            border-radius: 999px;
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.13);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            font-size: 0.72rem;
+            font-weight: 850;
+            white-space: nowrap;
+        }
+
+        .lp-hero-panel {
+            padding: 1rem;
+            border-radius: 1.35rem;
+            background: rgba(255, 255, 255, 0.94);
+            box-shadow: 0 20px 50px rgba(7, 26, 68, 0.20);
+            border: 1px solid rgba(255, 255, 255, 0.68);
+        }
+
+        .lp-panel-kicker {
+            color: #0066CC;
+            font-size: 0.68rem;
+            font-weight: 950;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .lp-hero-panel strong {
+            display: block;
+            margin-top: 0.35rem;
+            color: #071A44;
+            font-size: 1.05rem;
+            line-height: 1.18;
+        }
+
+        .lp-hero-panel p {
+            margin-top: 0.35rem;
+            color: #475569;
+            font-size: 0.84rem;
+            line-height: 1.5;
+        }
+
+        .lp-mini-nav {
+            position: sticky;
+            top: 0;
+            z-index: 40;
+            margin-top: 0.8rem;
+            padding: 0.72rem 0;
+            background: rgba(248, 250, 252, 0.82);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+        }
+
+        .lp-mini-nav-inner {
+            display: grid;
+            gap: 0.65rem;
+        }
+
+        .lp-mobile-nav-toggle {
+            width: 100%;
+            min-height: 3rem;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #071A44, #0A2E73);
+            color: #ffffff;
+            font-weight: 950;
+            box-shadow: 0 14px 30px rgba(7, 26, 68, 0.18);
+        }
+
+        .lp-mini-nav-links {
+            display: flex;
+            gap: 0.55rem;
+            overflow-x: auto;
+            padding-bottom: 0.12rem;
+            scrollbar-width: none;
+        }
+
+        .lp-mini-nav-links::-webkit-scrollbar {
+            display: none;
+        }
+
+        .lp-mini-nav-links a {
+            flex: 0 0 auto;
+            padding: 0.7rem 0.85rem;
+            border-radius: 999px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            color: #0f172a;
+            font-size: 0.78rem;
+            font-weight: 900;
+            white-space: nowrap;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+        }
+
+        .lp-section {
+            padding: 2.1rem 0;
+        }
+
+        .lp-section + .lp-section {
+            margin-top: 0.15rem;
+        }
+
+        .lp-section-heading {
+            margin-bottom: 1.1rem;
+            text-align: left;
+        }
+
+        .lp-section-heading span {
+            display: inline-flex;
+            margin-bottom: 0.5rem;
+            padding: 0.42rem 0.68rem;
+            border-radius: 999px;
+            background: rgba(0, 102, 204, 0.09);
+            color: #0066CC;
+            font-size: 0.66rem;
+            font-weight: 950;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .lp-section-heading h2 {
+            color: #071A44;
+            font-size: clamp(1.45rem, 7vw, 2.2rem);
+            line-height: 1.05;
+            letter-spacing: -0.04em;
+            text-wrap: balance;
+        }
+
+        .lp-section-heading p {
+            margin-top: 0.65rem;
+            color: #64748b;
+            font-size: 0.94rem;
+            line-height: 1.6;
+        }
+
+        .lp-admin-section-card,
+        .lp-card,
+        .lp-benefit-card,
+        .lp-step-card,
+        .lp-comparison-card,
+        .lp-contact-card,
+        .lp-faq-item {
+            border-radius: 1.35rem !important;
+            border: 1px solid rgba(226, 232, 240, 0.94) !important;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96)) !important;
+            box-shadow: 0 18px 44px rgba(15, 23, 42, 0.09) !important;
+            overflow: hidden;
+        }
+
+        .lp-benefit-grid,
+        .lp-offer-grid,
+        .lp-step-grid,
+        .lp-category-grid,
+        .lp-testimonial-grid,
+        .lp-video-grid,
+        .lp-contact-grid,
+        .lp-comparison-grid {
+            display: grid !important;
+            grid-template-columns: 1fr !important;
+            gap: 0.9rem !important;
+        }
+
+        .lp-card img,
+        .lp-section-media img,
+        .lp-video-thumb img {
+            width: 100%;
+            object-fit: cover;
+        }
+
+        .lp-offer-card > img,
+        .lp-category-card > img,
+        .lp-section-media img {
+            height: 13.5rem;
+            border-radius: 1.15rem;
+        }
+
+        .lp-testimonial-card .lp-person img {
+            width: 3rem;
+            height: 3rem;
+            border-radius: 999px;
+            border: 3px solid #ffffff;
+            box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12);
+        }
+
+        .lp-video-thumb {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 10;
+            border-radius: 1.2rem;
+            overflow: hidden;
+            background: linear-gradient(135deg, #071A44, #0A2E73);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+        }
+
+        .lp-video-thumb img {
+            height: 100%;
+        }
+
+        .lp-play {
+            width: 3.1rem;
+            height: 3.1rem;
+            border-radius: 999px;
+            background: rgba(255, 122, 0, 0.96);
+            color: #ffffff;
+            box-shadow: 0 18px 38px rgba(255, 122, 0, 0.32);
+        }
+
+        .lp-duration {
+            right: 0.75rem;
+            bottom: 0.75rem;
+            padding: 0.35rem 0.55rem;
+            border-radius: 999px;
+            background: rgba(7, 26, 68, 0.88);
+            color: #ffffff;
+            font-size: 0.72rem;
+            font-weight: 900;
+        }
+
+        .lp-video-body,
+        .lp-card,
+        .lp-benefit-card,
+        .lp-step-card,
+        .lp-faq-item,
+        .lp-contact-card {
+            padding: 1rem;
+        }
+
+        .lp-icon {
+            width: 2.6rem;
+            height: 2.6rem;
+            border-radius: 0.95rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #071A44, #0A2E73);
+            color: #ffffff;
+            box-shadow: 0 12px 26px rgba(7, 26, 68, 0.16);
+        }
+
+        .lp-card h3,
+        .lp-step-card h3,
+        .lp-benefit-card h3,
+        .lp-video-body h3 {
+            color: #071A44;
+            font-size: 1.05rem;
+            line-height: 1.22;
+            letter-spacing: -0.02em;
+        }
+
+        .lp-card p,
+        .lp-step-card p,
+        .lp-benefit-card p,
+        .lp-video-body p,
+        .lp-faq-answer p {
+            color: #64748b;
+            font-size: 0.9rem;
+            line-height: 1.58;
+        }
+
+        .lp-price-line {
+            display: grid;
+            gap: 0.25rem;
+            margin-top: 0.75rem;
+            padding: 0.8rem;
+            border-radius: 1rem;
+            background: rgba(255, 122, 0, 0.08);
+            border: 1px solid rgba(255, 122, 0, 0.16);
+        }
+
+        .lp-price-line strong {
+            color: #071A44;
+            font-size: 1rem;
+        }
+
+        .lp-price-line span {
+            color: #FF7A00;
+            font-size: 0.78rem;
+            font-weight: 900;
+        }
+
+        .lp-faq-question {
+            min-height: 3.2rem;
+            padding: 1rem;
+            font-weight: 950;
+            color: #071A44;
+        }
+
+        .lp-contact-card {
+            min-height: 5.2rem;
+            align-items: center;
+            background:
+                radial-gradient(circle at top left, rgba(0, 184, 255, 0.12), transparent 36%),
+                linear-gradient(135deg, #ffffff, #f8fafc) !important;
+        }
+
+        .lp-section-dark {
+            background:
+                radial-gradient(circle at top left, rgba(0, 184, 255, 0.16), transparent 36%),
+                linear-gradient(135deg, #071A44, #0A2E73) !important;
+            color: #ffffff;
+        }
+
+        .lp-section-dark .lp-section-heading h2,
+        .lp-section-dark .lp-card h3,
+        .lp-section-dark .lp-comparison-card h3 {
+            color: #ffffff;
+        }
+
+        .lp-section-dark .lp-section-heading p,
+        .lp-section-dark .lp-card p,
+        .lp-section-dark .lp-comparison-card p {
+            color: rgba(255, 255, 255, 0.78);
+        }
+
+        .lp-back-to-top {
+            width: 3rem;
+            height: 3rem;
+            left: auto !important;
+            right: 1rem !important;
+            bottom: 1rem !important;
+            border-radius: 999px !important;
+            box-shadow: 0 16px 36px rgba(255, 122, 0, 0.26);
         }
     }
 </style>
@@ -110,26 +610,37 @@
     <section class="lp-hero" id="top">
         {% if page.hero_background_image %}
             <picture>
-                {% if page.hero_mobile_image %}<source media="(max-width: 640px)" srcset="{{ page.hero_mobile_image|optimized_image_url:'mobile_hero' }}">{% endif %}
+                {% if page.hero_mobile_image %}
+                    <source media="(max-width: 640px)" srcset="{{ page.hero_mobile_image|optimized_image_url:'mobile_hero' }}">
+                {% endif %}
                 <img src="{{ page.hero_background_image|optimized_image_url:'landing_hero' }}" alt="{{ page.hero_headline|default:page.title }}" class="lp-hero-image" fetchpriority="high" decoding="async">
             </picture>
         {% endif %}
+
         <div class="lp-hero-overlay" style="opacity: {{ page.hero_overlay_opacity|default:'0.60' }}"></div>
+
         <div class="lp-container lp-hero-inner">
             <div class="lp-hero-copy">
                 {% if page.hero_badge_text %}<span class="lp-badge">{{ page.hero_badge_text }}</span>{% endif %}
                 <h1>{{ page.hero_headline|default:page.title }}</h1>
                 {% if page.hero_subheadline or page.subtitle %}<p>{{ page.hero_subheadline|default:page.subtitle }}</p>{% endif %}
+
                 <div class="lp-hero-actions">
-                    <a href="{{ page.primary_cta_url|default:'#contact' }}" class="lp-btn lp-btn-primary">{{ page.primary_cta_text|default:'Shop with Arolana' }} <i class="fas fa-arrow-right"></i></a>
-                    {% if page.secondary_cta_text and page.secondary_cta_url %}<a href="{{ page.secondary_cta_url }}" class="lp-btn lp-btn-secondary">{{ page.secondary_cta_text }}</a>{% endif %}
+                    <a href="{{ page.primary_cta_url|default:'#contact' }}" class="lp-btn lp-btn-primary">
+                        {{ page.primary_cta_text|default:'Shop with Arolana' }} <i class="fas fa-arrow-right"></i>
+                    </a>
+                    {% if page.secondary_cta_text and page.secondary_cta_url %}
+                        <a href="{{ page.secondary_cta_url }}" class="lp-btn lp-btn-secondary">{{ page.secondary_cta_text }}</a>
+                    {% endif %}
                 </div>
+
                 {% if page.trust_badges %}
                 <div class="lp-trust-row">
                     {% for badge in page.trust_badges %}<span><i class="fas fa-check"></i> {{ badge }}</span>{% endfor %}
                 </div>
                 {% endif %}
             </div>
+
             <div class="lp-hero-panel">
                 <span class="lp-panel-kicker">Arolana marketplace</span>
                 <strong>Buy smarter with trusted product guidance.</strong>
@@ -144,7 +655,7 @@
             <div class="lp-mini-nav-links">
                 {% for section in page.sections.all %}
                     {% if section.is_active and section.section_type != "hero" %}
-                    <a href="#lp-section-{{ section.id }}" data-lp-nav="lp-section-{{ section.id }}">{{ section.title|default:section.get_section_type_display }}</a>
+                        <a href="#lp-section-{{ section.id }}" data-lp-nav="lp-section-{{ section.id }}">{{ section.title|default:section.get_section_type_display }}</a>
                     {% endif %}
                 {% endfor %}
             </div>
@@ -152,153 +663,252 @@
     </nav>
 
     {% for section in page.sections.all %}
-    {% if section.is_active and section.section_type != "hero" %}
-    <section class="lp-section lp-section-rendered lp-section-{{ section.section_type }}{% if section.section_type == 'comparison' or section.section_type == 'contact' %} lp-section-dark{% elif forloop.counter|divisibleby:2 %} lp-section-soft{% endif %}"
-             id="lp-section-{{ section.id }}"
-             data-lp-section-type="{{ section.section_type }}"
-             style="{% if section.background_color %}background: {{ section.background_color }} !important;{% endif %}{% if section.text_color %}color: {{ section.text_color }} !important;{% endif %}">
-        <div class="lp-container{% if section.section_type == 'faq' or section.section_type == 'terms' %} lp-narrow{% endif %}">
-            <div class="lp-section-heading">
-                <span>{{ section.get_section_type_display }}</span>
-                <h2>{{ section.title|default:section.get_section_type_display }}</h2>
-                {% if section.subtitle %}<p>{{ section.subtitle }}</p>{% endif %}
-            </div>
-
-            {% if section.image or section.video_url or section.content or section.button_text %}
-            <div class="lp-admin-section-card">
-                {% if section.image %}
-                <div class="lp-section-media"><img src="{{ section.image|optimized_image_url:'landing_hero' }}" alt="{{ section.title|default:page.title }}" loading="lazy" decoding="async"></div>
-                {% endif %}
-                {% if section.video_url %}
-                <article class="lp-video-card lp-section-video-card" data-video-url="{{ section.video_url }}" data-video-title="{{ section.title|default:page.title }}">
-                    <button type="button" class="lp-video-thumb" aria-label="Watch {{ section.title|default:page.title }}"><span class="lp-video-placeholder"><i class="fas fa-video"></i></span><span class="lp-play"><i class="fas fa-play"></i></span></button>
-                </article>
-                {% endif %}
-                {% if section.content %}<div class="lp-section-content">{{ section.content|safe }}</div>{% endif %}
-                {% if section.button_text and section.button_url %}<a class="lp-btn lp-btn-primary lp-section-button" href="{{ section.button_url }}">{{ section.button_text }} <i class="fas fa-arrow-right"></i></a>{% endif %}
-            </div>
-            {% endif %}
-
-            {% if section.section_type == "benefits" %}
-            <div class="lp-benefit-grid">
-                {% for item in page.benefits.all %}{% if item.is_active %}{% if not item.section or item.section_id == section.id %}
-                <article class="lp-card lp-benefit-card"><div class="lp-icon"><i class="{{ item.icon|default:'fas fa-check-circle' }}"></i></div><h3>{{ item.title }}</h3><p>{{ item.description }}</p>{% if item.link_text and item.link_url %}<a href="{{ item.link_url }}">{{ item.link_text }} <i class="fas fa-arrow-right"></i></a>{% endif %}</article>
-                {% endif %}{% endif %}{% endfor %}
-            </div>
-            {% endif %}
-
-            {% if section.section_type == "offers" %}
-            <div class="lp-offer-grid">
-                {% for item in page.offers.all %}{% if item.is_active %}{% if not item.section or item.section_id == section.id %}
-                <article class="lp-card lp-offer-card">{% if item.offer_label %}<span class="lp-offer-label">{{ item.offer_label }}</span>{% endif %}{% if item.image %}<img src="{{ item.image|optimized_image_url:'category_card' }}" alt="{{ item.title }}" loading="lazy" decoding="async">{% else %}<div class="lp-card-image-placeholder"><i class="fas fa-tags"></i></div>{% endif %}<div class="lp-icon"><i class="{{ item.icon|default:'fas fa-tags' }}"></i></div><h3>{{ item.title }}</h3><p>{{ item.description }}</p>{% if item.price_text or item.discount_text %}<div class="lp-price-line">{% if item.price_text %}<strong>{{ item.price_text }}</strong>{% endif %}{% if item.discount_text %}<span>{{ item.discount_text }}</span>{% endif %}</div>{% endif %}{% if item.button_text and item.button_url %}<a class="lp-card-link" href="{{ item.button_url }}">{{ item.button_text }} <i class="fas fa-arrow-right"></i></a>{% endif %}</article>
-                {% endif %}{% endif %}{% endfor %}
-            </div>
-            {% endif %}
-
-            {% if section.section_type == "how_it_works" %}
-            <div class="lp-step-grid">
-                {% for item in page.steps.all %}{% if item.is_active %}{% if not item.section or item.section_id == section.id %}
-                <article class="lp-step-card"><div class="lp-step-number">{{ item.step_number|default:forloop.counter }}</div><i class="{{ item.icon|default:'fas fa-arrow-right' }}"></i><h3>{{ item.title }}</h3><p>{{ item.description }}</p></article>
-                {% endif %}{% endif %}{% endfor %}
-            </div>
-            {% endif %}
-
-            {% if section.section_type == "eligible_categories" or section.section_type == "product_grid" %}
-            <div class="lp-category-grid">
-                {% for item in page.category_cards.all %}{% if item.is_active %}{% if not item.section or item.section_id == section.id %}
-                <a class="lp-card lp-category-card" href="{{ item.resolved_url }}">{% if item.image %}<img src="{{ item.image|optimized_image_url:'category_card' }}" alt="{{ item.title }}" loading="lazy" decoding="async">{% else %}<div class="lp-card-image-placeholder"><i class="fas fa-box-open"></i></div>{% endif %}<div class="lp-icon"><i class="{{ item.icon|default:'fas fa-box-open' }}"></i></div><h3>{{ item.title }}</h3><p>{{ item.description }}</p><span>{{ item.button_text|default:'View products' }} <i class="fas fa-arrow-right"></i></span></a>
-                {% endif %}{% endif %}{% endfor %}
-            </div>
-            {% endif %}
-
-            {% if section.section_type == "testimonials" %}
-            <div class="lp-testimonial-grid">
-                {% for item in page.testimonials.all %}{% if item.is_active %}{% if not item.section or item.section_id == section.id %}
-                <article class="lp-card lp-testimonial-card"><div class="lp-stars">{% for i in "12345" %}<i class="fas fa-star"></i>{% endfor %}</div><blockquote>{{ item.quote }}</blockquote><div class="lp-person">{% if item.image %}<img src="{{ item.image|optimized_image_url:'category_card' }}" alt="{{ item.customer_name }}" loading="lazy" decoding="async">{% else %}<span class="lp-avatar-fallback"><i class="fas fa-user"></i></span>{% endif %}<div><strong>{{ item.customer_name }}</strong><span>{{ item.customer_title }}{% if item.customer_location %} · {{ item.customer_location }}{% endif %}</span></div></div></article>
-                {% endif %}{% endif %}{% endfor %}
-            </div>
-            {% endif %}
-
-            {% if section.section_type == "comparison" %}
-            <div class="lp-comparison-grid">
-                <div class="lp-comparison-card lp-negative"><h3>Before</h3>{% for item in page.comparison_items.all %}{% if item.is_active and item.side == 'negative' %}{% if not item.section or item.section_id == section.id %}<p><i class="{{ item.icon|default:'fas fa-times' }}"></i><strong>{{ item.title }}</strong><span>{{ item.description }}</span></p>{% endif %}{% endif %}{% endfor %}</div>
-                <div class="lp-comparison-card lp-positive"><h3>With Arolana</h3>{% for item in page.comparison_items.all %}{% if item.is_active and item.side == 'positive' %}{% if not item.section or item.section_id == section.id %}<p><i class="{{ item.icon|default:'fas fa-check' }}"></i><strong>{{ item.title }}</strong><span>{{ item.description }}</span></p>{% endif %}{% endif %}{% endfor %}</div>
-            </div>
-            {% endif %}
-
-            {% if section.section_type == "video_guides" or section.section_type == "video" %}
-<div class="lp-video-grid">
-    {% for video in page.video_guides.all %}
-        {% if video.is_active %}
-            {% if not video.section or video.section_id == section.id %}
-            <article class="lp-card lp-video-card"
-                     data-video-url="{{ video.video_url }}"
-                     data-video-embed="{{ video.embed_url }}"
-                     data-video-title="{{ video.title }}">
-                <button type="button" class="lp-video-thumb" aria-label="Watch {{ video.title }}">
-                    {% if video.thumbnail %}
-                        <img src="{{ video.thumbnail|optimized_image_url:'category_card' }}"
-                             alt="{{ video.title }}"
-                             loading="lazy"
-                             decoding="async">
-                    {% elif video.thumbnail_url %}
-                        <img src="{{ video.thumbnail_url }}"
-                             alt="{{ video.title }}"
-                             loading="lazy"
-                             decoding="async">
-                    {% else %}
-                        <span class="lp-video-placeholder">
-                            <i class="fas fa-video"></i>
-                        </span>
-                    {% endif %}
-
-                    <span class="lp-play"><i class="fas fa-play"></i></span>
-
-                    {% if video.duration %}
-                        <span class="lp-duration">{{ video.duration }}</span>
-                    {% endif %}
-                </button>
-
-                <div class="lp-video-body">
-                    {% if video.subtitle %}
-                        <span>{{ video.subtitle }}</span>
-                    {% endif %}
-
-                    <h3>{{ video.title }}</h3>
-
-                    {% if video.description %}
-                        <p>{{ video.description }}</p>
-                    {% endif %}
-
-                    <button type="button" class="lp-watch-btn">
-                        {{ video.button_text|default:'Watch Video' }}
-                    </button>
+        {% if section.is_active and section.section_type != "hero" %}
+        <section class="lp-section lp-section-rendered lp-section-{{ section.section_type }}{% if section.section_type == 'comparison' or section.section_type == 'contact' %} lp-section-dark{% elif forloop.counter|divisibleby:2 %} lp-section-soft{% endif %}"
+                 id="lp-section-{{ section.id }}"
+                 data-lp-section-type="{{ section.section_type }}"
+                 style="{% if section.background_color %}background: {{ section.background_color }} !important;{% endif %}{% if section.text_color %}color: {{ section.text_color }} !important;{% endif %}">
+            <div class="lp-container{% if section.section_type == 'faq' or section.section_type == 'terms' %} lp-narrow{% endif %}">
+                <div class="lp-section-heading">
+                    <span>{{ section.get_section_type_display }}</span>
+                    <h2>{{ section.title|default:section.get_section_type_display }}</h2>
+                    {% if section.subtitle %}<p>{{ section.subtitle }}</p>{% endif %}
                 </div>
-            </article>
-            {% endif %}
+
+                {% if section.image or section.video_url or section.content or section.button_text %}
+                <div class="lp-admin-section-card">
+                    {% if section.image %}
+                        <div class="lp-section-media">
+                            <img src="{{ section.image|optimized_image_url:'landing_hero' }}" alt="{{ section.title|default:page.title }}" loading="lazy" decoding="async">
+                        </div>
+                    {% endif %}
+
+                    {% if section.video_url %}
+                        <article class="lp-video-card lp-section-video-card" data-video-url="{{ section.video_url }}" data-video-title="{{ section.title|default:page.title }}">
+                            <button type="button" class="lp-video-thumb" aria-label="Watch {{ section.title|default:page.title }}">
+                                <span class="lp-video-placeholder"><i class="fas fa-video"></i></span>
+                                <span class="lp-play"><i class="fas fa-play"></i></span>
+                            </button>
+                        </article>
+                    {% endif %}
+
+                    {% if section.content %}<div class="lp-section-content">{{ section.content|safe }}</div>{% endif %}
+
+                    {% if section.button_text and section.button_url %}
+                        <a class="lp-btn lp-btn-primary lp-section-button" href="{{ section.button_url }}">{{ section.button_text }} <i class="fas fa-arrow-right"></i></a>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                {% if section.section_type == "benefits" %}
+                <div class="lp-benefit-grid">
+                    {% for item in page.benefits.all %}
+                        {% if item.is_active %}
+                            {% if not item.section or item.section_id == section.id %}
+                            <article class="lp-card lp-benefit-card">
+                                <div class="lp-icon"><i class="{{ item.icon|default:'fas fa-check-circle' }}"></i></div>
+                                <h3>{{ item.title }}</h3>
+                                <p>{{ item.description }}</p>
+                                {% if item.link_text and item.link_url %}<a href="{{ item.link_url }}">{{ item.link_text }} <i class="fas fa-arrow-right"></i></a>{% endif %}
+                            </article>
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if section.section_type == "offers" %}
+                <div class="lp-offer-grid">
+                    {% for item in page.offers.all %}
+                        {% if item.is_active %}
+                            {% if not item.section or item.section_id == section.id %}
+                            <article class="lp-card lp-offer-card">
+                                {% if item.offer_label %}<span class="lp-offer-label">{{ item.offer_label }}</span>{% endif %}
+                                {% if item.image %}
+                                    <img src="{{ item.image|optimized_image_url:'category_card' }}" alt="{{ item.title }}" loading="lazy" decoding="async">
+                                {% else %}
+                                    <div class="lp-card-image-placeholder"><i class="fas fa-tags"></i></div>
+                                {% endif %}
+                                <div class="lp-icon"><i class="{{ item.icon|default:'fas fa-tags' }}"></i></div>
+                                <h3>{{ item.title }}</h3>
+                                <p>{{ item.description }}</p>
+                                {% if item.price_text or item.discount_text %}
+                                <div class="lp-price-line">
+                                    {% if item.price_text %}<strong>{{ item.price_text }}</strong>{% endif %}
+                                    {% if item.discount_text %}<span>{{ item.discount_text }}</span>{% endif %}
+                                </div>
+                                {% endif %}
+                                {% if item.button_text and item.button_url %}
+                                    <a class="lp-card-link" href="{{ item.button_url }}">{{ item.button_text }} <i class="fas fa-arrow-right"></i></a>
+                                {% endif %}
+                            </article>
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if section.section_type == "how_it_works" %}
+                <div class="lp-step-grid">
+                    {% for item in page.steps.all %}
+                        {% if item.is_active %}
+                            {% if not item.section or item.section_id == section.id %}
+                            <article class="lp-step-card">
+                                <div class="lp-step-number">{{ item.step_number|default:forloop.counter }}</div>
+                                <i class="{{ item.icon|default:'fas fa-arrow-right' }}"></i>
+                                <h3>{{ item.title }}</h3>
+                                <p>{{ item.description }}</p>
+                            </article>
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if section.section_type == "eligible_categories" or section.section_type == "product_grid" %}
+                <div class="lp-category-grid">
+                    {% for item in page.category_cards.all %}
+                        {% if item.is_active %}
+                            {% if not item.section or item.section_id == section.id %}
+                            <a class="lp-card lp-category-card" href="{{ item.resolved_url }}">
+                                {% if item.image %}
+                                    <img src="{{ item.image|optimized_image_url:'category_card' }}" alt="{{ item.title }}" loading="lazy" decoding="async">
+                                {% else %}
+                                    <div class="lp-card-image-placeholder"><i class="fas fa-box-open"></i></div>
+                                {% endif %}
+                                <div class="lp-icon"><i class="{{ item.icon|default:'fas fa-box-open' }}"></i></div>
+                                <h3>{{ item.title }}</h3>
+                                <p>{{ item.description }}</p>
+                                <span>{{ item.button_text|default:'View products' }} <i class="fas fa-arrow-right"></i></span>
+                            </a>
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if section.section_type == "testimonials" %}
+                <div class="lp-testimonial-grid">
+                    {% for item in page.testimonials.all %}
+                        {% if item.is_active %}
+                            {% if not item.section or item.section_id == section.id %}
+                            <article class="lp-card lp-testimonial-card">
+                                <div class="lp-stars">
+                                    {% for i in "12345" %}<i class="fas fa-star"></i>{% endfor %}
+                                </div>
+                                <blockquote>{{ item.quote }}</blockquote>
+                                <div class="lp-person">
+                                    {% if item.image %}
+                                        <img src="{{ item.image|optimized_image_url:'category_card' }}" alt="{{ item.customer_name }}" loading="lazy" decoding="async">
+                                    {% else %}
+                                        <span class="lp-avatar-fallback"><i class="fas fa-user"></i></span>
+                                    {% endif %}
+                                    <div>
+                                        <strong>{{ item.customer_name }}</strong>
+                                        <span>{{ item.customer_title }}{% if item.customer_location %} · {{ item.customer_location }}{% endif %}</span>
+                                    </div>
+                                </div>
+                            </article>
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if section.section_type == "comparison" %}
+                <div class="lp-comparison-grid">
+                    <div class="lp-comparison-card lp-negative">
+                        <h3>Before</h3>
+                        {% for item in page.comparison_items.all %}
+                            {% if item.is_active and item.side == 'negative' %}
+                                {% if not item.section or item.section_id == section.id %}
+                                    <p><i class="{{ item.icon|default:'fas fa-times' }}"></i><strong>{{ item.title }}</strong><span>{{ item.description }}</span></p>
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    <div class="lp-comparison-card lp-positive">
+                        <h3>With Arolana</h3>
+                        {% for item in page.comparison_items.all %}
+                            {% if item.is_active and item.side == 'positive' %}
+                                {% if not item.section or item.section_id == section.id %}
+                                    <p><i class="{{ item.icon|default:'fas fa-check' }}"></i><strong>{{ item.title }}</strong><span>{{ item.description }}</span></p>
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if section.section_type == "video_guides" or section.section_type == "video" %}
+                <div class="lp-video-grid">
+                    {% for video in page.video_guides.all %}
+                        {% if video.is_active %}
+                            {% if not video.section or video.section_id == section.id %}
+                            <article class="lp-card lp-video-card"
+                                     data-video-url="{{ video.video_url }}"
+                                     data-video-embed="{{ video.embed_url }}"
+                                     data-video-title="{{ video.title }}">
+                                <button type="button" class="lp-video-thumb" aria-label="Watch {{ video.title }}">
+                                    {% if video.thumbnail %}
+                                        <img src="{{ video.thumbnail|optimized_image_url:'category_card' }}" alt="{{ video.title }}" loading="lazy" decoding="async">
+                                    {% elif video.thumbnail_url %}
+                                        <img src="{{ video.thumbnail_url }}" alt="{{ video.title }}" loading="lazy" decoding="async">
+                                    {% else %}
+                                        <span class="lp-video-placeholder"><i class="fas fa-video"></i></span>
+                                    {% endif %}
+
+                                    <span class="lp-play"><i class="fas fa-play"></i></span>
+
+                                    {% if video.duration %}
+                                        <span class="lp-duration">{{ video.duration }}</span>
+                                    {% endif %}
+                                </button>
+
+                                <div class="lp-video-body">
+                                    {% if video.subtitle %}<span>{{ video.subtitle }}</span>{% endif %}
+                                    <h3>{{ video.title }}</h3>
+                                    {% if video.description %}<p>{{ video.description }}</p>{% endif %}
+                                    <button type="button" class="lp-watch-btn">{{ video.button_text|default:'Watch Video' }}</button>
+                                </div>
+                            </article>
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if section.section_type == "faq" %}
+                <div class="lp-faq-list">
+                    {% for item in page.faqs.all %}
+                        {% if item.is_active %}
+                            {% if not item.section or item.section_id == section.id %}
+                            <article class="lp-faq-item">
+                                <button type="button" class="lp-faq-question">{{ item.question }} <i class="fas fa-chevron-down"></i></button>
+                                <div class="lp-faq-answer"><p>{{ item.answer }}</p></div>
+                            </article>
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if section.section_type == "contact" %}
+                <div class="lp-contact-grid">
+                    {% for item in page.contact_options.all %}
+                        {% if item.is_active %}
+                            <a class="lp-contact-card" href="{{ item.url|default:'#' }}">
+                                <i class="{{ item.icon|default:'fas fa-headset' }}"></i>
+                                <span>{{ item.label }}</span>
+                                <strong>{{ item.value }}</strong>
+                            </a>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </section>
         {% endif %}
-    {% endfor %}
-</div>
-{% endif %}
-
-            {% if section.section_type == "faq" %}
-            <div class="lp-faq-list">
-                {% for item in page.faqs.all %}{% if item.is_active %}{% if not item.section or item.section_id == section.id %}
-                <article class="lp-faq-item"><button type="button" class="lp-faq-question">{{ item.question }} <i class="fas fa-chevron-down"></i></button><div class="lp-faq-answer"><p>{{ item.answer }}</p></div></article>
-                {% endif %}{% endif %}{% endfor %}
-            </div>
-            {% endif %}
-
-            {% if section.section_type == "contact" %}
-            <div class="lp-contact-grid">
-                {% for item in page.contact_options.all %}{% if item.is_active %}
-                <a class="lp-contact-card" href="{{ item.url|default:'#' }}"><i class="{{ item.icon|default:'fas fa-headset' }}"></i><span>{{ item.label }}</span><strong>{{ item.value }}</strong></a>
-                {% endif %}{% endfor %}
-            </div>
-            {% endif %}
-        </div>
-    </section>
-    {% endif %}
     {% endfor %}
 
     <button type="button" class="lp-back-to-top" aria-label="Back to top"><i class="fas fa-arrow-up"></i></button>
@@ -312,4 +922,6 @@
 </main>
 {% endblock %}
 
-{% block extra_js %}<script src="{% static 'landing_pages/js/landing_pages.js' %}"></script>{% endblock %}
+{% block extra_js %}
+<script src="{% static 'landing_pages/js/landing_pages.js' %}"></script>
+{% endblock %}
