@@ -2466,7 +2466,7 @@
                        {% if article_link.open_behavior == 'new_page' %}target="_blank" rel="noopener noreferrer"{% endif %}>
                         <div class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white text-blue-600 ring-1 ring-blue-100">
                             {% if article_link.article.display_image %}
-                                {% optimized_image_url article_link.article.display_image 'avatar' as article_thumb_url %}
+                                {% optimized_image_url article_link.article.display_image 'seo' as article_thumb_url %}
                                 <img src="{{ article_thumb_url }}" data-fallback-src="{{ article_link.article.display_image|optimized_image_url:'seo' }}" alt="{{ article_link.display_label }}" class="h-full w-full object-cover" loading="lazy" decoding="async" width="64" height="64" onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}else{this.hidden=true;this.nextElementSibling.hidden=false;}">
                                 <div hidden class="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#071A44] to-[#0066CC] text-white">
                                     <i class="fas fa-newspaper text-xl"></i>
