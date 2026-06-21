@@ -91,53 +91,70 @@
     }
 </style>
 
-{% if page.custom_css %}<style id="arolana-admin-custom-css">{{ page.custom_css|safe }}</style>{% endif %}
-
-<style id="arolana-landing-final-image-first-layout">
+<style id="arolana-landing-premium-image-space-layout">
     /* =========================================================
-       AROLANA LANDING PAGE FINAL FIX
-       B&H-style image-first hero:
-       - Image tells the story.
-       - Text/info appears in clean card below image.
-       - No text covers the hero image.
-       - Mobile videos scroll horizontally.
-       - Admin content/control remains active.
-       - Uploaded images remain optimized with optimized_image_url.
+       AROLANA LANDING PAGE FINAL PREMIUM HERO
+       Goal:
+       - Keep the premium B&H-like layout the user likes.
+       - Bring back more hero-image feeling, space, and atmosphere.
+       - Let the image tell the story first.
+       - Keep the white content card and premium support panel.
+       - Fix mobile overflow/cramping.
+       - Keep videos horizontally scrollable on mobile.
+       - Keep admin-driven content intact.
        ========================================================= */
+
+    .landing-page-body .arolana-landing-page .lp-container,
+    .landing-page-body .arolana-landing-page .lp-hero-inner,
+    .landing-page-body .arolana-landing-page .lp-hero-copy,
+    .landing-page-body .arolana-landing-page .lp-hero-panel,
+    .landing-page-body .arolana-landing-page .lp-video-card,
+    .landing-page-body .arolana-landing-page .lp-section,
+    .landing-page-body .arolana-landing-page .lp-section * {
+        min-width: 0;
+    }
 
     .landing-page-body .arolana-landing-page .lp-hero {
         position: relative !important;
         isolation: isolate !important;
         overflow: visible !important;
         min-height: auto !important;
-        padding: 0 0 4rem !important;
+        padding: 0 0 5rem !important;
         background:
-            linear-gradient(180deg, #071A44 0%, #071A44 56%, #F8FAFC 56%, #F8FAFC 100%) !important;
+            linear-gradient(180deg, #071A44 0%, #071A44 63%, #F8FAFC 63%, #F8FAFC 100%) !important;
         border-radius: 0 !important;
     }
 
     .landing-page-body .arolana-landing-page .lp-hero picture {
         position: relative !important;
-        inset: auto !important;
         display: block !important;
         z-index: 1 !important;
         width: 100% !important;
-        height: clamp(430px, 57vh, 620px) !important;
-        min-height: 430px !important;
-        max-height: 620px !important;
+        height: clamp(540px, 72vh, 760px) !important;
+        min-height: 540px !important;
+        max-height: 760px !important;
         overflow: hidden !important;
-        border-radius: 0 0 2rem 2rem !important;
+        border-radius: 0 0 2.2rem 2.2rem !important;
         background: #071A44 !important;
-        box-shadow: 0 24px 70px rgba(7, 26, 68, 0.18) !important;
+        box-shadow: 0 28px 90px rgba(7, 26, 68, 0.20) !important;
+    }
+
+    .landing-page-body .arolana-landing-page .lp-hero picture::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background:
+            linear-gradient(180deg, rgba(7, 26, 68, 0.08) 0%, rgba(7, 26, 68, 0.00) 25%, rgba(7, 26, 68, 0.10) 100%);
+        z-index: 1;
     }
 
     .landing-page-body .arolana-landing-page .lp-hero-image {
         display: block !important;
         width: 100% !important;
         height: 100% !important;
-        min-height: 0 !important;
         object-fit: cover !important;
-        object-position: center center !important;
+        object-position: center 38% !important;
         transform: none !important;
         opacity: 1 !important;
         filter: none !important;
@@ -151,33 +168,33 @@
 
     .landing-page-body .arolana-landing-page .lp-hero-inner {
         position: relative !important;
-        z-index: 3 !important;
+        z-index: 4 !important;
         display: grid !important;
-        grid-template-columns: 1fr !important;
-        gap: 1rem !important;
-        width: min(1120px, calc(100vw - 3rem)) !important;
-        max-width: 1120px !important;
-        min-height: auto !important;
-        margin: -4.6rem auto 0 !important;
+        grid-template-columns: minmax(0, 860px) minmax(320px, 420px) !important;
+        gap: 0 !important;
+        width: min(1280px, calc(100vw - 3rem)) !important;
+        max-width: 1280px !important;
+        margin: -11rem auto 0 !important;
         padding: 0 !important;
-        align-items: stretch !important;
-        align-content: start !important;
+        align-items: center !important;
+        justify-content: center !important;
     }
 
     .landing-page-body .arolana-landing-page .lp-hero-copy {
+        position: relative !important;
+        z-index: 2 !important;
         width: 100% !important;
-        max-width: none !important;
-        margin: 0 auto !important;
-        padding: clamp(1.55rem, 3vw, 2.5rem) !important;
-        border-radius: 1.5rem !important;
-        border: 1px solid rgba(226, 232, 240, 0.95) !important;
+        margin: 0 !important;
+        padding: clamp(1.9rem, 3vw, 2.9rem) !important;
+        border-radius: 1.65rem !important;
+        border: 1px solid rgba(226, 232, 240, 0.96) !important;
         background:
-            radial-gradient(circle at top left, rgba(0, 184, 255, 0.08), transparent 34%),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(248, 250, 252, 0.98)) !important;
-        box-shadow: 0 30px 90px rgba(15, 23, 42, 0.18) !important;
+            radial-gradient(circle at top left, rgba(0, 184, 255, 0.09), transparent 34%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.985), rgba(248, 250, 252, 0.975)) !important;
+        box-shadow: 0 34px 95px rgba(15, 23, 42, 0.18) !important;
         text-align: center !important;
-        backdrop-filter: blur(18px) !important;
-        -webkit-backdrop-filter: blur(18px) !important;
+        backdrop-filter: blur(16px) !important;
+        -webkit-backdrop-filter: blur(16px) !important;
     }
 
     .landing-page-body .arolana-landing-page .lp-badge {
@@ -185,12 +202,12 @@
         width: fit-content !important;
         max-width: 100% !important;
         margin: 0 auto 1rem !important;
-        padding: 0.48rem 0.86rem !important;
+        padding: 0.5rem 0.92rem !important;
         border-radius: 999px !important;
         background: linear-gradient(135deg, #071A44, #0A2E73) !important;
         color: #ffffff !important;
         border: 0 !important;
-        font-size: 0.7rem !important;
+        font-size: 0.72rem !important;
         font-weight: 950 !important;
         letter-spacing: 0.15em !important;
         text-transform: uppercase !important;
@@ -201,9 +218,9 @@
         max-width: 920px !important;
         margin: 0 auto 1rem !important;
         color: #071A44 !important;
-        font-size: clamp(2.4rem, 4.8vw, 5rem) !important;
-        line-height: 0.96 !important;
-        letter-spacing: -0.06em !important;
+        font-size: clamp(3rem, 5vw, 5.5rem) !important;
+        line-height: 0.94 !important;
+        letter-spacing: -0.065em !important;
         text-align: center !important;
         text-wrap: balance !important;
         text-shadow: none !important;
@@ -211,9 +228,9 @@
 
     .landing-page-body .arolana-landing-page .lp-hero-copy p {
         max-width: 780px !important;
-        margin: 0 auto 1.4rem !important;
+        margin: 0 auto 1.45rem !important;
         color: #475569 !important;
-        font-size: clamp(1rem, 1.2vw, 1.16rem) !important;
+        font-size: clamp(1rem, 1.25vw, 1.18rem) !important;
         line-height: 1.65 !important;
         text-align: center !important;
         text-shadow: none !important;
@@ -224,15 +241,15 @@
         align-items: center !important;
         justify-content: center !important;
         flex-wrap: wrap !important;
-        gap: 0.85rem !important;
+        gap: 0.9rem !important;
         width: 100% !important;
     }
 
     .landing-page-body .arolana-landing-page .lp-hero-actions .lp-btn {
         width: auto !important;
-        min-width: 210px !important;
-        min-height: 3.15rem !important;
-        padding: 0 1.5rem !important;
+        min-width: 220px !important;
+        min-height: 3.2rem !important;
+        padding: 0 1.55rem !important;
         border-radius: 999px !important;
         font-weight: 950 !important;
         text-align: center !important;
@@ -243,7 +260,7 @@
         background: linear-gradient(135deg, #FF7A00, #ff9d3d) !important;
         color: #ffffff !important;
         border: 0 !important;
-        box-shadow: 0 16px 36px rgba(255, 122, 0, 0.25) !important;
+        box-shadow: 0 18px 40px rgba(255, 122, 0, 0.25) !important;
     }
 
     .landing-page-body .arolana-landing-page .lp-btn-secondary {
@@ -257,24 +274,25 @@
         display: flex !important;
         flex-wrap: wrap !important;
         justify-content: center !important;
-        gap: 0.55rem !important;
-        max-width: 920px !important;
-        margin: 1.15rem auto 0 !important;
+        gap: 0.6rem !important;
+        max-width: 960px !important;
+        margin: 1.2rem auto 0 !important;
     }
 
     .landing-page-body .arolana-landing-page .lp-trust-row span {
         display: inline-flex !important;
         align-items: center !important;
         gap: 0.38rem !important;
-        padding: 0.5rem 0.72rem !important;
+        padding: 0.54rem 0.8rem !important;
         border-radius: 999px !important;
         color: #071A44 !important;
         background: #ffffff !important;
         border: 1px solid rgba(226, 232, 240, 0.95) !important;
         box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06) !important;
-        font-size: 0.78rem !important;
+        font-size: 0.8rem !important;
         font-weight: 850 !important;
         line-height: 1.1 !important;
+        white-space: nowrap !important;
     }
 
     .landing-page-body .arolana-landing-page .lp-trust-row span i {
@@ -282,24 +300,26 @@
     }
 
     .landing-page-body .arolana-landing-page .lp-hero-panel {
-        width: min(900px, 100%) !important;
-        max-width: 900px !important;
-        margin: 0 auto !important;
-        padding: 1.2rem 1.4rem !important;
-        border-radius: 1.25rem !important;
+        position: relative !important;
+        z-index: 3 !important;
+        width: 100% !important;
+        max-width: 420px !important;
+        margin: 0 0 0 -5.25rem !important;
+        padding: 1.35rem 1.45rem !important;
+        border-radius: 1.35rem !important;
         background:
-            radial-gradient(circle at top left, rgba(255, 122, 0, 0.10), transparent 34%),
-            linear-gradient(135deg, #071A44, #0A2E73) !important;
+            linear-gradient(135deg, rgba(7, 26, 68, 0.82), rgba(10, 46, 115, 0.78)) !important;
         color: #ffffff !important;
-        border: 1px solid rgba(255, 255, 255, 0.14) !important;
-        box-shadow: 0 22px 55px rgba(7, 26, 68, 0.16) !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        box-shadow: 0 22px 55px rgba(7, 26, 68, 0.22) !important;
+        backdrop-filter: blur(16px) !important;
+        -webkit-backdrop-filter: blur(16px) !important;
         text-align: center !important;
-        justify-self: center !important;
     }
 
     .landing-page-body .arolana-landing-page .lp-panel-kicker {
-        color: rgba(255, 255, 255, 0.76) !important;
-        font-size: 0.7rem !important;
+        color: rgba(255, 255, 255, 0.78) !important;
+        font-size: 0.72rem !important;
         font-weight: 950 !important;
         letter-spacing: 0.14em !important;
         text-transform: uppercase !important;
@@ -309,15 +329,15 @@
         display: block !important;
         margin-top: 0.45rem !important;
         color: #ffffff !important;
-        font-size: clamp(1.25rem, 1.8vw, 1.7rem) !important;
-        line-height: 1.12 !important;
+        font-size: clamp(1.22rem, 1.85vw, 1.72rem) !important;
+        line-height: 1.14 !important;
     }
 
     .landing-page-body .arolana-landing-page .lp-hero-panel p {
         max-width: 620px !important;
         margin: 0.55rem auto 0 !important;
-        color: rgba(255, 255, 255, 0.82) !important;
-        font-size: 0.95rem !important;
+        color: rgba(255, 255, 255, 0.84) !important;
+        font-size: 0.94rem !important;
         line-height: 1.55 !important;
     }
 
@@ -348,6 +368,20 @@
         box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05) !important;
     }
 
+    @media (max-width: 1100px) {
+        .landing-page-body .arolana-landing-page .lp-hero-inner {
+            grid-template-columns: minmax(0, 1fr) !important;
+            width: min(980px, calc(100vw - 2rem)) !important;
+            margin-top: -8rem !important;
+            gap: 1rem !important;
+        }
+
+        .landing-page-body .arolana-landing-page .lp-hero-panel {
+            max-width: 760px !important;
+            margin: 0 auto !important;
+        }
+    }
+
     @media (max-width: 768px) {
         .landing-page-body .arolana-landing-page {
             background:
@@ -358,71 +392,81 @@
         }
 
         .landing-page-body .arolana-landing-page .lp-hero {
-            padding: 0 0 1.15rem !important;
-            background: linear-gradient(180deg, #071A44 0%, #071A44 36%, #F8FAFC 36%, #F8FAFC 100%) !important;
+            padding: 0 0 1.3rem !important;
+            background: linear-gradient(180deg, #071A44 0%, #071A44 44%, #F8FAFC 44%, #F8FAFC 100%) !important;
             box-shadow: 0 16px 36px rgba(7, 26, 68, 0.12) !important;
-            border-radius: 0 0 1.15rem 1.15rem !important;
+            border-radius: 0 0 1.2rem 1.2rem !important;
         }
 
         .landing-page-body .arolana-landing-page .lp-hero picture {
-            height: 38vh !important;
-            min-height: 285px !important;
-            max-height: 380px !important;
-            border-radius: 0 0 1.2rem 1.2rem !important;
+            width: 100% !important;
+            height: 46vh !important;
+            min-height: 340px !important;
+            max-height: 460px !important;
+            border-radius: 0 0 1.25rem 1.25rem !important;
             box-shadow: none !important;
         }
 
         .landing-page-body .arolana-landing-page .lp-hero-image {
             object-fit: cover !important;
-            object-position: center center !important;
+            object-position: center 30% !important;
         }
 
         .landing-page-body .arolana-landing-page .lp-hero-inner {
+            grid-template-columns: 1fr !important;
             width: 100% !important;
             max-width: none !important;
-            margin: -2rem auto 0 !important;
+            margin: -2.35rem auto 0 !important;
             padding: 0 0.95rem !important;
-            gap: 0.72rem !important;
+            gap: 0.8rem !important;
         }
 
         .landing-page-body .arolana-landing-page .lp-hero-copy {
-            padding: 0.9rem !important;
-            border-radius: 1.05rem !important;
-            box-shadow: 0 16px 40px rgba(15, 23, 42, 0.14) !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 1rem !important;
+            border-radius: 1.08rem !important;
+            box-shadow: 0 18px 42px rgba(15, 23, 42, 0.14) !important;
+            overflow: hidden !important;
         }
 
         .landing-page-body .arolana-landing-page .lp-badge {
             margin-bottom: 0.5rem !important;
-            padding: 0.32rem 0.55rem !important;
-            font-size: 0.52rem !important;
+            padding: 0.32rem 0.56rem !important;
+            font-size: 0.53rem !important;
             letter-spacing: 0.13em !important;
         }
 
         .landing-page-body .arolana-landing-page .lp-hero-copy h1 {
-            font-size: clamp(1.45rem, 7vw, 2.1rem) !important;
+            max-width: 100% !important;
+            font-size: clamp(1.75rem, 7.8vw, 2.45rem) !important;
             line-height: 1.02 !important;
-            letter-spacing: -0.052em !important;
-            margin-bottom: 0.55rem !important;
+            letter-spacing: -0.055em !important;
+            margin-bottom: 0.6rem !important;
+            overflow-wrap: anywhere !important;
+            word-break: break-word !important;
         }
 
         .landing-page-body .arolana-landing-page .lp-hero-copy p {
-            font-size: 0.8rem !important;
+            max-width: 100% !important;
+            font-size: 0.84rem !important;
             line-height: 1.5 !important;
-            margin-bottom: 0.72rem !important;
+            margin-bottom: 0.8rem !important;
         }
 
         .landing-page-body .arolana-landing-page .lp-hero-actions {
             display: grid !important;
-            grid-template-columns: 1fr 1fr !important;
-            gap: 0.5rem !important;
+            grid-template-columns: 1fr !important;
+            gap: 0.55rem !important;
         }
 
         .landing-page-body .arolana-landing-page .lp-hero-actions .lp-btn {
             min-width: 0 !important;
             width: 100% !important;
-            min-height: 2.5rem !important;
-            padding: 0 0.6rem !important;
-            font-size: 0.68rem !important;
+            min-height: 2.75rem !important;
+            padding: 0 0.8rem !important;
+            font-size: 0.76rem !important;
             white-space: normal !important;
         }
 
@@ -432,8 +476,8 @@
             justify-content: flex-start !important;
             overflow-x: auto !important;
             gap: 0.45rem !important;
-            margin-top: 0.72rem !important;
-            padding-bottom: 0.1rem !important;
+            margin-top: 0.78rem !important;
+            padding-bottom: 0.12rem !important;
             scrollbar-width: none !important;
         }
 
@@ -443,27 +487,32 @@
 
         .landing-page-body .arolana-landing-page .lp-trust-row span {
             flex: 0 0 auto !important;
-            padding: 0.4rem 0.56rem !important;
-            font-size: 0.64rem !important;
+            padding: 0.42rem 0.62rem !important;
+            font-size: 0.67rem !important;
             white-space: nowrap !important;
         }
 
         .landing-page-body .arolana-landing-page .lp-hero-panel {
             width: 100% !important;
-            padding: 0.78rem !important;
-            border-radius: 1rem !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0.88rem 0.95rem !important;
+            border-radius: 1.05rem !important;
+            text-align: center !important;
         }
 
         .landing-page-body .arolana-landing-page .lp-panel-kicker {
-            font-size: 0.56rem !important;
+            font-size: 0.57rem !important;
         }
 
         .landing-page-body .arolana-landing-page .lp-hero-panel strong {
-            font-size: 0.88rem !important;
+            font-size: 0.96rem !important;
+            line-height: 1.18 !important;
         }
 
         .landing-page-body .arolana-landing-page .lp-hero-panel p {
-            font-size: 0.74rem !important;
+            font-size: 0.77rem !important;
+            line-height: 1.45 !important;
         }
 
         .landing-page-body .arolana-landing-page .lp-mini-nav {
@@ -620,8 +669,8 @@
         }
 
         .landing-page-body .arolana-landing-page .lp-video-card {
-            flex: 0 0 74% !important;
-            max-width: 74% !important;
+            flex: 0 0 78% !important;
+            max-width: 78% !important;
             scroll-snap-align: start !important;
             border-radius: 1.05rem !important;
             overflow: hidden !important;
@@ -676,13 +725,17 @@
     }
 
     @media (max-width: 380px) {
+        .landing-page-body .arolana-landing-page .lp-hero picture {
+            min-height: 320px !important;
+        }
+
         .landing-page-body .arolana-landing-page .lp-hero-copy h1 {
-            font-size: clamp(1.38rem, 6.8vw, 1.95rem) !important;
+            font-size: clamp(1.55rem, 7vw, 2.08rem) !important;
         }
 
         .landing-page-body .arolana-landing-page .lp-video-card {
-            flex-basis: 80% !important;
-            max-width: 80% !important;
+            flex-basis: 84% !important;
+            max-width: 84% !important;
         }
 
         .landing-page-body .arolana-landing-page .lp-benefit-grid,
@@ -692,6 +745,7 @@
     }
 </style>
 
+{% if page.custom_css %}<style id="arolana-admin-custom-css">{{ page.custom_css|safe }}</style>{% endif %}
 {% if schema_json %}<script type="application/ld+json">{{ schema_json|safe }}</script>{% endif %}
 {% endblock %}
 
