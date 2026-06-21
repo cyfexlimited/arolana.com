@@ -90,44 +90,45 @@
     }
 
     /* =========================================================
-       AROLANA LANDING PAGE — LUXURY MOBILE POLISH
-       Mobile-only rich layout refinement
+       AROLANA LANDING PAGE — LUXURY MOBILE POLISH V2
+       Admin-controlled content remains untouched.
+       Uploaded images must use optimized_image_url.
        ========================================================= */
     @media (max-width: 768px) {
         .arolana-landing-page {
             background:
-                radial-gradient(circle at 18% 0%, rgba(0, 184, 255, 0.16), transparent 34%),
-                radial-gradient(circle at 92% 10%, rgba(255, 122, 0, 0.14), transparent 30%),
-                linear-gradient(180deg, rgba(7, 26, 68, 0.04), rgba(248, 250, 252, 0.96));
+                radial-gradient(circle at 15% 0%, rgba(0, 184, 255, 0.14), transparent 34%),
+                radial-gradient(circle at 95% 12%, rgba(255, 122, 0, 0.12), transparent 30%),
+                linear-gradient(180deg, rgba(7, 26, 68, 0.03), rgba(248, 250, 252, 0.98));
             overflow-x: hidden;
         }
 
         .arolana-landing-page::before {
-            opacity: 0.72;
-            filter: saturate(1.08) contrast(1.08);
-            transform: scale(1.02);
+            opacity: 0.62;
+            filter: saturate(1.06) contrast(1.04);
+            transform: scale(1.01);
         }
 
         .arolana-landing-page::after {
             background:
-                linear-gradient(180deg, rgba(7, 26, 68, 0.50), rgba(15, 45, 107, 0.34) 34%, rgba(248, 250, 252, 0.94) 72%),
-                radial-gradient(circle at top, rgba(0, 184, 255, 0.16), transparent 48%);
+                linear-gradient(180deg, rgba(7, 26, 68, 0.42), rgba(7, 26, 68, 0.20) 34%, rgba(248, 250, 252, 0.96) 76%),
+                radial-gradient(circle at top, rgba(0, 184, 255, 0.12), transparent 48%);
         }
 
         .lp-container {
             width: 100%;
             max-width: 100%;
-            padding-left: 1rem;
-            padding-right: 1rem;
+            padding-left: 0.95rem;
+            padding-right: 0.95rem;
         }
 
         .lp-hero {
-            min-height: auto;
+            min-height: 92vh;
             padding: 0;
-            border-radius: 0 0 2rem 2rem;
+            border-radius: 0 0 1.55rem 1.55rem;
             overflow: hidden;
             background: linear-gradient(135deg, #071A44, #0A2E73);
-            box-shadow: 0 24px 60px rgba(7, 26, 68, 0.22);
+            box-shadow: 0 20px 50px rgba(7, 26, 68, 0.20);
         }
 
         .lp-hero picture {
@@ -142,74 +143,75 @@
             min-height: 100%;
             object-fit: cover;
             object-position: center center;
-            transform: scale(1.02);
+            transform: scale(1.01);
         }
 
         .lp-hero-overlay {
-            opacity: 0.68 !important;
+            opacity: 0.58 !important;
             background:
-                linear-gradient(180deg, rgba(7, 26, 68, 0.76), rgba(7, 26, 68, 0.56) 48%, rgba(7, 26, 68, 0.82)),
-                radial-gradient(circle at 18% 12%, rgba(0, 184, 255, 0.24), transparent 34%) !important;
+                linear-gradient(180deg, rgba(7, 26, 68, 0.52), rgba(7, 26, 68, 0.28) 38%, rgba(7, 26, 68, 0.76)),
+                radial-gradient(circle at 18% 12%, rgba(0, 184, 255, 0.18), transparent 34%) !important;
         }
 
         .lp-hero-inner {
             position: relative;
             z-index: 2;
             display: grid;
-            gap: 1rem;
-            min-height: 78vh;
-            padding-top: 4.5rem;
-            padding-bottom: 2rem;
+            gap: 0.78rem;
+            min-height: 92vh;
+            padding-top: 3.7rem;
+            padding-bottom: 1.35rem;
             align-content: end;
         }
 
         .lp-hero-copy {
             max-width: 100%;
-            padding: 1.15rem;
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            border-radius: 1.5rem;
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.08));
-            box-shadow: 0 24px 65px rgba(0, 0, 0, 0.22);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
+            padding: 0.9rem;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 1.25rem;
+            background:
+                linear-gradient(180deg, rgba(15, 23, 42, 0.36), rgba(15, 23, 42, 0.22));
+            box-shadow: 0 18px 45px rgba(0, 0, 0, 0.20);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
         }
 
         .lp-badge {
             display: inline-flex;
             max-width: 100%;
-            margin-bottom: 0.85rem;
-            padding: 0.48rem 0.78rem;
+            margin-bottom: 0.62rem;
+            padding: 0.38rem 0.62rem;
             border-radius: 999px;
-            background: rgba(255, 122, 0, 0.96);
+            background: rgba(255, 255, 255, 0.18);
             color: #ffffff;
-            font-size: 0.68rem;
+            border: 1px solid rgba(255, 255, 255, 0.20);
+            font-size: 0.58rem;
             font-weight: 950;
-            letter-spacing: 0.12em;
+            letter-spacing: 0.15em;
             text-transform: uppercase;
-            box-shadow: 0 12px 28px rgba(255, 122, 0, 0.28);
         }
 
         .lp-hero-copy h1 {
             color: #ffffff;
-            font-size: clamp(2rem, 10vw, 3.45rem);
+            font-size: clamp(1.85rem, 8.7vw, 3rem);
             line-height: 0.98;
             letter-spacing: -0.055em;
             text-wrap: balance;
-            margin-bottom: 0.9rem;
-            text-shadow: 0 12px 34px rgba(0, 0, 0, 0.32);
+            margin-bottom: 0.62rem;
+            text-shadow: 0 12px 30px rgba(0, 0, 0, 0.32);
         }
 
         .lp-hero-copy p {
             color: rgba(255, 255, 255, 0.88);
-            font-size: 0.98rem;
-            line-height: 1.62;
-            margin-bottom: 1.15rem;
+            font-size: 0.88rem;
+            line-height: 1.55;
+            margin-bottom: 0.85rem;
         }
 
         .lp-hero-actions {
             display: grid;
             grid-template-columns: 1fr;
-            gap: 0.72rem;
+            gap: 0.55rem;
             width: 100%;
         }
 
@@ -218,91 +220,85 @@
         .lp-card-link,
         .lp-watch-btn {
             width: 100%;
-            min-height: 3.15rem;
+            min-height: 2.75rem;
             justify-content: center;
             border-radius: 999px;
-            font-size: 0.84rem;
+            font-size: 0.78rem;
             font-weight: 950;
-            letter-spacing: 0.02em;
+            letter-spacing: 0.01em;
         }
 
         .lp-btn-primary {
             background: linear-gradient(135deg, #FF7A00, #ff9d3d) !important;
             color: #ffffff !important;
-            box-shadow: 0 18px 38px rgba(255, 122, 0, 0.28);
+            box-shadow: 0 14px 30px rgba(255, 122, 0, 0.25);
         }
 
         .lp-btn-secondary {
             background: rgba(255, 255, 255, 0.12) !important;
             color: #ffffff !important;
-            border: 1px solid rgba(255, 255, 255, 0.26) !important;
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.24) !important;
+            box-shadow: none !important;
         }
 
         .lp-trust-row {
-            display: flex;
-            gap: 0.55rem;
-            overflow-x: auto;
-            padding: 0.2rem 0 0.1rem;
-            margin-top: 1rem;
-            scrollbar-width: none;
-        }
-
-        .lp-trust-row::-webkit-scrollbar {
-            display: none;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.45rem;
+            margin-top: 0.72rem;
         }
 
         .lp-trust-row span {
-            flex: 0 0 auto;
-            padding: 0.55rem 0.75rem;
+            min-width: 0;
+            padding: 0.45rem 0.55rem;
             border-radius: 999px;
             color: #ffffff;
-            background: rgba(255, 255, 255, 0.13);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            font-size: 0.72rem;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.13);
+            font-size: 0.68rem;
             font-weight: 850;
-            white-space: nowrap;
+            white-space: normal;
+            line-height: 1.2;
         }
 
         .lp-hero-panel {
-            padding: 1rem;
-            border-radius: 1.35rem;
+            padding: 0.82rem;
+            border-radius: 1.1rem;
             background: rgba(255, 255, 255, 0.94);
-            box-shadow: 0 20px 50px rgba(7, 26, 68, 0.20);
+            box-shadow: 0 16px 38px rgba(7, 26, 68, 0.16);
             border: 1px solid rgba(255, 255, 255, 0.68);
         }
 
         .lp-panel-kicker {
             color: #0066CC;
-            font-size: 0.68rem;
+            font-size: 0.6rem;
             font-weight: 950;
-            letter-spacing: 0.12em;
+            letter-spacing: 0.13em;
             text-transform: uppercase;
         }
 
         .lp-hero-panel strong {
             display: block;
-            margin-top: 0.35rem;
+            margin-top: 0.25rem;
             color: #071A44;
-            font-size: 1.05rem;
+            font-size: 0.95rem;
             line-height: 1.18;
         }
 
         .lp-hero-panel p {
-            margin-top: 0.35rem;
+            margin-top: 0.25rem;
             color: #475569;
-            font-size: 0.84rem;
-            line-height: 1.5;
+            font-size: 0.78rem;
+            line-height: 1.42;
         }
 
         .lp-mini-nav {
             position: sticky;
             top: 0;
             z-index: 40;
-            margin-top: 0.8rem;
-            padding: 0.72rem 0;
-            background: rgba(248, 250, 252, 0.82);
+            margin-top: 0;
+            padding: 0.62rem 0;
+            background: rgba(248, 250, 252, 0.88);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
             border-bottom: 1px solid rgba(15, 23, 42, 0.08);
@@ -310,24 +306,24 @@
 
         .lp-mini-nav-inner {
             display: grid;
-            gap: 0.65rem;
+            gap: 0.55rem;
         }
 
         .lp-mobile-nav-toggle {
             width: 100%;
-            min-height: 3rem;
+            min-height: 2.75rem;
             border-radius: 999px;
             background: linear-gradient(135deg, #071A44, #0A2E73);
             color: #ffffff;
             font-weight: 950;
-            box-shadow: 0 14px 30px rgba(7, 26, 68, 0.18);
+            box-shadow: 0 12px 26px rgba(7, 26, 68, 0.16);
         }
 
         .lp-mini-nav-links {
             display: flex;
-            gap: 0.55rem;
+            gap: 0.48rem;
             overflow-x: auto;
-            padding-bottom: 0.12rem;
+            padding-bottom: 0.1rem;
             scrollbar-width: none;
         }
 
@@ -337,38 +333,34 @@
 
         .lp-mini-nav-links a {
             flex: 0 0 auto;
-            padding: 0.7rem 0.85rem;
+            padding: 0.62rem 0.75rem;
             border-radius: 999px;
             background: #ffffff;
             border: 1px solid #e2e8f0;
             color: #0f172a;
-            font-size: 0.78rem;
+            font-size: 0.72rem;
             font-weight: 900;
             white-space: nowrap;
-            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
         }
 
         .lp-section {
-            padding: 2.1rem 0;
-        }
-
-        .lp-section + .lp-section {
-            margin-top: 0.15rem;
+            padding: 1.75rem 0;
         }
 
         .lp-section-heading {
-            margin-bottom: 1.1rem;
+            margin-bottom: 1rem;
             text-align: left;
         }
 
         .lp-section-heading span {
             display: inline-flex;
-            margin-bottom: 0.5rem;
-            padding: 0.42rem 0.68rem;
+            margin-bottom: 0.45rem;
+            padding: 0.36rem 0.6rem;
             border-radius: 999px;
             background: rgba(0, 102, 204, 0.09);
             color: #0066CC;
-            font-size: 0.66rem;
+            font-size: 0.6rem;
             font-weight: 950;
             letter-spacing: 0.12em;
             text-transform: uppercase;
@@ -376,17 +368,17 @@
 
         .lp-section-heading h2 {
             color: #071A44;
-            font-size: clamp(1.45rem, 7vw, 2.2rem);
+            font-size: clamp(1.35rem, 6.5vw, 2rem);
             line-height: 1.05;
             letter-spacing: -0.04em;
             text-wrap: balance;
         }
 
         .lp-section-heading p {
-            margin-top: 0.65rem;
+            margin-top: 0.55rem;
             color: #64748b;
-            font-size: 0.94rem;
-            line-height: 1.6;
+            font-size: 0.88rem;
+            line-height: 1.55;
         }
 
         .lp-admin-section-card,
@@ -396,24 +388,38 @@
         .lp-comparison-card,
         .lp-contact-card,
         .lp-faq-item {
-            border-radius: 1.35rem !important;
-            border: 1px solid rgba(226, 232, 240, 0.94) !important;
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96)) !important;
-            box-shadow: 0 18px 44px rgba(15, 23, 42, 0.09) !important;
+            border-radius: 1.15rem !important;
+            border: 1px solid rgba(226, 232, 240, 0.92) !important;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(248, 250, 252, 0.97)) !important;
+            box-shadow: 0 14px 32px rgba(15, 23, 42, 0.075) !important;
             overflow: hidden;
         }
 
         .lp-benefit-grid,
+        .lp-category-grid,
+        .lp-video-grid {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 0.72rem !important;
+        }
+
         .lp-offer-grid,
         .lp-step-grid,
-        .lp-category-grid,
         .lp-testimonial-grid,
-        .lp-video-grid,
         .lp-contact-grid,
         .lp-comparison-grid {
             display: grid !important;
             grid-template-columns: 1fr !important;
-            gap: 0.9rem !important;
+            gap: 0.82rem !important;
+        }
+
+        .lp-card,
+        .lp-benefit-card,
+        .lp-step-card,
+        .lp-video-body,
+        .lp-faq-item,
+        .lp-contact-card {
+            padding: 0.88rem;
         }
 
         .lp-card img,
@@ -424,10 +430,165 @@
         }
 
         .lp-offer-card > img,
-        .lp-category-card > img,
         .lp-section-media img {
-            height: 13.5rem;
-            border-radius: 1.15rem;
+            height: 12rem;
+            border-radius: 1rem;
+        }
+
+        .lp-category-card > img {
+            height: 7.6rem;
+            border-radius: 0.95rem;
+        }
+
+        .lp-icon {
+            width: 2.25rem;
+            height: 2.25rem;
+            border-radius: 0.82rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #071A44, #0A2E73);
+            color: #ffffff;
+            box-shadow: 0 10px 22px rgba(7, 26, 68, 0.14);
+        }
+
+        .lp-benefit-card .lp-icon,
+        .lp-category-card .lp-icon {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 0.75rem;
+        }
+
+        .lp-card h3,
+        .lp-step-card h3,
+        .lp-benefit-card h3,
+        .lp-video-body h3 {
+            color: #071A44;
+            font-size: 0.98rem;
+            line-height: 1.18;
+            letter-spacing: -0.025em;
+        }
+
+        .lp-benefit-card h3,
+        .lp-category-card h3,
+        .lp-video-body h3 {
+            font-size: 0.88rem;
+            line-height: 1.16;
+        }
+
+        .lp-card p,
+        .lp-step-card p,
+        .lp-benefit-card p,
+        .lp-video-body p,
+        .lp-faq-answer p {
+            color: #64748b;
+            font-size: 0.82rem;
+            line-height: 1.48;
+        }
+
+        .lp-benefit-card p,
+        .lp-category-card p,
+        .lp-video-body p {
+            font-size: 0.74rem;
+            line-height: 1.38;
+        }
+
+        .lp-price-line {
+            display: grid;
+            gap: 0.22rem;
+            margin-top: 0.68rem;
+            padding: 0.72rem;
+            border-radius: 0.9rem;
+            background: rgba(255, 122, 0, 0.08);
+            border: 1px solid rgba(255, 122, 0, 0.16);
+        }
+
+        .lp-price-line strong {
+            color: #0066CC;
+            font-size: 1.05rem;
+            line-height: 1.15;
+        }
+
+        .lp-price-line span {
+            color: #16a34a;
+            font-size: 0.72rem;
+            font-weight: 900;
+        }
+
+        .lp-section-video_guides .lp-section-heading,
+        .lp-section-video .lp-section-heading {
+            text-align: center;
+        }
+
+        .lp-video-card {
+            border-radius: 1.05rem !important;
+            overflow: hidden;
+        }
+
+        .lp-video-thumb {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1.15 / 1;
+            border-radius: 0.95rem;
+            overflow: hidden;
+            background: linear-gradient(135deg, #071A44, #0A2E73);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.10);
+        }
+
+        .lp-video-thumb img {
+            height: 100%;
+        }
+
+        .lp-play {
+            width: 2.45rem;
+            height: 2.45rem;
+            border-radius: 999px;
+            background: rgba(255, 122, 0, 0.96);
+            color: #ffffff;
+            box-shadow: 0 14px 30px rgba(255, 122, 0, 0.28);
+        }
+
+        .lp-duration {
+            right: 0.45rem;
+            bottom: 0.45rem;
+            padding: 0.28rem 0.46rem;
+            border-radius: 999px;
+            background: rgba(7, 26, 68, 0.88);
+            color: #ffffff;
+            font-size: 0.62rem;
+            font-weight: 900;
+        }
+
+        .lp-video-body {
+            padding: 0.72rem;
+        }
+
+        .lp-video-body span {
+            font-size: 0.62rem;
+            font-weight: 900;
+            color: #0066CC;
+        }
+
+        .lp-video-body h3 {
+            margin-top: 0.25rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .lp-video-body p {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin-top: 0.35rem;
+        }
+
+        .lp-video-body .lp-watch-btn {
+            min-height: 2.25rem;
+            margin-top: 0.55rem;
+            font-size: 0.7rem;
         }
 
         .lp-testimonial-card .lp-person img {
@@ -438,114 +599,18 @@
             box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12);
         }
 
-        .lp-video-thumb {
-            position: relative;
-            width: 100%;
-            aspect-ratio: 16 / 10;
-            border-radius: 1.2rem;
-            overflow: hidden;
-            background: linear-gradient(135deg, #071A44, #0A2E73);
-            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
-        }
-
-        .lp-video-thumb img {
-            height: 100%;
-        }
-
-        .lp-play {
-            width: 3.1rem;
-            height: 3.1rem;
-            border-radius: 999px;
-            background: rgba(255, 122, 0, 0.96);
-            color: #ffffff;
-            box-shadow: 0 18px 38px rgba(255, 122, 0, 0.32);
-        }
-
-        .lp-duration {
-            right: 0.75rem;
-            bottom: 0.75rem;
-            padding: 0.35rem 0.55rem;
-            border-radius: 999px;
-            background: rgba(7, 26, 68, 0.88);
-            color: #ffffff;
-            font-size: 0.72rem;
-            font-weight: 900;
-        }
-
-        .lp-video-body,
-        .lp-card,
-        .lp-benefit-card,
-        .lp-step-card,
-        .lp-faq-item,
-        .lp-contact-card {
-            padding: 1rem;
-        }
-
-        .lp-icon {
-            width: 2.6rem;
-            height: 2.6rem;
-            border-radius: 0.95rem;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, #071A44, #0A2E73);
-            color: #ffffff;
-            box-shadow: 0 12px 26px rgba(7, 26, 68, 0.16);
-        }
-
-        .lp-card h3,
-        .lp-step-card h3,
-        .lp-benefit-card h3,
-        .lp-video-body h3 {
-            color: #071A44;
-            font-size: 1.05rem;
-            line-height: 1.22;
-            letter-spacing: -0.02em;
-        }
-
-        .lp-card p,
-        .lp-step-card p,
-        .lp-benefit-card p,
-        .lp-video-body p,
-        .lp-faq-answer p {
-            color: #64748b;
-            font-size: 0.9rem;
-            line-height: 1.58;
-        }
-
-        .lp-price-line {
-            display: grid;
-            gap: 0.25rem;
-            margin-top: 0.75rem;
-            padding: 0.8rem;
-            border-radius: 1rem;
-            background: rgba(255, 122, 0, 0.08);
-            border: 1px solid rgba(255, 122, 0, 0.16);
-        }
-
-        .lp-price-line strong {
-            color: #071A44;
-            font-size: 1rem;
-        }
-
-        .lp-price-line span {
-            color: #FF7A00;
-            font-size: 0.78rem;
-            font-weight: 900;
-        }
-
         .lp-faq-question {
-            min-height: 3.2rem;
-            padding: 1rem;
+            min-height: 3rem;
+            padding: 0.9rem;
             font-weight: 950;
             color: #071A44;
         }
 
         .lp-contact-card {
-            min-height: 5.2rem;
+            min-height: 4.9rem;
             align-items: center;
             background:
-                radial-gradient(circle at top left, rgba(0, 184, 255, 0.12), transparent 36%),
+                radial-gradient(circle at top left, rgba(0, 184, 255, 0.10), transparent 36%),
                 linear-gradient(135deg, #ffffff, #f8fafc) !important;
         }
 
@@ -569,13 +634,46 @@
         }
 
         .lp-back-to-top {
-            width: 3rem;
-            height: 3rem;
+            width: 2.75rem;
+            height: 2.75rem;
             left: auto !important;
-            right: 1rem !important;
-            bottom: 1rem !important;
+            right: 0.85rem !important;
+            bottom: 5.2rem !important;
             border-radius: 999px !important;
-            box-shadow: 0 16px 36px rgba(255, 122, 0, 0.26);
+            box-shadow: 0 14px 30px rgba(255, 122, 0, 0.24);
+        }
+
+        .arolana-landing-page .chat-widget,
+        .arolana-landing-page [class*="chat"] {
+            max-width: 3.25rem;
+            max-height: 3.25rem;
+        }
+    }
+
+    @media (max-width: 380px) {
+        .lp-benefit-grid,
+        .lp-category-grid,
+        .lp-video-grid {
+            gap: 0.58rem !important;
+        }
+
+        .lp-hero-copy h1 {
+            font-size: clamp(1.65rem, 8vw, 2.35rem);
+        }
+
+        .lp-card,
+        .lp-benefit-card,
+        .lp-step-card,
+        .lp-video-body,
+        .lp-faq-item,
+        .lp-contact-card {
+            padding: 0.72rem;
+        }
+
+        .lp-video-body h3,
+        .lp-benefit-card h3,
+        .lp-category-card h3 {
+            font-size: 0.8rem;
         }
     }
 </style>
