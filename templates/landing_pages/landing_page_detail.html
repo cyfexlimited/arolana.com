@@ -227,12 +227,59 @@
             {% endif %}
 
             {% if section.section_type == "video_guides" or section.section_type == "video" %}
-            <div class="lp-video-grid">
-                {% for video in page.video_guides.all %}{% if video.is_active %}{% if not video.section or video.section_id == section.id %}
-                <article class="lp-card lp-video-card" data-video-url="{{ video.video_url }}" data-video-embed="{{ video.embed_url }}" data-video-title="{{ video.title }}"><button type="button" class="lp-video-thumb" aria-label="Watch {{ video.title }}">{% if video.thumbnail_url %}<img src="{{ video.thumbnail_url }}" alt="{{ video.title }}" loading="lazy" decoding="async">{% else %}<span class="lp-video-placeholder"><i class="fas fa-video"></i></span>{% endif %}<span class="lp-play"><i class="fas fa-play"></i></span>{% if video.duration %}<span class="lp-duration">{{ video.duration }}</span>{% endif %}</button><div class="lp-video-body">{% if video.subtitle %}<span>{{ video.subtitle }}</span>{% endif %}<h3>{{ video.title }}</h3>{% if video.description %}<p>{{ video.description }}</p>{% endif %}<button type="button" class="lp-watch-btn">{{ video.button_text|default:'Watch Video' }}</button></div></article>
-                {% endif %}{% endif %}{% endfor %}
-            </div>
+<div class="lp-video-grid">
+    {% for video in page.video_guides.all %}
+        {% if video.is_active %}
+            {% if not video.section or video.section_id == section.id %}
+            <article class="lp-card lp-video-card"
+                     data-video-url="{{ video.video_url }}"
+                     data-video-embed="{{ video.embed_url }}"
+                     data-video-title="{{ video.title }}">
+                <button type="button" class="lp-video-thumb" aria-label="Watch {{ video.title }}">
+                    {% if video.thumbnail %}
+                        <img src="{{ video.thumbnail|optimized_image_url:'category_card' }}"
+                             alt="{{ video.title }}"
+                             loading="lazy"
+                             decoding="async">
+                    {% elif video.thumbnail_url %}
+                        <img src="{{ video.thumbnail_url }}"
+                             alt="{{ video.title }}"
+                             loading="lazy"
+                             decoding="async">
+                    {% else %}
+                        <span class="lp-video-placeholder">
+                            <i class="fas fa-video"></i>
+                        </span>
+                    {% endif %}
+
+                    <span class="lp-play"><i class="fas fa-play"></i></span>
+
+                    {% if video.duration %}
+                        <span class="lp-duration">{{ video.duration }}</span>
+                    {% endif %}
+                </button>
+
+                <div class="lp-video-body">
+                    {% if video.subtitle %}
+                        <span>{{ video.subtitle }}</span>
+                    {% endif %}
+
+                    <h3>{{ video.title }}</h3>
+
+                    {% if video.description %}
+                        <p>{{ video.description }}</p>
+                    {% endif %}
+
+                    <button type="button" class="lp-watch-btn">
+                        {{ video.button_text|default:'Watch Video' }}
+                    </button>
+                </div>
+            </article>
             {% endif %}
+        {% endif %}
+    {% endfor %}
+</div>
+{% endif %}
 
             {% if section.section_type == "faq" %}
             <div class="lp-faq-list">
