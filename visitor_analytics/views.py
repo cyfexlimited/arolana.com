@@ -1,6 +1,5 @@
 import json
 
-from django.contrib.admin.views.decorators import staff_member_required
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
@@ -23,42 +22,6 @@ from .utils import (
     is_bot_user_agent,
     normalize_path,
 )
-
-
-@staff_member_required
-def debug_cloudflare_headers(request):
-    """
-    Temporary admin-only debug view.
-
-    Use this to confirm if Cloudflare headers are reaching Django/Railway.
-
-    Open while logged in as admin:
-    https://arolana.com/visitor-analytics/debug-cloudflare/
-
-    Remove this view later after testing.
-    """
-
-    headers = {
-        "country_detected_by_get_country": get_country(request),
-        "client_ip_detected_by_get_client_ip": get_client_ip(request),
-
-        "HTTP_CF_IPCOUNTRY": request.META.get("HTTP_CF_IPCOUNTRY", ""),
-        "HTTP_CF_CONNECTING_IP": request.META.get("HTTP_CF_CONNECTING_IP", ""),
-        "HTTP_CF_RAY": request.META.get("HTTP_CF_RAY", ""),
-        "HTTP_CF_VISITOR": request.META.get("HTTP_CF_VISITOR", ""),
-        "HTTP_CF_WORKER": request.META.get("HTTP_CF_WORKER", ""),
-
-        "HTTP_X_FORWARDED_FOR": request.META.get("HTTP_X_FORWARDED_FOR", ""),
-        "HTTP_X_FORWARDED_PROTO": request.META.get("HTTP_X_FORWARDED_PROTO", ""),
-        "HTTP_X_REAL_IP": request.META.get("HTTP_X_REAL_IP", ""),
-        "REMOTE_ADDR": request.META.get("REMOTE_ADDR", ""),
-
-        "HTTP_HOST": request.META.get("HTTP_HOST", ""),
-        "HTTP_REFERER": request.META.get("HTTP_REFERER", ""),
-        "HTTP_USER_AGENT": request.META.get("HTTP_USER_AGENT", ""),
-    }
-
-    return JsonResponse(headers)
 
 
 @csrf_exempt
@@ -95,7 +58,6 @@ def track_click_event(request):
 
         user_agent = get_user_agent(request)
         ip_address = get_client_ip(request)
-        country = get_country(request)
 
         clicked_text = clean_clicked_text(payload.get("clicked_text", ""))
         clicked_url = clean_url(payload.get("clicked_url", ""))
@@ -138,7 +100,7 @@ def track_click_event(request):
         ClickEvent.objects.create(
             user=user,
             ip_address=ip_address or None,
-            country=country,
+            country=get_country(request),
             user_agent=user_agent,
             device_type=get_device_type(user_agent),
             browser=get_browser(user_agent),
@@ -179,8 +141,7 @@ def track_click_event(request):
                 "created": True,
                 "event_type": event_type,
                 "traffic_source": traffic_source,
-                "country": country,
-                "ip_address": ip_address,
+                "country": get_country(request),
             }
         )
 
