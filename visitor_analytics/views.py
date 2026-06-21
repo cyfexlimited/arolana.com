@@ -18,7 +18,6 @@ from .utils import (
     guess_event_type,
     is_bot_user_agent,
     normalize_path,
-    should_skip_tracking,
 )
 
 
@@ -28,26 +27,30 @@ def track_click_event(request):
     """
     Receives click analytics from base.html.
 
-    Uses sendBeacon/fetch from frontend.
-    CSRF is exempt because sendBeacon may not send CSRF reliably across all browsers.
-    The endpoint only writes analytics and returns JSON.
+    Important:
+    Do NOT call should_skip_tracking(request) here because this endpoint itself
+    starts with /visitor-analytics/. The middleware should skip this endpoint
+    for page visits, but this view must save click events.
     """
 
     try:
-        if should_skip_tracking(request):
-            return JsonResponse({"ok": True, "skipped": True})
-
         try:
             payload = json.loads(request.body.decode("utf-8") or "{}")
         except Exception:
             payload = request.POST.dict()
+
+        page_path = payload.get("path", "") or request.META.get("HTTP_REFERER", "") or ""
+
+        # Still protect admin/private areas from being recorded.
+        if str(page_path).startswith("/admin/") or "/admin/" in str(page_path):
+            return JsonResponse({"ok": True, "skipped": True, "reason": "admin"})
 
         user_agent = get_user_agent(request)
         ip_address = get_client_ip(request)
 
         clicked_text = clean_clicked_text(payload.get("clicked_text", ""))
         clicked_url = clean_url(payload.get("clicked_url", ""))
-        page_url = clean_url(payload.get("page_url", request.build_absolute_uri()))
+        page_url = clean_url(payload.get("page_url", request.META.get("HTTP_REFERER", "")))
         element_tag = clean_clicked_text(payload.get("element_tag", ""))[:50]
         element_id = clean_clicked_text(payload.get("element_id", ""))[:200]
         element_classes = clean_clicked_text(payload.get("element_classes", ""))[:500]
@@ -82,7 +85,7 @@ def track_click_event(request):
             operating_system=get_operating_system(user_agent),
             referrer=get_referrer(request),
             page_url=page_url,
-            path=normalize_path(payload.get("path", request.path)),
+            path=normalize_path(payload.get("path", "")),
             clicked_text=clicked_text,
             clicked_url=clicked_url,
             element_tag=element_tag,
@@ -98,8 +101,14 @@ def track_click_event(request):
             is_bot=is_bot_user_agent(user_agent),
         )
 
-        return JsonResponse({"ok": True})
+        return JsonResponse({"ok": True, "created": True})
 
-    except Exception:
-        # Do not expose errors to visitors.
-        return JsonResponse({"ok": False}, status=200)
+    except Exception as error:
+        return JsonResponse(
+            {
+                "ok": False,
+                "created": False,
+                "error": str(error),
+            },
+            status=200,
+        )
