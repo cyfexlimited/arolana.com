@@ -932,6 +932,110 @@
     }
 </style>
 
+<style id="arolana-landing-scroll-paint-fix">
+    /* =========================================================
+       AROLANA LANDING PAGE — SCROLL PAINT / WHITE FLASH FIX
+       Fixes white blank area while scrolling fast.
+       Keeps desktop and mobile design the same.
+       ========================================================= */
+
+    html,
+    body,
+    .landing-page-body,
+    .landing-page-body .arolana-landing-page {
+        background-color: #F8FAFC !important;
+    }
+
+    /* Keep the page painted while scrolling */
+    .landing-page-body .arolana-landing-page {
+        transform: translateZ(0);
+        -webkit-transform: translateZ(0);
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
+    }
+
+    /* Prevent fixed background repaint lag */
+    .landing-page-body .arolana-landing-page::before,
+    .landing-page-body .arolana-landing-page::after {
+        transform: translateZ(0) scale(var(--lp-page-bg-scale, 1)) !important;
+        -webkit-transform: translateZ(0) scale(var(--lp-page-bg-scale, 1)) !important;
+        backface-visibility: hidden !important;
+        -webkit-backface-visibility: hidden !important;
+    }
+
+    /* Keep hero image painted during scroll */
+    .landing-page-body .arolana-landing-page .lp-hero,
+    .landing-page-body .arolana-landing-page .lp-hero picture,
+    .landing-page-body .arolana-landing-page .lp-hero-image {
+        transform: translateZ(0) !important;
+        -webkit-transform: translateZ(0) !important;
+        backface-visibility: hidden !important;
+        -webkit-backface-visibility: hidden !important;
+    }
+
+    /* Stop empty white before image paints */
+    .landing-page-body .arolana-landing-page .lp-hero {
+        background-color: #071A44 !important;
+    }
+
+    .landing-page-body .arolana-landing-page .lp-hero picture {
+        background: linear-gradient(135deg, #071A44, #0A2E73) !important;
+    }
+
+    /* Keep content cards from disappearing during scroll */
+    .landing-page-body .arolana-landing-page .lp-hero-copy,
+    .landing-page-body .arolana-landing-page .lp-hero-panel,
+    .landing-page-body .arolana-landing-page .lp-card,
+    .landing-page-body .arolana-landing-page .lp-admin-section-card {
+        transform: translateZ(0) !important;
+        -webkit-transform: translateZ(0) !important;
+        backface-visibility: hidden !important;
+        -webkit-backface-visibility: hidden !important;
+    }
+
+    /* Reduce expensive fixed repaint on tablet/mobile */
+    @media (max-width: 1024px) {
+        .landing-page-body .arolana-landing-page::before {
+            position: absolute !important;
+            background-attachment: scroll !important;
+        }
+
+        .landing-page-body .arolana-landing-page::after {
+            position: absolute !important;
+        }
+    }
+
+    /* Mobile: keep your loved layout, only stop white flash */
+    @media (max-width: 768px) {
+        .landing-page-body .arolana-landing-page,
+        .landing-page-body .arolana-landing-page .lp-hero {
+            background-color: #F8FAFC !important;
+        }
+
+        .landing-page-body .arolana-landing-page .lp-hero::before {
+            transform: translateZ(0) !important;
+            -webkit-transform: translateZ(0) !important;
+            backface-visibility: hidden !important;
+            -webkit-backface-visibility: hidden !important;
+        }
+
+        .landing-page-body .arolana-landing-page .lp-hero picture {
+            background: linear-gradient(135deg, #071A44, #0A2E73) !important;
+        }
+    }
+
+    /* Video modal should also avoid repaint flicker */
+    .landing-page-body .lp-video-modal,
+    .landing-page-body .lp-video-modal-card,
+    .landing-page-body .lp-video-modal-card iframe {
+        transform: translateZ(0) !important;
+        -webkit-transform: translateZ(0) !important;
+        backface-visibility: hidden !important;
+        -webkit-backface-visibility: hidden !important;
+    }
+</style>
+
+
 {% if page.custom_css %}<style id="arolana-admin-custom-css">{{ page.custom_css|safe }}</style>{% endif %}
 {% if schema_json %}<script type="application/ld+json">{{ schema_json|safe }}</script>{% endif %}
 {% endblock %}
