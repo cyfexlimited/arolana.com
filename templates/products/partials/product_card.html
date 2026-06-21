@@ -1,32 +1,70 @@
 {% load currency_filters optimized_images %}
-<div class="product-grid-card" data-product-id="{{ product.id }}">
+
+<div class="product-grid-card"
+     data-track-click="true"
+     data-event-type="product"
+     data-product-id="{{ product.id }}"
+     data-click-text="{{ product.name }}"
+     data-click-url="{{ product.get_absolute_url }}">
+
     <div class="product-grid-image">
-        <a href="{{ product.get_absolute_url }}" aria-label="{{ product.name }}">
+        <a href="{{ product.get_absolute_url }}"
+           aria-label="{{ product.name }}"
+           class="product-card"
+           data-track-click="true"
+           data-event-type="product"
+           data-product-id="{{ product.id }}"
+           data-click-text="{{ product.name }}">
             {% if product.main_image %}
-                <img src="{{ product.main_image|optimized_image_url:'product_card' }}" alt="{{ product.name }}" loading="lazy">
+                <img src="{{ product.main_image|optimized_image_url:'product_card' }}"
+                     alt="{{ product.name }}"
+                     loading="lazy">
             {% else %}
                 <div class="w-full h-full bg-gray-100 flex items-center justify-center">
                     <i class="fas fa-image text-4xl text-gray-400"></i>
                 </div>
             {% endif %}
         </a>
+
         {% if product.discount_percent > 0 %}
             <span class="product-grid-badge">-{{ product.discount_percent }}%</span>
         {% endif %}
+
         {% if product.condition != "brand_new" %}
-            <span class="absolute top-2 left-2 bg-slate-900/90 text-white text-xs px-2 py-1 rounded-md font-semibold z-10">{{ product.get_condition_display }}</span>
+            <span class="absolute top-2 left-2 bg-slate-900/90 text-white text-xs px-2 py-1 rounded-md font-semibold z-10">
+                {{ product.get_condition_display }}
+            </span>
         {% endif %}
+
         {% if product.is_new %}
-            <span class="absolute {% if product.condition != "brand_new" %}top-9{% else %}top-2{% endif %} left-2 bg-emerald-500 text-white text-xs px-2 py-1 rounded-md font-medium z-10">New</span>
+            <span class="absolute {% if product.condition != "brand_new" %}top-9{% else %}top-2{% endif %} left-2 bg-emerald-500 text-white text-xs px-2 py-1 rounded-md font-medium z-10">
+                New
+            </span>
         {% endif %}
+
         {% if product.is_bestseller %}
-            <span class="absolute {% if product.condition != "brand_new" or product.is_new %}top-9{% else %}top-2{% endif %} left-2 bg-amber-500 text-white text-xs px-2 py-1 rounded-md font-medium z-10">Bestseller</span>
+            <span class="absolute {% if product.condition != "brand_new" or product.is_new %}top-9{% else %}top-2{% endif %} left-2 bg-amber-500 text-white text-xs px-2 py-1 rounded-md font-medium z-10">
+                Bestseller
+            </span>
         {% endif %}
     </div>
+
     <div class="p-3">
-        <div class="text-xs text-gray-500 mb-1 truncate">{{ product.brand.name|default:product.category.name }}</div>
-        <a href="{{ product.get_absolute_url }}" class="font-semibold text-sm hover:text-blue-600 line-clamp-2 block">{{ product.name }}</a>
+        <div class="text-xs text-gray-500 mb-1 truncate">
+            {{ product.brand.name|default:product.category.name }}
+        </div>
+
+        <a href="{{ product.get_absolute_url }}"
+           class="font-semibold text-sm hover:text-blue-600 line-clamp-2 block product-card"
+           data-track-click="true"
+           data-event-type="product"
+           data-product-id="{{ product.id }}"
+           data-click-text="{{ product.name }}">
+            {{ product.name }}
+        </a>
+
         {% include "products/partials/product_vendor_meta.html" with product=product %}
+
         <div class="product-grid-rating mt-1">
             {% for i in "12345"|make_list %}
                 {% if forloop.counter <= product.rating_avg|add:"0" %}
@@ -39,17 +77,35 @@
             {% endfor %}
             <span class="text-gray-500 text-xs">({{ product.rating_count }})</span>
         </div>
+
         <div class="mt-2">
-            <span class="text-lg font-bold text-blue-600">{{ product.price|currency:request }}</span>
+            <span class="text-lg font-bold text-blue-600">
+                {{ product.price|currency:request }}
+            </span>
+
             {% if product.compare_price and product.compare_price > product.price %}
-                <span class="text-gray-400 line-through text-xs ml-1">{{ product.compare_price|currency:request }}</span>
+                <span class="text-gray-400 line-through text-xs ml-1">
+                    {{ product.compare_price|currency:request }}
+                </span>
             {% endif %}
         </div>
+
         {% if show_actions|default:True %}
-        <form method="POST" action="{% url 'products:add_to_cart' product.slug %}" class="mt-2 arolana-ajax-cart-form" data-cart-ajax="true">
+        <form method="POST"
+              action="{% url 'products:add_to_cart' product.slug %}"
+              class="mt-2 arolana-ajax-cart-form"
+              data-cart-ajax="true">
             {% csrf_token %}
             <input type="hidden" name="quantity" value="1">
-            <button type="submit" data-cart-button class="w-full bg-gray-100 text-gray-700 py-1.5 rounded-lg text-sm hover:bg-blue-600 hover:text-white transition duration-200">
+
+            <button type="submit"
+                    data-cart-button
+                    data-track-click="true"
+                    data-event-type="button"
+                    data-product-id="{{ product.id }}"
+                    data-click-text="Add to Cart - {{ product.name }}"
+                    data-click-url="{{ product.get_absolute_url }}"
+                    class="w-full bg-gray-100 text-gray-700 py-1.5 rounded-lg text-sm hover:bg-blue-600 hover:text-white transition duration-200">
                 <i class="fas fa-cart-plus mr-1"></i> Add to Cart
             </button>
         </form>

@@ -5137,7 +5137,126 @@
         })();
     </script>
 
+    <script>
+    (function () {
+        "use strict";
 
+        const endpoint = "/visitor-analytics/track-click/";
+
+        function getClosestClickableElement(target) {
+            if (!target) return null;
+
+            return target.closest(
+                "a, button, [role='button'], [data-track-click], [data-analytics-event], .product-card, .category-card, .vendor-card, .landing-cta, .video-button"
+            );
+        }
+
+        function cleanText(value, maxLength) {
+            if (!value) return "";
+            return String(value).replace(/\s+/g, " ").trim().slice(0, maxLength || 500);
+        }
+
+        function getClickedUrl(element) {
+            if (!element) return "";
+
+            if (element.href) return element.href;
+
+            const dataUrl = element.getAttribute("data-click-url") || element.getAttribute("data-url") || "";
+            if (dataUrl) return dataUrl;
+
+            const childLink = element.querySelector && element.querySelector("a[href]");
+            if (childLink && childLink.href) return childLink.href;
+
+            return "";
+        }
+
+        function guessEventType(element, clickedUrl, clickedText) {
+            if (!element) return "unknown";
+
+            const explicitType =
+                element.getAttribute("data-event-type") ||
+                element.getAttribute("data-analytics-event") ||
+                element.getAttribute("data-track-type");
+
+            if (explicitType) return explicitType;
+
+            const url = String(clickedUrl || "").toLowerCase();
+            const text = String(clickedText || "").toLowerCase();
+            const tag = String(element.tagName || "").toLowerCase();
+
+            if (url.includes("wa.me") || url.includes("whatsapp")) return "whatsapp";
+            if (url.startsWith("tel:")) return "phone";
+            if (url.startsWith("mailto:")) return "email";
+            if (url.includes("youtube.com") || url.includes("youtu.be") || text.includes("video")) return "video";
+            if (url.includes("/products/") || url.includes("/product/")) return "product";
+            if (url.includes("/categories/") || url.includes("/category/")) return "category";
+            if (url.includes("/vendors/") || url.includes("/vendor/") || url.includes("/store/")) return "vendor";
+            if (url.includes("landing") || url.includes("campaign") || text.includes("shop now") || text.includes("learn more")) return "landing_cta";
+            if (tag === "button") return "button";
+            if (tag === "a") return "link";
+
+            return "unknown";
+        }
+
+        function sendClickEvent(element) {
+            if (!element) return;
+
+            const clickedUrl = getClickedUrl(element);
+            const clickedText =
+                cleanText(element.getAttribute("data-click-text"), 500) ||
+                cleanText(element.getAttribute("aria-label"), 500) ||
+                cleanText(element.innerText || element.textContent, 500) ||
+                cleanText(clickedUrl, 500);
+
+            const payload = {
+                event_type: guessEventType(element, clickedUrl, clickedText),
+                clicked_text: clickedText,
+                clicked_url: clickedUrl,
+                page_url: window.location.href,
+                path: window.location.pathname,
+                element_tag: cleanText(element.tagName || "", 50),
+                element_id: cleanText(element.id || "", 200),
+                element_classes: cleanText(element.className || "", 500),
+
+                product_id: cleanText(element.getAttribute("data-product-id") || "", 100),
+                category_id: cleanText(element.getAttribute("data-category-id") || "", 100),
+                vendor_id: cleanText(element.getAttribute("data-vendor-id") || "", 100),
+                landing_page_id: cleanText(element.getAttribute("data-landing-page-id") || "", 100)
+            };
+
+            const body = JSON.stringify(payload);
+
+            try {
+                if (navigator.sendBeacon) {
+                    const blob = new Blob([body], { type: "application/json" });
+                    navigator.sendBeacon(endpoint, blob);
+                    return;
+                }
+            } catch (error) {
+                // fallback below
+            }
+
+            try {
+                fetch(endpoint, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: body,
+                    keepalive: true,
+                    credentials: "same-origin"
+                }).catch(function () {});
+            } catch (error) {}
+        }
+
+        document.addEventListener("click", function (event) {
+            const element = getClosestClickableElement(event.target);
+            if (!element) return;
+
+            sendClickEvent(element);
+        }, true);
+    })();
+    </script>
 
 </body>
 </html>

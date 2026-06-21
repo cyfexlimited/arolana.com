@@ -2,9 +2,14 @@
 {% load currency_filters optimized_images %}
 
 {% block content %}
-<div class="max-w-[1800px] mx-auto">
+<div class="max-w-[1800px] mx-auto"
+     data-track-click="true"
+     data-event-type="category"
+     data-category-id="{{ category.id }}"
+     data-click-text="{{ category.name }}">
+
     <h1 class="text-3xl font-bold mb-6">{{ category.name }}</h1>
-    
+
     {% if category.description %}
         <p class="text-gray-600 mb-8">{{ category.description }}</p>
     {% endif %}
@@ -12,32 +17,84 @@
     {% if products %}
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
             {% for product in products %}
-            <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-2xl transition">
-                <a href="{{ product.get_absolute_url }}" class="relative block bg-gray-50">
+            <div class="product-card bg-white rounded-xl shadow-md overflow-hidden hover:shadow-2xl transition"
+                 data-track-click="true"
+                 data-event-type="product"
+                 data-product-id="{{ product.id }}"
+                 data-category-id="{{ category.id }}"
+                 data-click-text="{{ product.name }}"
+                 data-click-url="{{ product.get_absolute_url }}">
+
+                <a href="{{ product.get_absolute_url }}"
+                   class="relative block bg-gray-50 product-card"
+                   aria-label="{{ product.name }}"
+                   data-track-click="true"
+                   data-event-type="product"
+                   data-product-id="{{ product.id }}"
+                   data-category-id="{{ category.id }}"
+                   data-click-text="{{ product.name }}">
                     {% if product.main_image %}
-                        <img src="{{ product.main_image|optimized_image_url:'product_card' }}" class="w-full aspect-square object-contain p-4">
+                        <img src="{{ product.main_image|optimized_image_url:'product_card' }}"
+                             alt="{{ product.name }}"
+                             class="w-full aspect-square object-contain p-4"
+                             loading="lazy"
+                             decoding="async"
+                             width="640"
+                             height="640">
                     {% else %}
                         <div class="w-full aspect-square bg-gray-100 flex items-center justify-center">
                             <i class="fas fa-image text-4xl text-gray-400"></i>
                         </div>
                     {% endif %}
+
                     {% if product.condition != "brand_new" %}
-                        <span class="absolute top-2 left-2 rounded-full bg-slate-900/90 px-2 py-1 text-xs font-bold text-white">{{ product.get_condition_display }}</span>
+                        <span class="absolute top-2 left-2 rounded-full bg-slate-900/90 px-2 py-1 text-xs font-bold text-white">
+                            {{ product.get_condition_display }}
+                        </span>
                     {% endif %}
                 </a>
+
                 <div class="p-4">
-                    <a href="{{ product.get_absolute_url }}" class="font-semibold text-lg hover:text-blue-600">{{ product.name }}</a>
+                    <a href="{{ product.get_absolute_url }}"
+                       class="font-semibold text-lg hover:text-blue-600 product-card"
+                       data-track-click="true"
+                       data-event-type="product"
+                       data-product-id="{{ product.id }}"
+                       data-category-id="{{ category.id }}"
+                       data-click-text="{{ product.name }}">
+                        {{ product.name }}
+                    </a>
+
                     {% include "products/partials/product_vendor_meta.html" with product=product %}
+
                     <div class="mt-2">
-                        <span class="text-2xl font-bold text-blue-600">{{ product.price|currency:request }}</span>
+                        <span class="text-2xl font-bold text-blue-600">
+                            {{ product.price|currency:request }}
+                        </span>
+
                         {% if product.compare_price %}
-                            <span class="text-gray-400 line-through ml-2 text-sm">{{ product.compare_price|currency:request }}</span>
+                            <span class="text-gray-400 line-through ml-2 text-sm">
+                                {{ product.compare_price|currency:request }}
+                            </span>
                         {% endif %}
                     </div>
-                    <form method="POST" action="{% url 'products:add_to_cart' product.slug %}" class="mt-3 arolana-ajax-cart-form" data-cart-ajax="true">
+
+                    <form method="POST"
+                          action="{% url 'products:add_to_cart' product.slug %}"
+                          class="mt-3 arolana-ajax-cart-form"
+                          data-cart-ajax="true">
                         {% csrf_token %}
                         <input type="hidden" name="quantity" value="1">
-                        <button type="submit" data-cart-button class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
+
+                        <button type="submit"
+                                data-cart-button
+                                data-track-click="true"
+                                data-event-type="button"
+                                data-product-id="{{ product.id }}"
+                                data-category-id="{{ category.id }}"
+                                data-click-text="Add to Cart - {{ product.name }}"
+                                data-click-url="{{ product.get_absolute_url }}"
+                                class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
                             Add to Cart
                         </button>
                     </form>
@@ -45,16 +102,33 @@
             </div>
             {% endfor %}
         </div>
-        
-        <!-- Pagination -->
+
         {% if products.has_other_pages %}
         <div class="flex justify-center gap-2 mt-8">
             {% if products.has_previous %}
-                <a href="?page={{ products.previous_page_number }}" class="px-4 py-2 bg-white border rounded-lg hover:bg-gray-50">Previous</a>
+                <a href="?page={{ products.previous_page_number }}"
+                   class="px-4 py-2 bg-white border rounded-lg hover:bg-gray-50"
+                   data-track-click="true"
+                   data-event-type="link"
+                   data-category-id="{{ category.id }}"
+                   data-click-text="Previous Page - {{ category.name }}">
+                    Previous
+                </a>
             {% endif %}
-            <span class="px-4 py-2 bg-blue-600 text-white rounded-lg">{{ products.number }}</span>
+
+            <span class="px-4 py-2 bg-blue-600 text-white rounded-lg">
+                {{ products.number }}
+            </span>
+
             {% if products.has_next %}
-                <a href="?page={{ products.next_page_number }}" class="px-4 py-2 bg-white border rounded-lg hover:bg-gray-50">Next</a>
+                <a href="?page={{ products.next_page_number }}"
+                   class="px-4 py-2 bg-white border rounded-lg hover:bg-gray-50"
+                   data-track-click="true"
+                   data-event-type="link"
+                   data-category-id="{{ category.id }}"
+                   data-click-text="Next Page - {{ category.name }}">
+                    Next
+                </a>
             {% endif %}
         </div>
         {% endif %}

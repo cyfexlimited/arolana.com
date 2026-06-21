@@ -24,13 +24,6 @@
         color: var(--ah-section-accent);
     }
 
-    /* ============================================================
-       AROLANA TRENDING PRODUCTS — EDITORIAL LOOK
-       Looks like the reference: big image, strong title below,
-       clean spacing, sliding row, arrows hidden until hover.
-       Title/subtitle are controlled from Admin > Homepage Sections.
-       ============================================================ */
-
     .ah-trending-section {
         position: relative;
         margin: 1.15rem 0 1.8rem;
@@ -52,7 +45,6 @@
     .ah-trending-title-wrap {
         min-width: 0;
     }
-
 
     .ah-trending-title {
         margin: 0;
@@ -205,11 +197,7 @@
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
-        transition:
-            opacity .18s ease,
-            visibility .18s ease,
-            background .18s ease,
-            color .18s ease;
+        transition: opacity .18s ease, visibility .18s ease, background .18s ease, color .18s ease;
     }
 
     .ah-trending-shell:hover .ah-trending-nav {
@@ -232,15 +220,6 @@
         right: 0;
         border-radius: 8px 0 0 8px;
     }
-
-
-    /* ============================================================
-       FEATURED PRODUCTS — ADMIN DEFAULT COMPACT GRID
-       Uses your real product/admin settings:
-       vendor name, verified badge, subscription/vendor badge,
-       condition badge such as New/Used, rating, price, old price,
-       and optional admin deal labels only when available.
-       ============================================================ */
 
     .ah-featured-deals {
         position: relative;
@@ -575,15 +554,6 @@
         border-radius: 8px 0 0 8px;
     }
 
-
-
-    /* ============================================================
-       NEW ARRIVALS — VERTICAL MARKETPLACE GRID
-       Inspired by the reference: compact marketplace cards,
-       same size, no arrows, vertical up/down scrolling.
-       Uses real Arolana product/vendor/admin information.
-       ============================================================ */
-
     .ah-new-arrivals-section {
         position: relative;
         margin-bottom: 1.45rem;
@@ -823,8 +793,6 @@
         color: #c2410c;
     }
 
-
-
     .ah-new-arrivals-frame {
         position: relative;
     }
@@ -848,12 +816,7 @@
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
-        transition:
-            opacity .18s ease,
-            visibility .18s ease,
-            background .18s ease,
-            transform .18s ease,
-            box-shadow .18s ease;
+        transition: opacity .18s ease, visibility .18s ease, background .18s ease, transform .18s ease, box-shadow .18s ease;
     }
 
     .ah-new-arrivals-frame:hover .ah-new-arrivals-nav {
@@ -888,7 +851,6 @@
         line-height: 1;
     }
 
-
     .ah-new-arrivals-empty {
         grid-column: 1 / -1;
         padding: 3rem 1rem;
@@ -917,11 +879,6 @@
         border-radius: 999px;
     }
 
-
-    /* ============================================================
-       NORMAL PRODUCT SECTIONS
-       ============================================================ */
-
     .ah-product-section {
         position: relative;
         margin-bottom: 1rem;
@@ -942,7 +899,6 @@
         margin-bottom: .95rem;
         padding-bottom: .85rem;
     }
-
 
     .ah-product-title-main {
         margin: 0;
@@ -1260,11 +1216,7 @@
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
-        transition:
-            background .18s ease,
-            color .18s ease,
-            opacity .18s ease,
-            visibility .18s ease;
+        transition: background .18s ease, color .18s ease, opacity .18s ease, visibility .18s ease;
     }
 
     .ah-product-slider-shell:hover .ah-row-nav {
@@ -1353,7 +1305,6 @@
             display: none;
         }
 
-
         .ah-featured-deals {
             padding: .75rem 0 1rem;
             margin-bottom: .85rem;
@@ -1420,7 +1371,6 @@
         .ah-featured-nav {
             display: none;
         }
-
 
         .ah-new-arrivals-section {
             padding: .75rem 0 1rem;
@@ -1587,7 +1537,11 @@
                     </div>
 
                     {% if section.show_view_all and section.resolved_view_all_url %}
-                    <a href="{{ section.resolved_view_all_url }}" class="ah-trending-view-all">
+                    <a href="{{ section.resolved_view_all_url }}"
+                       class="ah-trending-view-all"
+                       data-track-click="true"
+                       data-event-type="link"
+                       data-click-text="View All - {{ section.title|default:'Trending Deals' }}">
                         {{ section.view_all_text|default:"View All" }}
                         <i class="fas fa-arrow-right"></i>
                     </a>
@@ -1595,13 +1549,27 @@
                 </div>
 
                 <div class="ah-trending-shell">
-                    <button type="button" class="ah-trending-nav ah-trending-prev" data-ah-trending-prev aria-label="Previous trending products">
+                    <button type="button"
+                            class="ah-trending-nav ah-trending-prev"
+                            data-ah-trending-prev
+                            aria-label="Previous trending products"
+                            data-track-click="true"
+                            data-event-type="button"
+                            data-click-text="Previous Trending Products - {{ section.title|default:'Trending Deals' }}">
                         <i class="fas fa-chevron-left"></i>
                     </button>
 
                     <div class="ah-trending-slider" data-ah-trending-slider>
                         {% for product in section.products %}
-                        <a href="{{ product.get_absolute_url }}" class="ah-trending-card" aria-label="{{ product.name }}">
+                        <a href="{{ product.get_absolute_url }}"
+                           class="ah-trending-card product-card"
+                           aria-label="{{ product.name }}"
+                           data-track-click="true"
+                           data-event-type="product"
+                           data-product-id="{{ product.id }}"
+                           data-category-id="{{ product.category.id }}"
+                           data-vendor-id="{{ product.vendor.id }}"
+                           data-click-text="{{ product.name }}">
                             <div class="ah-trending-media">
                                 {% if product.main_image %}
                                     {% optimized_image_url product.main_image 'product_card' as product_image_url %}
@@ -1616,19 +1584,22 @@
                                 {% endif %}
                             </div>
 
-	                            <h3 class="ah-trending-card-title">
-	                                {{ product.name }}
-	                            </h3>
-                                {% include "products/partials/product_vendor_meta.html" with product=product %}
+                            <h3 class="ah-trending-card-title">
+                                {{ product.name }}
+                            </h3>
 
-	                            {% if section.show_vendor or section.show_rating or section.show_price %}
+                            {% include "products/partials/product_vendor_meta.html" with product=product %}
+
+                            {% if section.show_vendor or section.show_rating or section.show_price %}
                             <div class="ah-trending-card-meta">
                                 {% if section.show_vendor and product.vendor.vendor_profile %}
                                 <span>{{ product.vendor.vendor_profile.store_name }}</span>
                                 {% endif %}
+
                                 {% if section.show_rating %}
                                 <span>{{ product.rating_avg|default:0|rating_stars|safe }}</span>
                                 {% endif %}
+
                                 {% if section.show_price %}
                                 <span class="ah-trending-card-price">{{ product.price|currency:request }}</span>
                                 {% endif %}
@@ -1643,12 +1614,17 @@
                         {% endfor %}
                     </div>
 
-                    <button type="button" class="ah-trending-nav ah-trending-next" data-ah-trending-next aria-label="Next trending products">
+                    <button type="button"
+                            class="ah-trending-nav ah-trending-next"
+                            data-ah-trending-next
+                            aria-label="Next trending products"
+                            data-track-click="true"
+                            data-event-type="button"
+                            data-click-text="Next Trending Products - {{ section.title|default:'Trending Deals' }}">
                         <i class="fas fa-chevron-right"></i>
                     </button>
                 </div>
             </section>
-
 
             {% elif section.layout_style == "compact" %}
             <section class="ah-featured-deals ah-admin-product-section"
@@ -1669,7 +1645,11 @@
                     </div>
 
                     {% if section.show_view_all and section.resolved_view_all_url %}
-                    <a href="{{ section.resolved_view_all_url }}" class="ah-featured-view-all">
+                    <a href="{{ section.resolved_view_all_url }}"
+                       class="ah-featured-view-all"
+                       data-track-click="true"
+                       data-event-type="link"
+                       data-click-text="View All - {{ section.title|default:'Featured Products' }}">
                         {{ section.view_all_text|default:"View All" }}
                         <i class="fas fa-arrow-right"></i>
                     </a>
@@ -1677,13 +1657,27 @@
                 </div>
 
                 <div class="ah-featured-shell">
-                    <button type="button" class="ah-featured-nav ah-featured-prev" data-ah-featured-prev aria-label="Previous featured products">
+                    <button type="button"
+                            class="ah-featured-nav ah-featured-prev"
+                            data-ah-featured-prev
+                            aria-label="Previous featured products"
+                            data-track-click="true"
+                            data-event-type="button"
+                            data-click-text="Previous Featured Products - {{ section.title|default:'Featured Products' }}">
                         <i class="fas fa-chevron-left"></i>
                     </button>
 
                     <div class="ah-featured-slider" data-ah-featured-slider>
                         {% for product in section.products %}
-                        <a href="{{ product.get_absolute_url }}" class="ah-featured-card" aria-label="{{ product.name }}">
+                        <a href="{{ product.get_absolute_url }}"
+                           class="ah-featured-card product-card"
+                           aria-label="{{ product.name }}"
+                           data-track-click="true"
+                           data-event-type="product"
+                           data-product-id="{{ product.id }}"
+                           data-category-id="{{ product.category.id }}"
+                           data-vendor-id="{{ product.vendor.id }}"
+                           data-click-text="{{ product.name }}">
                             <div class="ah-featured-image-wrap">
                                 {% if product.main_image %}
                                     {% optimized_image_url product.main_image 'product_card' as product_image_url %}
@@ -1699,15 +1693,6 @@
                             </div>
 
                             <div class="ah-featured-info">
-                                {% comment %}
-                                Use real admin/product defaults only:
-                                - Vendor store name
-                                - Verified badge
-                                - Subscription/vendor badge such as Enterprise Vendor
-                                - Condition badge such as New/Used
-                                - Optional product/admin promo fields if they exist
-                                {% endcomment %}
-
                                 {% if section.show_vendor and product.vendor and product.vendor.vendor_profile %}
                                 {% with vendor_profile=product.vendor.vendor_profile %}
                                 <div class="ah-featured-topline">
@@ -1758,12 +1743,13 @@
                                 </span>
                                 {% endif %}
 
-	                                <h3 class="ah-featured-name">
-	                                    {{ product.name }}
-	                                </h3>
-                                    {% include "products/partials/product_vendor_meta.html" with product=product %}
+                                <h3 class="ah-featured-name">
+                                    {{ product.name }}
+                                </h3>
 
-	                                {% if section.show_rating %}
+                                {% include "products/partials/product_vendor_meta.html" with product=product %}
+
+                                {% if section.show_rating %}
                                 <div class="ah-featured-rating">
                                     <span class="ah-featured-stars">
                                         {{ product.rating_avg|default:0|rating_stars|safe }}
@@ -1811,12 +1797,17 @@
                         {% endfor %}
                     </div>
 
-                    <button type="button" class="ah-featured-nav ah-featured-next" data-ah-featured-next aria-label="Next featured products">
+                    <button type="button"
+                            class="ah-featured-nav ah-featured-next"
+                            data-ah-featured-next
+                            aria-label="Next featured products"
+                            data-track-click="true"
+                            data-event-type="button"
+                            data-click-text="Next Featured Products - {{ section.title|default:'Featured Products' }}">
                         <i class="fas fa-chevron-right"></i>
                     </button>
                 </div>
             </section>
-
 
             {% elif section.layout_style == "market_grid" %}
             <section class="ah-new-arrivals-section ah-admin-product-section"
@@ -1837,7 +1828,11 @@
                     </div>
 
                     {% if section.show_view_all and section.resolved_view_all_url %}
-                    <a href="{{ section.resolved_view_all_url }}" class="ah-new-arrivals-view-all">
+                    <a href="{{ section.resolved_view_all_url }}"
+                       class="ah-new-arrivals-view-all"
+                       data-track-click="true"
+                       data-event-type="link"
+                       data-click-text="View All - {{ section.title|default:'New Arrivals' }}">
                         {{ section.view_all_text|default:"View All" }}
                         <i class="fas fa-arrow-right"></i>
                     </a>
@@ -1845,14 +1840,28 @@
                 </div>
 
                 <div class="ah-new-arrivals-frame">
-                    <button type="button" class="ah-new-arrivals-nav ah-new-arrivals-up" data-ah-new-arrivals-up aria-label="Scroll new arrivals up">
+                    <button type="button"
+                            class="ah-new-arrivals-nav ah-new-arrivals-up"
+                            data-ah-new-arrivals-up
+                            aria-label="Scroll new arrivals up"
+                            data-track-click="true"
+                            data-event-type="button"
+                            data-click-text="Scroll New Arrivals Up - {{ section.title|default:'New Arrivals' }}">
                         <i class="fas fa-chevron-up"></i>
                     </button>
 
                     <div class="ah-new-arrivals-shell" data-ah-new-arrivals-scroll>
                         <div class="ah-new-arrivals-grid">
                             {% for product in section.products %}
-                            <a href="{{ product.get_absolute_url }}" class="ah-new-arrivals-card" aria-label="{{ product.name }}">
+                            <a href="{{ product.get_absolute_url }}"
+                               class="ah-new-arrivals-card product-card"
+                               aria-label="{{ product.name }}"
+                               data-track-click="true"
+                               data-event-type="product"
+                               data-product-id="{{ product.id }}"
+                               data-category-id="{{ product.category.id }}"
+                               data-vendor-id="{{ product.vendor.id }}"
+                               data-click-text="{{ product.name }}">
                                 <div class="ah-new-arrivals-media">
                                     {% if product.main_image %}
                                         {% optimized_image_url product.main_image 'product_card' as product_image_url %}
@@ -1868,12 +1877,13 @@
                                 </div>
 
                                 <div class="ah-new-arrivals-body">
-	                                    <h3 class="ah-new-arrivals-name">
-	                                        {{ product.name }}
-	                                    </h3>
-                                        {% include "products/partials/product_vendor_meta.html" with product=product %}
+                                    <h3 class="ah-new-arrivals-name">
+                                        {{ product.name }}
+                                    </h3>
 
-	                                    {% if product.condition and product.condition != "brand_new" %}
+                                    {% include "products/partials/product_vendor_meta.html" with product=product %}
+
+                                    {% if product.condition and product.condition != "brand_new" %}
                                     <div class="ah-new-arrivals-meta-line">
                                         <span class="ah-new-arrivals-condition">
                                             {{ product.get_condition_display }}
@@ -1914,6 +1924,7 @@
                                         </span>
                                         {% endif %}
                                     </div>
+
                                     {% if section.show_rating %}
                                     <div class="ah-product-rating">
                                         <div class="ah-product-stars">
@@ -1955,11 +1966,18 @@
                         </div>
                     </div>
 
-                    <button type="button" class="ah-new-arrivals-nav ah-new-arrivals-down" data-ah-new-arrivals-down aria-label="Scroll new arrivals down">
+                    <button type="button"
+                            class="ah-new-arrivals-nav ah-new-arrivals-down"
+                            data-ah-new-arrivals-down
+                            aria-label="Scroll new arrivals down"
+                            data-track-click="true"
+                            data-event-type="button"
+                            data-click-text="Scroll New Arrivals Down - {{ section.title|default:'New Arrivals' }}">
                         <i class="fas fa-chevron-down"></i>
                     </button>
                 </div>
             </section>
+
             {% else %}
             <section class="ah-product-section ah-admin-product-section"
                      style="--ah-section-accent: {{ section.accent_color }}; --ah-section-background: {{ section.background_color }};"
@@ -1977,7 +1995,11 @@
                     </div>
 
                     {% if section.show_view_all and section.resolved_view_all_url %}
-                    <a href="{{ section.resolved_view_all_url }}" class="ah-product-view-all">
+                    <a href="{{ section.resolved_view_all_url }}"
+                       class="ah-product-view-all"
+                       data-track-click="true"
+                       data-event-type="link"
+                       data-click-text="View All - {{ section.title }}">
                         {{ section.view_all_text|default:"View All" }}
                         <i class="fas fa-arrow-right"></i>
                     </a>
@@ -1985,14 +2007,34 @@
                 </div>
 
                 <div class="ah-product-slider-shell">
-                    <button type="button" class="ah-row-nav ah-row-prev" data-ah-row-prev aria-label="Previous products">
+                    <button type="button"
+                            class="ah-row-nav ah-row-prev"
+                            data-ah-row-prev
+                            aria-label="Previous products"
+                            data-track-click="true"
+                            data-event-type="button"
+                            data-click-text="Previous Products - {{ section.title }}">
                         <i class="fas fa-chevron-left"></i>
                     </button>
 
                     <div class="ah-product-slider" data-ah-product-slider>
                         {% for product in section.products %}
-                        <article class="ah-product-card product-card group">
-                            <a href="{{ product.get_absolute_url }}" class="ah-product-media">
+                        <article class="ah-product-card product-card group"
+                                 data-track-click="true"
+                                 data-event-type="product"
+                                 data-product-id="{{ product.id }}"
+                                 data-category-id="{{ product.category.id }}"
+                                 data-vendor-id="{{ product.vendor.id }}"
+                                 data-click-text="{{ product.name }}"
+                                 data-click-url="{{ product.get_absolute_url }}">
+                            <a href="{{ product.get_absolute_url }}"
+                               class="ah-product-media product-card"
+                               data-track-click="true"
+                               data-event-type="product"
+                               data-product-id="{{ product.id }}"
+                               data-category-id="{{ product.category.id }}"
+                               data-vendor-id="{{ product.vendor.id }}"
+                               data-click-text="{{ product.name }}">
                                 <div class="ah-product-media-box">
                                     {% if product.main_image %}
                                         {% optimized_image_url product.main_image 'product_card' as product_image_url %}
@@ -2025,12 +2067,20 @@
                                     {% endif %}
                                 </div>
 
-	                                <a href="{{ product.get_absolute_url }}" class="ah-product-title">
-	                                    {{ product.name }}
-	                                </a>
-                                    {% include "products/partials/product_vendor_meta.html" with product=product %}
+                                <a href="{{ product.get_absolute_url }}"
+                                   class="ah-product-title product-card"
+                                   data-track-click="true"
+                                   data-event-type="product"
+                                   data-product-id="{{ product.id }}"
+                                   data-category-id="{{ product.category.id }}"
+                                   data-vendor-id="{{ product.vendor.id }}"
+                                   data-click-text="{{ product.name }}">
+                                    {{ product.name }}
+                                </a>
 
-	                                {% if section.show_vendor and product.vendor and product.vendor.vendor_profile %}
+                                {% include "products/partials/product_vendor_meta.html" with product=product %}
+
+                                {% if section.show_vendor and product.vendor and product.vendor.vendor_profile %}
                                 {% with vendor_profile=product.vendor.vendor_profile %}
                                 <div class="ah-product-vendor">
                                     <span class="ah-product-vendor-name">{{ vendor_profile.store_name }}</span>
@@ -2079,7 +2129,16 @@
                                     {% csrf_token %}
                                     <input type="hidden" name="quantity" value="1">
 
-                                    <button type="submit" data-cart-button class="ah-product-button">
+                                    <button type="submit"
+                                            data-cart-button
+                                            class="ah-product-button"
+                                            data-track-click="true"
+                                            data-event-type="button"
+                                            data-product-id="{{ product.id }}"
+                                            data-category-id="{{ product.category.id }}"
+                                            data-vendor-id="{{ product.vendor.id }}"
+                                            data-click-text="Add to Cart - {{ product.name }}"
+                                            data-click-url="{{ product.get_absolute_url }}">
                                         <i class="fas fa-cart-plus"></i>
                                         Add to Cart
                                     </button>
@@ -2095,7 +2154,13 @@
                         {% endfor %}
                     </div>
 
-                    <button type="button" class="ah-row-nav ah-row-next" data-ah-row-next aria-label="Next products">
+                    <button type="button"
+                            class="ah-row-nav ah-row-next"
+                            data-ah-row-next
+                            aria-label="Next products"
+                            data-track-click="true"
+                            data-event-type="button"
+                            data-click-text="Next Products - {{ section.title }}">
                         <i class="fas fa-chevron-right"></i>
                     </button>
                 </div>

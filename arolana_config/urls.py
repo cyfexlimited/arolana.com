@@ -125,7 +125,7 @@ urlpatterns = [
         name="avatar_delete",
     ),
     path("admin/", admin.site.urls),
-
+    path("visitor-analytics/", include("visitor_analytics.urls")),
     # Products API
     path("api/", include("products.urls", namespace="products_api")),
     path("api/smartchat/", include(("smartchat.api_urls", "smartchat_api"), namespace="smartchat_api")),
