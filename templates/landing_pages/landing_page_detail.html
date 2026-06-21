@@ -16,6 +16,21 @@
 <link rel="stylesheet" href="{% static 'landing_pages/css/landing_pages.css' %}">
 
 <style id="arolana-landing-base-vars">
+    /*
+       IMPORTANT SCROLL FIX:
+       Do not use negative z-index fixed pseudo backgrounds on this landing page.
+       Chrome/Safari can temporarily stop painting those layers during fast scroll,
+       which causes the white/blank flash the user is seeing.
+       We keep the same visual design, but make every background a normal painted layer.
+    */
+
+    html,
+    body,
+    body.landing-page-body {
+        background: #F8FAFC !important;
+        overflow-x: hidden !important;
+    }
+
     .arolana-landing-page {
         --lp-primary-safe: var(--lp-primary, #0F2D6B);
         --lp-accent-safe: var(--lp-accent, #FF7A00);
@@ -24,47 +39,62 @@
         --lp-text-safe: var(--lp-text, #0F172A);
         position: relative;
         isolation: isolate;
-        overflow-x: hidden;
+        overflow-x: clip;
         color: var(--lp-text-safe);
-        background: var(--lp-bg-safe);
+        background:
+            linear-gradient(180deg, #F8FAFC 0%, #EEF5FF 42%, #FFFFFF 100%);
         margin-top: 0 !important;
         padding-top: 0 !important;
+        min-height: 100vh;
+        contain: layout paint;
     }
 
     .arolana-landing-page::before {
         content: "";
-        position: fixed;
+        position: absolute;
         inset: 0;
-        z-index: -2;
+        z-index: 0;
         pointer-events: none;
         background-image: var(--lp-page-bg-image, none);
         background-size: cover;
         background-position: var(--lp-page-bg-position, center center);
         background-repeat: no-repeat;
-        background-attachment: var(--lp-page-bg-attachment, fixed);
+        background-attachment: scroll;
         filter: var(--lp-page-bg-filter, none);
         transform: scale(var(--lp-page-bg-scale, 1));
-        transform-origin: center center;
+        transform-origin: top center;
+        will-change: auto;
     }
 
     .arolana-landing-page::after {
         content: "";
-        position: fixed;
+        position: absolute;
         inset: 0;
-        z-index: -1;
+        z-index: 0;
         pointer-events: none;
-        background: linear-gradient(
-            135deg,
-            rgba(248, 250, 252, var(--lp-page-bg-opacity, 0.35)),
-            rgba(255, 255, 255, var(--lp-page-bg-opacity, 0.35))
-        );
+        background:
+            linear-gradient(
+                135deg,
+                rgba(248, 250, 252, var(--lp-page-bg-opacity, 0.35)),
+                rgba(255, 255, 255, var(--lp-page-bg-opacity, 0.35))
+            ),
+            linear-gradient(180deg, rgba(248, 250, 252, 0.30), rgba(255, 255, 255, 0.92));
+    }
+
+    .arolana-landing-page > * {
+        position: relative;
+        z-index: 2;
     }
 
     .lp-section,
     .lp-mini-nav,
     .lp-section-rendered {
         position: relative;
-        z-index: 1;
+        z-index: 2;
+    }
+
+    .lp-section {
+        background-color: #F8FAFC;
     }
 
     .lp-back-to-top {
@@ -77,6 +107,11 @@
     }
 
     @media (max-width: 768px) {
+        .arolana-landing-page {
+            overflow-x: hidden;
+            contain: layout paint;
+        }
+
         .arolana-landing-page::before {
             background-image: var(--lp-mobile-bg-image, var(--lp-page-bg-image, none));
             background-position: var(--lp-mobile-bg-position, center center);
@@ -84,11 +119,13 @@
         }
 
         .arolana-landing-page::after {
-            background: linear-gradient(
-                135deg,
-                rgba(248, 250, 252, var(--lp-mobile-bg-opacity, 0.45)),
-                rgba(255, 255, 255, var(--lp-mobile-bg-opacity, 0.45))
-            );
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(248, 250, 252, var(--lp-mobile-bg-opacity, 0.45)),
+                    rgba(255, 255, 255, var(--lp-mobile-bg-opacity, 0.45))
+                ),
+                linear-gradient(180deg, rgba(248, 250, 252, 0.20), rgba(255, 255, 255, 0.96));
         }
     }
 </style>
@@ -932,6 +969,144 @@
     }
 </style>
 
+
+<style id="arolana-landing-real-scroll-paint-lock">
+    /*
+       REAL WHITE FLASH FIX:
+       - Keep backdrop blur on cards/panels.
+       - Do not use fixed negative background layers.
+       - Give Chrome/Safari solid painted layers during active scroll.
+       - Promote only the critical visual areas to stable composited layers.
+    */
+
+    html,
+    body,
+    body.landing-page-body,
+    body.landing-page-body #__next,
+    body.landing-page-body .site-wrapper,
+    body.landing-page-body .main-wrapper,
+    body.landing-page-body .main-content,
+    body.landing-page-body .content-wrapper {
+        background: #F8FAFC !important;
+    }
+
+    .landing-page-body .arolana-landing-page,
+    .landing-page-body .arolana-landing-page .lp-hero,
+    .landing-page-body .arolana-landing-page .lp-section,
+    .landing-page-body .arolana-landing-page .lp-mini-nav {
+        -webkit-transform: translate3d(0, 0, 0);
+        transform: translate3d(0, 0, 0);
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+    }
+
+    .landing-page-body .arolana-landing-page .lp-hero {
+        background:
+            linear-gradient(180deg, #071A44 0%, #0A2E73 62%, #F8FAFC 62%, #F8FAFC 100%) !important;
+    }
+
+    .landing-page-body .arolana-landing-page .lp-hero picture {
+        contain: paint;
+        isolation: isolate;
+        background:
+            linear-gradient(135deg, #071A44, #0A2E73) !important;
+        -webkit-transform: translate3d(0, 0, 0);
+        transform: translate3d(0, 0, 0);
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+    }
+
+    .landing-page-body .arolana-landing-page .lp-hero-image {
+        display: block;
+        opacity: 1;
+        visibility: visible;
+        -webkit-transform: translate3d(0, 0, 0) scale(1.0001);
+        transform: translate3d(0, 0, 0) scale(1.0001);
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+    }
+
+    .landing-page-body .arolana-landing-page .lp-hero-copy,
+    .landing-page-body .arolana-landing-page .lp-hero-panel,
+    .landing-page-body .arolana-landing-page .lp-card,
+    .landing-page-body .arolana-landing-page .lp-admin-section-card,
+    .landing-page-body .arolana-landing-page .lp-video-card {
+        isolation: isolate;
+        -webkit-transform: translate3d(0, 0, 0);
+        transform: translate3d(0, 0, 0);
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+    }
+
+    .landing-page-body .arolana-landing-page.is-scrolling .lp-hero-copy,
+    .landing-page-body .arolana-landing-page.is-scrolling .lp-hero-panel,
+    .landing-page-body .arolana-landing-page.is-scrolling .lp-card,
+    .landing-page-body .arolana-landing-page.is-scrolling .lp-admin-section-card {
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+
+    .landing-page-body .arolana-landing-page.is-scrolling .lp-hero picture,
+    .landing-page-body .arolana-landing-page.is-scrolling .lp-hero-image {
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+
+    /*
+       Keep the expensive blur design, but avoid the browser repaint bug by making
+       the blurred elements their own isolated painted surfaces.
+    */
+    .landing-page-body .arolana-landing-page .lp-hero-copy,
+    .landing-page-body .arolana-landing-page .lp-hero-panel,
+    .landing-page-body .arolana-landing-page .lp-mini-nav,
+    .landing-page-body .lp-video-modal {
+        -webkit-backdrop-filter: blur(16px);
+        backdrop-filter: blur(16px);
+    }
+
+    .landing-page-body .arolana-landing-page .lp-hero-copy {
+        background:
+            radial-gradient(circle at top left, rgba(0, 184, 255, 0.09), transparent 34%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.985), rgba(248, 250, 252, 0.975)) !important;
+    }
+
+    .landing-page-body .arolana-landing-page .lp-hero-panel {
+        background:
+            linear-gradient(135deg, rgba(7, 26, 68, 0.82), rgba(10, 46, 115, 0.78)) !important;
+    }
+
+    @media (max-width: 1024px) {
+        .landing-page-body .arolana-landing-page {
+            contain: layout paint;
+        }
+
+        .landing-page-body .arolana-landing-page::before,
+        .landing-page-body .arolana-landing-page::after {
+            position: absolute !important;
+            background-attachment: scroll !important;
+            transform: none !important;
+            -webkit-transform: none !important;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .landing-page-body .arolana-landing-page,
+        .landing-page-body .arolana-landing-page .lp-hero {
+            background-color: #F8FAFC !important;
+        }
+
+        .landing-page-body .arolana-landing-page .lp-hero {
+            background:
+                linear-gradient(180deg, #071A44 0%, #0A2E73 48%, #F8FAFC 48%, #F8FAFC 100%) !important;
+        }
+
+        .landing-page-body .arolana-landing-page .lp-hero picture {
+            background:
+                linear-gradient(135deg, #071A44, #0A2E73) !important;
+        }
+    }
+</style>
+
 {% if page.custom_css %}<style id="arolana-admin-custom-css">{{ page.custom_css|safe }}</style>{% endif %}
 {% if schema_json %}<script type="application/ld+json">{{ schema_json|safe }}</script>{% endif %}
 {% endblock %}
@@ -1446,4 +1621,32 @@
         }
     }
 </style>
+
+<script id="arolana-landing-scroll-paint-helper">
+(function () {
+    "use strict";
+
+    var page = document.querySelector(".arolana-landing-page");
+    if (!page) return;
+
+    var timer = null;
+
+    function markScrolling() {
+        page.classList.add("is-scrolling");
+
+        if (timer) {
+            window.clearTimeout(timer);
+        }
+
+        timer = window.setTimeout(function () {
+            page.classList.remove("is-scrolling");
+        }, 140);
+    }
+
+    window.addEventListener("scroll", markScrolling, { passive: true });
+    window.addEventListener("wheel", markScrolling, { passive: true });
+    window.addEventListener("touchmove", markScrolling, { passive: true });
+})();
+</script>
+
 {% endblock %}
