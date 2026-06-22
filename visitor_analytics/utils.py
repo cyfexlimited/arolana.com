@@ -14,29 +14,134 @@ BOT_KEYWORDS = [
     "twitterbot",
     "linkedinbot",
     "preview",
+    "crawler",
+    "scanner",
+    "scan",
+    "headless",
+    "python-requests",
+    "curl",
+    "wget",
+    "httpclient",
+    "go-http-client",
 ]
 
 
 SUSPICIOUS_SCAN_PATHS = (
+    # Environment/config files
     ".env",
     "env.",
+    "env.production",
+    "env.local",
+    "env.dev",
+    "env.development",
+    "env.sample",
+    "env.testing",
+    "env.staging",
+    "env.prod",
+    "env.old",
+    "env.bak",
+    "env.backup",
+    "env.save",
+    "env.live",
+    "env.template",
+    "env.dist",
+    "env.example",
+
+    # PHP / WordPress probes
     "phpinfo",
+    "wp-admin",
+    "wp-login",
+    "xmlrpc.php",
+    "wp-config",
+    "wp-content",
+    "wp-includes",
+    "wp-json",
+    "wordpress",
+    "gravitysmtp",
+    "chosen.php",
+    "wp-good.php",
+    "wp-header",
+    "shell.php",
+    "mailer.php",
+    "upload.php",
+    "file.php",
+
+    # Backups / database dumps
     "backup",
     "backup.sql",
     "dump.sql",
     "database.sql",
     "db.sql",
     "mysql.sql",
+    "pgsql.sql",
+    "postgres.sql",
+    "sqlite.sql",
+    "data.sql",
+    "db_backup",
+    "backup.zip",
+    "backup.tar",
+    "backup.gz",
+
+    # Cloud/service credentials
+    ".aws",
+    "aws/credentials",
+    "aws.yml",
+    "aws.yaml",
+    "aws.json",
+    "aws_s3_config",
+    "aws/config",
+    "credentials",
+    "gcloud",
+    "firebase",
+    "service-account",
+    "service_account",
+    "google-services",
+    "google-service",
+    "s3_config",
+    "s3-bucket",
+    "s3_bucket",
+
+    # Framework/app config probes
     "config/database",
     "config/mail",
     "config/filesystems",
-    ".aws",
-    "aws/credentials",
-    "credentials",
-    "wp-admin",
-    "wp-login",
-    "xmlrpc.php",
-    "laravel",
+    "config/app",
+    "config/cache",
+    "config/session",
+    "appsettings",
+    "appsettings.json",
+    "appsettings.production",
+    "appsettings.development",
+    "appsettings.staging",
+    "settings.json",
+    "settings.local",
+    "local.settings",
+    "web.config",
+    "server.config",
+
+    # DevOps / deployment files
+    "compose.yaml",
+    "compose.yml",
+    "docker-compose",
+    "dockerfile",
+    "terraform",
+    "terraform.tfstate",
+    "tfstate",
+    "package.json",
+    "package-lock.json",
+    "yarn.lock",
+    "pnpm-lock",
+    "vercel.json",
+    "netlify.toml",
+    "circle.yml",
+    "conf.yaml",
+    "conf.yml",
+    "config.yml",
+    "config.yaml",
+    "serverless.yml",
+    "serverless.yaml",
+
+    # Common exposed folders/files
     "vendor/env",
     "public/.env",
     "public_html/.env",
@@ -54,22 +159,60 @@ SUSPICIOUS_SCAN_PATHS = (
     "site/.env",
     "test/.env",
     "config/.env",
-    "env.production",
-    "env.local",
-    "env.dev",
-    "env.development",
-    "env.sample",
-    "env.testing",
-    "env.staging",
-    "env.prod",
-    "env.old",
-    "env.bak",
-    "env.backup",
-    "env.save",
-    "env.live",
-    "env.template",
-    "env.dist",
-    "env.example",
+    ".git",
+    ".svn",
+    ".hg",
+    ".DS_Store",
+    "id_rsa",
+    "id_dsa",
+    "private.key",
+    "private.pem",
+)
+
+
+SUSPICIOUS_EXTENSIONS = (
+    ".php",
+    ".asp",
+    ".aspx",
+    ".jsp",
+    ".cgi",
+    ".pl",
+    ".sql",
+    ".bak",
+    ".old",
+    ".save",
+    ".swp",
+    ".tmp",
+    ".temp",
+    ".zip",
+    ".tar",
+    ".gz",
+    ".tgz",
+    ".7z",
+    ".rar",
+    ".pem",
+    ".key",
+    ".crt",
+    ".ini",
+    ".log",
+)
+
+
+STATIC_EXTENSIONS = (
+    ".css",
+    ".js",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".svg",
+    ".webp",
+    ".ico",
+    ".woff",
+    ".woff2",
+    ".ttf",
+    ".eot",
+    ".map",
 )
 
 
@@ -250,6 +393,9 @@ def get_browser(user_agent):
     if "OPR/" in ua or "Opera" in ua:
         return "Opera"
 
+    if "SamsungBrowser/" in ua:
+        return "Samsung Internet"
+
     if "Chrome/" in ua and "Chromium" not in ua and "Edg/" not in ua:
         return "Chrome"
 
@@ -258,9 +404,6 @@ def get_browser(user_agent):
 
     if "Safari/" in ua and "Chrome/" not in ua:
         return "Safari"
-
-    if "SamsungBrowser/" in ua:
-        return "Samsung Internet"
 
     return "Unknown"
 
@@ -302,6 +445,7 @@ def should_skip_tracking(request):
     - analytics endpoint
     - health checks
     - common hacker/scanner paths like .env, phpinfo.php, backup.sql
+    - PHP/WordPress/server/config probe URLs
     """
     path = request.path or ""
     lower_path = path.lower()
@@ -320,29 +464,16 @@ def should_skip_tracking(request):
         "/healthz",
     )
 
-    if path.startswith(skip_prefixes):
+    if lower_path.startswith(skip_prefixes):
         return True
 
     if any(keyword in lower_path for keyword in SUSPICIOUS_SCAN_PATHS):
         return True
 
-    if path.endswith(
-        (
-            ".css",
-            ".js",
-            ".png",
-            ".jpg",
-            ".jpeg",
-            ".gif",
-            ".svg",
-            ".webp",
-            ".ico",
-            ".woff",
-            ".woff2",
-            ".ttf",
-            ".map",
-        )
-    ):
+    if lower_path.endswith(STATIC_EXTENSIONS):
+        return True
+
+    if lower_path.endswith(SUSPICIOUS_EXTENSIONS):
         return True
 
     return False
