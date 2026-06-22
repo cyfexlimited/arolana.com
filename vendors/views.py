@@ -240,8 +240,9 @@ def become_vendor(request):
             pickup_address=pickup_address,
             pickup_latitude=pickup_latitude,
             pickup_longitude=pickup_longitude,
-            is_verified=True,
+            is_verified=False,
             is_active=True,
+            approval_status="pending",
         )
 
         request.user.user_type = "vendor"

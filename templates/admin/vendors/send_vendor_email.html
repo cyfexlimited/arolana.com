@@ -1,0 +1,91 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block content %}
+<div id="content-main">
+    <h1>{{ title }}</h1>
+
+    <div class="module" style="padding: 16px; margin-bottom: 20px;">
+        <h2>Selected Vendors</h2>
+
+        {% if valid_recipients %}
+            <p style="color: #0f766e; font-weight: 600;">
+                {{ valid_recipients|length }} vendor(s) with valid email address.
+            </p>
+
+            <ul>
+                {% for vendor, email in valid_recipients %}
+                    <li>
+                        <strong>{{ vendor }}</strong>
+                        —
+                        {{ email }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p style="color: #b91c1c; font-weight: 600;">
+                No selected vendor has a valid email address.
+            </p>
+        {% endif %}
+
+        {% if vendors_without_email %}
+            <p style="color: #b45309; font-weight: 600;">
+                {{ vendors_without_email|length }} selected vendor(s) have no email address and will be skipped.
+            </p>
+
+            <ul>
+                {% for vendor in vendors_without_email %}
+                    <li>{{ vendor }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+
+    <form method="post" novalidate>
+        {% csrf_token %}
+
+        <fieldset class="module aligned">
+            <div class="form-row">
+                <div>
+                    <label for="{{ form.subject.id_for_label }}">
+                        Subject:
+                    </label>
+                    {{ form.subject }}
+                    {% if form.subject.errors %}
+                        <div class="errors">{{ form.subject.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div>
+                    <label for="{{ form.message.id_for_label }}">
+                        Message:
+                    </label>
+                    <p class="help">
+                        You can use <code>{{ "{{ vendor_name }}" }}</code> inside the message.
+                    </p>
+                    {{ form.message }}
+                    {% if form.message.errors %}
+                        <div class="errors">{{ form.message.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div>
+                    {{ form.send_copy_to_admin }}
+                    <label for="{{ form.send_copy_to_admin.id_for_label }}">
+                        {{ form.send_copy_to_admin.label }}
+                    </label>
+                </div>
+            </div>
+        </fieldset>
+
+        <div class="submit-row">
+            <input type="submit" value="Send Email" class="default">
+            <a href=".." class="button cancel-link">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
