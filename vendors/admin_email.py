@@ -9,9 +9,18 @@ from django.utils.html import strip_tags
 from .forms import VendorAdminEmailForm
 
 
+def get_site_url():
+    return getattr(settings, "SITE_URL", "https://arolana.com").rstrip("/")
+
+
+def get_kyc_url():
+    return f"{get_site_url()}/kyc/"
+
+
 def get_vendor_email(vendor):
     """
     Safely find vendor email from Arolana VendorProfile.
+
     Priority:
     1. support_email
     2. user.email
@@ -41,8 +50,8 @@ def get_vendor_email(vendor):
 def get_vendor_name(vendor):
     possible_fields = [
         "store_name",
-        "business_name",
         "company_name",
+        "business_name",
         "name",
     ]
 
@@ -60,15 +69,15 @@ def get_vendor_name(vendor):
             return full_name
         if getattr(user, "username", None):
             return str(user.username)
+        if getattr(user, "email", None):
+            return str(user.email)
 
     return "Vendor"
 
 
 class VendorEmailAdminMixin:
     """
-    Add this mixin to your VendorProfileAdmin.
-
-    It adds:
+    Adds:
     - Admin action: Send email to selected vendors
     - Compose email screen
     - Bulk sending through Django email backend
@@ -125,6 +134,8 @@ class VendorEmailAdminMixin:
             else:
                 vendors_without_email.append(vendor)
 
+        kyc_url = get_kyc_url()
+
         if request.method == "POST":
             form = VendorAdminEmailForm(request.POST)
 
@@ -150,12 +161,20 @@ class VendorEmailAdminMixin:
                     "Arolana Vendor Support <noreply@arolana.com>",
                 )
 
-                admin_email = getattr(settings, "DEFAULT_FROM_EMAIL", "")
+                admin_email = getattr(settings, "SERVER_EMAIL", "") or getattr(
+                    settings,
+                    "DEFAULT_FROM_EMAIL",
+                    "",
+                )
 
                 for vendor, recipient_email in valid_recipients:
                     vendor_name = get_vendor_name(vendor)
 
-                    plain_text = message_body.replace("{{ vendor_name }}", vendor_name)
+                    plain_text = (
+                        message_body
+                        .replace("{{ vendor_name }}", vendor_name)
+                        .replace("{{ kyc_url }}", kyc_url)
+                    )
 
                     html_body = plain_text.replace("\n", "<br>")
 
@@ -209,11 +228,12 @@ class VendorEmailAdminMixin:
                         "Good day {{ vendor_name }},\n\n"
                         "Welcome to Arolana, and thank you for registering as a vendor.\n\n"
                         "To fully activate your vendor account and allow you to start selling properly on Arolana, "
-                        "please complete your KYC verification in your vendor dashboard.\n\n"
+                        "please complete your KYC verification.\n\n"
+                        "Complete your KYC here:\n"
+                        "{{ kyc_url }}\n\n"
                         "This helps us verify your business details, protect customers, build trust, and approve you "
                         "as a full vendor on the platform.\n\n"
-                        "Please log in to your Arolana vendor account and complete the required KYC information/documents.\n\n"
-                        "Once submitted, our team will review and approve your vendor profile.\n\n"
+                        "Once submitted, our team will review your information and approve your vendor profile if everything is complete.\n\n"
                         "Thank you,\n"
                         "Arolana Vendor Support"
                     ),
@@ -227,6 +247,7 @@ class VendorEmailAdminMixin:
             "vendors": vendors,
             "valid_recipients": valid_recipients,
             "vendors_without_email": vendors_without_email,
+            "kyc_url": kyc_url,
             "opts": self.model._meta,
         }
 

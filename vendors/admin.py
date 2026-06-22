@@ -402,6 +402,8 @@ class VendorProfileAdmin(VendorEmailAdminMixin, admin.ModelAdmin):
             "Arolana Vendor Support <noreply@arolana.com>",
         )
 
+        kyc_url = f"{getattr(settings, 'SITE_URL', 'https://arolana.com').rstrip('/')}/kyc/"
+
         for vendor in queryset:
             recipient_email = ""
 
@@ -426,13 +428,14 @@ class VendorProfileAdmin(VendorEmailAdminMixin, admin.ModelAdmin):
 
 Welcome to Arolana, and thank you for registering as a vendor.
 
-To fully activate your vendor account and allow you to start selling properly on Arolana, please complete your KYC verification in your vendor dashboard.
+To fully activate your vendor account and allow you to start selling properly on Arolana, please complete your KYC verification.
+
+Complete your KYC here:
+{kyc_url}
 
 This helps us verify your business details, protect customers, build trust, and approve you as a full vendor on the platform.
 
-Please log in to your Arolana vendor account and complete the required KYC information/documents.
-
-Once submitted, our team will review and approve your vendor profile.
+Once submitted, our team will review your information and approve your vendor profile if everything is complete.
 
 Thank you,
 Arolana Vendor Support
