@@ -1,4 +1,6 @@
+from django.conf import settings
 from django.contrib import admin
+from django.core.mail import send_mail
 from django.utils import timezone
 from django.utils.html import format_html
 
@@ -98,15 +100,8 @@ class VendorProfileAdmin(VendorEmailAdminMixin, admin.ModelAdmin):
         'mark_unverified',
         'mark_manufacturer_verified',
         'send_email_to_selected_vendors',
+        'send_kyc_reminder_email',
     ]
-
-    def get_form(self, request, obj=None, **kwargs):
-        form = super().get_form(request, obj, **kwargs)
-        for field_name in ("address_line_1", "city", "state", "country"):
-            if field_name in form.base_fields:
-                form.base_fields[field_name].required = True
-                form.base_fields[field_name].widget.attrs.setdefault("required", "required")
-        return form
 
     fieldsets = (
         ('Business Identity', {
@@ -260,6 +255,14 @@ class VendorProfileAdmin(VendorEmailAdminMixin, admin.ModelAdmin):
         }),
     )
 
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        for field_name in ("address_line_1", "city", "state", "country"):
+            if field_name in form.base_fields:
+                form.base_fields[field_name].required = True
+                form.base_fields[field_name].widget.attrs.setdefault("required", "required")
+        return form
+
     def logo_preview(self, obj):
         if obj.store_logo:
             return format_html(
@@ -385,6 +388,89 @@ class VendorProfileAdmin(VendorEmailAdminMixin, admin.ModelAdmin):
         self.message_user(request, f'{updated} vendor profile(s) marked manufacturer verified.')
 
     mark_manufacturer_verified.short_description = 'Mark selected vendors manufacturer verified'
+
+    def send_kyc_reminder_email(self, request, queryset):
+        sent_count = 0
+        skipped_count = 0
+        failed_count = 0
+
+        subject = "Complete Your Arolana Vendor KYC Verification"
+
+        from_email = getattr(
+            settings,
+            "DEFAULT_FROM_EMAIL",
+            "Arolana Vendor Support <noreply@arolana.com>",
+        )
+
+        for vendor in queryset:
+            recipient_email = ""
+
+            if getattr(vendor, "support_email", None):
+                recipient_email = vendor.support_email
+            elif getattr(vendor, "user", None) and getattr(vendor.user, "email", None):
+                recipient_email = vendor.user.email
+
+            if not recipient_email:
+                skipped_count += 1
+                continue
+
+            vendor_name = (
+                vendor.company_name
+                or vendor.store_name
+                or vendor.user.get_full_name()
+                or vendor.user.email
+                or "Vendor"
+            )
+
+            message = f"""Good day {vendor_name},
+
+Welcome to Arolana, and thank you for registering as a vendor.
+
+To fully activate your vendor account and allow you to start selling properly on Arolana, please complete your KYC verification in your vendor dashboard.
+
+This helps us verify your business details, protect customers, build trust, and approve you as a full vendor on the platform.
+
+Please log in to your Arolana vendor account and complete the required KYC information/documents.
+
+Once submitted, our team will review and approve your vendor profile.
+
+Thank you,
+Arolana Vendor Support
+"""
+
+            try:
+                send_mail(
+                    subject=subject,
+                    message=message,
+                    from_email=from_email,
+                    recipient_list=[recipient_email],
+                    fail_silently=False,
+                )
+                sent_count += 1
+            except Exception:
+                failed_count += 1
+
+        if sent_count:
+            self.message_user(
+                request,
+                f"KYC reminder email sent to {sent_count} vendor(s)."
+            )
+
+        if skipped_count:
+            self.message_user(
+                request,
+                f"{skipped_count} vendor(s) skipped because no email was found.",
+                level="warning",
+            )
+
+        if failed_count:
+            self.message_user(
+                request,
+                f"{failed_count} email(s) failed. Check email settings/provider.",
+                level="error",
+            )
+
+    send_kyc_reminder_email.short_description = "Send KYC reminder email to selected vendors"
 
 
 @admin.register(VendorSubscription)
