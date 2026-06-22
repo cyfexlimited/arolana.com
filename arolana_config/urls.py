@@ -4,7 +4,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic import TemplateView
 from django.views.static import serve
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.http import JsonResponse
 
 from pages.views import (
@@ -53,6 +53,7 @@ def sitemap_page(request):
         },
     )
 
+
 def home_view(request):
     """Custom home view with video section and proper context"""
     from core.local_cache import local_get_or_set
@@ -75,9 +76,35 @@ def home_view(request):
     )
 
 
-def returns_redirect(request, path=None):
-    from django.shortcuts import redirect
+def vendor_register_redirect(request):
+    """
+    Public vendor registration entry point.
 
+    This prevents /vendors/register/ from showing 404 when shared with vendors.
+    It sends vendors to the account registration flow with vendor intent.
+    """
+    return redirect("/accounts/register/?account_type=vendor")
+
+
+def manufacturer_register_redirect(request):
+    """
+    Public manufacturer registration entry point.
+
+    Supports both /manufacturer/register/ and /manufacturers/register/.
+    """
+    return redirect("/accounts/register/?account_type=manufacturer")
+
+
+def sell_redirect(request):
+    """
+    Public sell shortcut.
+
+    Useful for Arolana topbar/menu and WhatsApp vendor onboarding links.
+    """
+    return redirect("/vendors/register/")
+
+
+def returns_redirect(request, path=None):
     return redirect("returns")
 
 
@@ -126,6 +153,14 @@ urlpatterns = [
     ),
     path("admin/", admin.site.urls),
     path("visitor-analytics/", include("visitor_analytics.urls")),
+
+    # Public onboarding redirects - keep BEFORE vendors/manufacturers includes
+    path("sell/", sell_redirect, name="sell_redirect"),
+    path("vendors/register/", vendor_register_redirect, name="vendor_register_redirect"),
+    path("vendor/register/", vendor_register_redirect, name="vendor_register_redirect_singular"),
+    path("manufacturer/register/", manufacturer_register_redirect, name="manufacturer_register_redirect"),
+    path("manufacturers/register/", manufacturer_register_redirect, name="manufacturers_register_redirect"),
+
     # Products API
     path("api/", include("products.urls", namespace="products_api")),
     path("api/smartchat/", include(("smartchat.api_urls", "smartchat_api"), namespace="smartchat_api")),
@@ -150,13 +185,13 @@ urlpatterns = [
         name="service_worker",
     ),
 
-
     path("", include("arolana_seo.urls")),
 
     # Homepage
     path("", home_view, name="home"),
-    
+
     path("sitemap/", sitemap_page, name="sitemap"),
+
     # Authentication
     path("accounts/", include("accounts.urls")),
     path("accounts/", include("allauth.urls")),
