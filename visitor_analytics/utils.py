@@ -1,5 +1,5 @@
 import re
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import parse_qs, urlparse
 
 
 BOT_KEYWORDS = [
@@ -15,6 +15,62 @@ BOT_KEYWORDS = [
     "linkedinbot",
     "preview",
 ]
+
+
+SUSPICIOUS_SCAN_PATHS = (
+    ".env",
+    "env.",
+    "phpinfo",
+    "backup",
+    "backup.sql",
+    "dump.sql",
+    "database.sql",
+    "db.sql",
+    "mysql.sql",
+    "config/database",
+    "config/mail",
+    "config/filesystems",
+    ".aws",
+    "aws/credentials",
+    "credentials",
+    "wp-admin",
+    "wp-login",
+    "xmlrpc.php",
+    "laravel",
+    "vendor/env",
+    "public/.env",
+    "public_html/.env",
+    "application/.env",
+    "assets/.env",
+    "docker/.env",
+    "frontend/.env",
+    "backend/.env",
+    "core/.env",
+    "api/.env",
+    "app/.env",
+    "html/.env",
+    "www/.env",
+    "dev/.env",
+    "site/.env",
+    "test/.env",
+    "config/.env",
+    "env.production",
+    "env.local",
+    "env.dev",
+    "env.development",
+    "env.sample",
+    "env.testing",
+    "env.staging",
+    "env.prod",
+    "env.old",
+    "env.bak",
+    "env.backup",
+    "env.save",
+    "env.live",
+    "env.template",
+    "env.dist",
+    "env.example",
+)
 
 
 def get_client_ip(request):
@@ -40,18 +96,29 @@ def get_client_ip(request):
 def get_country(request):
     """
     Country from Cloudflare.
-    This only works when Cloudflare proxy is enabled.
-    If unavailable, keep blank instead of slowing website with external API calls.
+
+    Cloudflare sends CF-IPCountry.
+    In Django request.META, it usually appears as HTTP_CF_IPCOUNTRY.
+
+    This only works when:
+    - Cloudflare proxy is active/orange
+    - IP Geolocation is enabled
+    - visitor uses arolana.com, not Railway domain
     """
     possible_headers = [
         "HTTP_CF_IPCOUNTRY",
+        "CF_IPCOUNTRY",
         "CF-IPCountry",
+        "HTTP_X_COUNTRY_CODE",
+        "HTTP_X_APPENGINE_COUNTRY",
     ]
 
     for header in possible_headers:
         country = request.META.get(header, "")
-        if country and country.upper() != "XX":
-            return country.upper()
+        if country:
+            country = str(country).strip().upper()
+            if country and country != "XX":
+                return country[:10]
 
     return ""
 
@@ -226,7 +293,18 @@ def normalize_path(path):
 
 
 def should_skip_tracking(request):
+    """
+    Keep analytics clean and fast.
+
+    Skips:
+    - admin
+    - static/media files
+    - analytics endpoint
+    - health checks
+    - common hacker/scanner paths like .env, phpinfo.php, backup.sql
+    """
     path = request.path or ""
+    lower_path = path.lower()
 
     skip_prefixes = (
         "/admin/",
@@ -245,7 +323,26 @@ def should_skip_tracking(request):
     if path.startswith(skip_prefixes):
         return True
 
-    if path.endswith((".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico", ".woff", ".woff2", ".ttf", ".map")):
+    if any(keyword in lower_path for keyword in SUSPICIOUS_SCAN_PATHS):
+        return True
+
+    if path.endswith(
+        (
+            ".css",
+            ".js",
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".gif",
+            ".svg",
+            ".webp",
+            ".ico",
+            ".woff",
+            ".woff2",
+            ".ttf",
+            ".map",
+        )
+    ):
         return True
 
     return False
