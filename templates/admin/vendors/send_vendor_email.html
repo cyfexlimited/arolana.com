@@ -62,10 +62,15 @@
                     <label for="{{ form.message.id_for_label }}">
                         Message:
                     </label>
+
                     <p class="help">
-                        You can use <code>{{ "{{ vendor_name }}" }}</code> inside the message.
+                        You can use
+                        <code>{% templatetag openvariable %} vendor_name {% templatetag closevariable %}</code>
+                        inside the message.
                     </p>
+
                     {{ form.message }}
+
                     {% if form.message.errors %}
                         <div class="errors">{{ form.message.errors }}</div>
                     {% endif %}
@@ -84,7 +89,7 @@
 
         <div class="submit-row">
             <input type="submit" value="Send Email" class="default">
-            <a href=".." class="button cancel-link">Cancel</a>
+            <a href="../" class="button cancel-link">Cancel</a>
         </div>
     </form>
 </div>
