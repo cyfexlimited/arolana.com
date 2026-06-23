@@ -1204,8 +1204,10 @@ def send_campaign(campaign):
 
             _send_single_email(subject, plain_text, html_body, recipient)
             sent_count += 1
-        except Exception:
+
+        except Exception as error:
             failed_count += 1
+            print(f"Newsletter send failed for {recipient}: {error}")
 
     campaign.sent_count = (campaign.sent_count or 0) + sent_count
     campaign.failed_count = (campaign.failed_count or 0) + failed_count
