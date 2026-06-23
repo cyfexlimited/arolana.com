@@ -514,7 +514,17 @@ def _send_single_email(subject, plain_text, html_body, recipient):
     email.attach_alternative(html_body, "text/html")
     email.send(fail_silently=False)
     return 1
-
+    
+def render_campaign_html(campaign, recipient_email=None, tracking=None, is_test=False):
+    """
+    Public wrapper used by newsletter/admin.py for admin email preview.
+    Keeps admin.py compatible with the luxury email renderer.
+    """
+    return _render_luxury_campaign_html(
+        campaign=campaign,
+        recipient_email=recipient_email,
+        is_test=is_test,
+    )
 
 def send_test_campaign(campaign):
     test_email = _clean(getattr(campaign, 'test_email', ''))
