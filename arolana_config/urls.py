@@ -1,11 +1,13 @@
-from django.contrib import admin
-from django.urls import path, include, re_path
+import mimetypes
+
 from django.conf import settings
 from django.conf.urls.static import static
+from django.contrib import admin
+from django.core.files.storage import default_storage
+from django.http import FileResponse, Http404, JsonResponse
+from django.shortcuts import redirect, render
+from django.urls import include, path, re_path
 from django.views.generic import TemplateView
-from django.views.static import serve
-from django.shortcuts import render, redirect
-from django.http import JsonResponse
 
 from pages.views import (
     page_by_slug,
@@ -32,6 +34,37 @@ def health_check(request):
     return JsonResponse({"status": "ok"})
 
 
+def serve_public_media(request, path):
+    """
+    Serve uploaded media from Django default_storage.
+
+    This is required for newsletter email images because Gmail must load:
+    https://arolana.com/media/newsletter/...
+
+    It must be registered near the TOP of urlpatterns before catch-all routes.
+
+    Long-term founder move:
+    Use Cloudflare R2, S3, Cloudinary, or a permanent CDN for uploaded media.
+    """
+    if not path:
+        raise Http404("Media file not found")
+
+    normalized_path = str(path).lstrip("/")
+
+    if not default_storage.exists(normalized_path):
+        raise Http404("Media file not found")
+
+    file_obj = default_storage.open(normalized_path, "rb")
+    content_type, _ = mimetypes.guess_type(normalized_path)
+
+    response = FileResponse(
+        file_obj,
+        content_type=content_type or "application/octet-stream",
+    )
+    response["Cache-Control"] = "public, max-age=31536000, immutable"
+    return response
+
+
 def sitemap_page(request):
     categories = Category.objects.filter(is_active=True, parent=None)[:20]
     products = Product.objects.filter(
@@ -55,7 +88,7 @@ def sitemap_page(request):
 
 
 def home_view(request):
-    """Custom home view with video section and proper context"""
+    """Custom home view with video section and proper context."""
     from core.local_cache import local_get_or_set
     from homepage.models import HomepageVideoSection
 
@@ -133,6 +166,10 @@ except ImportError:
 
 
 urlpatterns = [
+    # Public uploaded media.
+    # IMPORTANT: Keep this FIRST before catch-all routes and root includes.
+    re_path(r"^media/(?P<path>.*)$", serve_public_media, name="serve_public_media"),
+
     # Admin & Core
     path("admin/live-stats/", core_views.live_stats, name="live_stats"),
     path(
@@ -356,29 +393,9 @@ urlpatterns = [
 ]
 
 
-
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-
-else:
-    if getattr(settings, "MEDIA_PROXY_ENABLED", False):
-        urlpatterns += [
-            re_path(
-                r"^media/(?P<path>.*)$",
-                core_views.proxy_media,
-                name="proxy_media",
-            ),
-        ]
-    else:
-        urlpatterns += [
-            re_path(
-                r"^media/(?P<path>.*)$",
-                serve,
-                {"document_root": settings.MEDIA_ROOT},
-                name="serve_media",
-            ),
-        ]
 
 
 # Custom 404 handler
