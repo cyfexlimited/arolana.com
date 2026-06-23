@@ -378,7 +378,11 @@ def _common_campaign_values(campaign, recipient_email=None):
 
     footer_note = _html(
         getattr(campaign, "footer_note", ""),
-        "You are receiving this email because you subscribed to Arolana updates.",
+        (
+            "You are receiving this email because you subscribed to Arolana updates, "
+            "created an account, or interacted with Arolana Marketplace. Arolana will "
+            "never ask for your password, OTP, or sensitive payment details by email."
+        ),
     )
 
     unsubscribe_email = quote(recipient_email or "")
@@ -426,8 +430,8 @@ def _render_hero_only_html(campaign, recipient_email=None, is_test=False):
                     background:#fff7ed;
                     color:#9a3412;
                     border-bottom:1px solid #fdba74;
-                    padding:16px 28px;
-                    font-size:16px;
+                    padding:14px 24px;
+                    font-size:14px;
                     font-weight:900;
                     letter-spacing:0.2px;
                 ">
@@ -513,18 +517,27 @@ def _render_hero_only_html(campaign, recipient_email=None, is_test=False):
                         <tr>
                             <td style="
                                 background:#061741;
-                                padding:26px 34px;
+                                padding:18px 30px 16px 30px;
                             ">
                                 <div style="
-                                    font-size:16px;
-                                    line-height:1.8;
+                                    font-size:14px;
+                                    line-height:1.65;
                                     color:#d4def5;
-                                    margin:0 0 12px 0;
+                                    margin:0 0 8px 0;
                                 ">
                                     {footer_note}
                                 </div>
 
-                                <div style="font-size:15px;line-height:1.8;">
+                                <div style="
+                                    font-size:13px;
+                                    line-height:1.55;
+                                    color:#9fb0d7;
+                                    margin:0 0 8px 0;
+                                ">
+                                    Official Arolana Marketplace communication · Products, vendors, and smart commerce updates.
+                                </div>
+
+                                <div style="font-size:13px;line-height:1.5;">
                                     <a href="{unsubscribe_link}" style="color:#ffd19d;text-decoration:underline;">Unsubscribe</a>
                                 </div>
                             </td>
@@ -533,9 +546,9 @@ def _render_hero_only_html(campaign, recipient_email=None, is_test=False):
 
                     <div style="
                         text-align:center;
-                        font-size:13px;
+                        font-size:12px;
                         color:#8695b1;
-                        padding:16px 10px;
+                        padding:10px 10px 12px 10px;
                     ">
                         © Arolana. All rights reserved.
                     </div>
@@ -586,14 +599,14 @@ def _render_designed_html(campaign, recipient_email=None, is_test=False):
     if is_test:
         test_banner = """
         <tr>
-            <td style="padding:0 0 28px 0;">
+            <td style="padding:0 0 24px 0;">
                 <div style="
                     background:#fff7ed;
                     color:#9a3412;
                     border:1px solid #fdba74;
-                    border-radius:18px;
-                    padding:18px 24px;
-                    font-size:16px;
+                    border-radius:16px;
+                    padding:14px 20px;
+                    font-size:14px;
                     font-weight:900;
                     letter-spacing:0.2px;
                 ">
@@ -870,37 +883,37 @@ def _render_designed_html(campaign, recipient_email=None, is_test=False):
                                     <tr>
                                         <td style="
                                             background:#061741;
-                                            padding:38px 54px;
+                                            padding:24px 42px 22px 42px;
                                         ">
                                             <div style="
-                                                font-size:26px;
-                                                line-height:1.3;
+                                                font-size:20px;
+                                                line-height:1.25;
                                                 font-weight:900;
                                                 color:#ffffff;
-                                                margin:0 0 14px 0;
+                                                margin:0 0 10px 0;
                                             ">
                                                 {site_name}
                                             </div>
 
                                             <div style="
-                                                font-size:17px;
-                                                line-height:1.9;
+                                                font-size:14px;
+                                                line-height:1.65;
                                                 color:#d4def5;
-                                                margin:0 0 16px 0;
+                                                margin:0 0 10px 0;
                                             ">
                                                 {footer_note}
                                             </div>
 
                                             <div style="
-                                                font-size:16px;
-                                                line-height:1.8;
+                                                font-size:13px;
+                                                line-height:1.55;
                                                 color:#9fb0d7;
-                                                margin:0 0 14px 0;
+                                                margin:0 0 8px 0;
                                             ">
-                                                Arolana Marketplace · Products, vendors, and smart commerce updates.
+                                                Official Arolana Marketplace communication · Products, vendors, and smart commerce updates.
                                             </div>
 
-                                            <div style="font-size:16px;line-height:1.8;">
+                                            <div style="font-size:13px;line-height:1.5;">
                                                 <a href="{unsubscribe_link}" style="color:#ffd19d;text-decoration:underline;">Unsubscribe</a>
                                             </div>
                                         </td>
@@ -909,9 +922,9 @@ def _render_designed_html(campaign, recipient_email=None, is_test=False):
 
                                 <div style="
                                     text-align:center;
-                                    font-size:14px;
+                                    font-size:12px;
                                     color:#8695b1;
-                                    padding:18px 10px 0 10px;
+                                    padding:10px 10px 12px 10px;
                                 ">
                                     © Arolana. All rights reserved.
                                 </div>
