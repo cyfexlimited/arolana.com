@@ -162,11 +162,45 @@ SUSPICIOUS_SCAN_PATHS = (
     ".git",
     ".svn",
     ".hg",
-    ".DS_Store",
+    ".ds_store",
     "id_rsa",
     "id_dsa",
     "private.key",
     "private.pem",
+
+    # Phishing / fake campaign / random landing-page probes
+    "/lander/",
+    "/land/",
+    "/landing/",
+    "/campaign/",
+    "/quiz/",
+    "/sber",
+    "/sbr",
+    "/sberbank",
+    "/sberbank-quiz",
+    "/sberquiz",
+    "/testsber",
+    "/rosneft",
+    "/sovkombank",
+    "/tink",
+    "/tink_chat",
+    "/cabinet",
+    "/bank/",
+    "/haan",
+    "/bull",
+    "/cosm-box",
+    "/uz---cosm-box",
+
+    # Login/account scanner paths that are not Arolana’s real login/register routes
+    "/login",
+    "/login/",
+    "/signin",
+    "/signin/",
+    "/auth",
+    "/auth/",
+    "/account/login",
+    "/user/login",
+    "/admin/login",
 )
 
 
@@ -435,6 +469,48 @@ def normalize_path(path):
     return path[:1000]
 
 
+def is_random_scanner_path(path):
+    """
+    Detect random scanner paths like:
+    /vNyFhhL5
+    /GJcjXsGY/
+    /5fH7sTTJ
+    /262LBNFp
+
+    These are usually automated probes, not real customer visits.
+    """
+    if not path:
+        return False
+
+    clean_path = str(path).strip("/")
+
+    if not clean_path:
+        return False
+
+    # Ignore multi-level real routes like /products/category/...
+    if "/" in clean_path:
+        return False
+
+    # Ignore file paths
+    if "." in clean_path:
+        return False
+
+    # Random scanner campaign slugs usually fall in this length.
+    if len(clean_path) < 5 or len(clean_path) > 14:
+        return False
+
+    has_letter = any(ch.isalpha() for ch in clean_path)
+    has_upper = any(ch.isupper() for ch in clean_path)
+    has_lower = any(ch.islower() for ch in clean_path)
+    has_digit = any(ch.isdigit() for ch in clean_path)
+
+    # Mixed upper/lower/digit slug style: /vNyFhhL5, /GJcjXsGY, /5fH7sTTJ
+    if has_letter and (has_digit or (has_upper and has_lower)):
+        return True
+
+    return False
+
+
 def should_skip_tracking(request):
     """
     Keep analytics clean and fast.
@@ -444,8 +520,10 @@ def should_skip_tracking(request):
     - static/media files
     - analytics endpoint
     - health checks
-    - common hacker/scanner paths like .env, phpinfo.php, backup.sql
+    - hacker/scanner paths like .env, phpinfo.php, backup.sql
     - PHP/WordPress/server/config probe URLs
+    - phishing/fake lander campaign paths
+    - random one-segment scanner slugs
     """
     path = request.path or ""
     lower_path = path.lower()
@@ -468,6 +546,9 @@ def should_skip_tracking(request):
         return True
 
     if any(keyword in lower_path for keyword in SUSPICIOUS_SCAN_PATHS):
+        return True
+
+    if is_random_scanner_path(path):
         return True
 
     if lower_path.endswith(STATIC_EXTENSIONS):
