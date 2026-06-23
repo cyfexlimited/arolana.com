@@ -807,8 +807,8 @@ def _render_luxury_campaign_html(campaign, recipient_email=None, is_test=False):
 def _send_single_email(subject, plain_text, html_body, recipient):
     from_email = getattr(
         settings,
-        "DEFAULT_FROM_EMAIL",
-        "Arolana <support@arolana.com>",
+        "NEWSLETTER_FROM_EMAIL",
+        getattr(settings, "DEFAULT_FROM_EMAIL", "Arolana <support@arolana.com>"),
     )
 
     email = EmailMultiAlternatives(
