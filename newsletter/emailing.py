@@ -1,5 +1,3 @@
-from urllib.parse import quote
-
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.utils import timezone
@@ -7,56 +5,10 @@ from django.utils.html import strip_tags
 
 from accounts.models import User
 
-from .models import EmailAudienceMember, NewsletterSubscriber, NewsletterTracking
+from .models import EmailAudienceMember, NewsletterSubscriber
 
 
-def site_url():
-    return getattr(settings, "SITE_URL", "https://arolana.com").rstrip("/")
-
-
-def absolute_url(url):
-    if not url:
-        return ""
-
-    url = str(url).strip()
-
-    if url.startswith("http://") or url.startswith("https://"):
-        return url
-
-    if not url.startswith("/"):
-        url = f"/{url}"
-
-    return f"{site_url()}{url}"
-
-
-def field_file_url(file_field):
-    try:
-        if file_field and file_field.url:
-            return absolute_url(file_field.url)
-    except Exception:
-        return ""
-    return ""
-
-
-def get_unsubscribe_url(email):
-    return f"{site_url()}/newsletter/unsubscribe/{quote(email)}/"
-
-
-def get_tracking_open_url(tracking):
-    if not tracking:
-        return ""
-
-    return f"{site_url()}/newsletter/track/open/{tracking.id}/"
-
-
-def get_tracking_click_url(tracking, fallback_url="/"):
-    if not tracking:
-        return absolute_url(fallback_url or "/")
-
-    return f"{site_url()}/newsletter/track/click/{tracking.id}/"
-
-
-def upsert_email_audience(email, name="", source="manual", user=None, subscriber=None, accepts_promos=None):
+def upsert_email_audience(email, name='', source='manual', user=None, subscriber=None, accepts_promos=None):
     if not email:
         return None
 
@@ -65,26 +17,31 @@ def upsert_email_audience(email, name="", source="manual", user=None, subscriber
     member, created = EmailAudienceMember.objects.get_or_create(
         email=email,
         defaults={
-            "name": name,
-            "source": source,
-            "user": user,
-            "subscriber": subscriber,
-            "accepts_promos": bool(accepts_promos),
-            "last_synced_at": timezone.now(),
+            'name': name,
+            'source': source,
+            'user': user,
+            'subscriber': subscriber,
+            'accepts_promos': bool(accepts_promos),
+            'last_synced_at': timezone.now(),
+            'is_active': True,
         },
     )
 
     if not created:
         sources = {member.source, source}
-
-        if "registered" in sources and "newsletter" in sources:
-            member.source = "both"
-        elif source != "manual" and member.source == "manual":
+        if 'registered' in sources and 'newsletter' in sources:
+            member.source = 'both'
+        elif source != 'manual' and member.source == 'manual':
             member.source = source
 
-        member.name = member.name or name
-        member.user = member.user or user
-        member.subscriber = member.subscriber or subscriber
+        if name and not member.name:
+            member.name = name
+
+        if user and not member.user:
+            member.user = user
+
+        if subscriber and not member.subscriber:
+            member.subscriber = subscriber
 
         if accepts_promos is not None:
             member.accepts_promos = bool(accepts_promos)
@@ -99,22 +56,22 @@ def upsert_email_audience(email, name="", source="manual", user=None, subscriber
 def sync_email_audience():
     synced = 0
 
-    for user in User.objects.filter(is_active=True).exclude(email=""):
+    for user in User.objects.filter(is_active=True).exclude(email=''):
         try:
             profile = user.profile
         except Exception:
             profile = None
 
         accepts_promos = bool(
-            getattr(profile, "newsletter_subscription", False)
-            or getattr(profile, "promo_emails", False)
-            or getattr(profile, "marketing_emails", False)
+            getattr(profile, 'newsletter_subscription', False)
+            or getattr(profile, 'promo_emails', False)
+            or getattr(profile, 'marketing_emails', False)
         )
 
         if upsert_email_audience(
             user.email,
             name=user.get_full_name() or user.username,
-            source="registered",
+            source='registered',
             user=user,
             accepts_promos=accepts_promos,
         ):
@@ -124,7 +81,7 @@ def sync_email_audience():
         if upsert_email_audience(
             subscriber.email,
             name=subscriber.name,
-            source="newsletter",
+            source='newsletter',
             subscriber=subscriber,
             accepts_promos=True,
         ):
@@ -133,7 +90,7 @@ def sync_email_audience():
     return synced
 
 
-def campaign_audience_members(campaign):
+def campaign_recipient_emails(campaign):
     sync_email_audience()
 
     audience = EmailAudienceMember.objects.filter(
@@ -141,333 +98,468 @@ def campaign_audience_members(campaign):
         accepts_promos=True,
     )
 
-    if campaign.recipient_scope == "subscribers":
-        audience = audience.filter(source__in=["newsletter", "both"])
-    elif campaign.recipient_scope == "registered":
-        audience = audience.filter(source__in=["registered", "both"])
+    recipient_scope = getattr(campaign, 'recipient_scope', 'all')
 
-    return audience.order_by("email").distinct("email") if hasattr(audience, "distinct") else audience
+    if recipient_scope == 'subscribers':
+        audience = audience.filter(source__in=['newsletter', 'both'])
+    elif recipient_scope == 'registered':
+        audience = audience.filter(source__in=['registered', 'both'])
 
-
-def campaign_recipient_emails(campaign):
-    audience = campaign_audience_members(campaign)
-    return sorted(set(audience.values_list("email", flat=True)))
+    return sorted(audience.values_list('email', flat=True).distinct())
 
 
-def get_campaign_main_button_url(campaign):
-    if campaign.button_url:
-        return absolute_url(campaign.button_url)
-
-    product = getattr(campaign, "related_product", None)
-    if product:
-        try:
-            return absolute_url(product.get_absolute_url())
-        except Exception:
-            return site_url()
-
-    return site_url()
+def _clean(value, default=''):
+    if value is None:
+        return default
+    return str(value).strip()
 
 
-def get_campaign_hero_image(campaign):
-    uploaded_url = field_file_url(campaign.hero_image)
-    if uploaded_url:
-        return uploaded_url
-
-    if campaign.hero_image_url:
-        return campaign.hero_image_url
-
-    return ""
+def _is_public_image(url):
+    url = _clean(url)
+    if not url:
+        return False
+    return url.startswith('https://') or url.startswith('http://')
 
 
-def get_campaign_product_image(campaign):
-    uploaded_url = field_file_url(campaign.product_image)
-    if uploaded_url:
-        return uploaded_url
+def _render_button(url, text, filled=True):
+    url = _clean(url)
+    text = _clean(text)
 
-    if campaign.product_image_url:
-        return campaign.product_image_url
+    if not url or not text:
+        return ''
 
-    product = getattr(campaign, "related_product", None)
-    if product:
-        for field_name in ["main_image", "image", "featured_image", "thumbnail"]:
-            image = getattr(product, field_name, None)
-            uploaded = field_file_url(image)
-            if uploaded:
-                return uploaded
+    if filled:
+        return f'''
+        <a href="{url}" style="
+            display:inline-block;
+            background:#ff7a00;
+            color:#ffffff;
+            text-decoration:none;
+            font-weight:700;
+            font-size:16px;
+            line-height:1;
+            padding:16px 28px;
+            border-radius:999px;
+            border:1px solid #ff7a00;
+            box-shadow:0 8px 24px rgba(255,122,0,0.25);
+        ">{text}</a>
+        '''
 
-    return ""
+    return f'''
+    <a href="{url}" style="
+        display:inline-block;
+        background:#ffffff;
+        color:#2457ff;
+        text-decoration:none;
+        font-weight:700;
+        font-size:16px;
+        line-height:1;
+        padding:16px 28px;
+        border-radius:999px;
+        border:2px solid #2457ff;
+    ">{text}</a>
+    '''
 
 
-def get_campaign_product_title(campaign):
-    if campaign.product_title:
-        return campaign.product_title
+def _render_luxury_campaign_html(campaign, recipient_email=None, is_test=False):
+    site_name = "Arolana"
+    site_url = getattr(settings, 'SITE_URL', 'https://arolana.com').rstrip('/')
 
-    product = getattr(campaign, "related_product", None)
-    if product:
-        return getattr(product, "name", "") or str(product)
+    subject = _clean(getattr(campaign, 'subject', ''), 'Arolana Update')
+    preheader = _clean(
+        getattr(campaign, 'preheader', ''),
+        'Premium products, trusted vendors, and smarter shopping on Arolana.'
+    )
 
-    return ""
+    eyebrow = _clean(
+        getattr(campaign, 'eyebrow', ''),
+        'PREMIUM MARKETPLACE UPDATE'
+    )
 
+    headline = _clean(
+        getattr(campaign, 'headline', ''),
+        subject
+    )
 
-def render_campaign_html(campaign, recipient_email="", tracking=None, is_test=False):
-    base_url = site_url()
-    hero_image = get_campaign_hero_image(campaign)
-    product_image = get_campaign_product_image(campaign)
-    product_title = get_campaign_product_title(campaign)
-    main_button_url = get_campaign_main_button_url(campaign)
-    unsubscribe_url = get_unsubscribe_url(recipient_email) if recipient_email else f"{base_url}/newsletter/"
-    open_tracking_url = get_tracking_open_url(tracking)
+    subheadline = _clean(
+        getattr(campaign, 'subheadline', ''),
+        'Discover premium products, trusted vendors, and a better buying experience on Arolana.'
+    )
 
-    headline = campaign.headline or campaign.subject
-    preheader = campaign.preheader or campaign.subheadline or ""
-    eyebrow = campaign.eyebrow or campaign.get_campaign_type_display()
-    button_text = campaign.button_text or "Shop now"
+    content = _clean(getattr(campaign, 'content', ''))
+    extra_html_content = _clean(getattr(campaign, 'html_content', ''))
 
-    product_price = campaign.product_price_text or ""
-    product_description = campaign.product_description or ""
+    hero_image_url = _clean(getattr(campaign, 'hero_image_url', ''))
+    product_image_url = _clean(getattr(campaign, 'product_image_url', ''))
 
-    extra_html = campaign.html_content or ""
-    plain_content_as_html = (campaign.content or "").replace("\n", "<br>")
+    product_title = _clean(getattr(campaign, 'product_title', ''), 'Featured Product')
+    product_price_text = _clean(getattr(campaign, 'product_price_text', ''))
+    product_description = _clean(
+        getattr(campaign, 'product_description', ''),
+        'A premium product selected to help you work smarter, sell better, and shop with confidence on Arolana.'
+    )
 
-    if is_test:
-        test_badge = """
-        <div style="background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:13px;font-weight:700;">
-            TEST EMAIL — not sent to subscribers yet.
-        </div>
-        """
-    else:
-        test_badge = ""
+    button_text = _clean(getattr(campaign, 'button_text', ''), 'View Product')
+    button_url = _clean(getattr(campaign, 'button_url', ''), f'{site_url}/')
 
-    hero_block = ""
-    if hero_image:
-        hero_block = f"""
+    secondary_button_text = _clean(getattr(campaign, 'secondary_button_text', ''), 'Visit Arolana')
+    secondary_button_url = _clean(getattr(campaign, 'secondary_button_url', ''), f'{site_url}/')
+
+    footer_note = _clean(
+        getattr(campaign, 'footer_note', ''),
+        'You are receiving this email because you subscribed to Arolana updates.'
+    )
+
+    unsubscribe_link = f"{site_url}/newsletter/unsubscribe/{recipient_email}/" if recipient_email else f"{site_url}/"
+
+    hero_block = ''
+    if _is_public_image(hero_image_url):
+        hero_block = f'''
         <tr>
-            <td>
-                <img src="{hero_image}" alt="{headline}" width="640" style="width:100%;max-width:640px;display:block;border-radius:22px 22px 0 0;object-fit:cover;">
+            <td style="padding:0 0 24px 0;">
+                <img src="{hero_image_url}" alt="{headline}" style="
+                    width:100%;
+                    max-width:100%;
+                    display:block;
+                    border:0;
+                    outline:none;
+                    text-decoration:none;
+                    border-radius:26px;
+                ">
             </td>
         </tr>
-        """
+        '''
 
-    product_block = ""
-    if product_image or product_title or product_description or product_price:
-        image_html = ""
-        if product_image:
-            image_html = f"""
-            <td width="180" style="padding:0 18px 0 0;vertical-align:top;">
-                <img src="{product_image}" alt="{product_title or 'Arolana product'}" width="180" style="width:180px;max-width:180px;border-radius:16px;display:block;border:1px solid #e5e7eb;">
-            </td>
-            """
+    product_image_block = ''
+    if _is_public_image(product_image_url):
+        product_image_block = f'''
+        <td valign="top" style="width:44%; padding:0 18px 0 0;">
+            <img src="{product_image_url}" alt="{product_title}" style="
+                width:100%;
+                max-width:100%;
+                display:block;
+                border:0;
+                border-radius:22px;
+                background:#f7f8fb;
+            ">
+        </td>
+        '''
 
-        price_html = ""
-        if product_price:
-            price_html = f"""
-            <div style="font-size:18px;font-weight:800;color:#111827;margin:8px 0 0;">
-                {product_price}
-            </div>
-            """
+    if content:
+        paragraphs = []
+        for paragraph in [p.strip() for p in content.split('\n') if p.strip()]:
+            paragraphs.append(
+                f'<p style="margin:0 0 22px 0; font-size:18px; line-height:1.8; color:#4b5b75;">{paragraph}</p>'
+            )
+        content_html = ''.join(paragraphs)
+    else:
+        content_html = '''
+        <p style="margin:0 0 22px 0; font-size:18px; line-height:1.8; color:#4b5b75;">
+            Discover a more refined shopping experience on Arolana with premium products,
+            trusted vendors, and curated marketplace updates designed for serious buyers.
+        </p>
+        '''
 
-        product_block = f"""
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:22px 0;background:#f8fafc;border:1px solid #e5e7eb;border-radius:18px;padding:18px;">
-            <tr>
-                {image_html}
-                <td style="vertical-align:top;">
-                    <div style="font-size:18px;font-weight:800;color:#111827;margin-bottom:8px;">
-                        {product_title}
-                    </div>
-                    <div style="font-size:14px;line-height:1.7;color:#4b5563;">
-                        {product_description}
-                    </div>
-                    {price_html}
-                </td>
-            </tr>
-        </table>
-        """
-
-    secondary_button = ""
-    if campaign.secondary_button_text and campaign.secondary_button_url:
-        secondary_button = f"""
-        <a href="{absolute_url(campaign.secondary_button_url)}" style="display:inline-block;margin-left:10px;padding:14px 20px;border-radius:999px;border:1px solid #2563eb;color:#2563eb;text-decoration:none;font-weight:800;font-size:14px;">
-            {campaign.secondary_button_text}
-        </a>
-        """
-
-    tracking_pixel = ""
-    if open_tracking_url:
-        tracking_pixel = f'<img src="{open_tracking_url}" width="1" height="1" alt="" style="display:none;">'
-
-    html = f"""<!doctype html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width">
-    <title>{campaign.subject}</title>
-</head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;color:#111827;">
-    <div style="display:none;max-height:0;overflow:hidden;color:transparent;">
-        {preheader}
-    </div>
-
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f4f6;padding:24px 12px;">
+    test_banner = ''
+    if is_test:
+        test_banner = '''
         <tr>
-            <td align="center">
-                <table role="presentation" width="640" cellspacing="0" cellpadding="0" style="width:100%;max-width:640px;background:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 18px 45px rgba(15,23,42,0.10);">
-                    {hero_block}
-
-                    <tr>
-                        <td style="padding:28px 28px 10px;">
-                            {test_badge}
-
-                            <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:#ff7a00;font-weight:900;margin-bottom:10px;">
-                                {eyebrow}
-                            </div>
-
-                            <h1 style="font-size:30px;line-height:1.15;margin:0 0 12px;color:#0f172a;">
-                                {headline}
-                            </h1>
-
-                            <div style="font-size:16px;line-height:1.7;color:#475569;margin-bottom:18px;">
-                                {campaign.subheadline or ""}
-                            </div>
-
-                            <div style="font-size:15px;line-height:1.8;color:#374151;">
-                                {plain_content_as_html}
-                            </div>
-
-                            {product_block}
-
-                            <div style="font-size:15px;line-height:1.8;color:#374151;margin-top:18px;">
-                                {extra_html}
-                            </div>
-
-                            <div style="margin:28px 0 18px;">
-                                <a href="{main_button_url}" style="display:inline-block;background:#ff7a00;color:#ffffff;text-decoration:none;padding:15px 24px;border-radius:999px;font-weight:900;font-size:15px;">
-                                    {button_text}
-                                </a>
-                                {secondary_button}
-                            </div>
-                        </td>
-                    </tr>
-
-                    <tr>
-                        <td style="padding:20px 28px 28px;background:#0f172a;color:#cbd5e1;">
-                            <div style="font-size:18px;font-weight:900;color:#ffffff;margin-bottom:8px;">
-                                Arolana
-                            </div>
-
-                            <div style="font-size:13px;line-height:1.7;">
-                                {campaign.footer_note or "You are receiving this email because you subscribed to Arolana updates."}
-                            </div>
-
-                            <div style="font-size:12px;line-height:1.7;margin-top:14px;color:#94a3b8;">
-                                Arolana Marketplace · Products, vendors, and smart commerce updates.
-                                <br>
-                                <a href="{unsubscribe_url}" style="color:#fed7aa;text-decoration:underline;">Unsubscribe</a>
-                            </div>
-                        </td>
-                    </tr>
-                </table>
-
-                <div style="font-size:11px;color:#94a3b8;margin-top:16px;">
-                    © Arolana. All rights reserved.
+            <td style="padding:0 0 20px 0;">
+                <div style="
+                    background:#fff7ed;
+                    color:#9a3412;
+                    border:1px solid #fdba74;
+                    border-radius:18px;
+                    padding:16px 20px;
+                    font-size:15px;
+                    font-weight:700;
+                    letter-spacing:0.2px;
+                ">
+                    TEST EMAIL — not sent to subscribers yet.
                 </div>
             </td>
         </tr>
-    </table>
+        '''
 
-    {tracking_pixel}
-</body>
-</html>"""
+    primary_button_html = _render_button(button_url, button_text, filled=True)
+    secondary_button_html = _render_button(secondary_button_url, secondary_button_text, filled=False)
+
+    html = f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{subject}</title>
+    </head>
+    <body style="margin:0; padding:0; background:#edf1f7; font-family:Arial, Helvetica, sans-serif;">
+        <div style="display:none; max-height:0; overflow:hidden; opacity:0; color:transparent;">
+            {preheader}
+        </div>
+
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#edf1f7; margin:0; padding:28px 0;">
+            <tr>
+                <td align="center">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:720px; margin:0 auto;">
+                        <tr>
+                            <td style="padding:0 14px;">
+                                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="
+                                    background:#ffffff;
+                                    border-radius:32px;
+                                    overflow:hidden;
+                                    box-shadow:0 18px 54px rgba(6,19,43,0.08);
+                                ">
+                                    <tr>
+                                        <td style="
+                                            background:linear-gradient(135deg, #071531 0%, #0a1b48 60%, #132c74 100%);
+                                            padding:30px 34px;
+                                        ">
+                                            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                                                <tr>
+                                                    <td align="left" style="font-size:15px; color:#c7d4ff; letter-spacing:0.4px;">
+                                                        <span style="display:inline-block; font-size:30px; font-weight:800; color:#ffffff; letter-spacing:-0.5px;">
+                                                            {site_name}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="padding-top:10px; font-size:14px; color:#dbe5ff; line-height:1.7;">
+                                                        Premium marketplace updates, featured products, and trusted vendor opportunities.
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                        </td>
+                                    </tr>
+
+                                    <tr>
+                                        <td style="padding:28px 34px 36px 34px;">
+                                            {test_banner}
+
+                                            {hero_block}
+
+                                            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                                                <tr>
+                                                    <td style="padding:0 0 8px 0; font-size:14px; color:#ff7a00; font-weight:800; letter-spacing:2px;">
+                                                        {eyebrow}
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="padding:0 0 12px 0; font-size:52px; line-height:1.08; color:#0b1736; font-weight:800; letter-spacing:-1px;">
+                                                        {headline}
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="padding:0 0 26px 0; font-size:18px; line-height:1.7; color:#5d6d89;">
+                                                        {subheadline}
+                                                    </td>
+                                                </tr>
+                                            </table>
+
+                                            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="padding:0 0 10px 0;">
+                                                <tr>
+                                                    <td>
+                                                        {content_html}
+                                                    </td>
+                                                </tr>
+                                            </table>
+
+                                            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="
+                                                background:#f7f9fc;
+                                                border:1px solid #e6edf8;
+                                                border-radius:28px;
+                                                margin:8px 0 30px 0;
+                                            ">
+                                                <tr>
+                                                    <td style="padding:28px;">
+                                                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                                                            <tr>
+                                                                {product_image_block}
+                                                                <td valign="top" style="width:{'56%' if product_image_block else '100%'};">
+                                                                    <div style="font-size:18px; line-height:1.35; font-weight:800; color:#0b1736; margin:0 0 12px 0;">
+                                                                        {product_title}
+                                                                    </div>
+                                                                    <div style="font-size:17px; line-height:1.8; color:#5d6d89; margin:0 0 16px 0;">
+                                                                        {product_description}
+                                                                    </div>
+                                                                    {'<div style="font-size:21px; line-height:1.3; font-weight:900; color:#0b1736;">' + product_price_text + '</div>' if product_price_text else ''}
+                                                                </td>
+                                                            </tr>
+                                                        </table>
+                                                    </td>
+                                                </tr>
+                                            </table>
+
+                                            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                                                <tr>
+                                                    <td align="left" style="padding:0 0 30px 0;">
+                                                        <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                                                            <tr>
+                                                                <td style="padding:0 14px 14px 0;">
+                                                                    {primary_button_html}
+                                                                </td>
+                                                                <td style="padding:0 0 14px 0;">
+                                                                    {secondary_button_html}
+                                                                </td>
+                                                            </tr>
+                                                        </table>
+                                                    </td>
+                                                </tr>
+                                            </table>
+
+                                            {extra_html_content if extra_html_content else ''}
+                                        </td>
+                                    </tr>
+
+                                    <tr>
+                                        <td style="
+                                            background:#071531;
+                                            padding:34px;
+                                            border-radius:0 0 32px 32px;
+                                        ">
+                                            <div style="font-size:18px; line-height:1.3; font-weight:800; color:#ffffff; margin:0 0 14px 0;">
+                                                {site_name}
+                                            </div>
+
+                                            <div style="font-size:16px; line-height:1.8; color:#d4dcf3; margin:0 0 16px 0;">
+                                                {footer_note}
+                                            </div>
+
+                                            <div style="font-size:15px; line-height:1.8; color:#9fb0d7; margin:0 0 14px 0;">
+                                                Arolana Marketplace · Products, vendors, and smart commerce updates.
+                                            </div>
+
+                                            <div style="font-size:15px; line-height:1.8;">
+                                                <a href="{unsubscribe_link}" style="color:#ffd19d; text-decoration:underline;">Unsubscribe</a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </table>
+
+                                <div style="text-align:center; font-size:13px; color:#8b98b3; padding:20px 10px 0 10px;">
+                                    © Arolana. All rights reserved.
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    '''
 
     return html
 
 
-def send_one_campaign_email(campaign, recipient_email, recipient_name="", subscriber=None, is_test=False):
-    tracking = None
+def _campaign_plain_text(campaign, is_test=False):
+    subject = _clean(getattr(campaign, 'subject', ''), 'Arolana Update')
+    headline = _clean(getattr(campaign, 'headline', ''), subject)
+    subheadline = _clean(getattr(campaign, 'subheadline', ''))
+    content = _clean(getattr(campaign, 'content', ''))
+    product_title = _clean(getattr(campaign, 'product_title', ''))
+    product_description = _clean(getattr(campaign, 'product_description', ''))
+    product_price_text = _clean(getattr(campaign, 'product_price_text', ''))
+    button_text = _clean(getattr(campaign, 'button_text', 'View Product'))
+    button_url = _clean(getattr(campaign, 'button_url', ''), 'https://arolana.com/')
+    secondary_button_text = _clean(getattr(campaign, 'secondary_button_text', 'Visit Arolana'))
+    secondary_button_url = _clean(getattr(campaign, 'secondary_button_url', ''), 'https://arolana.com/')
 
-    if subscriber and not is_test:
-        tracking, _ = NewsletterTracking.objects.get_or_create(
-            campaign=campaign,
-            subscriber=subscriber,
-        )
+    lines = []
 
-    html_body = render_campaign_html(
-        campaign,
-        recipient_email=recipient_email,
-        tracking=tracking,
-        is_test=is_test,
+    if is_test:
+        lines.append("TEST EMAIL — not sent to subscribers yet.")
+        lines.append("")
+
+    lines.append(headline)
+
+    if subheadline:
+        lines.append(subheadline)
+        lines.append("")
+
+    if content:
+        lines.append(content)
+        lines.append("")
+
+    if product_title:
+        lines.append(f"Featured Product: {product_title}")
+
+    if product_description:
+        lines.append(product_description)
+
+    if product_price_text:
+        lines.append(f"Price: {product_price_text}")
+
+    lines.append("")
+    lines.append(f"{button_text}: {button_url}")
+
+    if secondary_button_text and secondary_button_url:
+        lines.append(f"{secondary_button_text}: {secondary_button_url}")
+
+    return "\n".join(lines).strip()
+
+
+def _send_single_email(subject, plain_text, html_body, recipient):
+    from_email = getattr(
+        settings,
+        'DEFAULT_FROM_EMAIL',
+        'Arolana <support@arolana.com>',
     )
 
-    plain_text = strip_tags(campaign.content or campaign.subject)
-
     email = EmailMultiAlternatives(
-        subject=campaign.subject,
+        subject=subject,
         body=plain_text,
-        from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "Arolana <noreply@arolana.com>"),
-        to=[recipient_email],
+        from_email=from_email,
+        to=[recipient],
     )
     email.attach_alternative(html_body, "text/html")
     email.send(fail_silently=False)
+    return 1
 
 
 def send_test_campaign(campaign):
-    if not campaign.test_email:
+    test_email = _clean(getattr(campaign, 'test_email', ''))
+    if not test_email:
         return 0
 
-    send_one_campaign_email(
+    subject = _clean(getattr(campaign, 'subject', ''), 'Arolana Test Campaign')
+    plain_text = _campaign_plain_text(campaign, is_test=True)
+    html_body = _render_luxury_campaign_html(
         campaign=campaign,
-        recipient_email=campaign.test_email,
-        recipient_name="Test Recipient",
-        subscriber=None,
+        recipient_email=test_email,
         is_test=True,
     )
+
+    _send_single_email(subject, plain_text, html_body, test_email)
     return 1
 
 
 def send_campaign(campaign):
-    audience = campaign_audience_members(campaign)
+    recipients = campaign_recipient_emails(campaign)
 
+    if not recipients:
+        return 0
+
+    subject = _clean(getattr(campaign, 'subject', ''), 'Arolana Newsletter')
     sent_count = 0
-    failed_count = 0
 
-    campaign.status = "sending"
-    campaign.save(update_fields=["status", "updated_at"])
-
-    seen_emails = set()
-
-    for member in audience:
-        recipient_email = (member.email or "").strip().lower()
-
-        if not recipient_email or recipient_email in seen_emails:
-            continue
-
-        seen_emails.add(recipient_email)
+    for email in recipients:
+        plain_text = _campaign_plain_text(campaign, is_test=False)
+        html_body = _render_luxury_campaign_html(
+            campaign=campaign,
+            recipient_email=email,
+            is_test=False,
+        )
 
         try:
-            send_one_campaign_email(
-                campaign=campaign,
-                recipient_email=recipient_email,
-                recipient_name=member.name,
-                subscriber=member.subscriber,
-                is_test=False,
-            )
+            _send_single_email(subject, plain_text, html_body, email)
             sent_count += 1
         except Exception:
-            failed_count += 1
+            continue
 
-    campaign.sent_count += sent_count
-    campaign.failed_count += failed_count
-    campaign.status = "sent"
+    campaign.sent_count = (campaign.sent_count or 0) + sent_count
+    campaign.status = 'sent'
     campaign.sent_at = timezone.now()
     campaign.last_sent_at = campaign.sent_at
-    campaign.save(
-        update_fields=[
-            "sent_count",
-            "failed_count",
-            "status",
-            "sent_at",
-            "last_sent_at",
-            "updated_at",
-        ]
-    )
+    campaign.save(update_fields=['sent_count', 'status', 'sent_at', 'last_sent_at', 'updated_at'])
 
     return sent_count
