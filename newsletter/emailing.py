@@ -410,6 +410,187 @@ def _common_campaign_values(campaign, recipient_email=None):
     }
 
 
+def _mobile_email_css():
+    """
+    Mobile CSS for Gmail/iOS Mail.
+    Keeps desktop wide, but stacks columns on phones.
+    """
+    return """
+    <style>
+        @media only screen and (max-width: 640px) {
+            .ar-container {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+
+            .ar-shell {
+                width: 100% !important;
+                max-width: 100% !important;
+                border-radius: 0 !important;
+            }
+
+            .ar-header {
+                padding: 22px 18px 20px 18px !important;
+            }
+
+            .ar-brand {
+                font-size: 25px !important;
+                line-height: 1.1 !important;
+            }
+
+            .ar-header-text {
+                font-size: 13px !important;
+                line-height: 1.55 !important;
+            }
+
+            .ar-body {
+                padding: 20px 14px 26px 14px !important;
+            }
+
+            .ar-stack {
+                display: block !important;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+
+            .ar-hero-img-cell {
+                padding: 0 0 18px 0 !important;
+            }
+
+            .ar-product-img-cell {
+                padding: 0 0 18px 0 !important;
+            }
+
+            .ar-img {
+                width: 100% !important;
+                max-width: 100% !important;
+                height: auto !important;
+                border-radius: 20px !important;
+            }
+
+            .ar-placeholder {
+                min-height: 220px !important;
+                border-radius: 20px !important;
+            }
+
+            .ar-test-wrap {
+                padding: 0 0 18px 0 !important;
+            }
+
+            .ar-test {
+                border-radius: 14px !important;
+                padding: 12px 14px !important;
+                font-size: 12px !important;
+                line-height: 1.4 !important;
+            }
+
+            .ar-hero-table {
+                margin-bottom: 26px !important;
+            }
+
+            .ar-eyebrow {
+                font-size: 11px !important;
+                letter-spacing: 1.8px !important;
+                padding-bottom: 10px !important;
+            }
+
+            .ar-headline {
+                font-size: 29px !important;
+                line-height: 1.12 !important;
+                letter-spacing: -0.5px !important;
+                padding-bottom: 14px !important;
+            }
+
+            .ar-subheadline {
+                font-size: 15px !important;
+                line-height: 1.65 !important;
+                padding-bottom: 20px !important;
+            }
+
+            .ar-content {
+                font-size: 15px !important;
+                line-height: 1.7 !important;
+            }
+
+            .ar-content p {
+                font-size: 15px !important;
+                line-height: 1.7 !important;
+                margin-bottom: 16px !important;
+            }
+
+            .ar-product-card {
+                border-radius: 22px !important;
+            }
+
+            .ar-product-pad {
+                padding: 20px !important;
+            }
+
+            .ar-product-title {
+                font-size: 25px !important;
+                line-height: 1.18 !important;
+            }
+
+            .ar-product-desc {
+                font-size: 15px !important;
+                line-height: 1.7 !important;
+            }
+
+            .ar-price {
+                font-size: 23px !important;
+            }
+
+            .ar-button-cell {
+                display: block !important;
+                width: 100% !important;
+                padding: 0 0 12px 0 !important;
+            }
+
+            .ar-button-cell a {
+                display: block !important;
+                width: auto !important;
+                text-align: center !important;
+                font-size: 15px !important;
+                padding: 15px 18px !important;
+            }
+
+            .ar-footer {
+                padding: 16px 18px 15px 18px !important;
+            }
+
+            .ar-footer-title {
+                font-size: 18px !important;
+                margin-bottom: 8px !important;
+            }
+
+            .ar-footer-note {
+                font-size: 12px !important;
+                line-height: 1.55 !important;
+            }
+
+            .ar-footer-small {
+                font-size: 11px !important;
+                line-height: 1.45 !important;
+            }
+
+            .ar-copy {
+                font-size: 11px !important;
+                padding: 8px 10px 10px 10px !important;
+            }
+
+            .ar-hero-only-footer {
+                padding: 16px 18px 15px 18px !important;
+            }
+
+            .ar-hero-only-note {
+                font-size: 12px !important;
+                line-height: 1.55 !important;
+            }
+        }
+    </style>
+    """
+
+
 def _render_hero_only_html(campaign, recipient_email=None, is_test=False):
     values = _common_campaign_values(campaign, recipient_email=recipient_email)
 
@@ -459,17 +640,17 @@ def _render_hero_only_html(campaign, recipient_email=None, is_test=False):
         hero_block = f"""
         <div style="
             background:#f3f6fb;
-            padding:100px 32px;
+            padding:80px 24px;
             text-align:center;
             color:#081738;
-            font-size:34px;
+            font-size:30px;
             line-height:1.25;
             font-weight:900;
         ">
             {headline}
             <div style="
                 color:#66758f;
-                font-size:18px;
+                font-size:16px;
                 line-height:1.7;
                 font-weight:400;
                 margin-top:18px;
@@ -486,6 +667,7 @@ def _render_hero_only_html(campaign, recipient_email=None, is_test=False):
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>{subject}</title>
+        {_mobile_email_css()}
     </head>
 
     <body style="margin:0;padding:0;background:#edf2f8;font-family:Arial,Helvetica,sans-serif;">
@@ -500,7 +682,7 @@ def _render_hero_only_html(campaign, recipient_email=None, is_test=False):
         ">
             <tr>
                 <td align="center">
-                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="
+                    <table class="ar-container" role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="
                         width:100%;
                         max-width:1500px;
                         margin:0 auto;
@@ -515,11 +697,11 @@ def _render_hero_only_html(campaign, recipient_email=None, is_test=False):
                         </tr>
 
                         <tr>
-                            <td style="
+                            <td class="ar-hero-only-footer" style="
                                 background:#061741;
                                 padding:18px 30px 16px 30px;
                             ">
-                                <div style="
+                                <div class="ar-hero-only-note" style="
                                     font-size:14px;
                                     line-height:1.65;
                                     color:#d4def5;
@@ -528,7 +710,7 @@ def _render_hero_only_html(campaign, recipient_email=None, is_test=False):
                                     {footer_note}
                                 </div>
 
-                                <div style="
+                                <div class="ar-footer-small" style="
                                     font-size:13px;
                                     line-height:1.55;
                                     color:#9fb0d7;
@@ -537,14 +719,14 @@ def _render_hero_only_html(campaign, recipient_email=None, is_test=False):
                                     Official Arolana Marketplace communication · Products, vendors, and smart commerce updates.
                                 </div>
 
-                                <div style="font-size:13px;line-height:1.5;">
+                                <div class="ar-footer-small" style="font-size:13px;line-height:1.5;">
                                     <a href="{unsubscribe_link}" style="color:#ffd19d;text-decoration:underline;">Unsubscribe</a>
                                 </div>
                             </td>
                         </tr>
                     </table>
 
-                    <div style="
+                    <div class="ar-copy" style="
                         text-align:center;
                         font-size:12px;
                         color:#8695b1;
@@ -599,8 +781,8 @@ def _render_designed_html(campaign, recipient_email=None, is_test=False):
     if is_test:
         test_banner = """
         <tr>
-            <td style="padding:0 0 24px 0;">
-                <div style="
+            <td class="ar-test-wrap" style="padding:0 0 24px 0;">
+                <div class="ar-test" style="
                     background:#fff7ed;
                     color:#9a3412;
                     border:1px solid #fdba74;
@@ -618,8 +800,8 @@ def _render_designed_html(campaign, recipient_email=None, is_test=False):
 
     if hero_image_url:
         hero_image_block = f"""
-        <td width="56%" valign="middle" style="padding:0 34px 0 0;">
-            <img src="{hero_image_url}" alt="{headline}" width="820" style="
+        <td class="ar-stack ar-hero-img-cell" width="56%" valign="middle" style="padding:0 34px 0 0;">
+            <img class="ar-img" src="{hero_image_url}" alt="{headline}" width="820" style="
                 display:block;
                 width:100%;
                 max-width:820px;
@@ -634,8 +816,8 @@ def _render_designed_html(campaign, recipient_email=None, is_test=False):
         """
     else:
         hero_image_block = """
-        <td width="56%" valign="middle" style="padding:0 34px 0 0;">
-            <div style="
+        <td class="ar-stack ar-hero-img-cell" width="56%" valign="middle" style="padding:0 34px 0 0;">
+            <div class="ar-placeholder" style="
                 width:100%;
                 min-height:420px;
                 background:#eef2f7;
@@ -649,8 +831,8 @@ def _render_designed_html(campaign, recipient_email=None, is_test=False):
 
     if product_image_url:
         product_image_block = f"""
-        <td width="38%" valign="middle" style="padding:0 30px 0 0;">
-            <img src="{product_image_url}" alt="{product_title}" width="420" style="
+        <td class="ar-stack ar-product-img-cell" width="38%" valign="middle" style="padding:0 30px 0 0;">
+            <img class="ar-img" src="{product_image_url}" alt="{product_title}" width="420" style="
                 display:block;
                 width:100%;
                 max-width:420px;
@@ -671,7 +853,7 @@ def _render_designed_html(campaign, recipient_email=None, is_test=False):
     price_html = ""
     if product_price_text:
         price_html = f"""
-        <div style="
+        <div class="ar-price" style="
             font-size:32px;
             line-height:1.2;
             font-weight:900;
@@ -689,6 +871,7 @@ def _render_designed_html(campaign, recipient_email=None, is_test=False):
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>{subject}</title>
+        {_mobile_email_css()}
     </head>
 
     <body style="margin:0;padding:0;background:#edf2f8;font-family:Arial,Helvetica,sans-serif;">
@@ -703,14 +886,14 @@ def _render_designed_html(campaign, recipient_email=None, is_test=False):
         ">
             <tr>
                 <td align="center">
-                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="
+                    <table class="ar-container" role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="
                         width:100%;
                         max-width:1580px;
                         margin:0 auto;
                     ">
                         <tr>
                             <td style="padding:0;">
-                                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="
+                                <table class="ar-shell" role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="
                                     width:100%;
                                     background:#ffffff;
                                     border-radius:0;
@@ -718,12 +901,12 @@ def _render_designed_html(campaign, recipient_email=None, is_test=False):
                                 ">
 
                                     <tr>
-                                        <td style="
+                                        <td class="ar-header" style="
                                             background:#061741;
                                             padding:38px 54px 34px 54px;
                                             border-bottom:6px solid #ff7a00;
                                         ">
-                                            <div style="
+                                            <div class="ar-brand" style="
                                                 font-size:34px;
                                                 font-weight:900;
                                                 color:#ffffff;
@@ -733,7 +916,7 @@ def _render_designed_html(campaign, recipient_email=None, is_test=False):
                                                 {site_name}
                                             </div>
 
-                                            <div style="
+                                            <div class="ar-header-text" style="
                                                 padding-top:12px;
                                                 font-size:18px;
                                                 line-height:1.75;
@@ -745,17 +928,17 @@ def _render_designed_html(campaign, recipient_email=None, is_test=False):
                                     </tr>
 
                                     <tr>
-                                        <td style="padding:34px 54px 46px 54px;">
+                                        <td class="ar-body" style="padding:34px 54px 46px 54px;">
                                             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
                                                 {test_banner}
                                             </table>
 
-                                            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 42px 0;">
+                                            <table class="ar-hero-table" role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 42px 0;">
                                                 <tr>
                                                     {hero_image_block}
 
-                                                    <td width="44%" valign="middle">
-                                                        <div style="
+                                                    <td class="ar-stack" width="44%" valign="middle">
+                                                        <div class="ar-eyebrow" style="
                                                             padding:0 0 16px 0;
                                                             font-size:15px;
                                                             color:#ff7a00;
@@ -766,7 +949,7 @@ def _render_designed_html(campaign, recipient_email=None, is_test=False):
                                                             {eyebrow}
                                                         </div>
 
-                                                        <div style="
+                                                        <div class="ar-headline" style="
                                                             padding:0 0 20px 0;
                                                             font-size:46px;
                                                             line-height:1.06;
@@ -777,7 +960,7 @@ def _render_designed_html(campaign, recipient_email=None, is_test=False):
                                                             {headline}
                                                         </div>
 
-                                                        <div style="
+                                                        <div class="ar-subheadline" style="
                                                             padding:0 0 30px 0;
                                                             font-size:20px;
                                                             line-height:1.75;
@@ -788,10 +971,10 @@ def _render_designed_html(campaign, recipient_email=None, is_test=False):
 
                                                         <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                                                             <tr>
-                                                                <td style="padding:0 16px 14px 0;">
+                                                                <td class="ar-button-cell" style="padding:0 16px 14px 0;">
                                                                     {primary_button_html}
                                                                 </td>
-                                                                <td style="padding:0 0 14px 0;">
+                                                                <td class="ar-button-cell" style="padding:0 0 14px 0;">
                                                                     {secondary_button_html}
                                                                 </td>
                                                             </tr>
@@ -802,7 +985,7 @@ def _render_designed_html(campaign, recipient_email=None, is_test=False):
 
                                             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 42px 0;">
                                                 <tr>
-                                                    <td style="
+                                                    <td class="ar-content" style="
                                                         font-size:18px;
                                                         line-height:1.85;
                                                         color:#4f5f7a;
@@ -813,19 +996,19 @@ def _render_designed_html(campaign, recipient_email=None, is_test=False):
                                                 </tr>
                                             </table>
 
-                                            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="
+                                            <table class="ar-product-card" role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="
                                                 width:100%;
                                                 background:#f7f9fc;
                                                 border:1px solid #e5edf7;
                                                 border-radius:30px;
                                             ">
                                                 <tr>
-                                                    <td style="padding:36px;">
+                                                    <td class="ar-product-pad" style="padding:36px;">
                                                         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
                                                             <tr>
                                                                 {product_image_block}
 
-                                                                <td width="{product_text_width}" valign="middle">
+                                                                <td class="ar-stack" width="{product_text_width}" valign="middle">
                                                                     <div style="
                                                                         font-size:15px;
                                                                         font-weight:900;
@@ -837,7 +1020,7 @@ def _render_designed_html(campaign, recipient_email=None, is_test=False):
                                                                         Featured Product
                                                                     </div>
 
-                                                                    <div style="
+                                                                    <div class="ar-product-title" style="
                                                                         font-size:36px;
                                                                         line-height:1.18;
                                                                         font-weight:900;
@@ -848,7 +1031,7 @@ def _render_designed_html(campaign, recipient_email=None, is_test=False):
                                                                         {product_title}
                                                                     </div>
 
-                                                                    <div style="
+                                                                    <div class="ar-product-desc" style="
                                                                         font-size:19px;
                                                                         line-height:1.85;
                                                                         color:#5d6d89;
@@ -861,10 +1044,10 @@ def _render_designed_html(campaign, recipient_email=None, is_test=False):
 
                                                                     <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                                                                         <tr>
-                                                                            <td style="padding:0 16px 14px 0;">
+                                                                            <td class="ar-button-cell" style="padding:0 16px 14px 0;">
                                                                                 {primary_button_html}
                                                                             </td>
-                                                                            <td style="padding:0 0 14px 0;">
+                                                                            <td class="ar-button-cell" style="padding:0 0 14px 0;">
                                                                                 {secondary_button_html}
                                                                             </td>
                                                                         </tr>
@@ -881,11 +1064,11 @@ def _render_designed_html(campaign, recipient_email=None, is_test=False):
                                     </tr>
 
                                     <tr>
-                                        <td style="
+                                        <td class="ar-footer" style="
                                             background:#061741;
                                             padding:24px 42px 22px 42px;
                                         ">
-                                            <div style="
+                                            <div class="ar-footer-title" style="
                                                 font-size:20px;
                                                 line-height:1.25;
                                                 font-weight:900;
@@ -895,7 +1078,7 @@ def _render_designed_html(campaign, recipient_email=None, is_test=False):
                                                 {site_name}
                                             </div>
 
-                                            <div style="
+                                            <div class="ar-footer-note" style="
                                                 font-size:14px;
                                                 line-height:1.65;
                                                 color:#d4def5;
@@ -904,7 +1087,7 @@ def _render_designed_html(campaign, recipient_email=None, is_test=False):
                                                 {footer_note}
                                             </div>
 
-                                            <div style="
+                                            <div class="ar-footer-small" style="
                                                 font-size:13px;
                                                 line-height:1.55;
                                                 color:#9fb0d7;
@@ -913,14 +1096,14 @@ def _render_designed_html(campaign, recipient_email=None, is_test=False):
                                                 Official Arolana Marketplace communication · Products, vendors, and smart commerce updates.
                                             </div>
 
-                                            <div style="font-size:13px;line-height:1.5;">
+                                            <div class="ar-footer-small" style="font-size:13px;line-height:1.5;">
                                                 <a href="{unsubscribe_link}" style="color:#ffd19d;text-decoration:underline;">Unsubscribe</a>
                                             </div>
                                         </td>
                                     </tr>
                                 </table>
 
-                                <div style="
+                                <div class="ar-copy" style="
                                     text-align:center;
                                     font-size:12px;
                                     color:#8695b1;
