@@ -3,11 +3,21 @@ from urllib.parse import quote
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.utils import timezone
-from django.utils.html import strip_tags
 
 from accounts.models import User
 
 from .models import EmailAudienceMember, NewsletterSubscriber
+
+
+# ==========================================================
+# AROLANA NEWSLETTER EMAIL ENGINE
+# Premium designed email renderer for:
+# - Product announcements
+# - Launch news
+# - Marketplace updates
+# - Vendor promotions
+# - General newsletter campaigns
+# ==========================================================
 
 
 def get_site_url():
@@ -15,6 +25,10 @@ def get_site_url():
 
 
 def absolute_url(url):
+    """
+    Convert relative URLs like /media/... or /products/... into full public URLs.
+    Gmail needs full HTTPS URLs for images and links.
+    """
     if not url:
         return ""
 
@@ -31,35 +45,49 @@ def absolute_url(url):
 
 def file_field_url(file_field):
     """
-    Email images must be public HTTPS URLs.
-    This converts uploaded admin images to full https://arolana.com/media/... URLs.
+    Convert uploaded admin ImageField/FileField into public absolute URL.
+
+    Example:
+    /media/newsletter/campaigns/hero/banner.webp
+    becomes:
+    https://arolana.com/media/newsletter/campaigns/hero/banner.webp
     """
     try:
         if file_field and file_field.url:
             return absolute_url(file_field.url)
     except Exception:
         return ""
+
     return ""
 
 
 def campaign_image_url(campaign, upload_field_name, url_field_name):
     """
-    Priority:
-    1. Uploaded image in admin
+    Image priority:
+    1. Uploaded admin image field
     2. Manual image URL field
+
+    This fixes the Gmail broken image issue when you upload images in admin.
     """
     uploaded = file_field_url(getattr(campaign, upload_field_name, None))
     if uploaded:
         return uploaded
 
-    manual = str(getattr(campaign, url_field_name, "") or "").strip()
-    if manual:
-        return absolute_url(manual)
+    manual_url = str(getattr(campaign, url_field_name, "") or "").strip()
+    if manual_url:
+        return absolute_url(manual_url)
 
     return ""
 
 
-def upsert_email_audience(email, name="", source="manual", user=None, subscriber=None, accepts_promos=None):
+def upsert_email_audience(
+    email,
+    name="",
+    source="manual",
+    user=None,
+    subscriber=None,
+    accepts_promos=None,
+):
     if not email:
         return None
 
@@ -163,6 +191,7 @@ def campaign_recipient_emails(campaign):
 def _clean(value, default=""):
     if value is None:
         return default
+
     value = str(value).strip()
     return value or default
 
@@ -172,17 +201,22 @@ def _is_public_image(url):
     return url.startswith("https://") or url.startswith("http://")
 
 
-def _paragraphs(text):
+def _safe_text_to_html(text, max_paragraphs=4):
+    """
+    Converts plain text content into clean email paragraphs.
+    Keeps the email premium by limiting long blocks.
+    """
     text = _clean(text)
+
     if not text:
         return ""
 
-    parts = [p.strip() for p in text.split("\n") if p.strip()]
+    paragraphs = [p.strip() for p in text.split("\n") if p.strip()]
     html = ""
 
-    for paragraph in parts[:4]:
+    for paragraph in paragraphs[:max_paragraphs]:
         html += f"""
-        <p style="margin:0 0 18px 0;font-size:16px;line-height:1.75;color:#516179;">
+        <p style="margin:0 0 18px 0;font-size:17px;line-height:1.82;color:#516179;">
             {paragraph}
         </p>
         """
@@ -206,9 +240,11 @@ def _button(url, text, filled=True):
             text-decoration:none;
             font-weight:900;
             font-size:15px;
-            padding:15px 28px;
+            line-height:1;
+            padding:16px 30px;
             border-radius:999px;
             border:1px solid #ff7a00;
+            box-shadow:0 10px 24px rgba(255,122,0,0.28);
         ">
             {text}
         </a>
@@ -218,13 +254,14 @@ def _button(url, text, filled=True):
     <a href="{url}" style="
         display:inline-block;
         background:#ffffff;
-        color:#0f3fff;
+        color:#164cff;
         text-decoration:none;
         font-weight:900;
         font-size:15px;
-        padding:14px 24px;
+        line-height:1;
+        padding:15px 26px;
         border-radius:999px;
-        border:2px solid #0f3fff;
+        border:2px solid #164cff;
     ">
         {text}
     </a>
@@ -250,10 +287,21 @@ def _render_luxury_campaign_html(campaign, recipient_email=None, is_test=False):
     content = _clean(getattr(campaign, "content", ""))
     html_content = _clean(getattr(campaign, "html_content", ""))
 
-    hero_image_url = campaign_image_url(campaign, "hero_image", "hero_image_url")
-    product_image_url = campaign_image_url(campaign, "product_image", "product_image_url")
+    hero_image_url = campaign_image_url(
+        campaign,
+        "hero_image",
+        "hero_image_url",
+    )
+    product_image_url = campaign_image_url(
+        campaign,
+        "product_image",
+        "product_image_url",
+    )
 
-    product_title = _clean(getattr(campaign, "product_title", ""), "Featured Product")
+    product_title = _clean(
+        getattr(campaign, "product_title", ""),
+        "Featured Product",
+    )
     product_price_text = _clean(getattr(campaign, "product_price_text", ""))
     product_description = _clean(
         getattr(campaign, "product_description", ""),
@@ -263,8 +311,14 @@ def _render_luxury_campaign_html(campaign, recipient_email=None, is_test=False):
     button_text = _clean(getattr(campaign, "button_text", ""), "View Product")
     button_url = _clean(getattr(campaign, "button_url", ""), site_url)
 
-    secondary_button_text = _clean(getattr(campaign, "secondary_button_text", ""), "Visit Arolana")
-    secondary_button_url = _clean(getattr(campaign, "secondary_button_url", ""), site_url)
+    secondary_button_text = _clean(
+        getattr(campaign, "secondary_button_text", ""),
+        "Visit Arolana",
+    )
+    secondary_button_url = _clean(
+        getattr(campaign, "secondary_button_url", ""),
+        site_url,
+    )
 
     footer_note = _clean(
         getattr(campaign, "footer_note", ""),
@@ -272,60 +326,23 @@ def _render_luxury_campaign_html(campaign, recipient_email=None, is_test=False):
     )
 
     unsubscribe_email = quote(recipient_email or "")
-    unsubscribe_link = f"{site_url}/newsletter/unsubscribe/{unsubscribe_email}/" if recipient_email else site_url
-
-    hero_block = ""
-    if _is_public_image(hero_image_url):
-        hero_block = f"""
-        <tr>
-            <td>
-                <img src="{hero_image_url}" alt="{headline}" width="680" style="
-                    width:100%;
-                    max-width:680px;
-                    display:block;
-                    border:0;
-                    border-radius:26px;
-                ">
-            </td>
-        </tr>
-        """
-
-    product_image_block = ""
-    if _is_public_image(product_image_url):
-        product_image_block = f"""
-        <tr>
-            <td align="center" style="padding:0 0 22px 0;">
-                <img src="{product_image_url}" alt="{product_title}" width="420" style="
-                    width:100%;
-                    max-width:420px;
-                    display:block;
-                    border:0;
-                    border-radius:22px;
-                    background:#ffffff;
-                ">
-            </td>
-        </tr>
-        """
-
-    price_block = ""
-    if product_price_text:
-        price_block = f"""
-        <div style="font-size:24px;line-height:1.2;font-weight:900;color:#0a1433;margin-top:14px;">
-            {product_price_text}
-        </div>
-        """
+    unsubscribe_link = (
+        f"{site_url}/newsletter/unsubscribe/{unsubscribe_email}/"
+        if recipient_email
+        else site_url
+    )
 
     test_banner = ""
     if is_test:
         test_banner = """
         <tr>
-            <td style="padding:0 0 18px 0;">
+            <td style="padding:0 0 22px 0;">
                 <div style="
                     background:#fff7ed;
                     color:#9a3412;
                     border:1px solid #fdba74;
                     border-radius:16px;
-                    padding:14px 18px;
+                    padding:15px 18px;
                     font-size:14px;
                     font-weight:900;
                     letter-spacing:0.2px;
@@ -336,14 +353,67 @@ def _render_luxury_campaign_html(campaign, recipient_email=None, is_test=False):
         </tr>
         """
 
-    content_html = _paragraphs(content)
+    hero_block = ""
+    if _is_public_image(hero_image_url):
+        hero_block = f"""
+        <tr>
+            <td style="padding:0 0 28px 0;">
+                <img src="{hero_image_url}" alt="{headline}" width="900" style="
+                    width:100%;
+                    max-width:900px;
+                    height:auto;
+                    display:block;
+                    border:0;
+                    outline:none;
+                    text-decoration:none;
+                    border-radius:28px;
+                ">
+            </td>
+        </tr>
+        """
+
+    product_image_cell = ""
+    if _is_public_image(product_image_url):
+        product_image_cell = f"""
+        <td width="42%" valign="top" style="padding:0 28px 0 0;">
+            <img src="{product_image_url}" alt="{product_title}" width="340" style="
+                width:100%;
+                max-width:340px;
+                height:auto;
+                display:block;
+                border:0;
+                outline:none;
+                text-decoration:none;
+                border-radius:24px;
+                background:#ffffff;
+            ">
+        </td>
+        """
+
+    price_block = ""
+    if product_price_text:
+        price_block = f"""
+        <div style="
+            font-size:26px;
+            line-height:1.2;
+            font-weight:900;
+            color:#07122d;
+            margin:18px 0 0 0;
+        ">
+            {product_price_text}
+        </div>
+        """
+
+    content_html = _safe_text_to_html(content)
 
     if not content_html:
         content_html = """
-        <p style="margin:0 0 18px 0;font-size:16px;line-height:1.75;color:#516179;">
+        <p style="margin:0 0 18px 0;font-size:17px;line-height:1.82;color:#516179;">
             Discover a more refined way to shop premium products from trusted vendors on Arolana.
         </p>
         """
+
+    product_text_width = "58%" if product_image_cell else "100%"
 
     html = f"""<!doctype html>
 <html>
@@ -352,102 +422,144 @@ def _render_luxury_campaign_html(campaign, recipient_email=None, is_test=False):
     <meta name="viewport" content="width=device-width">
     <title>{subject}</title>
 </head>
+
 <body style="margin:0;padding:0;background:#eef2f8;font-family:Arial,Helvetica,sans-serif;">
     <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
         {preheader}
     </div>
 
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f8;padding:24px 10px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="
+        background:#eef2f8;
+        padding:28px 10px;
+        margin:0;
+    ">
         <tr>
             <td align="center">
 
-                <table role="presentation" width="680" cellpadding="0" cellspacing="0" style="
-                    width:100%;
-                    max-width:680px;
+                <table role="presentation" width="960" cellpadding="0" cellspacing="0" style="
+                    width:96%;
+                    max-width:960px;
                     background:#ffffff;
-                    border-radius:30px;
+                    border-radius:34px;
                     overflow:hidden;
-                    box-shadow:0 18px 50px rgba(8,18,45,0.10);
+                    box-shadow:0 20px 60px rgba(8,18,45,0.12);
                 ">
 
                     <tr>
                         <td style="
                             background:#08142f;
-                            padding:30px 28px;
-                            border-bottom:4px solid #ff7a00;
+                            padding:36px 42px;
+                            border-bottom:5px solid #ff7a00;
                         ">
-                            <div style="font-size:30px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">
+                            <div style="
+                                font-size:34px;
+                                font-weight:900;
+                                color:#ffffff;
+                                letter-spacing:-0.6px;
+                                line-height:1.1;
+                            ">
                                 Arolana
                             </div>
-                            <div style="font-size:14px;line-height:1.7;color:#cbd7f5;margin-top:8px;">
+
+                            <div style="
+                                font-size:15px;
+                                line-height:1.7;
+                                color:#cbd7f5;
+                                margin-top:10px;
+                                max-width:760px;
+                            ">
                                 Premium marketplace updates, featured products, trusted vendors, and smart buying opportunities.
                             </div>
                         </td>
                     </tr>
 
                     <tr>
-                        <td style="padding:28px;">
+                        <td style="padding:38px 42px 42px 42px;">
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+
                                 {test_banner}
+
                                 {hero_block}
 
                                 <tr>
-                                    <td style="padding:{'26px 0 0 0' if hero_block else '0'};">
+                                    <td>
                                         <div style="
                                             color:#ff7a00;
                                             font-size:13px;
                                             font-weight:900;
-                                            letter-spacing:2px;
+                                            letter-spacing:2.4px;
                                             text-transform:uppercase;
-                                            margin-bottom:12px;
+                                            margin-bottom:14px;
                                         ">
                                             {eyebrow}
                                         </div>
 
                                         <h1 style="
-                                            margin:0 0 14px 0;
+                                            margin:0 0 16px 0;
                                             color:#07122d;
-                                            font-size:38px;
-                                            line-height:1.12;
+                                            font-size:42px;
+                                            line-height:1.08;
                                             font-weight:900;
-                                            letter-spacing:-1px;
+                                            letter-spacing:-1.2px;
+                                            max-width:820px;
                                         ">
                                             {headline}
                                         </h1>
 
                                         <div style="
                                             color:#60708a;
-                                            font-size:17px;
-                                            line-height:1.65;
-                                            margin-bottom:24px;
+                                            font-size:18px;
+                                            line-height:1.7;
+                                            margin-bottom:28px;
+                                            max-width:820px;
                                         ">
                                             {subheadline}
                                         </div>
 
-                                        {content_html}
+                                        <div style="max-width:820px;">
+                                            {content_html}
+                                        </div>
                                     </td>
                                 </tr>
 
                                 <tr>
-                                    <td style="padding:10px 0 26px 0;">
+                                    <td style="padding:16px 0 34px 0;">
                                         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="
                                             background:#f7f9fd;
-                                            border:1px solid #e3eaf5;
-                                            border-radius:26px;
+                                            border:1px solid #e2eaf6;
+                                            border-radius:30px;
                                         ">
                                             <tr>
-                                                <td style="padding:26px;">
-                                                    {product_image_block}
+                                                <td style="padding:34px;">
+                                                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                                        <tr>
+                                                            {product_image_cell}
 
-                                                    <div style="font-size:24px;line-height:1.25;font-weight:900;color:#07122d;margin-bottom:12px;">
-                                                        {product_title}
-                                                    </div>
+                                                            <td width="{product_text_width}" valign="top" style="padding:0;">
+                                                                <div style="
+                                                                    font-size:28px;
+                                                                    line-height:1.2;
+                                                                    font-weight:900;
+                                                                    color:#07122d;
+                                                                    margin:0 0 14px 0;
+                                                                    letter-spacing:-0.4px;
+                                                                ">
+                                                                    {product_title}
+                                                                </div>
 
-                                                    <div style="font-size:16px;line-height:1.75;color:#60708a;">
-                                                        {product_description}
-                                                    </div>
+                                                                <div style="
+                                                                    font-size:17px;
+                                                                    line-height:1.78;
+                                                                    color:#60708a;
+                                                                    margin:0;
+                                                                ">
+                                                                    {product_description}
+                                                                </div>
 
-                                                    {price_block}
+                                                                {price_block}
+                                                            </td>
+                                                        </tr>
+                                                    </table>
                                                 </td>
                                             </tr>
                                         </table>
@@ -455,13 +567,14 @@ def _render_luxury_campaign_html(campaign, recipient_email=None, is_test=False):
                                 </tr>
 
                                 <tr>
-                                    <td style="padding:0 0 24px 0;">
+                                    <td style="padding:0 0 30px 0;">
                                         <table role="presentation" cellpadding="0" cellspacing="0">
                                             <tr>
-                                                <td style="padding:0 12px 12px 0;">
+                                                <td style="padding:0 14px 14px 0;">
                                                     {_button(button_url, button_text, filled=True)}
                                                 </td>
-                                                <td style="padding:0 0 12px 0;">
+
+                                                <td style="padding:0 0 14px 0;">
                                                     {_button(secondary_button_url, secondary_button_text, filled=False)}
                                                 </td>
                                             </tr>
@@ -470,34 +583,64 @@ def _render_luxury_campaign_html(campaign, recipient_email=None, is_test=False):
                                 </tr>
 
                                 {html_content if html_content else ""}
+
                             </table>
                         </td>
                     </tr>
 
                     <tr>
-                        <td style="background:#07122d;padding:30px 28px;">
-                            <div style="font-size:22px;font-weight:900;color:#ffffff;margin-bottom:12px;">
+                        <td style="
+                            background:#07122d;
+                            padding:36px 42px;
+                        ">
+                            <div style="
+                                font-size:24px;
+                                font-weight:900;
+                                color:#ffffff;
+                                margin-bottom:12px;
+                            ">
                                 Arolana
                             </div>
 
-                            <div style="font-size:15px;line-height:1.75;color:#d6def3;margin-bottom:14px;">
+                            <div style="
+                                font-size:15px;
+                                line-height:1.78;
+                                color:#d6def3;
+                                margin-bottom:14px;
+                                max-width:760px;
+                            ">
                                 {footer_note}
                             </div>
 
-                            <div style="font-size:14px;line-height:1.7;color:#9fb0d7;margin-bottom:12px;">
+                            <div style="
+                                font-size:14px;
+                                line-height:1.7;
+                                color:#9fb0d7;
+                                margin-bottom:12px;
+                            ">
                                 Arolana Marketplace · Products, vendors, and smart commerce updates.
                             </div>
 
-                            <a href="{unsubscribe_link}" style="font-size:14px;color:#ffd19d;text-decoration:underline;">
+                            <a href="{unsubscribe_link}" style="
+                                font-size:14px;
+                                color:#ffd19d;
+                                text-decoration:underline;
+                            ">
                                 Unsubscribe
                             </a>
                         </td>
                     </tr>
                 </table>
 
-                <div style="font-size:12px;color:#8b98b3;text-align:center;padding:18px 8px 0;">
+                <div style="
+                    font-size:12px;
+                    color:#8b98b3;
+                    text-align:center;
+                    padding:18px 8px 0;
+                ">
                     © Arolana. All rights reserved.
                 </div>
+
             </td>
         </tr>
     </table>
@@ -508,6 +651,9 @@ def _render_luxury_campaign_html(campaign, recipient_email=None, is_test=False):
 
 
 def render_campaign_html(campaign, recipient_email=None, tracking=None, is_test=False):
+    """
+    Public wrapper used by newsletter/admin.py for admin email preview.
+    """
     return _render_luxury_campaign_html(
         campaign=campaign,
         recipient_email=recipient_email,
@@ -627,7 +773,14 @@ def send_campaign(campaign):
     campaign.sent_at = timezone.now()
     campaign.last_sent_at = campaign.sent_at
 
-    update_fields = ["sent_count", "status", "sent_at", "last_sent_at", "updated_at"]
+    update_fields = [
+        "sent_count",
+        "status",
+        "sent_at",
+        "last_sent_at",
+        "updated_at",
+    ]
+
     if hasattr(campaign, "failed_count"):
         update_fields.append("failed_count")
 
