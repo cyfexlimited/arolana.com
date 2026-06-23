@@ -441,9 +441,9 @@ def _render_luxury_campaign_html(campaign, recipient_email=None, is_test=False):
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#edf2f8; margin:0; padding:18px 0;">
             <tr>
                 <td align="center">
-                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%; max-width:1280px; margin:0 auto;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%; max-width:1500px; margin:0 auto;">
                         <tr>
-                            <td style="padding:0 12px;">
+                            <td style="padding:0;">
 
                                 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="
                                     width:100%;
@@ -473,7 +473,7 @@ def _render_luxury_campaign_html(campaign, recipient_email=None, is_test=False):
                                     </tr>
 
                                     <tr>
-                                        <td style="padding:32px 38px 40px 38px;">
+                                        <td style="padding:32px 24px 40px 24px;">
                                             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
                                                 {test_banner}
                                             </table>
