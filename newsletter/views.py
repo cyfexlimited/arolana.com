@@ -25,6 +25,12 @@ def clean_email(email):
     return str(email or "").strip().lower()
 
 
+def clean_source(source):
+    source = str(source or "homepage").strip().lower()
+    allowed_sources = {choice[0] for choice in NewsletterSubscriber.SOURCE_CHOICES}
+    return source if source in allowed_sources else "other"
+
+
 def subscribe(request):
     """Handle newsletter subscription form submission."""
     if request.method != "POST":
@@ -32,7 +38,7 @@ def subscribe(request):
 
     email = clean_email(request.POST.get("email", ""))
     name = request.POST.get("name", "").strip()
-    source = request.POST.get("source", "homepage").strip() or "homepage"
+    source = clean_source(request.POST.get("source", "homepage"))
     next_url = request.POST.get("next", "/") or "/"
 
     if not email:
@@ -100,7 +106,11 @@ def subscribe(request):
 
         subscriber.is_active = True
         subscriber.unsubscribed_at = None
-        subscriber.save()
+
+        if changed:
+            subscriber.save(update_fields=["name", "source", "is_active", "unsubscribed_at", "updated_at"])
+        else:
+            subscriber.save(update_fields=["is_active", "unsubscribed_at", "updated_at"])
 
         upsert_email_audience(
             email,
@@ -152,11 +162,11 @@ def api_subscribe(request):
             data = json.loads(request.body or "{}")
             email = clean_email(data.get("email", ""))
             name = str(data.get("name", "")).strip()
-            source = str(data.get("source", "api")).strip() or "api"
+            source = clean_source(data.get("source", "api"))
         else:
             email = clean_email(request.POST.get("email", ""))
             name = request.POST.get("name", "").strip()
-            source = request.POST.get("source", "api").strip() or "api"
+            source = clean_source(request.POST.get("source", "api"))
 
         if not email:
             return JsonResponse(
@@ -213,7 +223,11 @@ def api_subscribe(request):
 
             subscriber.is_active = True
             subscriber.unsubscribed_at = None
-            subscriber.save()
+
+            if changed:
+                subscriber.save(update_fields=["name", "source", "is_active", "unsubscribed_at", "updated_at"])
+            else:
+                subscriber.save(update_fields=["is_active", "unsubscribed_at", "updated_at"])
 
             upsert_email_audience(
                 email,
@@ -294,7 +308,7 @@ def unsubscribe_token(request, token):
 def track_open(request, tracking_id):
     """Track email opens."""
     try:
-        tracking = NewsletterTracking.objects.get(id=tracking_id)
+        tracking = NewsletterTracking.objects.select_related("campaign").get(id=tracking_id)
 
         if not tracking.opened_at:
             tracking.opened_at = timezone.now()
@@ -354,14 +368,14 @@ def campaign_create(request):
     """
     Staff campaign create page.
 
-    Admin is still the recommended way to create designed campaigns:
+    Admin is still the recommended way:
     Admin → Newsletter → Newsletter campaigns.
-    This view supports the upgraded fields too.
     """
     if request.method == "POST":
         campaign = NewsletterCampaign.objects.create(
             name=request.POST.get("name", "").strip(),
             campaign_type=request.POST.get("campaign_type", "general"),
+            hero_only=bool(request.POST.get("hero_only")),
             subject=request.POST.get("subject", "").strip(),
             preheader=request.POST.get("preheader", "").strip(),
             eyebrow=request.POST.get("eyebrow", "").strip(),

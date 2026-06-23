@@ -10,21 +10,6 @@ from accounts.models import User
 from .models import EmailAudienceMember, NewsletterSubscriber
 
 
-# ==========================================================
-# AROLANA NEWSLETTER EMAIL ENGINE
-# Premium wide email renderer for:
-# - Product announcements
-# - Launch news
-# - Marketplace updates
-# - Vendor promotions
-# - General newsletter campaigns
-#
-# Important image rule:
-# Gmail can only show images that are public HTTPS direct image URLs.
-# Uploaded admin images must be publicly served through /media/.
-# ==========================================================
-
-
 IMAGE_EXTENSIONS = (
     ".webp",
     ".jpg",
@@ -161,13 +146,6 @@ def _site_url():
 
 
 def _absolute_url(value):
-    """
-    Converts relative paths to full public URLs.
-
-    Examples:
-    /media/newsletter/x.webp -> https://arolana.com/media/newsletter/x.webp
-    /products/item/ -> https://arolana.com/products/item/
-    """
     value = _clean(value)
 
     if not value:
@@ -186,24 +164,16 @@ def _absolute_url(value):
 
 
 def _looks_like_image_url(url):
-    """
-    Prevent product/category/page URLs from being used as email images.
-    """
     url = _clean(url)
 
     if not url:
         return False
 
     clean_url = url.split("?")[0].split("#")[0].lower()
-
     return clean_url.endswith(IMAGE_EXTENSIONS)
 
 
 def _resolve_file_field_url(campaign, field_name):
-    """
-    Resolve uploaded ImageField/FileField into public absolute URL.
-    Uploaded fields are trusted first because they are real files.
-    """
     try:
         file_field = getattr(campaign, field_name, None)
     except Exception:
@@ -223,12 +193,6 @@ def _resolve_file_field_url(campaign, field_name):
 
 
 def _resolve_image_url_field(campaign, field_name):
-    """
-    Resolve manual URL field only if it is a real direct image URL.
-    This blocks wrong values like:
-    https://arolana.com/products/...
-    https://arolana.com/products/category/...
-    """
     try:
         value = getattr(campaign, field_name, "")
     except Exception:
@@ -244,11 +208,11 @@ def _resolve_image_url_field(campaign, field_name):
 
 def _resolve_campaign_image_url(campaign, upload_fields=None, url_fields=None):
     """
-    Image priority:
-    1. Uploaded admin image fields from PC.
-    2. Manual direct image URL fields.
+    Priority:
+    1. Uploaded admin image from PC.
+    2. Manual direct image URL.
 
-    Product/category page URLs are ignored.
+    Product/category/page URLs are ignored.
     """
     upload_fields = upload_fields or []
     url_fields = url_fields or []
@@ -378,8 +342,7 @@ def _campaign_plain_text(campaign, is_test=False):
     return "\n".join(lines).strip()
 
 
-def _render_luxury_campaign_html(campaign, recipient_email=None, is_test=False):
-    site_name = "Arolana"
+def _common_campaign_values(campaign, recipient_email=None):
     site_url = _site_url()
 
     subject = _html(getattr(campaign, "subject", ""), "Arolana Update")
@@ -395,43 +358,16 @@ def _render_luxury_campaign_html(campaign, recipient_email=None, is_test=False):
         "Premium technology for boardrooms, offices, schools, churches, and modern business spaces.",
     )
 
-    content = _clean(getattr(campaign, "content", ""))
-    extra_html_content = _clean(getattr(campaign, "html_content", ""))
-
-    # Uploaded images from PC are now first priority.
-    # URL fields are only used if they are direct image URLs.
     hero_image_url = _resolve_campaign_image_url(
         campaign,
-        upload_fields=[
-            "hero_image",
-            "featured_image",
-        ],
-        url_fields=[
-            "hero_image_url",
-            "featured_image_url",
-        ],
+        upload_fields=["hero_image"],
+        url_fields=["hero_image_url"],
     )
 
     product_image_url = _resolve_campaign_image_url(
         campaign,
-        upload_fields=[
-            "product_image",
-        ],
-        url_fields=[
-            "product_image_url",
-        ],
-    )
-
-    product_title = _html(
-        getattr(campaign, "product_title", ""),
-        _clean(headline) or "Featured Product",
-    )
-
-    product_price_text = _html(getattr(campaign, "product_price_text", ""))
-
-    product_description = _html(
-        getattr(campaign, "product_description", ""),
-        "A premium professional solution for serious buyers looking for quality, performance, and reliability.",
+        upload_fields=["product_image"],
+        url_fields=["product_image_url"],
     )
 
     button_text = _clean(getattr(campaign, "button_text", ""), "View Product")
@@ -450,6 +386,198 @@ def _render_luxury_campaign_html(campaign, recipient_email=None, is_test=False):
         f"{site_url}/newsletter/unsubscribe/{unsubscribe_email}/"
         if recipient_email
         else f"{site_url}/"
+    )
+
+    return {
+        "site_url": site_url,
+        "subject": subject,
+        "preheader": preheader,
+        "eyebrow": eyebrow,
+        "headline": headline,
+        "subheadline": subheadline,
+        "hero_image_url": hero_image_url,
+        "product_image_url": product_image_url,
+        "button_text": button_text,
+        "button_url": button_url,
+        "secondary_button_text": secondary_button_text,
+        "secondary_button_url": secondary_button_url,
+        "footer_note": footer_note,
+        "unsubscribe_link": unsubscribe_link,
+    }
+
+
+def _render_hero_only_html(campaign, recipient_email=None, is_test=False):
+    values = _common_campaign_values(campaign, recipient_email=recipient_email)
+
+    subject = values["subject"]
+    preheader = values["preheader"]
+    headline = values["headline"]
+    hero_image_url = values["hero_image_url"] or values["product_image_url"]
+    button_url = values["button_url"]
+    footer_note = values["footer_note"]
+    unsubscribe_link = values["unsubscribe_link"]
+
+    test_banner = ""
+    if is_test:
+        test_banner = """
+        <tr>
+            <td style="padding:0;">
+                <div style="
+                    background:#fff7ed;
+                    color:#9a3412;
+                    border-bottom:1px solid #fdba74;
+                    padding:16px 28px;
+                    font-size:16px;
+                    font-weight:900;
+                    letter-spacing:0.2px;
+                ">
+                    TEST EMAIL — not sent to subscribers yet.
+                </div>
+            </td>
+        </tr>
+        """
+
+    if hero_image_url:
+        hero_block = f"""
+        <a href="{button_url}" style="display:block;text-decoration:none;">
+            <img src="{hero_image_url}" alt="{headline}" width="1500" style="
+                display:block;
+                width:100%;
+                max-width:1500px;
+                height:auto;
+                border:0;
+                outline:none;
+                text-decoration:none;
+            ">
+        </a>
+        """
+    else:
+        hero_block = f"""
+        <div style="
+            background:#f3f6fb;
+            padding:100px 32px;
+            text-align:center;
+            color:#081738;
+            font-size:34px;
+            line-height:1.25;
+            font-weight:900;
+        ">
+            {headline}
+            <div style="
+                color:#66758f;
+                font-size:18px;
+                line-height:1.7;
+                font-weight:400;
+                margin-top:18px;
+            ">
+                Upload a hero image or add a direct hero image URL to show the full banner.
+            </div>
+        </div>
+        """
+
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{subject}</title>
+    </head>
+
+    <body style="margin:0;padding:0;background:#edf2f8;font-family:Arial,Helvetica,sans-serif;">
+        <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
+            {preheader}
+        </div>
+
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="
+            background:#edf2f8;
+            margin:0;
+            padding:0;
+        ">
+            <tr>
+                <td align="center">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="
+                        width:100%;
+                        max-width:1500px;
+                        margin:0 auto;
+                        background:#ffffff;
+                    ">
+                        {test_banner}
+
+                        <tr>
+                            <td style="padding:0;">
+                                {hero_block}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="
+                                background:#061741;
+                                padding:26px 34px;
+                            ">
+                                <div style="
+                                    font-size:16px;
+                                    line-height:1.8;
+                                    color:#d4def5;
+                                    margin:0 0 12px 0;
+                                ">
+                                    {footer_note}
+                                </div>
+
+                                <div style="font-size:15px;line-height:1.8;">
+                                    <a href="{unsubscribe_link}" style="color:#ffd19d;text-decoration:underline;">Unsubscribe</a>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <div style="
+                        text-align:center;
+                        font-size:13px;
+                        color:#8695b1;
+                        padding:16px 10px;
+                    ">
+                        © Arolana. All rights reserved.
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+
+
+def _render_designed_html(campaign, recipient_email=None, is_test=False):
+    values = _common_campaign_values(campaign, recipient_email=recipient_email)
+
+    site_name = "Arolana"
+    subject = values["subject"]
+    preheader = values["preheader"]
+    eyebrow = values["eyebrow"]
+    headline = values["headline"]
+    subheadline = values["subheadline"]
+    hero_image_url = values["hero_image_url"]
+    product_image_url = values["product_image_url"]
+    button_text = values["button_text"]
+    button_url = values["button_url"]
+    secondary_button_text = values["secondary_button_text"]
+    secondary_button_url = values["secondary_button_url"]
+    footer_note = values["footer_note"]
+    unsubscribe_link = values["unsubscribe_link"]
+
+    content = _clean(getattr(campaign, "content", ""))
+    extra_html_content = _clean(getattr(campaign, "html_content", ""))
+
+    product_title = _html(
+        getattr(campaign, "product_title", ""),
+        _clean(headline) or "Featured Product",
+    )
+
+    product_price_text = _html(getattr(campaign, "product_price_text", ""))
+
+    product_description = _html(
+        getattr(campaign, "product_description", ""),
+        "A premium professional solution for serious buyers looking for quality, performance, and reliability.",
     )
 
     content_html = _paragraphs_to_html(content)
@@ -541,7 +669,7 @@ def _render_luxury_campaign_html(campaign, recipient_email=None, is_test=False):
         </div>
         """
 
-    html = f"""
+    return f"""
     <!DOCTYPE html>
     <html>
     <head>
@@ -562,7 +690,6 @@ def _render_luxury_campaign_html(campaign, recipient_email=None, is_test=False):
         ">
             <tr>
                 <td align="center">
-
                     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="
                         width:100%;
                         max-width:1580px;
@@ -570,7 +697,6 @@ def _render_luxury_campaign_html(campaign, recipient_email=None, is_test=False):
                     ">
                         <tr>
                             <td style="padding:0;">
-
                                 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="
                                     width:100%;
                                     background:#ffffff;
@@ -789,11 +915,9 @@ def _render_luxury_campaign_html(campaign, recipient_email=None, is_test=False):
                                 ">
                                     © Arolana. All rights reserved.
                                 </div>
-
                             </td>
                         </tr>
                     </table>
-
                 </td>
             </tr>
         </table>
@@ -801,7 +925,20 @@ def _render_luxury_campaign_html(campaign, recipient_email=None, is_test=False):
     </html>
     """
 
-    return html
+
+def _render_luxury_campaign_html(campaign, recipient_email=None, is_test=False):
+    if bool(getattr(campaign, "hero_only", False)):
+        return _render_hero_only_html(
+            campaign,
+            recipient_email=recipient_email,
+            is_test=is_test,
+        )
+
+    return _render_designed_html(
+        campaign,
+        recipient_email=recipient_email,
+        is_test=is_test,
+    )
 
 
 def _send_single_email(subject, plain_text, html_body, recipient):
@@ -875,25 +1012,20 @@ def send_campaign(campaign):
             failed_count += 1
 
     campaign.sent_count = (campaign.sent_count or 0) + sent_count
-
-    if hasattr(campaign, "failed_count"):
-        campaign.failed_count = (campaign.failed_count or 0) + failed_count
-
+    campaign.failed_count = (campaign.failed_count or 0) + failed_count
     campaign.status = "sent"
     campaign.sent_at = timezone.now()
     campaign.last_sent_at = campaign.sent_at
 
-    update_fields = [
-        "sent_count",
-        "status",
-        "sent_at",
-        "last_sent_at",
-        "updated_at",
-    ]
-
-    if hasattr(campaign, "failed_count"):
-        update_fields.append("failed_count")
-
-    campaign.save(update_fields=update_fields)
+    campaign.save(
+        update_fields=[
+            "sent_count",
+            "failed_count",
+            "status",
+            "sent_at",
+            "last_sent_at",
+            "updated_at",
+        ]
+    )
 
     return sent_count

@@ -91,6 +91,7 @@ class NewsletterCampaign(BaseModel):
 
     name = models.CharField(max_length=200)
     subject = models.CharField(max_length=200)
+
     preheader = models.CharField(
         max_length=220,
         blank=True,
@@ -124,17 +125,28 @@ class NewsletterCampaign(BaseModel):
         default="once",
     )
 
+    # Layout control
+    hero_only = models.BooleanField(
+        default=False,
+        help_text=(
+            "Turn this on when you want the email to be one big designed promotional image. "
+            "Best for luxury product campaigns, launch banners, and image-led ads."
+        ),
+    )
+
     # Designed email content
     eyebrow = models.CharField(
         max_length=120,
         blank=True,
         help_text="Small label above headline. Example: New Product, Vendor Update, Launch News.",
     )
+
     headline = models.CharField(
         max_length=220,
         blank=True,
         help_text="Main email headline.",
     )
+
     subheadline = models.TextField(
         blank=True,
         help_text="Short supporting message under headline.",
@@ -146,7 +158,7 @@ class NewsletterCampaign(BaseModel):
 
     html_content = models.TextField(
         blank=True,
-        help_text="Optional custom HTML. If filled, it can be used as extra body content inside the designed template.",
+        help_text="Optional custom HTML. Used as extra body content inside the designed template.",
     )
 
     hero_image = models.ImageField(
@@ -155,9 +167,13 @@ class NewsletterCampaign(BaseModel):
         blank=True,
         help_text="Upload designed banner/hero image for the email.",
     )
+
     hero_image_url = models.URLField(
         blank=True,
-        help_text="Optional external hero image URL. Used if no uploaded hero image is selected.",
+        help_text=(
+            "Optional external hero image URL. Must be a direct image URL ending in "
+            ".webp, .jpg, .jpeg, .png, .gif, or .svg. Leave empty if using uploaded image."
+        ),
     )
 
     product_image = models.ImageField(
@@ -166,9 +182,13 @@ class NewsletterCampaign(BaseModel):
         blank=True,
         help_text="Optional product image for the email.",
     )
+
     product_image_url = models.URLField(
         blank=True,
-        help_text="Optional external product image URL.",
+        help_text=(
+            "Optional external product image URL. Must be a direct image URL ending in "
+            ".webp, .jpg, .jpeg, .png, .gif, or .svg. Do not put product page links here."
+        ),
     )
 
     related_product = models.ForeignKey(
@@ -181,11 +201,13 @@ class NewsletterCampaign(BaseModel):
     )
 
     product_title = models.CharField(max_length=220, blank=True)
+
     product_price_text = models.CharField(
         max_length=80,
         blank=True,
         help_text="Example: ₦989,550 or Contact for price.",
     )
+
     product_description = models.TextField(blank=True)
 
     button_text = models.CharField(
@@ -193,6 +215,7 @@ class NewsletterCampaign(BaseModel):
         blank=True,
         default="Shop now",
     )
+
     button_url = models.URLField(
         blank=True,
         help_text="Main CTA link. Example: product page, landing page, vendor page.",
@@ -226,6 +249,7 @@ class NewsletterCampaign(BaseModel):
             models.Index(fields=["status", "-created_at"]),
             models.Index(fields=["campaign_type", "-created_at"]),
             models.Index(fields=["recipient_scope", "-created_at"]),
+            models.Index(fields=["hero_only", "-created_at"]),
         ]
 
     def __str__(self):
@@ -289,6 +313,7 @@ class NewsletterTracking(BaseModel):
         on_delete=models.CASCADE,
         related_name="tracking",
     )
+
     subscriber = models.ForeignKey(
         NewsletterSubscriber,
         on_delete=models.CASCADE,

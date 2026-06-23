@@ -169,6 +169,7 @@ class NewsletterCampaignAdmin(admin.ModelAdmin):
     list_display = [
         "name",
         "campaign_type",
+        "hero_only",
         "subject",
         "recipient_scope",
         "status",
@@ -182,6 +183,7 @@ class NewsletterCampaignAdmin(admin.ModelAdmin):
     list_filter = [
         "status",
         "campaign_type",
+        "hero_only",
         "recipient_scope",
         "send_frequency",
         "created_at",
@@ -224,15 +226,20 @@ class NewsletterCampaignAdmin(admin.ModelAdmin):
             "fields": (
                 "name",
                 "campaign_type",
+                "hero_only",
                 "subject",
                 "preheader",
                 "status",
                 "recipient_scope",
                 "send_frequency",
                 "test_email",
-            )
+            ),
+            "description": (
+                "Turn on Hero only when you want one big designed image email like a bank/product advert. "
+                "Use normal designed layout when you want headline, text, product card and buttons."
+            ),
         }),
-        ("Designed Email Header", {
+        ("Designed Email Header / Hero Image", {
             "fields": (
                 "eyebrow",
                 "headline",
@@ -240,7 +247,12 @@ class NewsletterCampaignAdmin(admin.ModelAdmin):
                 "hero_image",
                 "hero_image_url",
                 "hero_image_preview",
-            )
+            ),
+            "description": (
+                "For hero-only campaigns, upload one complete designed banner here. "
+                "Hero image URL must be a direct image link ending in .webp, .jpg, .png, etc. "
+                "Do not put product/category page links in image URL fields."
+            ),
         }),
         ("Product / Offer Section", {
             "fields": (
@@ -251,7 +263,10 @@ class NewsletterCampaignAdmin(admin.ModelAdmin):
                 "product_image",
                 "product_image_url",
                 "product_image_preview",
-            )
+            ),
+            "description": (
+                "Product image is used in normal designed layout. Product page links should go in Button URL, not Product image URL."
+            ),
         }),
         ("Email Body", {
             "fields": (
@@ -266,7 +281,11 @@ class NewsletterCampaignAdmin(admin.ModelAdmin):
                 "button_url",
                 "secondary_button_text",
                 "secondary_button_url",
-            )
+            ),
+            "description": (
+                "For hero-only campaigns, the whole big image links to Button URL. "
+                "Put your product page, category page, vendor page, or landing page here."
+            ),
         }),
         ("Footer", {
             "fields": (
@@ -304,6 +323,7 @@ class NewsletterCampaignAdmin(admin.ModelAdmin):
             return "Save campaign first."
 
         image_url = ""
+
         try:
             if obj.hero_image and obj.hero_image.url:
                 image_url = obj.hero_image.url
@@ -315,7 +335,7 @@ class NewsletterCampaignAdmin(admin.ModelAdmin):
 
         if image_url:
             return format_html(
-                '<img src="{}" style="max-width:420px;width:100%;height:auto;border-radius:16px;border:1px solid #e5e7eb;" />',
+                '<img src="{}" style="max-width:680px;width:100%;height:auto;border-radius:16px;border:1px solid #e5e7eb;background:#f8fafc;" />',
                 image_url,
             )
 
@@ -328,6 +348,7 @@ class NewsletterCampaignAdmin(admin.ModelAdmin):
             return "Save campaign first."
 
         image_url = ""
+
         try:
             if obj.product_image and obj.product_image.url:
                 image_url = obj.product_image.url
@@ -339,7 +360,7 @@ class NewsletterCampaignAdmin(admin.ModelAdmin):
 
         if image_url:
             return format_html(
-                '<img src="{}" style="max-width:220px;width:100%;height:auto;border-radius:16px;border:1px solid #e5e7eb;" />',
+                '<img src="{}" style="max-width:260px;width:100%;height:auto;border-radius:16px;border:1px solid #e5e7eb;background:#f8fafc;" />',
                 image_url,
             )
 
@@ -359,7 +380,7 @@ class NewsletterCampaignAdmin(admin.ModelAdmin):
         )
 
         return format_html(
-            '<iframe style="width:100%;height:720px;border:1px solid #d1d5db;border-radius:16px;background:white;" srcdoc="{}"></iframe>',
+            '<iframe style="width:100%;height:760px;border:1px solid #d1d5db;border-radius:16px;background:white;" srcdoc="{}"></iframe>',
             html.replace('"', "&quot;"),
         )
 
