@@ -4191,6 +4191,22 @@
             return;
         }
 
+        /*
+         * Guard against accidental hash/current-page URLs. If the template or browser gives
+         * only #slug, the reader cannot fetch the article and would appear blank.
+         */
+        try {
+            const checkedUrl = new URL(url, window.location.origin);
+            if (checkedUrl.pathname === window.location.pathname && checkedUrl.hash && !checkedUrl.search) {
+                body.innerHTML =
+                    '<div class="apd-article-side-error">' +
+                        '<p>The article link is still rendering as a page hash instead of a blog URL.</p>' +
+                        '<p class="mt-2 text-xs text-slate-500">Check the rendered link href. It must be /blog/article/&lt;article-slug&gt;/, not #' + escapeHtml(checkedUrl.hash.replace('#', '')) + '.</p>' +
+                    '</div>';
+                return;
+            }
+        } catch (error) {}
+
         const fetchUrl = buildReaderFetchUrl(url);
 
         fetch(fetchUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
@@ -4268,16 +4284,13 @@
                             '[data-sponsored]',
                             '[aria-label*="Advertisement"]',
                             '[aria-label*="advertisement"]',
-                            '[id^="ad"]',
-                            '[id*="-ad"]',
-                            '[id*="_ad"]',
+                            '[id^="ad-"]',
+                            '[id^="ads-"]',
                             '[id*="advert"]',
-                            '[class*="ad-"]',
-                            '[class*="-ad"]',
-                            '[class*="ads-"]',
-                            '[class*="-ads"]',
-                            '[class*="advert"]',
-                            '[class*="sponsor"]'
+                            '[class^="ad-"]',
+                            '[class^="ads-"]',
+                            '[class*=" advert"]',
+                            '[class*=" sponsor"]'
                         );
                     }
 
@@ -4377,7 +4390,15 @@
                         contentRoot.innerHTML +
                     '</div>';
 
-                removeImportedNoise(body);
+                /*
+                 * IMPORTANT FIX:
+                 * Do NOT run removeImportedNoise(body) after inserting the reader wrapper.
+                 * The wrapper uses classes like apd-reader-strip-ads, and the old broad
+                 * cleanup selector [class*="-ads"] matched that wrapper and removed
+                 * the entire article, leaving the right reader blank.
+                 * Cleanup is already done on contentRoot before insertion; CSS also hides
+                 * any remaining imported ads/cookies/widgets inside the reader.
+                 */
 
                 body.querySelectorAll('a[href]').forEach(function (link) {
                     const href = link.getAttribute('href') || '';
