@@ -2217,6 +2217,261 @@
         }
     }
 
+
+
+    /* ============================================================
+       AROLANA RIGHT SIDE PRODUCT ARTICLE READER
+       Opens product articles by the right side while product detail
+       remains visible and usable on desktop. X closes and returns
+       product page to full mode.
+       ============================================================ */
+    body.apd-article-reader-open {
+        overflow: auto !important;
+    }
+
+    body.apd-article-reader-open .apd-page {
+        width: calc(100% - 540px) !important;
+        max-width: calc(100% - 540px) !important;
+        margin-left: 0 !important;
+        margin-right: auto !important;
+        padding-right: 1rem !important;
+        transition: width 0.25s ease, max-width 0.25s ease, padding-right 0.25s ease;
+    }
+
+    .apd-article-reader {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: min(540px, 42vw);
+        z-index: 99998;
+        display: none;
+        background: #ffffff;
+        border-left: 1px solid rgba(7, 26, 68, 0.12);
+        box-shadow: -22px 0 60px rgba(7, 26, 68, 0.18);
+    }
+
+    .apd-article-reader.is-open {
+        display: flex !important;
+    }
+
+    .apd-article-reader-shell {
+        display: flex;
+        width: 100%;
+        height: 100%;
+        min-height: 0;
+        flex-direction: column;
+        background: #ffffff;
+    }
+
+    .apd-article-reader-header {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        min-height: 68px;
+        padding: 0.85rem 1rem;
+        border-bottom: 1px solid rgba(7, 26, 68, 0.10);
+        background:
+            radial-gradient(circle at 8% 0%, rgba(0, 184, 255, 0.10), transparent 14rem),
+            linear-gradient(135deg, #ffffff, #f8fbff 65%, #fff7ed);
+    }
+
+    .apd-article-reader-title-wrap {
+        min-width: 0;
+    }
+
+    .apd-article-reader-kicker {
+        display: block;
+        color: var(--arolana-orange, #FF7A00);
+        font-size: 0.68rem;
+        font-weight: 950;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        margin-bottom: 0.15rem;
+    }
+
+    .apd-article-reader-title {
+        color: var(--arolana-navy, #071A44);
+        font-size: 1rem;
+        line-height: 1.25;
+        font-weight: 950;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .apd-article-reader-actions {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+    }
+
+    .apd-article-reader-open-full {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+        min-height: 38px;
+        padding: 0 0.85rem;
+        border-radius: 999px;
+        background: var(--arolana-blue, #0066CC);
+        color: #ffffff !important;
+        font-size: 0.78rem;
+        font-weight: 950;
+        text-decoration: none !important;
+        white-space: nowrap;
+    }
+
+    .apd-article-reader-open-full:hover {
+        background: var(--arolana-orange, #FF7A00);
+    }
+
+    .apd-article-reader-close {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 999px;
+        background: #f1f5f9;
+        color: #0f172a;
+        transition: background 0.2s ease, transform 0.2s ease;
+    }
+
+    .apd-article-reader-close:hover {
+        background: #fee2e2;
+        color: #b91c1c;
+        transform: scale(1.04);
+    }
+
+    .apd-article-reader-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        background: #f8fafc;
+        padding: 1rem;
+    }
+
+    .apd-article-reader-loading,
+    .apd-article-reader-error {
+        border-radius: 1rem;
+        background: #ffffff;
+        padding: 1rem;
+        color: #475569;
+        font-size: 0.9rem;
+        font-weight: 800;
+        box-shadow: 0 14px 36px rgba(7, 26, 68, 0.08);
+    }
+
+    .apd-article-reader-card {
+        border-radius: 1.25rem;
+        background: #ffffff;
+        padding: 1rem;
+        box-shadow: 0 18px 45px rgba(7, 26, 68, 0.08);
+    }
+
+    .apd-article-reader-card .article-video-frame,
+    .apd-article-reader-card .article-media-frame,
+    .apd-article-reader-card .article-featured-media,
+    .apd-article-reader-card .article-hero-media {
+        width: 100% !important;
+        max-width: 100% !important;
+        border-radius: 1rem !important;
+        overflow: hidden !important;
+        background: #000 !important;
+    }
+
+    .apd-article-reader-card img {
+        max-width: 100% !important;
+        height: auto !important;
+        border-radius: 1rem;
+    }
+
+    .apd-article-reader-card .prose,
+    .apd-article-reader-card .article-content {
+        max-width: none !important;
+        color: #0f172a;
+        font-size: 0.95rem;
+        line-height: 1.75;
+    }
+
+    .apd-article-reader-card .prose h1,
+    .apd-article-reader-card .prose h2,
+    .apd-article-reader-card .prose h3,
+    .apd-article-reader-card .article-content h1,
+    .apd-article-reader-card .article-content h2,
+    .apd-article-reader-card .article-content h3 {
+        color: var(--arolana-navy, #071A44);
+        font-weight: 950;
+        line-height: 1.2;
+        margin-top: 1.1rem;
+        margin-bottom: 0.55rem;
+    }
+
+    .apd-article-reader-card .prose p,
+    .apd-article-reader-card .article-content p {
+        margin-bottom: 0.85rem;
+    }
+
+    .apd-article-reader-card .prose ul,
+    .apd-article-reader-card .prose ol,
+    .apd-article-reader-card .article-content ul,
+    .apd-article-reader-card .article-content ol {
+        padding-left: 1.2rem;
+        margin: 0.65rem 0 1rem;
+    }
+
+    .apd-article-reader-card .prose li,
+    .apd-article-reader-card .article-content li {
+        margin-bottom: 0.35rem;
+    }
+
+    @media (max-width: 1180px) {
+        body.apd-article-reader-open .apd-page {
+            width: calc(100% - 460px) !important;
+            max-width: calc(100% - 460px) !important;
+        }
+
+        .apd-article-reader {
+            width: 460px;
+        }
+    }
+
+    @media (max-width: 900px) {
+        body.apd-article-reader-open .apd-page {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding-right: 0 !important;
+        }
+
+        .apd-article-reader {
+            width: 100%;
+            max-width: 100%;
+            left: 0;
+            border-left: 0;
+            box-shadow: 0 -20px 70px rgba(7, 26, 68, 0.25);
+        }
+
+        .apd-article-reader-header {
+            padding: 0.75rem;
+        }
+
+        .apd-article-reader-open-full {
+            display: none;
+        }
+
+        .apd-article-reader-title {
+            white-space: normal;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+    }
+
 </style>
 {% endblock %}
 
@@ -3500,20 +3755,42 @@
     {% endif %}
 </div>
 
-<!-- Product Article Popup -->
-<div id="product-article-modal" class="fixed inset-0 z-[99998] hidden bg-slate-950/80 p-3 backdrop-blur-sm md:p-6">
-    <div class="mx-auto flex h-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div class="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-3">
-            <h3 id="product-article-modal-title" class="line-clamp-1 text-base font-black text-gray-950 md:text-lg">Article</h3>
-            <button type="button" onclick="closeProductArticleModal()" class="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-700 transition hover:bg-gray-200" aria-label="Close article">
-                <i class="fas fa-times"></i>
-            </button>
+<!-- Product Article Right Reader -->
+<aside id="product-article-modal"
+       class="apd-article-reader hidden"
+       aria-hidden="true"
+       aria-label="Product article reader">
+    <div class="apd-article-reader-shell">
+        <div class="apd-article-reader-header">
+            <div class="apd-article-reader-title-wrap">
+                <span class="apd-article-reader-kicker">Buying Guide / Office Technology</span>
+                <h3 id="product-article-modal-title" class="apd-article-reader-title">Article</h3>
+            </div>
+
+            <div class="apd-article-reader-actions">
+                <a id="product-article-open-full"
+                   href="#"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   class="apd-article-reader-open-full">
+                    Open full article
+                    <i class="fas fa-arrow-up-right-from-square text-xs"></i>
+                </a>
+
+                <button type="button"
+                        onclick="closeProductArticleModal()"
+                        class="apd-article-reader-close"
+                        aria-label="Close article">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
         </div>
-        <div id="product-article-modal-body" class="min-h-0 flex-1 overflow-y-auto bg-gray-50 p-4 md:p-6">
-            <div class="rounded-2xl bg-white p-6 text-sm text-gray-600 shadow-sm">Loading article...</div>
+
+        <div id="product-article-modal-body" class="apd-article-reader-body">
+            <div class="apd-article-reader-loading">Loading article...</div>
         </div>
     </div>
-</div>
+</aside>
 
 <!-- Product Image Lightbox -->
 <div id="image-lightbox"
@@ -3636,13 +3913,26 @@
         const modal = getEl('product-article-modal');
         const body = getEl('product-article-modal-body');
         const heading = getEl('product-article-modal-title');
+        const openFull = getEl('product-article-open-full');
+
         if (!modal || !body) return;
 
         if (heading) heading.textContent = title || 'Article';
-        body.innerHTML = '<div class="rounded-2xl bg-white p-6 text-sm text-gray-600 shadow-sm">Loading article...</div>';
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-        document.documentElement.style.overflow = 'hidden';
+
+        if (openFull) {
+            openFull.href = url || '#';
+            openFull.classList.toggle('hidden', !url);
+        }
+
+        body.innerHTML = '<div class="apd-article-reader-loading">Loading article...</div>';
+
+        modal.classList.add('is-open');
+        modal.classList.remove('hidden', 'flex');
+        modal.setAttribute('aria-hidden', 'false');
+
+        document.body.classList.add('apd-article-reader-open');
+        document.documentElement.style.overflow = '';
+        document.body.style.overflow = '';
 
         fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
             .then(function (response) {
@@ -3651,31 +3941,71 @@
             })
             .then(function (html) {
                 const parsed = new DOMParser().parseFromString(html, 'text/html');
-                const media = parsed.querySelector('.article-video-frame, .article-media-frame');
-                const content = parsed.querySelector('.article-content');
-                const sourceLink = '<div class="mt-5 border-t border-gray-200 pt-4"><a href="' + url + '" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-black text-white hover:bg-blue-700">Open full article <i class="fas fa-arrow-right text-xs"></i></a></div>';
+
+                const media = parsed.querySelector(
+                    '.article-video-frame, .article-media-frame, .article-featured-media, .article-hero-media'
+                );
+
+                const content = parsed.querySelector(
+                    '.article-content, .blog-article-content, .post-content, main article, article'
+                );
+
                 if (!content) throw new Error('Article content could not be found.');
+
+                const sourceLink =
+                    '<div class="mt-5 border-t border-gray-200 pt-4">' +
+                        '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-black text-white hover:bg-blue-700">' +
+                            'Open full article <i class="fas fa-arrow-right text-xs"></i>' +
+                        '</a>' +
+                    '</div>';
+
                 body.innerHTML =
-                    '<article class="mx-auto max-w-4xl rounded-2xl bg-white p-4 shadow-sm md:p-8">' +
-                    (media ? '<div class="mb-6 overflow-hidden rounded-2xl">' + media.outerHTML + '</div>' : '') +
-                    '<div class="prose max-w-none">' + content.innerHTML + '</div>' +
-                    sourceLink +
+                    '<article class="apd-article-reader-card">' +
+                        (media ? '<div class="mb-5 overflow-hidden rounded-2xl">' + media.outerHTML + '</div>' : '') +
+                        '<div class="article-content prose max-w-none">' + content.innerHTML + '</div>' +
+                        sourceLink +
                     '</article>';
+
+                body.scrollTop = 0;
             })
             .catch(function () {
-                body.innerHTML = '<div class="rounded-2xl bg-white p-6 shadow-sm"><p class="text-gray-600">This article could not load inside the popup.</p><a href="' + url + '" class="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-black text-white hover:bg-blue-700">Open article page <i class="fas fa-arrow-right text-xs"></i></a></div>';
+                body.innerHTML =
+                    '<div class="apd-article-reader-error">' +
+                        '<p>This article could not load inside the reader.</p>' +
+                        '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-black text-white hover:bg-blue-700">' +
+                            'Open article page <i class="fas fa-arrow-right text-xs"></i>' +
+                        '</a>' +
+                    '</div>';
             });
     }
 
     function closeProductArticleModal() {
         const modal = getEl('product-article-modal');
         const body = getEl('product-article-modal-body');
+        const heading = getEl('product-article-modal-title');
+        const openFull = getEl('product-article-open-full');
+
         if (!modal) return;
 
+        modal.classList.remove('is-open', 'flex');
         modal.classList.add('hidden');
-        modal.classList.remove('flex');
-        if (body) body.innerHTML = '';
+        modal.setAttribute('aria-hidden', 'true');
+
+        document.body.classList.remove('apd-article-reader-open');
         document.documentElement.style.overflow = '';
+        document.body.style.overflow = '';
+
+        if (body) {
+            body.innerHTML = '<div class="apd-article-reader-loading">Loading article...</div>';
+        }
+
+        if (heading) {
+            heading.textContent = 'Article';
+        }
+
+        if (openFull) {
+            openFull.href = '#';
+        }
     }
 
     function normaliseImage(image, fallbackAlt) {
