@@ -2609,8 +2609,27 @@
     .apd-article-side-full-page [class*="sponsor"],
     .apd-article-side-full-page .chat-widget,
     .apd-article-side-full-page .floating-chat,
-    .apd-article-side-full-page .newsletter-popup,
-    .apd-article-side-full-page .cookie-banner {
+     .apd-article-side-full-page .newsletter-popup,
+    .apd-article-side-full-page .cookie-banner,
+    .apd-article-side-full-page .cookie-consent,
+    .apd-article-side-full-page .cookie-notice,
+    .apd-article-side-full-page .cookie-popup,
+    .apd-article-side-full-page .cookie-alert,
+    .apd-article-side-full-page .cookies-banner,
+    .apd-article-side-full-page .cookies-consent,
+    .apd-article-side-full-page .consent-banner,
+    .apd-article-side-full-page .privacy-banner,
+    .apd-article-side-full-page #cookie-banner,
+    .apd-article-side-full-page #cookie-consent,
+    .apd-article-side-full-page #cookie-notice,
+    .apd-article-side-full-page #cookies-banner,
+    .apd-article-side-full-page #cookies-consent,
+    .apd-article-side-full-page [id*="cookie"],
+    .apd-article-side-full-page [id*="cookies"],
+    .apd-article-side-full-page [class*="cookie"],
+    .apd-article-side-full-page [class*="cookies"],
+    .apd-article-side-full-page [class*="consent"],
+    .apd-article-side-full-page [class*="privacy"] {
         display: none !important;
         visibility: hidden !important;
         opacity: 0 !important;
@@ -4160,7 +4179,26 @@
                         .chat-widget,
                         .floating-chat,
                         .newsletter-popup,
-                        .cookie-banner
+                        .cookie-banner,
+                        .cookie-consent,
+                        .cookie-notice,
+                        .cookie-popup,
+                        .cookie-alert,
+                        .cookies-banner,
+                        .cookies-consent,
+                        .consent-banner,
+                        .privacy-banner,
+                        #cookie-banner,
+                        #cookie-consent,
+                        #cookie-notice,
+                        #cookies-banner,
+                        #cookies-consent,
+                        [id*="cookie"],
+                        [id*="cookies"],
+                        [class*="cookie"],
+                        [class*="cookies"],
+                        [class*="consent"],
+                        [class*="privacy"]
                     `).forEach(function (node) {
                         node.remove();
                     });
@@ -4173,7 +4211,14 @@
                             (text === 'sponsored advertisement') ||
                             (text.startsWith('sponsored advertisement') && text.length < 80) ||
                             (text === 'advertisement') ||
+                            (text.includes('we use cookies') && text.length < 240) ||
+                            (text.includes('accept our policy') && text.length < 240) ||
+                            (text.includes('cookie') && text.includes('accept') && text.length < 260) ||
                             className.includes('sponsored') ||
+                            className.includes('cookie') ||
+                            className.includes('cookies') ||
+                            className.includes('consent') ||
+                            className.includes('privacy') ||
                             className.includes('advertisement')
                         ) {
                             node.remove();
