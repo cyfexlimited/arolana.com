@@ -2933,8 +2933,10 @@
                 <div class="grid gap-3 mb-4">
                     {% for article_link in product_article_links_hero %}
                     <a href="{{ article_link.article_url }}"
+                       data-product-article-link="true"
+                       data-article-open-behavior="{{ article_link.open_behavior|default:'same_page' }}"
                        {% if article_link.open_behavior == 'new_page' %}target="_blank" rel="noopener noreferrer"{% endif %}
-                       {% if article_link.open_behavior == 'side_reader' or article_link.open_behavior == 'popup' %}
+                       {% if article_link.open_behavior == 'split_reader' or article_link.open_behavior == 'side_reader' or article_link.open_behavior == 'popup' %}
                        data-article-popup="true"
                        data-article-title="{{ article_link.display_label|escape }}"
                        data-article-kicker="{{ article_link.article.category.name|default:'Arolana Article'|escape }}"
@@ -3237,8 +3239,10 @@
                     <div class="mt-4 grid gap-4 md:grid-cols-2">
                         {% for article_link in product_article_links_overview %}
                         <a href="{{ article_link.article_url }}"
+                           data-product-article-link="true"
+                           data-article-open-behavior="{{ article_link.open_behavior|default:'same_page' }}"
                            {% if article_link.open_behavior == 'new_page' %}target="_blank" rel="noopener noreferrer"{% endif %}
-                           {% if article_link.open_behavior == 'side_reader' or article_link.open_behavior == 'popup' %}
+                           {% if article_link.open_behavior == 'split_reader' or article_link.open_behavior == 'side_reader' or article_link.open_behavior == 'popup' %}
                            data-article-popup="true"
                            data-article-title="{{ article_link.display_label|escape }}"
                            data-article-kicker="{{ article_link.article.category.name|default:'Arolana Article'|escape }}"
@@ -3545,8 +3549,10 @@
                 <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
                     {% for article_link in product_article_links_tab %}
                     <a href="{{ article_link.article_url }}"
+                       data-product-article-link="true"
+                       data-article-open-behavior="{{ article_link.open_behavior|default:'same_page' }}"
                        {% if article_link.open_behavior == 'new_page' %}target="_blank" rel="noopener noreferrer"{% endif %}
-                       {% if article_link.open_behavior == 'side_reader' or article_link.open_behavior == 'popup' %}
+                       {% if article_link.open_behavior == 'split_reader' or article_link.open_behavior == 'side_reader' or article_link.open_behavior == 'popup' %}
                        data-article-popup="true"
                        data-article-title="{{ article_link.display_label|escape }}"
                        data-article-kicker="{{ article_link.article.category.name|default:'Arolana Article'|escape }}"
@@ -5863,14 +5869,46 @@
 
         /*
          * Arolana admin-controlled article opening behavior.
-         * Only links rendered with data-article-popup="true" open in the same-page split reader.
-         * Same-page and new-tab article links behave normally based on the admin-selected open behavior.
+         *
+         * IMPORTANT:
+         * - same_page: normal browser navigation
+         * - new_page: normal new tab navigation
+         * - split_reader / side_reader / popup: open inside same-page right split reader
+         *
+         * This fixes the issue where "Open beside product" was opening as a normal page
+         * because older templates only checked "side_reader" while the model/admin value is
+         * now "split_reader".
          */
         document.addEventListener('click', function (event) {
-            const articleLink = event.target.closest('a[data-article-popup="true"]');
+            const articleLink = event.target.closest('a[data-product-article-link="true"], a[data-article-popup="true"]');
+
             if (articleLink) {
+                const behavior = String(
+                    articleLink.dataset.articleOpenBehavior ||
+                    articleLink.dataset.openBehavior ||
+                    ''
+                ).toLowerCase();
+
+                const shouldOpenInReader =
+                    articleLink.dataset.articlePopup === 'true' ||
+                    behavior === 'split_reader' ||
+                    behavior === 'side_reader' ||
+                    behavior === 'popup' ||
+                    behavior === 'legacy_popup' ||
+                    behavior === 'modal';
+
+                /*
+                 * Let admin-selected normal behaviours work naturally.
+                 * same_page opens the article page.
+                 * new_page keeps target="_blank".
+                 */
+                if (!shouldOpenInReader) {
+                    return;
+                }
+
                 event.preventDefault();
                 event.stopPropagation();
+
                 articleLink.removeAttribute('target');
                 articleLink.removeAttribute('rel');
 
@@ -5900,6 +5938,7 @@
             if (event.target.closest('#product-share-menu') || event.target.closest('[aria-label="Share product"]')) return;
             toggleProductShareMenu(false);
         });
+
 
         const aiForm = getEl('ai-chat-form');
         const aiInput = getEl('ai-chat-input');
