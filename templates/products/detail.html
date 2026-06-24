@@ -2220,42 +2220,41 @@
 
 
     /* ============================================================
-       AROLANA RIGHT SIDE PRODUCT ARTICLE READER
-       Opens product articles by the right side while product detail
-       remains visible and usable on desktop. X closes and returns
-       product page to full mode.
+       AROLANA PRODUCT ARTICLE SIDE READER — SAME PAGE RIGHT SIDE
+       Opens article on the right without a dark overlay.
+       Product detail remains visible/usable on the left.
+       Closing X returns page to normal full mode.
        ============================================================ */
-    body.apd-article-reader-open {
+    body.apd-article-side-open {
         overflow: auto !important;
     }
 
-    body.apd-article-reader-open .apd-page {
-        width: calc(100% - 540px) !important;
-        max-width: calc(100% - 540px) !important;
+    body.apd-article-side-open .apd-page {
+        width: calc(100% - min(560px, 42vw)) !important;
+        max-width: calc(100% - min(560px, 42vw)) !important;
         margin-left: 0 !important;
         margin-right: auto !important;
-        padding-right: 1rem !important;
-        transition: width 0.25s ease, max-width 0.25s ease, padding-right 0.25s ease;
+        transition: width 0.25s ease, max-width 0.25s ease;
     }
 
-    .apd-article-reader {
+    .apd-article-side-reader {
         position: fixed;
         top: 0;
         right: 0;
         bottom: 0;
-        width: min(540px, 42vw);
+        width: min(560px, 42vw);
         z-index: 99998;
         display: none;
         background: #ffffff;
-        border-left: 1px solid rgba(7, 26, 68, 0.12);
-        box-shadow: -22px 0 60px rgba(7, 26, 68, 0.18);
+        border-left: 1px solid rgba(7, 26, 68, 0.14);
+        box-shadow: -24px 0 70px rgba(7, 26, 68, 0.18);
     }
 
-    .apd-article-reader.is-open {
+    .apd-article-side-reader.is-open {
         display: flex !important;
     }
 
-    .apd-article-reader-shell {
+    .apd-article-side-shell {
         display: flex;
         width: 100%;
         height: 100%;
@@ -2264,35 +2263,35 @@
         background: #ffffff;
     }
 
-    .apd-article-reader-header {
+    .apd-article-side-header {
         flex: 0 0 auto;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 1rem;
-        min-height: 68px;
+        gap: 0.85rem;
         padding: 0.85rem 1rem;
-        border-bottom: 1px solid rgba(7, 26, 68, 0.10);
+        min-height: 68px;
+        border-bottom: 1px solid rgba(7, 26, 68, 0.12);
         background:
-            radial-gradient(circle at 8% 0%, rgba(0, 184, 255, 0.10), transparent 14rem),
-            linear-gradient(135deg, #ffffff, #f8fbff 65%, #fff7ed);
+            radial-gradient(circle at 10% 0%, rgba(0, 184, 255, 0.10), transparent 13rem),
+            linear-gradient(135deg, #ffffff, #f8fbff 62%, #fff7ed);
     }
 
-    .apd-article-reader-title-wrap {
+    .apd-article-side-title-wrap {
         min-width: 0;
     }
 
-    .apd-article-reader-kicker {
+    .apd-article-side-kicker {
         display: block;
         color: var(--arolana-orange, #FF7A00);
         font-size: 0.68rem;
         font-weight: 950;
         letter-spacing: 0.14em;
         text-transform: uppercase;
-        margin-bottom: 0.15rem;
+        margin-bottom: 0.18rem;
     }
 
-    .apd-article-reader-title {
+    .apd-article-side-title {
         color: var(--arolana-navy, #071A44);
         font-size: 1rem;
         line-height: 1.25;
@@ -2303,14 +2302,14 @@
         white-space: nowrap;
     }
 
-    .apd-article-reader-actions {
+    .apd-article-side-actions {
         flex: 0 0 auto;
         display: flex;
         align-items: center;
         gap: 0.55rem;
     }
 
-    .apd-article-reader-open-full {
+    .apd-article-side-open-full {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -2320,17 +2319,17 @@
         border-radius: 999px;
         background: var(--arolana-blue, #0066CC);
         color: #ffffff !important;
-        font-size: 0.78rem;
+        font-size: 0.76rem;
         font-weight: 950;
         text-decoration: none !important;
         white-space: nowrap;
     }
 
-    .apd-article-reader-open-full:hover {
+    .apd-article-side-open-full:hover {
         background: var(--arolana-orange, #FF7A00);
     }
 
-    .apd-article-reader-close {
+    .apd-article-side-close {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -2339,16 +2338,16 @@
         border-radius: 999px;
         background: #f1f5f9;
         color: #0f172a;
-        transition: background 0.2s ease, transform 0.2s ease;
+        transition: background 0.2s ease, transform 0.2s ease, color 0.2s ease;
     }
 
-    .apd-article-reader-close:hover {
+    .apd-article-side-close:hover {
         background: #fee2e2;
         color: #b91c1c;
         transform: scale(1.04);
     }
 
-    .apd-article-reader-body {
+    .apd-article-side-body {
         flex: 1 1 auto;
         min-height: 0;
         overflow-y: auto;
@@ -2356,8 +2355,8 @@
         padding: 1rem;
     }
 
-    .apd-article-reader-loading,
-    .apd-article-reader-error {
+    .apd-article-side-loading,
+    .apd-article-side-error {
         border-radius: 1rem;
         background: #ffffff;
         padding: 1rem;
@@ -2367,17 +2366,23 @@
         box-shadow: 0 14px 36px rgba(7, 26, 68, 0.08);
     }
 
-    .apd-article-reader-card {
+    .apd-article-side-card {
         border-radius: 1.25rem;
         background: #ffffff;
         padding: 1rem;
         box-shadow: 0 18px 45px rgba(7, 26, 68, 0.08);
     }
 
-    .apd-article-reader-card .article-video-frame,
-    .apd-article-reader-card .article-media-frame,
-    .apd-article-reader-card .article-featured-media,
-    .apd-article-reader-card .article-hero-media {
+    .apd-article-side-card img {
+        max-width: 100% !important;
+        height: auto !important;
+        border-radius: 1rem;
+    }
+
+    .apd-article-side-card .article-video-frame,
+    .apd-article-side-card .article-media-frame,
+    .apd-article-side-card .article-featured-media,
+    .apd-article-side-card .article-hero-media {
         width: 100% !important;
         max-width: 100% !important;
         border-radius: 1rem !important;
@@ -2385,86 +2390,81 @@
         background: #000 !important;
     }
 
-    .apd-article-reader-card img {
+    .apd-article-side-card iframe,
+    .apd-article-side-card video {
+        width: 100% !important;
         max-width: 100% !important;
+        aspect-ratio: 16 / 9;
         height: auto !important;
-        border-radius: 1rem;
+        border: 0 !important;
+        border-radius: 1rem !important;
+        background: #000 !important;
     }
 
-    .apd-article-reader-card .prose,
-    .apd-article-reader-card .article-content {
+    .apd-article-side-card .article-content,
+    .apd-article-side-card .prose,
+    .apd-article-side-card article {
         max-width: none !important;
         color: #0f172a;
         font-size: 0.95rem;
         line-height: 1.75;
     }
 
-    .apd-article-reader-card .prose h1,
-    .apd-article-reader-card .prose h2,
-    .apd-article-reader-card .prose h3,
-    .apd-article-reader-card .article-content h1,
-    .apd-article-reader-card .article-content h2,
-    .apd-article-reader-card .article-content h3 {
+    .apd-article-side-card h1,
+    .apd-article-side-card h2,
+    .apd-article-side-card h3,
+    .apd-article-side-card h4 {
         color: var(--arolana-navy, #071A44);
         font-weight: 950;
         line-height: 1.2;
-        margin-top: 1.1rem;
+        margin-top: 1.05rem;
         margin-bottom: 0.55rem;
     }
 
-    .apd-article-reader-card .prose p,
-    .apd-article-reader-card .article-content p {
+    .apd-article-side-card p {
         margin-bottom: 0.85rem;
     }
 
-    .apd-article-reader-card .prose ul,
-    .apd-article-reader-card .prose ol,
-    .apd-article-reader-card .article-content ul,
-    .apd-article-reader-card .article-content ol {
+    .apd-article-side-card ul,
+    .apd-article-side-card ol {
         padding-left: 1.2rem;
         margin: 0.65rem 0 1rem;
     }
 
-    .apd-article-reader-card .prose li,
-    .apd-article-reader-card .article-content li {
+    .apd-article-side-card li {
         margin-bottom: 0.35rem;
     }
 
     @media (max-width: 1180px) {
-        body.apd-article-reader-open .apd-page {
-            width: calc(100% - 460px) !important;
-            max-width: calc(100% - 460px) !important;
+        body.apd-article-side-open .apd-page {
+            width: calc(100% - 480px) !important;
+            max-width: calc(100% - 480px) !important;
         }
 
-        .apd-article-reader {
-            width: 460px;
+        .apd-article-side-reader {
+            width: 480px;
         }
     }
 
     @media (max-width: 900px) {
-        body.apd-article-reader-open .apd-page {
+        body.apd-article-side-open .apd-page {
             width: 100% !important;
             max-width: 100% !important;
-            padding-right: 0 !important;
         }
 
-        .apd-article-reader {
+        .apd-article-side-reader {
+            left: 0;
             width: 100%;
             max-width: 100%;
-            left: 0;
             border-left: 0;
             box-shadow: 0 -20px 70px rgba(7, 26, 68, 0.25);
         }
 
-        .apd-article-reader-header {
-            padding: 0.75rem;
-        }
-
-        .apd-article-reader-open-full {
+        .apd-article-side-open-full {
             display: none;
         }
 
-        .apd-article-reader-title {
+        .apd-article-side-title {
             white-space: normal;
             display: -webkit-box;
             -webkit-line-clamp: 2;
@@ -3755,39 +3755,39 @@
     {% endif %}
 </div>
 
-<!-- Product Article Right Reader -->
+<!-- Product Article Same-Page Right Reader -->
 <aside id="product-article-modal"
-       class="apd-article-reader hidden"
+       class="apd-article-side-reader"
        aria-hidden="true"
        aria-label="Product article reader">
-    <div class="apd-article-reader-shell">
-        <div class="apd-article-reader-header">
-            <div class="apd-article-reader-title-wrap">
-                <span class="apd-article-reader-kicker">Buying Guide / Office Technology</span>
-                <h3 id="product-article-modal-title" class="apd-article-reader-title">Article</h3>
+    <div class="apd-article-side-shell">
+        <div class="apd-article-side-header">
+            <div class="apd-article-side-title-wrap">
+                <span class="apd-article-side-kicker">Buying Guide / Office Technology</span>
+                <h3 id="product-article-modal-title" class="apd-article-side-title">Article</h3>
             </div>
 
-            <div class="apd-article-reader-actions">
+            <div class="apd-article-side-actions">
                 <a id="product-article-open-full"
                    href="#"
                    target="_blank"
                    rel="noopener noreferrer"
-                   class="apd-article-reader-open-full">
-                    Open full article
+                   class="apd-article-side-open-full">
+                    Open full
                     <i class="fas fa-arrow-up-right-from-square text-xs"></i>
                 </a>
 
                 <button type="button"
                         onclick="closeProductArticleModal()"
-                        class="apd-article-reader-close"
+                        class="apd-article-side-close"
                         aria-label="Close article">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
         </div>
 
-        <div id="product-article-modal-body" class="apd-article-reader-body">
-            <div class="apd-article-reader-loading">Loading article...</div>
+        <div id="product-article-modal-body" class="apd-article-side-body">
+            <div class="apd-article-side-loading">Loading article...</div>
         </div>
     </div>
 </aside>
@@ -3924,13 +3924,13 @@
             openFull.classList.toggle('hidden', !url);
         }
 
-        body.innerHTML = '<div class="apd-article-reader-loading">Loading article...</div>';
+        body.innerHTML = '<div class="apd-article-side-loading">Loading article...</div>';
 
         modal.classList.add('is-open');
-        modal.classList.remove('hidden', 'flex');
+        modal.classList.remove('hidden');
         modal.setAttribute('aria-hidden', 'false');
 
-        document.body.classList.add('apd-article-reader-open');
+        document.body.classList.add('apd-article-side-open');
         document.documentElement.style.overflow = '';
         document.body.style.overflow = '';
 
@@ -3960,7 +3960,7 @@
                     '</div>';
 
                 body.innerHTML =
-                    '<article class="apd-article-reader-card">' +
+                    '<article class="apd-article-side-card">' +
                         (media ? '<div class="mb-5 overflow-hidden rounded-2xl">' + media.outerHTML + '</div>' : '') +
                         '<div class="article-content prose max-w-none">' + content.innerHTML + '</div>' +
                         sourceLink +
@@ -3970,8 +3970,8 @@
             })
             .catch(function () {
                 body.innerHTML =
-                    '<div class="apd-article-reader-error">' +
-                        '<p>This article could not load inside the reader.</p>' +
+                    '<div class="apd-article-side-error">' +
+                        '<p>This article could not load inside the same-page reader.</p>' +
                         '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-black text-white hover:bg-blue-700">' +
                             'Open article page <i class="fas fa-arrow-right text-xs"></i>' +
                         '</a>' +
@@ -3987,25 +3987,17 @@
 
         if (!modal) return;
 
-        modal.classList.remove('is-open', 'flex');
+        modal.classList.remove('is-open');
         modal.classList.add('hidden');
         modal.setAttribute('aria-hidden', 'true');
 
-        document.body.classList.remove('apd-article-reader-open');
+        document.body.classList.remove('apd-article-side-open');
         document.documentElement.style.overflow = '';
         document.body.style.overflow = '';
 
-        if (body) {
-            body.innerHTML = '<div class="apd-article-reader-loading">Loading article...</div>';
-        }
-
-        if (heading) {
-            heading.textContent = 'Article';
-        }
-
-        if (openFull) {
-            openFull.href = '#';
-        }
+        if (body) body.innerHTML = '<div class="apd-article-side-loading">Loading article...</div>';
+        if (heading) heading.textContent = 'Article';
+        if (openFull) openFull.href = '#';
     }
 
     function normaliseImage(image, fallbackAlt) {
@@ -5473,13 +5465,6 @@
                 openProductArticleModal(this.href, this.dataset.articleTitle || this.textContent.trim());
             });
         });
-
-        const articleModal = getEl('product-article-modal');
-        if (articleModal) {
-            articleModal.addEventListener('click', function (event) {
-                if (event.target === articleModal) closeProductArticleModal();
-            });
-        }
 
         document.addEventListener('click', function (event) {
             const menu = getEl('product-share-menu');
