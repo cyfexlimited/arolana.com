@@ -2932,8 +2932,9 @@
 {% if product_article_links_hero %}
                 <div class="grid gap-3 mb-4">
                     {% for article_link in product_article_links_hero %}
-                    <a href="{{ article_link.article_url }}"
+                    <a href="{{ article_link.article.get_absolute_url }}"
                        data-product-article-link="true"
+                       data-article-url="{{ article_link.article.get_absolute_url }}"
                        data-article-open-behavior="{{ article_link.open_behavior|default:'same_page' }}"
                        {% if article_link.open_behavior == 'new_page' %}target="_blank" rel="noopener noreferrer"{% endif %}
                        {% if article_link.open_behavior == 'split_reader' or article_link.open_behavior == 'side_reader' or article_link.open_behavior == 'popup' %}
@@ -3238,8 +3239,9 @@
                     </div>
                     <div class="mt-4 grid gap-4 md:grid-cols-2">
                         {% for article_link in product_article_links_overview %}
-                        <a href="{{ article_link.article_url }}"
+                        <a href="{{ article_link.article.get_absolute_url }}"
                            data-product-article-link="true"
+                           data-article-url="{{ article_link.article.get_absolute_url }}"
                            data-article-open-behavior="{{ article_link.open_behavior|default:'same_page' }}"
                            {% if article_link.open_behavior == 'new_page' %}target="_blank" rel="noopener noreferrer"{% endif %}
                            {% if article_link.open_behavior == 'split_reader' or article_link.open_behavior == 'side_reader' or article_link.open_behavior == 'popup' %}
@@ -3548,8 +3550,9 @@
             <div x-show="tab=='articles'" x-transition.duration.300ms>
                 <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
                     {% for article_link in product_article_links_tab %}
-                    <a href="{{ article_link.article_url }}"
+                    <a href="{{ article_link.article.get_absolute_url }}"
                        data-product-article-link="true"
+                       data-article-url="{{ article_link.article.get_absolute_url }}"
                        data-article-open-behavior="{{ article_link.open_behavior|default:'same_page' }}"
                        {% if article_link.open_behavior == 'new_page' %}target="_blank" rel="noopener noreferrer"{% endif %}
                        {% if article_link.open_behavior == 'split_reader' or article_link.open_behavior == 'side_reader' or article_link.open_behavior == 'popup' %}
@@ -4179,6 +4182,14 @@
                 return baseUrl;
             }
         };
+
+        if (!url) {
+            body.innerHTML =
+                '<div class="apd-article-side-error">' +
+                    '<p>Article URL is missing. Please save the product article link again in admin.</p>' +
+                '</div>';
+            return;
+        }
 
         const fetchUrl = buildReaderFetchUrl(url);
 
@@ -5867,6 +5878,45 @@
 
         setupProductShareLinks();
 
+        function resolveProductArticleUrl(articleLink) {
+            if (!articleLink) return '';
+
+            const dataUrl = articleLink.dataset.articleUrl || articleLink.getAttribute('data-article-url') || '';
+            const hrefAttr = articleLink.getAttribute('href') || '';
+            const absoluteHref = articleLink.href || '';
+
+            function isBadArticleUrl(value) {
+                if (!value) return true;
+                const clean = String(value).trim();
+                if (!clean) return true;
+                if (clean === '#') return true;
+                if (clean.charAt(0) === '#') return true;
+                try {
+                    const parsed = new URL(clean, window.location.origin);
+                    const currentPath = window.location.pathname.replace(/\/$/, '');
+                    const parsedPath = parsed.pathname.replace(/\/$/, '');
+                    if (parsedPath === currentPath && parsed.hash && !parsed.search) return true;
+                } catch (error) {
+                    return false;
+                }
+                return false;
+            }
+
+            if (!isBadArticleUrl(dataUrl)) {
+                return new URL(dataUrl, window.location.origin).toString();
+            }
+
+            if (!isBadArticleUrl(hrefAttr)) {
+                return new URL(hrefAttr, window.location.origin).toString();
+            }
+
+            if (!isBadArticleUrl(absoluteHref)) {
+                return absoluteHref;
+            }
+
+            return '';
+        }
+
         /*
          * Arolana admin-controlled article opening behavior.
          *
@@ -5916,8 +5966,10 @@
                     return String(value || '').toLowerCase() === 'true';
                 };
 
+                const articleUrl = resolveProductArticleUrl(articleLink);
+
                 openProductArticleModal(
-                    articleLink.href,
+                    articleUrl,
                     articleLink.dataset.articleTitle || articleLink.textContent.trim(),
                     {
                         kicker: articleLink.dataset.articleKicker || 'Arolana Article',
