@@ -2475,6 +2475,104 @@
         margin-bottom: 0.38rem;
     }
 
+    /* Full article page loaded inside the right-side split reader */
+    .apd-article-side-full-page {
+        width: 100% !important;
+        min-height: 100% !important;
+        background: #f8fafc !important;
+        overflow: visible !important;
+    }
+
+    .apd-article-side-full-page main,
+    .apd-article-side-full-page .article-detail-page,
+    .apd-article-side-full-page .blog-detail-page,
+    .apd-article-side-full-page .article-page,
+    .apd-article-side-full-page .blog-page,
+    .apd-article-side-full-page .page-wrapper,
+    .apd-article-side-full-page .content-wrapper {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        overflow: visible !important;
+    }
+
+    .apd-article-side-full-page .container,
+    .apd-article-side-full-page .max-w-7xl,
+    .apd-article-side-full-page .max-w-6xl,
+    .apd-article-side-full-page .max-w-5xl,
+    .apd-article-side-full-page .max-w-4xl,
+    .apd-article-side-full-page .mx-auto,
+    .apd-article-side-full-page [class*="max-w-"] {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    .apd-article-side-full-page .grid,
+    .apd-article-side-full-page [class*="grid-cols-"],
+    .apd-article-side-full-page [class*="lg:grid-cols-"],
+    .apd-article-side-full-page [class*="xl:grid-cols-"] {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .apd-article-side-full-page aside,
+    .apd-article-side-full-page .sidebar,
+    .apd-article-side-full-page [class*="sidebar"],
+    .apd-article-side-full-page .article-sidebar,
+    .apd-article-side-full-page .blog-sidebar {
+        width: 100% !important;
+        max-width: 100% !important;
+        position: relative !important;
+        top: auto !important;
+        right: auto !important;
+        bottom: auto !important;
+        left: auto !important;
+    }
+
+    .apd-article-side-full-page .sticky,
+    .apd-article-side-full-page [class*="sticky"] {
+        position: relative !important;
+        top: auto !important;
+    }
+
+    .apd-article-side-full-page img,
+    .apd-article-side-full-page video,
+    .apd-article-side-full-page iframe {
+        max-width: 100% !important;
+    }
+
+    .apd-article-side-full-page img {
+        height: auto !important;
+    }
+
+    .apd-article-side-full-page iframe,
+    .apd-article-side-full-page video {
+        width: 100% !important;
+        aspect-ratio: 16 / 9;
+        height: auto !important;
+        border: 0 !important;
+    }
+
+    .apd-article-side-full-page .fixed,
+    .apd-article-side-full-page [class*="fixed"] {
+        position: relative !important;
+    }
+
+    .apd-article-side-full-page header,
+    .apd-article-side-full-page nav,
+    .apd-article-side-full-page footer,
+    .apd-article-side-full-page .site-header,
+    .apd-article-side-full-page .site-footer,
+    .apd-article-side-full-page .topbar,
+    .apd-article-side-full-page .navbar {
+        display: none !important;
+    }
+
     @media (max-width: 900px) {
         body.apd-article-side-open .apd-page {
             width: 100% !important;
@@ -3955,28 +4053,43 @@
             .then(function (html) {
                 const parsed = new DOMParser().parseFromString(html, 'text/html');
 
-                const media = parsed.querySelector(
-                    '.article-video-frame, .article-media-frame, .article-featured-media, .article-hero-media'
+                const fullArticlePage = parsed.querySelector(
+                    '[data-article-page-root], .article-detail-page, .blog-detail-page, .article-page, .blog-page, main, body'
                 );
 
-                const content = parsed.querySelector(
-                    '.article-content, .blog-article-content, .post-content, main article, article'
-                );
+                if (!fullArticlePage) throw new Error('Full article page could not be found.');
 
-                if (!content) throw new Error('Article content could not be found.');
+                fullArticlePage.querySelectorAll('script, style, noscript').forEach(function (node) {
+                    node.remove();
+                });
+
+                fullArticlePage.querySelectorAll('header, nav, footer, .site-header, .site-footer, .topbar, .navbar, .mobile-menu, #mobile-menu, #back-to-top, .back-to-top, .chat-widget, .floating-chat, .cookie-banner').forEach(function (node) {
+                    node.remove();
+                });
+
+                fullArticlePage.querySelectorAll('[id]').forEach(function (node) {
+                    node.removeAttribute('id');
+                });
 
                 body.innerHTML =
-                    '<article class="apd-article-side-card">' +
-                        (media ? '<div class="mb-5 overflow-hidden rounded-2xl">' + media.outerHTML + '</div>' : '') +
-                        '<div class="article-content prose max-w-none">' + content.innerHTML + '</div>' +
-                    '</article>';
+                    '<div class="apd-article-side-full-page">' +
+                        fullArticlePage.innerHTML +
+                    '</div>';
+
+                body.querySelectorAll('a[href]').forEach(function (link) {
+                    const href = link.getAttribute('href') || '';
+                    if (href.startsWith('#')) return;
+                    link.setAttribute('target', '_blank');
+                    link.setAttribute('rel', 'noopener noreferrer');
+                });
 
                 body.scrollTop = 0;
             })
-            .catch(function () {
+            .catch(function (error) {
                 body.innerHTML =
                     '<div class="apd-article-side-error">' +
-                        '<p>This article could not load inside the same-page reader. Please close and try again.</p>' +
+                        '<p>This article could not load fully inside the same-page reader.</p>' +
+                        '<p class="mt-2 text-xs text-slate-500">' + escapeHtml(error && error.message ? error.message : 'Please close and try again.') + '</p>' +
                     '</div>';
             });
     }
