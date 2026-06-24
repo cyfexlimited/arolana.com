@@ -2113,7 +2113,50 @@
             padding: 0.72rem 0.82rem !important;
         }
     }
+    
+    /* Arolana clean two-column specification table fix */
+.apd-specs-xlsx-content figure.table table,
+.apd-specs-xlsx-content > table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed !important;
+}
 
+.apd-specs-xlsx-content th:first-child,
+.apd-specs-xlsx-content td:first-child {
+    width: 34% !important;
+}
+
+.apd-specs-xlsx-content th:nth-child(2),
+.apd-specs-xlsx-content td:nth-child(2) {
+    width: 66% !important;
+}
+
+.apd-specs-xlsx-content td:empty {
+    display: none !important;
+}
+
+.apd-specs-xlsx-content tr td:only-child {
+    width: 100% !important;
+    display: table-cell !important;
+}
+
+@media (max-width: 768px) {
+    .apd-specs-xlsx-content figure.table {
+        overflow-x: auto !important;
+    }
+
+    .apd-specs-xlsx-content figure.table table,
+    .apd-specs-xlsx-content > table {
+        min-width: 560px !important;
+    }
+
+    .apd-specs-xlsx-content th,
+    .apd-specs-xlsx-content td {
+        font-size: 0.82rem !important;
+        padding: 0.72rem 0.8rem !important;
+    }
+}
 
     /* ============================================================
        AROLANA VENDOR CHAT MODAL STACKING FIX
