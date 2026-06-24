@@ -2867,10 +2867,10 @@
                 <div class="grid gap-3 mb-4">
                     {% for article_link in product_article_links_hero %}
                     <a href="{{ article_link.article_url }}"
-                       data-article-popup="{% if article_link.open_behavior == 'popup' %}true{% else %}false{% endif %}"
+                       data-article-popup="true"
                        data-article-title="{{ article_link.display_label|escape }}"
                        class="group flex gap-3 rounded-xl border border-blue-100 bg-blue-50/70 p-3 transition hover:-translate-y-0.5 hover:border-blue-300 hover:bg-white hover:shadow-lg"
-                       {% if article_link.open_behavior == 'new_page' %}target="_blank" rel="noopener noreferrer"{% endif %}>
+                       >
                         <div class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white text-blue-600 ring-1 ring-blue-100">
                             {% if article_link.article.display_image %}
                                 {% optimized_image_url article_link.article.display_image 'seo' as article_thumb_url %}
@@ -3160,10 +3160,10 @@
                     <div class="mt-4 grid gap-4 md:grid-cols-2">
                         {% for article_link in product_article_links_overview %}
                         <a href="{{ article_link.article_url }}"
-                           data-article-popup="{% if article_link.open_behavior == 'popup' %}true{% else %}false{% endif %}"
+                           data-article-popup="true"
                            data-article-title="{{ article_link.display_label|escape }}"
                            class="group overflow-hidden rounded-xl border border-gray-100 bg-gray-50 transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-white hover:shadow-xl"
-                           {% if article_link.open_behavior == 'new_page' %}target="_blank" rel="noopener noreferrer"{% endif %}>
+                           >
                             <div class="aspect-[16/9] bg-gradient-to-br from-blue-100 to-slate-100">
                                 {% if article_link.article.display_image %}
                                     {% optimized_image_url article_link.article.display_image 'category_card' as article_card_url %}
@@ -3457,10 +3457,10 @@
                 <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
                     {% for article_link in product_article_links_tab %}
                     <a href="{{ article_link.article_url }}"
-                       data-article-popup="{% if article_link.open_behavior == 'popup' %}true{% else %}false{% endif %}"
+                       data-article-popup="true"
                        data-article-title="{{ article_link.display_label|escape }}"
                        class="group overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-1 hover:border-blue-200 hover:shadow-2xl"
-                       {% if article_link.open_behavior == 'new_page' %}target="_blank" rel="noopener noreferrer"{% endif %}>
+                       >
                         <div class="aspect-[16/10] bg-gradient-to-br from-blue-100 to-slate-100">
                             {% if article_link.article.display_image %}
                                 {% optimized_image_url article_link.article.display_image 'category_card' as article_tab_url %}
@@ -5571,14 +5571,23 @@
         }
 
         setupProductShareLinks();
-        document.querySelectorAll('[data-article-popup="true"]').forEach(function (link) {
-            link.addEventListener('click', function (event) {
-                event.preventDefault();
-                openProductArticleModal(this.href, this.dataset.articleTitle || this.textContent.trim());
-            });
-        });
 
+        /*
+         * Arolana same-page article reader.
+         * Use event delegation so every product article link opens in the right-side split panel,
+         * even if the link was rendered with target="_blank" or added later.
+         */
         document.addEventListener('click', function (event) {
+            const articleLink = event.target.closest('a[data-article-popup="true"]');
+            if (articleLink) {
+                event.preventDefault();
+                event.stopPropagation();
+                articleLink.removeAttribute('target');
+                articleLink.removeAttribute('rel');
+                openProductArticleModal(articleLink.href, articleLink.dataset.articleTitle || articleLink.textContent.trim());
+                return;
+            }
+
             const menu = getEl('product-share-menu');
             if (!menu || menu.classList.contains('hidden')) return;
             if (event.target.closest('#product-share-menu') || event.target.closest('[aria-label="Share product"]')) return;
