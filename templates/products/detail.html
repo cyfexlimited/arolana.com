@@ -2220,21 +2220,55 @@
 
 
     /* ============================================================
-       AROLANA PRODUCT ARTICLE SIDE READER — SAME PAGE RIGHT SIDE
-       Opens article on the right without a dark overlay.
-       Product detail remains visible/usable on the left.
-       Closing X returns page to normal full mode.
+       AROLANA SPLIT-SCREEN PRODUCT ARTICLE READER — B&H STYLE
+       Desktop:
+       - Product stays on the left at 50% width
+       - Article opens on the right at 50% width
+       - No dark overlay
+       - No "Open full article" button
+       - Article scrolls up/down inside the right panel
+       Closing X returns product page to normal full mode.
        ============================================================ */
     body.apd-article-side-open {
         overflow: auto !important;
+        background: #ffffff !important;
     }
 
     body.apd-article-side-open .apd-page {
-        width: calc(100% - min(560px, 42vw)) !important;
-        max-width: calc(100% - min(560px, 42vw)) !important;
+        width: 50vw !important;
+        max-width: 50vw !important;
+        min-width: 50vw !important;
         margin-left: 0 !important;
-        margin-right: auto !important;
-        transition: width 0.25s ease, max-width 0.25s ease;
+        margin-right: 0 !important;
+        padding-left: clamp(0.75rem, 1.4vw, 1.4rem) !important;
+        padding-right: clamp(0.75rem, 1.4vw, 1.4rem) !important;
+        transition: width 0.25s ease, max-width 0.25s ease, min-width 0.25s ease;
+    }
+
+    body.apd-article-side-open .apd-page .container,
+    body.apd-article-side-open .apd-page .max-w-7xl,
+    body.apd-article-side-open .apd-page .max-w-6xl,
+    body.apd-article-side-open .apd-page .max-w-5xl,
+    body.apd-article-side-open .apd-page .max-w-4xl {
+        max-width: 100% !important;
+        width: 100% !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    body.apd-article-side-open .apd-hero-clean {
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 1rem !important;
+    }
+
+    body.apd-article-side-open #apd-sticky-gallery,
+    body.apd-article-side-open #apd-sticky-gallery.apd-gallery-is-fixed,
+    body.apd-article-side-open #apd-sticky-gallery.apd-gallery-is-bottom {
+        position: relative !important;
+        top: auto !important;
+        left: auto !important;
+        width: 100% !important;
+        transform: none !important;
     }
 
     .apd-article-side-reader {
@@ -2242,12 +2276,15 @@
         top: 0;
         right: 0;
         bottom: 0;
-        width: min(560px, 42vw);
+        width: 50vw;
+        min-width: 50vw;
+        max-width: 50vw;
+        height: 100dvh;
         z-index: 99998;
         display: none;
         background: #ffffff;
-        border-left: 1px solid rgba(7, 26, 68, 0.14);
-        box-shadow: -24px 0 70px rgba(7, 26, 68, 0.18);
+        border-left: 1px solid rgba(7, 26, 68, 0.16);
+        box-shadow: -18px 0 45px rgba(7, 26, 68, 0.16);
     }
 
     .apd-article-side-reader.is-open {
@@ -2269,16 +2306,15 @@
         align-items: center;
         justify-content: space-between;
         gap: 0.85rem;
-        padding: 0.85rem 1rem;
-        min-height: 68px;
+        padding: 0.9rem 1.1rem;
+        min-height: 64px;
         border-bottom: 1px solid rgba(7, 26, 68, 0.12);
-        background:
-            radial-gradient(circle at 10% 0%, rgba(0, 184, 255, 0.10), transparent 13rem),
-            linear-gradient(135deg, #ffffff, #f8fbff 62%, #fff7ed);
+        background: #ffffff;
     }
 
     .apd-article-side-title-wrap {
         min-width: 0;
+        flex: 1 1 auto;
     }
 
     .apd-article-side-kicker {
@@ -2293,7 +2329,7 @@
 
     .apd-article-side-title {
         color: var(--arolana-navy, #071A44);
-        font-size: 1rem;
+        font-size: 1.02rem;
         line-height: 1.25;
         font-weight: 950;
         max-width: 100%;
@@ -2310,23 +2346,7 @@
     }
 
     .apd-article-side-open-full {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.4rem;
-        min-height: 38px;
-        padding: 0 0.85rem;
-        border-radius: 999px;
-        background: var(--arolana-blue, #0066CC);
-        color: #ffffff !important;
-        font-size: 0.76rem;
-        font-weight: 950;
-        text-decoration: none !important;
-        white-space: nowrap;
-    }
-
-    .apd-article-side-open-full:hover {
-        background: var(--arolana-orange, #FF7A00);
+        display: none !important;
     }
 
     .apd-article-side-close {
@@ -2351,32 +2371,48 @@
         flex: 1 1 auto;
         min-height: 0;
         overflow-y: auto;
-        background: #f8fafc;
-        padding: 1rem;
+        overflow-x: hidden;
+        background: #ffffff;
+        padding: 0;
+        scroll-behavior: smooth;
     }
 
     .apd-article-side-loading,
     .apd-article-side-error {
+        margin: 1rem;
         border-radius: 1rem;
         background: #ffffff;
         padding: 1rem;
         color: #475569;
         font-size: 0.9rem;
         font-weight: 800;
+        border: 1px solid rgba(7, 26, 68, 0.10);
         box-shadow: 0 14px 36px rgba(7, 26, 68, 0.08);
     }
 
     .apd-article-side-card {
-        border-radius: 1.25rem;
+        width: 100%;
+        min-height: 100%;
+        border-radius: 0;
         background: #ffffff;
-        padding: 1rem;
-        box-shadow: 0 18px 45px rgba(7, 26, 68, 0.08);
+        padding: clamp(1rem, 2.2vw, 2.1rem);
+        box-shadow: none;
     }
 
     .apd-article-side-card img {
         max-width: 100% !important;
+        width: auto;
         height: auto !important;
-        border-radius: 1rem;
+        border-radius: 0.4rem;
+    }
+
+    .apd-article-side-card > .mb-5:first-child img,
+    .apd-article-side-card .article-featured-media img,
+    .apd-article-side-card .article-hero-media img {
+        width: 100% !important;
+        max-width: 100% !important;
+        display: block !important;
+        object-fit: contain !important;
     }
 
     .apd-article-side-card .article-video-frame,
@@ -2385,7 +2421,7 @@
     .apd-article-side-card .article-hero-media {
         width: 100% !important;
         max-width: 100% !important;
-        border-radius: 1rem !important;
+        border-radius: 0.35rem !important;
         overflow: hidden !important;
         background: #000 !important;
     }
@@ -2397,7 +2433,7 @@
         aspect-ratio: 16 / 9;
         height: auto !important;
         border: 0 !important;
-        border-radius: 1rem !important;
+        border-radius: 0.35rem !important;
         background: #000 !important;
     }
 
@@ -2406,8 +2442,8 @@
     .apd-article-side-card article {
         max-width: none !important;
         color: #0f172a;
-        font-size: 0.95rem;
-        line-height: 1.75;
+        font-size: clamp(0.95rem, 1vw, 1.08rem);
+        line-height: 1.78;
     }
 
     .apd-article-side-card h1,
@@ -2416,52 +2452,45 @@
     .apd-article-side-card h4 {
         color: var(--arolana-navy, #071A44);
         font-weight: 950;
-        line-height: 1.2;
-        margin-top: 1.05rem;
-        margin-bottom: 0.55rem;
+        line-height: 1.16;
+        margin-top: 1.15rem;
+        margin-bottom: 0.6rem;
     }
 
+    .apd-article-side-card h1 { font-size: clamp(1.7rem, 2.5vw, 2.5rem); }
+    .apd-article-side-card h2 { font-size: clamp(1.35rem, 2vw, 2rem); }
+    .apd-article-side-card h3 { font-size: clamp(1.05rem, 1.35vw, 1.35rem); }
+
     .apd-article-side-card p {
-        margin-bottom: 0.85rem;
+        margin-bottom: 0.9rem;
     }
 
     .apd-article-side-card ul,
     .apd-article-side-card ol {
-        padding-left: 1.2rem;
-        margin: 0.65rem 0 1rem;
+        padding-left: 1.35rem;
+        margin: 0.7rem 0 1rem;
     }
 
     .apd-article-side-card li {
-        margin-bottom: 0.35rem;
-    }
-
-    @media (max-width: 1180px) {
-        body.apd-article-side-open .apd-page {
-            width: calc(100% - 480px) !important;
-            max-width: calc(100% - 480px) !important;
-        }
-
-        .apd-article-side-reader {
-            width: 480px;
-        }
+        margin-bottom: 0.38rem;
     }
 
     @media (max-width: 900px) {
         body.apd-article-side-open .apd-page {
             width: 100% !important;
             max-width: 100% !important;
+            min-width: 0 !important;
+            padding-left: 0.75rem !important;
+            padding-right: 0.75rem !important;
         }
 
         .apd-article-side-reader {
             left: 0;
             width: 100%;
+            min-width: 0;
             max-width: 100%;
             border-left: 0;
             box-shadow: 0 -20px 70px rgba(7, 26, 68, 0.25);
-        }
-
-        .apd-article-side-open-full {
-            display: none;
         }
 
         .apd-article-side-title {
@@ -3768,15 +3797,6 @@
             </div>
 
             <div class="apd-article-side-actions">
-                <a id="product-article-open-full"
-                   href="#"
-                   target="_blank"
-                   rel="noopener noreferrer"
-                   class="apd-article-side-open-full">
-                    Open full
-                    <i class="fas fa-arrow-up-right-from-square text-xs"></i>
-                </a>
-
                 <button type="button"
                         onclick="closeProductArticleModal()"
                         class="apd-article-side-close"
@@ -3913,16 +3933,9 @@
         const modal = getEl('product-article-modal');
         const body = getEl('product-article-modal-body');
         const heading = getEl('product-article-modal-title');
-        const openFull = getEl('product-article-open-full');
-
         if (!modal || !body) return;
 
         if (heading) heading.textContent = title || 'Article';
-
-        if (openFull) {
-            openFull.href = url || '#';
-            openFull.classList.toggle('hidden', !url);
-        }
 
         body.innerHTML = '<div class="apd-article-side-loading">Loading article...</div>';
 
@@ -3952,18 +3965,10 @@
 
                 if (!content) throw new Error('Article content could not be found.');
 
-                const sourceLink =
-                    '<div class="mt-5 border-t border-gray-200 pt-4">' +
-                        '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-black text-white hover:bg-blue-700">' +
-                            'Open full article <i class="fas fa-arrow-right text-xs"></i>' +
-                        '</a>' +
-                    '</div>';
-
                 body.innerHTML =
                     '<article class="apd-article-side-card">' +
                         (media ? '<div class="mb-5 overflow-hidden rounded-2xl">' + media.outerHTML + '</div>' : '') +
                         '<div class="article-content prose max-w-none">' + content.innerHTML + '</div>' +
-                        sourceLink +
                     '</article>';
 
                 body.scrollTop = 0;
@@ -3971,10 +3976,7 @@
             .catch(function () {
                 body.innerHTML =
                     '<div class="apd-article-side-error">' +
-                        '<p>This article could not load inside the same-page reader.</p>' +
-                        '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-black text-white hover:bg-blue-700">' +
-                            'Open article page <i class="fas fa-arrow-right text-xs"></i>' +
-                        '</a>' +
+                        '<p>This article could not load inside the same-page reader. Please close and try again.</p>' +
                     '</div>';
             });
     }
@@ -3983,8 +3985,6 @@
         const modal = getEl('product-article-modal');
         const body = getEl('product-article-modal-body');
         const heading = getEl('product-article-modal-title');
-        const openFull = getEl('product-article-open-full');
-
         if (!modal) return;
 
         modal.classList.remove('is-open');
@@ -3997,7 +3997,6 @@
 
         if (body) body.innerHTML = '<div class="apd-article-side-loading">Loading article...</div>';
         if (heading) heading.textContent = 'Article';
-        if (openFull) openFull.href = '#';
     }
 
     function normaliseImage(image, fallbackAlt) {
