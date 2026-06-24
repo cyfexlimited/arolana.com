@@ -2573,6 +2573,50 @@
         display: none !important;
     }
 
+
+    /* Remove imported ads/widgets inside product split article reader.
+       Main blog pages can still show ads; this only cleans the same-page product reader. */
+    .apd-article-side-full-page .ad,
+    .apd-article-side-full-page .ads,
+    .apd-article-side-full-page .advert,
+    .apd-article-side-full-page .advertisement,
+    .apd-article-side-full-page .sponsored,
+    .apd-article-side-full-page .sponsored-ad,
+    .apd-article-side-full-page .ad-banner,
+    .apd-article-side-full-page .ads-banner,
+    .apd-article-side-full-page .floating-ad,
+    .apd-article-side-full-page .sticky-ad,
+    .apd-article-side-full-page .sidebar-ad,
+    .apd-article-side-full-page .article-ad,
+    .apd-article-side-full-page .blog-ad,
+    .apd-article-side-full-page .promo-ad,
+    .apd-article-side-full-page .ad-card,
+    .apd-article-side-full-page .ads-card,
+    .apd-article-side-full-page [data-ad],
+    .apd-article-side-full-page [data-ads],
+    .apd-article-side-full-page [data-sponsored],
+    .apd-article-side-full-page [aria-label*="Advertisement"],
+    .apd-article-side-full-page [aria-label*="advertisement"],
+    .apd-article-side-full-page [id^="ad"],
+    .apd-article-side-full-page [id*="-ad"],
+    .apd-article-side-full-page [id*="_ad"],
+    .apd-article-side-full-page [id*="advert"],
+    .apd-article-side-full-page [class*="ad-"],
+    .apd-article-side-full-page [class*="-ad"],
+    .apd-article-side-full-page [class*="ads-"],
+    .apd-article-side-full-page [class*="-ads"],
+    .apd-article-side-full-page [class*="advert"],
+    .apd-article-side-full-page [class*="sponsor"],
+    .apd-article-side-full-page .chat-widget,
+    .apd-article-side-full-page .floating-chat,
+    .apd-article-side-full-page .newsletter-popup,
+    .apd-article-side-full-page .cookie-banner {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
+
     @media (max-width: 900px) {
         body.apd-article-side-open .apd-page {
             width: 100% !important;
@@ -4059,13 +4103,85 @@
 
                 if (!fullArticlePage) throw new Error('Full article page could not be found.');
 
-                fullArticlePage.querySelectorAll('script, style, noscript').forEach(function (node) {
-                    node.remove();
-                });
+                const removeImportedNoise = function (root) {
+                    if (!root) return;
 
-                fullArticlePage.querySelectorAll('header, nav, footer, .site-header, .site-footer, .topbar, .navbar, .mobile-menu, #mobile-menu, #back-to-top, .back-to-top, .chat-widget, .floating-chat, .cookie-banner').forEach(function (node) {
-                    node.remove();
-                });
+                    root.querySelectorAll(`
+                        script,
+                        style,
+                        noscript,
+                        iframe[src*="ads"],
+                        iframe[src*="doubleclick"],
+                        iframe[src*="googlesyndication"],
+                        iframe[src*="googleads"],
+                        iframe[src*="adservice"],
+                        header,
+                        nav,
+                        footer,
+                        .site-header,
+                        .site-footer,
+                        .topbar,
+                        .navbar,
+                        .mobile-menu,
+                        #mobile-menu,
+                        #back-to-top,
+                        .back-to-top,
+                        .ad,
+                        .ads,
+                        .advert,
+                        .advertisement,
+                        .sponsored,
+                        .sponsored-ad,
+                        .ad-banner,
+                        .ads-banner,
+                        .floating-ad,
+                        .sticky-ad,
+                        .sidebar-ad,
+                        .article-ad,
+                        .blog-ad,
+                        .promo-ad,
+                        .ad-card,
+                        .ads-card,
+                        [data-ad],
+                        [data-ads],
+                        [data-sponsored],
+                        [aria-label*="Advertisement"],
+                        [aria-label*="advertisement"],
+                        [id^="ad"],
+                        [id*="-ad"],
+                        [id*="_ad"],
+                        [id*="advert"],
+                        [class*="ad-"],
+                        [class*="-ad"],
+                        [class*="ads-"],
+                        [class*="-ads"],
+                        [class*="advert"],
+                        [class*="sponsor"],
+                        .chat-widget,
+                        .floating-chat,
+                        .newsletter-popup,
+                        .cookie-banner
+                    `).forEach(function (node) {
+                        node.remove();
+                    });
+
+                    root.querySelectorAll('*').forEach(function (node) {
+                        const text = (node.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+                        const className = String(node.className || '').toLowerCase();
+
+                        if (
+                            (text === 'sponsored advertisement') ||
+                            (text.startsWith('sponsored advertisement') && text.length < 80) ||
+                            (text === 'advertisement') ||
+                            className.includes('sponsored') ||
+                            className.includes('advertisement')
+                        ) {
+                            node.remove();
+                        }
+                    });
+                };
+
+                removeImportedNoise(fullArticlePage);
 
                 fullArticlePage.querySelectorAll('[id]').forEach(function (node) {
                     node.removeAttribute('id');
@@ -4075,6 +4191,8 @@
                     '<div class="apd-article-side-full-page">' +
                         fullArticlePage.innerHTML +
                     '</div>';
+
+                removeImportedNoise(body);
 
                 body.querySelectorAll('a[href]').forEach(function (link) {
                     const href = link.getAttribute('href') || '';
