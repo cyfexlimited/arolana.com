@@ -6,145 +6,302 @@ from core.models import BaseModel
 from accounts.models import User
 import re
 
+
+# ============================================================
+# AROLANA PRODUCT ARTICLE READER ADMIN CHOICES
+# These must be defined BEFORE BlogPost uses them.
+# ============================================================
+
+PRODUCT_ARTICLE_OPEN_BEHAVIOR_CHOICES = [
+    ("same_page", "Open in same page"),
+    ("new_page", "Open in new tab"),
+    ("popup", "Open in popup / modal"),
+    ("split_reader", "Open beside product / split reader"),
+]
+
+PRODUCT_ARTICLE_READER_CONTENT_MODE_CHOICES = [
+    ("clean_full_article", "Clean full article"),
+    ("full_article", "Full article page"),
+    ("body_only", "Article body only"),
+]
+
+
 class BlogCategory(BaseModel):
     """Article categories like Reviews, Guides, News, etc."""
+
     name = models.CharField(max_length=100)
     slug = models.SlugField(unique=True)
     description = models.TextField(blank=True)
     icon = models.CharField(max_length=50, blank=True, help_text="FontAwesome icon")
     color = models.CharField(max_length=20, default="#3B82F6", help_text="Category color")
-    featured_image = models.ImageField(upload_to='blog/categories/', null=True, blank=True)
+    featured_image = models.ImageField(upload_to="blog/categories/", null=True, blank=True)
     is_active = models.BooleanField(default=True)
-    
+
     class Meta:
         verbose_name_plural = "Blog Categories"
-        ordering = ['name']
-    
+        ordering = ["name"]
+
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
-    
+
     def __str__(self):
         return self.name
-    
+
     def get_absolute_url(self):
         from django.urls import reverse
-        return reverse('blog:category', args=[self.slug])
+        return reverse("blog:category", args=[self.slug])
+
 
 class BlogTag(BaseModel):
-    """Tags for articles"""
+    """Tags for articles."""
+
     name = models.CharField(max_length=50)
     slug = models.SlugField(unique=True)
-    
+
     class Meta:
-        ordering = ['name']
-    
+        ordering = ["name"]
+
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
-    
+
     def __str__(self):
         return self.name
 
+
 class BlogPost(BaseModel):
-    """Article/Blog post with B&H style layout"""
-    
+    """Article/Blog post with B&H style layout."""
+
     # Basic Info
     title = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
     excerpt = models.TextField(help_text="Short summary for listing pages")
-    content = CKEditor5Field(config_name='default', help_text="Main article content")
-    
+    content = CKEditor5Field(config_name="default", help_text="Main article content")
+
     # Media
-    featured_image = models.ImageField(upload_to='blog/featured/', null=True, blank=True, help_text="Main article image (1200x630 recommended)")
-    thumbnail_image = models.ImageField(upload_to='blog/thumbnails/', null=True, blank=True, help_text="Small thumbnail (300x200)")
-    gallery_images = models.JSONField(default=list, blank=True, help_text="Additional images for gallery")
-    video_url = models.URLField(blank=True, help_text="YouTube or Vimeo URL for video content")
-    local_video = models.FileField(
-        upload_to='blog/videos/%Y/%m/',
+    featured_image = models.ImageField(
+        upload_to="blog/featured/",
         null=True,
         blank=True,
-        help_text="Optional uploaded article video (MP4/WebM). Used when no YouTube/Vimeo URL is provided."
+        help_text="Main article image (1200x630 recommended)",
+    )
+    thumbnail_image = models.ImageField(
+        upload_to="blog/thumbnails/",
+        null=True,
+        blank=True,
+        help_text="Small thumbnail (300x200)",
+    )
+    gallery_images = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Additional images for gallery",
+    )
+    video_url = models.URLField(
+        blank=True,
+        help_text="YouTube or Vimeo URL for video content",
+    )
+    local_video = models.FileField(
+        upload_to="blog/videos/%Y/%m/",
+        null=True,
+        blank=True,
+        help_text="Optional uploaded article video (MP4/WebM). Used when no YouTube/Vimeo URL is provided.",
     )
     social_links = models.JSONField(
         default=dict,
         blank=True,
-        help_text='Optional social/media links. Example: {"YouTube": "https://...", "Instagram": "https://..."}'
+        help_text='Optional social/media links. Example: {"YouTube": "https://...", "Instagram": "https://..."}',
     )
-    source_url = models.URLField(blank=True, help_text="Optional source, manufacturer, or external reference link")
-    
+    source_url = models.URLField(
+        blank=True,
+        help_text="Optional source, manufacturer, or external reference link",
+    )
+
     # SEO
     meta_title = models.CharField(max_length=200, blank=True)
     meta_description = models.CharField(max_length=500, blank=True)
     meta_keywords = models.CharField(max_length=500, blank=True)
-    
+
     # Organization
-    category = models.ForeignKey(BlogCategory, on_delete=models.SET_NULL, null=True, blank=True, related_name='posts')
-    tags = models.ManyToManyField(BlogTag, blank=True, related_name='posts')
-    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='blog_posts')
-    
+    category = models.ForeignKey(
+        BlogCategory,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="posts",
+    )
+    tags = models.ManyToManyField(BlogTag, blank=True, related_name="posts")
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="blog_posts",
+    )
+
     # Statistics
     views = models.IntegerField(default=0)
     likes = models.IntegerField(default=0)
     shares = models.IntegerField(default=0)
-    reading_time = models.IntegerField(default=5, help_text="Estimated reading time in minutes")
-    
+    reading_time = models.IntegerField(
+        default=5,
+        help_text="Estimated reading time in minutes",
+    )
+
     # Publication
     is_published = models.BooleanField(default=False)
     is_featured = models.BooleanField(default=False, help_text="Show on homepage")
     published_at = models.DateTimeField(default=timezone.now)
-    
+
     # Advanced Features
-    table_of_contents = models.JSONField(default=list, blank=True, help_text="Auto-generated TOC")
-    related_posts = models.ManyToManyField('self', blank=True, symmetrical=False)
-    schema_markup = models.JSONField(default=dict, blank=True, help_text="JSON-LD schema")
-    
+    table_of_contents = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Auto-generated TOC",
+    )
+    related_posts = models.ManyToManyField(
+        "self",
+        blank=True,
+        symmetrical=False,
+    )
+    schema_markup = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="JSON-LD schema",
+    )
+
     # Styling
-    custom_css = models.TextField(blank=True, help_text="Custom CSS for this article")
+    custom_css = models.TextField(
+        blank=True,
+        help_text="Custom CSS for this article",
+    )
     hero_background_color = models.CharField(max_length=20, default="#111827")
     show_featured_image = models.BooleanField(default=True)
-    show_article_top_ad = models.BooleanField(default=False, help_text="Show an ad above the article media.")
-    show_article_native_ad = models.BooleanField(default=False, help_text="Show a native/sponsored ad inside the article body.")
-    show_article_after_author_ad = models.BooleanField(default=False, help_text="Show an ad after the author box.")
-    show_article_footer_ad = models.BooleanField(default=False, help_text="Show an ad after comments.")
-    show_sidebar_top_ad = models.BooleanField(default=False, help_text="Show the top sidebar ad.")
-    show_sidebar_mid_ad = models.BooleanField(default=False, help_text="Show the middle sidebar ad.")
-    show_sidebar_bottom_ad = models.BooleanField(default=False, help_text="Show the bottom sidebar ad.")
-    show_sidebar_sticky_ad = models.BooleanField(default=False, help_text="Show the sticky sidebar ad.")
-    show_sidebar_newsletter = models.BooleanField(default=True, help_text="Show newsletter signup on this article.")
-    layout_style = models.CharField(max_length=20, choices=[
-        ('standard', 'Standard'),
-        ('featured', 'Featured Image Top'),
-        ('video', 'Video Focus'),
-        ('gallery', 'Gallery Focus'),
-        ('review', 'Product Review'),
-    ], default='standard')
-    
+
+    # Article Ad Placement Controls
+    show_article_top_ad = models.BooleanField(
+        default=False,
+        help_text="Show an ad above the article media.",
+    )
+    show_article_native_ad = models.BooleanField(
+        default=False,
+        help_text="Show a native/sponsored ad inside the article body.",
+    )
+    show_article_after_author_ad = models.BooleanField(
+        default=False,
+        help_text="Show an ad after the author box.",
+    )
+    show_article_footer_ad = models.BooleanField(
+        default=False,
+        help_text="Show an ad after comments.",
+    )
+    show_sidebar_top_ad = models.BooleanField(
+        default=False,
+        help_text="Show the top sidebar ad.",
+    )
+    show_sidebar_mid_ad = models.BooleanField(
+        default=False,
+        help_text="Show the middle sidebar ad.",
+    )
+    show_sidebar_bottom_ad = models.BooleanField(
+        default=False,
+        help_text="Show the bottom sidebar ad.",
+    )
+    show_sidebar_sticky_ad = models.BooleanField(
+        default=False,
+        help_text="Show the sticky sidebar ad.",
+    )
+    show_sidebar_newsletter = models.BooleanField(
+        default=True,
+        help_text="Show newsletter signup on this article.",
+    )
+
+    layout_style = models.CharField(
+        max_length=20,
+        choices=[
+            ("standard", "Standard"),
+            ("featured", "Featured Image Top"),
+            ("video", "Video Focus"),
+            ("gallery", "Gallery Focus"),
+            ("review", "Product Review"),
+        ],
+        default="standard",
+    )
+
+    # ============================================================
+    # PRODUCT ARTICLE READER DEFAULTS
+    # These are article-level defaults. ProductArticleLink can still override them.
+    # ============================================================
+
+    product_article_default_open_behavior = models.CharField(
+        max_length=30,
+        choices=PRODUCT_ARTICLE_OPEN_BEHAVIOR_CHOICES,
+        default="split_reader",
+        help_text="Default behavior when this article is opened from a product page.",
+    )
+    product_article_default_reader_content_mode = models.CharField(
+        max_length=30,
+        choices=PRODUCT_ARTICLE_READER_CONTENT_MODE_CHOICES,
+        default="clean_full_article",
+        help_text="Default content mode when this article is opened inside the product split reader.",
+    )
+    product_article_reader_show_ads = models.BooleanField(
+        default=False,
+        help_text="Default: show ads inside the product article split reader.",
+    )
+    product_article_reader_show_cookie_banner = models.BooleanField(
+        default=False,
+        help_text="Default: show cookie/consent banners inside the product article split reader.",
+    )
+    product_article_reader_show_chat_widgets = models.BooleanField(
+        default=False,
+        help_text="Default: show chat widgets inside the product article split reader.",
+    )
+    product_article_reader_show_site_header_footer = models.BooleanField(
+        default=False,
+        help_text="Default: show site header/footer inside the product article split reader.",
+    )
+    product_article_reader_show_newsletter = models.BooleanField(
+        default=False,
+        help_text="Default: show newsletter blocks inside the product article split reader.",
+    )
+    product_article_reader_show_comments = models.BooleanField(
+        default=True,
+        help_text="Default: show comments inside the product article split reader.",
+    )
+    product_article_reader_show_author_box = models.BooleanField(
+        default=True,
+        help_text="Default: show author box inside the product article split reader.",
+    )
+    product_article_reader_show_share_box = models.BooleanField(
+        default=True,
+        help_text="Default: show share/social box inside the product article split reader.",
+    )
+
     class Meta:
-        ordering = ['-published_at']
+        ordering = ["-published_at"]
         indexes = [
-            models.Index(fields=['slug', 'is_published']),
-            models.Index(fields=['category', '-published_at']),
-            models.Index(fields=['-views']),
+            models.Index(fields=["slug", "is_published"]),
+            models.Index(fields=["category", "-published_at"]),
+            models.Index(fields=["-views"]),
         ]
-    
+
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.title)
+
         if not self.reading_time:
-            # Estimate reading time (200 words per minute)
-            word_count = len(self.content.split())
+            word_count = len(str(self.content or "").split())
             self.reading_time = max(1, round(word_count / 200))
+
         super().save(*args, **kwargs)
-    
+
     def __str__(self):
         return self.title
-    
+
     def get_absolute_url(self):
         from django.urls import reverse
-        return reverse('blog:detail', args=[self.slug])
+        return reverse("blog:detail", args=[self.slug])
 
     @property
     def display_image(self):
@@ -161,25 +318,25 @@ class BlogPost(BaseModel):
     def display_image_url(self):
         image = self.display_image
         if not image:
-            return ''
+            return ""
         try:
             return image.url
         except Exception:
-            return ''
+            return ""
 
     @property
     def local_video_url(self):
         if not self.local_video:
-            return ''
+            return ""
         try:
             return self.local_video.url
         except Exception:
-            return ''
-    
+            return ""
+
     def increment_views(self):
         self.views += 1
-        self.save(update_fields=['views'])
-    
+        self.save(update_fields=["views"])
+
     def get_reading_time_display(self):
         if self.reading_time == 1:
             return "1 min read"
@@ -191,17 +348,18 @@ class BlogPost(BaseModel):
             return ""
 
         youtube_patterns = [
-            r'youtube\.com/watch\?(?:.*&)?v=([\w-]+)',
-            r'youtu\.be/([\w-]+)',
-            r'youtube\.com/embed/([\w-]+)',
-            r'youtube\.com/shorts/([\w-]+)',
+            r"youtube\.com/watch\?(?:.*&)?v=([\w-]+)",
+            r"youtu\.be/([\w-]+)",
+            r"youtube\.com/embed/([\w-]+)",
+            r"youtube\.com/shorts/([\w-]+)",
         ]
+
         for pattern in youtube_patterns:
             match = re.search(pattern, self.video_url)
             if match:
                 return f"https://www.youtube.com/embed/{match.group(1)}?rel=0&modestbranding=1&playsinline=1"
 
-        vimeo_match = re.search(r'vimeo\.com/(?:video/)?(\d+)', self.video_url)
+        vimeo_match = re.search(r"vimeo\.com/(?:video/)?(\d+)", self.video_url)
         if vimeo_match:
             return f"https://player.vimeo.com/video/{vimeo_match.group(1)}"
 
@@ -211,44 +369,65 @@ class BlogPost(BaseModel):
     def social_links_list(self):
         if isinstance(self.social_links, dict):
             return [
-                {'label': str(label), 'url': str(url)}
+                {"label": str(label), "url": str(url)}
                 for label, url in self.social_links.items()
                 if label and url
             ]
+
         if isinstance(self.social_links, list):
             return [
-                item for item in self.social_links
-                if isinstance(item, dict) and item.get('label') and item.get('url')
+                item
+                for item in self.social_links
+                if isinstance(item, dict) and item.get("label") and item.get("url")
             ]
+
         return []
 
+
 class BlogComment(BaseModel):
-    """Comments on articles"""
-    post = models.ForeignKey(BlogPost, on_delete=models.CASCADE, related_name='comments')
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='blog_comments')
-    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='replies')
+    """Comments on articles."""
+
+    post = models.ForeignKey(
+        BlogPost,
+        on_delete=models.CASCADE,
+        related_name="comments",
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="blog_comments",
+    )
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="replies",
+    )
     comment = models.TextField()
     is_approved = models.BooleanField(default=True)
     likes = models.IntegerField(default=0)
-    
+
     class Meta:
-        ordering = ['created_at']
-    
+        ordering = ["created_at"]
+
     def __str__(self):
         return f"Comment by {self.user.username} on {self.post.title}"
-    
+
     @property
     def is_reply(self):
         return self.parent is not None
 
+
 class NewsletterSubscriber(BaseModel):
-    """Email newsletter subscribers"""
+    """Email newsletter subscribers."""
+
     email = models.EmailField(unique=True)
     name = models.CharField(max_length=200, blank=True)
     is_active = models.BooleanField(default=True)
-    
+
     class Meta:
-        ordering = ['-created_at']
-    
+        ordering = ["-created_at"]
+
     def __str__(self):
         return self.email

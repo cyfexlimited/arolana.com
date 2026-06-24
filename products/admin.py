@@ -206,11 +206,23 @@ class ProductVideoInline(admin.TabularInline):
     fields = ['title', 'description', 'source', 'youtube_url', 'vimeo_url', 'local_video', 'thumbnail', 'is_main', 'display_order']
 
 
-class ProductArticleLinkInline(admin.TabularInline):
+class ProductArticleLinkInline(admin.StackedInline):
     model = ProductArticleLink
     extra = 1
-    fields = ['article', 'label', 'placement', 'open_behavior', 'sort_order', 'is_active']
+    fields = [
+        'article',
+        'label',
+        'teaser',
+        'placement',
+        'open_behavior',
+        'reader_content_mode',
+        ('reader_show_ads', 'reader_show_newsletter', 'reader_show_comments'),
+        ('reader_show_cookie_banner', 'reader_show_chat_widgets', 'reader_show_site_header_footer'),
+        'sort_order',
+        'is_active',
+    ]
     autocomplete_fields = ['article']
+    show_change_link = True
 
 
 class CategoryArticleLinkInline(admin.TabularInline):

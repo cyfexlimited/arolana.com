@@ -836,12 +836,19 @@ class ProductWholesaleTier(BaseModel):
 
 
 class ProductArticleLink(BaseModel):
-    """Attach rich editorial articles to a product with configurable behavior."""
+    """Attach rich editorial articles to a product with admin-controlled opening and reader behavior."""
 
     OPEN_BEHAVIOR_CHOICES = [
-        ('same_page', 'Open in same page'),
-        ('new_page', 'Open in new tab'),
-        ('popup', 'Open in popup modal'),
+        ('same_page', 'Open article in same page'),
+        ('new_page', 'Open article in new tab'),
+        ('side_reader', 'Open beside product (same-page split reader)'),
+        ('popup', 'Legacy popup / split reader'),
+    ]
+
+    READER_CONTENT_MODE_CHOICES = [
+        ('clean_full_article', 'Full article page, cleaned for product reader'),
+        ('full_article', 'Full article page exactly as article layout'),
+        ('body_only', 'Main article body only'),
     ]
 
     PLACEMENT_CHOICES = [
@@ -856,7 +863,52 @@ class ProductArticleLink(BaseModel):
     label = models.CharField(max_length=120, blank=True, help_text="Optional button/card title override")
     teaser = models.TextField(blank=True, help_text="Optional short teaser override")
     placement = models.CharField(max_length=30, choices=PLACEMENT_CHOICES, default='articles_tab')
-    open_behavior = models.CharField(max_length=20, choices=OPEN_BEHAVIOR_CHOICES, default='same_page')
+
+    open_behavior = models.CharField(
+        max_length=20,
+        choices=OPEN_BEHAVIOR_CHOICES,
+        default='side_reader',
+        db_index=True,
+        help_text=(
+            "Admin controls how this article opens from the product page. "
+            "Choose same page, new tab, or the B&H-style same-page split reader."
+        ),
+    )
+
+    reader_content_mode = models.CharField(
+        max_length=30,
+        choices=READER_CONTENT_MODE_CHOICES,
+        default='clean_full_article',
+        help_text=(
+            "Used only when Open behavior is split reader/popup. "
+            "Clean full article is recommended for product pages."
+        ),
+    )
+    reader_show_ads = models.BooleanField(
+        default=False,
+        help_text="Used only in split reader. Turn on if you intentionally want article ad placements inside the product reader.",
+    )
+    reader_show_cookie_banner = models.BooleanField(
+        default=False,
+        help_text="Used only in split reader. Normally keep off so imported cookie banners do not cover the product page.",
+    )
+    reader_show_chat_widgets = models.BooleanField(
+        default=False,
+        help_text="Used only in split reader. Normally keep off to avoid duplicate floating chat buttons.",
+    )
+    reader_show_site_header_footer = models.BooleanField(
+        default=False,
+        help_text="Used only in split reader. Normally keep off because the product page already has the site header/footer.",
+    )
+    reader_show_newsletter = models.BooleanField(
+        default=True,
+        help_text="Used only in split reader. Show/hide article newsletter signup blocks inside the reader.",
+    )
+    reader_show_comments = models.BooleanField(
+        default=True,
+        help_text="Used only in split reader. Show/hide comments inside the reader.",
+    )
+
     sort_order = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
 
@@ -884,6 +936,18 @@ class ProductArticleLink(BaseModel):
     @property
     def article_image_url(self):
         return self.article.display_image_url
+
+    @property
+    def opens_in_side_reader(self):
+        return self.open_behavior in ['side_reader', 'popup']
+
+    @property
+    def opens_in_new_page(self):
+        return self.open_behavior == 'new_page'
+
+    @property
+    def opens_in_same_page(self):
+        return self.open_behavior == 'same_page'
 
 
 class CategoryArticleLink(BaseModel):

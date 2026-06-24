@@ -20,6 +20,19 @@ try:
 except Exception:
     from .models import NewsletterSubscriber as NewsletterSubscriberModel
 
+
+def _reader_bool_param(request, name, default=False):
+    """Read product article reader booleans from query string safely."""
+    value = request.GET.get(name, None)
+    if value is None:
+        return bool(default)
+    return str(value).strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+def _is_product_article_reader_request(request):
+    """True when a product page is loading this article into the same-page reader."""
+    return str(request.GET.get('arolana_reader', '')).strip().lower() == 'product'
+
 def blog_list(request):
     """Blog listing page with filters, search, featured posts, and duplicate prevention."""
     base_posts = (
@@ -167,11 +180,19 @@ def blog_detail(request, slug):
         }
     }
     
-    # ========== AD CONTROLS (can be overridden via context) ==========
-    # These control which ad sections appear on the page
-    # Set to False to hide specific ad sections
-    
-    ad_controls = {
+    # ========== AD / READER CONTROLS ==========
+    # Normal blog article pages keep their own article ad controls.
+    # Product split-reader requests can override ads/newsletter/comments from admin-selected ProductArticleLink options.
+    is_product_article_reader = _is_product_article_reader_request(request)
+    reader_content_mode = (request.GET.get('reader_content_mode') or 'clean_full_article').strip()
+    reader_show_ads = _reader_bool_param(request, 'reader_show_ads', default=False)
+    reader_show_cookies = _reader_bool_param(request, 'reader_show_cookies', default=False)
+    reader_show_chat_widgets = _reader_bool_param(request, 'reader_show_chat_widgets', default=False)
+    reader_show_header_footer = _reader_bool_param(request, 'reader_show_header_footer', default=False)
+    reader_show_newsletter = _reader_bool_param(request, 'reader_show_newsletter', default=True)
+    reader_show_comments = _reader_bool_param(request, 'reader_show_comments', default=True)
+
+    normal_ad_controls = {
         # Main content ads
         'display_ad_top': getattr(settings, 'DISPLAY_ARTICLE_TOP_AD', True) and post.show_article_top_ad,
         'display_ad_after_header': getattr(settings, 'DISPLAY_ARTICLE_AFTER_HEADER_AD', True),
@@ -180,8 +201,8 @@ def blog_detail(request, slug):
         'display_ad_before_conclusion': getattr(settings, 'DISPLAY_ARTICLE_BEFORE_CONCLUSION_AD', True),
         'display_ad_after_author': getattr(settings, 'DISPLAY_ARTICLE_AFTER_AUTHOR_AD', True) and post.show_article_after_author_ad,
         'display_ad_footer': getattr(settings, 'DISPLAY_ARTICLE_FOOTER_AD', True) and post.show_article_footer_ad,
-        
-        # Sidebar ads
+
+        # Sidebar ads / blocks
         'display_sidebar_search': getattr(settings, 'DISPLAY_SIDEBAR_SEARCH', True),
         'display_sidebar_ad_top': getattr(settings, 'DISPLAY_SIDEBAR_TOP_AD', True) and post.show_sidebar_top_ad,
         'display_sidebar_newsletter': getattr(settings, 'DISPLAY_SIDEBAR_NEWSLETTER', True) and post.show_sidebar_newsletter,
@@ -191,6 +212,23 @@ def blog_detail(request, slug):
         'display_sidebar_categories': getattr(settings, 'DISPLAY_SIDEBAR_CATEGORIES', True),
         'display_sidebar_sticky': getattr(settings, 'DISPLAY_SIDEBAR_STICKY_AD', True) and post.show_sidebar_sticky_ad,
     }
+
+    if is_product_article_reader:
+        ad_controls = {
+            key: (value if reader_show_ads or key in {
+                'display_sidebar_search',
+                'display_sidebar_popular',
+                'display_sidebar_categories',
+            } else False)
+            for key, value in normal_ad_controls.items()
+        }
+        if not reader_show_newsletter:
+            ad_controls['display_sidebar_newsletter'] = False
+    else:
+        ad_controls = normal_ad_controls
+
+    if is_product_article_reader and not reader_show_comments:
+        comments = []
     
     context = {
         'post': post,
@@ -206,6 +244,14 @@ def blog_detail(request, slug):
         **ad_controls,
         # Additional context for template
         'is_blog_detail': True,
+        'is_product_article_reader': is_product_article_reader,
+        'reader_content_mode': reader_content_mode,
+        'reader_show_ads': reader_show_ads,
+        'reader_show_cookies': reader_show_cookies,
+        'reader_show_chat_widgets': reader_show_chat_widgets,
+        'reader_show_header_footer': reader_show_header_footer,
+        'reader_show_newsletter': reader_show_newsletter,
+        'reader_show_comments': reader_show_comments,
     }
     return render(request, 'blog/detail.html', context)
 

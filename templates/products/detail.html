@@ -2574,62 +2574,65 @@
     }
 
 
-    /* Remove imported ads/widgets inside product split article reader.
-       Main blog pages can still show ads; this only cleans the same-page product reader. */
-    .apd-article-side-full-page .ad,
-    .apd-article-side-full-page .ads,
-    .apd-article-side-full-page .advert,
-    .apd-article-side-full-page .advertisement,
-    .apd-article-side-full-page .sponsored,
-    .apd-article-side-full-page .sponsored-ad,
-    .apd-article-side-full-page .ad-banner,
-    .apd-article-side-full-page .ads-banner,
-    .apd-article-side-full-page .floating-ad,
-    .apd-article-side-full-page .sticky-ad,
-    .apd-article-side-full-page .sidebar-ad,
-    .apd-article-side-full-page .article-ad,
-    .apd-article-side-full-page .blog-ad,
-    .apd-article-side-full-page .promo-ad,
-    .apd-article-side-full-page .ad-card,
-    .apd-article-side-full-page .ads-card,
-    .apd-article-side-full-page [data-ad],
-    .apd-article-side-full-page [data-ads],
-    .apd-article-side-full-page [data-sponsored],
-    .apd-article-side-full-page [aria-label*="Advertisement"],
-    .apd-article-side-full-page [aria-label*="advertisement"],
-    .apd-article-side-full-page [id^="ad"],
-    .apd-article-side-full-page [id*="-ad"],
-    .apd-article-side-full-page [id*="_ad"],
-    .apd-article-side-full-page [id*="advert"],
-    .apd-article-side-full-page [class*="ad-"],
-    .apd-article-side-full-page [class*="-ad"],
-    .apd-article-side-full-page [class*="ads-"],
-    .apd-article-side-full-page [class*="-ads"],
-    .apd-article-side-full-page [class*="advert"],
-    .apd-article-side-full-page [class*="sponsor"],
-    .apd-article-side-full-page .chat-widget,
-    .apd-article-side-full-page .floating-chat,
-     .apd-article-side-full-page .newsletter-popup,
-    .apd-article-side-full-page .cookie-banner,
-    .apd-article-side-full-page .cookie-consent,
-    .apd-article-side-full-page .cookie-notice,
-    .apd-article-side-full-page .cookie-popup,
-    .apd-article-side-full-page .cookie-alert,
-    .apd-article-side-full-page .cookies-banner,
-    .apd-article-side-full-page .cookies-consent,
-    .apd-article-side-full-page .consent-banner,
-    .apd-article-side-full-page .privacy-banner,
-    .apd-article-side-full-page #cookie-banner,
-    .apd-article-side-full-page #cookie-consent,
-    .apd-article-side-full-page #cookie-notice,
-    .apd-article-side-full-page #cookies-banner,
-    .apd-article-side-full-page #cookies-consent,
-    .apd-article-side-full-page [id*="cookie"],
-    .apd-article-side-full-page [id*="cookies"],
-    .apd-article-side-full-page [class*="cookie"],
-    .apd-article-side-full-page [class*="cookies"],
-    .apd-article-side-full-page [class*="consent"],
-    .apd-article-side-full-page [class*="privacy"] {
+    /* Admin-controlled imported content cleanup for product split article reader.
+       Main blog pages can still show ads; this only applies inside the same-page product reader. */
+    .apd-reader-strip-ads .ad,
+    .apd-reader-strip-ads .ads,
+    .apd-reader-strip-ads .advert,
+    .apd-reader-strip-ads .advertisement,
+    .apd-reader-strip-ads .sponsored,
+    .apd-reader-strip-ads .sponsored-ad,
+    .apd-reader-strip-ads .ad-banner,
+    .apd-reader-strip-ads .ads-banner,
+    .apd-reader-strip-ads .floating-ad,
+    .apd-reader-strip-ads .sticky-ad,
+    .apd-reader-strip-ads .sidebar-ad,
+    .apd-reader-strip-ads .article-ad,
+    .apd-reader-strip-ads .blog-ad,
+    .apd-reader-strip-ads .promo-ad,
+    .apd-reader-strip-ads .ad-card,
+    .apd-reader-strip-ads .ads-card,
+    .apd-reader-strip-ads [data-ad],
+    .apd-reader-strip-ads [data-ads],
+    .apd-reader-strip-ads [data-sponsored],
+    .apd-reader-strip-ads [aria-label*="Advertisement"],
+    .apd-reader-strip-ads [aria-label*="advertisement"],
+    .apd-reader-strip-ads [id^="ad"],
+    .apd-reader-strip-ads [id*="-ad"],
+    .apd-reader-strip-ads [id*="_ad"],
+    .apd-reader-strip-ads [id*="advert"],
+    .apd-reader-strip-ads [class*="ad-"],
+    .apd-reader-strip-ads [class*="-ad"],
+    .apd-reader-strip-ads [class*="ads-"],
+    .apd-reader-strip-ads [class*="-ads"],
+    .apd-reader-strip-ads [class*="advert"],
+    .apd-reader-strip-ads [class*="sponsor"],
+    .apd-reader-strip-cookies .cookie-banner,
+    .apd-reader-strip-cookies .cookie-consent,
+    .apd-reader-strip-cookies .cookie-notice,
+    .apd-reader-strip-cookies .cookie-popup,
+    .apd-reader-strip-cookies .cookie-alert,
+    .apd-reader-strip-cookies .cookies-banner,
+    .apd-reader-strip-cookies .cookies-consent,
+    .apd-reader-strip-cookies .consent-banner,
+    .apd-reader-strip-cookies .privacy-banner,
+    .apd-reader-strip-cookies #cookie-banner,
+    .apd-reader-strip-cookies #cookie-consent,
+    .apd-reader-strip-cookies #cookie-notice,
+    .apd-reader-strip-cookies #cookies-banner,
+    .apd-reader-strip-cookies #cookies-consent,
+    .apd-reader-strip-cookies [id*="cookie"],
+    .apd-reader-strip-cookies [id*="cookies"],
+    .apd-reader-strip-cookies [class*="cookie"],
+    .apd-reader-strip-cookies [class*="cookies"],
+    .apd-reader-strip-cookies [class*="consent"],
+    .apd-reader-strip-cookies [class*="privacy"],
+    .apd-reader-strip-chat .chat-widget,
+    .apd-reader-strip-chat .floating-chat,
+    .apd-reader-strip-newsletter .newsletter-popup,
+    .apd-reader-strip-newsletter [class*="newsletter"],
+    .apd-reader-strip-comments [id*="comment"],
+    .apd-reader-strip-comments [class*="comment"] {
         display: none !important;
         visibility: hidden !important;
         opacity: 0 !important;
@@ -2930,8 +2933,19 @@
                 <div class="grid gap-3 mb-4">
                     {% for article_link in product_article_links_hero %}
                     <a href="{{ article_link.article_url }}"
+                       {% if article_link.open_behavior == 'new_page' %}target="_blank" rel="noopener noreferrer"{% endif %}
+                       {% if article_link.open_behavior == 'side_reader' or article_link.open_behavior == 'popup' %}
                        data-article-popup="true"
                        data-article-title="{{ article_link.display_label|escape }}"
+                       data-article-kicker="{{ article_link.article.category.name|default:'Arolana Article'|escape }}"
+                       data-reader-content-mode="{{ article_link.reader_content_mode|default:'clean_full_article' }}"
+                       data-reader-show-ads="{{ article_link.reader_show_ads|yesno:'true,false' }}"
+                       data-reader-show-cookie-banner="{{ article_link.reader_show_cookie_banner|yesno:'true,false' }}"
+                       data-reader-show-chat-widgets="{{ article_link.reader_show_chat_widgets|yesno:'true,false' }}"
+                       data-reader-show-site-header-footer="{{ article_link.reader_show_site_header_footer|yesno:'true,false' }}"
+                       data-reader-show-newsletter="{{ article_link.reader_show_newsletter|yesno:'true,false' }}"
+                       data-reader-show-comments="{{ article_link.reader_show_comments|yesno:'true,false' }}"
+                       {% endif %}
                        class="group flex gap-3 rounded-xl border border-blue-100 bg-blue-50/70 p-3 transition hover:-translate-y-0.5 hover:border-blue-300 hover:bg-white hover:shadow-lg"
                        >
                         <div class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white text-blue-600 ring-1 ring-blue-100">
@@ -3223,8 +3237,19 @@
                     <div class="mt-4 grid gap-4 md:grid-cols-2">
                         {% for article_link in product_article_links_overview %}
                         <a href="{{ article_link.article_url }}"
+                           {% if article_link.open_behavior == 'new_page' %}target="_blank" rel="noopener noreferrer"{% endif %}
+                           {% if article_link.open_behavior == 'side_reader' or article_link.open_behavior == 'popup' %}
                            data-article-popup="true"
                            data-article-title="{{ article_link.display_label|escape }}"
+                           data-article-kicker="{{ article_link.article.category.name|default:'Arolana Article'|escape }}"
+                           data-reader-content-mode="{{ article_link.reader_content_mode|default:'clean_full_article' }}"
+                           data-reader-show-ads="{{ article_link.reader_show_ads|yesno:'true,false' }}"
+                           data-reader-show-cookie-banner="{{ article_link.reader_show_cookie_banner|yesno:'true,false' }}"
+                           data-reader-show-chat-widgets="{{ article_link.reader_show_chat_widgets|yesno:'true,false' }}"
+                           data-reader-show-site-header-footer="{{ article_link.reader_show_site_header_footer|yesno:'true,false' }}"
+                           data-reader-show-newsletter="{{ article_link.reader_show_newsletter|yesno:'true,false' }}"
+                           data-reader-show-comments="{{ article_link.reader_show_comments|yesno:'true,false' }}"
+                           {% endif %}
                            class="group overflow-hidden rounded-xl border border-gray-100 bg-gray-50 transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-white hover:shadow-xl"
                            >
                             <div class="aspect-[16/9] bg-gradient-to-br from-blue-100 to-slate-100">
@@ -3520,8 +3545,19 @@
                 <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
                     {% for article_link in product_article_links_tab %}
                     <a href="{{ article_link.article_url }}"
+                       {% if article_link.open_behavior == 'new_page' %}target="_blank" rel="noopener noreferrer"{% endif %}
+                       {% if article_link.open_behavior == 'side_reader' or article_link.open_behavior == 'popup' %}
                        data-article-popup="true"
                        data-article-title="{{ article_link.display_label|escape }}"
+                       data-article-kicker="{{ article_link.article.category.name|default:'Arolana Article'|escape }}"
+                       data-reader-content-mode="{{ article_link.reader_content_mode|default:'clean_full_article' }}"
+                       data-reader-show-ads="{{ article_link.reader_show_ads|yesno:'true,false' }}"
+                       data-reader-show-cookie-banner="{{ article_link.reader_show_cookie_banner|yesno:'true,false' }}"
+                       data-reader-show-chat-widgets="{{ article_link.reader_show_chat_widgets|yesno:'true,false' }}"
+                       data-reader-show-site-header-footer="{{ article_link.reader_show_site_header_footer|yesno:'true,false' }}"
+                       data-reader-show-newsletter="{{ article_link.reader_show_newsletter|yesno:'true,false' }}"
+                       data-reader-show-comments="{{ article_link.reader_show_comments|yesno:'true,false' }}"
+                       {% endif %}
                        class="group overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-1 hover:border-blue-200 hover:shadow-2xl"
                        >
                         <div class="aspect-[16/10] bg-gradient-to-br from-blue-100 to-slate-100">
@@ -3953,7 +3989,7 @@
     <div class="apd-article-side-shell">
         <div class="apd-article-side-header">
             <div class="apd-article-side-title-wrap">
-                <span class="apd-article-side-kicker">Buying Guide / Office Technology</span>
+                <span id="product-article-modal-kicker" class="apd-article-side-kicker">Arolana Article</span>
                 <h3 id="product-article-modal-title" class="apd-article-side-title">Article</h3>
             </div>
 
@@ -4090,13 +4126,26 @@
         }
     }
 
-    function openProductArticleModal(url, title) {
+    function openProductArticleModal(url, title, options) {
         const modal = getEl('product-article-modal');
         const body = getEl('product-article-modal-body');
         const heading = getEl('product-article-modal-title');
+        const kicker = getEl('product-article-modal-kicker');
         if (!modal || !body) return;
 
+        const readerOptions = Object.assign({
+            kicker: 'Arolana Article',
+            contentMode: 'clean_full_article',
+            showAds: false,
+            showCookieBanner: false,
+            showChatWidgets: false,
+            showSiteHeaderFooter: false,
+            showNewsletter: true,
+            showComments: true
+        }, options || {});
+
         if (heading) heading.textContent = title || 'Article';
+        if (kicker) kicker.textContent = readerOptions.kicker || 'Arolana Article';
 
         body.innerHTML = '<div class="apd-article-side-loading">Loading article...</div>';
 
@@ -4108,7 +4157,26 @@
         document.documentElement.style.overflow = '';
         document.body.style.overflow = '';
 
-        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        const buildReaderFetchUrl = function (baseUrl) {
+            try {
+                const readerUrl = new URL(baseUrl, window.location.origin);
+                readerUrl.searchParams.set('arolana_reader', 'product');
+                readerUrl.searchParams.set('reader_content_mode', readerOptions.contentMode || 'clean_full_article');
+                readerUrl.searchParams.set('reader_show_ads', readerOptions.showAds ? '1' : '0');
+                readerUrl.searchParams.set('reader_show_cookies', readerOptions.showCookieBanner ? '1' : '0');
+                readerUrl.searchParams.set('reader_show_chat_widgets', readerOptions.showChatWidgets ? '1' : '0');
+                readerUrl.searchParams.set('reader_show_header_footer', readerOptions.showSiteHeaderFooter ? '1' : '0');
+                readerUrl.searchParams.set('reader_show_newsletter', readerOptions.showNewsletter ? '1' : '0');
+                readerUrl.searchParams.set('reader_show_comments', readerOptions.showComments ? '1' : '0');
+                return readerUrl.toString();
+            } catch (error) {
+                return baseUrl;
+            }
+        };
+
+        const fetchUrl = buildReaderFetchUrl(url);
+
+        fetch(fetchUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
             .then(function (response) {
                 if (!response.ok) throw new Error('Article could not be loaded.');
                 return response.text();
@@ -4116,90 +4184,132 @@
             .then(function (html) {
                 const parsed = new DOMParser().parseFromString(html, 'text/html');
 
-                const fullArticlePage = parsed.querySelector(
-                    '[data-article-page-root], .article-detail-page, .blog-detail-page, .article-page, .blog-page, main, body'
-                );
+                let contentRoot = null;
+                const contentMode = readerOptions.contentMode || 'clean_full_article';
 
-                if (!fullArticlePage) throw new Error('Full article page could not be found.');
+                if (contentMode === 'body_only') {
+                    contentRoot = parsed.querySelector(
+                        '.article-content, .blog-article-content, .post-content, main article, article'
+                    );
+                } else {
+                    contentRoot = parsed.querySelector(
+                        '[data-article-page-root], .article-detail-page, .blog-detail-page, .article-page, .blog-page, main, body'
+                    );
+                }
+
+                if (!contentRoot) throw new Error('Article content could not be found.');
 
                 const removeImportedNoise = function (root) {
                     if (!root) return;
 
-                    root.querySelectorAll(`
-                        script,
-                        style,
-                        noscript,
-                        iframe[src*="ads"],
-                        iframe[src*="doubleclick"],
-                        iframe[src*="googlesyndication"],
-                        iframe[src*="googleads"],
-                        iframe[src*="adservice"],
-                        header,
-                        nav,
-                        footer,
-                        .site-header,
-                        .site-footer,
-                        .topbar,
-                        .navbar,
-                        .mobile-menu,
-                        #mobile-menu,
-                        #back-to-top,
-                        .back-to-top,
-                        .ad,
-                        .ads,
-                        .advert,
-                        .advertisement,
-                        .sponsored,
-                        .sponsored-ad,
-                        .ad-banner,
-                        .ads-banner,
-                        .floating-ad,
-                        .sticky-ad,
-                        .sidebar-ad,
-                        .article-ad,
-                        .blog-ad,
-                        .promo-ad,
-                        .ad-card,
-                        .ads-card,
-                        [data-ad],
-                        [data-ads],
-                        [data-sponsored],
-                        [aria-label*="Advertisement"],
-                        [aria-label*="advertisement"],
-                        [id^="ad"],
-                        [id*="-ad"],
-                        [id*="_ad"],
-                        [id*="advert"],
-                        [class*="ad-"],
-                        [class*="-ad"],
-                        [class*="ads-"],
-                        [class*="-ads"],
-                        [class*="advert"],
-                        [class*="sponsor"],
-                        .chat-widget,
-                        .floating-chat,
-                        .newsletter-popup,
-                        .cookie-banner,
-                        .cookie-consent,
-                        .cookie-notice,
-                        .cookie-popup,
-                        .cookie-alert,
-                        .cookies-banner,
-                        .cookies-consent,
-                        .consent-banner,
-                        .privacy-banner,
-                        #cookie-banner,
-                        #cookie-consent,
-                        #cookie-notice,
-                        #cookies-banner,
-                        #cookies-consent,
-                        [id*="cookie"],
-                        [id*="cookies"],
-                        [class*="cookie"],
-                        [class*="cookies"],
-                        [class*="consent"],
-                        [class*="privacy"]
-                    `).forEach(function (node) {
+                    const selectors = [
+                        'script',
+                        'noscript'
+                    ];
+
+                    if (!readerOptions.showSiteHeaderFooter) {
+                        selectors.push(
+                            'header',
+                            'nav',
+                            'footer',
+                            '.site-header',
+                            '.site-footer',
+                            '.topbar',
+                            '.navbar',
+                            '.mobile-menu',
+                            '#mobile-menu',
+                            '#back-to-top',
+                            '.back-to-top'
+                        );
+                    }
+
+                    if (!readerOptions.showAds) {
+                        selectors.push(
+                            'iframe[src*="ads"]',
+                            'iframe[src*="doubleclick"]',
+                            'iframe[src*="googlesyndication"]',
+                            'iframe[src*="googleads"]',
+                            'iframe[src*="adservice"]',
+                            '.ad',
+                            '.ads',
+                            '.advert',
+                            '.advertisement',
+                            '.sponsored',
+                            '.sponsored-ad',
+                            '.ad-banner',
+                            '.ads-banner',
+                            '.floating-ad',
+                            '.sticky-ad',
+                            '.sidebar-ad',
+                            '.article-ad',
+                            '.blog-ad',
+                            '.promo-ad',
+                            '.ad-card',
+                            '.ads-card',
+                            '[data-ad]',
+                            '[data-ads]',
+                            '[data-sponsored]',
+                            '[aria-label*="Advertisement"]',
+                            '[aria-label*="advertisement"]',
+                            '[id^="ad"]',
+                            '[id*="-ad"]',
+                            '[id*="_ad"]',
+                            '[id*="advert"]',
+                            '[class*="ad-"]',
+                            '[class*="-ad"]',
+                            '[class*="ads-"]',
+                            '[class*="-ads"]',
+                            '[class*="advert"]',
+                            '[class*="sponsor"]'
+                        );
+                    }
+
+                    if (!readerOptions.showCookieBanner) {
+                        selectors.push(
+                            '.cookie-banner',
+                            '.cookie-consent',
+                            '.cookie-notice',
+                            '.cookie-popup',
+                            '.cookie-alert',
+                            '.cookies-banner',
+                            '.cookies-consent',
+                            '.consent-banner',
+                            '.privacy-banner',
+                            '#cookie-banner',
+                            '#cookie-consent',
+                            '#cookie-notice',
+                            '#cookies-banner',
+                            '#cookies-consent',
+                            '[id*="cookie"]',
+                            '[id*="cookies"]',
+                            '[class*="cookie"]',
+                            '[class*="cookies"]',
+                            '[class*="consent"]',
+                            '[class*="privacy"]'
+                        );
+                    }
+
+                    if (!readerOptions.showChatWidgets) {
+                        selectors.push('.chat-widget', '.floating-chat');
+                    }
+
+                    if (!readerOptions.showNewsletter) {
+                        selectors.push(
+                            '.newsletter-popup',
+                            '[class*="newsletter"]',
+                            '[id*="newsletter"]'
+                        );
+                    }
+
+                    if (!readerOptions.showComments) {
+                        selectors.push(
+                            '[id*="comment"]',
+                            '[class*="comment"]',
+                            '[data-comments]'
+                        );
+                    }
+
+                    root.querySelectorAll(selectors.join(',')).forEach(function (node) {
                         node.remove();
                     });
 
@@ -4208,33 +4318,46 @@
                         const className = String(node.className || '').toLowerCase();
 
                         if (
-                            (text === 'sponsored advertisement') ||
-                            (text.startsWith('sponsored advertisement') && text.length < 80) ||
-                            (text === 'advertisement') ||
-                            (text.includes('we use cookies') && text.length < 240) ||
-                            (text.includes('accept our policy') && text.length < 240) ||
-                            (text.includes('cookie') && text.includes('accept') && text.length < 260) ||
-                            className.includes('sponsored') ||
-                            className.includes('cookie') ||
-                            className.includes('cookies') ||
-                            className.includes('consent') ||
-                            className.includes('privacy') ||
-                            className.includes('advertisement')
+                            (!readerOptions.showAds && (
+                                text === 'sponsored advertisement' ||
+                                (text.startsWith('sponsored advertisement') && text.length < 80) ||
+                                text === 'advertisement' ||
+                                className.includes('sponsored') ||
+                                className.includes('advertisement')
+                            )) ||
+                            (!readerOptions.showCookieBanner && (
+                                (text.includes('we use cookies') && text.length < 240) ||
+                                (text.includes('accept our policy') && text.length < 240) ||
+                                (text.includes('cookie') && text.includes('accept') && text.length < 260) ||
+                                className.includes('cookie') ||
+                                className.includes('cookies') ||
+                                className.includes('consent') ||
+                                className.includes('privacy')
+                            ))
                         ) {
                             node.remove();
                         }
                     });
                 };
 
-                removeImportedNoise(fullArticlePage);
+                removeImportedNoise(contentRoot);
 
-                fullArticlePage.querySelectorAll('[id]').forEach(function (node) {
+                contentRoot.querySelectorAll('[id]').forEach(function (node) {
                     node.removeAttribute('id');
                 });
 
+                const readerClasses = [
+                    'apd-article-side-full-page',
+                    readerOptions.showAds ? '' : 'apd-reader-strip-ads',
+                    readerOptions.showCookieBanner ? '' : 'apd-reader-strip-cookies',
+                    readerOptions.showChatWidgets ? '' : 'apd-reader-strip-chat',
+                    readerOptions.showNewsletter ? '' : 'apd-reader-strip-newsletter',
+                    readerOptions.showComments ? '' : 'apd-reader-strip-comments'
+                ].filter(Boolean).join(' ');
+
                 body.innerHTML =
-                    '<div class="apd-article-side-full-page">' +
-                        fullArticlePage.innerHTML +
+                    '<div class="' + readerClasses + '">' +
+                        contentRoot.innerHTML +
                     '</div>';
 
                 removeImportedNoise(body);
@@ -4252,7 +4375,10 @@
                 body.innerHTML =
                     '<div class="apd-article-side-error">' +
                         '<p>This article could not load fully inside the same-page reader.</p>' +
-                        '<p class="mt-2 text-xs text-slate-500">' + escapeHtml(error && error.message ? error.message : 'Please close and try again.') + '</p>' +
+                        '<p class="mt-2 text-xs text-slate-500">' + escapeHtml(error && error.message ? error.message : 'Unknown loading error') + '</p>' +
+                        '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-black text-white hover:bg-blue-700">' +
+                            'Open article page <i class="fas fa-arrow-right text-xs"></i>' +
+                        '</a>' +
                     '</div>';
             });
     }
@@ -5736,9 +5862,9 @@
         setupProductShareLinks();
 
         /*
-         * Arolana same-page article reader.
-         * Use event delegation so every product article link opens in the right-side split panel,
-         * even if the link was rendered with target="_blank" or added later.
+         * Arolana admin-controlled article opening behavior.
+         * Only links rendered with data-article-popup="true" open in the same-page split reader.
+         * Same-page and new-tab article links behave normally based on the admin-selected open behavior.
          */
         document.addEventListener('click', function (event) {
             const articleLink = event.target.closest('a[data-article-popup="true"]');
@@ -5747,7 +5873,25 @@
                 event.stopPropagation();
                 articleLink.removeAttribute('target');
                 articleLink.removeAttribute('rel');
-                openProductArticleModal(articleLink.href, articleLink.dataset.articleTitle || articleLink.textContent.trim());
+
+                const truthy = function (value) {
+                    return String(value || '').toLowerCase() === 'true';
+                };
+
+                openProductArticleModal(
+                    articleLink.href,
+                    articleLink.dataset.articleTitle || articleLink.textContent.trim(),
+                    {
+                        kicker: articleLink.dataset.articleKicker || 'Arolana Article',
+                        contentMode: articleLink.dataset.readerContentMode || 'clean_full_article',
+                        showAds: truthy(articleLink.dataset.readerShowAds),
+                        showCookieBanner: truthy(articleLink.dataset.readerShowCookieBanner),
+                        showChatWidgets: truthy(articleLink.dataset.readerShowChatWidgets),
+                        showSiteHeaderFooter: truthy(articleLink.dataset.readerShowSiteHeaderFooter),
+                        showNewsletter: truthy(articleLink.dataset.readerShowNewsletter),
+                        showComments: truthy(articleLink.dataset.readerShowComments)
+                    }
+                );
                 return;
             }
 
