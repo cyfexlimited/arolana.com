@@ -1,42 +1,169 @@
 {% extends 'base/base.html' %}
 
+{% block title %}Return Policy | Arolana{% endblock %}
+
 {% block content %}
-<div class="max-w-4xl mx-auto">
-    <div class="bg-white rounded-lg shadow-md p-8">
-        <h1 class="text-3xl font-bold mb-6">Return Policy</h1>
-        
-        <div class="prose max-w-none">
-            <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
-                <p class="font-semibold">30-Day Returns</p>
-                <p>We offer a 30-day return policy on most items. Items must be unused and in original packaging.</p>
-            </div>
-            
-            <h2 class="text-xl font-bold mt-6 mb-3">How to Return an Item</h2>
-            <ol class="list-decimal list-inside space-y-2">
-                <li>Log into your account</li>
-                <li>Go to Order History</li>
-                <li>Select the item you wish to return</li>
-                <li>Follow the return instructions</li>
-                <li>Print the return shipping label</li>
-                <li>Ship the item back to us</li>
-            </ol>
-            
-            <h2 class="text-xl font-bold mt-6 mb-3">Return Conditions</h2>
-            <ul class="list-disc list-inside space-y-2">
-                <li>Items must be returned within 30 days of delivery</li>
-                <li>Items must be in original condition with all tags and packaging</li>
-                <li>Some items are final sale and cannot be returned</li>
-                <li>Return shipping costs may apply</li>
-            </ul>
-            
-            <h2 class="text-xl font-bold mt-6 mb-3">Refund Processing</h2>
-            <p>Refunds are processed within 5-7 business days after we receive your return. Refunds will be issued to your original payment method.</p>
-            
-            <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 mt-6">
-                <p class="font-semibold">Need Help?</p>
-                <p>Contact our support team at returns@arolana.com or call 1-800-AROLANA</p>
+<main class="bg-slate-50">
+
+    <section class="relative overflow-hidden bg-white">
+        <div class="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-orange-50"></div>
+
+        <div class="relative mx-auto max-w-7xl px-4 py-16 md:py-24">
+            <div class="max-w-4xl">
+                <p class="text-sm font-black uppercase tracking-[0.28em] text-blue-600">
+                    Return Policy
+                </p>
+
+                <h1 class="mt-4 text-4xl font-black tracking-tight text-slate-950 md:text-6xl">
+                    Simple, fair, and transparent returns.
+                </h1>
+
+                <p class="mt-5 max-w-3xl text-lg leading-8 text-slate-600">
+                    Arolana offers a 7-day return policy on eligible items from the date of delivery. Products must be unused, in their original condition, and returned with all original packaging and accessories.
+                </p>
+
+                <p class="mt-4 text-sm font-bold text-slate-500">
+                    Last updated: {% now "F Y" %}
+                </p>
             </div>
         </div>
-    </div>
-</div>
+    </section>
+
+    <section class="mx-auto max-w-5xl px-4 py-12 md:py-16">
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-10">
+
+            <div class="mb-8 rounded-3xl border border-blue-100 bg-blue-50 p-6">
+                <div class="flex gap-4">
+                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-blue-700">
+                        <i class="fas fa-rotate-left"></i>
+                    </div>
+
+                    <div>
+                        <h2 class="text-xl font-black text-slate-950">
+                            7-Day Return Window
+                        </h2>
+
+                        <p class="mt-2 leading-7 text-slate-600">
+                            Return requests must be made within 7 days from the date your item was delivered. The item must be unused, undamaged, and in its original packaging.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="prose prose-slate max-w-none prose-headings:font-black prose-headings:text-slate-950 prose-a:text-blue-700 prose-a:font-bold">
+
+                <h2>1. Items Eligible for Return</h2>
+                <p>
+                    To qualify for a return, the product must meet the following conditions:
+                </p>
+
+                <ul>
+                    <li>The return request must be made within 7 days of delivery.</li>
+                    <li>The item must be unused and in its original condition.</li>
+                    <li>The item must be returned with its original packaging.</li>
+                    <li>All accessories, manuals, warranty cards, tags, and included items must be returned.</li>
+                    <li>The item must not be damaged due to misuse, alteration, or improper handling.</li>
+                </ul>
+
+                <h2>2. Defective, Damaged, or Wrong Items</h2>
+                <p>
+                    If you receive a defective, damaged, incomplete, or incorrect item, please contact Arolana Support within 7 days of delivery.
+                </p>
+
+                <p>
+                    To help us resolve your request faster, include your order number, vendor name, clear photos or videos of the item, packaging, and any visible damage or error.
+                </p>
+
+                <h2>3. Items That May Not Be Returnable</h2>
+                <p>
+                    Certain items may not be eligible for return due to product condition, hygiene, customization, activation, or manufacturer restrictions.
+                </p>
+
+                <ul>
+                    <li>Customized or specially ordered products.</li>
+                    <li>Software, digital products, license keys, subscriptions, or activated products.</li>
+                    <li>Items damaged after delivery due to misuse or poor handling.</li>
+                    <li>Clearance, final sale, or products marked as non-returnable.</li>
+                    <li>Products missing accessories, packaging, serial numbers, manuals, or warranty cards.</li>
+                </ul>
+
+                <h2>4. How to Request a Return</h2>
+                <ol>
+                    <li>Contact Arolana Support within 7 days of delivery.</li>
+                    <li>Provide your order number and reason for return.</li>
+                    <li>Attach clear photos or videos where necessary.</li>
+                    <li>Wait for return approval and instructions.</li>
+                    <li>Send the item back using the approved return method.</li>
+                    <li>Wait for inspection and refund approval.</li>
+                </ol>
+
+                <h2>5. Return Shipping</h2>
+                <p>
+                    Return shipping responsibility may depend on the reason for the return. If the return is caused by a wrong, damaged, incomplete, or defective item, Arolana or the vendor may assist according to the approved return process.
+                </p>
+
+                <p>
+                    If the return is due to customer preference, wrong selection, or change of mind, return shipping costs may apply.
+                </p>
+
+                <h2>6. Inspection and Approval</h2>
+                <p>
+                    Returned items will be inspected after they are received. If the item meets the return conditions, the refund or replacement process will continue.
+                </p>
+
+                <p>
+                    If the item is used, damaged, incomplete, altered, or not in its original condition, the return may be rejected.
+                </p>
+
+                <h2>7. Refund Processing</h2>
+                <p>
+                    Approved refunds will be processed through the original payment method or another approved refund channel where necessary.
+                </p>
+
+                <p>
+                    Refund timelines may depend on payment provider processing time, bank processing time, and the completion of return inspection.
+                </p>
+
+                <h2>8. Vendor Marketplace Returns</h2>
+                <p>
+                    Arolana is a multi-vendor marketplace. Some products are sold by independent vendors. Vendor return conditions may apply, but all vendors are expected to follow Arolana’s marketplace return standards.
+                </p>
+
+                <p>
+                    Arolana may help review return issues between customers and vendors to promote fairness, trust, and buyer protection.
+                </p>
+
+                <h2>9. Need Help?</h2>
+                <p>
+                    For return requests, damaged products, wrong deliveries, refund questions, or vendor-related issues, contact Arolana Support.
+                </p>
+
+                <div class="not-prose mt-6 rounded-3xl border border-orange-100 bg-orange-50 p-6">
+                    <h3 class="text-lg font-black text-slate-950">
+                        Return Support
+                    </h3>
+
+                    <div class="mt-4 grid gap-3 text-sm text-slate-700">
+                        <p>
+                            <strong>Email:</strong>
+                            <a href="mailto:returns@arolana.com" class="font-bold text-blue-700">returns@arolana.com</a>
+                        </p>
+
+                        <p>
+                            <strong>Support:</strong>
+                            <a href="{% url 'contact:index' %}" class="font-bold text-blue-700">Contact Arolana Support</a>
+                        </p>
+
+                        <p>
+                            <strong>Location:</strong>
+                            Ikeja, Lagos, Nigeria
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+</main>
 {% endblock %}

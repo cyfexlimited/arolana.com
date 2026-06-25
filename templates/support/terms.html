@@ -1,34 +1,244 @@
 {% extends 'base/base.html' %}
 
+{% block title %}Terms of Service | Arolana{% endblock %}
+
 {% block content %}
-<div class="max-w-4xl mx-auto">
-    <div class="bg-white rounded-lg shadow-md p-8">
-        <h1 class="text-3xl font-bold mb-6">Terms of Service</h1>
-        
-        <div class="prose max-w-none">
-            <p class="text-gray-600 mb-4">Last updated: April 2024</p>
-            
-            <h2 class="text-xl font-bold mt-6 mb-3">Acceptance of Terms</h2>
-            <p>By accessing or using Arolana.com, you agree to be bound by these Terms of Service.</p>
-            
-            <h2 class="text-xl font-bold mt-6 mb-3">Account Registration</h2>
-            <p>You must be at least 18 years old to create an account. You are responsible for maintaining the security of your account.</p>
-            
-            <h2 class="text-xl font-bold mt-6 mb-3">Purchases and Payments</h2>
-            <p>All purchases are subject to our payment terms. Prices are subject to change without notice.</p>
-            
-            <h2 class="text-xl font-bold mt-6 mb-3">Vendor Terms</h2>
-            <p>Vendors must comply with our vendor agreement, including product quality standards and shipping requirements.</p>
-            
-            <h2 class="text-xl font-bold mt-6 mb-3">Returns and Refunds</h2>
-            <p>Please review our Return Policy for information about returns and refunds.</p>
-            
-            <h2 class="text-xl font-bold mt-6 mb-3">Limitation of Liability</h2>
-            <p>Arolana.com shall not be liable for any indirect, incidental, or consequential damages.</p>
-            
-            <h2 class="text-xl font-bold mt-6 mb-3">Changes to Terms</h2>
-            <p>We may modify these Terms at any time. Continued use of the site constitutes acceptance of the modified terms.</p>
+<main class="bg-slate-50">
+
+    <section class="relative overflow-hidden bg-white">
+        <div class="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-orange-50"></div>
+
+        <div class="relative mx-auto max-w-7xl px-4 py-16 md:py-24">
+            <div class="max-w-4xl">
+                <p class="text-sm font-black uppercase tracking-[0.28em] text-blue-600">
+                    Terms of Service
+                </p>
+
+                <h1 class="mt-4 text-4xl font-black tracking-tight text-slate-950 md:text-6xl">
+                    The rules that guide buying, selling, and using Arolana.
+                </h1>
+
+                <p class="mt-5 max-w-3xl text-lg leading-8 text-slate-600">
+                    These Terms of Service explain the conditions for using Arolana, creating an account, buying products, selling as a vendor, using marketplace services, and interacting with our platform.
+                </p>
+
+                <p class="mt-4 text-sm font-bold text-slate-500">
+                    Last updated: {% now "F Y" %}
+                </p>
+            </div>
         </div>
-    </div>
-</div>
+    </section>
+
+    <section class="mx-auto max-w-5xl px-4 py-12 md:py-16">
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-10">
+
+            <div class="prose prose-slate max-w-none prose-headings:font-black prose-headings:text-slate-950 prose-a:text-blue-700 prose-a:font-bold">
+
+                <h2>1. Acceptance of Terms</h2>
+                <p>
+                    By accessing, browsing, registering, buying, selling, or using Arolana, you agree to follow these Terms of Service and any other policies referenced on our platform.
+                </p>
+
+                <p>
+                    If you do not agree with these terms, you should not use Arolana or any of its marketplace services.
+                </p>
+
+                <h2>2. About Arolana</h2>
+                <p>
+                    Arolana is a multi-vendor marketplace that connects customers with vendors, products, service providers, installers, repair engineers, consultants, and other approved marketplace participants.
+                </p>
+
+                <p>
+                    Some products and services may be provided directly by independent vendors or third-party service providers. Arolana may support transactions, communication, order tracking, dispute review, and marketplace protection where applicable.
+                </p>
+
+                <h2>3. Account Registration</h2>
+                <p>
+                    You may need to create an account to access certain features, place orders, sell products, request services, submit reviews, or manage marketplace activity.
+                </p>
+
+                <ul>
+                    <li>You must provide accurate and complete information.</li>
+                    <li>You are responsible for keeping your login details secure.</li>
+                    <li>You must not use another person’s account without permission.</li>
+                    <li>Arolana may suspend or restrict accounts involved in fraud, abuse, false information, or policy violations.</li>
+                </ul>
+
+                <h2>4. Customer Responsibilities</h2>
+                <p>
+                    Customers are expected to provide correct delivery details, review product descriptions carefully, make payments through approved channels, and communicate respectfully with vendors, support agents, and delivery partners.
+                </p>
+
+                <p>
+                    Customers should report wrong, damaged, incomplete, or suspicious orders as soon as possible through Arolana Support.
+                </p>
+
+                <h2>5. Vendor Responsibilities</h2>
+                <p>
+                    Vendors using Arolana must comply with marketplace standards, product quality requirements, listing rules, pricing rules, delivery expectations, customer service standards, and any vendor agreement provided by Arolana.
+                </p>
+
+                <ul>
+                    <li>Vendors must provide accurate product information, pricing, stock status, and images.</li>
+                    <li>Vendors must not list counterfeit, illegal, unsafe, stolen, misleading, or restricted products.</li>
+                    <li>Vendors must fulfil orders professionally and within reasonable delivery timelines.</li>
+                    <li>Vendors must cooperate with returns, refunds, order disputes, and customer complaints where applicable.</li>
+                    <li>Arolana may remove listings, restrict vendor accounts, or take action against vendors who violate marketplace standards.</li>
+                </ul>
+
+                <h2>6. Products, Listings, and Availability</h2>
+                <p>
+                    Product information, images, descriptions, specifications, pricing, availability, and delivery estimates may be updated from time to time.
+                </p>
+
+                <p>
+                    While we work to keep marketplace information accurate, errors may occur. Arolana may correct errors, cancel affected orders, request confirmation, or contact customers where a product, price, stock, or delivery detail is incorrect.
+                </p>
+
+                <h2>7. Orders and Payments</h2>
+                <p>
+                    Orders placed on Arolana are subject to product availability, vendor acceptance, payment confirmation, fraud checks, delivery availability, and marketplace review where necessary.
+                </p>
+
+                <ul>
+                    <li>Prices may change without prior notice before an order is completed.</li>
+                    <li>Payment must be made through approved Arolana payment channels.</li>
+                    <li>Arolana may reject, cancel, hold, or review orders suspected of fraud, abuse, pricing errors, or policy violations.</li>
+                    <li>Customers should not make payments outside approved Arolana channels unless clearly instructed by Arolana.</li>
+                </ul>
+
+                <h2>8. Shipping and Delivery</h2>
+                <p>
+                    Delivery fees, timelines, and available delivery options may depend on location, route, package size, package weight, delivery method, vendor location, and delivery partner availability.
+                </p>
+
+                <p>
+                    Delivery estimates are provided for guidance and may change due to weather, traffic, logistics delays, vendor readiness, payment review, or other operational factors.
+                </p>
+
+                <h2>9. Returns, Refunds, and Replacements</h2>
+                <p>
+                    Returns and refunds are handled according to Arolana’s Return Policy and the condition of the product received.
+                </p>
+
+                <p>
+                    Eligible items may qualify for return within the approved return window if they are unused, in original condition, and returned with all packaging, accessories, manuals, and included items.
+                </p>
+
+                <p>
+                    Some items may not be returnable due to hygiene, customization, activation, software licensing, manufacturer restrictions, or final-sale conditions.
+                </p>
+
+                <h2>10. Marketplace Protection and Disputes</h2>
+                <p>
+                    Arolana may help review issues involving customers, vendors, service providers, payments, deliveries, damaged items, missing products, wrong items, or other marketplace complaints.
+                </p>
+
+                <p>
+                    Users are expected to provide evidence where needed, including order numbers, delivery details, product photos, videos, screenshots, communication records, and packaging images.
+                </p>
+
+                <h2>11. Reviews, Comments, and User Content</h2>
+                <p>
+                    Users may be allowed to post reviews, ratings, questions, comments, images, videos, or other marketplace content.
+                </p>
+
+                <ul>
+                    <li>Content must be truthful, respectful, and related to the product, vendor, service, or order experience.</li>
+                    <li>Users must not post false, abusive, illegal, defamatory, hateful, misleading, or harmful content.</li>
+                    <li>Arolana may moderate, remove, restrict, or refuse content that violates platform standards.</li>
+                </ul>
+
+                <h2>12. Prohibited Activities</h2>
+                <p>
+                    You must not use Arolana for illegal, fraudulent, abusive, harmful, or unauthorized activities.
+                </p>
+
+                <ul>
+                    <li>Do not attempt to hack, disrupt, overload, scrape, or misuse the platform.</li>
+                    <li>Do not submit false identity, fake vendor information, fake orders, fake reviews, or misleading listings.</li>
+                    <li>Do not sell prohibited, counterfeit, stolen, unsafe, or restricted goods.</li>
+                    <li>Do not harass, threaten, abuse, impersonate, or defraud customers, vendors, support agents, riders, or service providers.</li>
+                    <li>Do not bypass Arolana payment, order, safety, or dispute processes where they are required.</li>
+                </ul>
+
+                <h2>13. Service Providers, Installers, and Engineers</h2>
+                <p>
+                    Arolana may list or connect customers with installers, repair engineers, technicians, consultants, trainers, and other service providers.
+                </p>
+
+                <p>
+                    Service providers are responsible for the quality, safety, accuracy, pricing, and delivery of their services. Arolana may support verification, visibility, communication, quote requests, reviews, and dispute assistance where applicable.
+                </p>
+
+                <h2>14. Intellectual Property</h2>
+                <p>
+                    Arolana’s name, logo, design, platform features, text, graphics, software, and marketplace content are protected by applicable intellectual property rights.
+                </p>
+
+                <p>
+                    Users must not copy, reproduce, modify, distribute, sell, or misuse Arolana content, branding, or technology without written permission.
+                </p>
+
+                <h2>15. Privacy</h2>
+                <p>
+                    Your use of Arolana is also governed by our Privacy Policy, which explains how we collect, use, protect, and manage your information.
+                </p>
+
+                <h2>16. Account Suspension or Termination</h2>
+                <p>
+                    Arolana may suspend, restrict, or terminate accounts, vendor stores, listings, services, orders, or access to platform features if we believe a user has violated these Terms, created risk, engaged in fraud, or harmed the marketplace.
+                </p>
+
+                <h2>17. Limitation of Liability</h2>
+                <p>
+                    To the extent permitted by law, Arolana will not be liable for indirect, incidental, special, consequential, or punitive damages arising from your use of the platform, vendor activities, delivery delays, service provider actions, or third-party conduct.
+                </p>
+
+                <p>
+                    Arolana’s role as a marketplace may involve connecting users with independent vendors, delivery partners, or service providers. We will work to support fair marketplace outcomes, but we cannot guarantee that every third-party action will be error-free.
+                </p>
+
+                <h2>18. Changes to These Terms</h2>
+                <p>
+                    We may update these Terms of Service from time to time to reflect changes in our marketplace, operations, legal requirements, payment systems, delivery processes, vendor standards, or customer protection policies.
+                </p>
+
+                <p>
+                    Continued use of Arolana after updates means you accept the revised Terms.
+                </p>
+
+                <h2>19. Contact Us</h2>
+                <p>
+                    If you have questions about these Terms of Service, your account, orders, vendor activity, or marketplace rights, please contact Arolana Support.
+                </p>
+
+                <div class="not-prose mt-6 rounded-3xl border border-blue-100 bg-blue-50 p-6">
+                    <h3 class="text-lg font-black text-slate-950">
+                        Arolana Support
+                    </h3>
+
+                    <div class="mt-4 grid gap-3 text-sm text-slate-700">
+                        <p>
+                            <strong>Email:</strong>
+                            <a href="mailto:legal@arolana.com" class="font-bold text-blue-700">legal@arolana.com</a>
+                        </p>
+
+                        <p>
+                            <strong>Support:</strong>
+                            <a href="{% url 'contact:index' %}" class="font-bold text-blue-700">Contact Arolana Support</a>
+                        </p>
+
+                        <p>
+                            <strong>Location:</strong>
+                            Ikeja, Lagos, Nigeria
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+</main>
 {% endblock %}

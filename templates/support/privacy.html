@@ -1,33 +1,181 @@
 {% extends 'base/base.html' %}
 
+{% block title %}Privacy Policy | Arolana{% endblock %}
+
 {% block content %}
-<div class="max-w-4xl mx-auto">
-    <div class="bg-white rounded-lg shadow-md p-8">
-        <h1 class="text-3xl font-bold mb-6">Privacy Policy</h1>
-        
-        <div class="prose max-w-none">
-            <p class="text-gray-600 mb-4">Last updated: April 2024</p>
-            
-            <h2 class="text-xl font-bold mt-6 mb-3">Information We Collect</h2>
-            <p>We collect information you provide directly to us, such as when you create an account, make a purchase, or contact us for support.</p>
-            
-            <h2 class="text-xl font-bold mt-6 mb-3">How We Use Your Information</h2>
-            <ul class="list-disc list-inside">
-                <li>Process your orders and payments</li>
-                <li>Communicate with you about your account or orders</li>
-                <li>Improve our services and customer experience</li>
-                <li>Send promotional emails (you can opt out)</li>
-            </ul>
-            
-            <h2 class="text-xl font-bold mt-6 mb-3">Information Sharing</h2>
-            <p>We do not sell, trade, or rent your personal information to third parties. We may share information with trusted partners who assist us in operating our website.</p>
-            
-            <h2 class="text-xl font-bold mt-6 mb-3">Security</h2>
-            <p>We implement security measures to protect your personal information. However, no method of transmission over the Internet is 100% secure.</p>
-            
-            <h2 class="text-xl font-bold mt-6 mb-3">Contact Us</h2>
-            <p>If you have questions about this Privacy Policy, please contact us at privacy@arolana.com</p>
+<main class="bg-slate-50">
+
+    <section class="relative overflow-hidden bg-white">
+        <div class="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-orange-50"></div>
+
+        <div class="relative mx-auto max-w-7xl px-4 py-16 md:py-24">
+            <div class="max-w-4xl">
+                <p class="text-sm font-black uppercase tracking-[0.28em] text-blue-600">
+                    Privacy Policy
+                </p>
+
+                <h1 class="mt-4 text-4xl font-black tracking-tight text-slate-950 md:text-6xl">
+                    How Arolana protects your information.
+                </h1>
+
+                <p class="mt-5 max-w-3xl text-lg leading-8 text-slate-600">
+                    This Privacy Policy explains how Arolana collects, uses, protects, and manages your personal information when you use our marketplace.
+                </p>
+
+                <p class="mt-4 text-sm font-bold text-slate-500">
+                    Last updated: {% now "F Y" %}
+                </p>
+            </div>
         </div>
-    </div>
-</div>
+    </section>
+
+    <section class="mx-auto max-w-5xl px-4 py-12 md:py-16">
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-10">
+
+            <div class="prose prose-slate max-w-none prose-headings:font-black prose-headings:text-slate-950 prose-a:text-blue-700 prose-a:font-bold">
+
+                <h2>1. Information We Collect</h2>
+                <p>
+                    We collect information you provide directly to us when you create an account, place an order, contact support, register as a vendor, submit product information, or use any feature on Arolana.
+                </p>
+
+                <p>
+                    This may include your name, email address, phone number, delivery address, billing details, order information, vendor business details, support messages, and account preferences.
+                </p>
+
+                <h2>2. Information Collected Automatically</h2>
+                <p>
+                    When you visit Arolana, we may automatically collect certain information such as your device type, browser, IP address, pages visited, referral source, session information, and general usage activity.
+                </p>
+
+                <p>
+                    This helps us improve security, understand customer behavior, prevent fraud, improve performance, and provide a better shopping experience.
+                </p>
+
+                <h2>3. How We Use Your Information</h2>
+                <ul>
+                    <li>To create and manage your account.</li>
+                    <li>To process orders, payments, deliveries, returns, and refunds.</li>
+                    <li>To connect customers with vendors and service providers.</li>
+                    <li>To provide customer support and respond to your requests.</li>
+                    <li>To improve our marketplace, products, services, and user experience.</li>
+                    <li>To detect fraud, abuse, suspicious activity, and security risks.</li>
+                    <li>To send important updates about orders, accounts, payments, policies, and platform changes.</li>
+                    <li>To send promotional messages where permitted, with an option to opt out.</li>
+                </ul>
+
+                <h2>4. Vendor and Marketplace Information</h2>
+                <p>
+                    If you register as a vendor, we may collect business-related information such as store name, contact details, business address, product listings, verification details, payout details, and customer communication history.
+                </p>
+
+                <p>
+                    Some vendor information may be displayed publicly on Arolana to help customers identify and communicate with sellers.
+                </p>
+
+                <h2>5. Payments and Transactions</h2>
+                <p>
+                    Payments made on Arolana may be processed through trusted payment service providers. We do not store full card details on our servers unless clearly stated and securely handled by approved payment partners.
+                </p>
+
+                <p>
+                    Transaction information may be used to confirm payment, prevent fraud, process refunds, settle vendors, and maintain accurate order records.
+                </p>
+
+                <h2>6. Sharing of Information</h2>
+                <p>
+                    We do not sell your personal information. However, we may share necessary information with trusted parties who help us operate the marketplace.
+                </p>
+
+                <ul>
+                    <li>Vendors, where needed to fulfil your order.</li>
+                    <li>Delivery and logistics partners.</li>
+                    <li>Payment processors and financial service providers.</li>
+                    <li>Customer support, technical, and security service providers.</li>
+                    <li>Regulators, law enforcement, or legal authorities where required by law.</li>
+                </ul>
+
+                <h2>7. Cookies and Tracking Technologies</h2>
+                <p>
+                    Arolana may use cookies and similar technologies to remember your preferences, keep you signed in, improve website performance, measure traffic, and personalize your experience.
+                </p>
+
+                <p>
+                    You can manage cookies through your browser settings, but disabling some cookies may affect how certain features work.
+                </p>
+
+                <h2>8. Data Security</h2>
+                <p>
+                    We use reasonable technical, administrative, and organizational measures to protect your personal information against unauthorized access, loss, misuse, alteration, or disclosure.
+                </p>
+
+                <p>
+                    However, no online platform can guarantee 100% security, so users are encouraged to keep their login details safe and report suspicious activity immediately.
+                </p>
+
+                <h2>9. Your Rights and Choices</h2>
+                <p>
+                    Depending on applicable laws, you may request access to your personal information, ask for corrections, request deletion, withdraw consent, or opt out of certain communications.
+                </p>
+
+                <p>
+                    To make a privacy-related request, please contact us using the details below.
+                </p>
+
+                <h2>10. Marketing Communications</h2>
+                <p>
+                    We may send you promotional emails, offers, marketplace updates, or vendor-related opportunities. You may unsubscribe from marketing messages at any time.
+                </p>
+
+                <p>
+                    Important service messages such as order updates, account security alerts, and payment notifications may still be sent when necessary.
+                </p>
+
+                <h2>11. Children’s Privacy</h2>
+                <p>
+                    Arolana is not intended for use by children without the supervision of a parent or guardian. We do not knowingly collect personal information from children where parental consent is required.
+                </p>
+
+                <h2>12. Changes to This Policy</h2>
+                <p>
+                    We may update this Privacy Policy from time to time to reflect changes in our services, legal requirements, or marketplace operations.
+                </p>
+
+                <p>
+                    When we update this policy, we will revise the “Last updated” date on this page.
+                </p>
+
+                <h2>13. Contact Us</h2>
+                <p>
+                    If you have questions about this Privacy Policy or how your information is handled, please contact Arolana.
+                </p>
+
+                <div class="not-prose mt-6 rounded-3xl border border-blue-100 bg-blue-50 p-6">
+                    <h3 class="text-lg font-black text-slate-950">
+                        Privacy Contact
+                    </h3>
+
+                    <div class="mt-4 grid gap-3 text-sm text-slate-700">
+                        <p>
+                            <strong>Email:</strong>
+                            <a href="mailto:privacy@arolana.com" class="font-bold text-blue-700">privacy@arolana.com</a>
+                        </p>
+
+                        <p>
+                            <strong>Support:</strong>
+                            <a href="{% url 'contact:index' %}" class="font-bold text-blue-700">Contact Arolana Support</a>
+                        </p>
+
+                        <p>
+                            <strong>Location:</strong>
+                            Ikeja, Lagos, Nigeria
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+</main>
 {% endblock %}

@@ -3,107 +3,256 @@
 {% block title %}Shipping & Delivery Information | Arolana{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-6xl px-4 py-10">
-    <section class="rounded-3xl bg-gradient-to-r from-slate-950 via-blue-950 to-indigo-900 p-6 text-white shadow-xl md:p-10">
-        <p class="text-sm font-black uppercase tracking-[0.16em] text-blue-200">Arolana Delivery Engine</p>
-        <h1 class="mt-3 max-w-4xl text-3xl font-black md:text-5xl">Shipping fees are calculated by your location, route, speed, and package.</h1>
-        <p class="mt-4 max-w-3xl text-white/80">
-            Arolana checkout now keeps delivery simple: choose Standard Delivery for reliable dispatch or Express Delivery for faster handling where available.
-            Our system calculates the fee from pickup to drop-off distance, package weight, live rider demand, and service level.
-        </p>
-        <div class="mt-6 flex flex-wrap gap-3">
-            <a href="/orders/track/" class="inline-flex min-h-11 items-center rounded-xl bg-white px-5 font-black text-blue-700">Track order</a>
-            <a href="/products/" class="inline-flex min-h-11 items-center rounded-xl border border-white/30 px-5 font-black text-white">Continue shopping</a>
+<main class="bg-slate-50">
+
+    <section class="relative overflow-hidden bg-white">
+        <div class="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-orange-50"></div>
+
+        <div class="relative mx-auto max-w-7xl px-4 py-16 md:py-24">
+            <div class="max-w-4xl">
+                <p class="text-sm font-black uppercase tracking-[0.28em] text-blue-600">
+                    Shipping & Delivery
+                </p>
+
+                <h1 class="mt-4 text-4xl font-black tracking-tight text-slate-950 md:text-6xl">
+                    Clear delivery fees, reliable dispatch, and better order tracking.
+                </h1>
+
+                <p class="mt-5 max-w-3xl text-lg leading-8 text-slate-600">
+                    Arolana helps customers receive their orders through Standard or Express Delivery where available. Delivery fees may depend on location, route, package size, weight, service level, and delivery partner availability.
+                </p>
+
+                <div class="mt-8 flex flex-wrap gap-3">
+                    <a href="/orders/track/" class="inline-flex min-h-12 items-center rounded-2xl bg-blue-700 px-6 font-black text-white transition hover:bg-blue-800">
+                        Track Order
+                    </a>
+
+                    <a href="/products/" class="inline-flex min-h-12 items-center rounded-2xl border border-slate-300 bg-white px-6 font-black text-slate-800 transition hover:bg-slate-50">
+                        Continue Shopping
+                    </a>
+                </div>
+            </div>
         </div>
     </section>
 
-    <section class="mt-8 grid gap-4 md:grid-cols-2">
-        <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-            <i class="fas fa-truck text-2xl text-blue-600"></i>
-            <h2 class="mt-3 font-black text-gray-950">Standard Delivery</h2>
-            <p class="mt-2 text-sm text-gray-600">Reliable delivery for regular orders. Fee is calculated from your address and provider route.</p>
-        </div>
-        <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-            <i class="fas fa-bolt text-2xl text-blue-600"></i>
-            <h2 class="mt-3 font-black text-gray-950">Express Delivery</h2>
-            <p class="mt-2 text-sm text-gray-600">Faster dispatch where available. Express may cost more depending on rider/provider availability.</p>
+    <section class="mx-auto max-w-7xl px-4 py-12">
+        <div class="grid gap-5 md:grid-cols-2">
+            <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
+                    <i class="fas fa-truck text-2xl"></i>
+                </div>
+
+                <h2 class="mt-5 text-2xl font-black text-slate-950">
+                    Standard Delivery
+                </h2>
+
+                <p class="mt-3 leading-7 text-slate-600">
+                    Standard Delivery is suitable for regular orders and reliable dispatch. The delivery fee is calculated based on your address, pickup route, package details, and available delivery options.
+                </p>
+            </div>
+
+            <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-50 text-orange-600">
+                    <i class="fas fa-bolt text-2xl"></i>
+                </div>
+
+                <h2 class="mt-5 text-2xl font-black text-slate-950">
+                    Express Delivery
+                </h2>
+
+                <p class="mt-3 leading-7 text-slate-600">
+                    Express Delivery gives faster handling where available. It may cost more depending on delivery partner availability, route demand, distance, package size, and urgency.
+                </p>
+            </div>
         </div>
     </section>
 
-    <section class="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <div class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 class="text-2xl font-black text-gray-950">What customers receive</h2>
-            <div class="mt-6 space-y-5">
+    <section class="mx-auto grid max-w-7xl gap-6 px-4 pb-12 lg:grid-cols-[minmax(0,1fr)_24rem]">
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+            <h2 class="text-3xl font-black text-slate-950">
+                What Customers Receive
+            </h2>
+
+            <p class="mt-3 max-w-2xl leading-7 text-slate-600">
+                Arolana keeps customers informed from checkout to delivery, so every order can be tracked with better visibility and support.
+            </p>
+
+            <div class="mt-8 space-y-6">
                 <div class="flex gap-4">
-                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600"><i class="fas fa-receipt"></i></span>
+                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
+                        <i class="fas fa-receipt"></i>
+                    </span>
+
                     <div>
-                        <h3 class="font-black text-gray-950">Delivery fee before payment</h3>
-                        <p class="text-gray-600">Checkout estimates delivery cost from your selected method, address, city, state, country, map distance, package weight, and current rider demand.</p>
+                        <h3 class="font-black text-slate-950">
+                            Delivery fee before payment
+                        </h3>
+                        <p class="mt-1 leading-7 text-slate-600">
+                            Delivery cost is shown before checkout is completed, based on your selected delivery method, location, route, package weight, and available delivery support.
+                        </p>
                     </div>
                 </div>
+
                 <div class="flex gap-4">
-                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600"><i class="fas fa-user-check"></i></span>
+                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
+                        <i class="fas fa-user-check"></i>
+                    </span>
+
                     <div>
-                        <h3 class="font-black text-gray-950">Assignment notification</h3>
-                        <p class="text-gray-600">You are notified when Arolana assigns the best available rider or approved delivery partner for your Standard or Express delivery.</p>
+                        <h3 class="font-black text-slate-950">
+                            Delivery assignment update
+                        </h3>
+                        <p class="mt-1 leading-7 text-slate-600">
+                            You may receive an update when Arolana assigns an available rider, logistics provider, or approved delivery partner for your order.
+                        </p>
                     </div>
                 </div>
+
                 <div class="flex gap-4">
-                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600"><i class="fas fa-box"></i></span>
+                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
+                        <i class="fas fa-box"></i>
+                    </span>
+
                     <div>
-                        <h3 class="font-black text-gray-950">Pickup notification</h3>
-                        <p class="text-gray-600">You receive a pickup update when the item leaves the vendor or dispatch point.</p>
+                        <h3 class="font-black text-slate-950">
+                            Pickup notification
+                        </h3>
+                        <p class="mt-1 leading-7 text-slate-600">
+                            You receive an update when your item has been picked up from the vendor, warehouse, or dispatch point.
+                        </p>
                     </div>
                 </div>
+
                 <div class="flex gap-4">
-                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600"><i class="fas fa-location-dot"></i></span>
+                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
+                        <i class="fas fa-location-dot"></i>
+                    </span>
+
                     <div>
-                        <h3 class="font-black text-gray-950">Live location updates</h3>
-                        <p class="text-gray-600">When admin, rider, or provider updates live location, Arolana sends a tracking notification and updates your order page.</p>
+                        <h3 class="font-black text-slate-950">
+                            Tracking and status updates
+                        </h3>
+                        <p class="mt-1 leading-7 text-slate-600">
+                            Order status may be updated as your package moves through processing, pickup, transit, delivery attempt, and final delivery.
+                        </p>
                     </div>
                 </div>
+
                 <div class="flex gap-4">
-                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600"><i class="fas fa-circle-check"></i></span>
+                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
+                        <i class="fas fa-circle-check"></i>
+                    </span>
+
                     <div>
-                        <h3 class="font-black text-gray-950">Delivered and thank-you notifications</h3>
-                        <p class="text-gray-600">After delivery, you receive confirmation plus thank-you messages from Arolana and the vendor where available.</p>
+                        <h3 class="font-black text-slate-950">
+                            Delivery confirmation
+                        </h3>
+                        <p class="mt-1 leading-7 text-slate-600">
+                            After successful delivery, your order is marked as delivered and you may receive confirmation or a thank-you message from Arolana.
+                        </p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <aside class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 class="text-xl font-black text-gray-950">Delivery cost rule</h2>
-            <p class="mt-3 text-gray-600">
-                Final delivery cost depends on location, package size, delivery method, pickup-to-drop-off distance, rider availability, and whether the order needs special handling.
-            </p>
-            <div class="mt-5 rounded-2xl bg-blue-50 p-4 text-sm text-blue-900">
-                <strong class="block text-gray-950">Important</strong>
-                If the final dispatch cost changes because of route or package constraints, Arolana support will confirm before dispatch.
+        <aside class="space-y-5">
+            <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-50 text-orange-600">
+                    <i class="fas fa-calculator"></i>
+                </div>
+
+                <h2 class="mt-4 text-xl font-black text-slate-950">
+                    How Delivery Cost Is Calculated
+                </h2>
+
+                <p class="mt-3 leading-7 text-slate-600">
+                    Final delivery cost may depend on distance, location, package size, package weight, delivery method, route difficulty, rider availability, and special handling needs.
+                </p>
+
+                <div class="mt-5 rounded-2xl bg-blue-50 p-4 text-sm leading-6 text-blue-900">
+                    <strong class="block text-slate-950">Important</strong>
+                    If dispatch cost changes because of route, package, or handling constraints, Arolana support may confirm with you before dispatch.
+                </div>
+            </div>
+
+            <div class="rounded-3xl border border-emerald-100 bg-emerald-50 p-6">
+                <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-emerald-600">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+
+                <h2 class="mt-4 text-xl font-black text-slate-950">
+                    Delivery Protection
+                </h2>
+
+                <p class="mt-3 text-sm leading-6 text-slate-600">
+                    For delivery complaints, damaged packages, missing items, or wrong delivery updates, contact support with your order number, vendor name, tracking code, and photos where possible.
+                </p>
             </div>
         </aside>
     </section>
 
-    <section class="mt-8 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 class="text-2xl font-black text-gray-950">Frequently Asked Questions</h2>
-        <div class="mt-5 grid gap-4 md:grid-cols-2">
-            <div class="rounded-2xl bg-gray-50 p-5">
-                <h3 class="font-black text-gray-950">How do I track my order?</h3>
-                <p class="mt-2 text-sm text-gray-600">Open <a href="/orders/track/" class="font-bold text-blue-600">Track Order</a> and enter your order number or tracking code plus the order email if you are not signed in.</p>
+    <section class="mx-auto max-w-7xl px-4 pb-16">
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+            <h2 class="text-3xl font-black text-slate-950">
+                Frequently Asked Questions
+            </h2>
+
+            <div class="mt-6 grid gap-4 md:grid-cols-2">
+                <div class="rounded-2xl bg-slate-50 p-5">
+                    <h3 class="font-black text-slate-950">
+                        How do I track my order?
+                    </h3>
+                    <p class="mt-2 text-sm leading-6 text-slate-600">
+                        Open <a href="/orders/track/" class="font-bold text-blue-700">Track Order</a> and enter your order number or tracking code. If you are signed in, you may also check from your account.
+                    </p>
+                </div>
+
+                <div class="rounded-2xl bg-slate-50 p-5">
+                    <h3 class="font-black text-slate-950">
+                        Who handles delivery?
+                    </h3>
+                    <p class="mt-2 text-sm leading-6 text-slate-600">
+                        Arolana may assign an available rider, logistics provider, vendor dispatch team, or approved delivery partner depending on your route and order type.
+                    </p>
+                </div>
+
+                <div class="rounded-2xl bg-slate-50 p-5">
+                    <h3 class="font-black text-slate-950">
+                        What is the difference between Standard and Express?
+                    </h3>
+                    <p class="mt-2 text-sm leading-6 text-slate-600">
+                        Standard is the regular delivery option. Express gives faster handling where available and may cost more depending on location and rider availability.
+                    </p>
+                </div>
+
+                <div class="rounded-2xl bg-slate-50 p-5">
+                    <h3 class="font-black text-slate-950">
+                        Will I receive delivery notifications?
+                    </h3>
+                    <p class="mt-2 text-sm leading-6 text-slate-600">
+                        Yes, where enabled. You may receive updates for order confirmation, pickup, transit, delivery attempt, and completed delivery.
+                    </p>
+                </div>
             </div>
-            <div class="rounded-2xl bg-gray-50 p-5">
-                <h3 class="font-black text-gray-950">Who handles delivery?</h3>
-                <p class="mt-2 text-sm text-gray-600">Checkout uses Standard and Express delivery only. Arolana picks the best available delivery partner behind the scenes for your route.</p>
-            </div>
-            <div class="rounded-2xl bg-gray-50 p-5">
-                <h3 class="font-black text-gray-950">What is the difference between Standard and Express?</h3>
-                <p class="mt-2 text-sm text-gray-600">Standard is the reliable default route. Express prioritizes faster dispatch where riders and delivery partners are available.</p>
-            </div>
-            <div class="rounded-2xl bg-gray-50 p-5">
-                <h3 class="font-black text-gray-950">Do notifications work on phone?</h3>
-                <p class="mt-2 text-sm text-gray-600">Yes. Sign in, enable web notifications, and on iPhone open Arolana from the Home Screen app to receive web push notifications.</p>
+
+            <div class="mt-8 rounded-3xl bg-slate-950 p-6 text-white md:p-8">
+                <div class="grid gap-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+                    <div>
+                        <h3 class="text-2xl font-black">
+                            Need help with a delivery?
+                        </h3>
+                        <p class="mt-2 text-slate-300">
+                            Contact Arolana Support with your order number, delivery location, and tracking details.
+                        </p>
+                    </div>
+
+                    <a href="{% url 'contact:index' %}" class="inline-flex rounded-2xl bg-white px-6 py-4 font-black text-blue-700 transition hover:bg-blue-50">
+                        Contact Support
+                    </a>
+                </div>
             </div>
         </div>
     </section>
-</div>
+
+</main>
 {% endblock %}
