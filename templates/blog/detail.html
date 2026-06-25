@@ -226,8 +226,9 @@
 
                 <!-- Featured Image -->
                 {% if post.show_featured_image and post.display_image %}
+                {% optimized_image_url post.display_image 'blog_detail' as post_detail_image_url %}
                 <div class="mb-8">
-                    <img src="{{ post.display_image.url }}" alt="{{ post.title }}" class="article-media-frame h-auto w-full object-cover" fetchpriority="high" decoding="async" width="1600" height="900" onerror="this.classList.add('hidden'); if (this.nextElementSibling) this.nextElementSibling.style.display = 'flex';">
+                    <img src="{{ post_detail_image_url }}" alt="{{ post.title }}" class="article-media-frame h-auto w-full object-cover" fetchpriority="high" decoding="async" width="1600" height="900" onerror="this.classList.add('hidden'); if (this.nextElementSibling) this.nextElementSibling.style.display = 'flex';">
                     <div class="article-media-frame hidden min-h-[320px] items-center justify-center bg-gradient-to-br from-[#071A44] via-[#0F2D6B] to-[#0066CC] p-8 text-center text-white">
                         <div>
                             <span class="text-xs font-black uppercase tracking-[0.24em] text-orange-300">Product Guide</span>
@@ -505,7 +506,8 @@
                         {% for popular in popular_posts %}
                         <a href="{{ popular.get_absolute_url }}" class="group flex gap-3 rounded-2xl p-2 transition hover:bg-slate-50">
                             {% if popular.display_image %}
-                                <img src="{{ popular.display_image.url }}" alt="{{ popular.title }}" class="h-16 w-16 rounded-2xl object-cover" loading="lazy" decoding="async" onerror="this.classList.add('hidden'); if (this.nextElementSibling) this.nextElementSibling.style.display = 'flex';">
+                                {% optimized_image_url popular.display_image 'blog_card' as popular_image_url %}
+                                <img src="{{ popular_image_url }}" alt="{{ popular.title }}" class="h-16 w-16 rounded-2xl object-cover" loading="lazy" decoding="async" width="64" height="64" onerror="this.classList.add('hidden'); if (this.nextElementSibling) this.nextElementSibling.style.display = 'flex';">
                                 <div class="hidden h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
                                     <i class="fas fa-image"></i>
                                 </div>
@@ -611,7 +613,8 @@
                 {% for related in related_posts %}
                 <a href="{{ related.get_absolute_url }}" class="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-lg shadow-slate-200/70 transition hover:-translate-y-1 hover:shadow-2xl">
                     {% if related.display_image %}
-                        <img src="{{ related.display_image.url }}" alt="{{ related.title }}" class="h-44 w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" decoding="async" onerror="this.classList.add('hidden'); if (this.nextElementSibling) this.nextElementSibling.style.display = 'flex';">
+                        {% optimized_image_url related.display_image 'blog_card' as related_image_url %}
+                        <img src="{{ related_image_url }}" alt="{{ related.title }}" class="h-44 w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" decoding="async" width="560" height="360" onerror="this.classList.add('hidden'); if (this.nextElementSibling) this.nextElementSibling.style.display = 'flex';">
                         <div class="hidden h-44 w-full items-center justify-center bg-slate-100 text-slate-400">
                             <i class="fas fa-image text-4xl"></i>
                         </div>

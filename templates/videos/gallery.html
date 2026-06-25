@@ -1,8 +1,9 @@
+{% load optimized_images %}
 {% if gallery and videos %}
 <div class="video-gallery">
     {% if gallery.cover_image %}
     <div class="gallery-cover mb-6">
-        <img src="{{ gallery.cover_image.url }}" alt="{{ gallery.name }}" class="w-full h-64 object-cover rounded-xl">
+        <img src="{{ gallery.cover_image|optimized_image_url:'banner' }}" alt="{{ gallery.name }}" class="w-full h-64 object-cover rounded-xl" loading="eager" decoding="async" width="1200" height="500">
     </div>
     {% endif %}
     
@@ -14,7 +15,7 @@
         <div class="video-card group bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition">
             <a href="{% url 'videos:watch' video.id %}" class="block relative">
                 {% if video.custom_thumbnail %}
-                    <img src="{{ video.custom_thumbnail.url }}" alt="{{ video.title }}" class="w-full h-48 object-cover">
+                    <img src="{{ video.custom_thumbnail|optimized_image_url:'blog_card' }}" alt="{{ video.title }}" class="w-full h-48 object-cover" loading="lazy" decoding="async" width="720" height="405">
                 {% elif video.auto_thumbnail %}
                     <img src="{{ video.auto_thumbnail }}" alt="{{ video.title }}" class="w-full h-48 object-cover">
                 {% else %}

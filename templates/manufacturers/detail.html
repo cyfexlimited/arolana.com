@@ -1,5 +1,5 @@
-{% load optimized_images %}
 {% extends 'base/base.html' %}
+{% load optimized_images %}
 
 {% block title %}{{ manufacturer.name }} | Arolana Manufacturers{% endblock %}
 
@@ -9,7 +9,7 @@
     <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-8">
         <div class="h-48 bg-gradient-to-r from-blue-600 to-purple-600 relative">
             {% if manufacturer.banner %}
-            <img src="{{ manufacturer.banner.url }}" class="w-full h-48 object-cover">
+            <img src="{{ manufacturer.banner|optimized_image_url:'banner' }}" alt="{{ manufacturer.name }} banner" class="w-full h-48 object-cover" loading="eager" decoding="async" width="1200" height="360">
             {% endif %}
             <div class="absolute -bottom-12 left-8">
                 {% if manufacturer.logo %}
@@ -76,7 +76,7 @@
         <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition">
             <a href="{{ product.get_absolute_url }}" class="block bg-gray-50 p-4">
                 {% if product.main_image %}
-                <img src="{{ product.main_image.url }}" class="w-full h-40 object-contain">
+                <img src="{{ product.main_image|optimized_image_url:'product_card' }}" alt="{{ product.name }}" class="w-full h-40 object-contain" loading="lazy" decoding="async" width="400" height="400">
                 {% else %}
                 <div class="w-full h-40 bg-gray-100 flex items-center justify-center">
                     <i class="fas fa-image text-4xl text-gray-400"></i>

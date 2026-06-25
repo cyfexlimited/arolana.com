@@ -1,5 +1,5 @@
 {% extends 'base/base.html' %}
-{% load static %}
+{% load static optimized_images %}
 {% load socialaccount %}
 
 {% block title %}Create Account | Arolana.com{% endblock %}
@@ -11,7 +11,7 @@
         <div class="text-center mb-8">
             <a href="/" class="inline-block">
                 {% if site_settings.site_logo %}
-                    <img src="{{ site_settings.site_logo.url }}" alt="{{ site_settings.site_name }}" class="mx-auto block auth-logo">
+                    <img src="{{ site_settings.site_logo|optimized_image_url:'logo' }}" alt="{{ site_settings.site_name }}" class="mx-auto block auth-logo" decoding="async">
                 {% else %}
                     <span class="text-3xl font-bold text-blue-600">{{ site_settings.site_name }}<span class="text-green-500">.com</span></span>
                 {% endif %}

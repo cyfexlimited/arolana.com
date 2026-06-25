@@ -1,4 +1,5 @@
 {% extends 'base/base.html' %}
+{% load optimized_images %}
 
 {% block title %}Edit Profile | Arolana{% endblock %}
 
@@ -47,7 +48,7 @@
                     <div class="flex items-center gap-5">
                         <div class="relative h-20 w-20 shrink-0 overflow-hidden rounded-3xl border-4 border-white/20 bg-white/10 shadow-xl">
                             {% if request.user.avatar %}
-                                <img src="{{ request.user.avatar.url }}" alt="{{ request.user.get_full_name|default:request.user.username }}" class="h-full w-full object-cover">
+                                <img src="{{ request.user.avatar|optimized_image_url:'avatar' }}" alt="{{ request.user.get_full_name|default:request.user.username }}" class="h-full w-full object-cover" loading="lazy" decoding="async" width="80" height="80">
                             {% else %}
                                 <div class="flex h-full w-full items-center justify-center bg-white text-3xl font-black text-[#0F2D6B]">
                                     {{ request.user.first_name|default:request.user.username|first|upper }}

@@ -3,55 +3,139 @@
 {% block title %}{{ position.title }} | Careers at Arolana{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto">
-    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-        <div class="bg-gradient-to-r from-blue-600 to-purple-600 p-8 text-white">
-            <h1 class="text-3xl font-bold mb-2">{{ position.title }}</h1>
-            <div class="flex flex-wrap gap-3 mt-2">
-                <span class="bg-white/20 px-3 py-1 rounded-full text-sm">
-                    <i class="fas fa-building"></i> {{ position.category.name }}
-                </span>
-                <span class="bg-white/20 px-3 py-1 rounded-full text-sm">
-                    <i class="fas fa-map-marker-alt"></i> {{ position.location }}
-                </span>
-                <span class="bg-white/20 px-3 py-1 rounded-full text-sm">
-                    <i class="fas fa-clock"></i> {{ position.get_job_type_display }}
-                </span>
-            </div>
+<main class="bg-slate-50 py-12 md:py-16">
+    <section class="mx-auto max-w-5xl px-4">
+
+        <div class="mb-6">
+            <a href="{% url 'pages:careers' %}" class="inline-flex items-center gap-2 text-sm font-black text-blue-600 hover:text-blue-700">
+                <i class="fas fa-arrow-left"></i>
+                Back to Careers
+            </a>
         </div>
-        
-        <div class="p-8">
-            <div class="mb-6">
-                <h2 class="text-xl font-bold mb-3">Job Description</h2>
-                <p class="text-gray-700">{{ position.description }}</p>
+
+        <article class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm" data-aos="fade-up">
+            <header class="bg-gradient-to-br from-blue-700 via-blue-600 to-slate-900 p-6 text-white md:p-10">
+                <p class="text-sm font-black uppercase tracking-[0.25em] text-blue-100">
+                    Arolana Careers
+                </p>
+
+                <h1 class="mt-3 text-3xl font-black tracking-tight md:text-5xl">
+                    {{ position.title }}
+                </h1>
+
+                <div class="mt-5 flex flex-wrap gap-2 text-sm font-bold">
+                    <span class="rounded-full bg-white/15 px-3 py-1">
+                        <i class="fas fa-building mr-1"></i>
+                        {{ position.category.name }}
+                    </span>
+
+                    <span class="rounded-full bg-white/15 px-3 py-1">
+                        <i class="fas fa-location-dot mr-1"></i>
+                        {{ position.location }}
+                    </span>
+
+                    <span class="rounded-full bg-white/15 px-3 py-1">
+                        <i class="fas fa-clock mr-1"></i>
+                        {{ position.get_job_type_display }}
+                    </span>
+
+                    <span class="rounded-full bg-white/15 px-3 py-1">
+                        <i class="fas fa-chart-line mr-1"></i>
+                        {{ position.get_experience_level_display }}
+                    </span>
+                </div>
+            </header>
+
+            <div class="p-6 md:p-10">
+                <section class="mb-8">
+                    <h2 class="text-2xl font-black text-slate-950">
+                        Job Description
+                    </h2>
+
+                    <p class="mt-3 leading-8 text-slate-600">
+                        {{ position.description }}
+                    </p>
+                </section>
+
+                <section class="mb-8">
+                    <h2 class="text-2xl font-black text-slate-950">
+                        Key Responsibilities
+                    </h2>
+
+                    <div class="prose prose-slate mt-4 max-w-none prose-headings:font-black prose-a:font-bold prose-a:text-blue-600">
+                        {{ position.responsibilities|safe }}
+                    </div>
+                </section>
+
+                <section class="mb-8">
+                    <h2 class="text-2xl font-black text-slate-950">
+                        Requirements
+                    </h2>
+
+                    <div class="prose prose-slate mt-4 max-w-none prose-headings:font-black prose-a:font-bold prose-a:text-blue-600">
+                        {{ position.requirements|safe }}
+                    </div>
+                </section>
+
+                {% if position.benefits %}
+                    <section class="mb-8">
+                        <h2 class="text-2xl font-black text-slate-950">
+                            Benefits
+                        </h2>
+
+                        <div class="prose prose-slate mt-4 max-w-none prose-headings:font-black prose-a:font-bold prose-a:text-blue-600">
+                            {{ position.benefits|safe }}
+                        </div>
+                    </section>
+                {% endif %}
+
+                <section class="rounded-3xl border border-slate-200 bg-slate-50 p-5 md:p-6">
+                    <div class="grid gap-4 text-sm text-slate-700 md:grid-cols-2">
+                        {% if position.salary_range %}
+                            <div>
+                                <p class="font-black text-slate-950">Salary Range</p>
+                                <p class="mt-1 text-emerald-700 font-bold">{{ position.salary_range }}</p>
+                            </div>
+                        {% endif %}
+
+                        {% if position.closing_date %}
+                            <div>
+                                <p class="font-black text-slate-950">Application Deadline</p>
+                                <p class="mt-1">{{ position.closing_date|date:"M d, Y" }}</p>
+                            </div>
+                        {% endif %}
+
+                        <div>
+                            <p class="font-black text-slate-950">Job Type</p>
+                            <p class="mt-1">{{ position.get_job_type_display }}</p>
+                        </div>
+
+                        <div>
+                            <p class="font-black text-slate-950">Location</p>
+                            <p class="mt-1">{{ position.location }}</p>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="mt-8 flex flex-col gap-3 border-t border-slate-100 pt-6 sm:flex-row">
+                    <a href="{% url 'pages:careers' %}" class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-6 py-3 font-black text-slate-700 transition hover:bg-slate-50">
+                        Back to Careers
+                    </a>
+
+                    {% if position.is_open %}
+                        <a href="{% url 'pages:apply_job' position.id %}" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 py-3 font-black text-white transition hover:bg-blue-700">
+                            <i class="fas fa-paper-plane"></i>
+                            Apply Now
+                        </a>
+                    {% else %}
+                        <span class="inline-flex cursor-not-allowed items-center justify-center rounded-2xl bg-slate-200 px-6 py-3 font-black text-slate-500">
+                            Applications Closed
+                        </span>
+                    {% endif %}
+                </div>
             </div>
-            
-            <div class="mb-6">
-                <h2 class="text-xl font-bold mb-3">Key Responsibilities</h2>
-                <div class="prose max-w-none">{{ position.responsibilities|safe }}</div>
-            </div>
-            
-            <div class="mb-6">
-                <h2 class="text-xl font-bold mb-3">Requirements</h2>
-                <div class="prose max-w-none">{{ position.requirements|safe }}</div>
-            </div>
-            
-            {% if position.benefits %}
-            <div class="mb-6">
-                <h2 class="text-xl font-bold mb-3">Benefits</h2>
-                <div class="prose max-w-none">{{ position.benefits|safe }}</div>
-            </div>
-            {% endif %}
-            
-            <div class="mt-8 pt-6 border-t flex gap-4">
-                <a href="{% url 'pages:careers' %}" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition">
-                    ← Back to Careers
-                </a>
-                <a href="{% url 'pages:apply_job' position.id %}" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition">
-                    Apply Now
-                </a>
-            </div>
-        </div>
-    </div>
-</div>
+        </article>
+
+    </section>
+</main>
 {% endblock %}

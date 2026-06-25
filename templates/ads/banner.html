@@ -14,7 +14,7 @@
         {% endif %}
             {% if ad.image or ad.image_mobile %}
                 {% if ad.image %}
-                    {% optimized_image_url ad.image 'ad_card' as ad_image_url %}
+                    {% optimized_image_url ad.image 'ad' as ad_image_url %}
                 {% endif %}
                 {% if ad.image_mobile %}
                     {% optimized_image_url ad.image_mobile 'ad_card' as ad_mobile_url %}
@@ -27,7 +27,10 @@
                          alt="{{ ad.alt_text|default:ad.title }}"
                          class="w-full rounded-lg shadow-lg"
                          style="aspect-ratio: {{ ad_width }} / {{ ad_height }}; object-fit: {{ ad.image_fit|default:'cover' }}; object-position: {{ ad.image_position|default:'center center' }};"
-                         loading="lazy">
+                         loading="lazy"
+                         decoding="async"
+                         width="{{ ad_width }}"
+                         height="{{ ad_height }}">
                 </picture>
             {% else %}
                 <div class="rounded-lg p-6 text-white" style="background: linear-gradient(135deg, #1f2937, #2563eb);">

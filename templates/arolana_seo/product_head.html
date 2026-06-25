@@ -1,7 +1,8 @@
-{% load arolana_seo optimized_images %}
+{% load arolana_seo media_optimization %}
 {% product_seo_title product as seo_title %}
 {% product_seo_description product as seo_description %}
 {% product_canonical_url product as canonical_url %}
+{% product_seo_image_url product as product_seo_image %}
 
 <title>{{ seo_title }}</title>
 <meta name="description" content="{{ seo_description }}">
@@ -12,8 +13,10 @@
 <meta property="og:title" content="{{ seo_title }}">
 <meta property="og:description" content="{{ seo_description }}">
 <meta property="og:url" content="{{ canonical_url }}">
-{% if product.main_image %}
-<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ product.main_image|optimized_image_url:'seo' }}">
+{% if product_seo_image %}
+<meta property="og:image" content="{{ product_seo_image }}">
+<meta property="og:image:secure_url" content="{{ product_seo_image }}">
+<meta name="twitter:image" content="{{ product_seo_image }}">
 {% endif %}
 
 <meta name="twitter:card" content="summary_large_image">

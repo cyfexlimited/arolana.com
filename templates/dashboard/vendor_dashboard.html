@@ -164,7 +164,7 @@
                 <div class="flex items-center gap-5">
                     <div class="flex h-24 w-24 items-center justify-center overflow-hidden rounded-3xl border-4 border-white bg-orange-500 text-4xl font-black text-white">
                         {% if vendor_profile.store_logo %}
-                            <img src="{{ vendor_profile.store_logo.url }}" alt="{{ vendor_profile.store_name }} logo" class="h-full w-full object-cover">
+                            <img src="{{ vendor_profile.store_logo|optimized_image_url:'logo' }}" alt="{{ vendor_profile.store_name }} logo" class="h-full w-full object-cover" loading="lazy" decoding="async" width="128" height="128">
                         {% else %}
                             {{ vendor_profile.store_name|slice:":1"|upper }}
                         {% endif %}
@@ -671,7 +671,7 @@
                 <div class="vendor-dashboard-product-row flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div class="flex items-center gap-3">
                         {% if product.main_image %}
-                        <img src="{{ product.main_image.url }}" class="w-10 h-10 object-cover rounded">
+                        <img src="{{ product.main_image|optimized_image_url:'product_thumb' }}" alt="{{ product.name }}" class="w-10 h-10 object-cover rounded" loading="lazy" decoding="async" width="40" height="40">
                         {% else %}
                         <div class="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
                             <i class="fas fa-box text-gray-400"></i>

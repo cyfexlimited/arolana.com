@@ -1,87 +1,209 @@
 {% extends 'base/base.html' %}
-{% load static %}
+{% load static optimized_images %}
 
 {% block title %}Help Center | Arolana{% endblock %}
 
 {% block content %}
 <main class="bg-slate-50">
-    <section class="bg-slate-950 text-white">
-        <div class="mx-auto max-w-7xl px-4 py-14 md:py-20">
+
+    <section class="relative overflow-hidden bg-slate-950 text-white">
+        <div class="absolute inset-0 bg-gradient-to-br from-blue-950 via-slate-950 to-slate-900"></div>
+        <div class="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-blue-500/20 blur-3xl"></div>
+        <div class="absolute -bottom-24 -left-20 h-72 w-72 rounded-full bg-orange-500/20 blur-3xl"></div>
+
+        <div class="relative mx-auto max-w-7xl px-4 py-16 md:py-24">
             <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_26rem] lg:items-center">
                 <div>
-                    <p class="text-sm font-black uppercase tracking-[0.28em] text-blue-300">Arolana Support</p>
-                    <h1 class="mt-4 text-4xl font-black leading-tight md:text-6xl">{% if hero %}{{ hero.title }}{% else %}How Can We Help You?{% endif %}</h1>
-                    <p class="mt-5 max-w-2xl text-lg leading-8 text-slate-300">{% if hero and hero.subtitle %}{{ hero.subtitle }}{% else %}Get help with orders, payment, live delivery, returns, vendor purchases, account security, and marketplace policies.{% endif %}</p>
+                    <p class="text-sm font-black uppercase tracking-[0.28em] text-blue-300">
+                        Arolana Support
+                    </p>
+
+                    <h1 class="mt-4 text-4xl font-black leading-tight tracking-tight md:text-6xl">
+                        {% if hero %}
+                            {{ hero.title }}
+                        {% else %}
+                            How Can We Help You?
+                        {% endif %}
+                    </h1>
+
+                    <p class="mt-5 max-w-2xl text-lg leading-8 text-slate-300">
+                        {% if hero and hero.subtitle %}
+                            {{ hero.subtitle }}
+                        {% else %}
+                            Get help with orders, payments, delivery, returns, vendor purchases, account security, and marketplace policies.
+                        {% endif %}
+                    </p>
+
                     <form action="{% url 'pages:faq' %}" method="get" class="mt-8 flex max-w-2xl overflow-hidden rounded-2xl bg-white p-2 shadow-2xl">
-                        <input name="q" class="min-w-0 flex-1 px-4 py-3 text-slate-900 outline-none" placeholder="Search help topics, delivery, returns, payments...">
-                        <button class="rounded-xl bg-blue-600 px-5 py-3 font-black text-white">Search</button>
+                        <label for="help-search" class="sr-only">Search help topics</label>
+
+                        <input
+                            id="help-search"
+                            name="q"
+                            type="search"
+                            class="min-w-0 flex-1 px-4 py-3 text-slate-900 outline-none"
+                            placeholder="Search delivery, returns, payments, vendor help..."
+                        >
+
+                        <button type="submit" class="rounded-xl bg-blue-600 px-5 py-3 font-black text-white transition hover:bg-blue-700">
+                            Search
+                        </button>
                     </form>
                 </div>
-                <div class="rounded-3xl border border-white/10 bg-white/10 p-6 backdrop-blur">
-                    <h2 class="text-xl font-black">Support Promise</h2>
-                    <div class="mt-5 grid gap-4 text-sm text-slate-200">
-                        <div class="flex gap-3"><i class="fas fa-shield-halved mt-1 text-blue-300"></i><span>Secure support for customers, vendors, and manufacturers.</span></div>
-                        <div class="flex gap-3"><i class="fas fa-truck-fast mt-1 text-blue-300"></i><span>Delivery help built for Nigeria, Africa, and global routes.</span></div>
-                        <div class="flex gap-3"><i class="fas fa-headset mt-1 text-blue-300"></i><span>Admin support, smart chat, and clear escalation paths.</span></div>
+
+                <aside class="rounded-3xl border border-white/10 bg-white/10 p-6 shadow-2xl backdrop-blur">
+                    <h2 class="text-xl font-black">
+                        Support Promise
+                    </h2>
+
+                    <div class="mt-5 grid gap-4 text-sm leading-6 text-slate-200">
+                        <div class="flex gap-3">
+                            <i class="fas fa-shield-halved mt-1 text-blue-300"></i>
+                            <span>Secure support for customers, vendors, installers, and manufacturers.</span>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <i class="fas fa-truck-fast mt-1 text-blue-300"></i>
+                            <span>Delivery help built for Nigeria, Africa, and global routes.</span>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <i class="fas fa-headset mt-1 text-blue-300"></i>
+                            <span>Admin support, smart chat, and clear escalation paths.</span>
+                        </div>
                     </div>
-                </div>
+                </aside>
             </div>
         </div>
     </section>
 
-    <section class="mx-auto max-w-7xl px-4 py-10">
+    <section class="mx-auto max-w-7xl px-4 py-12">
+        <div class="mb-7">
+            <p class="text-sm font-black uppercase tracking-[0.25em] text-blue-600">
+                Help Topics
+            </p>
+
+            <h2 class="mt-2 text-3xl font-black text-slate-950">
+                What do you need help with?
+            </h2>
+        </div>
+
         <div class="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
             {% for topic in topics %}
-            <a href="{{ topic.button_url|default:'#' }}" class="group rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
-                <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
-                    {% if topic.image %}
-                        <img src="{{ topic.image.url }}" alt="{{ topic.title }}" class="h-10 w-10 object-contain">
-                    {% elif topic.icon %}
-                        <i class="{{ topic.icon }} text-2xl"></i>
-                    {% else %}
-                        <i class="fas fa-life-ring text-2xl"></i>
-                    {% endif %}
-                </div>
-                <h3 class="mt-5 text-lg font-black text-slate-950">{{ topic.title }}</h3>
-                <p class="mt-2 text-sm leading-6 text-slate-600">{{ topic.description }}</p>
-                <span class="mt-5 inline-flex items-center gap-2 text-sm font-black text-blue-700">{{ topic.button_text }} <i class="fas fa-arrow-right"></i></span>
-            </a>
+                <a
+                    href="{{ topic.button_url|default:'#' }}"
+                    class="group rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
+                >
+                    <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
+                        {% if topic.image %}
+                            <img
+                                src="{{ topic.image|optimized_image_url:'thumbnail' }}"
+                                alt="{{ topic.title }}"
+                                class="h-10 w-10 object-contain"
+                                loading="lazy"
+                                decoding="async"
+                                width="40"
+                                height="40"
+                            >
+                        {% elif topic.icon %}
+                            <i class="{{ topic.icon }} text-2xl"></i>
+                        {% else %}
+                            <i class="fas fa-life-ring text-2xl"></i>
+                        {% endif %}
+                    </div>
+
+                    <h3 class="mt-5 text-lg font-black text-slate-950 group-hover:text-blue-700">
+                        {{ topic.title }}
+                    </h3>
+
+                    <p class="mt-2 text-sm leading-6 text-slate-600">
+                        {{ topic.description }}
+                    </p>
+
+                    <span class="mt-5 inline-flex items-center gap-2 text-sm font-black text-blue-700">
+                        {{ topic.button_text|default:"Learn More" }}
+                        <i class="fas fa-arrow-right transition group-hover:translate-x-1"></i>
+                    </span>
+                </a>
             {% empty %}
-            <div class="rounded-3xl bg-white p-8 text-slate-500 md:col-span-2 lg:col-span-4">No support topics added yet.</div>
+                <div class="rounded-3xl border border-slate-200 bg-white p-8 text-slate-500 shadow-sm md:col-span-2 lg:col-span-4">
+                    No support topics added yet.
+                </div>
             {% endfor %}
         </div>
     </section>
 
-    <section class="mx-auto grid max-w-7xl gap-6 px-4 pb-12 lg:grid-cols-[minmax(0,1fr)_22rem]">
+    <section class="mx-auto grid max-w-7xl gap-6 px-4 pb-16 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
             <div class="flex items-center justify-between gap-4">
-                <h2 class="text-2xl font-black text-slate-950">Featured Answers</h2>
-                <a href="{% url 'pages:faq' %}" class="text-sm font-black text-blue-700">View all</a>
+                <div>
+                    <p class="text-sm font-black uppercase tracking-[0.22em] text-blue-600">
+                        Popular Help
+                    </p>
+
+                    <h2 class="mt-2 text-2xl font-black text-slate-950">
+                        Featured Answers
+                    </h2>
+                </div>
+
+                <a href="{% url 'pages:faq' %}" class="text-sm font-black text-blue-700 hover:text-blue-800">
+                    View all
+                </a>
             </div>
-            <div class="mt-5 divide-y divide-slate-100">
+
+            <div class="mt-6 divide-y divide-slate-100">
                 {% for faq in featured_faqs %}
-                <details class="group py-4">
-                    <summary class="flex cursor-pointer list-none items-start justify-between gap-4 font-black text-slate-900">
-                        {{ faq.question }}
-                        <i class="fas fa-chevron-down mt-1 text-slate-400 transition group-open:rotate-180"></i>
-                    </summary>
-                    <div class="prose prose-sm mt-3 max-w-none text-slate-700">{{ faq.answer|safe }}</div>
-                </details>
+                    <details class="group py-5">
+                        <summary class="flex cursor-pointer list-none items-start justify-between gap-4">
+                            <span class="font-black leading-7 text-slate-900">
+                                {{ faq.question }}
+                            </span>
+
+                            <span class="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition group-open:bg-blue-600 group-open:text-white">
+                                <i class="fas fa-chevron-down text-sm transition group-open:rotate-180"></i>
+                            </span>
+                        </summary>
+
+                        <div class="prose prose-sm prose-slate mt-4 max-w-none text-slate-700 prose-a:font-bold prose-a:text-blue-600">
+                            {{ faq.answer|safe }}
+                        </div>
+                    </details>
                 {% empty %}
-                <p class="py-5 text-slate-500">No FAQs added yet.</p>
+                    <p class="py-5 text-slate-500">
+                        No FAQs added yet.
+                    </p>
                 {% endfor %}
             </div>
         </div>
 
         <aside class="rounded-3xl border border-blue-100 bg-blue-50 p-6">
-            <h2 class="text-xl font-black text-slate-950">Still Need Help?</h2>
-            <p class="mt-2 text-sm leading-6 text-slate-600">Send a message, open smart chat, or track your order with your tracking code.</p>
-            <div class="mt-5 grid gap-3">
-                <a href="/contact/" class="rounded-2xl bg-blue-600 px-5 py-3 text-center text-sm font-black text-white">Contact Us</a>
-                <a href="/orders/track/" class="rounded-2xl bg-white px-5 py-3 text-center text-sm font-black text-blue-700">Track Order</a>
-                <a href="/returns/" class="rounded-2xl bg-white px-5 py-3 text-center text-sm font-black text-blue-700">Return Policy</a>
+            <h2 class="text-xl font-black text-slate-950">
+                Still Need Help?
+            </h2>
+
+            <p class="mt-2 text-sm leading-6 text-slate-600">
+                Send a message, open smart chat, or track your order using your tracking code.
+            </p>
+
+            <div class="mt-6 grid gap-3">
+                <a href="/contact/" class="rounded-2xl bg-blue-600 px-5 py-3 text-center text-sm font-black text-white transition hover:bg-blue-700">
+                    Contact Us
+                </a>
+
+                <a href="/orders/track/" class="rounded-2xl bg-white px-5 py-3 text-center text-sm font-black text-blue-700 transition hover:bg-blue-100">
+                    Track Order
+                </a>
+
+                <a href="/returns/" class="rounded-2xl bg-white px-5 py-3 text-center text-sm font-black text-blue-700 transition hover:bg-blue-100">
+                    Return Policy
+                </a>
+            </div>
+
+            <div class="mt-6 rounded-2xl border border-blue-200 bg-white/70 p-4 text-sm leading-6 text-slate-600">
+                For order issues, include your order number, vendor name, delivery tracking code, and screenshots where possible.
             </div>
         </aside>
     </section>
+
 </main>
 {% endblock %}

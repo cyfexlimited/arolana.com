@@ -793,10 +793,10 @@
         <section class="category-hero-future"
                  style="{% if category.hero_background_color %}--category-hero-bg: {{ category.hero_background_color }};{% endif %}{% if category.hero_text_color %}--category-hero-text: {{ category.hero_text_color }};{% endif %}{% if category.hero_accent_color %}--category-hero-accent: {{ category.hero_accent_color }};{% endif %}{% if category.hero_button_background_color %}--category-hero-cta-bg: {{ category.hero_button_background_color }};{% endif %}{% if category.hero_button_text_color %}--category-hero-cta-text: {{ category.hero_button_text_color }};{% endif %}--category-hero-brightness: {{ category.hero_image_brightness|default:62 }}%;--category-hero-height-desktop: {{ category.hero_height_desktop|default:520 }}px;--category-hero-height-tablet: {{ category.hero_height_tablet|default:440 }}px;--category-hero-height-mobile: {{ category.hero_height_mobile|default:360 }}px;">
             {% if category.background_image %}
-                {% optimized_image_url category.background_image 'hero' as category_hero_image_url %}
+                {% optimized_image_url category.background_image 'category_banner' as category_hero_image_url %}
                 <img src="{{ category_hero_image_url }}" alt="{{ category.name }}" class="category-hero-bg">
             {% elif category.image %}
-                {% optimized_image_url category.image 'category_card' as category_hero_image_url %}
+                {% optimized_image_url category.image 'category_banner' as category_hero_image_url %}
                 <img src="{{ category_hero_image_url }}" alt="{{ category.name }}" class="category-hero-bg">
             {% else %}
                 <img src="https://images.unsplash.com/photo-1498049794561-7780e7231661?w=1920&h=900&fit=crop" alt="{{ category.name }}" class="category-hero-bg">

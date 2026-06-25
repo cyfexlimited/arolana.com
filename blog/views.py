@@ -12,6 +12,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.text import slugify
 
+from core.media_optimization import get_optimized_image_url
+
 from .models import BlogPost, BlogCategory, BlogTag, BlogComment
 
 # Prefer the newsletter app subscriber model, but fall back safely if your project stores it in blog.models.
@@ -158,6 +160,9 @@ def blog_detail(request, slug):
             toc.append({'title': clean_heading, 'id': heading_id})
     
     article_image = post.display_image
+    article_image_url = get_optimized_image_url(article_image, "blog_detail") if article_image else ""
+    if article_image_url and not article_image_url.startswith(("http://", "https://")):
+        article_image_url = request.build_absolute_uri(article_image_url)
     article_video_embed_url = post.get_video_embed_url()
     article_local_video_url = post.local_video_url
 
@@ -167,7 +172,7 @@ def blog_detail(request, slug):
         "@type": "Article",
         "headline": post.title,
         "description": post.excerpt[:200],
-        "image": request.build_absolute_uri(article_image.url) if article_image else None,
+        "image": article_image_url or None,
         "author": {
             "@type": "Person",
             "name": post.author.get_full_name() or post.author.username

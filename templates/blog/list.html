@@ -139,7 +139,7 @@
                     <a href="{% url 'blog:detail' post.slug %}" class="block">
                         <div class="relative h-60 overflow-hidden bg-slate-100">
                             {% if post.display_image %}
-                                {% optimized_image_url post.display_image 'category_card' as post_image_url %}
+                                {% optimized_image_url post.display_image 'blog_card' as post_image_url %}
                                 <img src="{{ post_image_url }}" alt="{{ post.title }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" decoding="async" width="560" height="420">
                             {% else %}
                                 <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#0F2D6B] to-[#123E8C]">
@@ -254,7 +254,7 @@
                     <a href="{% url 'blog:detail' post.slug %}" class="block">
                         <div class="relative h-56 overflow-hidden bg-slate-100">
                             {% if post.display_image %}
-                                {% optimized_image_url post.display_image 'category_card' as post_image_url %}
+                                {% optimized_image_url post.display_image 'blog_card' as post_image_url %}
                                 <img src="{{ post_image_url }}" alt="{{ post.title }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" decoding="async" width="560" height="420">
                             {% else %}
                                 <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#0F2D6B] to-[#123E8C]">

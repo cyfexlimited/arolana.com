@@ -248,18 +248,20 @@
         <!-- Background Image -->
         <div class="hero-background" style="position: absolute; top: 0; left: 0;">
             {% if banner.image_desktop %}
-                {% optimized_image_url banner.image_desktop 'banner' as hero_image_url %}
+                {% optimized_image_url banner.image_desktop 'hero_banner' as hero_image_url %}
                 {% if banner.image_tablet %}
-                    {% optimized_image_url banner.image_tablet 'banner' as hero_tablet_url %}
+                    {% optimized_image_url banner.image_tablet 'hero_banner' as hero_tablet_url %}
                 {% endif %}
                 {% if banner.image_mobile %}
-                    {% optimized_image_url banner.image_mobile 'banner' as hero_mobile_url %}
+                    {% optimized_image_url banner.image_mobile 'mobile_hero' as hero_mobile_url %}
                 {% endif %}
                 <picture>
                     <source media="(max-width: 767px)" {% if forloop.first %}srcset="{% if banner.image_mobile %}{{ hero_mobile_url }}{% elif banner.image_tablet %}{{ hero_tablet_url }}{% else %}{{ hero_image_url }}{% endif %}"{% else %}data-srcset="{% if banner.image_mobile %}{{ hero_mobile_url }}{% elif banner.image_tablet %}{{ hero_tablet_url }}{% else %}{{ hero_image_url }}{% endif %}"{% endif %}>
                     <source media="(max-width: 1023px)" {% if forloop.first %}srcset="{% if banner.image_tablet %}{{ hero_tablet_url }}{% else %}{{ hero_image_url }}{% endif %}"{% else %}data-srcset="{% if banner.image_tablet %}{{ hero_tablet_url }}{% else %}{{ hero_image_url }}{% endif %}"{% endif %}>
                     <img {% if forloop.first %}src="{{ hero_image_url }}"{% else %}data-src="{{ hero_image_url }}"{% endif %}
                          alt="{{ banner.title }}"
+                         width="1920"
+                         height="1080"
                          decoding="async"
                          {% if forloop.first %}fetchpriority="high"{% else %}loading="lazy"{% endif %}>
                 </picture>

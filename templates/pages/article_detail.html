@@ -5,84 +5,173 @@
 {% block title %}{{ article.title }} | Arolana Help Center{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto">
-    <!-- Breadcrumb -->
-    <nav class="text-sm mb-6">
-        <ol class="flex items-center space-x-2">
-            <li><a href="/" class="text-gray-500 hover:text-blue-600">Home</a></li>
-            <li><i class="fas fa-chevron-right text-xs text-gray-400"></i></li>
-            <li><a href="{% url 'pages:help_center' %}" class="text-gray-500 hover:text-blue-600">Help Center</a></li>
-            <li><i class="fas fa-chevron-right text-xs text-gray-400"></i></li>
-            <li class="text-gray-900 font-semibold">{{ article.title }}</li>
-        </ol>
-    </nav>
-    
-	    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-	        {% if article.image %}
-	            {% optimized_image_url article.image 'hero' as article_image_url %}
-	            <img src="{{ article_image_url }}" alt="{{ article.title }}" class="h-64 w-full object-cover" fetchpriority="high" decoding="async" width="1200" height="640">
-	        {% endif %}
-        
-        <div class="p-8">
-            <div class="flex items-center gap-2 text-sm text-gray-500 mb-4">
-                <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded">{{ article.category.title }}</span>
-                <span><i class="far fa-eye"></i> {{ article.views }} views</span>
-                <span><i class="far fa-calendar"></i> {{ article.created_at|date:"M d, Y" }}</span>
-            </div>
-            
-            <h1 class="text-3xl font-bold mb-6">{{ article.title }}</h1>
-            
-            <div class="prose max-w-none">
-                {{ article.content|safe }}
-            </div>
-            
-            <!-- Helpful Section -->
-            <div class="mt-8 pt-6 border-t">
-                <div class="flex items-center justify-between flex-wrap gap-4">
-                    <div class="flex items-center gap-4">
-                        <span class="text-gray-600">Was this article helpful?</span>
-                        <form method="POST" action="{% url 'pages:article_helpful' article.id %}" class="inline">
-                            {% csrf_token %}
-                            <input type="hidden" name="helpful" value="true">
-                            <button type="submit" class="bg-green-100 text-green-700 px-4 py-2 rounded-lg hover:bg-green-200 transition">
-                                <i class="fas fa-thumbs-up"></i> Yes
-                            </button>
-                        </form>
-                        <form method="POST" action="{% url 'pages:article_helpful' article.id %}" class="inline">
-                            {% csrf_token %}
-                            <input type="hidden" name="helpful" value="false">
-                            <button type="submit" class="bg-red-100 text-red-700 px-4 py-2 rounded-lg hover:bg-red-200 transition">
-                                <i class="fas fa-thumbs-down"></i> No
-                            </button>
-                        </form>
+<main class="bg-slate-50 py-10 md:py-14">
+    <section class="mx-auto max-w-5xl px-4">
+
+        <nav class="mb-6 text-sm" aria-label="Breadcrumb">
+            <ol class="flex flex-wrap items-center gap-2 text-slate-500">
+                <li>
+                    <a href="/" class="font-semibold hover:text-blue-600">Home</a>
+                </li>
+                <li>
+                    <i class="fas fa-chevron-right text-xs text-slate-300"></i>
+                </li>
+                <li>
+                    <a href="{% url 'pages:help_center' %}" class="font-semibold hover:text-blue-600">
+                        Help Center
+                    </a>
+                </li>
+                <li>
+                    <i class="fas fa-chevron-right text-xs text-slate-300"></i>
+                </li>
+                <li class="max-w-xs truncate font-black text-slate-900">
+                    {{ article.title }}
+                </li>
+            </ol>
+        </nav>
+
+        <article class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm" data-aos="fade-up">
+
+            {% if article.image %}
+                {% optimized_image_url article.image 'hero' as article_image_url %}
+                <img
+                    src="{{ article_image_url }}"
+                    alt="{{ article.title }}"
+                    class="h-64 w-full object-cover md:h-80"
+                    fetchpriority="high"
+                    decoding="async"
+                    width="1200"
+                    height="640"
+                >
+            {% endif %}
+
+            <div class="p-6 md:p-10">
+                <div class="mb-5 flex flex-wrap items-center gap-3 text-sm text-slate-500">
+                    <span class="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 font-black text-blue-700">
+                        {{ article.category.title }}
+                    </span>
+
+                    <span class="inline-flex items-center gap-1">
+                        <i class="far fa-eye"></i>
+                        {{ article.views }} views
+                    </span>
+
+                    <span class="inline-flex items-center gap-1">
+                        <i class="far fa-calendar"></i>
+                        {{ article.created_at|date:"M d, Y" }}
+                    </span>
+                </div>
+
+                <h1 class="text-3xl font-black tracking-tight text-slate-950 md:text-5xl">
+                    {{ article.title }}
+                </h1>
+
+                <div class="prose prose-slate mt-8 max-w-none prose-headings:font-black prose-a:font-bold prose-a:text-blue-600 prose-img:rounded-2xl">
+                    {{ article.content|safe }}
+                </div>
+
+                <div class="mt-10 rounded-3xl border border-slate-200 bg-slate-50 p-5 md:p-6">
+                    <div class="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <h2 class="text-lg font-black text-slate-900">
+                                Was this article helpful?
+                            </h2>
+                            <p class="mt-1 text-sm text-slate-500">
+                                Your feedback helps Arolana improve customer support.
+                            </p>
+                        </div>
+
+                        <div class="flex flex-wrap gap-3">
+                            <form method="POST" action="{% url 'pages:article_helpful' article.id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="helpful" value="true">
+                                <button
+                                    type="submit"
+                                    class="inline-flex items-center gap-2 rounded-2xl bg-emerald-50 px-5 py-3 font-black text-emerald-700 transition hover:bg-emerald-100"
+                                >
+                                    <i class="fas fa-thumbs-up"></i>
+                                    Yes
+                                </button>
+                            </form>
+
+                            <form method="POST" action="{% url 'pages:article_helpful' article.id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="helpful" value="false">
+                                <button
+                                    type="submit"
+                                    class="inline-flex items-center gap-2 rounded-2xl bg-red-50 px-5 py-3 font-black text-red-700 transition hover:bg-red-100"
+                                >
+                                    <i class="fas fa-thumbs-down"></i>
+                                    No
+                                </button>
+                            </form>
+                        </div>
                     </div>
-                    <a href="{% url 'pages:help_center' %}" class="text-blue-600 hover:underline">
-                        ← Back to Help Center
+                </div>
+
+                <div class="mt-8">
+                    <a
+                        href="{% url 'pages:help_center' %}"
+                        class="inline-flex items-center gap-2 font-black text-blue-600 hover:text-blue-700"
+                    >
+                        <i class="fas fa-arrow-left"></i>
+                        Back to Help Center
                     </a>
                 </div>
             </div>
-        </div>
-    </div>
-    
-    <!-- Related Articles -->
-    {% if related_articles %}
-    <div class="mt-8">
-        <h2 class="text-2xl font-bold mb-6">Related Articles</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {% for related in related_articles %}
-	            <a href="{% url 'pages:article_detail' related.slug %}" class="overflow-hidden rounded-2xl bg-white shadow-md transition hover:-translate-y-0.5 hover:shadow-xl">
-	                {% if related.image %}
-	                    {% optimized_image_url related.image 'category_card' as related_image_url %}
-	                    <img src="{{ related_image_url }}" alt="{{ related.title }}" class="h-36 w-full object-cover" loading="lazy" decoding="async" width="560" height="360">
-	                {% endif %}
-	                <div class="p-4">
-	                    <h3 class="mb-2 text-lg font-bold text-slate-950">{{ related.title }}</h3>
-	                    <p class="text-sm text-gray-600">{{ related.content|striptags|truncatewords:20 }}</p>
-	                </div>
-	            </a>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-</div>
+        </article>
+
+        {% if related_articles %}
+            <section class="mt-10">
+                <div class="mb-6 flex items-end justify-between gap-4">
+                    <div>
+                        <p class="text-sm font-black uppercase tracking-[0.25em] text-blue-600">
+                            Keep Reading
+                        </p>
+                        <h2 class="mt-2 text-2xl font-black text-slate-950 md:text-3xl">
+                            Related Articles
+                        </h2>
+                    </div>
+                </div>
+
+                <div class="grid gap-5 md:grid-cols-2">
+                    {% for related in related_articles %}
+                        <a
+                            href="{% url 'pages:article_detail' related.slug %}"
+                            class="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
+                        >
+                            {% if related.image %}
+                                {% optimized_image_url related.image 'category_card' as related_image_url %}
+                                <img
+                                    src="{{ related_image_url }}"
+                                    alt="{{ related.title }}"
+                                    class="h-40 w-full object-cover transition duration-500 group-hover:scale-105"
+                                    loading="lazy"
+                                    decoding="async"
+                                    width="560"
+                                    height="360"
+                                >
+                            {% endif %}
+
+                            <div class="p-5">
+                                <p class="mb-2 text-xs font-black uppercase tracking-[0.18em] text-blue-600">
+                                    {{ related.category.title }}
+                                </p>
+
+                                <h3 class="text-lg font-black leading-7 text-slate-950 group-hover:text-blue-700">
+                                    {{ related.title }}
+                                </h3>
+
+                                <p class="mt-2 text-sm leading-6 text-slate-600">
+                                    {{ related.content|striptags|truncatewords:22 }}
+                                </p>
+                            </div>
+                        </a>
+                    {% endfor %}
+                </div>
+            </section>
+        {% endif %}
+
+    </section>
+</main>
 {% endblock %}

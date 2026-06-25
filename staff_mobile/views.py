@@ -50,6 +50,7 @@ from arolana_payments.services import (
 )
 from smartchat.models import SmartChatConversation, SmartChatMessage
 from accounts.utils.otp_utils import create_otp, verify_otp
+from core.media_optimization import get_optimized_image_url
 
 try:
     from reportlab.lib import colors
@@ -107,10 +108,11 @@ def _money(value, default="0.00"):
         return Decimal(default).quantize(Decimal("0.01"))
 
 
-def _absolute_media_url(request, file_field):
+def _absolute_media_url(request, file_field, preset=None):
     try:
-        if file_field and getattr(file_field, "url", ""):
-            return request.build_absolute_uri(file_field.url) if request else file_field.url
+        if file_field:
+            file_url = get_optimized_image_url(file_field, preset) if preset else file_field.url
+            return request.build_absolute_uri(file_url) if request and not file_url.startswith(("http://", "https://")) else file_url
     except Exception:
         return ""
     return ""
@@ -1763,18 +1765,14 @@ def vendor_withdrawal_request_api(request):
 
 
 def _product_payload(product):
-    image = ""
-    try:
-        image = product.main_image.url if product.main_image else ""
-    except Exception:
-        image = ""
+    image = _absolute_media_url(None, product.main_image, "product_card") if product.main_image else ""
     gallery = []
     try:
         gallery = [
             {
                 "id": item.id,
-                "image": item.image.url if item.image else "",
-                "url": item.image.url if item.image else "",
+                "image": _absolute_media_url(None, item.image, "product_gallery") if item.image else "",
+                "url": _absolute_media_url(None, item.image, "product_gallery") if item.image else "",
                 "is_main": item.is_main,
                 "order": item.order,
             }
@@ -1793,7 +1791,7 @@ def _product_payload(product):
                 "sku": variant.sku,
                 "price_adjustment": str(variant.price_adjustment),
                 "stock_quantity": variant.stock_quantity,
-                "image": variant.image.url if variant.image else "",
+                "image": _absolute_media_url(None, variant.image, "product_gallery") if variant.image else "",
                 "is_active": variant.is_active,
             }
             for variant in product.variants.filter(is_active=True).order_by("variant_type", "name", "value")[:30]
@@ -2016,7 +2014,14 @@ def vendor_product_images_api(request, product_id):
     product.is_active = False
     product.resubmitted_at = timezone.now()
     product.save(update_fields=["main_image", "approval_status", "is_active", "resubmitted_at", "updated_at"])
-    return JsonResponse({"success": True, "image": {"id": product_image.id, "url": product_image.image.url}, "product": _product_payload(product)})
+    return JsonResponse({
+        "success": True,
+        "image": {
+            "id": product_image.id,
+            "url": _absolute_media_url(request, product_image.image, "product_gallery"),
+        },
+        "product": _product_payload(product),
+    })
 
 
 @csrf_exempt

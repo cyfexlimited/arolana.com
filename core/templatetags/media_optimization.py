@@ -4,7 +4,7 @@ from urllib.parse import quote, urljoin, urlsplit
 from django import template
 from django.conf import settings
 
-from core.media_optimization import get_optimized_image_url
+from core.media_optimization import get_optimized_image_url, get_safe_background_image_url
 
 
 register = template.Library()
@@ -74,6 +74,12 @@ def optimized_image_url(image, preset="product_card"):
     It may return signed storage URLs depending on storage backend settings.
     """
     return get_optimized_image_url(image, preset)
+
+
+@register.simple_tag
+def safe_background_image_url(image, preset="background_desktop"):
+    """Optimized CSS background URL with guaranteed original-upload fallback."""
+    return get_safe_background_image_url(image, preset)
 
 
 @register.simple_tag(takes_context=True)

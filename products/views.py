@@ -1380,7 +1380,7 @@ def product_detail(request, slug):
         if not original_src:
             return
         src = get_optimized_image_url(image_field, 'product_detail')
-        thumb = get_optimized_image_url(image_field, 'product_thumb')
+        thumb = get_optimized_image_url(image_field, 'product_gallery')
         if original_src not in {image['original'] for image in images}:
             images.append({
                 'src': src,
@@ -2152,32 +2152,37 @@ def get_variant_details(request, variant_id):
             except Exception:
                 return None
 
-        def push_image(images, src, alt):
+        def push_image(images, image_field, alt):
+            if not image_field:
+                return
+            src = get_optimized_image_url(image_field, "product_gallery")
+            original = safe_url(image_field)
             if not src:
                 return
             if src not in {image['src'] for image in images}:
                 images.append({
                     'src': src,
+                    'original': original or src,
                     'alt': alt or product.name,
                 })
 
         variant_images = []
         push_image(
             variant_images,
-            safe_url(variant.image),
+            variant.image,
             f"{product.name} - {variant.value}"
         )
         for image in variant.images.all():
             push_image(
                 variant_images,
-                safe_url(image.image),
+                image.image,
                 image.alt_text or f"{product.name} - {variant.value}"
             )
 
         product_gallery = []
-        push_image(product_gallery, safe_url(product.main_image), product.name)
+        push_image(product_gallery, product.main_image, product.name)
         for image in product.images.filter(is_active=True).order_by('-is_main', 'order', 'id'):
-            push_image(product_gallery, safe_url(image.image), image.alt_text or product.name)
+            push_image(product_gallery, image.image, image.alt_text or product.name)
 
         # ====== Currency Conversion ======
         user_currency = get_user_currency(request)
@@ -2207,7 +2212,7 @@ def get_variant_details(request, variant_id):
                 'base_price': float(product.price),
                 'final_price': float(final_price or final_price_raw),
                 'final_price_display': format_currency(final_price_raw, request),
-                'main_image': safe_url(product.main_image),
+                'main_image': get_optimized_image_url(product.main_image, "product_detail") if product.main_image else None,
                 'gallery_images': product_gallery,
                 'sku': variant.sku or product.sku,
             }
@@ -2300,7 +2305,7 @@ def quick_view_api(request, product_id):
         'price': str(converted_price),
         'compare_price': str(convert_price(product.compare_price, base_currency, user_currency)) if product.compare_price else None,
         'discount_percent': product.discount_percent,
-        'image': product.main_image.url if product.main_image else None,
+        'image': get_optimized_image_url(product.main_image, "product_card") if product.main_image else None,
         'rating_avg': float(product.rating_avg),
         'rating_count': product.rating_count,
         'in_stock': product.is_in_stock,
@@ -2321,7 +2326,7 @@ def quick_view_api(request, product_id):
                 'id': a.accessory.id,
                 'name': a.accessory.name,
                 'price': str(a.accessory.price),
-                'image': a.accessory.image.url if a.accessory.image else None,
+                'image': get_optimized_image_url(a.accessory.image, "accessory_thumb") if a.accessory.image else None,
             }
             for a in accessories
         ],
@@ -2617,7 +2622,7 @@ def _mobile_category_payload(request, category, include_children=True):
         "slug": category.slug,
         "description": strip_tags(category.description or "")[:180],
         "image": _mobile_file_url(request, getattr(category, "image", None), preset="category_card"),
-        "background_image": _mobile_file_url(request, getattr(category, "background_image", None), preset="hero"),
+        "background_image": _mobile_file_url(request, getattr(category, "background_image", None), preset="category_banner"),
         "url": request.build_absolute_uri(reverse("products:category", args=[category.slug])),
         "hero_title": getattr(category, "hero_title", "") or "",
         "hero_subtitle": getattr(category, "hero_subtitle", "") or "",
@@ -3223,7 +3228,11 @@ def mobile_home_api(request):
                 "image_mobile": _mobile_file_url(request, banner.image_mobile, preset="hero"),
                 "image_tablet": _mobile_file_url(request, banner.image_tablet, preset="hero"),
                 "image_desktop": _mobile_file_url(request, banner.image_desktop, preset="hero"),
-                "image": _mobile_file_url(request, banner.image_mobile or banner.image_tablet or banner.image_desktop, preset="hero"),
+                "image": _mobile_file_url(
+                    request,
+                    banner.image_mobile or banner.image_tablet or banner.image_desktop,
+                    preset="mobile_hero" if banner.image_mobile else "hero_banner",
+                ),
                 "source": "hero_banners",
             })
 
@@ -3257,8 +3266,8 @@ def mobile_home_api(request):
                 "desktop_height": banner.desktop_height,
                 "tablet_height": banner.tablet_height,
                 "mobile_height": banner.mobile_height,
-                "image": _mobile_file_url(request, image.image, preset="hero") if image else None,
-                "background_image": _mobile_file_url(request, background.image, preset="hero") if background else None,
+                "image": _mobile_file_url(request, image.image, preset="ad_card") if image else None,
+                "background_image": _mobile_file_url(request, background.image, preset="hero_banner") if background else None,
                 "center_image_upload": _mobile_file_url(request, center.image, preset="hero") if center else None,
                 "left_image_upload": _mobile_file_url(request, left.image, preset="category_card") if left else None,
                 "right_image_upload": _mobile_file_url(request, right.image, preset="category_card") if right else None,
@@ -3276,9 +3285,13 @@ def mobile_home_api(request):
     appearance = HomePageAppearance.objects.filter(is_active=True).order_by("-updated_at", "-id").first()
     if appearance:
         homepage_background = {
-            "desktop_background_image": _mobile_file_url(request, appearance.desktop_background_image, preset="hero"),
-            "mobile_background_image": _mobile_file_url(request, appearance.mobile_background_image, preset="hero"),
-            "image": _mobile_file_url(request, appearance.mobile_background_image or appearance.desktop_background_image, preset="hero"),
+            "desktop_background_image": _mobile_file_url(request, appearance.desktop_background_image, preset="background_desktop"),
+            "mobile_background_image": _mobile_file_url(request, appearance.mobile_background_image, preset="background_mobile"),
+            "image": _mobile_file_url(
+                request,
+                appearance.mobile_background_image or appearance.desktop_background_image,
+                preset="background_mobile" if appearance.mobile_background_image else "background_desktop",
+            ),
             "desktop_overlay_opacity": str(appearance.desktop_overlay_opacity),
             "mobile_overlay_opacity": str(appearance.mobile_overlay_opacity),
             "desktop_position": appearance.desktop_position,
@@ -3745,13 +3758,16 @@ def mobile_product_detail_api(request, slug):
         approval_status="approved",
     )
 
-    def safe_url(file_field):
+    def safe_url(file_field, preset=None):
         if not file_field:
             return None
         try:
-            url = file_field.url
+            url = get_optimized_image_url(file_field, preset) if preset else file_field.url
         except Exception:
-            return None
+            try:
+                url = file_field.url
+            except Exception:
+                return None
 
         if url.startswith("http://") or url.startswith("https://"):
             return url
@@ -3760,23 +3776,23 @@ def mobile_product_detail_api(request, slug):
 
     images = []
 
-    main_image = safe_url(getattr(product, "main_image", None))
+    main_image = safe_url(getattr(product, "main_image", None), "product_detail")
     if main_image:
         images.append(main_image)
 
     for image in product.images.all():
-        image_url = safe_url(getattr(image, "image", None))
+        image_url = safe_url(getattr(image, "image", None), "product_gallery")
         if image_url and image_url not in images:
             images.append(image_url)
 
     variants = []
     for variant in product.variants.filter(is_active=True):
         variant_images = []
-        variant_image = safe_url(getattr(variant, "image", None))
+        variant_image = safe_url(getattr(variant, "image", None), "product_gallery")
         if variant_image:
             variant_images.append(variant_image)
         for gallery_image in variant.images.all():
-            gallery_url = safe_url(getattr(gallery_image, "image", None))
+            gallery_url = safe_url(getattr(gallery_image, "image", None), "product_gallery")
             if gallery_url and gallery_url not in variant_images:
                 variant_images.append(gallery_url)
         variants.append({

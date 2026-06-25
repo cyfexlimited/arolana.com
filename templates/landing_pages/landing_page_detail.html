@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load static optimized_images %}
+{% load static optimized_images media_optimization %}
 
 {# Arolana image rule: never use raw {{ image.url }} for uploaded images. Use optimized_image_url, for example {{ image|optimized_image_url:'product_card' }} or the correct preset for that image type. #}
 
@@ -11,7 +11,14 @@
 {% if page.meta_keywords %}<meta name="keywords" content="{{ page.meta_keywords }}">{% endif %}
 <meta property="og:title" content="{{ page.og_title|default:page.public_title }}">
 <meta property="og:description" content="{{ page.og_description|default:page.public_description }}">
-{% if page.og_image_url %}<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ page.og_image_url }}">{% endif %}
+{% if page.og_image %}
+{% seo_media_url page.og_image 'seo' as landing_og_image_url %}
+{% if landing_og_image_url %}
+<meta property="og:image" content="{{ landing_og_image_url }}">
+<meta property="og:image:secure_url" content="{{ landing_og_image_url }}">
+<meta name="twitter:image" content="{{ landing_og_image_url }}">
+{% endif %}
+{% endif %}
 {% if page.canonical_url %}<link rel="canonical" href="{{ page.canonical_url }}">{% endif %}
 <link rel="stylesheet" href="{% static 'landing_pages/css/landing_pages.css' %}">
 
@@ -46,7 +53,7 @@
         margin-top: 0 !important;
         padding-top: 0 !important;
         min-height: 100vh;
-        contain: layout paint;
+        contain: layout;
     }
 
     .arolana-landing-page::before {
@@ -59,7 +66,7 @@
         background-size: cover;
         background-position: var(--lp-page-bg-position, center center);
         background-repeat: no-repeat;
-        background-attachment: scroll;
+        background-attachment: var(--lp-page-bg-attachment, scroll);
         filter: var(--lp-page-bg-filter, none);
         transform: scale(var(--lp-page-bg-scale, 1));
         transform-origin: top center;
@@ -109,13 +116,15 @@
     @media (max-width: 768px) {
         .arolana-landing-page {
             overflow-x: hidden;
-            contain: layout paint;
+            contain: layout;
         }
 
         .arolana-landing-page::before {
             background-image: var(--lp-mobile-bg-image, var(--lp-page-bg-image, none));
             background-position: var(--lp-mobile-bg-position, center center);
             background-attachment: scroll;
+            filter: saturate(1.04) contrast(1.02);
+            transform: none;
         }
 
         .arolana-landing-page::after {
@@ -1038,20 +1047,6 @@
         backface-visibility: hidden;
     }
 
-    .landing-page-body .arolana-landing-page.is-scrolling .lp-hero-copy,
-    .landing-page-body .arolana-landing-page.is-scrolling .lp-hero-panel,
-    .landing-page-body .arolana-landing-page.is-scrolling .lp-card,
-    .landing-page-body .arolana-landing-page.is-scrolling .lp-admin-section-card {
-        opacity: 1 !important;
-        visibility: visible !important;
-    }
-
-    .landing-page-body .arolana-landing-page.is-scrolling .lp-hero picture,
-    .landing-page-body .arolana-landing-page.is-scrolling .lp-hero-image {
-        opacity: 1 !important;
-        visibility: visible !important;
-    }
-
     /*
        Keep the expensive blur design, but avoid the browser repaint bug by making
        the blurred elements their own isolated painted surfaces.
@@ -1077,7 +1072,7 @@
 
     @media (max-width: 1024px) {
         .landing-page-body .arolana-landing-page {
-            contain: layout paint;
+            contain: layout;
         }
 
         .landing-page-body .arolana-landing-page::before,
@@ -1104,6 +1099,38 @@
             background:
                 linear-gradient(135deg, #071A44, #0A2E73) !important;
         }
+
+        .landing-page-body .arolana-landing-page,
+        .landing-page-body .arolana-landing-page .lp-hero,
+        .landing-page-body .arolana-landing-page .lp-section,
+        .landing-page-body .arolana-landing-page .lp-mini-nav,
+        .landing-page-body .arolana-landing-page .lp-hero-copy,
+        .landing-page-body .arolana-landing-page .lp-hero-panel,
+        .landing-page-body .arolana-landing-page .lp-card,
+        .landing-page-body .arolana-landing-page .lp-admin-section-card,
+        .landing-page-body .arolana-landing-page .lp-video-card {
+            -webkit-transform: none !important;
+            transform: none !important;
+            -webkit-backface-visibility: visible !important;
+            backface-visibility: visible !important;
+        }
+
+        .landing-page-body .arolana-landing-page .lp-hero-copy,
+        .landing-page-body .arolana-landing-page .lp-hero-panel,
+        .landing-page-body .arolana-landing-page .lp-mini-nav,
+        .landing-page-body .arolana-landing-page .lp-card,
+        .landing-page-body .arolana-landing-page .lp-admin-section-card,
+        .landing-page-body .arolana-landing-page .lp-video-card,
+        .landing-page-body .arolana-landing-page .lp-section-soft,
+        .landing-page-body .arolana-landing-page .lp-section-rendered {
+            -webkit-backdrop-filter: none !important;
+            backdrop-filter: none !important;
+        }
+
+        .landing-page-body .arolana-landing-page .lp-section,
+        .landing-page-body .arolana-landing-page .lp-section-rendered:not(.lp-section-dark) {
+            background-color: rgba(248, 250, 252, 0.88) !important;
+        }
     }
 </style>
 
@@ -1119,8 +1146,8 @@
         --lp-dark: {{ page.dark_color|default:'#0F172A' }};
         --lp-bg: {{ page.background_color|default:'#F8FAFC' }};
         --lp-text: {{ page.text_color|default:'#0F172A' }};
-        {% if page.page_background_image %}--lp-page-bg-image: url('{{ page.page_background_image|optimized_image_url:'background_desktop' }}');{% else %}--lp-page-bg-image: none;{% endif %}
-        {% if page.page_mobile_background_image %}--lp-mobile-bg-image: url('{{ page.page_mobile_background_image|optimized_image_url:'background_mobile' }}');{% elif page.page_background_image %}--lp-mobile-bg-image: url('{{ page.page_background_image|optimized_image_url:'background_desktop' }}');{% else %}--lp-mobile-bg-image: none;{% endif %}
+        {% if page.page_background_image %}{% safe_background_image_url page.page_background_image 'background_desktop' as landing_desktop_bg_url %}--lp-page-bg-image: url('{{ landing_desktop_bg_url|safe }}');{% else %}--lp-page-bg-image: none;{% endif %}
+        {% if page.page_mobile_background_image %}{% safe_background_image_url page.page_mobile_background_image 'background_mobile' as landing_mobile_bg_url %}--lp-mobile-bg-image: url('{{ landing_mobile_bg_url|safe }}');{% elif page.page_background_image %}{% safe_background_image_url page.page_background_image 'background_desktop' as landing_mobile_fallback_bg_url %}--lp-mobile-bg-image: url('{{ landing_mobile_fallback_bg_url|safe }}');{% else %}--lp-mobile-bg-image: none;{% endif %}
         --lp-page-bg-opacity: {{ page.page_background_overlay_opacity|default_if_none:'0.35' }};
         --lp-mobile-bg-opacity: {{ page.page_mobile_background_overlay_opacity|default_if_none:page.page_background_overlay_opacity|default_if_none:'0.45' }};
         --lp-page-bg-position: {{ page.page_background_position|default:'center center' }};
@@ -1621,32 +1648,5 @@
         }
     }
 </style>
-
-<script id="arolana-landing-scroll-paint-helper">
-(function () {
-    "use strict";
-
-    var page = document.querySelector(".arolana-landing-page");
-    if (!page) return;
-
-    var timer = null;
-
-    function markScrolling() {
-        page.classList.add("is-scrolling");
-
-        if (timer) {
-            window.clearTimeout(timer);
-        }
-
-        timer = window.setTimeout(function () {
-            page.classList.remove("is-scrolling");
-        }, 140);
-    }
-
-    window.addEventListener("scroll", markScrolling, { passive: true });
-    window.addEventListener("wheel", markScrolling, { passive: true });
-    window.addEventListener("touchmove", markScrolling, { passive: true });
-})();
-</script>
 
 {% endblock %}

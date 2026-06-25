@@ -1,6 +1,4 @@
 from io import BytesIO
-from pathlib import PurePosixPath
-
 from django.apps import apps
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
@@ -8,32 +6,7 @@ from django.core.management.base import BaseCommand
 from django.db.models import ImageField
 from PIL import Image, ImageOps, UnidentifiedImageError
 
-
-PRESETS = {
-    "seo": (1200, 1200),
-    "thumbnail": (300, 300),
-    "avatar": (240, 240),
-    "logo": (500, 220),
-
-    "product_thumb": (180, 180),
-    "product_card": (640, 640),
-    "product_detail": (1200, 1200),
-
-    "accessory_thumb": (300, 300),
-    "category_card": (720, 540),
-
-    "banner": (1200, 500),
-    "ad_card": (720, 360),
-
-    "homepage_hero": (1920, 1080),
-    "landing_hero": (1600, 900),
-    "background_desktop": (1920, 1080),
-    "background_mobile": (1080, 1350),
-    "mobile_hero": (1080, 1350),
-
-    "blog_card": (720, 480),
-    "video_thumb": (720, 405),
-}
+from core.media_optimization import PRESETS, optimized_name_for
 
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".avif", ".bmp", ".tif", ".tiff")
 SKIP_EXTENSIONS = (".svg", ".gif", ".ico")
@@ -167,13 +140,13 @@ def optimize_image(image_name, presets, dry_run=False, overwrite=False, quality=
         return 0, 0, 1
 
     for preset in presets:
-        size = PRESETS.get(preset)
+        config = PRESETS.get(preset)
 
-        if not size:
+        if not config:
             skipped += 1
             continue
 
-        dst = optimized_name(image_name, preset)
+        dst = optimized_name_for(image_name, preset)
 
         try:
             dst_exists = default_storage.exists(dst)
@@ -195,10 +168,16 @@ def optimize_image(image_name, presets, dry_run=False, overwrite=False, quality=
             if out_img.mode not in ("RGB", "RGBA"):
                 out_img = out_img.convert("RGBA" if "A" in out_img.getbands() else "RGB")
 
-            out_img.thumbnail(size, Image.Resampling.LANCZOS)
+            out_img.thumbnail(config["max_size"], Image.Resampling.LANCZOS)
 
             output = BytesIO()
-            out_img.save(output, format="WEBP", quality=quality, method=6)
+            out_img.save(
+                output,
+                format="WEBP",
+                quality=min(quality, config["quality"]),
+                method=6,
+                optimize=True,
+            )
 
             if dst_exists and overwrite:
                 try:
@@ -226,12 +205,6 @@ def clean_name(name):
     return name
 
 
-def optimized_name(original_name, preset):
-    original_name = clean_name(original_name)
-    path = PurePosixPath(original_name)
-    return str(PurePosixPath("optimized") / preset / path.with_suffix(".webp"))
-
-
 def choose_presets(model_label, field_name, image_name):
     text = f"{model_label}.{field_name} {image_name}".lower()
     presets = []
@@ -241,38 +214,42 @@ def choose_presets(model_label, field_name, image_name):
             if item not in presets:
                 presets.append(item)
 
-    if "products.product.main_image" in text:
-        add("seo", "product_detail", "product_card", "product_thumb")
+    if "mobile" in text and any(word in text for word in ("hero", "background", "banner", "image")):
+        add("mobile_hero", "background_mobile", "seo")
+    elif "background" in text and "mobile" in text:
+        add("background_mobile", "mobile_hero", "seo")
+    elif "products.product.main_image" in text:
+        add("seo", "product_detail", "product_gallery", "product_card", "product_thumb")
     elif "productimage" in text or "products/gallery" in text:
-        add("product_detail", "product_card", "product_thumb", "seo")
+        add("product_detail", "product_gallery", "product_card", "product_thumb", "seo")
     elif "variant" in text and "image" in text:
-        add("product_detail", "product_card", "product_thumb")
+        add("product_detail", "product_gallery", "product_card", "product_thumb")
     elif "accessory" in text:
         add("accessory_thumb", "product_card", "thumbnail")
+    elif "category" in text and any(word in text for word in ("banner", "background", "hero")):
+        add("category_banner", "category_card", "seo", "thumbnail")
     elif "category" in text:
-        add("category_card", "seo", "thumbnail")
+        add("category_card", "category_banner", "seo", "thumbnail")
     elif "logo" in text:
         add("logo", "thumbnail", "seo")
     elif "banner" in text:
-        add("banner", "seo")
-    elif "background" in text and "mobile" in text:
-        add("background_mobile", "seo")
+        add("hero_banner", "ad", "banner", "seo")
     elif "background" in text:
         add("background_desktop", "seo")
     elif "hero_mobile" in text or "image_mobile" in text:
         add("mobile_hero", "seo")
     elif "hero" in text:
-        add("landing_hero", "homepage_hero", "seo")
+        add("hero_banner", "landing_hero", "hero", "seo")
     elif "homepage" in text:
-        add("homepage_hero", "banner", "seo")
+        add("hero_banner", "hero", "banner", "seo")
     elif "landing_pages" in text:
         add("landing_hero", "banner", "seo", "thumbnail")
     elif "ads." in text or "advertisement" in text or "promo" in text:
-        add("ad_card", "banner", "seo")
+        add("ad", "ad_card", "banner", "seo")
     elif "blog" in text:
-        add("blog_card", "seo", "thumbnail")
+        add("blog_card", "blog_detail", "seo", "thumbnail")
     elif "thumbnail" in text or "thumb" in text or "poster" in text:
-        add("video_thumb", "thumbnail", "seo")
+        add("thumbnail", "seo")
     elif "avatar" in text or "profile" in text or "photo" in text:
         add("avatar", "thumbnail")
     else:

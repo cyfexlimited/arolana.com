@@ -1,5 +1,5 @@
 {% extends 'dashboard/base_dashboard.html' %}
-{% load static %}
+{% load static optimized_images %}
 {% load humanize %}
 
 {% block title %}My Products - Vendor Dashboard{% endblock %}
@@ -33,7 +33,7 @@
                     <td class="px-4 py-3">
                         <div class="flex items-center gap-3">
                             {% if product.main_image %}
-                                <img src="{{ product.main_image.url }}" class="w-12 h-12 object-cover rounded-lg">
+                                <img src="{{ product.main_image|optimized_image_url:'product_thumb' }}" alt="{{ product.name }}" class="w-12 h-12 object-cover rounded-lg" loading="lazy" decoding="async" width="48" height="48">
                             {% else %}
                                 <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
                                     <i class="fas fa-image text-gray-400"></i>

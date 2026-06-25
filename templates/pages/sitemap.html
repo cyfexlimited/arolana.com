@@ -1,85 +1,172 @@
 {% extends 'base/base.html' %}
 
-{% block title %}Sitemap | {{ site_settings.site_name }}{% endblock %}
+{% block title %}Sitemap | {{ site_settings.site_name|default:"Arolana" }}{% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto px-4 py-12">
-    <h1 class="text-4xl font-bold mb-8">Sitemap</h1>
-    
-    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-        <!-- Main Pages -->
-        <div class="bg-white rounded-xl shadow-md p-6">
-            <h2 class="text-xl font-bold mb-4 text-blue-600">Main Pages</h2>
-            <ul class="space-y-2">
-                <li><a href="/" class="text-gray-600 hover:text-blue-600 transition">Home</a></li>
-                <li><a href="/about/" class="text-gray-600 hover:text-blue-600 transition">About Us</a></li>
-                <li><a href="/contact/" class="text-gray-600 hover:text-blue-600 transition">Contact</a></li>
-                <li><a href="/privacy/" class="text-gray-600 hover:text-blue-600 transition">Privacy Policy</a></li>
-                <li><a href="/terms/" class="text-gray-600 hover:text-blue-600 transition">Terms & Conditions</a></li>
-                <li><a href="/returns/" class="text-gray-600 hover:text-blue-600 transition">Returns Policy</a></li>
-                <li><a href="/faq/" class="text-gray-600 hover:text-blue-600 transition">FAQ</a></li>
-            </ul>
+<main class="bg-slate-50">
+
+    <section class="relative overflow-hidden bg-slate-950 text-white">
+        <div class="absolute inset-0 bg-gradient-to-br from-blue-950 via-slate-950 to-slate-900"></div>
+        <div class="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-blue-500/20 blur-3xl"></div>
+        <div class="absolute -bottom-24 -left-20 h-72 w-72 rounded-full bg-orange-500/20 blur-3xl"></div>
+
+        <div class="relative mx-auto max-w-7xl px-4 py-16 md:py-24">
+            <p class="text-sm font-black uppercase tracking-[0.28em] text-blue-300">
+                Site Navigation
+            </p>
+
+            <h1 class="mt-4 text-4xl font-black tracking-tight md:text-6xl">
+                Sitemap
+            </h1>
+
+            <p class="mt-5 max-w-3xl text-lg leading-8 text-slate-300">
+                Explore Arolana pages, product categories, vendors, account links, help resources, and marketplace policies.
+            </p>
         </div>
-        
-        <!-- Shop Categories -->
-        <div class="bg-white rounded-xl shadow-md p-6">
-            <h2 class="text-xl font-bold mb-4 text-blue-600">Shop by Category</h2>
-            <ul class="space-y-2">
-                {% for category in categories %}
-                <li><a href="{% url 'products:category' category.slug %}" class="text-gray-600 hover:text-blue-600 transition">{{ category.name }}</a></li>
-                {% endfor %}
-                <li><a href="/products/" class="text-blue-600 hover:underline font-semibold">View All Categories →</a></li>
-            </ul>
+    </section>
+
+    <section class="mx-auto max-w-7xl px-4 py-12 md:py-16">
+        <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+
+            <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div class="mb-5 flex items-center gap-3">
+                    <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+                        <i class="fas fa-house"></i>
+                    </div>
+                    <h2 class="text-xl font-black text-slate-950">Main Pages</h2>
+                </div>
+
+                <ul class="space-y-2 text-sm font-semibold text-slate-700">
+                    <li><a href="/" class="block rounded-xl px-3 py-2 transition hover:bg-slate-50 hover:text-blue-700">Home</a></li>
+                    <li><a href="/about/" class="block rounded-xl px-3 py-2 transition hover:bg-slate-50 hover:text-blue-700">About Us</a></li>
+                    <li><a href="/contact/" class="block rounded-xl px-3 py-2 transition hover:bg-slate-50 hover:text-blue-700">Contact</a></li>
+                    <li><a href="/privacy/" class="block rounded-xl px-3 py-2 transition hover:bg-slate-50 hover:text-blue-700">Privacy Policy</a></li>
+                    <li><a href="/terms/" class="block rounded-xl px-3 py-2 transition hover:bg-slate-50 hover:text-blue-700">Terms & Conditions</a></li>
+                    <li><a href="/returns/" class="block rounded-xl px-3 py-2 transition hover:bg-slate-50 hover:text-blue-700">Returns Policy</a></li>
+                    <li><a href="/faq/" class="block rounded-xl px-3 py-2 transition hover:bg-slate-50 hover:text-blue-700">FAQ</a></li>
+                </ul>
+            </div>
+
+            <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div class="mb-5 flex items-center gap-3">
+                    <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-50 text-orange-600">
+                        <i class="fas fa-layer-group"></i>
+                    </div>
+                    <h2 class="text-xl font-black text-slate-950">Shop by Category</h2>
+                </div>
+
+                <ul class="space-y-2 text-sm font-semibold text-slate-700">
+                    {% for category in categories %}
+                        <li>
+                            <a href="{% url 'products:category' category.slug %}" class="block rounded-xl px-3 py-2 transition hover:bg-slate-50 hover:text-blue-700">
+                                {{ category.name }}
+                            </a>
+                        </li>
+                    {% empty %}
+                        <li class="px-3 py-2 text-slate-500">No categories available.</li>
+                    {% endfor %}
+
+                    <li>
+                        <a href="/products/" class="mt-2 block rounded-xl px-3 py-2 font-black text-blue-700 transition hover:bg-blue-50">
+                            View All Categories →
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div class="mb-5 flex items-center gap-3">
+                    <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                        <i class="fas fa-box-open"></i>
+                    </div>
+                    <h2 class="text-xl font-black text-slate-950">Products</h2>
+                </div>
+
+                <ul class="space-y-2 text-sm font-semibold text-slate-700">
+                    {% for product in products|slice:":30" %}
+                        <li>
+                            <a href="{{ product.get_absolute_url }}" class="block rounded-xl px-3 py-2 transition hover:bg-slate-50 hover:text-blue-700">
+                                {{ product.name }}
+                            </a>
+                        </li>
+                    {% empty %}
+                        <li class="px-3 py-2 text-slate-500">No products available.</li>
+                    {% endfor %}
+
+                    <li>
+                        <a href="/products/" class="mt-2 block rounded-xl px-3 py-2 font-black text-blue-700 transition hover:bg-blue-50">
+                            View All Products →
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div class="mb-5 flex items-center gap-3">
+                    <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-purple-50 text-purple-600">
+                        <i class="fas fa-store"></i>
+                    </div>
+                    <h2 class="text-xl font-black text-slate-950">Vendors</h2>
+                </div>
+
+                <ul class="space-y-2 text-sm font-semibold text-slate-700">
+                    {% for vendor in vendors|slice:":20" %}
+                        <li>
+                            <a href="{% url 'vendors:detail' vendor.store_slug %}" class="block rounded-xl px-3 py-2 transition hover:bg-slate-50 hover:text-blue-700">
+                                {{ vendor.store_name }}
+                            </a>
+                        </li>
+                    {% empty %}
+                        <li class="px-3 py-2 text-slate-500">No vendors available.</li>
+                    {% endfor %}
+
+                    <li>
+                        <a href="/vendors/" class="mt-2 block rounded-xl px-3 py-2 font-black text-blue-700 transition hover:bg-blue-50">
+                            View All Vendors →
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div class="mb-5 flex items-center gap-3">
+                    <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+                        <i class="fas fa-life-ring"></i>
+                    </div>
+                    <h2 class="text-xl font-black text-slate-950">Quick Links</h2>
+                </div>
+
+                <ul class="space-y-2 text-sm font-semibold text-slate-700">
+                    <li><a href="/help/" class="block rounded-xl px-3 py-2 transition hover:bg-slate-50 hover:text-blue-700">Help Center</a></li>
+                    <li><a href="/orders/track/" class="block rounded-xl px-3 py-2 transition hover:bg-slate-50 hover:text-blue-700">Track Order</a></li>
+                    <li><a href="/shipping/" class="block rounded-xl px-3 py-2 transition hover:bg-slate-50 hover:text-blue-700">Shipping Info</a></li>
+                    <li><a href="/careers/" class="block rounded-xl px-3 py-2 transition hover:bg-slate-50 hover:text-blue-700">Careers</a></li>
+                </ul>
+            </div>
+
+            <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div class="mb-5 flex items-center gap-3">
+                    <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <h2 class="text-xl font-black text-slate-950">Account</h2>
+                </div>
+
+                <ul class="space-y-2 text-sm font-semibold text-slate-700">
+                    {% if user.is_authenticated %}
+                        <li><a href="{% url 'accounts:profile' %}" class="block rounded-xl px-3 py-2 transition hover:bg-slate-50 hover:text-blue-700">My Profile</a></li>
+                        <li><a href="/orders/" class="block rounded-xl px-3 py-2 transition hover:bg-slate-50 hover:text-blue-700">My Orders</a></li>
+                        <li><a href="/wishlist/" class="block rounded-xl px-3 py-2 transition hover:bg-slate-50 hover:text-blue-700">My Wishlist</a></li>
+                        <li><a href="{% url 'accounts:logout' %}" class="block rounded-xl px-3 py-2 transition hover:bg-slate-50 hover:text-blue-700">Logout</a></li>
+                    {% else %}
+                        <li><a href="{% url 'accounts:login' %}" class="block rounded-xl px-3 py-2 transition hover:bg-slate-50 hover:text-blue-700">Sign In</a></li>
+                        <li><a href="{% url 'accounts:register' %}" class="block rounded-xl px-3 py-2 transition hover:bg-slate-50 hover:text-blue-700">Register</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+
         </div>
-        
-        <!-- Products -->
-        <div class="bg-white rounded-xl shadow-md p-6">
-            <h2 class="text-xl font-bold mb-4 text-blue-600">Products</h2>
-            <ul class="space-y-2">
-                {% for product in products|slice:":30" %}
-                <li><a href="{{ product.get_absolute_url }}" class="text-gray-600 hover:text-blue-600 transition">{{ product.name }}</a></li>
-                {% endfor %}
-                <li><a href="/products/" class="text-blue-600 hover:underline font-semibold">View All Products →</a></li>
-            </ul>
-        </div>
-        
-        <!-- Vendors -->
-        <div class="bg-white rounded-xl shadow-md p-6">
-            <h2 class="text-xl font-bold mb-4 text-blue-600">Vendors</h2>
-            <ul class="space-y-2">
-                {% for vendor in vendors|slice:":20" %}
-                <li><a href="{% url 'vendors:detail' vendor.store_slug %}" class="text-gray-600 hover:text-blue-600 transition">{{ vendor.store_name }}</a></li>
-                {% endfor %}
-                <li><a href="/vendors/" class="text-blue-600 hover:underline font-semibold">View All Vendors →</a></li>
-            </ul>
-        </div>
-        
-        <!-- Quick Links -->
-        <div class="bg-white rounded-xl shadow-md p-6">
-            <h2 class="text-xl font-bold mb-4 text-blue-600">Quick Links</h2>
-            <ul class="space-y-2">
-                <li><a href="/help/" class="text-gray-600 hover:text-blue-600 transition">Help Center</a></li>
-                <li><a href="/track/" class="text-gray-600 hover:text-blue-600 transition">Track Order</a></li>
-                <li><a href="/shipping/" class="text-gray-600 hover:text-blue-600 transition">Shipping Info</a></li>
-                <li><a href="/careers/" class="text-gray-600 hover:text-blue-600 transition">Careers</a></li>
-            </ul>
-        </div>
-        
-        <!-- Account -->
-        <div class="bg-white rounded-xl shadow-md p-6">
-            <h2 class="text-xl font-bold mb-4 text-blue-600">Account</h2>
-            <ul class="space-y-2">
-                {% if user.is_authenticated %}
-                <li><a href="{% url 'accounts:profile' %}" class="text-gray-600 hover:text-blue-600 transition">My Profile</a></li>
-                <li><a href="/orders/" class="text-gray-600 hover:text-blue-600 transition">My Orders</a></li>
-                <li><a href="/wishlist/" class="text-gray-600 hover:text-blue-600 transition">My Wishlist</a></li>
-                <li><a href="{% url 'accounts:logout' %}" class="text-gray-600 hover:text-blue-600 transition">Logout</a></li>
-                {% else %}
-                <li><a href="{% url 'accounts:login' %}" class="text-gray-600 hover:text-blue-600 transition">Sign In</a></li>
-                <li><a href="{% url 'accounts:register' %}" class="text-gray-600 hover:text-blue-600 transition">Register</a></li>
-                {% endif %}
-            </ul>
-        </div>
-    </div>
-</div>
+    </section>
+
+</main>
 {% endblock %}

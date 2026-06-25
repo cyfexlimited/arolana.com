@@ -1,5 +1,5 @@
 {% extends 'base/base.html' %}
-{% load currency_filters %}
+{% load currency_filters optimized_images %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto">
@@ -40,7 +40,7 @@
                 <!-- Product Image -->
                 <a href="{{ item.product.get_absolute_url }}" class="block relative overflow-hidden">
                     {% if item.product.main_image %}
-                        <img src="{{ item.product.main_image.url }}" alt="{{ item.product.name }}" 
+                        <img src="{{ item.product.main_image|optimized_image_url:'product_card' }}" alt="{{ item.product.name }}"
                              class="w-full h-56 object-cover group-hover:scale-110 transition duration-500">
                     {% else %}
                         <div class="w-full h-56 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
@@ -146,7 +146,7 @@
                 <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition">
                     <a href="{{ product.get_absolute_url }}">
                         {% if product.main_image %}
-                            <img src="{{ product.main_image.url }}" class="w-full h-48 object-cover">
+                            <img src="{{ product.main_image|optimized_image_url:'product_card' }}" alt="{{ product.name }}" class="w-full h-48 object-cover" loading="lazy" decoding="async" width="400" height="400">
                         {% else %}
                             <div class="w-full h-48 bg-gray-100 flex items-center justify-center">
                                 <i class="fas fa-image text-4xl text-gray-400"></i>

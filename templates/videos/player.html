@@ -1,3 +1,4 @@
+{% load optimized_images %}
 {% if video %}
 <div class="video-container" data-video-id="{{ video.id }}">
     <div class="relative aspect-video bg-black rounded-xl overflow-hidden">
@@ -32,7 +33,7 @@
                 {% if video.autoplay %}autoplay{% endif %}
                 {% if video.loop %}loop{% endif %}
                 {% if video.muted %}muted{% endif %}
-                poster="{% if video.custom_thumbnail %}{{ video.custom_thumbnail.url }}{% elif video.auto_thumbnail %}{{ video.auto_thumbnail }}{% endif %}"
+                poster="{% if video.custom_thumbnail %}{{ video.custom_thumbnail|optimized_image_url:'blog_card' }}{% elif video.auto_thumbnail %}{{ video.auto_thumbnail }}{% endif %}"
                 preload="metadata">
                 <source src="{{ video.video_file.url }}" type="video/mp4">
                 Your browser does not support the video tag.
