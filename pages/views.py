@@ -36,26 +36,31 @@ def help_center(request):
     if not featured_faqs:
         featured_faqs = FAQ.objects.filter(is_active=True).order_by("order", "question")[:6]
 
-    hero = HelpCenterHero.objects.filter(is_active=True).order_by("-updated_at").first()
+    # Prefer an active hero that actually has an uploaded background image.
+    hero = (
+        HelpCenterHero.objects
+        .filter(is_active=True)
+        .exclude(background_image="")
+        .order_by("-updated_at", "-id")
+        .first()
+    )
+
+    # Fallback to any active hero if no image-backed hero exists.
+    if not hero:
+        hero = (
+            HelpCenterHero.objects
+            .filter(is_active=True)
+            .order_by("-updated_at", "-id")
+            .first()
+        )
 
     hero_background_url = ""
 
     if hero and hero.background_image:
         try:
-            if get_optimized_image_url:
-                hero_background_url = get_optimized_image_url(
-                    hero.background_image,
-                    "hero_banner",
-                )
-
-            if not hero_background_url:
-                hero_background_url = hero.background_image.url
-
+            hero_background_url = hero.background_image.url
         except Exception:
-            try:
-                hero_background_url = hero.background_image.url
-            except Exception:
-                hero_background_url = ""
+            hero_background_url = ""
 
     context = {
         "topics": topics,

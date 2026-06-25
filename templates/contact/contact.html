@@ -3,120 +3,334 @@
 {% block title %}Contact Arolana Support | Arolana{% endblock %}
 
 {% block content %}
-<main class="bg-slate-50 py-10 md:py-16">
-    <div class="mx-auto max-w-5xl px-4">
-        <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+<main class="bg-slate-50">
 
-            <div class="bg-gradient-to-r from-blue-700 via-blue-600 to-orange-500 px-6 py-12 text-center text-white md:px-10">
-                <i class="fas fa-headset text-5xl"></i>
-                <h1 class="mt-4 text-3xl font-black md:text-5xl">Contact Arolana</h1>
-                <p class="mt-3 text-lg text-white/90">
-                    Need help with an order, vendor, delivery, return, product, or partnership? Send us a message.
-                </p>
-            </div>
+    <section class="relative isolate overflow-hidden bg-white">
+        <div class="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-orange-50"></div>
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(0,102,204,0.16),transparent_36%),radial-gradient(circle_at_bottom_left,rgba(245,130,32,0.14),transparent_34%)]"></div>
 
-            <div class="p-6 md:p-10">
-                <div class="mb-10 grid gap-5 md:grid-cols-3">
-                    <div class="rounded-2xl bg-blue-50 p-5 text-center">
-                        <i class="fas fa-phone text-3xl text-blue-700"></i>
-                        <h3 class="mt-3 font-black text-slate-900">Phone</h3>
-                        <p class="mt-1 text-sm text-slate-600">Available via support line</p>
-                    </div>
+        <div class="relative mx-auto max-w-7xl px-4 py-14 md:py-20">
+            <div class="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_26rem]">
 
-                    <div class="rounded-2xl bg-orange-50 p-5 text-center">
-                        <i class="fas fa-envelope text-3xl text-orange-600"></i>
-                        <h3 class="mt-3 font-black text-slate-900">Email</h3>
-                        <p class="mt-1 text-sm text-slate-600">support@arolana.com</p>
-                    </div>
+                <div>
+                    <p class="text-sm font-black uppercase tracking-[0.28em] text-blue-700">
+                        Arolana Support
+                    </p>
 
-                    <div class="rounded-2xl bg-emerald-50 p-5 text-center">
-                        <i class="fas fa-map-marker-alt text-3xl text-emerald-600"></i>
-                        <h3 class="mt-3 font-black text-slate-900">Location</h3>
-                        <p class="mt-1 text-sm text-slate-600">Ikeja, Lagos, Nigeria</p>
+                    <h1 class="mt-4 max-w-4xl text-4xl font-black tracking-tight text-slate-950 md:text-6xl">
+                        {% if contact_settings and contact_settings.title %}
+                            {{ contact_settings.title }}
+                        {% else %}
+                            Contact Arolana
+                        {% endif %}
+                    </h1>
+
+                    <p class="mt-5 max-w-3xl text-lg leading-8 text-slate-700">
+                        Need help with an order, delivery, return, refund, payment, vendor, product, partnership, or your Arolana marketplace account? Send us a message and our support team will assist you.
+                    </p>
+
+                    <div class="mt-8 flex flex-wrap gap-3">
+                        <a href="{% url 'pages:help_center' %}" class="inline-flex items-center rounded-2xl bg-blue-700 px-6 py-3 font-black text-white shadow-lg shadow-blue-700/20 transition hover:bg-blue-800">
+                            Visit Help Center
+                            <i class="fas fa-arrow-right ml-2 text-sm"></i>
+                        </a>
+
+                        <a href="{% url 'pages:faq' %}" class="inline-flex items-center rounded-2xl border border-blue-100 bg-white px-6 py-3 font-black text-blue-800 shadow-sm transition hover:border-blue-200 hover:bg-blue-50">
+                            View FAQs
+                            <i class="fas fa-circle-question ml-2 text-sm"></i>
+                        </a>
                     </div>
                 </div>
 
-                {% if vendor %}
-                    <div class="mb-6 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-blue-900">
-                        <i class="fas fa-store mr-2"></i>
-                        You are contacting vendor:
-                        <strong>{{ vendor.store_name }}</strong>
+                <div class="rounded-[2rem] border border-blue-100 bg-white/90 p-6 shadow-2xl shadow-blue-950/10 backdrop-blur">
+                    <div class="flex h-16 w-16 items-center justify-center rounded-3xl bg-blue-700 text-white shadow-lg shadow-blue-700/25">
+                        <i class="fas fa-headset text-3xl"></i>
+                    </div>
+
+                    <h2 class="mt-5 text-2xl font-black text-slate-950">
+                        Fast support starts here
+                    </h2>
+
+                    <p class="mt-3 text-sm leading-6 text-slate-600">
+                        Include your order number, vendor name, delivery tracking code, screenshots, or product details where necessary so we can help you faster.
+                    </p>
+
+                    <div class="mt-6 rounded-2xl bg-orange-50 p-4 text-sm font-bold leading-6 text-orange-800">
+                        <i class="fas fa-shield-alt mr-2 text-orange-500"></i>
+                        Your request will be reviewed by the Arolana support team.
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <section class="mx-auto max-w-7xl px-4 py-10 md:py-14">
+        <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
+
+            <div class="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
+                <div class="border-b border-slate-100 bg-slate-950 px-6 py-7 text-white md:px-8">
+                    <p class="text-sm font-black uppercase tracking-[0.22em] text-blue-300">
+                        Send Message
+                    </p>
+
+                    <h2 class="mt-2 text-3xl font-black">
+                        How can we help you?
+                    </h2>
+
+                    <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
+                        Fill the form below with clear details. Our team will review your message and respond as soon as possible.
+                    </p>
+                </div>
+
+                <div class="p-6 md:p-8">
+                    {% if messages %}
+                        <div class="mb-6 space-y-3">
+                            {% for message in messages %}
+                                <div class="rounded-2xl border px-4 py-3 text-sm font-bold
+                                    {% if message.tags == 'success' %}
+                                        border-emerald-200 bg-emerald-50 text-emerald-800
+                                    {% elif message.tags == 'error' %}
+                                        border-red-200 bg-red-50 text-red-800
+                                    {% else %}
+                                        border-blue-200 bg-blue-50 text-blue-800
+                                    {% endif %}
+                                ">
+                                    {{ message }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    {% if vendor %}
+                        <div class="mb-6 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm font-bold text-blue-900">
+                            <i class="fas fa-store mr-2"></i>
+                            You are contacting vendor:
+                            <strong>{{ vendor.store_name }}</strong>
+                        </div>
+                    {% endif %}
+
+                    <form method="POST" class="space-y-5">
+                        {% csrf_token %}
+
+                        {% if vendor %}
+                            <input type="hidden" name="vendor_id" value="{{ vendor.id }}">
+                        {% endif %}
+
+                        <div class="grid gap-5 md:grid-cols-2">
+                            <div>
+                                <label class="mb-2 block text-sm font-black text-slate-800">
+                                    Your Name *
+                                </label>
+
+                                <input
+                                    type="text"
+                                    name="name"
+                                    required
+                                    value="{% if request.user.is_authenticated %}{{ request.user.get_full_name|default:request.user.username }}{% endif %}"
+                                    class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 font-semibold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+                                    placeholder="Enter your full name"
+                                >
+                            </div>
+
+                            <div>
+                                <label class="mb-2 block text-sm font-black text-slate-800">
+                                    Your Email *
+                                </label>
+
+                                <input
+                                    type="email"
+                                    name="email"
+                                    required
+                                    value="{% if request.user.is_authenticated %}{{ request.user.email }}{% endif %}"
+                                    class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 font-semibold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+                                    placeholder="Enter your email address"
+                                >
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="mb-2 block text-sm font-black text-slate-800">
+                                Subject *
+                            </label>
+
+                            <input
+                                type="text"
+                                name="subject"
+                                required
+                                class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 font-semibold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+                                placeholder="What is your message about?"
+                            >
+                        </div>
+
+                        <div>
+                            <label class="mb-2 block text-sm font-black text-slate-800">
+                                Message *
+                            </label>
+
+                            <textarea
+                                name="message"
+                                rows="7"
+                                required
+                                class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 font-semibold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+                                placeholder="Write your message clearly. Include order number, vendor name, product name, tracking code, or screenshots where necessary."
+                            ></textarea>
+                        </div>
+
+                        <button
+                            type="submit"
+                            class="group inline-flex w-full items-center justify-center rounded-2xl bg-orange-500 px-6 py-4 text-base font-black text-white shadow-lg shadow-orange-500/25 transition hover:-translate-y-0.5 hover:bg-orange-600"
+                        >
+                            <i class="fas fa-paper-plane mr-2"></i>
+                            Send Message
+                            <i class="fas fa-arrow-right ml-2 text-sm transition group-hover:translate-x-1"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <aside class="space-y-6">
+                <div class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+                    <h3 class="text-xl font-black text-slate-950">
+                        Contact Details
+                    </h3>
+
+                    <div class="mt-5 space-y-4">
+                        <div class="flex gap-4 rounded-3xl bg-blue-50 p-4">
+                            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-700 text-white">
+                                <i class="fas fa-phone"></i>
+                            </div>
+
+                            <div>
+                                <h4 class="font-black text-slate-950">
+                                    Phone
+                                </h4>
+
+                                <p class="mt-1 text-sm font-semibold leading-6 text-slate-600">
+                                    {% if contact_settings and contact_settings.support_phone %}
+                                        {{ contact_settings.support_phone }}
+                                    {% else %}
+                                        Available via support line
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-4 rounded-3xl bg-orange-50 p-4">
+                            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-orange-500 text-white">
+                                <i class="fas fa-envelope"></i>
+                            </div>
+
+                            <div>
+                                <h4 class="font-black text-slate-950">
+                                    Email
+                                </h4>
+
+                                <p class="mt-1 break-all text-sm font-semibold leading-6 text-slate-600">
+                                    {% if contact_settings and contact_settings.support_email %}
+                                        {{ contact_settings.support_email }}
+                                    {% else %}
+                                        support@arolana.com
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-4 rounded-3xl bg-slate-50 p-4">
+                            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white">
+                                <i class="fas fa-map-marker-alt"></i>
+                            </div>
+
+                            <div>
+                                <h4 class="font-black text-slate-950">
+                                    Location
+                                </h4>
+
+                                <p class="mt-1 text-sm font-semibold leading-6 text-slate-600">
+                                    Ikeja, Lagos, Nigeria
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {% if quick_actions %}
+                    <div class="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+                        <h3 class="text-xl font-black text-slate-950">
+                            Quick Actions
+                        </h3>
+
+                        <div class="mt-5 space-y-3">
+                            {% for action in quick_actions %}
+                                <a
+                                    href="{{ action.url }}"
+                                    class="group flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-black text-slate-800 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-800"
+                                >
+                                    <span>{{ action.label }}</span>
+                                    <i class="fas fa-arrow-right text-xs transition group-hover:translate-x-1"></i>
+                                </a>
+                            {% endfor %}
+                        </div>
                     </div>
                 {% endif %}
 
-                <form method="POST" class="space-y-5">
-                    {% csrf_token %}
-
-                    {% if vendor %}
-                        <input type="hidden" name="vendor_id" value="{{ vendor.id }}">
-                    {% endif %}
-
-                    <div class="grid gap-5 md:grid-cols-2">
-                        <div>
-                            <label class="mb-2 block text-sm font-black text-slate-700">
-                                Your Name *
-                            </label>
-                            <input
-                                type="text"
-                                name="name"
-                                required
-                                value="{% if request.user.is_authenticated %}{{ request.user.get_full_name|default:request.user.username }}{% endif %}"
-                                class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                                placeholder="Enter your full name"
-                            >
-                        </div>
-
-                        <div>
-                            <label class="mb-2 block text-sm font-black text-slate-700">
-                                Your Email *
-                            </label>
-                            <input
-                                type="email"
-                                name="email"
-                                required
-                                value="{% if request.user.is_authenticated %}{{ request.user.email }}{% endif %}"
-                                class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                                placeholder="Enter your email address"
-                            >
-                        </div>
+                <div class="rounded-[2rem] border border-blue-100 bg-white p-6 shadow-sm">
+                    <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
+                        <i class="fas fa-circle-info text-xl"></i>
                     </div>
 
-                    <div>
-                        <label class="mb-2 block text-sm font-black text-slate-700">
-                            Subject *
-                        </label>
-                        <input
-                            type="text"
-                            name="subject"
-                            required
-                            class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                            placeholder="What is your message about?"
-                        >
+                    <h3 class="mt-4 text-xl font-black text-slate-950">
+                        Faster Support Tips
+                    </h3>
+
+                    <ul class="mt-5 space-y-4 text-sm leading-6 text-slate-600">
+                        <li class="flex gap-3">
+                            <i class="fas fa-check-circle mt-1 text-blue-600"></i>
+                            <span>For order issues, include your order number.</span>
+                        </li>
+
+                        <li class="flex gap-3">
+                            <i class="fas fa-check-circle mt-1 text-blue-600"></i>
+                            <span>For delivery issues, include tracking details.</span>
+                        </li>
+
+                        <li class="flex gap-3">
+                            <i class="fas fa-check-circle mt-1 text-blue-600"></i>
+                            <span>For vendor issues, include the store name.</span>
+                        </li>
+
+                        <li class="flex gap-3">
+                            <i class="fas fa-check-circle mt-1 text-blue-600"></i>
+                            <span>For damaged items, include clear photos or screenshots.</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="rounded-[2rem] bg-slate-950 p-6 text-white shadow-xl">
+                    <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-orange-300">
+                        <i class="fas fa-shield-alt text-xl"></i>
                     </div>
 
-                    <div>
-                        <label class="mb-2 block text-sm font-black text-slate-700">
-                            Message *
-                        </label>
-                        <textarea
-                            name="message"
-                            rows="7"
-                            required
-                            class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-                            placeholder="Write your message clearly so our team can assist you faster."
-                        ></textarea>
-                    </div>
+                    <h3 class="mt-4 text-xl font-black">
+                        {% if contact_settings and contact_settings.protection_title %}
+                            {{ contact_settings.protection_title }}
+                        {% else %}
+                            Buyer & Vendor Protection
+                        {% endif %}
+                    </h3>
 
-                    <button
-                        type="submit"
-                        class="w-full rounded-xl bg-blue-700 px-6 py-4 text-base font-black text-white transition hover:bg-blue-800"
-                    >
-                        <i class="fas fa-paper-plane mr-2"></i>
-                        Send Message
-                    </button>
-                </form>
-            </div>
+                    <p class="mt-3 text-sm leading-7 text-slate-300">
+                        {% if contact_settings and contact_settings.protection_text %}
+                            {{ contact_settings.protection_text }}
+                        {% else %}
+                            Arolana helps protect customers and vendors by keeping support conversations clear, trackable, and handled through trusted marketplace channels.
+                        {% endif %}
+                    </p>
+                </div>
+            </aside>
+
         </div>
-    </div>
+    </section>
+
 </main>
 {% endblock %}
