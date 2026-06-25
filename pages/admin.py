@@ -15,6 +15,28 @@ from .models import (
 )
 
 
+def safe_image_preview(image_field, width=80, height=50, radius=8):
+    """
+    Safely render image previews in Django admin.
+    Prevents admin crash if storage/CDN URL is temporarily unavailable.
+    """
+    if not image_field:
+        return "-"
+
+    try:
+        image_url = image_field.url
+    except Exception:
+        return "Image uploaded, preview unavailable"
+
+    return format_html(
+        '<img src="{}" width="{}" height="{}" style="border-radius:{}px;object-fit:cover;border:1px solid #e5e7eb;background:#f8fafc;" />',
+        image_url,
+        width,
+        height,
+        radius,
+    )
+
+
 @admin.register(Page)
 class PageAdmin(admin.ModelAdmin):
     list_display = [
@@ -100,12 +122,7 @@ class SupportTopicAdmin(admin.ModelAdmin):
     icon_preview.short_description = "Icon"
 
     def image_preview(self, obj):
-        if obj.image:
-            return format_html(
-                '<img src="{}" width="50" height="50" style="border-radius:8px;object-fit:cover;" />',
-                obj.image.url,
-            )
-        return "-"
+        return safe_image_preview(obj.image, width=50, height=50, radius=8)
 
     image_preview.short_description = "Image"
 
@@ -165,38 +182,73 @@ class FAQAdmin(admin.ModelAdmin):
     )
 
     def image_preview(self, obj):
-        if obj.image:
-            return format_html(
-                '<img src="{}" width="40" height="40" style="border-radius:6px;object-fit:cover;" />',
-                obj.image.url,
-            )
-        return "-"
+        return safe_image_preview(obj.image, width=40, height=40, radius=6)
 
     image_preview.short_description = "Image"
 
 
 @admin.register(HelpCenterHero)
 class HelpCenterHeroAdmin(admin.ModelAdmin):
-    list_display = ["title", "is_active", "image_preview", "updated_at"]
+    list_display = [
+        "title",
+        "is_active",
+        "image_preview",
+        "updated_at",
+    ]
     list_filter = ["is_active"]
     list_editable = ["is_active"]
     search_fields = ["title", "subtitle"]
+    readonly_fields = ["large_image_preview"]
 
     fieldsets = (
         ("Hero Content", {
-            "fields": ("title", "subtitle", "background_image", "is_active"),
+            "fields": (
+                "title",
+                "subtitle",
+                "background_image",
+                "large_image_preview",
+                "is_active",
+            ),
         }),
     )
 
     def image_preview(self, obj):
-        if obj.background_image:
-            return format_html(
-                '<img src="{}" width="100" height="50" style="border-radius:6px;object-fit:cover;" />',
-                obj.background_image.url,
-            )
-        return "-"
+        return safe_image_preview(obj.background_image, width=120, height=60, radius=8)
 
     image_preview.short_description = "Background"
+
+    def large_image_preview(self, obj):
+        if not obj or not obj.background_image:
+            return "No background image uploaded yet."
+
+        try:
+            image_url = obj.background_image.url
+        except Exception:
+            return "Image uploaded, preview unavailable."
+
+        return format_html(
+            """
+            <div style="max-width:720px;">
+                <img src="{}" style="width:100%;max-height:260px;object-fit:cover;border-radius:16px;border:1px solid #e5e7eb;background:#f8fafc;" />
+                <p style="margin-top:8px;color:#64748b;font-size:12px;">
+                    This is the image that will appear on the Help Center hero when this record is active.
+                </p>
+            </div>
+            """,
+            image_url,
+        )
+
+    large_image_preview.short_description = "Current Background Preview"
+
+    def save_model(self, request, obj, form, change):
+        """
+        Keep only one Help Center Hero active at a time.
+        This prevents the frontend from picking the wrong active hero.
+        """
+        super().save_model(request, obj, form, change)
+
+        if obj.is_active:
+            HelpCenterHero.objects.exclude(pk=obj.pk).update(is_active=False)
 
 
 @admin.register(CareerCategory)

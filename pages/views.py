@@ -17,11 +17,17 @@ from .models import (
     SupportTopic,
 )
 
+try:
+    from core.media_optimization import get_optimized_image_url
+except Exception:
+    get_optimized_image_url = None
+
 
 def help_center(request):
     """Public Help Center page."""
 
     topics = SupportTopic.objects.filter(is_active=True).order_by("order", "title")
+
     featured_faqs = FAQ.objects.filter(
         is_active=True,
         is_featured=True,
@@ -32,12 +38,33 @@ def help_center(request):
 
     hero = HelpCenterHero.objects.filter(is_active=True).order_by("-updated_at").first()
 
+    hero_background_url = ""
+
+    if hero and hero.background_image:
+        try:
+            if get_optimized_image_url:
+                hero_background_url = get_optimized_image_url(
+                    hero.background_image,
+                    "hero_banner",
+                )
+
+            if not hero_background_url:
+                hero_background_url = hero.background_image.url
+
+        except Exception:
+            try:
+                hero_background_url = hero.background_image.url
+            except Exception:
+                hero_background_url = ""
+
     context = {
         "topics": topics,
         "featured_faqs": featured_faqs,
         "hero": hero,
+        "hero_background_url": hero_background_url,
         "page_title": "Help Center",
     }
+
     return render(request, "pages/help_center.html", context)
 
 
@@ -154,7 +181,6 @@ def contact_page(request):
             messages.error(request, "Please complete all required fields before sending your message.")
             return redirect("pages:contact")
 
-        # Add email/ticket creation logic here later.
         messages.success(request, "Thank you for contacting Arolana. We will get back to you soon.")
         return redirect("pages:contact")
 
