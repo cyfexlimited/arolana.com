@@ -200,12 +200,19 @@ MIDDLEWARE = [
     'django.middleware.gzip.GZipMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+
+    # Prevent stale cached admin forms from causing CSRF issues after cache/cookie clears.
+    'core.admin_no_cache_middleware.AdminNoCacheMiddleware',
+
+    # Arolana tracking/security/business middleware
     'visitor_analytics.middleware.PageVisitTrackingMiddleware',
     'core.middleware.ArolanaRateLimitMiddleware',
+
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'core.middleware.ArolanaSecurityHeadersMiddleware',
