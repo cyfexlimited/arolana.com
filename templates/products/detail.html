@@ -1274,39 +1274,19 @@
         box-shadow: none !important;
     }
 
-    .product-overview-content,
-    .product-overview-content div,
-    .product-overview-content section,
-    .product-overview-content article,
-    .product-overview-content p,
-    .product-overview-content span,
-    .product-overview-content strong,
-    .product-overview-content em,
-    .product-overview-content b,
-    .product-overview-content i,
-    .product-overview-content ul,
-    .product-overview-content ol,
-    .product-overview-content li,
-    .product-overview-content table,
-    .product-overview-content tbody,
-    .product-overview-content thead,
-    .product-overview-content tfoot,
-    .product-overview-content tr,
-    .product-overview-content td,
-    .product-overview-content th,
-    .product-overview-content figure,
-    .product-overview-content figcaption {
+    /*
+       IMPORTANT FIX:
+       Do NOT wipe inline/admin styling inside product descriptions.
+       The previous broad rule forced every section/div/p/span/table inside
+       product.description to transparent background with !important.
+       That is why your premium styled description became plain text.
+       Keep the tabs clean, but allow CKEditor/admin content to keep
+       backgrounds, gradients, cards, spacing, shadows, and image wrappers.
+    */
+    .product-overview-content {
         background: transparent !important;
         background-color: transparent !important;
-        background-image: none !important;
         box-shadow: none !important;
-    }
-
-    .product-overview-content [style*="background"],
-    .product-overview-content [style*="background-color"] {
-        background: transparent !important;
-        background-color: transparent !important;
-        background-image: none !important;
     }
 
     .product-overview-content img {
@@ -2826,6 +2806,75 @@
         visibility: hidden !important;
         opacity: 0 !important;
         pointer-events: none !important;
+    }
+
+
+
+    /* ============================================================
+       AROLANA ADMIN STYLED DESCRIPTION SUPPORT
+       Keeps luxury HTML pasted in admin looking like the design,
+       while uploaded product gallery images fill image slots.
+       ============================================================ */
+    .product-overview-content .arolana-product-description {
+        font-family: Arial, sans-serif !important;
+        color: #0f172a !important;
+        line-height: 1.7 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    .product-overview-content .arolana-product-description section {
+        clear: both;
+        overflow: hidden;
+    }
+
+    .product-overview-content .arolana-product-description section:first-child {
+        background: linear-gradient(135deg, #f8fbff 0%, #eef6ff 100%) !important;
+        border-radius: 24px !important;
+        padding: 28px !important;
+        margin-bottom: 28px !important;
+        border: 1px solid #e3edf8 !important;
+    }
+
+    .product-overview-content .arolana-product-description section:nth-of-type(3) {
+        background: #061739 !important;
+        border-radius: 24px !important;
+        padding: 28px !important;
+        margin-bottom: 30px !important;
+        color: #ffffff !important;
+    }
+
+    .product-overview-content .arolana-product-description section:nth-of-type(4) {
+        border-left: 5px solid #ff6b00 !important;
+        background: #fff7ed !important;
+        padding: 20px 22px !important;
+        border-radius: 18px !important;
+    }
+
+    .product-overview-content .arolana-product-description img {
+        display: block !important;
+        width: auto !important;
+        max-width: 100% !important;
+        height: auto !important;
+        border-radius: 20px !important;
+        background: #ffffff !important;
+        object-fit: contain !important;
+        box-shadow: 0 20px 45px rgba(15, 23, 42, 0.12) !important;
+    }
+
+    .product-overview-content .arolana-product-description h2,
+    .product-overview-content .arolana-product-description h3,
+    .product-overview-content .arolana-product-description h4 {
+        color: #061739 !important;
+        font-weight: 900 !important;
+    }
+
+    .product-overview-content .arolana-product-description section:nth-of-type(3) h2,
+    .product-overview-content .arolana-product-description section:nth-of-type(3) h3,
+    .product-overview-content .arolana-product-description section:nth-of-type(3) h4,
+    .product-overview-content .arolana-product-description section:nth-of-type(3) li,
+    .product-overview-content .arolana-product-description section:nth-of-type(3) p {
+        color: #ffffff !important;
     }
 
     @media (max-width: 900px) {
@@ -7206,269 +7255,163 @@
     })();
 </script>
 
-
 <script>
 /*
   ============================================================
-  AROLANA DESCRIPTION GALLERY AUTO-FILL V1
-  ============================================================
-  Purpose:
-  - Allows styled product descriptions from admin/CKEditor to use the
-    product gallery images already uploaded in Arolana admin.
-  - No need to paste external image URLs inside descriptions.
-  - Works with:
-      <img data-arolana-gallery-image="0" src="" alt="...">
-      <img data-arolana-gallery-image="1" src="" alt="...">
-      <div data-arolana-gallery-bg="0"></div>
-  - Also replaces old placeholder image URLs:
-      PASTE_REAL_PRODUCT_IMAGE_URL_HERE      -> gallery image 0
-      PASTE_REAL_LIFESTYLE_IMAGE_URL_HERE    -> gallery image 1
+  AROLANA DESCRIPTION GALLERY AUTO-FILL V2
+  Strong fix for admin descriptions that show broken image icons.
+  - Fills placeholder src images.
+  - Fills images with data-arolana-gallery-image.
+  - Fills first images inside .arolana-product-description automatically.
+  - Works even if browser resolves placeholder src into an absolute broken URL.
 */
 (function () {
     'use strict';
 
-    const MARKER = 'AROLANA_DESCRIPTION_GALLERY_AUTO_FILL_V1';
+    const MARKER = 'AROLANA_DESCRIPTION_GALLERY_AUTO_FILL_V2';
     if (window[MARKER]) return;
     window[MARKER] = true;
 
-    function getEl(id) {
-        return document.getElementById(id);
-    }
+    function clean(value) { return String(value || '').trim(); }
+    function getEl(id) { return document.getElementById(id); }
 
-    function clean(value) {
-        return String(value || '').trim();
-    }
-
-    function parseJsonScript(id) {
+    function parseJson(id) {
         const el = getEl(id);
         if (!el) return [];
-
         try {
-            const raw = clean(el.textContent);
-            if (!raw) return [];
-            const parsed = JSON.parse(raw);
+            const parsed = JSON.parse(clean(el.textContent));
             return Array.isArray(parsed) ? parsed : [];
-        } catch (error) {
-            return [];
-        }
+        } catch (error) { return []; }
     }
 
-    function normalizeImage(item) {
+    function normalize(item) {
         if (!item) return null;
-
         if (typeof item === 'string') {
             const src = clean(item);
-            if (!src) return null;
-
-            return {
-                src: src,
-                original: src,
-                thumb: src,
-                alt: ''
-            };
+            return src ? { src: src, original: src, thumb: src, alt: '' } : null;
         }
-
-        const src = clean(
-            item.src ||
-            item.url ||
-            item.image ||
-            item.image_url ||
-            item.file_url ||
-            item.thumbnail ||
-            item.thumb
-        );
-
-        const original = clean(
-            item.original ||
-            item.fallback ||
-            item.galleryOriginal ||
-            src
-        );
-
-        const thumb = clean(
-            item.thumb ||
-            item.thumbnail ||
-            src ||
-            original
-        );
-
-        const alt = clean(
-            item.alt ||
-            item.title ||
-            item.name ||
-            item.galleryAlt ||
-            ''
-        );
-
+        const src = clean(item.src || item.url || item.image || item.image_url || item.file_url || item.thumbnail || item.thumb);
+        const original = clean(item.original || item.fallback || item.galleryOriginal || src);
+        const thumb = clean(item.thumb || item.thumbnail || src || original);
+        const alt = clean(item.alt || item.title || item.name || item.galleryAlt || '');
         if (!src && !original && !thumb) return null;
-
-        return {
-            src: src || original || thumb,
-            original: original || src || thumb,
-            thumb: thumb || src || original,
-            alt: alt
-        };
+        return { src: src || original || thumb, original: original || src || thumb, thumb: thumb || src || original, alt: alt };
     }
 
-    function pushUnique(list, item) {
-        const image = normalizeImage(item);
+    function addUnique(list, item) {
+        const image = normalize(item);
         if (!image) return;
-
-        const key = image.src || image.original || image.thumb;
-        if (!key) return;
-
         const exists = list.some(function (old) {
-            return old.src === image.src ||
-                   old.original === image.original ||
-                   old.thumb === image.thumb;
+            return old.src === image.src || old.original === image.original || old.thumb === image.thumb;
         });
-
-        if (!exists) {
-            list.push(image);
-        }
+        if (!exists) list.push(image);
     }
 
-    function collectProductGalleryImages() {
-        const images = [];
-
-        /*
-          1. DOM thumbnails are the most reliable source because they are
-             already rendered by Django and visible on the product page.
-        */
+    function collectGallery() {
+        const list = [];
         document.querySelectorAll('#product-image-thumbnails [data-gallery-src]').forEach(function (button) {
-            pushUnique(images, {
+            addUnique(list, {
                 src: button.getAttribute('data-gallery-src'),
                 thumb: button.getAttribute('data-gallery-thumb'),
                 original: button.getAttribute('data-gallery-original'),
                 alt: button.getAttribute('data-gallery-alt')
             });
         });
-
-        /*
-          2. Server-side JSON fallback from this template.
-        */
-        parseJsonScript('gallery-images-server-json').forEach(function (item) {
-            pushUnique(images, item);
-        });
-
-        /*
-          3. Existing gallery JSON fallback.
-        */
-        parseJsonScript('gallery-data-json').forEach(function (item) {
-            pushUnique(images, item);
-        });
-
-        /*
-          4. Current main image fallback.
-        */
-        const mainImage = getEl('main-product-image');
-        if (mainImage && clean(mainImage.getAttribute('src'))) {
-            pushUnique(images, {
-                src: mainImage.getAttribute('src'),
-                original: mainImage.getAttribute('data-fallback-src') || mainImage.getAttribute('src'),
-                thumb: mainImage.getAttribute('src'),
-                alt: mainImage.getAttribute('alt')
+        parseJson('gallery-images-server-json').forEach(function (item) { addUnique(list, item); });
+        parseJson('gallery-data-json').forEach(function (item) { addUnique(list, item); });
+        const main = getEl('main-product-image');
+        if (main && clean(main.getAttribute('src'))) {
+            addUnique(list, {
+                src: main.getAttribute('src'),
+                original: main.getAttribute('data-fallback-src') || main.getAttribute('src'),
+                thumb: main.getAttribute('src'),
+                alt: main.getAttribute('alt')
             });
         }
-
-        return images;
+        return list;
     }
 
-    function setImageWithFallback(imageEl, image, index) {
-        if (!imageEl || !image) return;
+    function isBadImageSrc(img) {
+        const attr = clean(img.getAttribute('src'));
+        const prop = clean(img.src);
+        const joined = (attr + ' ' + prop).toUpperCase();
+        return !attr || attr === '#' || attr === 'ABOUT:BLANK' ||
+            joined.includes('PASTE_REAL_PRODUCT_IMAGE_URL_HERE') ||
+            joined.includes('PASTE_REAL_LIFESTYLE_IMAGE_URL_HERE') ||
+            joined.includes('PASTE_REAL') ||
+            joined.includes('PRODUCT_IMAGE_URL_HERE') ||
+            joined.includes('LIFESTYLE_IMAGE_URL_HERE');
+    }
 
-        const preferredSrc = image.src || image.original || image.thumb;
-        const fallbackSrc = image.original || image.src || image.thumb;
-
-        if (!preferredSrc) return;
-
-        imageEl.setAttribute('src', preferredSrc);
-        imageEl.setAttribute('data-fallback-src', fallbackSrc);
-        imageEl.setAttribute('data-arolana-gallery-filled', 'true');
-        imageEl.setAttribute('loading', imageEl.getAttribute('loading') || (index === 0 ? 'eager' : 'lazy'));
-        imageEl.setAttribute('decoding', imageEl.getAttribute('decoding') || 'async');
-
-        if (!clean(imageEl.getAttribute('alt'))) {
-            imageEl.setAttribute('alt', image.alt || '{{ product.name|escapejs }}');
+    function imageIndexFromElement(img, fallbackIndex) {
+        const explicit = img.getAttribute('data-arolana-gallery-image');
+        if (explicit !== null && explicit !== '') {
+            const explicitIndex = Number(explicit);
+            if (Number.isFinite(explicitIndex)) return explicitIndex;
         }
+        const text = (clean(img.getAttribute('alt')) + ' ' + clean(img.getAttribute('title'))).toLowerCase();
+        if (text.includes('lifestyle') || text.includes('conference room') || text.includes('used on') || text.includes('table')) return 1;
+        return fallbackIndex || 0;
+    }
 
-        imageEl.onerror = function () {
-            const fallback = imageEl.getAttribute('data-fallback-src');
-            if (fallback && imageEl.src !== fallback) {
-                imageEl.src = fallback;
-            }
+    function setImage(img, image, index) {
+        if (!img || !image) return;
+        const src = image.src || image.original || image.thumb;
+        const fallback = image.original || image.src || image.thumb;
+        if (!src) return;
+        img.src = src;
+        img.setAttribute('src', src);
+        img.setAttribute('data-fallback-src', fallback);
+        img.setAttribute('data-arolana-gallery-filled', 'true');
+        img.setAttribute('loading', img.getAttribute('loading') || (index === 0 ? 'eager' : 'lazy'));
+        img.setAttribute('decoding', img.getAttribute('decoding') || 'async');
+        if (!clean(img.getAttribute('alt'))) img.setAttribute('alt', image.alt || '{{ product.name|escapejs }}');
+        img.onerror = function () {
+            const fallbackSrc = img.getAttribute('data-fallback-src');
+            if (fallbackSrc && img.src !== fallbackSrc) img.src = fallbackSrc;
         };
     }
 
-    function fillDescriptionGalleryImages() {
-        const galleryImages = collectProductGalleryImages();
-        if (!galleryImages.length) return;
+    function fill() {
+        const gallery = collectGallery();
+        if (!gallery.length) return;
+        const targets = [];
 
-        /*
-          Preferred admin usage:
-          <img data-arolana-gallery-image="0" src="" alt="...">
-        */
-        document.querySelectorAll('[data-arolana-gallery-image]').forEach(function (imageEl) {
-            const index = Number(imageEl.getAttribute('data-arolana-gallery-image') || 0);
-            const image = galleryImages[index] || galleryImages[0];
-            setImageWithFallback(imageEl, image, index);
+        document.querySelectorAll('[data-arolana-gallery-image]').forEach(function (img) {
+            if (img.tagName && img.tagName.toLowerCase() === 'img') targets.push(img);
         });
 
-        /*
-          Background usage:
-          <div data-arolana-gallery-bg="0"></div>
-        */
-        document.querySelectorAll('[data-arolana-gallery-bg]').forEach(function (boxEl) {
-            const index = Number(boxEl.getAttribute('data-arolana-gallery-bg') || 0);
-            const image = galleryImages[index] || galleryImages[0];
+        document.querySelectorAll('.product-overview-content .arolana-product-description img, .product-overview-content img, .apd-hero-overview-summary-text img').forEach(function (img) {
+            if (!targets.includes(img) && (isBadImageSrc(img) || img.closest('.arolana-product-description'))) targets.push(img);
+        });
 
-            if (!image) return;
+        targets.forEach(function (img, orderIndex) {
+            const index = imageIndexFromElement(img, orderIndex);
+            setImage(img, gallery[index] || gallery[0], index);
+        });
 
-            const src = image.src || image.original || image.thumb;
+        document.querySelectorAll('[data-arolana-gallery-bg]').forEach(function (box) {
+            const index = Number(box.getAttribute('data-arolana-gallery-bg') || 0);
+            const image = gallery[index] || gallery[0];
+            const src = image && (image.src || image.original || image.thumb);
             if (!src) return;
-
-            boxEl.style.backgroundImage = 'url("' + src.replace(/"/g, '\\"') + '")';
-            boxEl.style.backgroundSize = boxEl.style.backgroundSize || 'contain';
-            boxEl.style.backgroundPosition = boxEl.style.backgroundPosition || 'center';
-            boxEl.style.backgroundRepeat = boxEl.style.backgroundRepeat || 'no-repeat';
-            boxEl.setAttribute('data-arolana-gallery-filled', 'true');
-        });
-
-        /*
-          Safety fallback for older descriptions already saved with placeholder URLs.
-          This means your existing test description can work immediately.
-        */
-        document.querySelectorAll('.product-overview-content img, .apd-hero-overview-summary-text img').forEach(function (imageEl) {
-            const src = clean(imageEl.getAttribute('src'));
-            const dataFilled = imageEl.getAttribute('data-arolana-gallery-filled') === 'true';
-
-            if (dataFilled) return;
-
-            if (src === 'PASTE_REAL_PRODUCT_IMAGE_URL_HERE' || src.includes('PASTE_REAL_PRODUCT_IMAGE_URL_HERE')) {
-                setImageWithFallback(imageEl, galleryImages[0] || galleryImages[0], 0);
-                return;
-            }
-
-            if (src === 'PASTE_REAL_LIFESTYLE_IMAGE_URL_HERE' || src.includes('PASTE_REAL_LIFESTYLE_IMAGE_URL_HERE')) {
-                setImageWithFallback(imageEl, galleryImages[1] || galleryImages[0], 1);
-            }
+            box.style.setProperty('background-image', 'url("' + src.replace(/"/g, '\\"') + '")', 'important');
+            box.style.setProperty('background-size', box.style.backgroundSize || 'contain', 'important');
+            box.style.setProperty('background-position', box.style.backgroundPosition || 'center', 'important');
+            box.style.setProperty('background-repeat', box.style.backgroundRepeat || 'no-repeat', 'important');
+            box.setAttribute('data-arolana-gallery-filled', 'true');
         });
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        fillDescriptionGalleryImages();
-        setTimeout(fillDescriptionGalleryImages, 300);
-        setTimeout(fillDescriptionGalleryImages, 1000);
+        fill();
+        setTimeout(fill, 250);
+        setTimeout(fill, 900);
+        setTimeout(fill, 1800);
     });
-
-    window.addEventListener('load', fillDescriptionGalleryImages);
-    window.addEventListener('pageshow', fillDescriptionGalleryImages);
-
-    /*
-      Public helper for testing from browser console:
-      ArolanaFillDescriptionGalleryImages()
-    */
-    window.ArolanaFillDescriptionGalleryImages = fillDescriptionGalleryImages;
+    window.addEventListener('load', fill);
+    window.addEventListener('pageshow', fill);
+    window.ArolanaFillDescriptionGalleryImages = fill;
 })();
 </script>
 
