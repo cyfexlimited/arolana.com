@@ -7258,17 +7258,19 @@
 <script>
 /*
   ============================================================
-  AROLANA DESCRIPTION GALLERY AUTO-FILL V2
+  AROLANA DESCRIPTION GALLERY AUTO-FILL V3 — 5 IMAGE SUPPORT
   Strong fix for admin descriptions that show broken image icons.
-  - Fills placeholder src images.
-  - Fills images with data-arolana-gallery-image.
+  - Supports at least 5 admin image slots: data-arolana-gallery-image="0" to "4".
+  - Also supports more than 5 if the product has more uploaded gallery images.
+  - Fills placeholder src images automatically.
+  - Fills images with data-arolana-gallery-image from uploaded Product Images.
   - Fills first images inside .arolana-product-description automatically.
   - Works even if browser resolves placeholder src into an absolute broken URL.
 */
 (function () {
     'use strict';
 
-    const MARKER = 'AROLANA_DESCRIPTION_GALLERY_AUTO_FILL_V2';
+    const MARKER = 'AROLANA_DESCRIPTION_GALLERY_AUTO_FILL_V3';
     if (window[MARKER]) return;
     window[MARKER] = true;
 
@@ -7344,13 +7346,28 @@
     }
 
     function imageIndexFromElement(img, fallbackIndex) {
+        /*
+          Admin usage:
+          <img data-arolana-gallery-image="0" src="" alt="Front view">
+          <img data-arolana-gallery-image="1" src="" alt="Side view">
+          <img data-arolana-gallery-image="2" src="" alt="Back view">
+          <img data-arolana-gallery-image="3" src="" alt="Top view">
+          <img data-arolana-gallery-image="4" src="" alt="Lifestyle view">
+          It also works beyond 5 if more product gallery images exist.
+        */
         const explicit = img.getAttribute('data-arolana-gallery-image');
         if (explicit !== null && explicit !== '') {
             const explicitIndex = Number(explicit);
-            if (Number.isFinite(explicitIndex)) return explicitIndex;
+            if (Number.isFinite(explicitIndex) && explicitIndex >= 0) return explicitIndex;
         }
+
         const text = (clean(img.getAttribute('alt')) + ' ' + clean(img.getAttribute('title'))).toLowerCase();
-        if (text.includes('lifestyle') || text.includes('conference room') || text.includes('used on') || text.includes('table')) return 1;
+        if (text.includes('front')) return 0;
+        if (text.includes('side') || text.includes('left') || text.includes('right')) return 1;
+        if (text.includes('back')) return 2;
+        if (text.includes('top') || text.includes('detail') || text.includes('close')) return 3;
+        if (text.includes('lifestyle') || text.includes('conference room') || text.includes('used on') || text.includes('table')) return 4;
+
         return fallbackIndex || 0;
     }
 
