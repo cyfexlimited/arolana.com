@@ -314,6 +314,19 @@ class ProductAdmin(admin.ModelAdmin):
             'fields': ('main_image', 'manual_pdf', 'video_type', 'video_url', 'local_video', 'video_thumbnail', 'video_title'),
             'description': 'Add product images, optional PDF manual/brochure, and videos (YouTube, Vimeo, or local MP4).'
         }),
+        ('Product Detail Display Controls', {
+            'fields': (
+                'show_top_gallery',
+                'show_auto_overview_gallery',
+                'auto_fill_description_images',
+            ),
+            'description': (
+                'Control how this product appears on the frontend. '
+                'Show top gallery controls the main gallery beside checkout. '
+                'Show auto overview gallery controls the automatic gallery inside the Overview tab. '
+                'Auto fill description images fills styled description placeholders from uploaded product images.'
+            ),
+        }),
         ('SEO', {
             'fields': ('meta_title', 'meta_description', 'meta_keywords'),
             'classes': ('collapse',)
