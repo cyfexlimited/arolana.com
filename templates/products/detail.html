@@ -3559,11 +3559,7 @@
     {{ product.description|safe }}
 </div>
 
-<<<<<<< HEAD
-{% if gallery_images %}
-=======
 {% if product.show_auto_overview_gallery and gallery_images %}
->>>>>>> 23dfb63c (vvvv)
 <section class="apd-auto-overview-gallery" aria-labelledby="apd-auto-overview-gallery-title">
     <div class="apd-auto-overview-gallery-header">
         <div>
@@ -7281,12 +7277,9 @@
     if (window[MARKER]) return;
     window[MARKER] = true;
 
-<<<<<<< HEAD
-=======
     const AROLANA_AUTO_FILL_DESCRIPTION_IMAGES = {{ product.auto_fill_description_images|yesno:'true,false' }};
     if (!AROLANA_AUTO_FILL_DESCRIPTION_IMAGES) return;
 
->>>>>>> 23dfb63c (vvvv)
     function clean(value) { return String(value || '').trim(); }
     function getEl(id) { return document.getElementById(id); }
 
