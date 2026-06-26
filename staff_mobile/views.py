@@ -49,6 +49,7 @@ from arolana_payments.services import (
     verify_paystack_transaction,
 )
 from smartchat.models import SmartChatConversation, SmartChatMessage
+from installers.models import ServiceProviderProfile, ServiceQuoteRequest
 from accounts.utils.otp_utils import create_otp, verify_otp
 from core.media_optimization import get_optimized_image_url
 
@@ -602,6 +603,63 @@ def _vendor_payload(profile, request=None):
         "country": profile.country,
         "pickup_address": profile.pickup_address,
         "pickup_phone": profile.pickup_phone,
+    }
+
+
+def _service_provider_payload(provider, request=None):
+    return {
+        "id": provider.id,
+        "user_id": provider.user_id,
+        "business_name": provider.business_name,
+        "contact_person": provider.contact_person,
+        "provider_type": provider.provider_type,
+        "provider_type_label": provider.get_provider_type_display(),
+        "phone_number": provider.phone_number,
+        "whatsapp_number": provider.whatsapp_number,
+        "email": provider.email,
+        "website": provider.website,
+        "country": provider.country,
+        "state": provider.state,
+        "city": provider.city,
+        "address": provider.address,
+        "location": provider.location_label,
+        "service_coverage": provider.service_coverage,
+        "description": provider.description,
+        "years_of_experience": provider.years_of_experience,
+        "cac_number": provider.cac_number,
+        "profile_image": _absolute_media_url(request, provider.profile_image, "avatar"),
+        "verification_status": provider.verification_status,
+        "verification_note": provider.verification_note,
+        "is_verified": provider.is_verified,
+        "is_active": provider.is_active,
+        "average_rating": str(provider.average_rating),
+        "total_reviews": provider.total_reviews,
+        "total_completed_jobs": provider.total_completed_jobs,
+        "created_at": provider.created_at.isoformat() if provider.created_at else "",
+    }
+
+
+def _service_quote_payload(quote):
+    return {
+        "id": quote.id,
+        "customer_id": quote.customer_id,
+        "provider_id": quote.provider_id,
+        "provider_name": quote.provider.business_name if quote.provider else "",
+        "category": quote.category.name if quote.category else "",
+        "product_id": quote.product_id,
+        "product_name": quote.product.name if quote.product else "",
+        "name": quote.name,
+        "phone": quote.phone,
+        "whatsapp": quote.whatsapp,
+        "email": quote.email,
+        "state": quote.state,
+        "city": quote.city,
+        "address": quote.address,
+        "service_needed": quote.service_needed,
+        "message": quote.message,
+        "status": quote.status,
+        "created_at": quote.created_at.isoformat() if quote.created_at else "",
+        "updated_at": quote.updated_at.isoformat() if quote.updated_at else "",
     }
 
 
@@ -3341,10 +3399,108 @@ def admin_dashboard_api(request):
             "pending_vendor_payouts": str(VendorWithdrawal.objects.filter(status__in=["pending", "under_review", "approved"]).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")),
             "pending_vendor_kyc": KYCRecord.objects.filter(kyc_status__in=["pending", "under_review", "in_review"]).count(),
             "pending_product_approvals": Product.objects.filter(approval_status="pending").count(),
+            "pending_service_providers": ServiceProviderProfile.objects.filter(
+                verification_status=ServiceProviderProfile.STATUS_PENDING
+            ).count(),
+            "new_service_quotes": ServiceQuoteRequest.objects.filter(status="new").count(),
             "online_riders": RiderProfile.objects.filter(is_online=True, is_active=True).count(),
             "withdrawal_requests": VendorWithdrawal.objects.filter(status__in=["pending", "under_review"]).count(),
         },
     })
+
+
+@require_GET
+def admin_service_providers_api(request):
+    try:
+        _require_admin_session(request)
+    except PermissionError as error:
+        return _error(error, status=403)
+    status_filter = _clean_text(request.GET.get("status") or "pending")
+    providers = ServiceProviderProfile.objects.select_related("user").order_by("-created_at")
+    if status_filter and status_filter != "all":
+        providers = providers.filter(verification_status=status_filter)
+    return JsonResponse({
+        "success": True,
+        "providers": [_service_provider_payload(provider, request) for provider in providers[:200]],
+    })
+
+
+@csrf_exempt
+@require_POST
+def admin_service_provider_action_api(request, provider_id, action):
+    try:
+        session = _require_admin_session(request)
+    except PermissionError as error:
+        return _error(error, status=403)
+    provider = ServiceProviderProfile.objects.select_related("user").filter(pk=provider_id).first()
+    if not provider:
+        return _error("Service provider not found.", status=404)
+    data = _json_body(request)
+    if action == "approve":
+        provider.verification_status = ServiceProviderProfile.STATUS_APPROVED
+        provider.is_verified = True
+        provider.is_active = True
+    elif action == "reject":
+        provider.verification_status = ServiceProviderProfile.STATUS_REJECTED
+        provider.is_verified = False
+    elif action == "deactivate":
+        provider.is_active = False
+    else:
+        return _error("Invalid service provider action.")
+    provider.verification_note = _clean_text(data.get("verification_note") or provider.verification_note)
+    provider.save()
+    _notify(
+        provider.user,
+        "Service provider verification updated",
+        f"Your Arolana service provider profile is now {provider.get_verification_status_display().lower()}.",
+        "system",
+        {"service_provider_id": provider.id, "verification_status": provider.verification_status},
+    )
+    return JsonResponse({"success": True, "provider": _service_provider_payload(provider, request), "reviewed_by": session.user.email})
+
+
+@require_GET
+def admin_service_quotes_api(request):
+    try:
+        _require_admin_session(request)
+    except PermissionError as error:
+        return _error(error, status=403)
+    status_filter = _clean_text(request.GET.get("status") or "")
+    quotes = ServiceQuoteRequest.objects.select_related("provider", "category", "product", "customer").order_by("-created_at")
+    if status_filter and status_filter != "all":
+        quotes = quotes.filter(status=status_filter)
+    return JsonResponse({
+        "success": True,
+        "quotes": [_service_quote_payload(quote) for quote in quotes[:250]],
+    })
+
+
+@csrf_exempt
+@require_POST
+def admin_service_quote_status_api(request, quote_id):
+    try:
+        session = _require_admin_session(request)
+    except PermissionError as error:
+        return _error(error, status=403)
+    quote = ServiceQuoteRequest.objects.select_related("provider", "customer").filter(pk=quote_id).first()
+    if not quote:
+        return _error("Service quote request not found.", status=404)
+    data = _json_body(request)
+    next_status = _clean_text(data.get("status"))
+    valid_statuses = {value for value, _label in ServiceQuoteRequest.STATUS_CHOICES}
+    if next_status not in valid_statuses:
+        return _error("Invalid quote request status.")
+    quote.status = next_status
+    quote.save(update_fields=["status", "updated_at"])
+    if quote.customer:
+        _notify(
+            quote.customer,
+            "Service request updated",
+            f"Your request for {quote.service_needed} is now {quote.get_status_display().lower()}.",
+            "system",
+            {"service_quote_request_id": quote.id, "status": quote.status},
+        )
+    return JsonResponse({"success": True, "quote": _service_quote_payload(quote), "updated_by": session.user.email})
 
 
 @require_GET

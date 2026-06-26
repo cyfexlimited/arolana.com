@@ -1,0 +1,4 @@
+{% extends "base/base.html" %}
+{% block title %}{{ title }} | Arolana{% endblock %}
+{% block content %}<main class="bg-[#F6F9FC] px-4 py-12"><div class="mx-auto max-w-2xl rounded-3xl bg-white p-7 shadow-sm"><h1 class="text-3xl font-black text-[#071A44]">{{ title }}</h1><form method="post" enctype="multipart/form-data" class="mt-7 space-y-5">{% csrf_token %}{{ form.as_p }}<button class="w-full rounded-2xl bg-[#0066CC] px-6 py-4 font-black text-white">Save</button></form></div></main>{% endblock %}
+

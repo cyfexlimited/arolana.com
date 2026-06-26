@@ -156,6 +156,7 @@ INSTALLED_APPS = [
     'accounts',
     'vendors',
     'products',
+    'installers.apps.InstallersConfig',
     'orders',
     'deliveries',
     'order_robot',

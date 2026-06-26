@@ -275,7 +275,7 @@ class CurrencyContextMiddleware(MiddlewareMixin):
         return response
 
     def process_template_response(self, request, response):
-        if hasattr(response, "context_data"):
+        if hasattr(response, "context_data") and isinstance(response.context_data, dict):
             currency_code = getattr(
                 request,
                 "user_currency",

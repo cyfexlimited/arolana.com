@@ -199,6 +199,7 @@ urlpatterns = [
     path("manufacturers/register/", manufacturer_register_redirect, name="manufacturers_register_redirect"),
 
     # Products API
+    path("api/installers/", include(("installers.api_urls", "installers_api"), namespace="installers_api")),
     path("api/", include("products.urls", namespace="products_api")),
     path("api/smartchat/", include(("smartchat.api_urls", "smartchat_api"), namespace="smartchat_api")),
 
@@ -236,6 +237,7 @@ urlpatterns = [
     # App URLs
     path("newsletter/", include("newsletter.urls")),
     path("vendors/", include("vendors.urls")),
+    path("installers/", include(("installers.urls", "installers"), namespace="installers")),
     path("products/", include("products.urls")),
     path("orders/", include("orders.urls")),
     path("deliveries/", include("deliveries.urls")),

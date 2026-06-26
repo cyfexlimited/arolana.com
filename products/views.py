@@ -1639,6 +1639,14 @@ def product_detail(request, slug):
     vendor_name = getattr(product, "vendor_display_name", "") or (getattr(vendor_profile, "store_name", "") if vendor_profile else "")
     vendor_package = getattr(product, "vendor_package_name", "") or (getattr(vendor_profile, "active_plan_name", "") if vendor_profile else "")
     location_label = getattr(product, "location_label", "") or ""
+    try:
+        from installers.services import suggested_categories_for_product, suggested_providers_for_product
+
+        related_service_categories = suggested_categories_for_product(product)
+        suggested_service_providers = list(suggested_providers_for_product(product))
+    except Exception:
+        related_service_categories = []
+        suggested_service_providers = []
 
     context = {
         'product': product,
@@ -1688,6 +1696,9 @@ def product_detail(request, slug):
         'user_currency': user_currency,
         'product_detail_sections': ProductDetailSection.objects.filter(is_enabled=True, web_enabled=True).order_by('display_order', 'title'),
         'product_detail_fields': ProductDetailFieldConfig.objects.filter(is_enabled=True).order_by('display_order', 'label'),
+        'service_available': bool(related_service_categories),
+        'related_service_categories': related_service_categories,
+        'suggested_service_providers': suggested_service_providers,
     }
 
     return render(request, 'products/detail.html', context)
@@ -4019,6 +4030,26 @@ def mobile_product_detail_api(request, slug):
         except Exception:
             chat_url = ""
 
+    try:
+        from installers.serializers import ServiceCategorySerializer, ServiceProviderListSerializer
+        from installers.services import suggested_categories_for_product, suggested_providers_for_product
+
+        related_service_categories = suggested_categories_for_product(product)
+        suggested_service_providers = list(suggested_providers_for_product(product))
+        related_service_category_data = ServiceCategorySerializer(
+            related_service_categories,
+            many=True,
+            context={"request": request},
+        ).data
+        suggested_service_provider_data = ServiceProviderListSerializer(
+            suggested_service_providers,
+            many=True,
+            context={"request": request},
+        ).data
+    except Exception:
+        related_service_category_data = []
+        suggested_service_provider_data = []
+
     return JsonResponse({
         "id": product.id,
         "name": product.name,
@@ -4088,6 +4119,10 @@ def mobile_product_detail_api(request, slug):
         "frequently_bought": [product_card(item) for item in frequently_bought],
         "supplier_products": [product_card(item) for item in supplier_products],
         "recently_viewed": [product_card(item) for item in recently_viewed],
+        "service_available": bool(related_service_category_data),
+        "related_service_categories": related_service_category_data,
+        "suggested_service_providers": suggested_service_provider_data,
+        "request_service_quote_endpoint": request.build_absolute_uri("/api/installers/quote-request/"),
         "detail_sections": [
             {
                 "key": section.key,

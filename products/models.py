@@ -494,6 +494,20 @@ class Product(BaseModel):
         help_text="Main product image (featured)"
     )
     
+    # Product Page Display Controls
+    show_top_gallery = models.BooleanField(
+        default=True,
+        help_text="Show the normal product image gallery at the top of the product detail page."
+    )
+    show_auto_overview_gallery = models.BooleanField(
+        default=True,
+        help_text="Show uploaded product images automatically inside the Overview tab."
+    )
+    auto_fill_description_images = models.BooleanField(
+        default=True,
+        help_text="Automatically fill image placeholders in the styled product description using uploaded product gallery images."
+    )
+
     # Video
     VIDEO_TYPE_CHOICES = [
         ('youtube', 'YouTube'),

@@ -3073,6 +3073,24 @@
                     </li>
 
                     <li class="mega-menu-container">
+                        <a href="{% url 'installers:directory' %}" class="flex items-center gap-2 px-4 py-4 hover:text-brand transition font-medium group">
+                            <i class="fas fa-screwdriver-wrench group-hover:scale-125 transition"></i> Installers & Engineers
+                        </a>
+                        <div class="mega-menu-dropdown mega-menu-md">
+                            <div class="grid gap-2">
+                                <a href="{% url 'installers:directory' %}" class="flex items-center gap-3 rounded-lg p-3 hover:bg-gray-100">
+                                    <i class="fas fa-magnifying-glass text-brand"></i>
+                                    <span class="font-semibold">Find Installers & Engineers</span>
+                                </a>
+                                <a href="{% url 'installers:register' %}" class="flex items-center gap-3 rounded-lg p-3 hover:bg-gray-100">
+                                    <i class="fas fa-user-check text-orange-500"></i>
+                                    <span class="font-semibold">Become a Verified Service Provider</span>
+                                </a>
+                            </div>
+                        </div>
+                    </li>
+
+                    <li class="mega-menu-container">
                         <a href="{% if user.is_authenticated %}{% url 'deliveries:rider_dashboard' %}{% else %}{% url 'deliveries:rider_register' %}{% endif %}" class="flex items-center gap-2 px-4 py-4 hover:text-brand transition font-medium group">
                             <i class="fas fa-motorcycle group-hover:scale-125 transition"></i> Rider Center
                         </a>
@@ -3391,6 +3409,22 @@
                     <i class="fas fa-chevron-right mobile-menu-arrow text-xs"></i>
                 </a>
 
+                <a href="{% url 'installers:directory' %}" @click="mobileMenuOpen = false" class="mobile-menu-link">
+                    <span class="mobile-menu-left">
+                        <span class="mobile-menu-icon"><i class="fas fa-screwdriver-wrench"></i></span>
+                        <span class="mobile-menu-label">Installers & Engineers</span>
+                    </span>
+                    <i class="fas fa-chevron-right mobile-menu-arrow text-xs"></i>
+                </a>
+
+                <a href="{% url 'installers:register' %}" @click="mobileMenuOpen = false" class="mobile-menu-link">
+                    <span class="mobile-menu-left">
+                        <span class="mobile-menu-icon"><i class="fas fa-user-check"></i></span>
+                        <span class="mobile-menu-label">Become a Service Provider</span>
+                    </span>
+                    <i class="fas fa-chevron-right mobile-menu-arrow text-xs"></i>
+                </a>
+
                 <a href="{% if user.is_authenticated %}{% url 'deliveries:rider_dashboard' %}{% else %}{% url 'deliveries:rider_register' %}{% endif %}" @click="mobileMenuOpen = false" class="mobile-menu-link">
                     <span class="mobile-menu-left">
                         <span class="mobile-menu-icon"><i class="fas fa-motorcycle"></i></span>
@@ -3644,6 +3678,18 @@
                     </ul>
                 </div>
                 {% endfor %}
+
+                <div class="site-footer-menu-group is-collapsed" data-footer-accordion>
+                    <button type="button" class="site-footer-menu-toggle" aria-expanded="false">
+                        <span>Professional Services</span>
+                        <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                    </button>
+                    <ul class="site-footer-menu-list space-y-3">
+                        <li><a href="{% url 'installers:directory' %}" class="footer-link text-sm flex items-center gap-2"><span class="w-1 h-1 bg-gray-600 rounded-full"></span>Find Installers & Engineers</a></li>
+                        <li><a href="{% url 'installers:request_quote' %}" class="footer-link text-sm flex items-center gap-2"><span class="w-1 h-1 bg-gray-600 rounded-full"></span>Request Service Quote</a></li>
+                        <li><a href="{% url 'installers:register' %}" class="footer-link text-sm flex items-center gap-2"><span class="w-1 h-1 bg-gray-600 rounded-full"></span>Become a Verified Provider</a></li>
+                    </ul>
+                </div>
 
                 <div class="site-footer-menu-group site-footer-contact-group is-collapsed" data-footer-accordion>
                     <button type="button" class="site-footer-menu-toggle" aria-expanded="false">

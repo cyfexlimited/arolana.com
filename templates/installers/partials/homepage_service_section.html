@@ -1,0 +1,20 @@
+{% load optimized_images %}
+{% if section %}
+<section class="homepage-section mx-auto my-10 max-w-[1500px] px-4" style="--service-accent: {{ section.accent_color }};">
+  <div class="relative overflow-hidden rounded-[2rem] px-6 py-10 text-white shadow-2xl md:px-12 md:py-14" style="background-color: {{ section.background_color }};">
+    {% if section.background_image %}
+      <img src="{{ section.background_image|optimized_image_url:'category_banner' }}" alt="" class="absolute inset-0 h-full w-full object-cover opacity-30" loading="lazy" decoding="async">
+    {% endif %}
+    <div class="absolute inset-0 bg-gradient-to-r from-[#071A44]/95 via-[#071A44]/80 to-[#0066CC]/55"></div>
+    <div class="relative max-w-4xl">
+      {% if section.eyebrow %}<p class="text-xs font-black uppercase tracking-[.2em]" style="color: var(--service-accent);">{{ section.eyebrow }}</p>{% endif %}
+      <h2 class="mt-3 text-3xl font-black md:text-5xl">{{ section.title }}</h2>
+      <p class="mt-4 max-w-3xl text-base font-semibold text-white/75 md:text-lg">{{ section.subtitle }}</p>
+      <div class="mt-7 flex flex-col gap-3 sm:flex-row">
+        <a href="{% url 'installers:directory' %}" class="rounded-2xl px-6 py-4 text-center font-black text-white" style="background: var(--service-accent);">{{ section.customer_button_text }}</a>
+        <a href="{% url 'installers:register' %}" class="rounded-2xl border border-white/30 bg-white/10 px-6 py-4 text-center font-black text-white backdrop-blur">{{ section.provider_button_text }}</a>
+      </div>
+    </div>
+  </div>
+</section>
+{% endif %}
