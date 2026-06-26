@@ -7206,4 +7206,270 @@
     })();
 </script>
 
+
+<script>
+/*
+  ============================================================
+  AROLANA DESCRIPTION GALLERY AUTO-FILL V1
+  ============================================================
+  Purpose:
+  - Allows styled product descriptions from admin/CKEditor to use the
+    product gallery images already uploaded in Arolana admin.
+  - No need to paste external image URLs inside descriptions.
+  - Works with:
+      <img data-arolana-gallery-image="0" src="" alt="...">
+      <img data-arolana-gallery-image="1" src="" alt="...">
+      <div data-arolana-gallery-bg="0"></div>
+  - Also replaces old placeholder image URLs:
+      PASTE_REAL_PRODUCT_IMAGE_URL_HERE      -> gallery image 0
+      PASTE_REAL_LIFESTYLE_IMAGE_URL_HERE    -> gallery image 1
+*/
+(function () {
+    'use strict';
+
+    const MARKER = 'AROLANA_DESCRIPTION_GALLERY_AUTO_FILL_V1';
+    if (window[MARKER]) return;
+    window[MARKER] = true;
+
+    function getEl(id) {
+        return document.getElementById(id);
+    }
+
+    function clean(value) {
+        return String(value || '').trim();
+    }
+
+    function parseJsonScript(id) {
+        const el = getEl(id);
+        if (!el) return [];
+
+        try {
+            const raw = clean(el.textContent);
+            if (!raw) return [];
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (error) {
+            return [];
+        }
+    }
+
+    function normalizeImage(item) {
+        if (!item) return null;
+
+        if (typeof item === 'string') {
+            const src = clean(item);
+            if (!src) return null;
+
+            return {
+                src: src,
+                original: src,
+                thumb: src,
+                alt: ''
+            };
+        }
+
+        const src = clean(
+            item.src ||
+            item.url ||
+            item.image ||
+            item.image_url ||
+            item.file_url ||
+            item.thumbnail ||
+            item.thumb
+        );
+
+        const original = clean(
+            item.original ||
+            item.fallback ||
+            item.galleryOriginal ||
+            src
+        );
+
+        const thumb = clean(
+            item.thumb ||
+            item.thumbnail ||
+            src ||
+            original
+        );
+
+        const alt = clean(
+            item.alt ||
+            item.title ||
+            item.name ||
+            item.galleryAlt ||
+            ''
+        );
+
+        if (!src && !original && !thumb) return null;
+
+        return {
+            src: src || original || thumb,
+            original: original || src || thumb,
+            thumb: thumb || src || original,
+            alt: alt
+        };
+    }
+
+    function pushUnique(list, item) {
+        const image = normalizeImage(item);
+        if (!image) return;
+
+        const key = image.src || image.original || image.thumb;
+        if (!key) return;
+
+        const exists = list.some(function (old) {
+            return old.src === image.src ||
+                   old.original === image.original ||
+                   old.thumb === image.thumb;
+        });
+
+        if (!exists) {
+            list.push(image);
+        }
+    }
+
+    function collectProductGalleryImages() {
+        const images = [];
+
+        /*
+          1. DOM thumbnails are the most reliable source because they are
+             already rendered by Django and visible on the product page.
+        */
+        document.querySelectorAll('#product-image-thumbnails [data-gallery-src]').forEach(function (button) {
+            pushUnique(images, {
+                src: button.getAttribute('data-gallery-src'),
+                thumb: button.getAttribute('data-gallery-thumb'),
+                original: button.getAttribute('data-gallery-original'),
+                alt: button.getAttribute('data-gallery-alt')
+            });
+        });
+
+        /*
+          2. Server-side JSON fallback from this template.
+        */
+        parseJsonScript('gallery-images-server-json').forEach(function (item) {
+            pushUnique(images, item);
+        });
+
+        /*
+          3. Existing gallery JSON fallback.
+        */
+        parseJsonScript('gallery-data-json').forEach(function (item) {
+            pushUnique(images, item);
+        });
+
+        /*
+          4. Current main image fallback.
+        */
+        const mainImage = getEl('main-product-image');
+        if (mainImage && clean(mainImage.getAttribute('src'))) {
+            pushUnique(images, {
+                src: mainImage.getAttribute('src'),
+                original: mainImage.getAttribute('data-fallback-src') || mainImage.getAttribute('src'),
+                thumb: mainImage.getAttribute('src'),
+                alt: mainImage.getAttribute('alt')
+            });
+        }
+
+        return images;
+    }
+
+    function setImageWithFallback(imageEl, image, index) {
+        if (!imageEl || !image) return;
+
+        const preferredSrc = image.src || image.original || image.thumb;
+        const fallbackSrc = image.original || image.src || image.thumb;
+
+        if (!preferredSrc) return;
+
+        imageEl.setAttribute('src', preferredSrc);
+        imageEl.setAttribute('data-fallback-src', fallbackSrc);
+        imageEl.setAttribute('data-arolana-gallery-filled', 'true');
+        imageEl.setAttribute('loading', imageEl.getAttribute('loading') || (index === 0 ? 'eager' : 'lazy'));
+        imageEl.setAttribute('decoding', imageEl.getAttribute('decoding') || 'async');
+
+        if (!clean(imageEl.getAttribute('alt'))) {
+            imageEl.setAttribute('alt', image.alt || '{{ product.name|escapejs }}');
+        }
+
+        imageEl.onerror = function () {
+            const fallback = imageEl.getAttribute('data-fallback-src');
+            if (fallback && imageEl.src !== fallback) {
+                imageEl.src = fallback;
+            }
+        };
+    }
+
+    function fillDescriptionGalleryImages() {
+        const galleryImages = collectProductGalleryImages();
+        if (!galleryImages.length) return;
+
+        /*
+          Preferred admin usage:
+          <img data-arolana-gallery-image="0" src="" alt="...">
+        */
+        document.querySelectorAll('[data-arolana-gallery-image]').forEach(function (imageEl) {
+            const index = Number(imageEl.getAttribute('data-arolana-gallery-image') || 0);
+            const image = galleryImages[index] || galleryImages[0];
+            setImageWithFallback(imageEl, image, index);
+        });
+
+        /*
+          Background usage:
+          <div data-arolana-gallery-bg="0"></div>
+        */
+        document.querySelectorAll('[data-arolana-gallery-bg]').forEach(function (boxEl) {
+            const index = Number(boxEl.getAttribute('data-arolana-gallery-bg') || 0);
+            const image = galleryImages[index] || galleryImages[0];
+
+            if (!image) return;
+
+            const src = image.src || image.original || image.thumb;
+            if (!src) return;
+
+            boxEl.style.backgroundImage = 'url("' + src.replace(/"/g, '\\"') + '")';
+            boxEl.style.backgroundSize = boxEl.style.backgroundSize || 'contain';
+            boxEl.style.backgroundPosition = boxEl.style.backgroundPosition || 'center';
+            boxEl.style.backgroundRepeat = boxEl.style.backgroundRepeat || 'no-repeat';
+            boxEl.setAttribute('data-arolana-gallery-filled', 'true');
+        });
+
+        /*
+          Safety fallback for older descriptions already saved with placeholder URLs.
+          This means your existing test description can work immediately.
+        */
+        document.querySelectorAll('.product-overview-content img, .apd-hero-overview-summary-text img').forEach(function (imageEl) {
+            const src = clean(imageEl.getAttribute('src'));
+            const dataFilled = imageEl.getAttribute('data-arolana-gallery-filled') === 'true';
+
+            if (dataFilled) return;
+
+            if (src === 'PASTE_REAL_PRODUCT_IMAGE_URL_HERE' || src.includes('PASTE_REAL_PRODUCT_IMAGE_URL_HERE')) {
+                setImageWithFallback(imageEl, galleryImages[0] || galleryImages[0], 0);
+                return;
+            }
+
+            if (src === 'PASTE_REAL_LIFESTYLE_IMAGE_URL_HERE' || src.includes('PASTE_REAL_LIFESTYLE_IMAGE_URL_HERE')) {
+                setImageWithFallback(imageEl, galleryImages[1] || galleryImages[0], 1);
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        fillDescriptionGalleryImages();
+        setTimeout(fillDescriptionGalleryImages, 300);
+        setTimeout(fillDescriptionGalleryImages, 1000);
+    });
+
+    window.addEventListener('load', fillDescriptionGalleryImages);
+    window.addEventListener('pageshow', fillDescriptionGalleryImages);
+
+    /*
+      Public helper for testing from browser console:
+      ArolanaFillDescriptionGalleryImages()
+    */
+    window.ArolanaFillDescriptionGalleryImages = fillDescriptionGalleryImages;
+})();
+</script>
+
 {% endblock %}
