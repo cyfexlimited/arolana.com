@@ -1326,6 +1326,193 @@
         box-shadow: none !important;
     }
 
+       /* ============================================================
+   AROLANA AUTO PRODUCT GALLERY INSIDE OVERVIEW
+   Uses uploaded Product Images automatically.
+   No manual image URLs inside description needed.
+   ============================================================ */
+.apd-auto-overview-gallery {
+    clear: both;
+    margin: 2.5rem 0;
+    padding: clamp(1rem, 2vw, 1.5rem);
+    border-radius: 1.4rem;
+    border: 1px solid rgba(0, 102, 204, 0.14);
+    background:
+        radial-gradient(circle at 10% 0%, rgba(0, 184, 255, 0.10), transparent 18rem),
+        linear-gradient(135deg, rgba(234, 244, 255, 0.78), rgba(255, 247, 237, 0.48));
+    box-shadow: 0 22px 60px rgba(7, 26, 68, 0.08);
+}
+
+.apd-auto-overview-gallery-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.apd-auto-overview-gallery-kicker {
+    display: block;
+    color: var(--arolana-orange, #FF7A00);
+    font-size: 0.72rem;
+    font-weight: 950;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    margin-bottom: 0.25rem;
+}
+
+.apd-auto-overview-gallery-title {
+    color: var(--arolana-navy, #071A44);
+    font-size: clamp(1.25rem, 2vw, 1.8rem);
+    line-height: 1.15;
+    font-weight: 950;
+    letter-spacing: -0.03em;
+    margin: 0;
+}
+
+.apd-auto-overview-gallery-note {
+    color: #64748B;
+    font-size: 0.82rem;
+    font-weight: 800;
+    text-align: right;
+}
+
+.apd-auto-overview-gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 0.9rem;
+}
+
+.apd-auto-overview-gallery-item {
+    position: relative;
+    min-height: 220px;
+    overflow: hidden;
+    border-radius: 1.15rem;
+    background: #ffffff;
+    border: 1px solid rgba(7, 26, 68, 0.10);
+    box-shadow: 0 14px 36px rgba(7, 26, 68, 0.08);
+    cursor: zoom-in;
+}
+
+.apd-auto-overview-gallery-item:nth-child(1) {
+    grid-column: span 6;
+    min-height: 360px;
+}
+
+.apd-auto-overview-gallery-item:nth-child(2),
+.apd-auto-overview-gallery-item:nth-child(3) {
+    grid-column: span 3;
+    min-height: 360px;
+}
+
+.apd-auto-overview-gallery-item:nth-child(n+4) {
+    grid-column: span 4;
+}
+
+.apd-auto-overview-gallery-item img {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: inherit;
+    object-fit: contain !important;
+    object-position: center center !important;
+    padding: 1rem;
+    background:
+        radial-gradient(circle at 50% 20%, rgba(0, 184, 255, 0.08), transparent 16rem),
+        #ffffff !important;
+    transition: transform 0.45s ease, filter 0.45s ease;
+}
+
+.apd-auto-overview-gallery-item:hover img {
+    transform: scale(1.045);
+    filter: drop-shadow(0 18px 24px rgba(7, 26, 68, 0.16));
+}
+
+.apd-auto-overview-gallery-caption {
+    position: absolute;
+    left: 0.75rem;
+    right: 0.75rem;
+    bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.7rem;
+    padding: 0.65rem 0.8rem;
+    border-radius: 999px;
+    background: rgba(7, 26, 68, 0.78);
+    color: #ffffff;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    font-size: 0.75rem;
+    font-weight: 900;
+}
+
+.apd-auto-overview-gallery-caption span {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.apd-auto-overview-gallery-caption i {
+    color: var(--arolana-orange, #FF7A00);
+    flex: 0 0 auto;
+}
+
+@media (max-width: 900px) {
+    .apd-auto-overview-gallery-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .apd-auto-overview-gallery-note {
+        text-align: left;
+    }
+
+    .apd-auto-overview-gallery-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+
+    .apd-auto-overview-gallery-item,
+    .apd-auto-overview-gallery-item:nth-child(1),
+    .apd-auto-overview-gallery-item:nth-child(2),
+    .apd-auto-overview-gallery-item:nth-child(3),
+    .apd-auto-overview-gallery-item:nth-child(n+4) {
+        grid-column: span 1;
+        min-height: 190px;
+    }
+
+    .apd-auto-overview-gallery-item img {
+        padding: 0.75rem;
+    }
+
+    .apd-auto-overview-gallery-caption {
+        left: 0.55rem;
+        right: 0.55rem;
+        bottom: 0.55rem;
+        font-size: 0.68rem;
+    }
+}
+
+@media (max-width: 520px) {
+    .apd-auto-overview-gallery {
+        margin: 1.8rem 0;
+        border-radius: 1rem;
+        padding: 0.85rem;
+    }
+
+    .apd-auto-overview-gallery-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .apd-auto-overview-gallery-item,
+    .apd-auto-overview-gallery-item:nth-child(1),
+    .apd-auto-overview-gallery-item:nth-child(2),
+    .apd-auto-overview-gallery-item:nth-child(3),
+    .apd-auto-overview-gallery-item:nth-child(n+4) {
+        min-height: 240px;
+    }
+}
+
     /* ============================================================
        AROLANA PRODUCT HERO CONTENT-ONLY FIX
        Removes the big white card/container under:
@@ -2114,8 +2301,10 @@
         }
     }
     
-.apd-specs-xlsx-content td:empty {
-    display: none !important;
+.apd-specs-xlsx-content td:empty::after {
+    content: "—";
+    color: #CBD5E1;
+    font-weight: 800;
 }
 
 .apd-specs-xlsx-content tr td:only-child {
@@ -2698,11 +2887,11 @@
 	                <div class="relative group">
 	                    <div class="gallery-item relative overflow-hidden rounded-xl bg-gray-100">
 	                        {% if gallery_images %}
-	                            <img src="{{ gallery_images.0.src }}" alt="{{ gallery_images.0.alt|default:product.name }}"
+	                            <img src="{{ gallery_images.0.src }}" alt="{{ gallery_images.0.alt|default:product.name|escape }}"
 	                                 class="w-full h-96 object-contain cursor-zoom-in transition-transform duration-700 group-hover:scale-105"
 	                                 id="main-product-image"
 	                                 data-gallery-index="0"
-                                     data-fallback-src="{{ gallery_images.0.original }}"
+                                     data-fallback-src="{{ gallery_images.0.original|default:gallery_images.0.src }}"
                                      fetchpriority="high"
                                      decoding="async"
                                      width="1100"
@@ -2748,18 +2937,18 @@
 	                                class="thumbnail-item flex-shrink-0"
 	                                data-gallery-index="{{ forloop.counter0 }}"
 	                                data-gallery-src="{{ image.src }}"
-                                    data-gallery-thumb="{{ image.thumb }}"
-                                    data-gallery-original="{{ image.original }}"
+                                    data-gallery-thumb="{{ image.thumb|default:image.src }}"
+                                      data-gallery-original="{{ image.original|default:image.src }}"
 	                                data-gallery-alt="{{ image.alt|default:product.name }}">
-	                            <img src="{{ image.thumb }}"
-	                                 alt="{{ image.alt|default:product.name }}"
-                                     data-fallback-src="{{ image.original }}"
-	                                 class="w-20 h-20 object-cover rounded-lg cursor-pointer border-2 transition-all hover:border-blue-500 hover:scale-105 thumbnail-img {% if forloop.first %}active border-blue-500{% endif %}"
-                                     loading="{% if forloop.first %}eager{% else %}lazy{% endif %}"
-                                     decoding="async"
-                                     width="80"
-                                     height="80"
-                                     onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}">
+	                            <img src="{{ image.thumb|default:image.src }}"
+                                   data-fallback-src="{{ image.original|default:image.src }}"
+                                   alt="{{ image.alt|default:product.name|escape }}"
+                                   class="w-20 h-20 object-cover rounded-lg cursor-pointer border-2 transition-all hover:border-blue-500 hover:scale-105 thumbnail-img {% if forloop.first %}active border-blue-500{% endif %}"
+                                   loading="{% if forloop.first %}eager{% else %}lazy{% endif %}"
+                                   decoding="async"
+                                   width="80"
+                                   height="80"
+                                   onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}">
 	                        </button>
 	                        {% endfor %}
 	                    </div>
@@ -3218,8 +3407,46 @@
             <!-- Overview Tab with Highlights -->
             <div x-show="tab=='overview'" x-transition.duration.300ms>
                 <div class="product-overview-content" id="product-overview-content">
-                    {{ product.description|safe }}
-                </div>
+    {{ product.description|safe }}
+</div>
+
+{% if gallery_images %}
+<section class="apd-auto-overview-gallery" aria-labelledby="apd-auto-overview-gallery-title">
+    <div class="apd-auto-overview-gallery-header">
+        <div>
+            <span class="apd-auto-overview-gallery-kicker">Product Gallery</span>
+            <h2 id="apd-auto-overview-gallery-title" class="apd-auto-overview-gallery-title">
+                More Views of {{ product.name|escape }}
+            </h2>
+        </div>
+        <p class="apd-auto-overview-gallery-note">
+            Uploaded product images are shown automatically.
+        </p>
+    </div>
+
+    <div class="apd-auto-overview-gallery-grid">
+        {% for image in gallery_images|slice:":6" %}
+        <button type="button"
+                class="apd-auto-overview-gallery-item"
+                onclick="openImageLightbox({{ forloop.counter0 }})"
+                aria-label="View {{ image.alt|default:product.name|escape }}">
+            <img src="{{ image.src }}"
+     data-fallback-src="{{ image.original|default:image.src }}"
+                 alt="{{ image.alt|default:product.name|escape }}"
+                 loading="{% if forloop.first %}eager{% else %}lazy{% endif %}"
+                 decoding="async"
+                 width="900"
+                 height="900"
+                 onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}">
+            <span class="apd-auto-overview-gallery-caption">
+                <span>{{ image.alt|default:product.name|escape }}</span>
+                <i class="fas fa-search-plus"></i>
+            </span>
+        </button>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
 
 
 
