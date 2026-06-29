@@ -660,6 +660,8 @@ class Product(BaseModel):
 
     def clean(self):
         """Validate product data"""
+        self.description = self._strip_placeholder_images(self.description)
+        self.specifications = self._strip_placeholder_images(self.specifications)
         if self.compare_price and self.compare_price <= self.price:
             raise ValidationError("Compare price must be greater than price")
         if self.stock_quantity < 0:
@@ -671,6 +673,23 @@ class Product(BaseModel):
             raise ValidationError({
                 "vendor": "Vendor address, city, state, and country must be completed before publishing approved products."
             })
+
+    @staticmethod
+    def _strip_placeholder_images(value):
+        """Never persist editor image placeholders as customer-facing URLs."""
+        html = str(value or "")
+        html = re.sub(
+            r"<figure\b[^>]*>[\s\S]*?UPLOAD_PRODUCT_IMAGE_URL_HERE[\s\S]*?</figure>",
+            "",
+            html,
+            flags=re.IGNORECASE,
+        )
+        return re.sub(
+            r"<img\b[^>]*UPLOAD_PRODUCT_IMAGE_URL_HERE[^>]*>",
+            "",
+            html,
+            flags=re.IGNORECASE,
+        )
 
     def save(self, *args, **kwargs):
         self.clean()

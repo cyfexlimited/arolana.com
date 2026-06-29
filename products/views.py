@@ -4112,18 +4112,9 @@ def mobile_product_detail_api(request, slug):
     vendor_name = getattr(product, "vendor_display_name", "") or (getattr(vendor_profile, "store_name", "") if vendor_profile else "")
     vendor_package = getattr(product, "vendor_package_name", "") or (getattr(vendor_profile, "active_plan_name", "") if vendor_profile else "")
     location_label = getattr(product, "location_label", "") or ""
+    # Description images remain inside description_html in their authored
+    # positions. Gallery images are returned only by the gallery/images fields.
     description_images = []
-    for index, item in enumerate(gallery[:8]):
-        image_url = item.get("image_url") or item.get("detail_url") or item.get("thumbnail_url")
-        if not image_url:
-            continue
-        description_images.append({
-            "id": item.get("id") or f"description-image-{index + 1}",
-            "image_url": image_url,
-            "thumbnail_url": item.get("thumbnail_url") or image_url,
-            "original_url": item.get("original_url") or image_url,
-            "caption": f"{product.name} product view {index + 1}",
-        })
 
     chat_url = ""
     if vendor:

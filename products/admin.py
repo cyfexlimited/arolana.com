@@ -41,6 +41,15 @@ class ProductAdminForm(forms.ModelForm):
             'all': ('css/ckeditor-custom.css',)
         }
 
+    def clean_description(self):
+        description = self.cleaned_data.get('description') or ''
+        if 'UPLOAD_PRODUCT_IMAGE_URL_HERE' in str(description).upper():
+            raise forms.ValidationError(
+                'Upload the real product image and insert its media URL before publishing. '
+                'Placeholder image URLs are not allowed.'
+            )
+        return description
+
 
 class AccessoryAdminForm(forms.ModelForm):
     class Meta:
