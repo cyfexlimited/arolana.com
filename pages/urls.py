@@ -1,23 +1,29 @@
 from django.urls import path
 from . import views
 
-app_name = 'pages'
+app_name = "pages"
 
 urlpatterns = [
     # Help Center URLs
-    path('', views.help_center, name='help_center'),
-    path('help/', views.help_center, name='help_center'),
-    path('faq/', views.faq_page, name='faq'),
-    
-    # Page URLs
-    path('page/<slug:slug>/', views.page_detail, name='detail'),
-    
-    # Article URLs
-    path('article/<slug:slug>/', views.article_detail, name='article_detail'),
-    path('article/helpful/<int:article_id>/', views.article_helpful, name='article_helpful'),
-    
+    path("", views.help_center, name="help_center"),
+    path("help/", views.help_center, name="help_center"),
+    path("faq/", views.faq_page, name="faq"),
+
+    # Contact page
+    path("contact/", views.contact_page, name="contact"),
+
     # Career URLs
-    path('careers/', views.careers_page, name='careers'),
-    path('job/<slug:slug>/', views.job_detail, name='job_detail'),
-    path('apply/<int:position_id>/', views.apply_for_job, name='apply_job'),
+    path("careers/", views.careers_page, name="careers"),
+    path("job/<slug:slug>/", views.job_detail, name="job_detail"),
+    path("apply/<int:position_id>/", views.apply_for_job, name="apply_job"),
+
+    # Article URLs
+    path("article/<slug:slug>/", views.article_detail, name="article_detail"),
+    path("article/helpful/<int:article_id>/", views.article_helpful, name="article_helpful"),
+
+    # Optional old CMS route
+    path("page/<slug:slug>/", views.page_detail, name="page_detail"),
+
+    # Root CMS pages - KEEP LAST
+    path("<slug:slug>/", views.page_by_slug, name="detail"),
 ]
