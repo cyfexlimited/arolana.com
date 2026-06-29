@@ -10,7 +10,7 @@ from blog.models import BlogPost, BlogCategory
 from landing_pages.models import LandingPage
 from manufacturers.models import Manufacturer
 
-from arolana_seo.utils import merchant_metadata
+from arolana_seo.utils import merchant_metadata, product_image_alt, product_images
 
 
 GOOGLE_MERCHANT_COUNTRY = getattr(settings, "GOOGLE_MERCHANT_COUNTRY", "NG")
@@ -114,6 +114,7 @@ def main_sitemap_xml(request):
     sitemap_paths = [
         "/static/sitemap.xml",
         "/products/sitemap.xml",
+        "/products/images-sitemap.xml",
         "/categories/sitemap.xml",
         "/vendors/sitemap.xml",
         "/blog/sitemap.xml",
@@ -179,10 +180,59 @@ def product_sitemap_xml(request):
     products = (
         Product.objects
         .filter(is_active=True, approval_status="approved")
-        .select_related("category", "brand")
+        .select_related("category", "brand", "vendor")
         .order_by("-updated_at")[:50000]
     )
     return _urlset_response(products, "daily", "0.90")
+
+
+def product_image_sitemap_xml(request):
+    site_url = _site_url()
+    products = (
+        Product.objects
+        .filter(is_active=True, approval_status="approved")
+        .select_related("category", "brand", "vendor")
+        .prefetch_related("images", "variants")
+        .order_by("-updated_at")[:50000]
+    )
+
+    rows = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">',
+    ]
+
+    for product in products:
+        loc = _safe_absolute_url(site_url, product)
+        if not loc:
+            continue
+
+        images = product_images(product)
+        if not images:
+            continue
+
+        rows.extend([
+            "  <url>",
+            f"    <loc>{escape(loc)}</loc>",
+            f"    <lastmod>{_lastmod(product)}</lastmod>",
+        ])
+
+        seen = set()
+        for image_url in images[:12]:
+            if not image_url or image_url in seen:
+                continue
+            seen.add(image_url)
+            rows.extend([
+                "    <image:image>",
+                f"      <image:loc>{escape(image_url)}</image:loc>",
+                f"      <image:title>{escape(str(product.name or 'Arolana product'))}</image:title>",
+                f"      <image:caption>{escape(product_image_alt(product))}</image:caption>",
+                "    </image:image>",
+            ])
+
+        rows.append("  </url>")
+
+    rows.append("</urlset>")
+    return _xml_response("\n".join(rows))
 
 
 def category_sitemap_xml(request):

@@ -1,8 +1,9 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 
 from notifications.models import Notification
 from products.models import Product
@@ -14,8 +15,8 @@ from .forms import (
     ServiceQuoteRequestForm,
     ServiceReviewForm,
 )
-from .models import ServiceCategory, ServiceProviderProfile
-from .services import filter_public_providers, notify_staff_provider_registration, notify_staff_service_quote
+from .models import ProviderSubscriptionPlan, ServiceCategory, ServiceProviderProfile, ServiceQuoteRequest
+from .services import filter_public_providers, notify_staff_service_quote, submit_provider_profile
 
 
 def directory(request):
@@ -75,11 +76,8 @@ def register_provider(request):
         if form.is_valid():
             provider = form.save(commit=False)
             provider.user = request.user
-            if instance:
-                provider.verification_status = ServiceProviderProfile.STATUS_PENDING
-                provider.is_verified = False
             provider.save()
-            notify_staff_provider_registration(provider)
+            submit_provider_profile(provider)
             messages.success(request, "Your provider profile was saved and sent for Arolana verification.")
             return redirect("installers:provider_dashboard")
     else:
@@ -95,11 +93,70 @@ def register_provider(request):
 @login_required
 def provider_dashboard(request):
     provider = get_object_or_404(ServiceProviderProfile, user=request.user)
+    if not provider.approval_allows_dashboard:
+        return render(request, "installers/provider_pending.html", {
+            "provider": provider,
+            "kyc_documents": provider.kyc_documents.filter(is_active=True),
+            "change_requests": provider.profile_change_requests.all()[:10],
+        })
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "update_availability":
+            availability = request.POST.get("availability_status")
+            allowed = {value for value, _label in ServiceProviderProfile._meta.get_field("availability_status").choices}
+            if availability in allowed:
+                provider.availability_status = availability
+                provider.availability_note = request.POST.get("availability_note", "")[:300]
+                provider.save(update_fields=["availability_status", "availability_note", "updated_at"])
+                messages.success(request, "Availability updated.")
+            else:
+                messages.error(request, "Select a valid availability status.")
+            return redirect("installers:provider_dashboard")
+
+        if action == "update_quote_status":
+            quote = get_object_or_404(ServiceQuoteRequest, pk=request.POST.get("quote_id"), provider=provider)
+            next_status = request.POST.get("status")
+            allowed_statuses = {value for value, _label in ServiceQuoteRequest.STATUS_CHOICES}
+            if next_status in allowed_statuses:
+                quote.status = next_status
+                quote.provider_note = request.POST.get("provider_note", quote.provider_note)[:2000]
+                if next_status == "accepted" and not quote.accepted_at:
+                    quote.accepted_at = timezone.now()
+                if next_status == "completed" and not quote.completed_at:
+                    quote.completed_at = timezone.now()
+                quote.save(update_fields=["status", "provider_note", "accepted_at", "completed_at", "updated_at"])
+                messages.success(request, "Service request updated.")
+            else:
+                messages.error(request, "Select a valid service request status.")
+            return redirect("installers:provider_dashboard")
+
+    quote_requests = provider.quote_requests.select_related("product", "category").order_by("-created_at")
+    active_jobs = quote_requests.filter(status__in=["assigned", "accepted", "on_the_way", "in_progress"])
+    pending_jobs = quote_requests.filter(status__in=["new", "under_review", "assigned"])
+    completed_jobs = quote_requests.filter(status__in=["completed", "closed"])
+    notifications = Notification.objects.filter(user=request.user).order_by("-created_at")[:8]
+    subscription_plans = ProviderSubscriptionPlan.objects.filter(is_active=True).order_by("display_order", "price_monthly")
+
     return render(request, "installers/provider_dashboard.html", {
         "provider": provider,
         "services": provider.services.select_related("category"),
         "portfolio_items": provider.portfolio_items.all(),
-        "quote_requests": provider.quote_requests.select_related("product", "category")[:30],
+        "quote_requests": quote_requests[:30],
+        "active_jobs": active_jobs[:8],
+        "pending_jobs": pending_jobs[:8],
+        "completed_jobs": completed_jobs[:8],
+        "quote_request_count": quote_requests.count(),
+        "pending_job_count": pending_jobs.count(),
+        "active_job_count": active_jobs.count(),
+        "completed_job_count": completed_jobs.count(),
+        "urgent_job_count": quote_requests.filter(Q(urgency="urgent") | Q(urgency="emergency")).exclude(status__in=["completed", "closed", "cancelled"]).count(),
+        "kyc_documents": provider.kyc_documents.filter(is_active=True),
+        "change_requests": provider.profile_change_requests.all()[:8],
+        "notifications": notifications,
+        "subscription_plans": subscription_plans,
+        "availability_choices": ServiceProviderProfile._meta.get_field("availability_status").choices,
+        "quote_status_choices": ServiceQuoteRequest.STATUS_CHOICES,
     })
 
 

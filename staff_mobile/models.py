@@ -11,11 +11,13 @@ from core.models import BaseModel
 class StaffMobileToken(BaseModel):
     ROLE_ADMIN = "admin"
     ROLE_VENDOR = "vendor"
+    ROLE_PROVIDER = "provider"
     ROLE_RIDER = "rider"
 
     ROLE_CHOICES = [
         (ROLE_ADMIN, "Admin"),
         (ROLE_VENDOR, "Vendor"),
+        (ROLE_PROVIDER, "Provider"),
         (ROLE_RIDER, "Rider"),
     ]
 

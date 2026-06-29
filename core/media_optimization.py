@@ -338,6 +338,40 @@ def get_safe_background_image_url(image, preset="background_desktop"):
         return original_url
 
 
+def get_verified_optimized_image_url(image, preset="seo"):
+    """
+    Return an optimized image URL only when the optimized object exists.
+
+    This is intentionally stricter than get_optimized_image_url because SEO,
+    Open Graph, Twitter, merchant feeds, and sitemaps must not advertise 404
+    optimized media. If the variant is missing, the original upload remains
+    the permanent crawlable fallback.
+    """
+    preset = normalize_storage_name(preset or "seo")
+    storage, original_name = _get_storage_and_name(image)
+    original_url = _original_url(image, storage, original_name)
+
+    if not original_name or not getattr(settings, "OPTIMIZED_MEDIA_ENABLED", True):
+        return original_url
+
+    lower_name = original_name.lower()
+    if (
+        original_name.startswith("optimized/")
+        or lower_name.endswith(SKIP_EXTENSIONS)
+        or not lower_name.endswith(IMAGE_EXTENSIONS)
+    ):
+        return original_url
+
+    optimized_name = optimized_name_for(original_name, preset)
+    if not optimized_name or not _storage_exists(storage, optimized_name):
+        return original_url
+
+    try:
+        return storage.url(optimized_name)
+    except Exception:
+        return original_url
+
+
 def create_optimized_image(storage, original_name, optimized_name, preset):
     if Image is None or ImageOps is None:
         return False

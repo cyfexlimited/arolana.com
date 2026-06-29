@@ -21,6 +21,21 @@ urlpatterns = [
         views.mobile_authenticated_orders_history_api,
         name="mobile_authenticated_orders_history_api",
     ),
+    path(
+        "api/mobile/orders/<int:order_id>/",
+        views.mobile_authenticated_order_detail_api,
+        name="mobile_authenticated_order_detail_api",
+    ),
+    path(
+        "api/mobile/orders/<int:order_id>/tracking/",
+        views.mobile_authenticated_order_tracking_api,
+        name="mobile_authenticated_order_tracking_api",
+    ),
+    path(
+        "api/mobile/tracking/<str:tracking_code>/",
+        views.mobile_authenticated_tracking_code_api,
+        name="mobile_authenticated_tracking_code_api",
+    ),
 
     path("<str:order_number>/", views.order_detail, name="detail"),
 

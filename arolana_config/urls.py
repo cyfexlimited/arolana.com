@@ -25,6 +25,7 @@ import core.views as core_views
 from core import admin_views as core_admin_views
 from accounts import views as accounts_views
 from landing_pages import views as landing_page_views
+from installers.api_urls import provider_urlpatterns
 
 from products.models import Product, Category
 from vendors.models import VendorProfile
@@ -200,6 +201,7 @@ urlpatterns = [
 
     # Products API
     path("api/installers/", include(("installers.api_urls", "installers_api"), namespace="installers_api")),
+    path("api/provider/", include((provider_urlpatterns, "provider_api"), namespace="provider_api")),
     path("api/", include("products.urls", namespace="products_api")),
     path("api/smartchat/", include(("smartchat.api_urls", "smartchat_api"), namespace="smartchat_api")),
 
@@ -312,6 +314,21 @@ urlpatterns = [
         "api/mobile/orders/history/",
         orders_views.mobile_authenticated_orders_history_api,
         name="mobile_authenticated_orders_history_api",
+    ),
+    path(
+        "api/mobile/orders/<int:order_id>/",
+        orders_views.mobile_authenticated_order_detail_api,
+        name="mobile_authenticated_order_detail_api",
+    ),
+    path(
+        "api/mobile/orders/<int:order_id>/tracking/",
+        orders_views.mobile_authenticated_order_tracking_api,
+        name="mobile_authenticated_order_tracking_api",
+    ),
+    path(
+        "api/mobile/tracking/<str:tracking_code>/",
+        orders_views.mobile_authenticated_tracking_code_api,
+        name="mobile_authenticated_tracking_code_api",
     ),
     path(
         "api/mobile/orders/receipt/",

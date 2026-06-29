@@ -46,7 +46,7 @@ class InstallerMarketplaceTests(TestCase):
             **{**base, "email": "pending-provider@example.com"},
         )
 
-    def test_public_api_only_returns_approved_verified_active_providers(self):
+    def test_public_api_only_returns_approved_or_verified_active_providers(self):
         response = self.client.get(reverse("installers_api:provider_list"))
         self.assertEqual(response.status_code, 200)
         names = [item["business_name"] for item in response.json()["results"]]
@@ -85,4 +85,3 @@ class InstallerMarketplaceTests(TestCase):
         self.approved.refresh_from_db()
         self.assertEqual(self.approved.total_reviews, 1)
         self.assertEqual(float(self.approved.average_rating), 5.0)
-

@@ -1,0 +1,69 @@
+{% extends "base/base.html" %}
+{% block title %}Provider Review Status | Arolana{% endblock %}
+{% block content %}
+<main class="bg-[#F6F9FC] px-4 py-12">
+  <div class="mx-auto max-w-5xl">
+    <section class="overflow-hidden rounded-[2rem] bg-white shadow-xl ring-1 ring-[#0066CC]/10">
+      <div class="bg-gradient-to-r from-[#071A44] via-[#0066CC] to-[#00B8FF] p-8 text-white">
+        <p class="text-sm font-black uppercase tracking-[0.25em] text-orange-200">Arolana Provider Review</p>
+        <h1 class="mt-3 text-3xl font-black md:text-5xl">
+          {% if provider.verification_status == "changes_requested" %}Changes requested
+          {% elif provider.verification_status == "rejected" %}Application not approved
+          {% elif provider.verification_status == "suspended" %}Provider account suspended
+          {% else %}Your registration is under review{% endif %}
+        </h1>
+        <p class="mt-4 max-w-2xl text-white/80">
+          Thank you for registering as an Arolana service provider. Our team reviews provider profiles and documents before dashboard access is opened.
+        </p>
+        <div class="mt-6 flex flex-wrap gap-3">
+          <a href="{% url 'installers:register' %}" class="rounded-2xl bg-[#FF7A00] px-5 py-3 font-black text-white hover:bg-[#E86D00]">Edit / Resubmit</a>
+          <a href="/contact/" class="rounded-2xl bg-white/15 px-5 py-3 font-black text-white ring-1 ring-white/25">Contact Arolana Support</a>
+        </div>
+      </div>
+
+      <div class="grid gap-6 p-6 md:grid-cols-3">
+        <div class="rounded-3xl bg-[#EAF4FF] p-5">
+          <p class="text-xs font-black uppercase tracking-widest text-[#0066CC]">Review status</p>
+          <p class="mt-2 text-2xl font-black text-[#071A44]">{{ provider.get_verification_status_display }}</p>
+          <p class="mt-2 text-sm text-slate-600">Expected timeline: 24-72 hours.</p>
+        </div>
+        <div class="rounded-3xl bg-white p-5 ring-1 ring-slate-200">
+          <p class="text-xs font-black uppercase tracking-widest text-[#0066CC]">KYC status</p>
+          <p class="mt-2 text-2xl font-black text-[#071A44]">{{ provider.get_kyc_status_display }}</p>
+          {% if provider.kyc_note %}<p class="mt-2 text-sm text-slate-600">{{ provider.kyc_note }}</p>{% endif %}
+        </div>
+        <div class="rounded-3xl bg-white p-5 ring-1 ring-slate-200">
+          <p class="text-xs font-black uppercase tracking-widest text-[#0066CC]">Profile health</p>
+          <p class="mt-2 text-2xl font-black text-[#071A44]">{{ provider.profile_completion_percent }}%</p>
+          <p class="mt-2 text-sm text-slate-600">{{ provider.business_name }} · {{ provider.location_label }}</p>
+        </div>
+      </div>
+
+      <div class="grid gap-6 border-t border-slate-100 p-6 md:grid-cols-2">
+        <section class="rounded-3xl bg-white p-5 ring-1 ring-slate-200">
+          <h2 class="text-xl font-black text-[#071A44]">Submitted information</h2>
+          <dl class="mt-4 space-y-3 text-sm">
+            <div><dt class="font-black text-slate-500">Business name</dt><dd>{{ provider.business_name }}</dd></div>
+            <div><dt class="font-black text-slate-500">Provider type</dt><dd>{{ provider.get_provider_type_display }}</dd></div>
+            <div><dt class="font-black text-slate-500">Coverage</dt><dd>{{ provider.service_coverage|default:"Not provided yet" }}</dd></div>
+            <div><dt class="font-black text-slate-500">Submitted</dt><dd>{{ provider.submitted_at|default:provider.created_at }}</dd></div>
+            <div><dt class="font-black text-slate-500">Review due</dt><dd>{{ provider.review_due_at|default:"Arolana review queue" }}</dd></div>
+          </dl>
+        </section>
+        <section class="rounded-3xl bg-white p-5 ring-1 ring-slate-200">
+          <h2 class="text-xl font-black text-[#071A44]">Admin comments</h2>
+          {% if provider.changes_requested_note %}
+            <p class="mt-4 rounded-2xl bg-orange-50 p-4 font-semibold text-orange-800">{{ provider.changes_requested_note }}</p>
+          {% elif provider.rejection_reason %}
+            <p class="mt-4 rounded-2xl bg-red-50 p-4 font-semibold text-red-700">{{ provider.rejection_reason }}</p>
+          {% elif provider.admin_note %}
+            <p class="mt-4 rounded-2xl bg-[#EAF4FF] p-4 font-semibold text-[#071A44]">{{ provider.admin_note }}</p>
+          {% else %}
+            <p class="mt-4 text-slate-600">No admin comment yet. You will receive a notification when review is updated.</p>
+          {% endif %}
+        </section>
+      </div>
+    </section>
+  </div>
+</main>
+{% endblock %}

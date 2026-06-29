@@ -24,6 +24,8 @@ class MobileCustomer(BaseModel):
         blank=True,
         null=True,
     )
+    preferred_language = models.CharField(max_length=24, default="english")
+    notification_preferences = models.JSONField(default=dict, blank=True)
     last_login_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:

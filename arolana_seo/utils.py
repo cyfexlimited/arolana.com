@@ -6,6 +6,8 @@ from django.conf import settings
 from django.utils.html import strip_tags
 from django.utils.text import Truncator
 
+from core.media_optimization import get_verified_optimized_image_url
+
 
 def clean_text(value, limit=None):
     text = strip_tags(str(value or ""))
@@ -47,9 +49,18 @@ def get_product_url(product, request=None):
         return ""
 
 
-def get_image_url(image_field, request=None):
+def get_image_url(image_field, request=None, preset="seo"):
     if not image_field:
         return ""
+
+    if preset:
+        try:
+            optimized_url = get_verified_optimized_image_url(image_field, preset)
+            if optimized_url:
+                return absolute_url(optimized_url, request)
+        except Exception:
+            pass
+
     try:
         return absolute_url(image_field.url, request)
     except Exception:
@@ -60,7 +71,20 @@ def product_image_alt(product, image=None):
     brand = getattr(getattr(product, "brand", None), "name", "") or ""
     category = getattr(getattr(product, "category", None), "name", "") or ""
     sku = getattr(product, "sku", "") or ""
-    parts = [brand, getattr(product, "name", ""), category]
+
+    product_name = clean_text(getattr(product, "name", ""))
+    product_words = product_name.lower().split()
+    brand_clean = clean_text(brand)
+    category_clean = clean_text(category)
+
+    parts = []
+    if brand_clean and not product_name.lower().startswith(brand_clean.lower()):
+        parts.append(brand_clean)
+    if product_name:
+        parts.append(product_name)
+    if category_clean and category_clean.lower() not in product_words and category_clean.lower() not in product_name.lower():
+        parts.append(category_clean)
+
     alt = " ".join(clean_text(p) for p in parts if p)
     if sku:
         alt = f"{alt} SKU {sku}"
@@ -111,13 +135,13 @@ def canonical_url_for_product(product, request=None):
 def product_images(product, request=None):
     images = []
 
-    main_image = get_image_url(getattr(product, "main_image", None), request)
+    main_image = get_image_url(getattr(product, "main_image", None), request, "seo")
     if main_image:
         images.append(main_image)
 
     try:
         for img in product.images.filter(is_active=True).order_by("-is_main", "order", "id")[:10]:
-            url = get_image_url(getattr(img, "image", None), request)
+            url = get_image_url(getattr(img, "image", None), request, "seo")
             if url and url not in images:
                 images.append(url)
     except Exception:
@@ -125,7 +149,7 @@ def product_images(product, request=None):
 
     try:
         for variant in product.variants.filter(is_active=True)[:10]:
-            url = get_image_url(getattr(variant, "image", None), request)
+            url = get_image_url(getattr(variant, "image", None), request, "seo")
             if url and url not in images:
                 images.append(url)
     except Exception:
@@ -214,6 +238,18 @@ def product_schema(product, request=None, currency_code="NGN"):
     sku = clean_text(getattr(product, "sku", ""))
     manufacturer_sku = clean_text(getattr(product, "manufacturer_sku", ""))
 
+    seller_name = (
+        clean_text(getattr(product, "vendor_display_name", ""))
+        or "Arolana Vendor"
+    )
+    seller_url = get_site_url(request)
+    vendor_profile = getattr(product, "vendor_profile", None)
+    if vendor_profile:
+        try:
+            seller_url = absolute_url(vendor_profile.get_absolute_url(), request) or seller_url
+        except Exception:
+            pass
+
     schema = {
         "@context": "https://schema.org/",
         "@type": "Product",
@@ -237,8 +273,8 @@ def product_schema(product, request=None, currency_code="NGN"):
             "itemCondition": product_condition_url(product),
             "seller": {
                 "@type": "Organization",
-                "name": "Arolana",
-                "url": get_site_url(request),
+                "name": seller_name,
+                "url": seller_url,
             },
         },
     }

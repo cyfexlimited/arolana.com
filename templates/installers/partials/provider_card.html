@@ -1,22 +1,30 @@
 {% load optimized_images %}
-<article class="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
+<article class="group overflow-hidden rounded-[1.7rem] border border-slate-200 bg-white shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-2xl hover:shadow-[#071A44]/10">
   <a href="{{ provider.get_absolute_url }}" class="block">
-    <div class="relative h-48 bg-gradient-to-br from-[#071A44] to-[#0066CC]">
-      {% if provider.profile_image %}
-        <img src="{{ provider.profile_image|optimized_image_url:'avatar' }}" alt="{{ provider.business_name }}" class="h-full w-full object-cover" loading="lazy" decoding="async">
-      {% else %}
-        <div class="grid h-full place-items-center text-6xl text-white/80"><i class="fas fa-user-gear"></i></div>
+    <div class="relative h-36 bg-gradient-to-br from-[#071A44] via-[#0F2D6B] to-[#0066CC]">
+      {% if provider.business_banner %}
+        <img src="{{ provider.business_banner|optimized_image_url:'hero' }}" alt="" class="absolute inset-0 h-full w-full object-cover opacity-55" loading="lazy" decoding="async">
       {% endif %}
-      <span class="absolute left-4 top-4 rounded-full bg-emerald-500 px-3 py-1 text-xs font-black text-white"><i class="fas fa-circle-check mr-1"></i>Verified</span>
+      <div class="absolute inset-0 bg-gradient-to-t from-[#071A44]/80 to-transparent"></div>
+      <div class="absolute bottom-4 left-4 h-20 w-20 overflow-hidden rounded-3xl bg-white p-1 shadow-xl ring-4 ring-white/25">
+      {% if provider.profile_image %}
+        <img src="{{ provider.profile_image|optimized_image_url:'avatar' }}" alt="{{ provider.business_name }}" class="h-full w-full rounded-[1.25rem] object-cover" loading="lazy" decoding="async">
+      {% elif provider.business_logo %}
+        <img src="{{ provider.business_logo|optimized_image_url:'logo' }}" alt="{{ provider.business_name }}" class="h-full w-full rounded-[1.25rem] object-contain" loading="lazy" decoding="async">
+      {% else %}
+        <div class="grid h-full w-full place-items-center rounded-[1.25rem] bg-[#EAF4FF] text-2xl text-[#0066CC]"><i class="fas fa-user-gear"></i></div>
+      {% endif %}
+      </div>
+      <span class="absolute right-4 top-4 rounded-full bg-emerald-500 px-3 py-1 text-xs font-black text-white shadow"><i class="fas fa-circle-check mr-1"></i>Verified</span>
     </div>
-    <div class="p-5">
+    <div class="p-5 pt-6">
       <p class="text-xs font-black uppercase tracking-wider text-[#FF7A00]">{{ provider.get_provider_type_display }}</p>
-      <h3 class="mt-1 text-xl font-black text-[#071A44]">{{ provider.business_name }}</h3>
-      <p class="mt-2 text-sm font-semibold text-slate-500"><i class="fas fa-location-dot mr-1 text-[#0066CC]"></i>{{ provider.location_label }}</p>
+      <h3 class="mt-1 line-clamp-1 text-xl font-black text-[#071A44]">{{ provider.business_name }}</h3>
+      <p class="mt-2 line-clamp-1 text-sm font-semibold text-slate-500"><i class="fas fa-location-dot mr-1 text-[#0066CC]"></i>{{ provider.location_label }}</p>
       <p class="mt-3 line-clamp-2 text-sm text-slate-600">{{ provider.description }}</p>
-      <div class="mt-4 flex items-center justify-between text-sm">
-        <span class="font-black text-amber-500"><i class="fas fa-star"></i> {{ provider.average_rating|floatformat:1 }} <span class="text-slate-400">({{ provider.total_reviews }})</span></span>
-        <span class="font-bold text-slate-500">{{ provider.total_completed_jobs }} jobs</span>
+      <div class="mt-4 grid grid-cols-2 gap-2 text-sm">
+        <span class="rounded-2xl bg-amber-50 px-3 py-2 font-black text-amber-600"><i class="fas fa-star"></i> {{ provider.average_rating|floatformat:1 }} <span class="text-slate-400">({{ provider.total_reviews }})</span></span>
+        <span class="rounded-2xl bg-[#EAF4FF] px-3 py-2 text-center font-black text-[#0066CC]">{{ provider.total_completed_jobs }} jobs</span>
       </div>
       <div class="mt-4 flex flex-wrap gap-2">
         {% for service in provider.services.all|slice:":3" %}
@@ -26,8 +34,7 @@
     </div>
   </a>
   <div class="grid grid-cols-2 gap-2 px-5 pb-5">
-    {% if provider.whatsapp_url %}<a href="{{ provider.whatsapp_url }}" target="_blank" rel="noopener" class="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-center text-sm font-black text-emerald-700"><i class="fab fa-whatsapp mr-1"></i>WhatsApp</a>{% endif %}
-    <a href="{% url 'installers:request_quote' %}?provider={{ provider.id }}" class="rounded-xl bg-[#FF7A00] px-3 py-3 text-center text-sm font-black text-white">Request quote</a>
+    {% if provider.whatsapp_url %}<a href="{{ provider.whatsapp_url }}" target="_blank" rel="noopener" class="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-center text-sm font-black text-emerald-700"><i class="fab fa-whatsapp mr-1"></i>WhatsApp</a>{% endif %}
+    <a href="{% url 'installers:request_quote' %}?provider={{ provider.id }}" class="rounded-2xl bg-[#FF7A00] px-3 py-3 text-center text-sm font-black text-white">Request quote</a>
   </div>
 </article>
-

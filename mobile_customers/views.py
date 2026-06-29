@@ -1,14 +1,18 @@
 import json
 import secrets
 
+from django.contrib.auth import authenticate
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password, make_password
+from django.core import signing
 from django.db import transaction
+from django.db.models import Q
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
+from accounts.utils.otp_utils import create_otp, verify_otp
 from products.models import Product
 from .models import MobileCustomer, MobileWishlistItem
 
@@ -222,7 +226,109 @@ def _customer_payload(customer):
         "email": customer.email,
         "user_id": customer.user_id,
         "api_token": customer.api_token,
+        "preferred_language": customer.preferred_language,
+        "notification_preferences": customer.notification_preferences,
     }
+
+
+CUSTOMER_LOGIN_CHALLENGE_SALT = "arolana.mobile-customer.login"
+CUSTOMER_LOGIN_CHALLENGE_MAX_AGE = 10 * 60
+
+
+def _clean_identifier(value):
+    value = _clean_text(value)
+    return value.lower() if "@" in value else value
+
+
+def _authenticate_customer_user(request, identifier, password):
+    User = get_user_model()
+    identifier = _clean_identifier(identifier)
+    candidates = []
+
+    direct_user = authenticate(request, username=identifier, password=password)
+    if direct_user:
+        candidates.append(direct_user)
+
+    lookup = Q(email__iexact=identifier) | Q(username__iexact=identifier)
+    phone = _clean_phone(identifier)
+    if phone:
+        lookup |= Q(phone_number=phone)
+
+    for user in User.objects.filter(lookup, is_active=True):
+        if user not in candidates:
+            candidates.append(user)
+
+    for user in candidates:
+        for username in [getattr(user, "email", ""), getattr(user, "username", "")]:
+            if username:
+                auth_user = authenticate(request, username=username, password=password)
+                if auth_user:
+                    return auth_user
+        if user.check_password(password):
+            return user
+    return None
+
+
+def _customer_login_challenge(user, phone_number, otp_type):
+    return signing.dumps(
+        {
+            "user_id": user.id,
+            "phone_number": _clean_phone(phone_number),
+            "otp_type": otp_type,
+        },
+        salt=CUSTOMER_LOGIN_CHALLENGE_SALT,
+        compress=True,
+    )
+
+
+def _load_customer_login_challenge(token):
+    return signing.loads(
+        token,
+        salt=CUSTOMER_LOGIN_CHALLENGE_SALT,
+        max_age=CUSTOMER_LOGIN_CHALLENGE_MAX_AGE,
+    )
+
+
+def _mask_email(email):
+    value = _clean_text(email).lower()
+    if "@" not in value:
+        return "your registered email"
+    local, domain = value.split("@", 1)
+    visible = local[:2] if len(local) > 2 else local[:1]
+    return f"{visible}{'*' * max(2, len(local) - len(visible))}@{domain}"
+
+
+@transaction.atomic
+def _mobile_customer_for_web_user(user, supplied_phone=""):
+    customer = MobileCustomer.objects.filter(user=user).first()
+    phone_number = (
+        getattr(customer, "phone_number", "")
+        or _clean_phone(getattr(user, "phone_number", ""))
+        or _clean_phone(supplied_phone)
+    )
+    if not phone_number:
+        raise ValueError(
+            "Add a phone number to your Arolana web account or enter it here to finish mobile login."
+        )
+
+    phone_owner = MobileCustomer.objects.filter(phone_number=phone_number).exclude(user=user).first()
+    if phone_owner:
+        raise PermissionError(
+            "This phone number is linked to another Arolana account. Contact Arolana support."
+        )
+
+    if not customer:
+        customer = MobileCustomer(user=user, phone_number=phone_number)
+    elif customer.phone_number != phone_number:
+        customer.phone_number = phone_number
+
+    full_name = user.get_full_name() or getattr(user, "username", "") or user.email
+    customer.full_name = full_name
+    customer.email = _clean_text(getattr(user, "email", "")).lower()
+    customer.ensure_api_token()
+    customer.last_login_at = timezone.now()
+    customer.save()
+    return customer
 
 
 # -------------------------------------------------------------------
@@ -407,6 +513,139 @@ def mobile_customer_login_api(request):
     )
 
 
+@csrf_exempt
+@require_POST
+def mobile_customer_account_login_api(request):
+    payload = _json_payload(request)
+    if payload is None:
+        return _json_error("Invalid JSON payload.")
+
+    identifier = _clean_identifier(
+        payload.get("identifier") or payload.get("email") or payload.get("phone") or payload.get("username")
+    )
+    password = str(payload.get("password") or "")
+    phone_number = _clean_phone(payload.get("phone_number") or payload.get("phoneNumber"))
+    if not identifier or not password:
+        return _json_error("Email, phone, or username and password are required.")
+
+    user = _authenticate_customer_user(request, identifier, password)
+    if not user:
+        return _json_error(
+            "Invalid login details. Please check your email/phone and password.",
+            status=403,
+        )
+    if not user.email:
+        return _json_error(
+            "This account has no email address for secure verification. Contact Arolana support.",
+            status=403,
+        )
+
+    otp_type = "email" if not getattr(user, "email_verified", False) else "login"
+    if not create_otp(user, user.email, otp_type):
+        return _json_error(
+            "We could not send your verification code. Please try again or contact Arolana support.",
+            status=503,
+        )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "ok": True,
+            "otp_required": True,
+            "verification_type": otp_type,
+            "challenge_token": _customer_login_challenge(user, phone_number, otp_type),
+            "masked_email": _mask_email(user.email),
+            "message": "Verification code sent to your email.",
+        }
+    )
+
+
+@csrf_exempt
+@require_POST
+def mobile_customer_account_verify_otp_api(request):
+    payload = _json_payload(request)
+    if payload is None:
+        return _json_error("Invalid JSON payload.")
+
+    challenge_token = _clean_text(payload.get("challenge_token"))
+    otp_code = _clean_text(payload.get("otp_code") or payload.get("code"))
+    if not challenge_token or not otp_code:
+        return _json_error("Challenge token and verification code are required.")
+
+    try:
+        challenge = _load_customer_login_challenge(challenge_token)
+    except signing.SignatureExpired:
+        return _json_error("Verification session expired. Please login again.", status=403)
+    except signing.BadSignature:
+        return _json_error("Invalid verification session. Please login again.", status=403)
+
+    User = get_user_model()
+    user = User.objects.filter(id=challenge.get("user_id"), is_active=True).first()
+    if not user:
+        return _json_error("Account is unavailable. Please login again.", status=403)
+
+    otp_type = challenge.get("otp_type") or "login"
+    success, message = verify_otp(user, otp_code, otp_type)
+    if not success:
+        return _json_error(message, status=403)
+
+    if otp_type == "email" and not getattr(user, "email_verified", False):
+        user.email_verified = True
+        user.save(update_fields=["email_verified", "updated_at"])
+
+    try:
+        customer = _mobile_customer_for_web_user(user, challenge.get("phone_number", ""))
+    except PermissionError as error:
+        return _json_error(error, status=403)
+    except ValueError as error:
+        return _json_error(error)
+
+    return JsonResponse(
+        {
+            "success": True,
+            "ok": True,
+            "otp_required": False,
+            "message": "Arolana account verified successfully.",
+            "customer": _customer_payload(customer),
+            "api_token": customer.api_token,
+            "wishlist_items": _wishlist_payload(request, customer),
+        }
+    )
+
+
+@csrf_exempt
+@require_POST
+def mobile_customer_account_resend_otp_api(request):
+    payload = _json_payload(request)
+    challenge_token = _clean_text((payload or {}).get("challenge_token"))
+    if not challenge_token:
+        return _json_error("Verification session is required.")
+
+    try:
+        challenge = _load_customer_login_challenge(challenge_token)
+    except signing.SignatureExpired:
+        return _json_error("Verification session expired. Please login again.", status=403)
+    except signing.BadSignature:
+        return _json_error("Invalid verification session. Please login again.", status=403)
+
+    User = get_user_model()
+    user = User.objects.filter(id=challenge.get("user_id"), is_active=True).first()
+    if not user or not user.email:
+        return _json_error("Account is unavailable. Please login again.", status=403)
+
+    otp_type = challenge.get("otp_type") or "login"
+    if not create_otp(user, user.email, otp_type):
+        return _json_error("We could not resend your verification code.", status=503)
+    return JsonResponse(
+        {
+            "success": True,
+            "ok": True,
+            "otp_required": True,
+            "message": "A new verification code was sent to your email.",
+        }
+    )
+
+
 @require_GET
 def mobile_customer_profile_api(request):
     try:
@@ -421,6 +660,48 @@ def mobile_customer_profile_api(request):
             "success": True,
             "customer": _customer_payload(customer),
             "wishlist_items": _wishlist_payload(request, customer),
+        }
+    )
+
+
+@csrf_exempt
+@require_http_methods(["GET", "PATCH"])
+def mobile_customer_settings_api(request):
+    payload = request.GET if request.method == "GET" else _json_payload(request)
+    if payload is None:
+        return _json_error("Invalid JSON payload.")
+    try:
+        customer = _auth_mobile_customer_from_request_data(payload)
+    except PermissionError as error:
+        return _json_error(error, status=403)
+    except ValueError as error:
+        return _json_error(error)
+
+    supported_languages = {"english", "pidgin", "yoruba", "igbo", "hausa", "french"}
+    if request.method == "PATCH":
+        preferred_language = _clean_text(payload.get("preferred_language")).lower()
+        if preferred_language:
+            if preferred_language not in supported_languages:
+                return _json_error("Select a supported Arolana language.")
+            customer.preferred_language = preferred_language
+        preferences = payload.get("notification_preferences")
+        if isinstance(preferences, dict):
+            customer.notification_preferences = preferences
+        customer.save(
+            update_fields=[
+                "preferred_language",
+                "notification_preferences",
+                "updated_at",
+            ]
+        )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "preferred_language": customer.preferred_language,
+            "notification_preferences": customer.notification_preferences,
+            "supported_languages": sorted(supported_languages),
+            "message": "Customer settings saved." if request.method == "PATCH" else "",
         }
     )
 

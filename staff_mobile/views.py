@@ -6,6 +6,7 @@ from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
+from django.core import signing
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
@@ -49,7 +50,17 @@ from arolana_payments.services import (
     verify_paystack_transaction,
 )
 from smartchat.models import SmartChatConversation, SmartChatMessage
-from installers.models import ServiceProviderProfile, ServiceQuoteRequest
+from installers.models import ProviderProfileChangeRequest, ServiceProviderProfile, ServiceQuoteRequest
+from installers.services import (
+    approve_profile_change_request,
+    approve_provider,
+    reject_profile_change_request,
+    reject_provider,
+    request_provider_changes,
+    provider_workspace_notifications,
+    suspend_provider,
+    submit_provider_profile,
+)
 from accounts.utils.otp_utils import create_otp, verify_otp
 from core.media_optimization import get_optimized_image_url
 
@@ -113,10 +124,28 @@ def _absolute_media_url(request, file_field, preset=None):
     try:
         if file_field:
             file_url = get_optimized_image_url(file_field, preset) if preset else file_field.url
-            return request.build_absolute_uri(file_url) if request and not file_url.startswith(("http://", "https://")) else file_url
+            if file_url.startswith(("http://", "https://")):
+                return file_url
+            if request:
+                return request.build_absolute_uri(file_url)
+            return f"{settings.SITE_URL.rstrip('/')}/{file_url.lstrip('/')}"
     except Exception:
         return ""
     return ""
+
+
+def _absolute_original_media_url(request, file_field):
+    try:
+        if not file_field:
+            return ""
+        file_url = file_field.url
+        if file_url.startswith(("http://", "https://")):
+            return file_url
+        if request:
+            return request.build_absolute_uri(file_url)
+        return f"{settings.SITE_URL.rstrip('/')}/{file_url.lstrip('/')}"
+    except Exception:
+        return ""
 
 
 def _format_vendor_money(profile, amount, from_currency="NGN"):
@@ -217,8 +246,8 @@ def _rider_payload(rider):
         "full_name": safe_str(_rider_name(rider)),
         "phone_number": safe_phone(_rider_phone(rider)),
         "email": safe_str(rider.user.email if rider.user_id else ""),
-        "profile_photo_url": _absolute_media_url(None, getattr(rider, "profile_photo", None)),
-        "dashboard_image_url": _absolute_media_url(None, getattr(rider, "dashboard_image", None)),
+        "profile_photo_url": _absolute_media_url(None, getattr(rider, "profile_photo", None), "avatar"),
+        "dashboard_image_url": _absolute_media_url(None, getattr(rider, "dashboard_image", None), "hero_banner"),
         "about": safe_str(getattr(rider, "about", "")),
         "profile_edit_status": safe_str(getattr(rider, "profile_edit_status", "clear")),
         "profile_edit_pending_data": getattr(rider, "profile_edit_pending_data", {}) or {},
@@ -480,7 +509,7 @@ def _delivery_payload(delivery):
         "rider_current_longitude": str(rider_longitude or ""),
 
         "timeline": timeline,
-        "proof_of_delivery_url": _absolute_media_url(None, delivery.proof_of_delivery),
+        "proof_of_delivery_url": _absolute_media_url(None, delivery.proof_of_delivery, "product_card"),
         "proof_note": safe_str(delivery.proof_note),
         "failed_reason": safe_str(delivery.failed_reason),
         "last_update": delivery.updated_at.isoformat() if delivery.updated_at else "",
@@ -579,11 +608,11 @@ def _vendor_payload(profile, request=None):
         "priority_score": profile.priority_score,
         "support_level": profile.support_level,
         "badge_level": profile.badge_level or profile.subscription_plan_label,
-        "store_logo": _absolute_media_url(request, profile.store_logo),
-        "logo_url": _absolute_media_url(request, profile.store_logo),
-        "profile_photo": _absolute_media_url(request, profile.store_logo),
-        "store_banner": _absolute_media_url(request, profile.store_banner),
-        "banner_url": _absolute_media_url(request, profile.store_banner),
+        "store_logo": _absolute_media_url(request, profile.store_logo, "logo"),
+        "logo_url": _absolute_media_url(request, profile.store_logo, "logo"),
+        "profile_photo": _absolute_media_url(request, profile.store_logo, "avatar"),
+        "store_banner": _absolute_media_url(request, profile.store_banner, "hero_banner"),
+        "banner_url": _absolute_media_url(request, profile.store_banner, "hero_banner"),
         "description": profile.description,
         "business_address": profile.business_address,
         "manufacturer_address": profile.manufacturer_address,
@@ -628,8 +657,19 @@ def _service_provider_payload(provider, request=None):
         "years_of_experience": provider.years_of_experience,
         "cac_number": provider.cac_number,
         "profile_image": _absolute_media_url(request, provider.profile_image, "avatar"),
+        "business_logo": _absolute_media_url(request, provider.business_logo, "logo"),
+        "business_banner": _absolute_media_url(request, provider.business_banner, "hero_banner"),
         "verification_status": provider.verification_status,
         "verification_note": provider.verification_note,
+        "kyc_status": provider.kyc_status,
+        "subscription_plan": provider.subscription_plan,
+        "subscription_status": provider.subscription_status,
+        "approval_allows_dashboard": provider.approval_allows_dashboard,
+        "can_receive_serious_jobs": provider.can_receive_serious_jobs,
+        "profile_completion_percent": provider.profile_completion_percent,
+        "review_due_at": provider.review_due_at.isoformat() if provider.review_due_at else "",
+        "changes_requested_note": provider.changes_requested_note,
+        "rejection_reason": provider.rejection_reason,
         "is_verified": provider.is_verified,
         "is_active": provider.is_active,
         "average_rating": str(provider.average_rating),
@@ -688,6 +728,29 @@ def _require_vendor_session(request):
     profile = _vendor_profile_for_user(user)
     if not profile:
         raise PermissionError("Vendor profile not found.")
+    return session, profile
+
+
+def _provider_profile_for_user(user):
+    if not user:
+        return None
+    return getattr(user, "service_provider_profile", None)
+
+
+def _require_provider_session(request):
+    session = None
+    try:
+        session = _auth_staff(request)
+        if session.role != "provider":
+            raise PermissionError("Provider access required.")
+        user = session.user
+    except PermissionError:
+        user = getattr(request, "user", None)
+        if not user or not getattr(user, "is_authenticated", False):
+            raise PermissionError("Provider access required.")
+    profile = _provider_profile_for_user(user)
+    if not profile:
+        raise PermissionError("Provider profile not found.")
     return session, profile
 
 
@@ -1126,6 +1189,9 @@ def _get_or_create_staff_conversation(user, subject, metadata=None):
 def _authenticate_staff_user(request, login_value, password):
     User = get_user_model()
     candidates = []
+    login_value = _clean_text(login_value)
+    if "@" in login_value:
+        login_value = login_value.lower()
 
     direct_user = authenticate(request, username=login_value, password=password)
     if direct_user:
@@ -1141,6 +1207,8 @@ def _authenticate_staff_user(request, login_value, password):
             candidates.append(user)
 
     for user in candidates:
+        if not user.is_active:
+            continue
         auth_user = authenticate(request, username=user.email, password=password)
         if auth_user:
             return auth_user
@@ -1152,51 +1220,325 @@ def _authenticate_staff_user(request, login_value, password):
     return None
 
 
+STAFF_LOGIN_CHALLENGE_SALT = "arolana.staff-mobile.login"
+STAFF_LOGIN_CHALLENGE_MAX_AGE = 10 * 60
+STAFF_PASSWORD_RESET_CHALLENGE_SALT = "arolana.staff-mobile.password-reset"
+STAFF_PASSWORD_RESET_CHALLENGE_MAX_AGE = 10 * 60
+
+
+def _mask_email(email):
+    value = _clean_text(email).lower()
+    if "@" not in value:
+        return "your registered email"
+    local, domain = value.split("@", 1)
+    visible = local[:2] if len(local) > 2 else local[:1]
+    return f"{visible}{'*' * max(2, len(local) - len(visible))}@{domain}"
+
+
+def _find_user_by_identifier(identifier):
+    User = get_user_model()
+    value = _clean_text(identifier)
+    if not value:
+        return None
+    lookup = Q(email__iexact=value) | Q(username__iexact=value)
+    phone = _clean_phone(value)
+    if phone:
+        lookup |= Q(phone_number=phone)
+    return User.objects.filter(lookup, is_active=True).first()
+
+
+def _staff_role_profile(user, role):
+    if role == "admin":
+        return None if _is_admin_user(user) else "This account is not an admin account."
+    if role == "vendor":
+        return _vendor_profile_for_user(user) or "This account is not a vendor account."
+    if role == "provider":
+        # Provider is an optional role profile on the same Arolana User.
+        # A valid user may authenticate first and set up the profile afterwards.
+        return _provider_profile_for_user(user)
+    if role == "rider":
+        return (
+            RiderProfile.objects.select_related("user")
+            .filter(user=user, is_active=True)
+            .first()
+            or "Rider not found or inactive."
+        )
+    return "Invalid role."
+
+
+def _staff_login_challenge(user, role, device_name, otp_type, rider=None):
+    return signing.dumps(
+        {
+            "user_id": user.id,
+            "role": role,
+            "device_name": device_name,
+            "otp_type": otp_type,
+            "rider_id": rider.id if rider else None,
+        },
+        salt=STAFF_LOGIN_CHALLENGE_SALT,
+        compress=True,
+    )
+
+
+def _load_staff_login_challenge(token):
+    return signing.loads(
+        token,
+        salt=STAFF_LOGIN_CHALLENGE_SALT,
+        max_age=STAFF_LOGIN_CHALLENGE_MAX_AGE,
+    )
+
+
+def _authenticated_staff_payload(session, request):
+    user = session.user or (session.rider.user if session.rider else None)
+    approval_status = "approved"
+    kyc_status = "approved"
+    subscription_status = "active"
+    payload = {
+        "success": True,
+        "ok": True,
+        "otp_required": False,
+        "token": session.token,
+        "role": session.role,
+        "user": {
+            "id": user.id if user else None,
+            "email": user.email if user else "",
+            "name": (user.get_full_name() or user.username or user.email) if user else "",
+        },
+        "session": _staff_session_payload(session),
+    }
+    if session.role == "vendor":
+        profile = _vendor_profile_for_user(session.user)
+        payload["vendor"] = _vendor_payload(profile, request)
+        approval_status = profile.approval_status
+        kyc_status = profile.kyc_status
+        subscription_status = "active" if profile.subscription_active else "inactive"
+    elif session.role == "provider":
+        profile = _provider_profile_for_user(session.user)
+        payload["provider"] = _service_provider_payload(profile, request) if profile else None
+        payload["profile_required"] = not bool(profile)
+        if profile:
+            approval_status = profile.verification_status
+            kyc_status = profile.kyc_status
+            subscription_status = profile.subscription_status
+        else:
+            approval_status = "profile_required"
+            kyc_status = "not_started"
+            subscription_status = "inactive"
+    elif session.role == "rider" and session.rider:
+        payload["rider"] = _rider_payload(session.rider)
+        approval_status = session.rider.kyc_status
+        kyc_status = session.rider.kyc_status
+        subscription_status = "not_required"
+    payload.update({
+        "approval_status": approval_status,
+        "kyc_status": kyc_status,
+        "subscription_status": subscription_status,
+    })
+    return payload
+
+
 @csrf_exempt
 @require_POST
 def staff_login_api(request):
     data = _json_body(request)
     role = _clean_text(data.get("role") or "admin").lower()
     username = _clean_text(data.get("username") or data.get("email") or data.get("phone"))
-    password = _clean_text(data.get("password") or data.get("pin"))
+    if "@" in username:
+        username = username.lower()
+    password = str(data.get("password") or data.get("pin") or "")
     device_name = _clean_text(data.get("device_name") or data.get("deviceName"))
 
-    if role not in ["admin", "vendor", "rider"]:
+    if role not in ["admin", "vendor", "provider", "rider"]:
         return _error("Invalid role.")
     if not username or not password:
         return _error("Username/phone and password are required.")
 
-    if role == "rider":
+    user = _authenticate_staff_user(request, username, password)
+    rider = None
+    if not user and role == "rider":
         phone = _clean_phone(username)
         rider = (
             RiderProfile.objects.select_related("user")
-            .filter(Q(phone=phone) | Q(user__email__iexact=username), is_active=True)
+            .filter(Q(phone=phone) | Q(user__email__iexact=username) | Q(user__username__iexact=username), is_active=True)
             .first()
         )
-        if not rider:
-            return _error("Rider not found or inactive.", status=403)
-        if rider.user_id and not getattr(rider.user, "email_verified", False):
-            create_otp(rider.user, rider.user.email, "email")
-            return _error("Email verification is required before rider app access. Enter the OTP sent to your email.", status=403)
-        credential = getattr(rider, "mobile_credential", None)
-        if not credential or not credential.check_pin(password):
-            return _error("Incorrect rider PIN/password.", status=403)
-        session = StaffMobileToken.issue(role=role, rider=rider, device_name=device_name)
-        return JsonResponse({"success": True, "session": _staff_session_payload(session)})
-
-    user = _authenticate_staff_user(request, username, password)
+        credential = getattr(rider, "mobile_credential", None) if rider else None
+        if credential and credential.check_pin(password):
+            user = rider.user
     if not user:
-        return _error("Invalid login details.", status=403)
-    if role == "admin" and not _is_admin_user(user):
-        return _error("This account is not an admin account.", status=403)
-    if role == "vendor" and not (_is_vendor_user(user) or _is_admin_user(user)):
-        return _error("This account is not a vendor account.", status=403)
+        return _error("Invalid login details. Please check your email/phone and password.", status=403)
 
-    session = StaffMobileToken.issue(role=role, user=user, device_name=device_name)
-    payload = {"success": True, "session": _staff_session_payload(session)}
-    if role == "vendor":
-        payload["vendor"] = _vendor_payload(_vendor_profile_for_user(user))
-    return JsonResponse(payload)
+    profile = _staff_role_profile(user, role)
+    if isinstance(profile, str):
+        return _error(profile, status=403)
+    if role == "rider":
+        rider = profile
+
+    if not user.email:
+        return _error("This account has no email address for secure verification. Contact Arolana support.", status=403)
+
+    otp_type = "email" if not getattr(user, "email_verified", False) and not _is_admin_user(user) else "login"
+    otp = create_otp(user, user.email, otp_type)
+    if not otp:
+        return _error("We could not send your verification code. Please try again or contact Arolana support.", status=503)
+
+    challenge_token = _staff_login_challenge(user, role, device_name, otp_type, rider)
+    return JsonResponse({
+        "success": True,
+        "ok": True,
+        "otp_required": True,
+        "verification_type": otp_type,
+        "challenge_token": challenge_token,
+        "masked_email": _mask_email(user.email),
+        "message": "Verification code sent to your email.",
+    })
+
+
+@csrf_exempt
+@require_POST
+def staff_login_verify_otp_api(request):
+    data = _json_body(request)
+    challenge_token = _clean_text(data.get("challenge_token"))
+    otp_code = _clean_text(data.get("otp_code") or data.get("code"))
+    if not challenge_token or not otp_code:
+        return _error("Challenge token and verification code are required.")
+
+    try:
+        challenge = _load_staff_login_challenge(challenge_token)
+    except signing.SignatureExpired:
+        return _error("Verification session expired. Please login again.", status=403)
+    except signing.BadSignature:
+        return _error("Invalid verification session. Please login again.", status=403)
+
+    User = get_user_model()
+    user = User.objects.filter(id=challenge.get("user_id"), is_active=True).first()
+    role = _clean_text(challenge.get("role")).lower()
+    if not user or role not in ["admin", "vendor", "provider", "rider"]:
+        return _error("Account is unavailable. Please login again.", status=403)
+
+    profile = _staff_role_profile(user, role)
+    if isinstance(profile, str):
+        return _error(profile, status=403)
+
+    otp_type = challenge.get("otp_type") or "login"
+    success, message = verify_otp(user, otp_code, otp_type)
+    if not success:
+        return _error(message, status=403)
+
+    if otp_type == "email" and not getattr(user, "email_verified", False):
+        user.email_verified = True
+        user.save(update_fields=["email_verified", "updated_at"])
+
+    device_name = _clean_text(challenge.get("device_name"))
+    if role == "rider":
+        session = StaffMobileToken.issue(role=role, user=user, rider=profile, device_name=device_name)
+    else:
+        session = StaffMobileToken.issue(role=role, user=user, device_name=device_name)
+    return JsonResponse(_authenticated_staff_payload(session, request))
+
+
+@csrf_exempt
+@require_POST
+def staff_login_resend_otp_api(request):
+    challenge_token = _clean_text(_json_body(request).get("challenge_token"))
+    if not challenge_token:
+        return _error("Verification session is required.")
+    try:
+        challenge = _load_staff_login_challenge(challenge_token)
+    except signing.SignatureExpired:
+        return _error("Verification session expired. Please login again.", status=403)
+    except signing.BadSignature:
+        return _error("Invalid verification session. Please login again.", status=403)
+
+    User = get_user_model()
+    user = User.objects.filter(id=challenge.get("user_id"), is_active=True).first()
+    if not user:
+        return _error("Account is unavailable. Please login again.", status=403)
+    otp_type = challenge.get("otp_type") or "login"
+    if not create_otp(user, user.email, otp_type):
+        return _error("We could not resend your verification code. Please try again.", status=503)
+    return JsonResponse({
+        "success": True,
+        "ok": True,
+        "otp_required": True,
+        "challenge_token": challenge_token,
+        "masked_email": _mask_email(user.email),
+        "message": "A new verification code was sent to your email.",
+    })
+
+
+@csrf_exempt
+@require_POST
+def staff_forgot_password_api(request):
+    data = _json_body(request)
+    identifier = _clean_text(data.get("identifier") or data.get("email") or data.get("phone"))
+    if "@" in identifier:
+        identifier = identifier.lower()
+    if not identifier:
+        return _error("Email, phone, or username is required.")
+
+    user = _find_user_by_identifier(identifier)
+    challenge_token = signing.dumps(
+        {"user_id": user.id if user else 0, "otp_type": "password_reset"},
+        salt=STAFF_PASSWORD_RESET_CHALLENGE_SALT,
+        compress=True,
+    )
+    if user:
+        if not user.email:
+            return _error("This account has no email address for password recovery. Contact Arolana support.", status=403)
+        if not create_otp(user, user.email, "password_reset"):
+            return _error("We could not send the password reset code. Please try again or contact support.", status=503)
+
+    return JsonResponse({
+        "success": True,
+        "ok": True,
+        "otp_required": True,
+        "challenge_token": challenge_token,
+        "masked_email": _mask_email(user.email) if user else "your registered email",
+        "message": "If this account exists, a password reset code has been sent to its registered email.",
+    })
+
+
+@csrf_exempt
+@require_POST
+def staff_reset_password_api(request):
+    data = _json_body(request)
+    challenge_token = _clean_text(data.get("challenge_token"))
+    otp_code = _clean_text(data.get("otp_code") or data.get("code"))
+    new_password = str(data.get("new_password") or "")
+    if not challenge_token or not otp_code or not new_password:
+        return _error("Verification code and new password are required.")
+    try:
+        challenge = signing.loads(
+            challenge_token,
+            salt=STAFF_PASSWORD_RESET_CHALLENGE_SALT,
+            max_age=STAFF_PASSWORD_RESET_CHALLENGE_MAX_AGE,
+        )
+    except signing.SignatureExpired:
+        return _error("Password reset session expired. Please start again.", status=403)
+    except signing.BadSignature:
+        return _error("Invalid password reset session. Please start again.", status=403)
+
+    User = get_user_model()
+    user = User.objects.filter(id=challenge.get("user_id"), is_active=True).first()
+    if not user:
+        return _error("Invalid or expired verification code.", status=403)
+    success, message = verify_otp(user, otp_code, "password_reset")
+    if not success:
+        return _error(message, status=403)
+    try:
+        validate_password(new_password, user=user)
+    except ValidationError as error:
+        return _error("; ".join(error.messages if hasattr(error, "messages") else [str(error)]))
+
+    user.set_password(new_password)
+    user.save(update_fields=["password", "updated_at"])
+    StaffMobileToken.objects.filter(user=user, is_active=True).update(is_active=False, updated_at=timezone.now())
+    return JsonResponse({
+        "success": True,
+        "ok": True,
+        "message": "Password updated successfully. Sign in with your new password.",
+    })
 
 
 @require_GET
@@ -1205,10 +1547,19 @@ def staff_me_api(request):
         session = _auth_staff(request)
     except PermissionError as error:
         return _error(error, status=403)
-    payload = {"success": True, "session": _staff_session_payload(session)}
-    if session.role == "vendor":
-        payload["vendor"] = _vendor_payload(_vendor_profile_for_user(session.user))
-    return JsonResponse(payload)
+    return JsonResponse(_authenticated_staff_payload(session, request))
+
+
+@csrf_exempt
+@require_POST
+def staff_logout_api(request):
+    try:
+        session = _auth_staff(request)
+    except PermissionError as error:
+        return _error(error, status=403)
+    session.is_active = False
+    session.save(update_fields=["is_active", "updated_at"])
+    return JsonResponse({"success": True, "ok": True, "message": "Signed out successfully."})
 
 
 def _unique_store_slug(store_name):
@@ -1219,6 +1570,16 @@ def _unique_store_slug(store_name):
         slug = f"{base}-{index}"
         index += 1
     return slug
+
+
+@csrf_exempt
+@require_POST
+def provider_register_api(request):
+    return _error(
+        "Login with your existing Arolana account, then use "
+        "/api/provider/register/ to set up or continue your Provider profile.",
+        status=410,
+    )
 
 
 @csrf_exempt
@@ -1496,7 +1857,9 @@ def vendor_profile_update_api(request):
             value = _clean_text(data.get(field))
             if field == "vendor_type" and value not in dict(VendorProfile.VENDOR_TYPE_CHOICES):
                 continue
-            if field == "preferred_language" and value.lower() not in {"english", "french", "arabic", "chinese", "spanish"}:
+            if field == "preferred_language" and value.lower() not in {
+                "english", "pidgin", "yoruba", "igbo", "hausa", "french",
+            }:
                 continue
             if field == "preferred_currency":
                 value = value.upper()
@@ -1597,7 +1960,7 @@ def vendor_language_setting_api(request):
     except PermissionError as error:
         return _error(error, status=403)
     language = _clean_text(data.get("language") or data.get("preferred_language")).lower()
-    if language not in {"english", "french", "arabic", "chinese", "spanish"}:
+    if language not in {"english", "pidgin", "yoruba", "igbo", "hausa", "french"}:
         return _error("Unsupported language.")
     profile.preferred_language = language
     profile.save(update_fields=["preferred_language", "updated_at"])
@@ -1824,6 +2187,8 @@ def vendor_withdrawal_request_api(request):
 
 def _product_payload(product):
     image = _absolute_media_url(None, product.main_image, "product_card") if product.main_image else ""
+    detail_image = _absolute_media_url(None, product.main_image, "product_detail") if product.main_image else ""
+    original_image = _absolute_original_media_url(None, product.main_image) if product.main_image else ""
     gallery = []
     try:
         gallery = [
@@ -1831,6 +2196,9 @@ def _product_payload(product):
                 "id": item.id,
                 "image": _absolute_media_url(None, item.image, "product_gallery") if item.image else "",
                 "url": _absolute_media_url(None, item.image, "product_gallery") if item.image else "",
+                "thumbnail_url": _absolute_media_url(None, item.image, "product_gallery") if item.image else "",
+                "image_url": _absolute_media_url(None, item.image, "product_gallery") if item.image else "",
+                "original_url": _absolute_original_media_url(None, item.image) if item.image else "",
                 "is_main": item.is_main,
                 "order": item.order,
             }
@@ -1850,6 +2218,9 @@ def _product_payload(product):
                 "price_adjustment": str(variant.price_adjustment),
                 "stock_quantity": variant.stock_quantity,
                 "image": _absolute_media_url(None, variant.image, "product_gallery") if variant.image else "",
+                "thumbnail_url": _absolute_media_url(None, variant.image, "product_card") if variant.image else "",
+                "image_url": _absolute_media_url(None, variant.image, "product_gallery") if variant.image else "",
+                "original_url": _absolute_original_media_url(None, variant.image) if variant.image else "",
                 "is_active": variant.is_active,
             }
             for variant in product.variants.filter(is_active=True).order_by("variant_type", "name", "value")[:30]
@@ -1889,8 +2260,11 @@ def _product_payload(product):
         "location_label": getattr(product, "location_label", "") or "",
         "warranty_description": product.warranty_description,
         "image": image,
+        "thumbnail_url": image,
+        "image_url": detail_image,
+        "original_url": original_image,
         "main_image": image,
-        "main_image_url": image,
+        "main_image_url": detail_image,
         "images": gallery,
         "product_images": gallery,
         "gallery_count": len(gallery),
@@ -3400,8 +3774,9 @@ def admin_dashboard_api(request):
             "pending_vendor_kyc": KYCRecord.objects.filter(kyc_status__in=["pending", "under_review", "in_review"]).count(),
             "pending_product_approvals": Product.objects.filter(approval_status="pending").count(),
             "pending_service_providers": ServiceProviderProfile.objects.filter(
-                verification_status=ServiceProviderProfile.STATUS_PENDING
+                verification_status__in=[ServiceProviderProfile.STATUS_SUBMITTED, ServiceProviderProfile.STATUS_PENDING]
             ).count(),
+            "provider_change_requests": ProviderProfileChangeRequest.objects.filter(status=ProviderProfileChangeRequest.STATUS_PENDING).count(),
             "new_service_quotes": ServiceQuoteRequest.objects.filter(status="new").count(),
             "online_riders": RiderProfile.objects.filter(is_online=True, is_active=True).count(),
             "withdrawal_requests": VendorWithdrawal.objects.filter(status__in=["pending", "under_review"]).count(),
@@ -3415,7 +3790,7 @@ def admin_service_providers_api(request):
         _require_admin_session(request)
     except PermissionError as error:
         return _error(error, status=403)
-    status_filter = _clean_text(request.GET.get("status") or "pending")
+    status_filter = _clean_text(request.GET.get("status") or ServiceProviderProfile.STATUS_PENDING)
     providers = ServiceProviderProfile.objects.select_related("user").order_by("-created_at")
     if status_filter and status_filter != "all":
         providers = providers.filter(verification_status=status_filter)
@@ -3436,19 +3811,24 @@ def admin_service_provider_action_api(request, provider_id, action):
     if not provider:
         return _error("Service provider not found.", status=404)
     data = _json_body(request)
+    note = _clean_text(data.get("verification_note") or data.get("note") or data.get("reason"))
     if action == "approve":
-        provider.verification_status = ServiceProviderProfile.STATUS_APPROVED
-        provider.is_verified = True
-        provider.is_active = True
+        approve_provider(provider, session.user, verify=False, note=note)
+    elif action == "verify":
+        approve_provider(provider, session.user, verify=True, note=note)
     elif action == "reject":
-        provider.verification_status = ServiceProviderProfile.STATUS_REJECTED
-        provider.is_verified = False
+        reject_provider(provider, session.user, note or "Rejected by Arolana admin.")
+    elif action in ["request-changes", "request_changes"]:
+        request_provider_changes(provider, session.user, note or "Please update your provider profile and resubmit.")
+    elif action == "suspend":
+        suspend_provider(provider, session.user, note or "Provider account suspended by Arolana admin.")
+    elif action == "reactivate":
+        approve_provider(provider, session.user, verify=provider.is_verified, note=note)
     elif action == "deactivate":
         provider.is_active = False
+        provider.save(update_fields=["is_active", "updated_at"])
     else:
         return _error("Invalid service provider action.")
-    provider.verification_note = _clean_text(data.get("verification_note") or provider.verification_note)
-    provider.save()
     _notify(
         provider.user,
         "Service provider verification updated",
@@ -3457,6 +3837,57 @@ def admin_service_provider_action_api(request, provider_id, action):
         {"service_provider_id": provider.id, "verification_status": provider.verification_status},
     )
     return JsonResponse({"success": True, "provider": _service_provider_payload(provider, request), "reviewed_by": session.user.email})
+
+
+@require_GET
+def admin_provider_change_requests_api(request):
+    try:
+        _require_admin_session(request)
+    except PermissionError as error:
+        return _error(error, status=403)
+    status_filter = _clean_text(request.GET.get("status") or ProviderProfileChangeRequest.STATUS_PENDING)
+    changes = ProviderProfileChangeRequest.objects.select_related("provider", "requested_by", "reviewed_by").order_by("-created_at")
+    if status_filter and status_filter != "all":
+        changes = changes.filter(status=status_filter)
+    return JsonResponse({
+        "success": True,
+        "change_requests": [
+            {
+                "id": change.id,
+                "provider_id": change.provider_id,
+                "provider_name": change.provider.business_name,
+                "requested_by": change.requested_by.email if change.requested_by else "",
+                "old_values": change.old_values,
+                "proposed_values": change.proposed_values,
+                "sensitive_fields": change.sensitive_fields,
+                "status": change.status,
+                "admin_note": change.admin_note,
+                "created_at": change.created_at.isoformat() if change.created_at else "",
+                "reviewed_at": change.reviewed_at.isoformat() if change.reviewed_at else "",
+            }
+            for change in changes[:200]
+        ],
+    })
+
+
+@csrf_exempt
+@require_POST
+def admin_provider_change_request_action_api(request, change_id, action):
+    try:
+        session = _require_admin_session(request)
+    except PermissionError as error:
+        return _error(error, status=403)
+    change = ProviderProfileChangeRequest.objects.select_related("provider").filter(pk=change_id).first()
+    if not change:
+        return _error("Provider change request not found.", status=404)
+    note = _clean_text(_json_body(request).get("note") or _json_body(request).get("admin_note"))
+    if action == "approve":
+        approve_profile_change_request(change, session.user, note)
+    elif action == "reject":
+        reject_profile_change_request(change, session.user, note or "Rejected by Arolana admin.")
+    else:
+        return _error("Invalid change request action.")
+    return JsonResponse({"success": True, "change_request": {"id": change.id, "status": change.status, "admin_note": change.admin_note}})
 
 
 @require_GET
@@ -3501,6 +3932,154 @@ def admin_service_quote_status_api(request, quote_id):
             {"service_quote_request_id": quote.id, "status": quote.status},
         )
     return JsonResponse({"success": True, "quote": _service_quote_payload(quote), "updated_by": session.user.email})
+
+
+@csrf_exempt
+@require_POST
+def admin_assign_service_provider_api(request, quote_id):
+    try:
+        session = _require_admin_session(request)
+    except PermissionError as error:
+        return _error(error, status=403)
+    quote = ServiceQuoteRequest.objects.filter(pk=quote_id).first()
+    if not quote:
+        return _error("Service quote request not found.", status=404)
+    data = _json_body(request)
+    provider = ServiceProviderProfile.objects.filter(pk=data.get("provider_id")).first()
+    if not provider:
+        return _error("Service provider not found.", status=404)
+    try:
+        assign_service_request(quote, provider, session.user, _clean_text(data.get("note")))
+    except Exception as error:
+        return _error(error, status=400)
+    return JsonResponse({"success": True, "quote": _service_quote_payload(quote), "assigned_by": session.user.email})
+
+
+@require_GET
+def provider_dashboard_api(request):
+    try:
+        session, provider = _require_provider_session(request)
+    except PermissionError as error:
+        return _error(error, status=403)
+    quotes = provider.quote_requests.all()
+    notifications = provider_workspace_notifications(provider)
+    active_jobs = quotes.filter(
+        status__in=["assigned", "accepted", "on_the_way", "in_progress"]
+    ).select_related("category", "product", "customer").order_by("-created_at")[:3]
+    return JsonResponse({
+        "success": True,
+        "provider": _service_provider_payload(provider, request),
+        "access": {
+            "dashboard_allowed": provider.approval_allows_dashboard,
+            "serious_jobs_allowed": provider.can_receive_serious_jobs,
+            "pending_screen_required": not provider.approval_allows_dashboard,
+        },
+        "cards": {
+            "assigned_jobs": quotes.filter(status="assigned").count(),
+            "accepted_jobs": quotes.filter(status="accepted").count(),
+            "in_progress_jobs": quotes.filter(status="in_progress").count(),
+            "completed_jobs": quotes.filter(status__in=["completed", "closed"]).count(),
+            "unread_notifications": notifications.filter(is_read=False).count(),
+            "profile_completion": provider.profile_completion_percent,
+        },
+        "recent_jobs": [_service_quote_payload(quote) for quote in active_jobs],
+        "recent_notifications": [
+            {
+                "id": note.id,
+                "title": note.title,
+                "message": note.message,
+                "notification_type": note.notification_type,
+                "is_read": note.is_read,
+                "created_at": note.created_at.isoformat() if note.created_at else "",
+                "metadata": note.metadata,
+            }
+            for note in notifications[:3]
+        ],
+        "session": _staff_session_payload(session) if session else {},
+    })
+
+
+@require_GET
+def provider_requests_api(request):
+    try:
+        _session, provider = _require_provider_session(request)
+    except PermissionError as error:
+        return _error(error, status=403)
+    if not provider.approval_allows_dashboard:
+        return _error("Provider profile is not approved yet.", status=403)
+    status_filter = _clean_text(request.GET.get("status") or "")
+    quotes = provider.quote_requests.select_related("category", "product", "customer").order_by("-created_at")
+    if status_filter:
+        quotes = quotes.filter(status=status_filter)
+    return JsonResponse({"success": True, "requests": [_service_quote_payload(quote) for quote in quotes[:100]]})
+
+
+@csrf_exempt
+@require_POST
+def provider_request_action_api(request, quote_id, action):
+    try:
+        _session, provider = _require_provider_session(request)
+    except PermissionError as error:
+        return _error(error, status=403)
+    if not provider.approval_allows_dashboard:
+        return _error("Provider profile is not approved yet.", status=403)
+    quote = provider.quote_requests.filter(pk=quote_id).first()
+    if not quote:
+        return _error("Service request not found.", status=404)
+    data = _json_body(request)
+    if action == "accept":
+        if quote.status != "assigned":
+            return _error("Only newly assigned jobs can be accepted.")
+        quote.status = "accepted"
+        quote.accepted_at = timezone.now()
+    elif action == "reject":
+        if quote.status != "assigned":
+            return _error("Only newly assigned jobs can be rejected.")
+        quote.status = "rejected_by_provider"
+    elif action == "status":
+        next_status = _clean_text(data.get("status"))
+        allowed_transitions = {
+            "accepted": {"accepted", "on_the_way"},
+            "on_the_way": {"on_the_way", "in_progress"},
+            "in_progress": {"in_progress", "completed"},
+        }
+        if next_status not in allowed_transitions.get(quote.status, {quote.status}):
+            return _error("That job status change is not allowed.")
+        quote.status = next_status
+        if next_status == "completed":
+            quote.completed_at = timezone.now()
+    else:
+        return _error("Invalid provider request action.")
+    quote.provider_note = _clean_text(data.get("provider_note") or quote.provider_note)
+    quote.save()
+    if quote.customer:
+        _notify(quote.customer, "Service request updated", f"Your service request is now {quote.get_status_display().lower()}.", "system", {"service_quote_request_id": quote.id, "status": quote.status})
+    return JsonResponse({"success": True, "request": _service_quote_payload(quote)})
+
+
+@require_GET
+def provider_notifications_api(request):
+    try:
+        _session, provider = _require_provider_session(request)
+    except PermissionError as error:
+        return _error(error, status=403)
+    notes = provider_workspace_notifications(provider)
+    return JsonResponse({
+        "success": True,
+        "unread_count": notes.filter(is_read=False).count(),
+        "notifications": [
+            {
+                "id": note.id,
+                "title": note.title,
+                "message": note.message,
+                "notification_type": note.notification_type,
+                "is_read": note.is_read,
+                "created_at": note.created_at.isoformat() if note.created_at else "",
+                "metadata": note.metadata,
+            }
+            for note in notes[:100]
+        ],
+    })
 
 
 @require_GET

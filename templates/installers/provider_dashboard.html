@@ -1,4 +1,206 @@
 {% extends "base/base.html" %}
+{% load optimized_images %}
 {% block title %}Service Provider Dashboard | Arolana{% endblock %}
-{% block content %}<main class="bg-[#F6F9FC] px-4 py-12"><div class="mx-auto max-w-7xl"><div class="rounded-3xl bg-gradient-to-r from-[#071A44] to-[#0066CC] p-7 text-white"><p class="font-black text-orange-300">{{ provider.get_verification_status_display }}</p><h1 class="mt-1 text-3xl font-black">{{ provider.business_name }}</h1><p class="mt-2 text-white/70">Manage services, completed work, and customer quote requests.</p><div class="mt-5 flex flex-wrap gap-3"><a href="{% url 'installers:register' %}" class="rounded-xl bg-white/15 px-4 py-3 font-black">Edit profile</a><a href="{% url 'installers:add_service' %}" class="rounded-xl bg-[#FF7A00] px-4 py-3 font-black">Add service</a><a href="{% url 'installers:add_portfolio' %}" class="rounded-xl bg-white/15 px-4 py-3 font-black">Add portfolio</a></div></div><div class="mt-8 grid gap-8 lg:grid-cols-2"><section class="rounded-3xl bg-white p-6 shadow-sm"><h2 class="text-xl font-black">Services</h2><div class="mt-4 space-y-3">{% for service in services %}<div class="rounded-xl border p-4"><b>{{ service.service_name }}</b><p class="text-sm text-slate-500">{{ service.category.name }}</p></div>{% empty %}<p class="text-slate-500">Add the services customers can book.</p>{% endfor %}</div></section><section class="rounded-3xl bg-white p-6 shadow-sm"><h2 class="text-xl font-black">Recent quote requests</h2><div class="mt-4 space-y-3">{% for quote in quote_requests %}<div class="rounded-xl border p-4"><div class="flex justify-between gap-3"><b>{{ quote.service_needed }}</b><span class="text-xs font-black uppercase text-orange-600">{{ quote.status }}</span></div><p class="mt-1 text-sm text-slate-500">{{ quote.name }} · {{ quote.city }}, {{ quote.state }}</p><p class="mt-2 text-sm">{{ quote.message }}</p></div>{% empty %}<p class="text-slate-500">New customer requests will appear here.</p>{% endfor %}</div></section></div></div></main>{% endblock %}
+{% block content %}
+<main class="bg-[#F6F9FC] px-4 py-8 text-[#071A44]">
+  <div class="mx-auto max-w-7xl">
+    <section class="overflow-hidden rounded-[2rem] bg-[#071A44] shadow-2xl shadow-[#071A44]/15">
+      <div class="relative grid gap-8 p-6 text-white lg:grid-cols-[1.35fr_.65fr] lg:p-8">
+        {% if provider.business_banner %}
+          <img src="{{ provider.business_banner|optimized_image_url:'hero' }}" alt="{{ provider.business_name }}" class="absolute inset-0 h-full w-full object-cover opacity-25" loading="eager" decoding="async">
+        {% endif %}
+        <div class="absolute inset-0 bg-gradient-to-br from-[#071A44]/95 via-[#071A44]/84 to-[#0066CC]/80"></div>
 
+        <div class="relative z-10 flex gap-5">
+          <div class="h-24 w-24 shrink-0 overflow-hidden rounded-3xl bg-white/10 ring-4 ring-white/15">
+            {% if provider.profile_image %}
+              <img src="{{ provider.profile_image|optimized_image_url:'avatar' }}" alt="{{ provider.business_name }}" class="h-full w-full object-cover" loading="eager" decoding="async">
+            {% elif provider.business_logo %}
+              <img src="{{ provider.business_logo|optimized_image_url:'logo' }}" alt="{{ provider.business_name }}" class="h-full w-full object-contain bg-white p-3" loading="eager" decoding="async">
+            {% else %}
+              <div class="grid h-full w-full place-items-center text-3xl text-white"><i class="fas fa-user-gear"></i></div>
+            {% endif %}
+          </div>
+          <div class="min-w-0">
+            <p class="text-xs font-black uppercase tracking-[0.22em] text-orange-200">Arolana Operations Hub</p>
+            <h1 class="mt-2 text-3xl font-black leading-tight md:text-5xl">{{ provider.business_name }}</h1>
+            <p class="mt-2 text-sm font-bold text-white/75">{{ provider.get_provider_type_display }} · {{ provider.location_label }}</p>
+            <div class="mt-4 flex flex-wrap gap-2">
+              <span class="rounded-full bg-emerald-500 px-3 py-1 text-xs font-black text-white"><i class="fas fa-shield-check mr-1"></i>{{ provider.get_verification_status_display }}</span>
+              <span class="rounded-full bg-white/12 px-3 py-1 text-xs font-black text-white ring-1 ring-white/15">KYC: {{ provider.get_kyc_status_display }}</span>
+              <span class="rounded-full bg-[#FF7A00] px-3 py-1 text-xs font-black text-white">{{ provider.subscription_plan }}</span>
+              <span class="rounded-full bg-cyan-400/20 px-3 py-1 text-xs font-black text-cyan-100">Availability: {{ provider.get_availability_status_display }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="relative z-10 rounded-3xl bg-white/10 p-5 ring-1 ring-white/15 backdrop-blur">
+          <p class="text-sm font-black uppercase tracking-wider text-orange-200">Quick controls</p>
+          <form method="post" class="mt-4 space-y-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="update_availability">
+            <select name="availability_status" class="w-full rounded-2xl border border-white/20 bg-white/95 px-4 py-3 font-black text-[#071A44]">
+              {% for value,label in availability_choices %}
+                <option value="{{ value }}" {% if provider.availability_status == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+            <input name="availability_note" value="{{ provider.availability_note }}" placeholder="Short availability note" class="w-full rounded-2xl border border-white/20 bg-white/95 px-4 py-3 font-bold text-[#071A44]">
+            <button class="w-full rounded-2xl bg-[#FF7A00] px-5 py-3 font-black text-white">Update availability</button>
+          </form>
+          <div class="mt-4 grid grid-cols-2 gap-2">
+            <a href="{% url 'installers:register' %}" class="rounded-2xl bg-white/12 px-4 py-3 text-center text-sm font-black text-white ring-1 ring-white/15">Edit profile</a>
+            <a href="{{ provider.get_absolute_url }}" class="rounded-2xl bg-white px-4 py-3 text-center text-sm font-black text-[#0066CC]">Preview store</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div class="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200"><p class="text-xs font-black uppercase text-slate-500">Total requests</p><p class="mt-2 text-3xl font-black">{{ quote_request_count }}</p></div>
+      <div class="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200"><p class="text-xs font-black uppercase text-slate-500">Pending</p><p class="mt-2 text-3xl font-black text-[#0066CC]">{{ pending_job_count }}</p></div>
+      <div class="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200"><p class="text-xs font-black uppercase text-slate-500">Active jobs</p><p class="mt-2 text-3xl font-black text-[#FF7A00]">{{ active_job_count }}</p></div>
+      <div class="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200"><p class="text-xs font-black uppercase text-slate-500">Completed</p><p class="mt-2 text-3xl font-black text-emerald-600">{{ completed_job_count }}</p></div>
+      <div class="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200"><p class="text-xs font-black uppercase text-slate-500">Urgent</p><p class="mt-2 text-3xl font-black text-red-600">{{ urgent_job_count }}</p></div>
+    </section>
+
+    <div class="mt-6 grid gap-6 xl:grid-cols-[1.45fr_.55fr]">
+      <section class="rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-slate-200">
+        <div class="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p class="text-xs font-black uppercase tracking-widest text-[#FF7A00]">Jobs & service requests</p>
+            <h2 class="text-2xl font-black">Manage customer work</h2>
+          </div>
+          <a href="{% url 'installers:request_quote' %}" class="rounded-2xl bg-[#0066CC] px-4 py-3 text-sm font-black text-white">Create quote link</a>
+        </div>
+
+        <div class="mt-5 space-y-4">
+          {% for quote in quote_requests %}
+            <article class="rounded-3xl border border-slate-200 bg-[#F8FAFC] p-4">
+              <div class="flex flex-wrap justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="text-xs font-black uppercase text-[#0066CC]">{{ quote.get_urgency_display }} · {{ quote.get_status_display }}</p>
+                  <h3 class="mt-1 text-lg font-black">{{ quote.service_needed }}</h3>
+                  <p class="mt-1 text-sm font-semibold text-slate-500">{{ quote.name }} · {{ quote.city }}, {{ quote.state }} · {{ quote.created_at|timesince }} ago</p>
+                  {% if quote.product %}<p class="mt-1 text-sm font-bold text-[#071A44]">Product: {{ quote.product.name }}</p>{% endif %}
+                </div>
+                <a href="tel:{{ quote.phone }}" class="h-fit rounded-2xl bg-white px-4 py-2 text-sm font-black text-[#0066CC] ring-1 ring-slate-200">Call</a>
+              </div>
+              {% if quote.message %}<p class="mt-3 rounded-2xl bg-white p-3 text-sm text-slate-700">{{ quote.message }}</p>{% endif %}
+              <form method="post" class="mt-3 grid gap-2 md:grid-cols-[180px_1fr_130px]">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_quote_status">
+                <input type="hidden" name="quote_id" value="{{ quote.id }}">
+                <select name="status" class="rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm font-black">
+                  {% for value,label in quote_status_choices %}
+                    <option value="{{ value }}" {% if quote.status == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+                <input name="provider_note" value="{{ quote.provider_note }}" placeholder="Provider note / customer update" class="rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold">
+                <button class="rounded-2xl bg-[#FF7A00] px-4 py-3 text-sm font-black text-white">Update</button>
+              </form>
+            </article>
+          {% empty %}
+            <div class="rounded-3xl bg-[#F8FAFC] p-10 text-center">
+              <i class="fas fa-briefcase text-4xl text-[#FF7A00]"></i>
+              <h3 class="mt-3 text-xl font-black">No service requests yet</h3>
+              <p class="mt-2 text-slate-500">Customer service requests assigned to you will appear here.</p>
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <aside class="space-y-6">
+        <section class="rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <h2 class="text-xl font-black">Profile health</h2>
+          <div class="mt-4 h-3 overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full bg-gradient-to-r from-[#0066CC] to-[#FF7A00]" style="width: {{ provider.profile_completion_percent }}%"></div></div>
+          <p class="mt-2 text-sm font-bold text-slate-500">{{ provider.profile_completion_percent }}% complete</p>
+          <dl class="mt-4 space-y-3 text-sm">
+            <div><dt class="font-black text-slate-500">Coverage</dt><dd class="font-semibold">{{ provider.service_coverage|default:"Add coverage areas" }}</dd></div>
+            <div><dt class="font-black text-slate-500">Hours</dt><dd class="font-semibold">{{ provider.business_hours|default:"Add business hours" }}</dd></div>
+            <div><dt class="font-black text-slate-500">Support</dt><dd class="font-semibold">{{ provider.support_phone|default:provider.phone_number }}</dd></div>
+          </dl>
+        </section>
+
+        <section class="rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <h2 class="text-xl font-black">KYC & subscription</h2>
+          <div class="mt-4 space-y-3">
+            <div class="rounded-2xl bg-[#EAF4FF] p-4"><p class="text-xs font-black uppercase text-[#0066CC]">KYC</p><p class="font-black">{{ provider.get_kyc_status_display }}</p>{% if provider.kyc_note %}<p class="text-sm text-slate-600">{{ provider.kyc_note }}</p>{% endif %}</div>
+            <div class="rounded-2xl bg-orange-50 p-4"><p class="text-xs font-black uppercase text-[#FF7A00]">Plan</p><p class="font-black">{{ provider.subscription_plan }} · {{ provider.get_subscription_status_display }}</p>{% if provider.subscription_expires_at %}<p class="text-sm text-slate-600">Expires {{ provider.subscription_expires_at }}</p>{% endif %}</div>
+          </div>
+        </section>
+
+        <section class="rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <h2 class="text-xl font-black">Notifications</h2>
+          <div class="mt-4 space-y-3">
+            {% for notice in notifications %}
+              <a href="{{ notice.link|default:'#' }}" class="block rounded-2xl {% if notice.is_read %}bg-slate-50{% else %}bg-[#EAF4FF]{% endif %} p-3">
+                <p class="text-sm font-black">{{ notice.title }}</p>
+                <p class="line-clamp-2 text-xs text-slate-600">{{ notice.message }}</p>
+                <p class="mt-1 text-[11px] font-black text-[#0066CC]">{{ notice.time_ago }}</p>
+              </a>
+            {% empty %}
+              <p class="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500">No provider notifications yet.</p>
+            {% endfor %}
+          </div>
+        </section>
+      </aside>
+    </div>
+
+    <div class="mt-6 grid gap-6 lg:grid-cols-2">
+      <section class="rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-slate-200">
+        <div class="flex items-center justify-between gap-3">
+          <h2 class="text-xl font-black">Services</h2>
+          <a href="{% url 'installers:add_service' %}" class="rounded-2xl bg-[#0066CC] px-4 py-2 text-sm font-black text-white">Add service</a>
+        </div>
+        <div class="mt-4 grid gap-3">
+          {% for service in services %}
+            <div class="rounded-2xl border border-slate-200 p-4">
+              <p class="font-black">{{ service.service_name }}</p>
+              <p class="text-sm text-slate-500">{{ service.category.name }}{% if service.starting_price %} · From ₦{{ service.starting_price }}{% endif %}</p>
+            </div>
+          {% empty %}
+            <p class="rounded-2xl bg-slate-50 p-4 text-slate-500">Add the services customers can book.</p>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-slate-200">
+        <div class="flex items-center justify-between gap-3">
+          <h2 class="text-xl font-black">Portfolio</h2>
+          <a href="{% url 'installers:add_portfolio' %}" class="rounded-2xl bg-[#FF7A00] px-4 py-2 text-sm font-black text-white">Add project</a>
+        </div>
+        <div class="mt-4 grid grid-cols-2 gap-3">
+          {% for item in portfolio_items|slice:":6" %}
+            <div class="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+              <div class="h-28 bg-slate-100">{% if item.image %}<img src="{{ item.image|optimized_image_url:'product_card' }}" alt="{{ item.title }}" class="h-full w-full object-cover" loading="lazy" decoding="async">{% endif %}</div>
+              <div class="p-3"><p class="line-clamp-1 font-black">{{ item.title }}</p><p class="line-clamp-1 text-xs text-slate-500">{{ item.project_location }}</p></div>
+            </div>
+          {% empty %}
+            <p class="col-span-2 rounded-2xl bg-slate-50 p-4 text-slate-500">Add completed work samples to build customer trust.</p>
+          {% endfor %}
+        </div>
+      </section>
+    </div>
+
+    <section class="mt-6 rounded-[2rem] bg-white p-5 shadow-sm ring-1 ring-slate-200">
+      <h2 class="text-xl font-black">Profile change approval</h2>
+      <p class="mt-1 text-sm text-slate-500">Sensitive profile updates are reviewed by Arolana and may use the 14-day cooldown rule.</p>
+      <div class="mt-4 grid gap-3 md:grid-cols-2">
+        {% if provider.sensitive_update_locked %}
+          <div class="rounded-2xl bg-red-50 p-4 text-sm font-bold text-red-700">Sensitive updates are locked until {{ provider.sensitive_update_available_at }}.</div>
+        {% else %}
+          <div class="rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-700">Sensitive profile update window is available.</div>
+        {% endif %}
+        {% for change in change_requests %}
+          <div class="rounded-2xl border border-slate-200 p-4">
+            <p class="font-black">{{ change.get_status_display }}</p>
+            <p class="text-sm text-slate-500">{{ change.created_at }}{% if change.admin_note %} · {{ change.admin_note }}{% endif %}</p>
+          </div>
+        {% empty %}
+          <div class="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500">No pending profile change requests.</div>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+</main>
+{% endblock %}

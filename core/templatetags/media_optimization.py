@@ -4,7 +4,11 @@ from urllib.parse import quote, urljoin, urlsplit
 from django import template
 from django.conf import settings
 
-from core.media_optimization import get_optimized_image_url, get_safe_background_image_url
+from core.media_optimization import (
+    get_optimized_image_url,
+    get_safe_background_image_url,
+    get_verified_optimized_image_url,
+)
 
 
 register = template.Library()
@@ -94,7 +98,7 @@ def seo_media_url(context, image, preset=None):
     request = context.get("request")
 
     if preset:
-        optimized_url = get_optimized_image_url(image, preset)
+        optimized_url = get_verified_optimized_image_url(image, preset)
         optimized_name = _clean_file_name(optimized_url)
         if optimized_name:
             return _build_public_media_url(optimized_name, request=request)
@@ -145,7 +149,7 @@ def product_seo_image_url(context, product=None, merchant_data=None, gallery_ima
         if not _looks_like_public_image(name):
             continue
 
-        optimized_url = get_optimized_image_url(candidate, "seo")
+        optimized_url = get_verified_optimized_image_url(candidate, "seo")
         optimized_name = _clean_file_name(optimized_url) or name
         return _build_public_media_url(optimized_name, request=request)
 

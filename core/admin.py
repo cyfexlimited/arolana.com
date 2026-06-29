@@ -8,14 +8,161 @@ from django.db.models import Sum
 from datetime import timedelta
 from django.utils.timezone import now
 from django.conf import settings
-from .models import AdminAppearance, SiteSettings, PromoBanner, HomePageAppearance
+
+from .models import AdminAppearance, SiteSettings, PromoBanner, HomePageAppearance, ProtectedImageAsset
 from products.models import Product
 from orders.models import Order
 from vendors.models import VendorProfile
 
 
 # =========================
-# ADMIN APPEARANCE
+# PROTECTED IMAGE ASSET ADMIN
+# =========================
+@admin.register(ProtectedImageAsset)
+class ProtectedImageAssetAdmin(admin.ModelAdmin):
+    list_display = (
+        "file_name_short",
+        "content_type",
+        "object_id",
+        "field_name",
+        "image_size",
+        "sha256_short",
+        "perceptual_hash_short",
+        "duplicate_badge",
+        "duplicate_of",
+        "allow_duplicate",
+        "updated_at",
+    )
+
+    list_editable = ("allow_duplicate",)
+    list_per_page = 50
+
+    actions = (
+        "allow_selected_duplicates",
+        "block_selected_duplicates",
+    )
+
+    def get_model_field_names(self):
+        return {field.name for field in self.model._meta.fields}
+
+    def get_list_filter(self, request):
+        fields = self.get_model_field_names()
+        filters = []
+
+        for field in ("is_duplicate", "allow_duplicate", "content_type", "field_name", "updated_at"):
+            if field in fields:
+                filters.append(field)
+
+        return tuple(filters)
+
+    def get_search_fields(self, request):
+        fields = self.get_model_field_names()
+        search_fields = []
+
+        for field in ("file_name", "sha256", "perceptual_hash", "duplicate_reason", "field_name"):
+            if field in fields:
+                search_fields.append(field)
+
+        return tuple(search_fields)
+
+    def get_readonly_fields(self, request, obj=None):
+        fields = self.get_model_field_names()
+        readonly = []
+
+        for field in (
+            "content_type",
+            "object_id",
+            "field_name",
+            "file_name",
+            "sha256",
+            "perceptual_hash",
+            "width",
+            "height",
+            "size_bytes",
+            "is_duplicate",
+            "duplicate_of",
+            "created_at",
+            "updated_at",
+        ):
+            if field in fields:
+                readonly.append(field)
+
+        return tuple(readonly)
+
+    def file_name_short(self, obj):
+        name = str(getattr(obj, "file_name", "") or "")
+        if not name:
+            return "-"
+        return name if len(name) <= 75 else f"...{name[-75:]}"
+    file_name_short.short_description = "File"
+
+    def sha256_short(self, obj):
+        value = getattr(obj, "sha256", "") or ""
+        return value[:16] if value else "-"
+    sha256_short.short_description = "SHA-256"
+
+    def perceptual_hash_short(self, obj):
+        value = getattr(obj, "perceptual_hash", "") or ""
+        return value[:16] if value else "-"
+    perceptual_hash_short.short_description = "pHash"
+
+    def image_size(self, obj):
+        width = getattr(obj, "width", None)
+        height = getattr(obj, "height", None)
+        if width and height:
+            return f"{width} × {height}"
+        return "-"
+    image_size.short_description = "Size"
+
+    def duplicate_badge(self, obj):
+        if getattr(obj, "allow_duplicate", False):
+            return format_html(
+                '<span style="background:#2563eb;color:#fff;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700;">Approved Shared</span>'
+            )
+
+        if getattr(obj, "is_duplicate", False):
+            return format_html(
+                '<span style="background:#dc2626;color:#fff;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700;">Duplicate / Review</span>'
+            )
+
+        return format_html(
+            '<span style="background:#059669;color:#fff;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700;">Original</span>'
+        )
+    duplicate_badge.short_description = "Status"
+
+    @admin.action(description="✅ Allow selected duplicate/shared images")
+    def allow_selected_duplicates(self, request, queryset):
+        update_data = {"allow_duplicate": True}
+        fields = self.get_model_field_names()
+
+        if "reviewed_by" in fields:
+            update_data["reviewed_by"] = request.user
+        if "reviewed_at" in fields:
+            update_data["reviewed_at"] = now()
+        if "duplicate_status" in fields:
+            update_data["duplicate_status"] = "approved"
+
+        updated = queryset.update(**update_data)
+        self.message_user(request, f"✅ {updated} image asset(s) approved for duplicate/shared use.")
+
+    @admin.action(description="❌ Block selected duplicate/shared images")
+    def block_selected_duplicates(self, request, queryset):
+        update_data = {"allow_duplicate": False}
+        fields = self.get_model_field_names()
+
+        if "reviewed_by" in fields:
+            update_data["reviewed_by"] = request.user
+        if "reviewed_at" in fields:
+            update_data["reviewed_at"] = now()
+        if "duplicate_status" in fields:
+            update_data["duplicate_status"] = "rejected"
+
+        updated = queryset.update(**update_data)
+        self.message_user(request, f"❌ {updated} image asset duplicate approval(s) removed.")
+
+
+# =========================
+# ADMIN APPEARANCE FORM
 # =========================
 class AdminAppearanceForm(forms.ModelForm):
     color_fields = (
@@ -40,6 +187,7 @@ class AdminAppearanceForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
         for field_name in self.color_fields:
             if field_name in self.fields:
                 self.fields[field_name].widget = forms.TextInput(attrs={'type': 'color'})
@@ -108,7 +256,7 @@ class AdminAppearanceAdmin(admin.ModelAdmin):
 
 
 # =========================
-# 🔥 GLOBAL STATS FUNCTION
+# GLOBAL STATS FUNCTION
 # =========================
 def get_admin_stats():
     User = get_user_model()
@@ -124,7 +272,7 @@ def get_admin_stats():
 
 
 # =========================
-# 🔥 SITE SETTINGS ADMIN
+# SITE SETTINGS ADMIN
 # =========================
 @admin.register(SiteSettings)
 class SiteSettingsAdmin(admin.ModelAdmin):
@@ -186,7 +334,6 @@ class SiteSettingsAdmin(admin.ModelAdmin):
                 obj.site_logo.url
             )
         return mark_safe('<span style="color:#999;">No Logo</span>')
-
     logo_preview.short_description = "Logo"
 
     def admin_logo_preview(self, obj):
@@ -198,8 +345,9 @@ class SiteSettingsAdmin(admin.ModelAdmin):
                 '</div>',
                 obj.site_logo.url
             )
-        return mark_safe('<span style="color:#64748b;">No uploaded logo yet. The admin will use the fallback static logo until you upload one here.</span>')
-
+        return mark_safe(
+            '<span style="color:#64748b;">No uploaded logo yet. The admin will use the fallback static logo until you upload one here.</span>'
+        )
     admin_logo_preview.short_description = "Current admin logo"
 
     def smart_chat_bot_preview(self, obj):
@@ -214,7 +362,6 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         return mark_safe(
             '<span style="color:#64748b;">No Smart Chat image uploaded. The Arolana fallback logo will be used.</span>'
         )
-
     smart_chat_bot_preview.short_description = "Current Smart Chat bot image"
 
     def has_delete_permission(self, request, obj=None):
@@ -224,10 +371,8 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         return not SiteSettings.objects.exists()
 
 
-
-
 # =========================
-# 🔥 HOMEPAGE APPEARANCE ADMIN
+# HOMEPAGE APPEARANCE ADMIN
 # =========================
 @admin.register(HomePageAppearance)
 class HomePageAppearanceAdmin(admin.ModelAdmin):
@@ -270,7 +415,6 @@ class HomePageAppearanceAdmin(admin.ModelAdmin):
     )
 
     def has_add_permission(self, request):
-        # Only one homepage appearance settings row is needed.
         if HomePageAppearance.objects.exists():
             return False
         return super().has_add_permission(request)
@@ -292,7 +436,6 @@ class HomePageAppearanceAdmin(admin.ModelAdmin):
             )
         except Exception:
             return "Desktop image exists but preview failed."
-
     desktop_preview.short_description = "Desktop Preview"
 
     def mobile_preview(self, obj):
@@ -309,12 +452,11 @@ class HomePageAppearanceAdmin(admin.ModelAdmin):
             )
         except Exception:
             return "Mobile image exists but preview failed."
-
     mobile_preview.short_description = "Mobile Preview"
 
 
 # =========================
-# 🔥 PROMO BANNER ADMIN
+# PROMO BANNER ADMIN
 # =========================
 @admin.register(PromoBanner)
 class PromoBannerAdmin(admin.ModelAdmin):
@@ -371,7 +513,6 @@ class PromoBannerAdmin(admin.ModelAdmin):
             subtitle,
             obj.button_text or "CTA"
         )
-
     preview.short_description = "Preview"
 
     def get_queryset(self, request):
@@ -379,7 +520,7 @@ class PromoBannerAdmin(admin.ModelAdmin):
 
 
 # =========================
-# 🔥 CUSTOM ADMIN SITE
+# CUSTOM ADMIN SITE
 # =========================
 class CustomAdminSite(admin.AdminSite):
     site_header = "Arolana Admin"
@@ -395,20 +536,18 @@ class CustomAdminSite(admin.AdminSite):
         return context
 
 
-# Create custom admin site instance
 custom_admin_site = CustomAdminSite(name="custom_admin")
-
-# Register core models with custom admin site
 custom_admin_site.register(Group)
 
-# Update the default admin settings
+
 admin.site.site_header = 'Arolana Administration'
 admin.site.site_title = 'Arolana Admin'
 admin.site.index_title = 'Dashboard'
 admin.site.site_url = '/'
 
+
 # =========================
-# 🔥 DASHBOARD CONTEXT
+# DASHBOARD CONTEXT
 # =========================
 def admin_dashboard_context(request):
     """Context processor for admin dashboard"""

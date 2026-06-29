@@ -88,36 +88,8 @@
 {% endblock %}
 
 {% block seo_extra %}
-{# FINAL: calculate inside this block so Product JSON-LD receives the image. #}
-{% product_merchant_metadata product "NGN" as merchant_data %}
-{% product_seo_image_url product merchant_data gallery_images as product_final_seo_image_url %}
-
 <script type="application/ld+json">
-{
-  "@context": "https://schema.org/",
-  "@type": "Product",
-  "name": "{{ product.name|escapejs }}",
-  "description": "{{ seo_description|default:product.meta_description|default:product.description|striptags|truncatechars:300|escapejs }}",
-  {% if product.sku %}"sku": "{{ product.sku|escapejs }}",{% endif %}
-  {% if product.mpn %}"mpn": "{{ product.mpn|escapejs }}",{% endif %}
-  {% if product.brand %}"brand": {"@type": "Brand", "name": "{{ product.brand.name|default:product.brand|escapejs }}"},{% endif %}
-  {% if product.category %}"category": "{{ product.category.name|escapejs }}",{% endif %}
-  {% if product_final_seo_image_url %}"image": ["{{ product_final_seo_image_url|escapejs }}"],{% endif %}
-  {% if canonical_url %}"url": "{{ canonical_url|escapejs }}",{% else %}"url": "{{ request.scheme }}://{{ request.get_host }}{{ product.get_absolute_url }}",{% endif %}
-  "offers": {
-    "@type": "Offer",
-    {% if canonical_url %}"url": "{{ canonical_url|escapejs }}",{% else %}"url": "{{ request.scheme }}://{{ request.get_host }}{{ product.get_absolute_url }}",{% endif %}
-    "priceCurrency": "NGN",
-    "price": "{{ product.price|default:'0.00' }}",
-    "availability": "{% if product.is_in_stock %}https://schema.org/InStock{% else %}https://schema.org/OutOfStock{% endif %}",
-    "itemCondition": "https://schema.org/NewCondition",
-    "seller": {
-      "@type": "Organization",
-      "name": "Arolana",
-      "url": "{{ request.scheme }}://{{ request.get_host }}"
-    }
-  }
-}
+{% product_schema_ld product "NGN" %}
 </script>
 
 {% product_faq_schema_json product as product_faq_schema %}

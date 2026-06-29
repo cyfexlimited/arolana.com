@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.contrib.contenttypes.models import ContentType
 from django.core.validators import RegexValidator, MinValueValidator, MaxValueValidator
 from django.db import models
 from core.local_cache import local_delete
@@ -15,6 +17,62 @@ class BaseModel(models.Model):
     
     class Meta:
         abstract = True
+
+
+class ProtectedImageAsset(models.Model):
+    """Hash registry for uploaded images so Arolana can detect unsafe duplicates."""
+
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField(db_index=True)
+    field_name = models.CharField(max_length=100, db_index=True)
+    file_name = models.CharField(max_length=500, db_index=True)
+    sha256 = models.CharField(max_length=64, db_index=True)
+    perceptual_hash = models.CharField(max_length=32, blank=True, db_index=True)
+    width = models.PositiveIntegerField(null=True, blank=True)
+    height = models.PositiveIntegerField(null=True, blank=True)
+    size_bytes = models.PositiveIntegerField(null=True, blank=True)
+    is_duplicate = models.BooleanField(default=False, db_index=True)
+    duplicate_of = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="duplicate_assets",
+    )
+    allow_duplicate = models.BooleanField(
+        default=False,
+        help_text="Admin override for legitimate shared manufacturer/product images.",
+    )
+    duplicate_reason = models.TextField(blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="reviewed_protected_images",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-updated_at",)
+        indexes = [
+            models.Index(fields=("content_type", "object_id")),
+            models.Index(fields=("sha256", "is_duplicate")),
+            models.Index(fields=("perceptual_hash", "is_duplicate")),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=("content_type", "object_id", "field_name", "file_name"),
+                name="unique_protected_image_asset",
+            )
+        ]
+        verbose_name = "Protected Image Asset"
+        verbose_name_plural = "Protected Image Assets"
+
+    def __str__(self):
+        return f"{self.content_type} #{self.object_id} {self.field_name}"
 
 class SiteSettings(BaseModel):
     # Basic Information

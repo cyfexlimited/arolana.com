@@ -19,7 +19,7 @@ from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from core.local_cache import local_get_or_set
 from core.models import HomePageAppearance
-from core.media_optimization import get_optimized_image_url
+from core.media_optimization import get_optimized_image_url, optimized_name_for
 from .models import (
     Product, Category, ProductReview, Wishlist, RecentlyViewed, 
     ProductVariant, ProductQuestion, Accessory, AccessoryProduct,
@@ -2538,12 +2538,31 @@ def parse_price_safe(value):
         return Decimal("0")
 
 
+def _mobile_storage_file_is_openable(storage, name):
+    if not storage or not name:
+        return False
+    try:
+        media_file = storage.open(name, "rb")
+        media_file.close()
+        return True
+    except Exception:
+        return False
+
+
 def _mobile_file_url(request, file_field, preset=None):
     if not file_field:
         return None
 
     try:
-        file_url = get_optimized_image_url(file_field, preset) if preset else file_field.url
+        if preset:
+            optimized_name = optimized_name_for(getattr(file_field, "name", ""), preset)
+            storage = getattr(file_field, "storage", None)
+            if _mobile_storage_file_is_openable(storage, optimized_name):
+                file_url = storage.url(optimized_name)
+            else:
+                file_url = file_field.url
+        else:
+            file_url = file_field.url
     except Exception:
         try:
             file_url = file_field.url
@@ -2553,6 +2572,18 @@ def _mobile_file_url(request, file_field, preset=None):
     if file_url.startswith("http://") or file_url.startswith("https://"):
         return file_url
 
+    return request.build_absolute_uri(file_url)
+
+
+def _mobile_original_file_url(request, file_field):
+    if not file_field:
+        return None
+    try:
+        file_url = file_field.url
+    except Exception:
+        return None
+    if file_url.startswith(("http://", "https://")):
+        return file_url
     return request.build_absolute_uri(file_url)
 
 
@@ -2601,7 +2632,8 @@ def _mobile_category_article_payload(request, article_link):
         "teaser": strip_tags(article_link.display_teaser or "")[:220],
         "placement": article_link.placement,
         "open_behavior": article_link.open_behavior,
-        "image": _mobile_file_url(request, image, preset="ad_card") if image else "",
+        "image": _mobile_file_url(request, image, preset="blog_card") if image else "",
+        "thumbnail_url": _mobile_file_url(request, image, preset="blog_card") if image else "",
         "url": request.build_absolute_uri(article_link.article_url),
         "reading_time": getattr(article, "reading_time", None),
     }
@@ -2626,14 +2658,24 @@ def _mobile_category_payload(request, category, include_children=True):
         approval_status="approved",
     ).count()
     subcategory_count = category.children.filter(is_active=True).count()
+    category_image = getattr(category, "image", None)
+    category_background = getattr(category, "background_image", None)
 
     return {
         "id": category.id,
         "name": category.name,
         "slug": category.slug,
         "description": strip_tags(category.description or "")[:180],
-        "image": _mobile_file_url(request, getattr(category, "image", None), preset="category_card"),
-        "background_image": _mobile_file_url(request, getattr(category, "background_image", None), preset="category_banner"),
+        "image": _mobile_file_url(request, category_image, preset="category_card"),
+        "thumbnail_url": _mobile_file_url(request, category_image, preset="category_card"),
+        "background_image": _mobile_file_url(request, category_background, preset="category_banner"),
+        "image_url": _mobile_file_url(request, category_background or category_image, preset="category_banner"),
+        "category_image_url": _mobile_file_url(request, category_image, preset="category_card"),
+        "category_banner_url": _mobile_file_url(request, category_background, preset="category_banner"),
+        "category_icon": getattr(category, "icon", "") or "",
+        "category_icon_url": "",
+        "fallback_image_url": "",
+        "original_url": _mobile_original_file_url(request, category_background or category_image),
         "url": request.build_absolute_uri(reverse("products:category", args=[category.slug])),
         "hero_title": getattr(category, "hero_title", "") or "",
         "hero_subtitle": getattr(category, "hero_subtitle", "") or "",
@@ -2872,8 +2914,10 @@ def _mobile_vendor_payload(request, vendor_profile, include_products=False):
         "state": getattr(vendor_profile, "state", ""),
         "location": getattr(vendor_profile, "location_label", ""),
         "location_label": getattr(vendor_profile, "location_label", ""),
-        "logo": _mobile_file_url(request, getattr(vendor_profile, "store_logo", None)),
-        "banner": _mobile_file_url(request, getattr(vendor_profile, "store_banner", None)),
+        "logo": _mobile_file_url(request, getattr(vendor_profile, "store_logo", None), preset="logo"),
+        "logo_url": _mobile_file_url(request, getattr(vendor_profile, "store_logo", None), preset="logo"),
+        "banner": _mobile_file_url(request, getattr(vendor_profile, "store_banner", None), preset="hero_banner"),
+        "banner_url": _mobile_file_url(request, getattr(vendor_profile, "store_banner", None), preset="hero_banner"),
         "description": getattr(vendor_profile, "description", ""),
         "verified": bool(getattr(vendor_profile, "is_verified", False)),
         "is_verified": bool(getattr(vendor_profile, "is_verified", False)),
@@ -2933,7 +2977,7 @@ def _mobile_vendor_payload(request, vendor_profile, include_products=False):
 
 def _mobile_ad_payload(request, ad, ad_type):
     if ad_type == "creative":
-        image = _mobile_file_url(request, getattr(ad, "image_mobile", None) or getattr(ad, "image", None), preset="ad_card")
+        image = _mobile_file_url(request, getattr(ad, "image_mobile", None) or getattr(ad, "image", None), preset="ad")
         return {
             "id": f"creative-{ad.id}",
             "type": "creative",
@@ -2944,11 +2988,12 @@ def _mobile_ad_payload(request, ad, ad_type):
             "cta_text_color": ad.cta_text_color,
             "url": ad.clickthrough_url,
             "image": image,
+            "thumbnail_url": image,
             "creative_type": ad.creative_type,
         }
 
     if ad_type == "banner":
-        image = _mobile_file_url(request, getattr(ad, "image_mobile", None) or getattr(ad, "image", None), preset="ad_card")
+        image = _mobile_file_url(request, getattr(ad, "image_mobile", None) or getattr(ad, "image", None), preset="ad")
         placement = getattr(ad, "placement", None)
         return {
             "id": f"banner-{ad.id}",
@@ -2960,6 +3005,7 @@ def _mobile_ad_payload(request, ad, ad_type):
             "cta_text_color": ad.cta_text_color,
             "url": ad.target_url,
             "image": image,
+            "thumbnail_url": image,
             "video_url": ad.video_url,
             "mobile_height": ad.mobile_height_override or ad.height_override or (placement.height if placement else 220),
             "mobile_width": ad.mobile_width_override or ad.width_override or (placement.width if placement else 1200),
@@ -2967,7 +3013,7 @@ def _mobile_ad_payload(request, ad, ad_type):
             "image_fit": ad.image_fit,
         }
 
-    image = _mobile_file_url(request, getattr(ad, "image", None), preset="ad_card")
+    image = _mobile_file_url(request, getattr(ad, "image", None), preset="ad")
     return {
         "id": f"ad-{ad.id}",
         "type": "simple",
@@ -2978,6 +3024,7 @@ def _mobile_ad_payload(request, ad, ad_type):
         "cta_text_color": ad.button_text_color,
         "url": ad.target_url,
         "image": image,
+        "thumbnail_url": image,
         "is_featured": ad.is_featured,
     }
 
@@ -3069,7 +3116,7 @@ def _mobile_home_video_payload(request):
         "embed_url": embed_url,
         "youtube_id": video.youtube_id,
         "vimeo_id": video.vimeo_id,
-        "poster_image": _mobile_file_url(request, video.poster_image),
+        "poster_image": _mobile_file_url(request, video.poster_image, preset="video_thumb"),
         "position": video.position,
         "info_position": video.info_position,
         "video_height": video.video_height,
@@ -3123,6 +3170,20 @@ def _mobile_product_payload(request, product):
     if subscription_badge:
         badges.append(subscription_badge)
 
+    primary_image = _mobile_get_value(
+        product,
+        "image",
+        "main_image",
+        "thumbnail",
+        "featured_image",
+        "product_image",
+        "cover_image",
+        default=None,
+    )
+    thumbnail_url = _mobile_file_url(request, primary_image, preset="product_card")
+    image_url = _mobile_file_url(request, primary_image, preset="product_detail")
+    original_url = _mobile_original_file_url(request, primary_image)
+
     return {
         "id": product.id,
         "name": _mobile_get_value(product, "name", "title", "product_name", default="Unnamed product"),
@@ -3157,7 +3218,10 @@ def _mobile_product_payload(request, product):
         "is_bestseller": bool(getattr(product, "is_bestseller", False)),
         "rating": str(rating or 0),
         "rating_count": getattr(product, "rating_count", 0) or 0,
-        "image": _mobile_get_image_url(request, product),
+        "image": thumbnail_url,
+        "thumbnail_url": thumbnail_url,
+        "image_url": image_url,
+        "original_url": original_url,
         "url": request.build_absolute_uri(reverse("products:detail", args=[product.slug])),
         "vendor_id": getattr(vendor_profile, "id", None),
         "vendor_user_id": getattr(vendor_user, "id", None),
@@ -3236,13 +3300,28 @@ def mobile_home_api(request):
                 "image_fit_tablet": banner.image_fit_tablet,
                 "image_fit_desktop": banner.image_fit_desktop,
                 "image_position_mobile": banner.image_position_mobile,
-                "image_mobile": _mobile_file_url(request, banner.image_mobile, preset="hero"),
-                "image_tablet": _mobile_file_url(request, banner.image_tablet, preset="hero"),
-                "image_desktop": _mobile_file_url(request, banner.image_desktop, preset="hero"),
+                "image_mobile": _mobile_file_url(request, banner.image_mobile, preset="hero_banner"),
+                "image_tablet": _mobile_file_url(request, banner.image_tablet, preset="hero_banner"),
+                "image_desktop": _mobile_file_url(request, banner.image_desktop, preset="hero_banner"),
                 "image": _mobile_file_url(
                     request,
                     banner.image_mobile or banner.image_tablet or banner.image_desktop,
-                    preset="mobile_hero" if banner.image_mobile else "hero_banner",
+                    preset="hero_banner",
+                ),
+                "hero_title": banner.title,
+                "hero_subtitle": banner.subtitle,
+                "hero_cta_text": banner.button1_text,
+                "hero_cta_url": banner.button1_url,
+                "hero_mobile_image_url": _mobile_file_url(request, banner.image_mobile, preset="hero_banner"),
+                "hero_image_url": _mobile_file_url(
+                    request,
+                    banner.image_desktop or banner.image_tablet or banner.image_mobile,
+                    preset="hero_banner",
+                ),
+                "hero_background_url": _mobile_file_url(
+                    request,
+                    banner.image_mobile or banner.image_desktop or banner.image_tablet,
+                    preset="hero_banner",
                 ),
                 "source": "hero_banners",
             })
@@ -3770,31 +3849,36 @@ def mobile_product_detail_api(request, slug):
     )
 
     def safe_url(file_field, preset=None):
-        if not file_field:
-            return None
-        try:
-            url = get_optimized_image_url(file_field, preset) if preset else file_field.url
-        except Exception:
-            try:
-                url = file_field.url
-            except Exception:
-                return None
-
-        if url.startswith("http://") or url.startswith("https://"):
-            return url
-
-        return request.build_absolute_uri(url)
+        return _mobile_file_url(request, file_field, preset=preset)
 
     images = []
+    gallery = []
 
     main_image = safe_url(getattr(product, "main_image", None), "product_detail")
+    main_thumbnail = safe_url(getattr(product, "main_image", None), "product_card")
+    main_gallery_image = safe_url(getattr(product, "main_image", None), "product_gallery")
+    main_original = _mobile_original_file_url(request, getattr(product, "main_image", None))
     if main_image:
         images.append(main_image)
+        gallery.append({
+            "image_url": main_gallery_image or main_image,
+            "thumbnail_url": main_gallery_image or main_thumbnail or main_image,
+            "detail_url": main_image,
+            "original_url": main_original,
+            "is_main": True,
+        })
 
     for image in product.images.all():
         image_url = safe_url(getattr(image, "image", None), "product_gallery")
         if image_url and image_url not in images:
             images.append(image_url)
+            gallery.append({
+                "id": image.id,
+                "image_url": image_url,
+                "thumbnail_url": image_url,
+                "original_url": _mobile_original_file_url(request, getattr(image, "image", None)),
+                "is_main": bool(getattr(image, "is_main", False)),
+            })
 
     variants = []
     for variant in product.variants.filter(is_active=True):
@@ -3817,6 +3901,9 @@ def mobile_product_detail_api(request, slug):
             "stock_quantity": getattr(variant, "stock_quantity", 0),
             "color_code": getattr(variant, "color_code", ""),
             "image": variant_image,
+            "image_url": variant_image,
+            "thumbnail_url": safe_url(getattr(variant, "image", None), "product_gallery"),
+            "original_url": _mobile_original_file_url(request, getattr(variant, "image", None)),
             "images": variant_images,
         })
 
@@ -4005,7 +4092,10 @@ def mobile_product_detail_api(request, slug):
             "description": getattr(accessory, "description", ""),
             "price": str(accessory.price),
             "compare_price": str(accessory.compare_price or ""),
-            "image": safe_url(getattr(accessory, "image", None)),
+            "image": safe_url(getattr(accessory, "image", None), "product_card"),
+            "thumbnail_url": safe_url(getattr(accessory, "image", None), "product_card"),
+            "image_url": safe_url(getattr(accessory, "image", None), "product_detail"),
+            "original_url": _mobile_original_file_url(request, getattr(accessory, "image", None)),
             "required": accessory_link.required,
             "discount_when_bought_together": str(accessory_link.discount_when_bought_together),
         })
@@ -4110,7 +4200,12 @@ def mobile_product_detail_api(request, slug):
         },
         "vendor_contact_options": vendor_contact_options,
         "image": main_image,
+        "main_image_url": main_image,
+        "thumbnail_url": main_thumbnail,
+        "image_url": main_image,
+        "original_url": main_original,
         "images": images,
+        "gallery": gallery,
         "variants": variants,
         "videos": videos,
         "reviews": reviews,

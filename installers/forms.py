@@ -27,7 +27,10 @@ class ProviderRegistrationForm(StyledModelForm):
             "business_name", "contact_person", "provider_type", "phone_number",
             "whatsapp_number", "email", "website", "country", "state", "city",
             "address", "service_coverage", "description", "years_of_experience",
-            "cac_number", "government_id_upload", "profile_image",
+            "cac_number", "government_id_upload", "cac_certificate_upload",
+            "profile_image", "business_logo", "business_banner",
+            "preferred_language", "support_phone", "support_email", "support_whatsapp",
+            "business_hours", "availability_note",
         ]
         widgets = {
             "description": forms.Textarea(attrs={"rows": 5}),
@@ -58,10 +61,13 @@ class ServiceQuoteRequestForm(StyledModelForm):
         fields = [
             "provider", "category", "product", "name", "phone", "whatsapp",
             "email", "state", "city", "address", "service_needed", "message",
+            "preferred_date", "preferred_time", "budget", "contact_preference", "urgency",
         ]
         widgets = {
             "address": forms.Textarea(attrs={"rows": 3}),
             "message": forms.Textarea(attrs={"rows": 5}),
+            "preferred_date": forms.DateInput(attrs={"type": "date"}),
+            "preferred_time": forms.TimeInput(attrs={"type": "time"}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -87,4 +93,3 @@ class ServiceReviewForm(StyledModelForm):
             "timeliness_rating": forms.Select(choices=[(value, value) for value in range(5, 0, -1)]),
             "comment": forms.Textarea(attrs={"rows": 5}),
         }
-

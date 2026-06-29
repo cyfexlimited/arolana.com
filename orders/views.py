@@ -17,6 +17,7 @@ from io import BytesIO
 from .models import DeliveryProvider, DeliveryQuoteRequest, DeliveryRequest, Order, OrderItem, MobilePushToken
 from .services import calculate_delivery_quote, notify_staff_delivery, requires_delivery_admin_quote, select_delivery_provider
 from products.models import Product
+from core.media_optimization import get_optimized_image_url
 
 @login_required
 def orders_home(request):
@@ -1142,9 +1143,13 @@ def _mobile_order_image_url(request, product):
         image = getattr(product, field_name, None)
         if image:
             try:
-                return request.build_absolute_uri(image.url)
+                image_url = get_optimized_image_url(image, "product_card")
+                return image_url if image_url.startswith(("http://", "https://")) else request.build_absolute_uri(image_url)
             except Exception:
-                return str(image)
+                try:
+                    return request.build_absolute_uri(image.url)
+                except Exception:
+                    return ""
 
     try:
         first_image = product.images.first()
@@ -1153,9 +1158,13 @@ def _mobile_order_image_url(request, product):
                 image = getattr(first_image, attr, None)
                 if image:
                     try:
-                        return request.build_absolute_uri(image.url)
+                        image_url = get_optimized_image_url(image, "product_card")
+                        return image_url if image_url.startswith(("http://", "https://")) else request.build_absolute_uri(image_url)
                     except Exception:
-                        return str(image)
+                        try:
+                            return request.build_absolute_uri(image.url)
+                        except Exception:
+                            return ""
     except Exception:
         pass
 
@@ -1212,12 +1221,14 @@ def _mobile_order_items_for_order(order):
 
 def _mobile_order_delivery_payload(order):
     delivery = None
+    is_live_delivery = False
 
-    for related_name in ["delivery_requests", "deliveryrequest_set"]:
+    for related_name in ["live_delivery_requests", "delivery_requests", "deliveryrequest_set"]:
         try:
             manager = getattr(order, related_name)
             delivery = manager.order_by("-created_at").first()
             if delivery:
+                is_live_delivery = related_name == "live_delivery_requests"
                 break
         except Exception:
             continue
@@ -1225,11 +1236,64 @@ def _mobile_order_delivery_payload(order):
     if not delivery:
         return {}
 
+    raw_status = (
+        getattr(delivery, "status", "")
+        or getattr(delivery, "tracking_status", "")
+        or getattr(delivery, "delivery_status", "")
+    )
+    status_map = {
+        "pending_assignment": "pending",
+        "pending": "pending",
+        "assigned": "confirmed",
+        "accepted": "ready_for_pickup",
+        "arrived_pickup": "ready_for_pickup",
+        "picked_up": "dispatched",
+        "shipped": "dispatched",
+        "in_transit": "in_transit",
+        "arrived_customer": "out_for_delivery",
+        "out_for_delivery": "out_for_delivery",
+        "delivered": "delivered",
+        "failed": "failed_delivery",
+        "cancelled": "cancelled",
+        "returned": "returned",
+    }
+    tracking_status = status_map.get(str(raw_status or "").lower(), str(raw_status or "pending").lower())
+
+    history = []
+    if is_live_delivery:
+        try:
+            history = [
+                {
+                    "status": status_map.get(item.status, item.status),
+                    "raw_status": item.status,
+                    "label": item.get_status_display(),
+                    "note": item.note,
+                    "location": item.location_label,
+                    "created_at": item.created_at.isoformat() if item.created_at else "",
+                }
+                for item in delivery.status_history.order_by("created_at")
+            ]
+        except Exception:
+            history = []
+
+    rider = getattr(delivery, "rider", None)
+    rider_user = getattr(rider, "user", None) if rider else None
     return {
         "tracking_code": getattr(delivery, "tracking_code", "") or getattr(order, "tracking_number", ""),
-        "delivery_status": getattr(delivery, "status", "") or getattr(delivery, "delivery_status", ""),
-        "tracking_status": getattr(delivery, "status", "") or getattr(delivery, "delivery_status", ""),
+        "delivery_status": tracking_status,
+        "tracking_status": tracking_status,
+        "tracking_status_raw": str(raw_status or ""),
+        "tracking_status_display": str(tracking_status).replace("_", " ").title(),
         "delivery_fee": str(getattr(delivery, "delivery_fee", "") or getattr(delivery, "fee", "") or getattr(order, "shipping_cost", "") or 0),
+        "rider_name": str(
+            getattr(rider, "full_name", "")
+            or (rider_user.get_full_name() if rider_user else "")
+            or getattr(delivery, "driver_name", "")
+        ),
+        "rider_phone": str(getattr(rider, "phone", "") or getattr(delivery, "driver_phone", "") or ""),
+        "delivery_address": str(getattr(delivery, "dropoff_address", "") or getattr(order, "shipping_address", "") or ""),
+        "tracking_history": history,
+        "tracking_updated_at": delivery.updated_at.isoformat() if getattr(delivery, "updated_at", None) else "",
     }
 
 
@@ -1423,6 +1487,85 @@ def mobile_authenticated_orders_history_api(request):
             "count": orders.count() if hasattr(orders, "count") else len(orders),
         }
     )
+
+
+def _mobile_customer_order_queryset(customer):
+    ownership = Q()
+    if getattr(customer, "user_id", None):
+        ownership |= Q(user=customer.user)
+    if hasattr(Order, "customer_phone"):
+        ownership |= Q(customer_phone=customer.phone_number)
+    return (
+        Order.objects.filter(ownership)
+        .prefetch_related(
+            "items__product",
+            "delivery_requests",
+            "live_delivery_requests__rider__user",
+            "live_delivery_requests__status_history",
+        )
+        .distinct()
+    )
+
+
+@require_GET
+def mobile_authenticated_order_detail_api(request, order_id):
+    try:
+        customer = _mobile_order_auth_customer(request)
+    except PermissionError as error:
+        return _mobile_order_json_error(error, status=403)
+    except Exception as error:
+        return _mobile_order_json_error(error, status=400)
+
+    order = _mobile_customer_order_queryset(customer).filter(id=order_id).first()
+    if not order:
+        return _mobile_order_json_error("Order not found for this customer.", status=404)
+    return JsonResponse({"success": True, "order": _mobile_order_payload(request, order)})
+
+
+@require_GET
+def mobile_authenticated_order_tracking_api(request, order_id):
+    try:
+        customer = _mobile_order_auth_customer(request)
+    except PermissionError as error:
+        return _mobile_order_json_error(error, status=403)
+    except Exception as error:
+        return _mobile_order_json_error(error, status=400)
+
+    order = _mobile_customer_order_queryset(customer).filter(id=order_id).first()
+    if not order:
+        return _mobile_order_json_error("Order not found for this customer.", status=404)
+    payload = _mobile_order_payload(request, order)
+    if payload.get("payment_status") == "paid" and payload.get("tracking_status") in {"", "pending"}:
+        payload["tracking_message"] = "Payment is confirmed. Your order is pending pickup/dispatch."
+    elif payload.get("tracking_status") in {"", "pending"}:
+        payload["tracking_message"] = "Your order is pending pickup/dispatch."
+    else:
+        payload["tracking_message"] = f"Delivery is {payload.get('tracking_status_display', 'being updated').lower()}."
+    return JsonResponse({"success": True, "tracking": payload, "order": payload})
+
+
+@require_GET
+def mobile_authenticated_tracking_code_api(request, tracking_code):
+    try:
+        customer = _mobile_order_auth_customer(request)
+    except PermissionError as error:
+        return _mobile_order_json_error(error, status=403)
+    except Exception as error:
+        return _mobile_order_json_error(error, status=400)
+
+    order = (
+        _mobile_customer_order_queryset(customer)
+        .filter(
+            Q(live_delivery_requests__tracking_code__iexact=tracking_code)
+            | Q(delivery_requests__tracking_code__iexact=tracking_code)
+            | Q(tracking_number__iexact=tracking_code)
+        )
+        .first()
+    )
+    if not order:
+        return _mobile_order_json_error("Tracking code not found for this customer.", status=404)
+    payload = _mobile_order_payload(request, order)
+    return JsonResponse({"success": True, "tracking": payload, "order": payload})
 
 
 def _mobile_cancel_json_body(request):

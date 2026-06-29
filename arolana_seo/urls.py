@@ -8,6 +8,7 @@ urlpatterns = [
     path("sitemap.xml", views.main_sitemap_xml, name="main_sitemap_xml"),
     path("static/sitemap.xml", views.static_sitemap_xml, name="static_sitemap_xml"),
     path("products/sitemap.xml", views.product_sitemap_xml, name="product_sitemap_xml"),
+    path("products/images-sitemap.xml", views.product_image_sitemap_xml, name="product_image_sitemap_xml"),
     path("categories/sitemap.xml", views.category_sitemap_xml, name="category_sitemap_xml"),
     path("vendors/sitemap.xml", views.vendor_sitemap_xml, name="vendor_sitemap_xml"),
     path("blog/sitemap.xml", views.blog_sitemap_xml, name="blog_sitemap_xml"),

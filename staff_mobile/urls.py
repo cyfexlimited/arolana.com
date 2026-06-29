@@ -1,11 +1,24 @@
 from django.urls import path
 
+from installers import api_views as installer_api_views
+
 from . import views
 
 app_name = "staff_mobile"
 
 urlpatterns = [
+    path("api/mobile/auth/login/", views.staff_login_api, name="mobile_auth_login_api"),
+    path("api/mobile/auth/verify-otp/", views.staff_login_verify_otp_api, name="mobile_auth_verify_otp_api"),
+    path("api/mobile/auth/resend-otp/", views.staff_login_resend_otp_api, name="mobile_auth_resend_otp_api"),
+    path("api/mobile/auth/forgot-password/", views.staff_forgot_password_api, name="mobile_auth_forgot_password_api"),
+    path("api/mobile/auth/reset-password/", views.staff_reset_password_api, name="mobile_auth_reset_password_api"),
+    path("api/mobile/auth/me/", views.staff_me_api, name="mobile_auth_me_api"),
+    path("api/mobile/auth/logout/", views.staff_logout_api, name="mobile_auth_logout_api"),
     path("api/staff/login/", views.staff_login_api, name="staff_login_api_staff"),
+    path("api/staff/login/verify-otp/", views.staff_login_verify_otp_api, name="staff_login_verify_otp_api"),
+    path("api/staff/login/resend-otp/", views.staff_login_resend_otp_api, name="staff_login_resend_otp_api"),
+    path("api/mobile/staff/login/verify-otp/", views.staff_login_verify_otp_api, name="mobile_staff_login_verify_otp_api"),
+    path("api/mobile/staff/login/resend-otp/", views.staff_login_resend_otp_api, name="mobile_staff_login_resend_otp_api"),
     path("api/staff-mobile/login/", views.staff_login_api, name="staff_login_api_staff_mobile"),
     path("staff-mobile/login/", views.staff_login_api, name="staff_login_api_legacy"),
     path("api/mobile/staff/login/", views.staff_login_api, name="staff_login_api"),
@@ -23,8 +36,20 @@ urlpatterns = [
     path("api/staff/admin/products/<int:product_id>/<slug:action>/", views.admin_product_action_api, name="admin_product_action_api"),
     path("api/staff/admin/service-providers/", views.admin_service_providers_api, name="admin_service_providers_api"),
     path("api/staff/admin/service-providers/<int:provider_id>/<slug:action>/", views.admin_service_provider_action_api, name="admin_service_provider_action_api"),
+    path("api/admin/provider-applications/", views.admin_service_providers_api, name="admin_provider_applications_api"),
+    path("api/admin/provider-applications/<int:provider_id>/<slug:action>/", views.admin_service_provider_action_api, name="admin_provider_application_action_api"),
+    path("api/staff/admin/provider-change-requests/", views.admin_provider_change_requests_api, name="admin_provider_change_requests_api"),
+    path("api/staff/admin/provider-change-requests/<int:change_id>/<slug:action>/", views.admin_provider_change_request_action_api, name="admin_provider_change_request_action_api"),
+    path("api/admin/provider-change-requests/", views.admin_provider_change_requests_api, name="admin_provider_change_requests_alias_api"),
+    path("api/admin/provider-change-requests/<int:change_id>/<slug:action>/", views.admin_provider_change_request_action_api, name="admin_provider_change_request_action_alias_api"),
     path("api/staff/admin/service-quotes/", views.admin_service_quotes_api, name="admin_service_quotes_api"),
     path("api/staff/admin/service-quotes/<int:quote_id>/status/", views.admin_service_quote_status_api, name="admin_service_quote_status_api"),
+    path("api/staff/admin/service-quotes/<int:quote_id>/assign-provider/", views.admin_assign_service_provider_api, name="admin_assign_service_provider_api"),
+    path("api/admin/service-requests/<int:quote_id>/assign-provider/", views.admin_assign_service_provider_api, name="admin_assign_service_provider_public_alias_api"),
+    path("api/staff/provider/dashboard/", views.provider_dashboard_api, name="provider_dashboard_api"),
+    path("api/staff/provider/requests/", views.provider_requests_api, name="provider_requests_api"),
+    path("api/staff/provider/requests/<int:quote_id>/<slug:action>/", views.provider_request_action_api, name="provider_request_action_api"),
+    path("api/staff/provider/notifications/", views.provider_notifications_api, name="provider_notifications_api"),
     path("api/staff/admin/messages/", views.admin_messages_api, name="admin_messages_api"),
     path("api/staff/admin/messages/send/", views.admin_message_send_api, name="admin_message_send_api"),
     path("api/staff/admin/notifications/", views.staff_notifications_api, {"role": "admin"}, name="admin_notifications_api"),
@@ -42,6 +67,7 @@ urlpatterns = [
     path("api/mobile/staff/delivery/update/", views.update_delivery_status_api, name="update_delivery_status_api"),
     path("api/staff/delivery/status/update/", views.update_delivery_status_api, name="staff_delivery_status_update_api"),
     path("api/staff/vendor/register/", views.vendor_register_api, name="vendor_register_api"),
+    path("api/staff/provider/register/", installer_api_views.ProviderRegistrationAPIView.as_view(), name="provider_register_api"),
     path("api/staff/vendor/me/", views.vendor_me_api, name="vendor_me_api"),
     path("api/staff/vendor/profile/update/", views.vendor_profile_update_api, name="vendor_profile_update_api"),
     path("api/staff/vendor/profile/photo/", views.vendor_profile_photo_api, name="vendor_profile_photo_api"),
