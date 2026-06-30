@@ -5,41 +5,83 @@
 {% block extra_css %}
 {{ block.super }}
 <style>
-    .stat-card {
-        transition: all 0.3s ease;
+    .vendor-dashboard-page {
+        color: #0b1f4d;
     }
-    .stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+
+    .vendor-card {
+        border: 1px solid #e2e8f0;
+        background: #ffffff;
+        border-radius: 1.25rem;
+        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+        min-width: 0;
     }
-    .notification-badge {
-        animation: pulse 2s infinite;
+
+    .vendor-card-soft {
+        border: 1px solid #dbeafe;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        border-radius: 1.25rem;
+        min-width: 0;
     }
-    @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.1); }
-        100% { transform: scale(1); }
+
+    .vendor-stat-card {
+        transition: all 0.25s ease;
     }
-    .approval-card {
-        transition: all 0.3s ease;
-    }
-    .approval-card:hover {
+
+    .vendor-stat-card:hover {
         transform: translateY(-3px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
     }
+
+    .vendor-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        border-radius: 999px;
+        padding: 0.35rem 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 900;
+    }
+
+    .vendor-section-toggle summary {
+        cursor: pointer;
+        list-style: none;
+    }
+
+    .vendor-section-toggle summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .vendor-section-toggle[open] .vendor-chevron {
+        transform: rotate(180deg);
+    }
+
+    .vendor-chevron {
+        transition: transform 0.2s ease;
+    }
+
+    .vendor-input {
+        margin-top: 0.35rem;
+        width: 100%;
+        border-radius: 0.9rem;
+        border: 1px solid #dbe3ef;
+        padding: 0.78rem 0.9rem;
+        font-size: 0.92rem;
+        outline: none;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .vendor-input:focus {
+        border-color: #0b72d9;
+        box-shadow: 0 0 0 4px rgba(11, 114, 217, 0.12);
+    }
+
     .notification-item {
         transition: all 0.2s ease;
     }
+
     .notification-item:hover {
-        background-color: #f3f4f6;
-    }
-
-    .vendor-dashboard-card {
-        min-width: 0;
-    }
-
-    .vendor-dashboard-chart-card {
-        min-width: 0;
+        background-color: #f8fafc;
     }
 
     .vendor-dashboard-product-row {
@@ -48,6 +90,10 @@
 
     .vendor-dashboard-product-row p {
         overflow-wrap: anywhere;
+    }
+
+    .vendor-dashboard-table-wrap table {
+        min-width: 760px;
     }
 
     @media (max-width: 768px) {
@@ -81,41 +127,17 @@
             text-align: center;
         }
 
-        .vendor-dashboard-card,
-        .stat-card,
-        .approval-card {
+        .vendor-card,
+        .vendor-card-soft,
+        .vendor-stat-card {
             border-radius: 1rem;
             padding: 1rem;
         }
 
-        .vendor-dashboard-metrics {
-            gap: 1rem;
-        }
-
-        .vendor-dashboard-status-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
+        .vendor-dashboard-status-grid,
         .vendor-dashboard-stats-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 1rem;
-        }
-
-        .vendor-dashboard-chart-grid {
-            gap: 1rem;
-        }
-
-        .vendor-dashboard-product-row {
-            align-items: flex-start;
-            gap: 0.75rem;
-        }
-
-        .vendor-dashboard-product-row > div:first-child {
-            min-width: 0;
-        }
-
-        .vendor-dashboard-table-wrap table {
-            min-width: 760px;
         }
     }
 
@@ -125,615 +147,690 @@
         .vendor-dashboard-stats-grid {
             grid-template-columns: 1fr;
         }
-
-        .vendor-dashboard-card h2,
-        .stat-card p.text-3xl {
-            font-size: 1.75rem;
-        }
     }
 </style>
 {% endblock %}
 
 {% block dashboard_content %}
-<div class="vendor-dashboard-page max-w-7xl mx-auto">
+<div class="vendor-dashboard-page max-w-6xl mx-auto px-2 md:px-0">
+
     <!-- Header -->
-    <div class="vendor-dashboard-header flex justify-between items-center mb-8">
+    <div class="vendor-dashboard-header flex justify-between items-center mb-6">
         <div>
-            <h1 class="text-3xl font-bold">Vendor Dashboard</h1>
+            <p class="text-xs font-black uppercase tracking-[0.22em] text-orange-500">Arolana Vendor</p>
+            <h1 class="text-3xl font-black text-slate-950">Vendor Dashboard</h1>
             <p class="text-gray-600">Welcome back, {{ vendor_profile.store_name }}</p>
         </div>
+
         <div class="vendor-dashboard-actions flex gap-3">
-            <a href="{% url 'vendors:detail' vendor_profile.store_slug %}" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200">
+            <a href="{% url 'vendors:detail' vendor_profile.store_slug %}" class="rounded-full bg-white px-4 py-2 text-sm font-black text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">
                 <i class="fas fa-store"></i> View Store
             </a>
-            <a href="{% url 'dashboard:vendor_add_product' %}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+            <a href="{% url 'dashboard:vendor_add_product' %}" class="rounded-full bg-blue-700 px-4 py-2 text-sm font-black text-white hover:bg-blue-800">
                 <i class="fas fa-plus"></i> Add Product
             </a>
         </div>
     </div>
 
-    <div class="mb-8 overflow-hidden rounded-3xl bg-slate-900 shadow-xl">
-        <div class="relative min-h-[260px] p-6 md:p-8">
+    <!-- Compact Store Hero -->
+    <div class="mb-6 overflow-hidden rounded-3xl bg-slate-900 shadow-xl">
+        <div class="relative min-h-[220px] p-5 md:p-7">
             {% if vendor_profile.store_banner %}
-                <img src="{{ vendor_profile.store_banner|optimized_image_url:'banner' }}" alt="{{ vendor_profile.store_name }} banner" class="absolute inset-0 h-full w-full object-cover opacity-45">
+                <img src="{{ vendor_profile.store_banner|optimized_image_url:'banner' }}" alt="{{ vendor_profile.store_name }} banner" class="absolute inset-0 h-full w-full object-cover opacity-45" loading="lazy" decoding="async">
             {% else %}
                 <div class="absolute inset-0 bg-gradient-to-br from-blue-950 via-blue-800 to-orange-500"></div>
             {% endif %}
-            <div class="absolute inset-0 bg-slate-950/45"></div>
-            <div class="relative z-10 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-                <div class="flex items-center gap-5">
-                    <div class="flex h-24 w-24 items-center justify-center overflow-hidden rounded-3xl border-4 border-white bg-orange-500 text-4xl font-black text-white">
+
+            <div class="absolute inset-0 bg-slate-950/50"></div>
+
+            <div class="relative z-10 grid gap-5 lg:grid-cols-[1fr_320px] lg:items-end">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-end">
+                    <div class="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-3xl border-4 border-white bg-orange-500 text-4xl font-black text-white">
                         {% if vendor_profile.store_logo %}
                             <img src="{{ vendor_profile.store_logo|optimized_image_url:'logo' }}" alt="{{ vendor_profile.store_name }} logo" class="h-full w-full object-cover" loading="lazy" decoding="async" width="128" height="128">
                         {% else %}
                             {{ vendor_profile.store_name|slice:":1"|upper }}
                         {% endif %}
                     </div>
+
                     <div>
                         <h2 class="text-3xl font-black text-white">{{ vendor_profile.store_name }}</h2>
                         <p class="mt-1 text-sm font-bold text-blue-100">{{ vendor_profile.get_vendor_type_display }} · {{ vendor_profile.country|default:"Nigeria" }}</p>
+
                         <div class="mt-3 flex flex-wrap gap-2">
-                            <span class="rounded-full bg-white px-3 py-1 text-xs font-black text-blue-900">{% if vendor_profile.is_verified %}Verified {{ vendor_profile.get_vendor_type_display }}{% else %}Verification Pending{% endif %}</span>
-                            <span class="rounded-full bg-orange-500 px-3 py-1 text-xs font-black text-white">{{ vendor_profile.subscription_plan_label }}</span>
-                            <span class="rounded-full bg-white/90 px-3 py-1 text-xs font-black text-slate-700">{{ vendor_profile.preferred_currency|default:"NGN" }} · {{ vendor_profile.preferred_language|default:"English"|title }}</span>
+                            <span class="vendor-chip bg-white text-blue-900">
+                                {% if vendor_profile.is_verified %}
+                                    <i class="fas fa-check-circle text-green-600"></i> Verified {{ vendor_profile.get_vendor_type_display }}
+                                {% else %}
+                                    <i class="fas fa-clock text-orange-500"></i> Verification Pending
+                                {% endif %}
+                            </span>
+
+                            <span class="vendor-chip bg-orange-500 text-white">
+                                {{ vendor_profile.subscription_plan_label|default:subscription_label }}
+                            </span>
+
+                            <span class="vendor-chip bg-white/90 text-slate-700">
+                                {{ vendor_profile.preferred_currency|default:"NGN" }} · {{ vendor_profile.preferred_language|default:"English"|title }}
+                            </span>
                         </div>
                     </div>
                 </div>
-                <div class="rounded-2xl bg-white/95 p-4 shadow-lg md:w-80">
+
+                <div class="rounded-2xl bg-white/95 p-4 shadow-lg">
                     <div class="flex justify-between text-sm font-black text-slate-700">
                         <span>Profile completion</span>
-                        <span>{{ vendor_profile.profile_completion_percent }}%</span>
+                        <span>{{ vendor_profile.profile_completion_percent|default:0 }}%</span>
                     </div>
+
                     <div class="mt-2 h-3 overflow-hidden rounded-full bg-slate-200">
-                        <div class="h-full rounded-full bg-orange-500" style="width: {{ vendor_profile.profile_completion_percent }}%"></div>
+                        <div class="h-full rounded-full bg-orange-500" style="width: {{ vendor_profile.profile_completion_percent|default:0 }}%"></div>
                     </div>
-                    <p class="mt-3 text-xs font-semibold text-slate-500">Logo, banner, KYC, bank account, pickup address and subscription all improve store trust.</p>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <div class="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <form method="post" enctype="multipart/form-data" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2">
-            {% csrf_token %}
-            <input type="hidden" name="dashboard_action" value="profile_settings">
-            <div class="mb-4 flex items-center justify-between">
-                <h2 class="text-xl font-black text-slate-900">Profile & Store Settings</h2>
-                <button class="rounded-full bg-orange-500 px-5 py-2 text-sm font-black text-white hover:bg-orange-600" type="submit">Save Settings</button>
-            </div>
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <label class="text-sm font-bold text-slate-700">Store name<input name="store_name" value="{{ vendor_profile.store_name }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
-                <label class="text-sm font-bold text-slate-700">Company name<input name="company_name" value="{{ vendor_profile.company_name }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
-                <label class="text-sm font-bold text-slate-700">Vendor type<select name="vendor_type" class="mt-1 w-full rounded-xl border border-slate-200 p-3">{% for value,label in vendor_profile.VENDOR_TYPE_CHOICES %}<option value="{{ value }}" {% if vendor_profile.vendor_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
-                <label class="text-sm font-bold text-slate-700">Address<input name="address_line_1" value="{{ vendor_profile.address_line_1 }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
-                <label class="text-sm font-bold text-slate-700">City<input name="city" value="{{ vendor_profile.city }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
-                <label class="text-sm font-bold text-slate-700">State<input name="state" value="{{ vendor_profile.state }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
-                <label class="text-sm font-bold text-slate-700">Country<input name="country" value="{{ vendor_profile.country }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
-                <label class="text-sm font-bold text-slate-700">Support email<input name="support_email" value="{{ vendor_profile.support_email }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
-                <label class="text-sm font-bold text-slate-700">Support phone<input name="support_phone" value="{{ vendor_profile.support_phone }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
-                <label class="text-sm font-bold text-slate-700">Business phone<input name="business_phone" value="{{ vendor_profile.business_phone }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
-                <label class="text-sm font-bold text-slate-700">WhatsApp<input name="whatsapp_number" value="{{ vendor_profile.whatsapp_number }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
-                <label class="text-sm font-bold text-slate-700">Website<input name="website" value="{{ vendor_profile.website }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
-                <label class="text-sm font-bold text-slate-700">Pickup phone<input name="pickup_phone" value="{{ vendor_profile.pickup_phone }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
-                <label class="text-sm font-bold text-slate-700">Store slogan<input name="store_slogan" value="{{ vendor_profile.store_slogan }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3" placeholder="Premium AV solutions for modern teams"></label>
-                <label class="text-sm font-bold text-slate-700">Accent color<input name="storefront_accent_color" value="{{ vendor_profile.storefront_accent }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3" placeholder="#FF7A00"></label>
-                <label class="text-sm font-bold text-slate-700 md:col-span-2">Store video URL<input name="store_video_url" value="{{ vendor_profile.store_video_url }}" class="mt-1 w-full rounded-xl border border-slate-200 p-3" placeholder="https://youtube.com/..."></label>
-                <label class="text-sm font-bold text-slate-700">Language<select name="preferred_language" class="mt-1 w-full rounded-xl border border-slate-200 p-3">
-                    <option value="english" {% if vendor_profile.preferred_language == "english" %}selected{% endif %}>English</option>
-                    <option value="french" {% if vendor_profile.preferred_language == "french" %}selected{% endif %}>French</option>
-                    <option value="arabic" {% if vendor_profile.preferred_language == "arabic" %}selected{% endif %}>Arabic</option>
-                    <option value="chinese" {% if vendor_profile.preferred_language == "chinese" %}selected{% endif %}>Chinese</option>
-                    <option value="spanish" {% if vendor_profile.preferred_language == "spanish" %}selected{% endif %}>Spanish</option>
-                </select></label>
-                <label class="text-sm font-bold text-slate-700">Currency<select name="preferred_currency" class="mt-1 w-full rounded-xl border border-slate-200 p-3">
-                    <option value="NGN" {% if vendor_profile.preferred_currency == "NGN" %}selected{% endif %}>NGN</option>
-                    <option value="USD" {% if vendor_profile.preferred_currency == "USD" %}selected{% endif %}>USD</option>
-                    <option value="GBP" {% if vendor_profile.preferred_currency == "GBP" %}selected{% endif %}>GBP</option>
-                    <option value="EUR" {% if vendor_profile.preferred_currency == "EUR" %}selected{% endif %}>EUR</option>
-                    <option value="CNY" {% if vendor_profile.preferred_currency == "CNY" %}selected{% endif %}>CNY</option>
-                    <option value="CAD" {% if vendor_profile.preferred_currency == "CAD" %}selected{% endif %}>CAD</option>
-                </select></label>
-                <label class="text-sm font-bold text-slate-700">Logo<input type="file" name="store_logo" accept="image/*" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
-                <label class="text-sm font-bold text-slate-700">Banner<input type="file" name="store_banner" accept="image/*" class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
-            </div>
-            <label class="mt-4 block text-sm font-bold text-slate-700">Store description<textarea name="description" rows="3" class="mt-1 w-full rounded-xl border border-slate-200 p-3">{{ vendor_profile.description }}</textarea></label>
-            <label class="mt-4 block text-sm font-bold text-slate-700">Business address<textarea name="business_address" rows="2" class="mt-1 w-full rounded-xl border border-slate-200 p-3">{{ vendor_profile.business_address }}</textarea></label>
-            <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-                <label class="text-sm font-bold text-slate-700">Featured categories<textarea name="featured_categories" rows="4" class="mt-1 w-full rounded-xl border border-slate-200 p-3" placeholder="One category per line">{{ vendor_profile.featured_categories }}</textarea></label>
-                <label class="text-sm font-bold text-slate-700">Gallery notes / image URLs<textarea name="store_gallery_notes" rows="4" class="mt-1 w-full rounded-xl border border-slate-200 p-3" placeholder="One image URL or note per line">{{ vendor_profile.store_gallery_notes }}</textarea></label>
-                <label class="text-sm font-bold text-slate-700">Business hours<textarea name="business_hours" rows="3" class="mt-1 w-full rounded-xl border border-slate-200 p-3">{{ vendor_profile.business_hours }}</textarea></label>
-                <label class="text-sm font-bold text-slate-700">Featured products note<textarea name="featured_products_note" rows="3" class="mt-1 w-full rounded-xl border border-slate-200 p-3">{{ vendor_profile.featured_products_note }}</textarea></label>
-                <label class="text-sm font-bold text-slate-700">Warranty/support note<textarea name="warranty_note" rows="3" class="mt-1 w-full rounded-xl border border-slate-200 p-3">{{ vendor_profile.warranty_note }}</textarea></label>
-                <label class="text-sm font-bold text-slate-700">Delivery note<textarea name="delivery_note" rows="3" class="mt-1 w-full rounded-xl border border-slate-200 p-3">{{ vendor_profile.delivery_note }}</textarea></label>
-            </div>
-            <label class="mt-4 block text-sm font-bold text-slate-700">Return policy<textarea name="return_policy" rows="3" class="mt-1 w-full rounded-xl border border-slate-200 p-3">{{ vendor_profile.return_policy }}</textarea></label>
-        </form>
-        <form method="post" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            {% csrf_token %}
-            <input type="hidden" name="dashboard_action" value="change_password">
-            <h2 class="text-xl font-black text-slate-900">Security</h2>
-            <p class="mt-1 text-sm leading-6 text-slate-500">
-                Change your vendor password/PIN securely. You will remain signed in, receive an inbox security alert,
-                and a confirmation email will be sent to <strong>{{ request.user.email }}</strong>.
-            </p>
-            <label class="mt-4 block text-sm font-bold text-slate-700">Current password/PIN<input type="password" name="current_password" autocomplete="current-password" required class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
-            <label class="mt-4 block text-sm font-bold text-slate-700">New password/PIN<input type="password" name="new_password" autocomplete="new-password" minlength="8" required class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
-            <label class="mt-4 block text-sm font-bold text-slate-700">Confirm new password/PIN<input type="password" name="confirm_password" autocomplete="new-password" minlength="8" required class="mt-1 w-full rounded-xl border border-slate-200 p-3"></label>
-            <p class="mt-3 rounded-xl bg-blue-50 px-4 py-3 text-xs font-semibold leading-5 text-blue-900">
-                Use at least 8 characters and avoid passwords that are too common or similar to your personal details.
-                Arolana will never include your password in an email.
-            </p>
-            <button class="mt-5 w-full rounded-full bg-blue-700 px-5 py-3 text-sm font-black text-white hover:bg-blue-800" type="submit">Change Password / PIN</button>
-        </form>
-    </div>
-
-    {% if not vendor_profile.pickup_location_is_ready %}
-    <div class="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-950">
-        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div class="flex items-start gap-3">
-                <span class="inline-flex h-11 w-11 flex-none items-center justify-center rounded-full bg-amber-500 text-white">
-                    <i class="fas fa-location-crosshairs"></i>
-                </span>
-                <div>
-                    <h2 class="text-lg font-black">Add your exact pickup location</h2>
-                    <p class="mt-1 text-sm leading-6">
-                        Delivery pricing and nearby rider assignment need your exact store or warehouse map pin.
+                    <p class="mt-3 text-xs font-semibold leading-5 text-slate-500">
+                        Complete logo, banner, KYC, pickup location, address, and subscription to improve trust.
                     </p>
                 </div>
             </div>
-            <a href="{% url 'dashboard:vendor_pickup_location' %}" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-amber-600 px-5 py-2.5 text-sm font-black text-white hover:bg-amber-700">
-                <i class="fas fa-map-location-dot"></i>
-                Set Pickup Pin
-            </a>
         </div>
     </div>
-    {% else %}
-    <div class="mb-6 rounded-2xl border border-green-200 bg-green-50 p-4 text-green-900">
-        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div class="flex items-center gap-3">
-                <span class="inline-flex h-10 w-10 flex-none items-center justify-center rounded-full bg-green-600 text-white">
-                    <i class="fas fa-check"></i>
-                </span>
+
+    <!-- Quick Action / Setup Checklist -->
+    <div class="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div class="vendor-card-soft p-5 lg:col-span-2">
+            <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                    <h2 class="font-black">Pickup pin ready</h2>
-                    <p class="text-sm">Riders can navigate to your pickup location, and checkout can calculate distance-based delivery.</p>
+                    <h2 class="text-xl font-black text-slate-950">Next best actions</h2>
+                    <p class="mt-1 text-sm text-slate-500">Keep your store ready for sales, delivery, and customer trust.</p>
+                </div>
+
+                <div class="flex flex-wrap gap-2">
+                    <a href="{% url 'dashboard:vendor_add_product' %}" class="rounded-full bg-orange-500 px-4 py-2 text-sm font-black text-white hover:bg-orange-600">
+                        Add Product
+                    </a>
+                    <a href="{% url 'dashboard:vendor_products' %}" class="rounded-full bg-blue-700 px-4 py-2 text-sm font-black text-white hover:bg-blue-800">
+                        Manage Products
+                    </a>
                 </div>
             </div>
-            <a href="{% url 'dashboard:vendor_pickup_location' %}" class="inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-black text-green-700 ring-1 ring-green-200 hover:bg-green-100">
-                <i class="fas fa-pen"></i>
-                Edit Location
-            </a>
-        </div>
-    </div>
-    {% endif %}
 
-    <div class="mb-6 rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div class="flex items-start gap-3">
-                <span class="inline-flex h-11 w-11 flex-none items-center justify-center rounded-full bg-blue-600 text-white">
-                    <i class="fas fa-robot"></i>
-                </span>
-                <div>
-                    <div class="flex flex-wrap items-center gap-2">
-                        <h2 class="text-lg font-black text-gray-950">Arolana Order Robot</h2>
-                        {% if robot_pending_count %}
-                        <span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">{{ robot_pending_count }} pending</span>
-                        {% endif %}
+            <div class="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+                <a href="{% url 'dashboard:vendor_pickup_location' %}" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950 hover:bg-amber-100">
+                    <div class="flex items-center gap-3">
+                        <span class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-amber-500 text-white">
+                            <i class="fas fa-location-crosshairs"></i>
+                        </span>
+                        <div>
+                            <p class="font-black">{% if vendor_profile.pickup_location_is_ready %}Pickup ready{% else %}Set pickup pin{% endif %}</p>
+                            <p class="text-xs font-semibold">Delivery needs your exact location.</p>
+                        </div>
                     </div>
-                    <p class="mt-1 text-sm leading-6 text-gray-600">
-                        Confirm paid orders, mark packages ready for pickup, and let Arolana coordinate delivery automatically.
-                    </p>
-                </div>
+                </a>
+
+                <a href="{% url 'subscriptions:plans' %}" class="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-blue-950 hover:bg-blue-100">
+                    <div class="flex items-center gap-3">
+                        <span class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-blue-700 text-white">
+                            <i class="fas fa-crown"></i>
+                        </span>
+                        <div>
+                            <p class="font-black">{{ subscription_label|default:"Subscription" }}</p>
+                            <p class="text-xs font-semibold">Products: {{ current_product_count|default:total_products }} / {% if subscription_limits.max_products == -1 %}Unlimited{% else %}{{ subscription_limits.max_products|default:"0" }}{% endif %}</p>
+                        </div>
+                    </div>
+                </a>
+
+                <a href="{% url 'dashboard:vendor_order_robot_tasks' %}" class="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-950 hover:bg-green-100">
+                    <div class="flex items-center gap-3">
+                        <span class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-green-600 text-white">
+                            <i class="fas fa-robot"></i>
+                        </span>
+                        <div>
+                            <p class="font-black">Order Robot</p>
+                            <p class="text-xs font-semibold">{{ robot_pending_count|default:0 }} pending task(s).</p>
+                        </div>
+                    </div>
+                </a>
             </div>
-            <a href="{% url 'dashboard:vendor_order_robot_tasks' %}" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-black text-white hover:bg-blue-700">
-                <i class="fas fa-list-check"></i>
-                Open Tasks
-            </a>
         </div>
 
-        {% if robot_tasks %}
-        <div class="mt-4 grid gap-3 md:grid-cols-2">
-            {% for task in robot_tasks|slice:":2" %}
-            <a href="{% url 'dashboard:vendor_order_robot_tasks' %}" class="rounded-xl border border-gray-100 bg-gray-50 p-4 transition hover:border-blue-200 hover:bg-blue-50">
-                <div class="flex items-center justify-between gap-3">
-                    <strong class="text-sm text-gray-950">{{ task.process.order.order_number }}</strong>
-                    <span class="rounded-full px-2.5 py-1 text-[11px] font-black
-                        {% if task.status == 'pending' %}bg-amber-100 text-amber-800
-                        {% elif task.status == 'ready_for_pickup' %}bg-green-100 text-green-800
-                        {% elif task.status == 'rejected' %}bg-red-100 text-red-800
-                        {% else %}bg-blue-100 text-blue-800{% endif %}">
-                        {{ task.get_status_display }}
+        <div class="vendor-card p-5">
+            <h2 class="text-lg font-black text-slate-950">Store health</h2>
+            <div class="mt-4 space-y-3 text-sm">
+                <div class="flex items-center justify-between">
+                    <span class="font-bold text-slate-500">Vendor score</span>
+                    <span class="font-black text-blue-700">{{ vendor_score|floatformat:1 }}</span>
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <span class="font-bold text-slate-500">Fulfillment</span>
+                    <span class="font-black text-green-700">{{ fulfillment_rate|floatformat:1 }}%</span>
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <span class="font-bold text-slate-500">Chat</span>
+                    <span class="font-black {% if chat_enabled %}text-green-700{% else %}text-slate-500{% endif %}">
+                        {% if chat_enabled %}Enabled{% else %}Locked{% endif %}
                     </span>
                 </div>
-                <p class="mt-2 text-xs font-semibold text-gray-600">Robot status: {{ task.process.get_current_status_display }}</p>
-            </a>
-            {% endfor %}
-        </div>
-        {% endif %}
-    </div>
-    
-    <!-- Notifications Section on Dashboard -->
-    {% if notifications %}
-    <div class="mb-6">
-        <div class="flex justify-between items-center mb-3">
-            <h2 class="text-lg font-semibold flex items-center gap-2">
-                <i class="fas fa-bell text-yellow-500"></i> Notifications
-                <span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full">{{ unread_notification_count|default:0 }} unread</span>
-                <span class="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">{{ notification_count|default:0 }} total</span>
-            </h2>
-            <button onclick="deleteAllNotifications()" class="text-red-600 hover:text-red-800 text-sm">
-                <i class="fas fa-trash-alt"></i> Clear All
-            </button>
-        </div>
-        <div class="space-y-2" id="dashboardNotifications">
-            {% for notif in notifications|slice:":5" %}
-            <div id="notif-{{ notif.id }}" class="notification-item bg-{% if notif.notification_type == 'product_approved' %}green{% elif notif.notification_type == 'product_rejected' %}red{% elif notif.notification_type == 'product_changes' %}orange{% else %}blue{% endif %}-50 rounded-lg p-3 border-l-4 border-{% if notif.notification_type == 'product_approved' %}green{% elif notif.notification_type == 'product_rejected' %}red{% elif notif.notification_type == 'product_changes' %}orange{% else %}blue{% endif %}-500">
-                <div class="flex items-start justify-between">
-                    <div class="flex-1">
-                        <h4 class="font-semibold text-sm">
-                            {% if notif.notification_type == 'product_approved' %}
-                                <i class="fas fa-check-circle text-green-600"></i>
-                            {% elif notif.notification_type == 'product_rejected' %}
-                                <i class="fas fa-times-circle text-red-600"></i>
-                            {% elif notif.notification_type == 'product_changes' %}
-                                <i class="fas fa-edit text-orange-600"></i>
-                            {% elif notif.notification_type == 'message' %}
-                                <i class="fas fa-envelope text-blue-600"></i>
-                            {% else %}
-                                <i class="fas fa-bell text-gray-600"></i>
-                            {% endif %}
-                            {{ notif.title }}
-                        </h4>
-                        <p class="text-sm text-gray-600 mt-1">{{ notif.message|truncatewords:25 }}</p>
-                        <p class="text-xs text-gray-400 mt-1">{{ notif.created_at|timesince }} ago</p>
-                        {% if notif.action_url %}
-                        <a href="{{ notif.action_url }}" class="text-xs text-blue-600 hover:underline mt-2 inline-block">
-                            View Details →
-                        </a>
-                        {% endif %}
-                    </div>
-                    <button onclick="deleteNotification({{ notif.id }})" class="text-gray-400 hover:text-red-500 ml-2">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        {% if notifications|length > 5 %}
-        <div class="text-center mt-2">
-            <a href="{% url 'dashboard:vendor_messages' %}" class="text-sm text-blue-600 hover:underline">
-                View all {{ notifications|length }} notifications →
-            </a>
-        </div>
-        {% endif %}
-    </div>
-    {% endif %}
 
-    <div class="vendor-dashboard-metrics grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
-        <div class="vendor-dashboard-card bg-white rounded-xl shadow-md p-6 border border-gray-100">
-            <div class="flex items-start justify-between gap-4">
-                <div>
-                    <p class="text-sm text-gray-500">Vendor Score</p>
-                    <h2 class="text-4xl font-bold text-gray-900 mt-1">{{ vendor_score|floatformat:1 }}</h2>
-                    <p class="text-sm font-semibold text-blue-700 mt-1">{{ vendor_score_label }}</p>
-                </div>
-                <div class="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center text-blue-700">
-                    <i class="fas fa-shield-alt text-2xl"></i>
+                <div class="flex items-center justify-between">
+                    <span class="font-bold text-slate-500">Plan status</span>
+                    <span class="font-black {% if subscription_active %}text-green-700{% else %}text-orange-600{% endif %}">
+                        {% if subscription_active %}Active{% else %}Inactive{% endif %}
+                    </span>
                 </div>
             </div>
-            <div class="mt-5 space-y-3">
-                {% for item in score_breakdown %}
-                <div>
-                    <div class="flex justify-between text-xs text-gray-500 mb-1">
-                        <span>{{ item.label }}</span>
-                        <span>{{ item.value|floatformat:0 }}%</span>
+
+            {% if subscription_expiring_soon %}
+            <div class="mt-4 rounded-xl bg-amber-50 p-3 text-xs font-bold text-amber-800">
+                Your subscription expires soon. Renew to keep benefits active.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="vendor-dashboard-stats-grid mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
+        <div class="vendor-stat-card vendor-card p-5">
+            <p class="text-sm font-bold text-slate-500">Total Sales</p>
+            <p class="mt-1 text-2xl font-black text-green-600">{{ vendor_profile.preferred_currency|default:"NGN" }} {{ total_sales|floatformat:2 }}</p>
+        </div>
+
+        <div class="vendor-stat-card vendor-card p-5">
+            <p class="text-sm font-bold text-slate-500">Total Orders</p>
+            <p class="mt-1 text-2xl font-black text-blue-700">{{ total_orders|default:0 }}</p>
+        </div>
+
+        <div class="vendor-stat-card vendor-card p-5">
+            <p class="text-sm font-bold text-slate-500">Products</p>
+            <p class="mt-1 text-2xl font-black text-orange-500">{{ total_products|default:0 }}</p>
+            {% if low_stock_count > 0 %}
+                <p class="mt-1 text-xs font-bold text-red-500">{{ low_stock_count }} low stock</p>
+            {% endif %}
+        </div>
+
+        <div class="vendor-stat-card vendor-card p-5">
+            <p class="text-sm font-bold text-slate-500">Rating</p>
+            <p class="mt-1 text-2xl font-black text-yellow-600">{{ avg_rating|floatformat:1 }}</p>
+            <p class="mt-1 text-xs font-bold text-slate-400">{{ total_reviews|default:0 }} reviews</p>
+        </div>
+
+        <div class="vendor-stat-card vendor-card p-5">
+            <p class="text-sm font-bold text-slate-500">Pickup Reports</p>
+            <p class="mt-1 text-2xl font-black text-orange-600">{{ pickup_report_count|default:0 }}</p>
+        </div>
+    </div>
+
+    <!-- Product Approval Status -->
+    <div class="vendor-dashboard-status-grid mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
+        <a href="{% url 'dashboard:vendor_products' %}?status=pending" class="vendor-card p-4 hover:border-yellow-300">
+            <p class="text-sm font-black text-yellow-600">Pending Approval</p>
+            <p class="mt-1 text-3xl font-black text-yellow-700">{{ pending_count|default:0 }}</p>
+            <p class="mt-2 text-xs font-bold text-yellow-600">View Pending →</p>
+        </a>
+
+        <a href="{% url 'dashboard:vendor_products' %}?status=approved" class="vendor-card p-4 hover:border-green-300">
+            <p class="text-sm font-black text-green-600">Approved</p>
+            <p class="mt-1 text-3xl font-black text-green-700">{{ approved_count|default:0 }}</p>
+            <p class="mt-2 text-xs font-bold text-green-600">View Approved →</p>
+        </a>
+
+        <a href="{% url 'dashboard:vendor_products' %}?status=requires_changes" class="vendor-card p-4 hover:border-orange-300">
+            <p class="text-sm font-black text-orange-600">Changes Required</p>
+            <p class="mt-1 text-3xl font-black text-orange-700">{{ changes_required_count|default:0 }}</p>
+            <p class="mt-2 text-xs font-bold text-orange-600">View Required →</p>
+        </a>
+
+        <a href="{% url 'dashboard:vendor_products' %}?status=rejected" class="vendor-card p-4 hover:border-red-300">
+            <p class="text-sm font-black text-red-600">Rejected</p>
+            <p class="mt-1 text-3xl font-black text-red-700">{{ rejected_count|default:0 }}</p>
+            <p class="mt-2 text-xs font-bold text-red-600">View Rejected →</p>
+        </a>
+    </div>
+
+    <!-- Collapsible Store Settings -->
+    <details class="vendor-section-toggle vendor-card mb-5 overflow-hidden">
+        <summary class="flex items-center justify-between gap-4 p-5">
+            <div>
+                <h2 class="text-xl font-black text-slate-950">Store Settings</h2>
+                <p class="text-sm text-slate-500">Edit store profile, branding, contact, policies, and preferences.</p>
+            </div>
+            <span class="vendor-chevron rounded-full bg-blue-50 px-3 py-2 text-blue-700">
+                <i class="fas fa-chevron-down"></i>
+            </span>
+        </summary>
+
+        <form method="post" enctype="multipart/form-data" class="border-t border-slate-100 p-5">
+            {% csrf_token %}
+            <input type="hidden" name="dashboard_action" value="profile_settings">
+
+            <div class="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <h3 class="text-lg font-black text-slate-900">Profile & Store Details</h3>
+                <button class="rounded-full bg-orange-500 px-5 py-2 text-sm font-black text-white hover:bg-orange-600" type="submit">
+                    Save Settings
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <label class="text-sm font-bold text-slate-700">Store name
+                    <input name="store_name" value="{{ vendor_profile.store_name }}" class="vendor-input">
+                </label>
+
+                <label class="text-sm font-bold text-slate-700">Company name
+                    <input name="company_name" value="{{ vendor_profile.company_name }}" class="vendor-input">
+                </label>
+
+                <label class="text-sm font-bold text-slate-700">Vendor type
+                    <select name="vendor_type" class="vendor-input">
+                        {% for value,label in vendor_profile.VENDOR_TYPE_CHOICES %}
+                            <option value="{{ value }}" {% if vendor_profile.vendor_type == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+
+                <label class="text-sm font-bold text-slate-700">Store slogan
+                    <input name="store_slogan" value="{{ vendor_profile.store_slogan }}" class="vendor-input" placeholder="Premium AV solutions for modern teams">
+                </label>
+
+                <label class="text-sm font-bold text-slate-700">Support email
+                    <input name="support_email" value="{{ vendor_profile.support_email }}" class="vendor-input">
+                </label>
+
+                <label class="text-sm font-bold text-slate-700">Support phone
+                    <input name="support_phone" value="{{ vendor_profile.support_phone }}" class="vendor-input">
+                </label>
+
+                <label class="text-sm font-bold text-slate-700">Business phone
+                    <input name="business_phone" value="{{ vendor_profile.business_phone }}" class="vendor-input">
+                </label>
+
+                <label class="text-sm font-bold text-slate-700">WhatsApp
+                    <input name="whatsapp_number" value="{{ vendor_profile.whatsapp_number }}" class="vendor-input">
+                </label>
+
+                <label class="text-sm font-bold text-slate-700">Website
+                    <input name="website" value="{{ vendor_profile.website }}" class="vendor-input">
+                </label>
+
+                <label class="text-sm font-bold text-slate-700">Pickup phone
+                    <input name="pickup_phone" value="{{ vendor_profile.pickup_phone }}" class="vendor-input">
+                </label>
+
+                <label class="text-sm font-bold text-slate-700">Country
+                    <input name="country" value="{{ vendor_profile.country }}" class="vendor-input">
+                </label>
+
+                <label class="text-sm font-bold text-slate-700">State
+                    <input name="state" value="{{ vendor_profile.state }}" class="vendor-input">
+                </label>
+
+                <label class="text-sm font-bold text-slate-700">City
+                    <input name="city" value="{{ vendor_profile.city }}" class="vendor-input">
+                </label>
+
+                <label class="text-sm font-bold text-slate-700">Address
+                    <input name="address_line_1" value="{{ vendor_profile.address_line_1 }}" class="vendor-input">
+                </label>
+
+                <label class="text-sm font-bold text-slate-700">Accent color
+                    <input name="storefront_accent_color" value="{{ vendor_profile.storefront_accent }}" class="vendor-input" placeholder="#FF7A00">
+                </label>
+
+                <label class="text-sm font-bold text-slate-700">Store video URL
+                    <input name="store_video_url" value="{{ vendor_profile.store_video_url }}" class="vendor-input" placeholder="https://youtube.com/...">
+                </label>
+
+                <label class="text-sm font-bold text-slate-700">Language
+                    <select name="preferred_language" class="vendor-input">
+                        <option value="english" {% if vendor_profile.preferred_language == "english" %}selected{% endif %}>English</option>
+                        <option value="pidgin" {% if vendor_profile.preferred_language == "pidgin" %}selected{% endif %}>Pidgin English</option>
+                        <option value="yoruba" {% if vendor_profile.preferred_language == "yoruba" %}selected{% endif %}>Yoruba</option>
+                        <option value="igbo" {% if vendor_profile.preferred_language == "igbo" %}selected{% endif %}>Igbo</option>
+                        <option value="hausa" {% if vendor_profile.preferred_language == "hausa" %}selected{% endif %}>Hausa</option>
+                        <option value="french" {% if vendor_profile.preferred_language == "french" %}selected{% endif %}>French</option>
+                        <option value="arabic" {% if vendor_profile.preferred_language == "arabic" %}selected{% endif %}>Arabic</option>
+                        <option value="chinese" {% if vendor_profile.preferred_language == "chinese" %}selected{% endif %}>Chinese</option>
+                        <option value="spanish" {% if vendor_profile.preferred_language == "spanish" %}selected{% endif %}>Spanish</option>
+                    </select>
+                </label>
+
+                <label class="text-sm font-bold text-slate-700">Currency
+                    <select name="preferred_currency" class="vendor-input">
+                        <option value="NGN" {% if vendor_profile.preferred_currency == "NGN" %}selected{% endif %}>NGN</option>
+                        <option value="USD" {% if vendor_profile.preferred_currency == "USD" %}selected{% endif %}>USD</option>
+                        <option value="GBP" {% if vendor_profile.preferred_currency == "GBP" %}selected{% endif %}>GBP</option>
+                        <option value="EUR" {% if vendor_profile.preferred_currency == "EUR" %}selected{% endif %}>EUR</option>
+                        <option value="CNY" {% if vendor_profile.preferred_currency == "CNY" %}selected{% endif %}>CNY</option>
+                        <option value="CAD" {% if vendor_profile.preferred_currency == "CAD" %}selected{% endif %}>CAD</option>
+                    </select>
+                </label>
+
+                <label class="text-sm font-bold text-slate-700">Logo
+                    <input type="file" name="store_logo" accept="image/*" class="vendor-input">
+                </label>
+
+                <label class="text-sm font-bold text-slate-700">Banner
+                    <input type="file" name="store_banner" accept="image/*" class="vendor-input">
+                </label>
+            </div>
+
+            <label class="mt-4 block text-sm font-bold text-slate-700">Store description
+                <textarea name="description" rows="3" class="vendor-input">{{ vendor_profile.description }}</textarea>
+            </label>
+
+            <label class="mt-4 block text-sm font-bold text-slate-700">Business address
+                <textarea name="business_address" rows="2" class="vendor-input">{{ vendor_profile.business_address }}</textarea>
+            </label>
+
+            <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                <label class="text-sm font-bold text-slate-700">Featured categories
+                    <textarea name="featured_categories" rows="3" class="vendor-input" placeholder="One category per line">{{ vendor_profile.featured_categories }}</textarea>
+                </label>
+
+                <label class="text-sm font-bold text-slate-700">Gallery notes / image URLs
+                    <textarea name="store_gallery_notes" rows="3" class="vendor-input" placeholder="One image URL or note per line">{{ vendor_profile.store_gallery_notes }}</textarea>
+                </label>
+
+                <label class="text-sm font-bold text-slate-700">Business hours
+                    <textarea name="business_hours" rows="3" class="vendor-input">{{ vendor_profile.business_hours }}</textarea>
+                </label>
+
+                <label class="text-sm font-bold text-slate-700">Featured products note
+                    <textarea name="featured_products_note" rows="3" class="vendor-input">{{ vendor_profile.featured_products_note }}</textarea>
+                </label>
+
+                <label class="text-sm font-bold text-slate-700">Warranty/support note
+                    <textarea name="warranty_note" rows="3" class="vendor-input">{{ vendor_profile.warranty_note }}</textarea>
+                </label>
+
+                <label class="text-sm font-bold text-slate-700">Delivery note
+                    <textarea name="delivery_note" rows="3" class="vendor-input">{{ vendor_profile.delivery_note }}</textarea>
+                </label>
+            </div>
+
+            <label class="mt-4 block text-sm font-bold text-slate-700">Return policy
+                <textarea name="return_policy" rows="3" class="vendor-input">{{ vendor_profile.return_policy }}</textarea>
+            </label>
+
+            <div class="mt-5 flex justify-end">
+                <button class="rounded-full bg-orange-500 px-6 py-3 text-sm font-black text-white hover:bg-orange-600" type="submit">
+                    Save Store Settings
+                </button>
+            </div>
+        </form>
+    </details>
+
+    <!-- Collapsible Security -->
+    <details class="vendor-section-toggle vendor-card mb-5 overflow-hidden">
+        <summary class="flex items-center justify-between gap-4 p-5">
+            <div>
+                <h2 class="text-xl font-black text-slate-950">Security</h2>
+                <p class="text-sm text-slate-500">Change your vendor password/PIN securely.</p>
+            </div>
+            <span class="vendor-chevron rounded-full bg-blue-50 px-3 py-2 text-blue-700">
+                <i class="fas fa-chevron-down"></i>
+            </span>
+        </summary>
+
+        <form method="post" class="border-t border-slate-100 p-5">
+            {% csrf_token %}
+            <input type="hidden" name="dashboard_action" value="change_password">
+
+            <p class="rounded-xl bg-blue-50 px-4 py-3 text-sm font-semibold leading-6 text-blue-900">
+                You will remain signed in, receive an inbox security alert, and a confirmation email will be sent to
+                <strong>{{ request.user.email }}</strong>.
+            </p>
+
+            <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+                <label class="text-sm font-bold text-slate-700">Current password/PIN
+                    <input type="password" name="current_password" autocomplete="current-password" required class="vendor-input">
+                </label>
+
+                <label class="text-sm font-bold text-slate-700">New password/PIN
+                    <input type="password" name="new_password" autocomplete="new-password" minlength="8" required class="vendor-input">
+                </label>
+
+                <label class="text-sm font-bold text-slate-700">Confirm new password/PIN
+                    <input type="password" name="confirm_password" autocomplete="new-password" minlength="8" required class="vendor-input">
+                </label>
+            </div>
+
+            <div class="mt-5 flex justify-end">
+                <button class="rounded-full bg-blue-700 px-6 py-3 text-sm font-black text-white hover:bg-blue-800" type="submit">
+                    Change Password / PIN
+                </button>
+            </div>
+        </form>
+    </details>
+
+    <!-- Collapsible Subscription / Billing -->
+    <details class="vendor-section-toggle vendor-card mb-5 overflow-hidden">
+        <summary class="flex items-center justify-between gap-4 p-5">
+            <div>
+                <h2 class="text-xl font-black text-slate-950">Subscription & Billing</h2>
+                <p class="text-sm text-slate-500">View your plan, limits, benefits, and receipts.</p>
+            </div>
+            <span class="vendor-chevron rounded-full bg-blue-50 px-3 py-2 text-blue-700">
+                <i class="fas fa-chevron-down"></i>
+            </span>
+        </summary>
+
+        <div class="border-t border-slate-100 p-5">
+            <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                <div class="rounded-2xl bg-slate-50 p-4">
+                    {% if subscription_benefits_image_url %}
+                        <img src="{{ subscription_benefits_image_url }}" alt="Arolana vendor subscription benefits" class="mb-4 w-full rounded-xl border border-slate-200 bg-white object-cover" loading="lazy" decoding="async">
+                    {% endif %}
+
+                    <h3 class="font-black text-gray-900">Current Plan: {{ subscription_label }}</h3>
+
+                    <ul class="mt-3 space-y-2 text-sm text-gray-700">
+                        <li>Products: {% if subscription_limits.max_products == -1 %}Unlimited{% else %}{{ subscription_limits.max_products }}{% endif %}</li>
+                        <li>Images per product: {{ subscription_limits.max_images_per_product }}</li>
+                        <li>Variants per product: {% if subscription_limits.max_variants_per_product == -1 %}Unlimited{% else %}{{ subscription_limits.max_variants_per_product }}{% endif %}</li>
+                        <li>Priority score: {{ subscription_limits.priority_score }}</li>
+                        <li>Customer chat: {% if subscription_limits.chat_enabled %}Enabled{% else %}Locked{% endif %}</li>
+                    </ul>
+
+                    <a href="{% url 'subscriptions:plans' %}" class="mt-5 inline-flex rounded-full bg-orange-500 px-5 py-2.5 text-sm font-black text-white hover:bg-orange-600">
+                        Upgrade Plan
+                    </a>
+                </div>
+
+                <div class="rounded-2xl bg-slate-50 p-4">
+                    <h3 class="font-black text-gray-900">Invoices / Receipts</h3>
+
+                    <div class="mt-3 max-h-80 space-y-3 overflow-auto pr-1">
+                        {% for invoice in subscription_invoices %}
+                            <div class="rounded-xl bg-white p-3 text-sm shadow-sm ring-1 ring-gray-100">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <p class="font-black text-gray-900">{{ invoice.reference }}</p>
+                                        <p class="text-gray-500">
+                                            {{ invoice.checkout_data.plan_name|default:invoice.checkout_data.tier|default:"Subscription" }}
+                                            · {{ invoice.currency }} {{ invoice.amount }}
+                                            · {{ invoice.status|title }}
+                                        </p>
+                                    </div>
+
+                                    <a href="/api/staff/vendor/subscription/invoices/{{ invoice.id }}/pdf/" class="shrink-0 rounded-full border border-blue-200 px-3 py-1.5 font-bold text-blue-700 hover:bg-blue-50">
+                                        Receipt
+                                    </a>
+                                </div>
+                            </div>
+                        {% empty %}
+                            <p class="text-sm text-gray-500">No subscription invoices yet.</p>
+                        {% endfor %}
                     </div>
-                    <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div class="h-full bg-blue-600 rounded-full" style="width: {{ item.value|floatformat:0 }}%"></div>
+                </div>
+            </div>
+        </div>
+    </details>
+
+    <!-- Collapsible Notifications -->
+    {% if notifications %}
+    <details class="vendor-section-toggle vendor-card mb-5 overflow-hidden">
+        <summary class="flex items-center justify-between gap-4 p-5">
+            <div>
+                <h2 class="text-xl font-black text-slate-950">
+                    Notifications
+                    <span class="ml-2 rounded-full bg-red-500 px-2 py-1 text-xs text-white">{{ unread_notification_count|default:0 }} unread</span>
+                </h2>
+                <p class="text-sm text-slate-500">{{ notification_count|default:0 }} total notifications.</p>
+            </div>
+            <span class="vendor-chevron rounded-full bg-blue-50 px-3 py-2 text-blue-700">
+                <i class="fas fa-chevron-down"></i>
+            </span>
+        </summary>
+
+        <div class="border-t border-slate-100 p-5">
+            <div class="mb-3 flex justify-end">
+                <button onclick="deleteAllNotifications()" class="text-sm font-bold text-red-600 hover:text-red-800">
+                    <i class="fas fa-trash-alt"></i> Clear All
+                </button>
+            </div>
+
+            <div class="space-y-2" id="dashboardNotifications">
+                {% for notif in notifications|slice:":5" %}
+                <div id="notif-{{ notif.id }}" class="notification-item rounded-xl border border-slate-100 bg-slate-50 p-3">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <h4 class="font-black text-sm text-slate-950">
+                                {% if notif.notification_type == 'product_approved' %}
+                                    <i class="fas fa-check-circle text-green-600"></i>
+                                {% elif notif.notification_type == 'product_rejected' %}
+                                    <i class="fas fa-times-circle text-red-600"></i>
+                                {% elif notif.notification_type == 'product_changes' %}
+                                    <i class="fas fa-edit text-orange-600"></i>
+                                {% elif notif.notification_type == 'message' %}
+                                    <i class="fas fa-envelope text-blue-600"></i>
+                                {% else %}
+                                    <i class="fas fa-bell text-gray-600"></i>
+                                {% endif %}
+                                {{ notif.title }}
+                            </h4>
+
+                            <p class="mt-1 text-sm text-gray-600">{{ notif.message|truncatewords:25 }}</p>
+                            <p class="mt-1 text-xs text-gray-400">{{ notif.created_at|timesince }} ago</p>
+
+                            {% if notif.action_url %}
+                            <a href="{{ notif.action_url }}" class="mt-2 inline-block text-xs font-bold text-blue-600 hover:underline">
+                                View Details →
+                            </a>
+                            {% endif %}
+                        </div>
+
+                        <button onclick="deleteNotification({{ notif.id }})" class="ml-2 text-gray-400 hover:text-red-500">
+                            <i class="fas fa-times"></i>
+                        </button>
                     </div>
                 </div>
                 {% endfor %}
             </div>
-        </div>
 
-        <div class="vendor-dashboard-card bg-white rounded-xl shadow-md p-6 border border-gray-100">
-            <p class="text-sm text-gray-500">Fulfillment</p>
-            <div class="flex items-end justify-between mt-1">
-                <h2 class="text-4xl font-bold text-green-700">{{ fulfillment_rate|floatformat:1 }}%</h2>
-                <span class="text-sm text-gray-500">Return {{ return_rate|floatformat:1 }}%</span>
+            {% if notifications|length > 5 %}
+            <div class="mt-3 text-center">
+                <a href="{% url 'dashboard:vendor_messages' %}" class="text-sm font-bold text-blue-600 hover:underline">
+                    View all {{ notifications|length }} notifications →
+                </a>
             </div>
-            <div class="grid grid-cols-2 gap-3 mt-5 text-sm">
-                <div class="rounded-lg bg-green-50 p-3"><span class="block text-gray-500">Delivered</span><strong>{{ delivered_count }}</strong></div>
-                <div class="rounded-lg bg-blue-50 p-3"><span class="block text-gray-500">Shipped</span><strong>{{ shipped_count }}</strong></div>
-                <div class="rounded-lg bg-red-50 p-3"><span class="block text-gray-500">Cancelled</span><strong>{{ cancelled_count }}</strong></div>
-                <div class="rounded-lg bg-amber-50 p-3"><span class="block text-gray-500">Refunded</span><strong>{{ refunded_count }}</strong></div>
-            </div>
-        </div>
-
-        <div class="vendor-dashboard-card bg-white rounded-xl shadow-md p-6 border border-gray-100">
-            <p class="text-sm text-gray-500">Subscription & Chat</p>
-            <h2 class="text-3xl font-bold mt-1">{{ subscription_label }}</h2>
-            <div class="mt-4 rounded-lg {% if chat_enabled %}bg-green-50 text-green-800{% else %}bg-gray-100 text-gray-700{% endif %} p-4">
-                <div class="flex items-center gap-2 font-semibold">
-                    <i class="fas {% if chat_enabled %}fa-unlock{% else %}fa-lock{% endif %}"></i>
-                    {% if chat_enabled %}Customer chat is enabled{% else %}Customer chat is locked{% endif %}
-                </div>
-                <p class="text-sm mt-1">{% if chat_enabled %}You can chat with customers from your dashboard.{% else %}Upgrade to Basic or higher to unlock product chat with customers.{% endif %}</p>
-            </div>
-            <div class="grid grid-cols-2 gap-3 mt-4 text-sm">
-                <div><span class="text-gray-500">Products</span><strong class="block">{{ current_product_count|default:total_products }} / {% if subscription_limits.max_products == -1 %}Unlimited{% else %}{{ subscription_limits.max_products }}{% endif %}</strong></div>
-                <div><span class="text-gray-500">Variants</span><strong class="block">{% if subscription_limits.max_variants_per_product == -1 %}Unlimited{% else %}{{ subscription_limits.max_variants_per_product }}{% endif %}</strong></div>
-                <div><span class="text-gray-500">Plan status</span><strong class="block">{% if subscription_active %}Active{% else %}Inactive{% endif %}</strong></div>
-                <div><span class="text-gray-500">Expires</span><strong class="block">{% if subscription_expires_at %}{{ subscription_expires_at|date:"M d, Y" }}{% else %}No expiry{% endif %}</strong></div>
-            </div>
-            {% if subscription_expiring_soon %}
-                <div class="mt-4 rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-800">
-                    Your subscription expires soon. Renew to keep your benefits active.
-                </div>
             {% endif %}
-            <a href="{% if chat_enabled %}{% url 'chat:vendor_list' %}{% else %}{% url 'subscriptions:plans' %}{% endif %}" class="mt-5 inline-flex items-center gap-2 text-blue-700 font-semibold">
-                {% if chat_enabled %}Open customer chat{% else %}View upgrade plans{% endif %} <i class="fas fa-arrow-right"></i>
-            </a>
         </div>
-    </div>
+    </details>
+    {% endif %}
 
-    <div class="vendor-dashboard-card bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-8">
-        <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <div>
-                <p class="text-sm font-semibold uppercase tracking-wide text-blue-700">Current Subscription</p>
-                <h2 class="text-2xl font-black text-gray-900">{{ subscription_label }}</h2>
-                <p class="text-sm text-gray-500">
-                    {% if subscription_started_at %}Started {{ subscription_started_at|date:"M d, Y" }}{% else %}Start date pending{% endif %}
-                    ·
-                    {% if subscription_expires_at %}Expires {{ subscription_expires_at|date:"M d, Y" }}{% else %}No expiry date{% endif %}
-                </p>
+    <!-- Main Data Grid -->
+    <div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div class="vendor-card p-5">
+            <div class="mb-4 flex items-center justify-between">
+                <h2 class="text-xl font-black text-slate-950">Monthly Sales</h2>
             </div>
-            <a href="{% url 'subscriptions:plans' %}" class="inline-flex items-center justify-center rounded-full bg-orange-500 px-5 py-2.5 text-sm font-black text-white hover:bg-orange-600">
-                Upgrade Plan
-            </a>
+            <canvas id="salesChart" height="180"></canvas>
         </div>
 
-        <div class="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div class="rounded-xl bg-slate-50 p-4">
-                <img src="{{ subscription_benefits_image_url }}" alt="Arolana vendor subscription benefits" class="mb-4 w-full rounded-xl border border-slate-200 bg-white object-cover">
-                <h3 class="font-black text-gray-900">Subscription Benefits</h3>
-                <ul class="mt-3 space-y-2 text-sm text-gray-700">
-                    <li>Products: {% if subscription_limits.max_products == -1 %}Unlimited{% else %}{{ subscription_limits.max_products }}{% endif %}</li>
-                    <li>Images per product: {{ subscription_limits.max_images_per_product }}</li>
-                    <li>Variants per product: {% if subscription_limits.max_variants_per_product == -1 %}Unlimited{% else %}{{ subscription_limits.max_variants_per_product }}{% endif %}</li>
-                    <li>Priority score: {{ subscription_limits.priority_score }}</li>
-                    <li>Customer chat: {% if subscription_limits.chat_enabled %}Enabled{% else %}Locked{% endif %}</li>
-                </ul>
+        <div class="vendor-card p-5">
+            <div class="mb-4 flex items-center justify-between">
+                <h2 class="text-xl font-black text-slate-950">Top Products</h2>
+                <a href="{% url 'dashboard:vendor_products' %}" class="text-sm font-black text-blue-700 hover:underline">View All →</a>
             </div>
-            <div class="rounded-xl bg-slate-50 p-4">
-                <h3 class="font-black text-gray-900">Invoices / Receipts</h3>
-                <div class="mt-3 space-y-3">
-                    {% for invoice in subscription_invoices %}
-                        <div class="rounded-lg bg-white p-3 text-sm shadow-sm ring-1 ring-gray-100">
-                            <div class="flex items-start justify-between gap-3">
-                                <div>
-                                    <p class="font-black text-gray-900">{{ invoice.reference }}</p>
-                                    <p class="text-gray-500">{{ invoice.checkout_data.plan_name|default:invoice.checkout_data.tier|default:"Subscription" }} · {{ invoice.currency }} {{ invoice.amount }} · {{ invoice.status|title }}</p>
-                                </div>
-                                <a href="/api/staff/vendor/subscription/invoices/{{ invoice.id }}/pdf/" class="shrink-0 rounded-full border border-blue-200 px-3 py-1.5 font-bold text-blue-700 hover:bg-blue-50">
-                                    Receipt
-                                </a>
-                            </div>
-                        </div>
-                    {% empty %}
-                        <p class="text-sm text-gray-500">No subscription invoices yet.</p>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Approval Status Cards -->
-    <div class="vendor-dashboard-status-grid grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <div class="approval-card bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-yellow-600 text-sm">Pending Approval</p>
-                    <p class="text-2xl font-bold text-yellow-700">{{ pending_count|default:0 }}</p>
-                </div>
-                <div class="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
-                    <i class="fas fa-clock text-yellow-600"></i>
-                </div>
-            </div>
-            <a href="{% url 'dashboard:vendor_products' %}?status=pending" class="text-xs text-yellow-600 hover:underline mt-2 inline-block">View Pending →</a>
-        </div>
-        
-        <div class="approval-card bg-green-50 border border-green-200 rounded-lg p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-green-600 text-sm">Approved</p>
-                    <p class="text-2xl font-bold text-green-700">{{ approved_count|default:0 }}</p>
-                </div>
-                <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                    <i class="fas fa-check-circle text-green-600"></i>
-                </div>
-            </div>
-            <a href="{% url 'dashboard:vendor_products' %}?status=approved" class="text-xs text-green-600 hover:underline mt-2 inline-block">View Approved →</a>
-        </div>
-        
-        <div class="approval-card bg-orange-50 border border-orange-200 rounded-lg p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-orange-600 text-sm">Changes Required</p>
-                    <p class="text-2xl font-bold text-orange-700">{{ changes_required_count|default:0 }}</p>
-                </div>
-                <div class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                    <i class="fas fa-edit text-orange-600"></i>
-                </div>
-            </div>
-            <a href="{% url 'dashboard:vendor_products' %}?status=requires_changes" class="text-xs text-orange-600 hover:underline mt-2 inline-block">View Required →</a>
-        </div>
-        
-        <div class="approval-card bg-red-50 border border-red-200 rounded-lg p-4">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-red-600 text-sm">Rejected</p>
-                    <p class="text-2xl font-bold text-red-700">{{ rejected_count|default:0 }}</p>
-                </div>
-                <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                    <i class="fas fa-times-circle text-red-600"></i>
-                </div>
-            </div>
-            <a href="{% url 'dashboard:vendor_products' %}?status=rejected" class="text-xs text-red-600 hover:underline mt-2 inline-block">View Rejected →</a>
-        </div>
-    </div>
-    
-    <!-- Stats Grid -->
-    <div class="vendor-dashboard-stats-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div class="stat-card bg-white rounded-lg shadow-md p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-gray-500 text-sm">Total Sales</p>
-                    <p class="text-3xl font-bold text-green-600">${{ total_sales|floatformat:2 }}</p>
-                </div>
-                <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                    <i class="fas fa-dollar-sign text-green-600 text-xl"></i>
-                </div>
-            </div>
-        </div>
-        
-        <div class="stat-card bg-white rounded-lg shadow-md p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-gray-500 text-sm">Total Orders</p>
-                    <p class="text-3xl font-bold text-blue-600">{{ total_orders }}</p>
-                </div>
-                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                    <i class="fas fa-shopping-cart text-blue-600 text-xl"></i>
-                </div>
-            </div>
-        </div>
-        
-        <div class="stat-card bg-white rounded-lg shadow-md p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-gray-500 text-sm">Products</p>
-                    <p class="text-3xl font-bold text-purple-600">{{ total_products }}</p>
-                    {% if low_stock_count > 0 %}
-                    <p class="text-xs text-red-500 mt-1">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        {{ low_stock_count }} low stock
-                    </p>
-                    {% endif %}
-                </div>
-                <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                    <i class="fas fa-box text-purple-600 text-xl"></i>
-                </div>
-            </div>
-        </div>
-        
-        <div class="stat-card bg-white rounded-lg shadow-md p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-gray-500 text-sm">Rating</p>
-                    <p class="text-3xl font-bold text-yellow-600">{{ avg_rating|floatformat:1 }}</p>
-                    <p class="text-xs text-gray-500 mt-1">{{ total_reviews }} reviews</p>
-                </div>
-                <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-                    <i class="fas fa-star text-yellow-600 text-xl"></i>
-                </div>
-            </div>
-        </div>
 
-        <div class="stat-card bg-white rounded-lg shadow-md p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-gray-500 text-sm">Pickup Reports</p>
-                    <p class="text-3xl font-bold text-orange-600">{{ pickup_report_count|default:0 }}</p>
-                    <p class="text-xs text-gray-500 mt-1">Vendor handoffs recorded by riders</p>
-                </div>
-                <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                    <i class="fas fa-handshake text-orange-600 text-xl"></i>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Charts Section -->
-    <div class="vendor-dashboard-chart-grid grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        <div class="vendor-dashboard-chart-card bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-xl font-bold mb-4">Monthly Sales</h2>
-            <canvas id="salesChart" height="200"></canvas>
-        </div>
-        
-        <div class="vendor-dashboard-chart-card bg-white rounded-lg shadow-md p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold">Top Products</h2>
-                <a href="{% url 'dashboard:vendor_products' %}" class="text-blue-600 hover:underline text-sm">View All →</a>
-            </div>
             <div class="space-y-3">
                 {% for product in top_products %}
-                <div class="vendor-dashboard-product-row flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div class="flex items-center gap-3">
+                <div class="vendor-dashboard-product-row flex items-center justify-between gap-3 rounded-xl bg-slate-50 p-3">
+                    <div class="flex min-w-0 items-center gap-3">
                         {% if product.main_image %}
-                        <img src="{{ product.main_image|optimized_image_url:'product_thumb' }}" alt="{{ product.name }}" class="w-10 h-10 object-cover rounded" loading="lazy" decoding="async" width="40" height="40">
+                            <img src="{{ product.main_image|optimized_image_url:'product_card' }}" alt="{{ product.name }}" class="h-12 w-12 rounded-xl object-contain bg-white" loading="lazy" decoding="async" width="64" height="64">
                         {% else %}
-                        <div class="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
-                            <i class="fas fa-box text-gray-400"></i>
-                        </div>
+                            <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-200">
+                                <i class="fas fa-box text-gray-400"></i>
+                            </div>
                         {% endif %}
-                        <div>
-                            <p class="font-semibold">{{ product.name }}</p>
-                            <p class="text-sm text-gray-500">${{ product.price }}</p>
+
+                        <div class="min-w-0">
+                            <p class="truncate font-black text-slate-950">{{ product.name }}</p>
+                            <p class="text-sm text-gray-500">{{ vendor_profile.preferred_currency|default:"NGN" }} {{ product.price }}</p>
                         </div>
                     </div>
-                    <div class="text-right">
-                        <p class="font-bold">{{ product.total_sold|default:0 }} sold</p>
-                        <div class="mt-1">
-                            {% if product.approval_status == 'approved' %}
-                                <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">Approved</span>
-                            {% elif product.approval_status == 'pending' %}
-                                <span class="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-xs">Pending</span>
-                            {% elif product.approval_status == 'requires_changes' %}
-                                <span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-xs">Changes Needed</span>
-                            {% elif product.approval_status == 'rejected' %}
-                                <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs">Rejected</span>
-                            {% endif %}
-                        </div>
-                        <a href="{% url 'dashboard:vendor_product_detail' product.id %}" class="text-xs text-blue-600 hover:underline">Edit</a>
+
+                    <div class="shrink-0 text-right">
+                        <p class="font-black text-slate-800">{{ product.total_sold|default:0 }} sold</p>
+
+                        {% if product.approval_status == 'approved' %}
+                            <span class="rounded-full bg-green-100 px-2 py-0.5 text-xs font-black text-green-700">Approved</span>
+                        {% elif product.approval_status == 'pending' %}
+                            <span class="rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-black text-yellow-700">Pending</span>
+                        {% elif product.approval_status == 'requires_changes' %}
+                            <span class="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-black text-orange-700">Changes Needed</span>
+                        {% elif product.approval_status == 'rejected' %}
+                            <span class="rounded-full bg-red-100 px-2 py-0.5 text-xs font-black text-red-700">Rejected</span>
+                        {% endif %}
+
+                        <a href="{% url 'dashboard:vendor_product_detail' product.id %}" class="mt-1 block text-xs font-bold text-blue-600 hover:underline">Edit</a>
                     </div>
                 </div>
                 {% empty %}
-                <p class="text-gray-500 text-center py-4">No products yet. <a href="{% url 'dashboard:vendor_add_product' %}" class="text-blue-600">Add your first product</a></p>
+                <div class="rounded-2xl bg-blue-50 p-5 text-center">
+                    <p class="font-black text-slate-950">No products yet</p>
+                    <p class="mt-1 text-sm text-slate-500">Start by adding your first product.</p>
+                    <a href="{% url 'dashboard:vendor_add_product' %}" class="mt-4 inline-flex rounded-full bg-blue-700 px-5 py-2 text-sm font-black text-white hover:bg-blue-800">
+                        Add Product
+                    </a>
+                </div>
                 {% endfor %}
             </div>
         </div>
     </div>
-    
+
     <!-- Recent Orders -->
-    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-bold">Recent Orders</h2>
-            <a href="{% url 'dashboard:vendor_orders' %}" class="text-blue-600 hover:underline">View All →</a>
+    <div class="vendor-card mb-6 p-5">
+        <div class="mb-4 flex items-center justify-between">
+            <h2 class="text-xl font-black text-slate-950">Recent Orders</h2>
+            <a href="{% url 'dashboard:vendor_orders' %}" class="text-sm font-black text-blue-700 hover:underline">View All →</a>
         </div>
-        
+
         {% if recent_orders %}
         <div class="vendor-dashboard-table-wrap overflow-x-auto">
             <table class="w-full">
-                <thead class="bg-gray-50">
+                <thead class="bg-slate-50">
                     <tr>
-                        <th class="px-4 py-3 text-left text-sm font-semibold">Order #</th>
-                        <th class="px-4 py-3 text-left text-sm font-semibold">Date</th>
-                        <th class="px-4 py-3 text-left text-sm font-semibold">Customer</th>
-                        <th class="px-4 py-3 text-left text-sm font-semibold">Total</th>
-                        <th class="px-4 py-3 text-left text-sm font-semibold">Status</th>
-                        <th class="px-4 py-3 text-left text-sm font-semibold">Actions</th>
+                        <th class="px-4 py-3 text-left text-sm font-black text-slate-600">Order #</th>
+                        <th class="px-4 py-3 text-left text-sm font-black text-slate-600">Date</th>
+                        <th class="px-4 py-3 text-left text-sm font-black text-slate-600">Customer</th>
+                        <th class="px-4 py-3 text-left text-sm font-black text-slate-600">Total</th>
+                        <th class="px-4 py-3 text-left text-sm font-black text-slate-600">Status</th>
+                        <th class="px-4 py-3 text-left text-sm font-black text-slate-600">Actions</th>
                     </tr>
                 </thead>
+
                 <tbody>
                     {% for order in recent_orders %}
-                    <tr class="border-t hover:bg-gray-50">
-                        <td class="px-4 py-3">#{{ order.id }}</td>
+                    <tr class="border-t hover:bg-slate-50">
+                        <td class="px-4 py-3 font-bold">#{{ order.id }}</td>
                         <td class="px-4 py-3">{{ order.created_at|date:"M d, Y" }}</td>
                         <td class="px-4 py-3">{{ order.user.email }}</td>
-                        <td class="px-4 py-3 font-semibold">${{ order.total|floatformat:2 }}</td>
+                        <td class="px-4 py-3 font-black">{{ vendor_profile.preferred_currency|default:"NGN" }} {{ order.total|floatformat:2 }}</td>
                         <td class="px-4 py-3">
-                            <span class="px-2 py-1 rounded text-xs font-semibold
+                            <span class="rounded-full px-2.5 py-1 text-xs font-black
                                 {% if order.status == 'delivered' %}bg-green-100 text-green-700
                                 {% elif order.status == 'pending' %}bg-yellow-100 text-yellow-700
                                 {% elif order.status == 'processing' %}bg-blue-100 text-blue-700
@@ -743,7 +840,7 @@
                             </span>
                         </td>
                         <td class="px-4 py-3">
-                            <a href="{% url 'dashboard:vendor_order_detail' order.id %}" class="text-blue-600 hover:underline text-sm">
+                            <a href="{% url 'dashboard:vendor_order_detail' order.id %}" class="text-sm font-bold text-blue-700 hover:underline">
                                 View Details
                             </a>
                         </td>
@@ -753,21 +850,25 @@
             </table>
         </div>
         {% else %}
-        <p class="text-gray-500 text-center py-8">No orders yet</p>
+        <div class="rounded-2xl bg-slate-50 p-8 text-center">
+            <p class="font-black text-slate-950">No orders yet</p>
+            <p class="mt-1 text-sm text-slate-500">Orders will appear here when customers buy from your store.</p>
+        </div>
         {% endif %}
     </div>
-    
+
     <!-- Recent Reviews -->
-    <div class="bg-white rounded-lg shadow-md p-6">
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-bold">Recent Reviews</h2>
-            <a href="{% url 'dashboard:vendor_reviews' %}" class="text-blue-600 hover:underline text-sm">View All →</a>
+    <div class="vendor-card p-5">
+        <div class="mb-4 flex items-center justify-between">
+            <h2 class="text-xl font-black text-slate-950">Recent Reviews</h2>
+            <a href="{% url 'dashboard:vendor_reviews' %}" class="text-sm font-black text-blue-700 hover:underline">View All →</a>
         </div>
+
         {% if recent_reviews %}
         <div class="space-y-4">
             {% for review in recent_reviews %}
-            <div class="border-b pb-4">
-                <div class="flex items-center justify-between mb-2">
+            <div class="border-b border-slate-100 pb-4">
+                <div class="mb-2 flex items-center justify-between">
                     <div class="flex items-center gap-2">
                         <div class="flex text-yellow-400">
                             {% for i in "12345"|make_list %}
@@ -780,48 +881,57 @@
                         </div>
                         <span class="text-sm text-gray-500">{{ review.created_at|date:"M d, Y" }}</span>
                     </div>
+
                     <span class="text-sm text-gray-500">by {{ review.user.username }}</span>
                 </div>
-                <p class="font-semibold">{{ review.title }}</p>
-                <p class="text-gray-600 text-sm">{{ review.review|truncatewords:30 }}</p>
-                <p class="text-sm text-gray-500 mt-1">Product: {{ review.product.name }}</p>
+
+                <p class="font-black text-slate-950">{{ review.title }}</p>
+                <p class="text-sm text-gray-600">{{ review.review|truncatewords:30 }}</p>
+                <p class="mt-1 text-sm text-gray-500">Product: {{ review.product.name }}</p>
             </div>
             {% endfor %}
         </div>
         {% else %}
-        <p class="text-gray-500 text-center py-8">No reviews yet</p>
+        <div class="rounded-2xl bg-slate-50 p-8 text-center">
+            <p class="font-black text-slate-950">No reviews yet</p>
+            <p class="mt-1 text-sm text-slate-500">Customer reviews will appear here after purchases.</p>
+        </div>
         {% endif %}
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // Sales Chart
-    const ctx = document.getElementById('salesChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: [{% for data in monthly_sales %}'{{ data.month }}',{% endfor %}],
-            datasets: [{
-                label: 'Sales ($)',
-                data: [{% for data in monthly_sales %}{{ data.sales }},{% endfor %}],
-                borderColor: '#3B82F6',
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                tension: 0.4,
-                fill: true
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    position: 'bottom'
+    const salesChartElement = document.getElementById('salesChart');
+
+    if (salesChartElement) {
+        const ctx = salesChartElement.getContext('2d');
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [{% for data in monthly_sales %}'{{ data.month }}',{% endfor %}],
+                datasets: [{
+                    label: 'Sales',
+                    data: [{% for data in monthly_sales %}{{ data.sales }},{% endfor %}],
+                    borderColor: '#0B72D9',
+                    backgroundColor: 'rgba(11, 114, 217, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
                 }
             }
-        }
-    });
-    
+        });
+    }
+
     function deleteNotification(notificationId) {
         if (confirm('Delete this notification?')) {
             fetch(`/dashboard/vendor/notifications/delete/${notificationId}/`, {
@@ -840,7 +950,7 @@
             });
         }
     }
-    
+
     function deleteAllNotifications() {
         if (confirm('Delete all notifications?')) {
             fetch('/dashboard/vendor/notifications/delete-all/', {
@@ -861,19 +971,23 @@
             });
         }
     }
-    
+
     function getCookie(name) {
         let cookieValue = null;
+
         if (document.cookie && document.cookie !== '') {
             const cookies = document.cookie.split(';');
+
             for (let i = 0; i < cookies.length; i++) {
                 const cookie = cookies[i].trim();
+
                 if (cookie.substring(0, name.length + 1) === (name + '=')) {
                     cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
                     break;
                 }
             }
         }
+
         return cookieValue;
     }
 </script>
