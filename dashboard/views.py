@@ -28,7 +28,11 @@ from subscriptions.models import SubscriptionPlan, VendorSubscription, subscript
 from arolana_payments.models import PaymentTransaction
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
-from core.image_protection import duplicate_warning_payload, set_protected_image_uploader
+from core.image_protection import (
+    duplicate_warning_payload,
+    inspect_vendor_image_upload,
+    set_protected_image_uploader,
+)
 
 from order_robot.models import OrderRobotVendorTask
 from order_robot.services import vendor_mark_confirmed, vendor_mark_rejected
@@ -78,20 +82,20 @@ def vendor_selectable_categories():
     )
 
 
-def _vendor_image_review_notice(request, instance, field_name):
+def _vendor_image_review_notice(request, instance, field_name, emit_message=True):
     if not getattr(instance, field_name, None):
         return None
     set_protected_image_uploader(instance, field_name, request.user)
     warning = duplicate_warning_payload(instance, field_name)
     if not warning:
         return None
-    if warning.get("needs_review"):
+    if emit_message and warning.get("needs_review"):
         messages.warning(
             request,
             warning.get("message")
             or "This image matches another vendor upload and has been sent for Arolana review.",
         )
-    elif warning.get("same_vendor_reuse"):
+    elif emit_message and warning.get("same_vendor_reuse"):
         messages.info(
             request,
             warning.get("message") or "Image reused from your existing Arolana catalogue.",
@@ -104,6 +108,22 @@ def _vendor_image_review_payload(user, instance, field_name):
         return None
     set_protected_image_uploader(instance, field_name, user)
     return duplicate_warning_payload(instance, field_name)
+
+
+def _inspect_vendor_product_uploads(request):
+    results = []
+    for field_name, files in request.FILES.lists():
+        if field_name not in {"main_image", "additional_images"} and not field_name.startswith("variant_images_"):
+            continue
+        for image_file in files:
+            result = inspect_vendor_image_upload(image_file, request.user)
+            result["field_name"] = field_name
+            results.append(result)
+    blocked = [item for item in results if not item.get("allowed", True)]
+    if blocked:
+        first = blocked[0]
+        raise ValidationError(first.get("message") or "This image cannot be used by this vendor.")
+    return results
 
 
 def _decimal_or_none(value):
@@ -699,15 +719,15 @@ def vendor_add_product(request):
         return kyc_redirect
 
     subscription_limits = user_subscription_limits(request.user)
-    current_product_count = Product.objects.filter(vendor=request.user).exclude(approval_status='rejected').count()
+    current_product_count = Product.objects.filter(vendor=request.user).exclude(
+        approval_status__in=['rejected', 'draft']
+    ).count()
     current_featured_count = Product.objects.filter(vendor=request.user, is_featured=True).exclude(approval_status='rejected').count()
     
     if request.method == 'POST':
         try:
             max_products = subscription_limits['max_products']
-            if max_products != -1 and current_product_count >= max_products:
-                messages.error(request, f'Your current plan allows up to {max_products} products. Upgrade to add more.')
-                return redirect('subscriptions:plans')
+            product_limit_reached = max_products != -1 and current_product_count >= max_products
 
             # Get form data
             name = request.POST.get('name', '').strip()
@@ -747,6 +767,8 @@ def vendor_add_product(request):
 
             if condition not in dict(Product.PRODUCT_CONDITION_CHOICES):
                 condition = Product.CONDITION_BRAND_NEW
+
+            upload_policy_results = _inspect_vendor_product_uploads(request)
             
             # Generate SKU if not provided
             if not sku:
@@ -772,10 +794,10 @@ def vendor_add_product(request):
                     brand_id=brand_id if brand_id else None,
                     vendor=request.user,
                     is_featured=is_featured,
-                    is_active=is_active,
+                    is_active=False,
                     meta_title=meta_title,
                     meta_description=meta_description,
-                    approval_status='pending',
+                    approval_status='draft' if product_limit_reached else 'pending',
                 )
 
                 if video_type and video_type != 'none' and not subscription_limits.get('can_upload_video'):
@@ -793,7 +815,7 @@ def vendor_add_product(request):
                 if main_image:
                     product.main_image = main_image
                     product.save(update_fields=['main_image'])
-                    _vendor_image_review_notice(request, product, 'main_image')
+                    _vendor_image_review_notice(request, product, 'main_image', emit_message=False)
 
                 manual_pdf = request.FILES.get('manual_pdf')
                 if manual_pdf:
@@ -808,7 +830,7 @@ def vendor_add_product(request):
                 image_limit = len(additional_images) if max_images == -1 else max_images
                 for order, img in enumerate(additional_images[:image_limit]):
                     product_image = ProductImage.objects.create(product=product, image=img, order=order)
-                    _vendor_image_review_notice(request, product_image, 'image')
+                    _vendor_image_review_notice(request, product_image, 'image', emit_message=False)
 
                 max_variants = subscription_limits['max_variants_per_product']
                 variant_indexes = request.POST.getlist('variant_index[]')
@@ -849,7 +871,7 @@ def vendor_add_product(request):
                             if image_order == 0:
                                 variant.image = image_file
                                 variant.save(update_fields=['image'])
-                                _vendor_image_review_notice(request, variant, 'image')
+                                _vendor_image_review_notice(request, variant, 'image', emit_message=False)
                             variant_image = ProductVariantImage.objects.create(
                                 variant=variant,
                                 image=image_file,
@@ -857,12 +879,40 @@ def vendor_add_product(request):
                                 is_main=image_order == 0,
                                 alt_text=f"{product.name} {variant.value}",
                             )
-                            _vendor_image_review_notice(request, variant_image, 'image')
+                            _vendor_image_review_notice(request, variant_image, 'image', emit_message=False)
 
                 if max_variants != -1 and len(variant_indexes) > max_variants:
                     messages.warning(request, f'Your plan allows {max_variants} variants per product. Extra variants were not saved.')
             
-            messages.success(request, f'Product "{product.name}" added successfully!')
+            same_vendor_count = sum(
+                1 for item in upload_policy_results
+                if item.get("status") == "same_vendor_reuse"
+            )
+            near_duplicate_count = sum(
+                1 for item in upload_policy_results
+                if item.get("status") == "near_duplicate_cross_vendor"
+            )
+            if same_vendor_count:
+                noun = "image is" if same_vendor_count == 1 else "images are"
+                messages.info(
+                    request,
+                    f"{same_vendor_count} {noun} already used by this same vendor. Reuse allowed.",
+                )
+            if near_duplicate_count:
+                messages.warning(
+                    request,
+                    f"{near_duplicate_count} image(s) look similar to media used by another vendor. "
+                    "The product is inactive and has been submitted for review.",
+                )
+            if product_limit_reached:
+                messages.warning(
+                    request,
+                    f'Product "{product.name}" was saved as a draft. Your current plan allows '
+                    f'{max_products} product(s), and you have used {current_product_count}/{max_products}. '
+                    'Upgrade your plan before publishing this product.',
+                )
+                return redirect('dashboard:vendor_product_detail', product_id=product.id)
+            messages.success(request, f'Product "{product.name}" was saved and submitted for approval.')
             return redirect('dashboard:vendor_products')
             
         except Exception as e:
@@ -879,6 +929,10 @@ def vendor_add_product(request):
         'subscription_limits': subscription_limits,
         'current_product_count': current_product_count,
         'current_featured_count': current_featured_count,
+        'product_limit_reached': (
+            subscription_limits['max_products'] != -1
+            and current_product_count >= subscription_limits['max_products']
+        ),
         **_vendor_subscription_context(request.user),
         **_vendor_customer_chat_stats(request.user),
         'unread_count': _vendor_unread_admin_count(request.user),
@@ -897,6 +951,7 @@ def vendor_product_detail(request, product_id):
         subscription_limits = user_subscription_limits(request.user)
 
         try:
+            upload_policy_results = _inspect_vendor_product_uploads(request)
             product.name = request.POST.get('name', product.name)
             product.description = request.POST.get('description', product.description)
             product.specifications = request.POST.get('specifications', product.specifications)
@@ -936,6 +991,11 @@ def vendor_product_detail(request, product_id):
                 product.video_url = request.POST.get('youtube_url', '') if video_type == 'youtube' else ''
                 if video_type == 'local' and request.FILES.get('local_video'):
                     product.local_video = request.FILES['local_video']
+
+            if any(item.get("pending_review") for item in upload_policy_results):
+                product.approval_status = "pending"
+                product.is_active = False
+                product.resubmitted_at = timezone.now()
             
             product.save()
             if main_image:
@@ -951,6 +1011,27 @@ def vendor_product_detail(request, product_id):
                     _vendor_image_review_notice(request, product_image, 'image')
                 if max_images != -1 and len(additional_images) > remaining:
                     messages.warning(request, f'Only {remaining} gallery image(s) were added because of your plan limit.')
+
+            same_vendor_count = sum(
+                1 for item in upload_policy_results
+                if item.get("status") == "same_vendor_reuse"
+            )
+            near_duplicate_count = sum(
+                1 for item in upload_policy_results
+                if item.get("status") == "near_duplicate_cross_vendor"
+            )
+            if same_vendor_count:
+                noun = "image is" if same_vendor_count == 1 else "images are"
+                messages.info(
+                    request,
+                    f"{same_vendor_count} {noun} already used by this same vendor. Reuse allowed.",
+                )
+            if near_duplicate_count:
+                messages.warning(
+                    request,
+                    f"{near_duplicate_count} image(s) were submitted for duplicate review. "
+                    "The product is inactive until admin review is complete.",
+                )
 
             messages.success(request, 'Product updated successfully!')
             return redirect('dashboard:vendor_products')
@@ -1062,21 +1143,60 @@ def vendor_product_images(request, product_id):
 
         try:
             images = request.FILES.getlist('images')
+            upload_policy_results = [
+                inspect_vendor_image_upload(image_file, request.user)
+                for image_file in images
+            ]
+            blocked = next(
+                (item for item in upload_policy_results if not item.get("allowed", True)),
+                None,
+            )
+            if blocked:
+                return JsonResponse({
+                    "success": False,
+                    "allowed": False,
+                    "reason": blocked.get("status"),
+                    "message": blocked.get("message"),
+                    "duplicate_warning": blocked,
+                }, status=409)
             duplicate_warnings = []
             for img in images:
                 product_image = ProductImage.objects.create(product=product, image=img)
                 warning = _vendor_image_review_payload(request.user, product_image, 'image')
                 if warning:
                     duplicate_warnings.append(warning)
+            if any(item.get("pending_review") for item in upload_policy_results):
+                product.approval_status = "pending"
+                product.is_active = False
+                product.resubmitted_at = timezone.now()
+                product.save(update_fields=[
+                    "approval_status",
+                    "is_active",
+                    "resubmitted_at",
+                    "updated_at",
+                ])
+            same_vendor_count = sum(
+                1 for item in upload_policy_results
+                if item.get("status") == "same_vendor_reuse"
+            )
+            near_duplicate_count = sum(
+                1 for item in upload_policy_results
+                if item.get("status") == "near_duplicate_cross_vendor"
+            )
             return JsonResponse({
                 'success': True,
                 'count': len(images),
                 'duplicate_warnings': duplicate_warnings,
-                'review_count': len([item for item in duplicate_warnings if item.get('needs_review')]),
+                'same_vendor_reuse_count': same_vendor_count,
+                'review_count': near_duplicate_count,
                 'message': (
-                    'Image uploaded. One or more images require Arolana duplicate review.'
-                    if any(item.get('needs_review') for item in duplicate_warnings)
-                    else 'Images uploaded successfully.'
+                    f'{near_duplicate_count} image(s) were submitted for Arolana duplicate review.'
+                    if near_duplicate_count
+                    else (
+                        f'{same_vendor_count} image(s) are already used by this same vendor. Reuse allowed.'
+                        if same_vendor_count
+                        else 'Images uploaded successfully.'
+                    )
                 ),
             })
         except Exception as e:

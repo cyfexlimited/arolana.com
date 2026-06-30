@@ -63,7 +63,11 @@ from installers.services import (
     submit_provider_profile,
 )
 from accounts.utils.otp_utils import create_otp, verify_otp
-from core.image_protection import duplicate_warning_payload, set_protected_image_uploader
+from core.image_protection import (
+    duplicate_warning_payload,
+    inspect_vendor_image_upload,
+    set_protected_image_uploader,
+)
 from core.media_optimization import get_optimized_image_url
 
 try:
@@ -107,7 +111,28 @@ SUBSCRIPTION_UPGRADE_MESSAGE = "Your current subscription does not allow this fe
 
 
 def _subscription_limit_error():
-    return _error(SUBSCRIPTION_UPGRADE_MESSAGE, status=403)
+    return JsonResponse(
+        {
+            "success": False,
+            "allowed": False,
+            "reason": "subscription_required",
+            "message": SUBSCRIPTION_UPGRADE_MESSAGE,
+        },
+        status=403,
+    )
+
+
+def _vendor_upload_policy_error(result):
+    return JsonResponse(
+        {
+            "success": False,
+            "allowed": False,
+            "reason": result.get("status") or "duplicate_image",
+            "message": result.get("message") or "This image cannot be used.",
+            "duplicate_warning": result,
+        },
+        status=409,
+    )
 
 
 def _request_staff_token(request):
@@ -2321,9 +2346,13 @@ def vendor_product_create_api(request):
         return _error("Complete admin approval and KYC before uploading products.", status=403)
     apply_vendor_subscription_benefits(profile, user_subscription_tier(profile.user))
     profile.refresh_from_db()
-    current_product_count = Product.objects.filter(vendor=profile.user).exclude(approval_status="rejected").count()
-    if profile.product_limit != -1 and current_product_count >= profile.product_limit:
-        return _subscription_limit_error()
+    current_product_count = Product.objects.filter(vendor=profile.user).exclude(
+        approval_status__in=["rejected", "draft"]
+    ).count()
+    product_limit_reached = (
+        profile.product_limit != -1
+        and current_product_count >= profile.product_limit
+    )
     category = Category.objects.filter(id=data.get("category_id")).first()
     if not category:
         category = Category.objects.filter(is_active=True).order_by("name", "id").first() or Category.objects.order_by("id").first()
@@ -2354,11 +2383,30 @@ def vendor_product_create_api(request):
         country_of_origin=_clean_text(data.get("country_of_origin") or profile.country),
         manufacturer_address=_clean_text(data.get("manufacturer_address") or profile.manufacturer_address),
         certifications=data.get("certifications") if isinstance(data.get("certifications"), list) else [],
-        approval_status="pending",
+        approval_status="draft" if product_limit_reached else "pending",
         is_active=False,
     )
+    if product_limit_reached:
+        return JsonResponse({
+            "success": True,
+            "allowed": False,
+            "reason": "product_limit_reached",
+            "draft_saved": True,
+            "message": (
+                f"Product saved as draft. Your current plan allows {profile.product_limit} "
+                f"product(s), and you have used {current_product_count}/{profile.product_limit}. "
+                "Upgrade your subscription to publish this product."
+            ),
+            "product": _product_payload(product),
+        })
     _notify(profile.user, "Product submitted", f"{product.name} is pending admin approval.", "product", {"product_id": product.id})
-    return JsonResponse({"success": True, "product": _product_payload(product)})
+    return JsonResponse({
+        "success": True,
+        "allowed": True,
+        "reason": None,
+        "message": "Product saved and submitted for admin approval.",
+        "product": _product_payload(product),
+    })
 
 
 @csrf_exempt
@@ -2429,6 +2477,9 @@ def vendor_product_images_api(request, product_id):
     image_file = request.FILES.get("image")
     if not image_file:
         return _error("Image file is required.")
+    upload_policy = inspect_vendor_image_upload(image_file, profile.user)
+    if not upload_policy.get("allowed", True):
+        return _vendor_upload_policy_error(upload_policy)
     is_main = _bool_value(request.POST.get("is_main"))
     apply_vendor_subscription_benefits(profile, user_subscription_tier(profile.user))
     profile.refresh_from_db()
@@ -2457,10 +2508,10 @@ def vendor_product_images_api(request, product_id):
         "success": True,
         "message": (
             "Image uploaded. Arolana will review this image because it matches another vendor upload."
-            if duplicate_warning and duplicate_warning.get("needs_review")
+            if upload_policy.get("pending_review")
             else "Image uploaded successfully."
         ),
-        "duplicate_warning": duplicate_warning,
+        "duplicate_warning": duplicate_warning or upload_policy,
         "image": {
             "id": product_image.id,
             "url": _absolute_media_url(request, product_image.image, "product_gallery"),
@@ -2548,6 +2599,17 @@ def vendor_product_variants_api(request, product_id):
     )
     duplicate_warnings = []
     main_image = request.FILES.get("image")
+    upload_files = ([main_image] if main_image else []) + list(request.FILES.getlist("images"))
+    upload_policies = [
+        inspect_vendor_image_upload(image_file, profile.user)
+        for image_file in upload_files
+    ]
+    blocked_policy = next(
+        (item for item in upload_policies if not item.get("allowed", True)),
+        None,
+    )
+    if blocked_policy:
+        return _vendor_upload_policy_error(blocked_policy)
     if main_image:
         variant.image = main_image
         variant.save(update_fields=["image", "updated_at"])
@@ -2580,7 +2642,8 @@ def vendor_product_variants_api(request, product_id):
         "duplicate_warnings": duplicate_warnings,
         "message": (
             "Variant saved. One or more images require Arolana duplicate review."
-            if any(item.get("needs_review") for item in duplicate_warnings)
+            if any(item.get("pending_review") for item in upload_policies)
+            or any(item.get("needs_review") for item in duplicate_warnings)
             else "Variant saved and product sent for admin review."
         ),
     })

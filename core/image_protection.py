@@ -23,6 +23,14 @@ except Exception:
 
 
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff", ".avif")
+EXACT_CROSS_VENDOR_MESSAGE = (
+    "This image is already used by another vendor on Arolana. Upload a different "
+    "image or contact Arolana support if you have permission to use it."
+)
+NEAR_CROSS_VENDOR_MESSAGE = (
+    "This image looks similar to an image already used by another vendor. "
+    "It has been submitted for review."
+)
 
 
 @deconstructible
@@ -119,6 +127,139 @@ def _webp_bytes_and_metadata(data):
         img.save(output, format="WEBP", quality=88, method=6, optimize=True)
 
     return output.getvalue(), width, height, perceptual_hash
+
+
+def _matched_asset_payload(asset, match_type, perceptual_distance=None):
+    product_name = ""
+    if getattr(asset, "source_product_id", None):
+        try:
+            Product = apps.get_model("products", "Product")
+            product_name = (
+                Product.objects.filter(pk=asset.source_product_id)
+                .values_list("name", flat=True)
+                .first()
+                or ""
+            )
+        except Exception:
+            product_name = ""
+    vendor = getattr(asset, "vendor", None)
+    vendor_name = ""
+    if vendor:
+        profile = getattr(vendor, "vendor_profile", None)
+        vendor_name = (
+            getattr(profile, "business_name", "")
+            or getattr(profile, "store_name", "")
+            or vendor.get_full_name()
+            or vendor.email
+            or vendor.username
+        )
+    return {
+        "matched_asset_id": asset.pk,
+        "match_type": match_type,
+        "first_vendor_id": getattr(asset, "vendor_id", None),
+        "first_vendor_name": vendor_name,
+        "first_product_id": getattr(asset, "source_product_id", None),
+        "first_product_name": product_name,
+        "first_uploaded_at": asset.created_at.isoformat() if asset.created_at else "",
+        "perceptual_distance": perceptual_distance,
+    }
+
+
+def inspect_vendor_image_upload(image_file, vendor):
+    """
+    Inspect a vendor upload before its model is saved.
+
+    Exact cross-vendor matches are blocked before storage. Near matches may be
+    stored only on an inactive product awaiting admin review. Same-vendor reuse
+    remains allowed.
+    """
+    if not image_file:
+        return {"status": "original", "allowed": True}
+    try:
+        image_file.seek(0)
+        raw = image_file.read()
+    finally:
+        try:
+            image_file.seek(0)
+        except Exception:
+            pass
+    if not raw:
+        return {"status": "original", "allowed": True}
+
+    webp_data, width, height, perceptual_hash = _webp_bytes_and_metadata(raw)
+    sha256 = _sha256_bytes(webp_data)
+    vendor_id = getattr(vendor, "pk", None)
+    exact = ProtectedImageAsset.objects.filter(sha256=sha256).order_by("created_at").first()
+    if exact:
+        payload = _matched_asset_payload(exact, "exact", 0)
+        if vendor_id and exact.vendor_id == vendor_id:
+            return {
+                **payload,
+                "status": "same_vendor_reuse",
+                "allowed": True,
+                "message": "Image already used by this same vendor. Reuse allowed.",
+            }
+        if exact.allow_duplicate:
+            return {
+                **payload,
+                "status": "admin_override",
+                "allowed": True,
+                "message": "This image is approved by Arolana for authorized shared use.",
+            }
+        return {
+            **payload,
+            "status": "exact_duplicate_cross_vendor",
+            "allowed": False,
+            "message": EXACT_CROSS_VENDOR_MESSAGE,
+        }
+
+    if perceptual_hash:
+        minimum_width = max(1, int((width or 1) * 0.45))
+        maximum_width = max(1, int((width or 1) * 2.2))
+        minimum_height = max(1, int((height or 1) * 0.45))
+        maximum_height = max(1, int((height or 1) * 2.2))
+        candidates = (
+            ProtectedImageAsset.objects.exclude(perceptual_hash="")
+            .filter(
+                Q(width__isnull=True)
+                | Q(height__isnull=True)
+                | Q(
+                    width__gte=minimum_width,
+                    width__lte=maximum_width,
+                    height__gte=minimum_height,
+                    height__lte=maximum_height,
+                )
+            )
+            .order_by("created_at")[:500]
+        )
+        for candidate in candidates:
+            distance = hamming_distance(perceptual_hash, candidate.perceptual_hash)
+            if distance is None or distance > 6:
+                continue
+            payload = _matched_asset_payload(candidate, "near", distance)
+            if vendor_id and candidate.vendor_id == vendor_id:
+                return {
+                    **payload,
+                    "status": "same_vendor_reuse",
+                    "allowed": True,
+                    "message": "Image already used by this same vendor. Reuse allowed.",
+                }
+            if candidate.allow_duplicate:
+                return {
+                    **payload,
+                    "status": "admin_override",
+                    "allowed": True,
+                    "message": "This image is approved by Arolana for authorized shared use.",
+                }
+            return {
+                **payload,
+                "status": "near_duplicate_cross_vendor",
+                "allowed": True,
+                "pending_review": True,
+                "message": NEAR_CROSS_VENDOR_MESSAGE,
+            }
+
+    return {"status": "original", "allowed": True}
 
 
 def protect_uploaded_image(instance, field_name, block_cross_vendor_duplicates=False):
@@ -333,8 +474,14 @@ def upsert_protected_asset(obj, field, fingerprint: ImageFingerprint, dry_run=Fa
         duplicate_status = "same_vendor_reuse"
         duplicate_reason = "Image reused by the same vendor."
     elif getattr(duplicate_of, "allow_duplicate", False):
-        duplicate_status = "approved"
+        duplicate_status = "admin_override"
         duplicate_reason = "Matched an image already approved for legitimate shared use."
+    elif duplicate_type == "exact":
+        duplicate_status = "exact_duplicate_cross_vendor"
+        duplicate_reason = EXACT_CROSS_VENDOR_MESSAGE
+    elif duplicate_type == "near":
+        duplicate_status = "near_duplicate_cross_vendor"
+        duplicate_reason = NEAR_CROSS_VENDOR_MESSAGE
     else:
         duplicate_status = "needs_review"
         duplicate_reason = (
@@ -398,12 +545,26 @@ def duplicate_warning_payload(instance, field_name):
     asset = protected_asset_for(instance, field_name)
     if not asset:
         return None
+    matched = (
+        _matched_asset_payload(
+            asset.duplicate_of,
+            asset.duplicate_type,
+            asset.perceptual_distance,
+        )
+        if asset.duplicate_of_id
+        else {}
+    )
     return {
+        **matched,
         "asset_id": asset.id,
         "is_duplicate": asset.is_duplicate,
         "duplicate_type": asset.duplicate_type,
         "duplicate_status": asset.duplicate_status,
-        "needs_review": asset.duplicate_status == "needs_review",
+        "needs_review": asset.duplicate_status in {
+            "needs_review",
+            "exact_duplicate_cross_vendor",
+            "near_duplicate_cross_vendor",
+        },
         "same_vendor_reuse": asset.duplicate_status == "same_vendor_reuse",
         "message": asset.duplicate_reason,
         "matched_asset_id": asset.duplicate_of_id,

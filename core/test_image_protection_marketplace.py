@@ -8,7 +8,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from PIL import Image
 
-from core.image_protection import duplicate_warning_payload
+from core.image_protection import duplicate_warning_payload, inspect_vendor_image_upload
 from core.models import ProtectedImageAsset
 from products.models import Category, Product, ProductImage
 
@@ -72,7 +72,7 @@ class MarketplaceImageProtectionTests(TestCase):
         self.assertEqual(asset.duplicate_status, "original")
         self.assertFalse(asset.is_duplicate)
 
-    def test_cross_vendor_duplicate_is_flagged_for_review_not_blocked(self):
+    def test_admin_saved_cross_vendor_duplicate_is_flagged_for_review(self):
         ProductImage.objects.create(
             product=self.product_one,
             image=_uploaded_image("manufacturer-image.jpg", color=(90, 20, 20)),
@@ -87,10 +87,40 @@ class MarketplaceImageProtectionTests(TestCase):
             field_name="image",
         )
 
-        self.assertEqual(asset.duplicate_status, "needs_review")
+        self.assertEqual(asset.duplicate_status, "exact_duplicate_cross_vendor")
         self.assertEqual(asset.duplicate_type, "exact")
         self.assertTrue(asset.is_duplicate)
         self.assertTrue(warning["needs_review"])
+
+    def test_vendor_exact_cross_vendor_upload_is_blocked_before_save(self):
+        ProductImage.objects.create(
+            product=self.product_one,
+            image=_uploaded_image("manufacturer-image.jpg", color=(90, 20, 20)),
+        )
+
+        result = inspect_vendor_image_upload(
+            _uploaded_image("renamed-copy.jpg", color=(90, 20, 20)),
+            self.vendor_two,
+        )
+
+        self.assertFalse(result["allowed"])
+        self.assertEqual(result["status"], "exact_duplicate_cross_vendor")
+        self.assertEqual(result["first_vendor_id"], self.vendor_one.id)
+        self.assertEqual(result["first_product_id"], self.product_one.id)
+
+    def test_vendor_same_vendor_upload_is_allowed_before_save(self):
+        ProductImage.objects.create(
+            product=self.product_one,
+            image=_uploaded_image("same-vendor-base.jpg", color=(20, 140, 20)),
+        )
+
+        result = inspect_vendor_image_upload(
+            _uploaded_image("renamed-own-copy.jpg", color=(20, 140, 20)),
+            self.vendor_one,
+        )
+
+        self.assertTrue(result["allowed"])
+        self.assertEqual(result["status"], "same_vendor_reuse")
 
     def test_same_vendor_duplicate_is_allowed_as_reuse(self):
         ProductImage.objects.create(

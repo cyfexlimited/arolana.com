@@ -95,8 +95,10 @@ class ProtectedImageAsset(models.Model):
     DUPLICATE_STATUS_CHOICES = (
         ("original", "Original"),
         ("same_vendor_reuse", "Same Vendor Reuse"),
+        ("exact_duplicate_cross_vendor", "Exact Cross-Vendor Duplicate"),
+        ("near_duplicate_cross_vendor", "Near Cross-Vendor Duplicate"),
         ("needs_review", "Needs Review"),
-        ("approved", "Admin Allowed"),
+        ("admin_override", "Admin Allowed"),
         ("rejected", "Rejected"),
     )
     DUPLICATE_TYPE_CHOICES = (

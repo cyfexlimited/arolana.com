@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal
 from unittest.mock import patch
 
 from django.test import TestCase
@@ -7,7 +8,9 @@ from django.utils import timezone
 from accounts.models import User, UserOTP
 from installers.models import ServiceProviderProfile
 from notifications.models import Notification
+from products.models import Category, Product
 from staff_mobile.models import StaffMobileToken
+from vendors.models import VendorProfile
 
 
 class StaffMobileAuthenticationTests(TestCase):
@@ -30,7 +33,7 @@ class StaffMobileAuthenticationTests(TestCase):
     @patch("accounts.utils.otp_utils.send_otp_email", return_value=True)
     def test_login_normalizes_email_and_requires_otp_before_token(self, _send_email):
         response = self.post_json(
-            "/api/mobile/auth/login/",
+            "/api/staff/auth/login/",
             {
                 "role": "admin",
                 "username": "  ADMIN@AROLANA.COM ",
@@ -47,14 +50,14 @@ class StaffMobileAuthenticationTests(TestCase):
 
         otp = UserOTP.objects.get(user=self.user, otp_type="login", is_used=False)
         verified = self.post_json(
-            "/api/mobile/auth/verify-otp/",
+            "/api/staff/auth/verify-otp/",
             {
                 "challenge_token": payload["challenge_token"],
                 "otp_code": otp.otp_code,
             },
         )
 
-        self.assertEqual(verified.status_code, 200)
+        self.assertEqual(verified.status_code, 200, verified.content)
         verified_payload = verified.json()
         self.assertFalse(verified_payload["otp_required"])
         self.assertEqual(verified_payload["role"], "admin")
@@ -68,12 +71,12 @@ class StaffMobileAuthenticationTests(TestCase):
         self.assertEqual(StaffMobileToken.objects.count(), 1)
 
         auth_header = {"HTTP_AUTHORIZATION": f"Bearer {verified_payload['token']}"}
-        me = self.client.get("/api/mobile/auth/me/", **auth_header)
+        me = self.client.get("/api/staff/auth/me/", **auth_header)
         self.assertEqual(me.status_code, 200)
         self.assertEqual(me.json()["user"]["id"], self.user.id)
 
         logout = self.client.post(
-            "/api/mobile/auth/logout/",
+            "/api/staff/auth/logout/",
             data="{}",
             content_type="application/json",
             **auth_header,
@@ -83,7 +86,23 @@ class StaffMobileAuthenticationTests(TestCase):
 
     def test_invalid_password_returns_helpful_message(self):
         response = self.post_json(
-            "/api/mobile/auth/login/",
+            "/api/staff/auth/login/",
+            {
+                "role": "admin",
+                "username": "admin@arolana.com",
+                "password": "wrong-password",
+            },
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(
+            response.json()["message"],
+            "Invalid login details. Please check your email/phone and password.",
+        )
+
+    def test_staff_auth_compatibility_route_uses_same_login_flow(self):
+        response = self.post_json(
+            "/api/staff/auth/login/",
             {
                 "role": "admin",
                 "username": "admin@arolana.com",
@@ -99,7 +118,7 @@ class StaffMobileAuthenticationTests(TestCase):
 
     def test_tampered_challenge_does_not_issue_token(self):
         response = self.post_json(
-            "/api/mobile/auth/verify-otp/",
+            "/api/staff/auth/verify-otp/",
             {"challenge_token": "tampered", "otp_code": "123456"},
         )
 
@@ -109,7 +128,7 @@ class StaffMobileAuthenticationTests(TestCase):
     @patch("accounts.utils.otp_utils.send_otp_email", return_value=True)
     def test_existing_user_logs_in_then_sets_up_optional_provider_profile(self, _send_email):
         login = self.post_json(
-            "/api/mobile/auth/login/",
+            "/api/staff/auth/login/",
             {
                 "role": "provider",
                 "username": " ADMIN@AROLANA.COM ",
@@ -119,13 +138,13 @@ class StaffMobileAuthenticationTests(TestCase):
         self.assertEqual(login.status_code, 200)
         otp = UserOTP.objects.get(user=self.user, otp_type="login", is_used=False)
         verified = self.post_json(
-            "/api/mobile/auth/verify-otp/",
+            "/api/staff/auth/verify-otp/",
             {
                 "challenge_token": login.json()["challenge_token"],
                 "otp_code": otp.otp_code,
             },
         )
-        self.assertEqual(verified.status_code, 200)
+        self.assertEqual(verified.status_code, 200, verified.content)
         self.assertTrue(verified.json()["profile_required"])
         token = verified.json()["token"]
         auth_header = {"HTTP_AUTHORIZATION": f"Bearer {token}"}
@@ -205,14 +224,14 @@ class StaffMobileAuthenticationTests(TestCase):
     def test_password_reset_uses_otp_and_revokes_mobile_sessions(self, _send_email):
         session = StaffMobileToken.issue(role="admin", user=self.user, device_name="Old phone")
         started = self.post_json(
-            "/api/mobile/auth/forgot-password/",
+            "/api/staff/auth/forgot-password/",
             {"identifier": " ADMIN@AROLANA.COM "},
         )
         self.assertEqual(started.status_code, 200)
         otp = UserOTP.objects.get(user=self.user, otp_type="password_reset", is_used=False)
 
         reset = self.post_json(
-            "/api/mobile/auth/reset-password/",
+            "/api/staff/auth/reset-password/",
             {
                 "challenge_token": started.json()["challenge_token"],
                 "otp_code": otp.otp_code,
@@ -225,3 +244,67 @@ class StaffMobileAuthenticationTests(TestCase):
         session.refresh_from_db()
         self.assertTrue(self.user.check_password("NewStrongPassword456!"))
         self.assertFalse(session.is_active)
+
+
+class VendorProductSubscriptionFlowTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="vendor-limit@arolana.com",
+            username="vendor-limit",
+            password="StrongPassword123!",
+            user_type="vendor",
+            email_verified=True,
+        )
+        self.profile = VendorProfile.objects.create(
+            user=self.user,
+            store_name="Limit Test Vendor",
+            store_slug="limit-test-vendor",
+            description="Vendor subscription test",
+            approval_status="approved",
+            is_verified=True,
+            is_active=True,
+            address_line_1="1 Arolana Way",
+            city="Ikeja",
+            state="Lagos",
+            country="Nigeria",
+            product_limit=1,
+        )
+        self.category = Category.objects.create(
+            name="Vendor API Category",
+            slug="vendor-api-category",
+        )
+        Product.objects.create(
+            vendor=self.user,
+            category=self.category,
+            name="Existing Vendor Product",
+            sku="LIMIT-EXISTING",
+            description="Existing",
+            price=Decimal("100.00"),
+            stock_quantity=1,
+            approval_status="approved",
+            is_active=True,
+        )
+        self.session = StaffMobileToken.issue(role="vendor", user=self.user)
+
+    def test_product_limit_saves_draft_instead_of_discarding_form(self):
+        response = self.client.post(
+            "/api/staff/vendor/products/create/",
+            data=json.dumps({
+                "name": "Preserved Vendor Draft",
+                "category_id": self.category.id,
+                "description": "The completed product form must be preserved.",
+                "price": "250.00",
+                "stock_quantity": 4,
+            }),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.session.token}",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        payload = response.json()
+        self.assertTrue(payload["draft_saved"])
+        self.assertFalse(payload["allowed"])
+        self.assertEqual(payload["reason"], "product_limit_reached")
+        product = Product.objects.get(name="Preserved Vendor Draft")
+        self.assertEqual(product.approval_status, "draft")
+        self.assertFalse(product.is_active)

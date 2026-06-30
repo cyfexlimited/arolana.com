@@ -73,10 +73,21 @@ def _message_image_duplicate_review(model_admin, request, instance, field_name):
     if not warning:
         return None
     if warning.get("needs_review"):
+        first_vendor = warning.get("first_vendor_name") or "another vendor"
+        first_product = warning.get("first_product_name") or "an existing product"
+        match_label = (
+            "exact duplicate"
+            if warning.get("match_type") == "exact"
+            else "near-duplicate"
+        )
         model_admin.message_user(
             request,
-            warning.get("message")
-            or "This image matches another vendor upload and has been flagged for admin review.",
+            (
+                f"This image is an {match_label} already used by {first_vendor} "
+                f"on {first_product}. Allow it only when it is official manufacturer "
+                "media or the vendor has usage rights. Use the Protected Image Assets "
+                "review action to approve or reject it."
+            ),
             level="WARNING",
         )
     elif warning.get("same_vendor_reuse"):

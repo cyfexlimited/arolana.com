@@ -616,6 +616,7 @@ class Product(BaseModel):
 
     # ========== APPROVAL SYSTEM ==========
     APPROVAL_STATUS_CHOICES = [
+        ('draft', 'Draft'),
         ('pending', 'Pending Approval'),
         ('approved', 'Approved'),
         ('rejected', 'Rejected'),

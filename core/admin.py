@@ -221,7 +221,7 @@ class ProtectedImageAssetAdmin(admin.ModelAdmin):
     image_size.short_description = "Size"
 
     def duplicate_badge(self, obj):
-        if getattr(obj, "allow_duplicate", False):
+        if getattr(obj, "allow_duplicate", False) or getattr(obj, "duplicate_status", "") == "admin_override":
             return format_html(
                 '<span style="background:#2563eb;color:#fff;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700;">Approved Shared</span>'
             )
@@ -262,7 +262,7 @@ class ProtectedImageAssetAdmin(admin.ModelAdmin):
         if "reviewed_at" in fields:
             update_data["reviewed_at"] = now()
         if "duplicate_status" in fields:
-            update_data["duplicate_status"] = "approved"
+            update_data["duplicate_status"] = "admin_override"
 
         updated = queryset.update(**update_data)
         self.message_user(request, f"✅ {updated} image asset(s) approved for duplicate/shared use.")

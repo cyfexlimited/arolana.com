@@ -69,6 +69,15 @@
 	        </div>
 	    </div>
 
+        {% if product_limit_reached %}
+        <div class="mb-6 rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-950">
+            <strong>Your plan's live product limit has been reached.</strong>
+            You can still complete this form. Arolana will preserve the product as an inactive draft,
+            and you can publish it after upgrading your subscription.
+            <a href="{% url 'subscriptions:plans' %}" class="ml-1 font-bold text-blue-700 underline">View plans</a>
+        </div>
+        {% endif %}
+
 	    <form method="POST" enctype="multipart/form-data" class="space-y-6" id="productForm">
         {% csrf_token %}
 
