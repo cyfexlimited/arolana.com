@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.validators import RegexValidator, MinValueValidator, MaxValueValidator
 from django.db import models
@@ -19,19 +20,115 @@ class BaseModel(models.Model):
         abstract = True
 
 
+class ContentTranslation(models.Model):
+    """Admin-managed translations for model fields and shared system labels."""
+
+    content_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="arolana_content_translations",
+    )
+    object_id = models.PositiveBigIntegerField(null=True, blank=True, db_index=True)
+    content_object = GenericForeignKey("content_type", "object_id")
+    translation_key = models.CharField(
+        max_length=255,
+        blank=True,
+        db_index=True,
+        help_text="Use for shared labels, for example product.condition.brand_new.",
+    )
+    language_code = models.CharField(
+        max_length=20,
+        db_index=True,
+        help_text="BCP-47 language code, for example yo, ig, ha, fr, or es.",
+    )
+    field_name = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Model field being translated, for example name, description, or specifications.",
+    )
+    translated_text = models.TextField()
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("content_type", "object_id", "field_name", "language_code")
+        indexes = [
+            models.Index(fields=("content_type", "object_id", "language_code")),
+            models.Index(fields=("translation_key", "language_code", "is_active")),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=("content_type", "object_id", "language_code", "field_name"),
+                condition=models.Q(content_type__isnull=False, object_id__isnull=False),
+                name="unique_content_field_translation",
+            ),
+            models.UniqueConstraint(
+                fields=("translation_key", "language_code"),
+                condition=~models.Q(translation_key=""),
+                name="unique_system_key_translation",
+            ),
+        ]
+        verbose_name = "Content Translation"
+        verbose_name_plural = "Content Translations"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        has_object = bool(self.content_type_id and self.object_id and self.field_name)
+        has_key = bool(self.translation_key)
+        if has_object == has_key:
+            raise ValidationError(
+                "Choose either a model object/field or a translation key, not both."
+            )
+
+    def __str__(self):
+        target = self.translation_key or f"{self.content_type} #{self.object_id}.{self.field_name}"
+        return f"{target} [{self.language_code}]"
+
+
 class ProtectedImageAsset(models.Model):
     """Hash registry for uploaded images so Arolana can detect unsafe duplicates."""
+
+    DUPLICATE_STATUS_CHOICES = (
+        ("original", "Original"),
+        ("same_vendor_reuse", "Same Vendor Reuse"),
+        ("needs_review", "Needs Review"),
+        ("approved", "Admin Allowed"),
+        ("rejected", "Rejected"),
+    )
+    DUPLICATE_TYPE_CHOICES = (
+        ("", "Not a Duplicate"),
+        ("exact", "Exact Duplicate"),
+        ("near", "Likely / Near Duplicate"),
+    )
 
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField(db_index=True)
     field_name = models.CharField(max_length=100, db_index=True)
     file_name = models.CharField(max_length=500, db_index=True)
+    original_filename = models.CharField(max_length=500, blank=True)
     sha256 = models.CharField(max_length=64, db_index=True)
     perceptual_hash = models.CharField(max_length=32, blank=True, db_index=True)
     width = models.PositiveIntegerField(null=True, blank=True)
     height = models.PositiveIntegerField(null=True, blank=True)
     size_bytes = models.PositiveIntegerField(null=True, blank=True)
     is_duplicate = models.BooleanField(default=False, db_index=True)
+    duplicate_type = models.CharField(
+        max_length=20,
+        choices=DUPLICATE_TYPE_CHOICES,
+        blank=True,
+        db_index=True,
+    )
+    duplicate_status = models.CharField(
+        max_length=30,
+        choices=DUPLICATE_STATUS_CHOICES,
+        default="original",
+        db_index=True,
+    )
+    perceptual_distance = models.PositiveSmallIntegerField(null=True, blank=True)
     duplicate_of = models.ForeignKey(
         "self",
         null=True,
@@ -44,6 +141,21 @@ class ProtectedImageAsset(models.Model):
         help_text="Admin override for legitimate shared manufacturer/product images.",
     )
     duplicate_reason = models.TextField(blank=True)
+    uploader = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="uploaded_protected_images",
+    )
+    vendor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="vendor_protected_images",
+    )
+    source_product_id = models.PositiveBigIntegerField(null=True, blank=True, db_index=True)
     reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,

@@ -15,6 +15,7 @@ from .models import (
 )
 
 from django.utils.timezone import now
+from core.image_protection import duplicate_warning_payload, set_protected_image_uploader
 
 # NOTE FOR VARIANT IMAGES:
 # Add variant rows from the Product admin, save, then click the change/open link
@@ -49,6 +50,41 @@ class ProductAdminForm(forms.ModelForm):
                 'Placeholder image URLs are not allowed.'
             )
         return description
+
+    def clean(self):
+        cleaned_data = super().clean()
+        name = cleaned_data.get("name")
+        vendor = cleaned_data.get("vendor")
+        requested_slug = cleaned_data.get("slug") or name
+        if name:
+            unique_slug = Product.build_unique_slug(
+                name=name,
+                vendor=vendor,
+                requested_slug=requested_slug,
+                current_pk=self.instance.pk,
+            )
+            cleaned_data["slug"] = unique_slug
+            self._slug_adjusted_by_form = bool(requested_slug and unique_slug != requested_slug)
+        return cleaned_data
+
+
+def _message_image_duplicate_review(model_admin, request, instance, field_name):
+    warning = duplicate_warning_payload(instance, field_name)
+    if not warning:
+        return None
+    if warning.get("needs_review"):
+        model_admin.message_user(
+            request,
+            warning.get("message")
+            or "This image matches another vendor upload and has been flagged for admin review.",
+            level="WARNING",
+        )
+    elif warning.get("same_vendor_reuse"):
+        model_admin.message_user(
+            request,
+            warning.get("message") or "This image was reused from the same vendor catalogue.",
+        )
+    return warning
 
 
 class AccessoryAdminForm(forms.ModelForm):
@@ -292,6 +328,30 @@ class ProductAdmin(admin.ModelAdmin):
     autocomplete_fields = ['vendor', 'category', 'brand']
     list_select_related = ['category', 'brand', 'vendor']
     list_per_page = 30
+
+    def save_model(self, request, obj, form, change):
+        submitted_slug = obj.slug
+        super().save_model(request, obj, form, change)
+        if getattr(obj, "_slug_was_adjusted", False) or getattr(form, "_slug_adjusted_by_form", False) or obj.slug != submitted_slug:
+            self.message_user(
+                request,
+                f'Slug adjusted automatically to "{obj.slug}" because another listing uses the requested URL.',
+            )
+        for field_name in ("main_image", "video_thumbnail"):
+            if getattr(obj, field_name, None):
+                set_protected_image_uploader(obj, field_name, request.user)
+                _message_image_duplicate_review(self, request, obj, field_name)
+
+    def save_formset(self, request, form, formset, change):
+        super().save_formset(request, form, formset, change)
+        for inline_form in getattr(formset, "forms", []):
+            instance = getattr(inline_form, "instance", None)
+            if not instance or not getattr(instance, "pk", None):
+                continue
+            for field_name in ("image", "thumbnail"):
+                if getattr(instance, field_name, None):
+                    set_protected_image_uploader(instance, field_name, request.user)
+                    _message_image_duplicate_review(self, request, instance, field_name)
     
     fieldsets = (
         ('Basic Information', {
@@ -722,6 +782,11 @@ class ProductImageAdmin(admin.ModelAdmin):
             )
         return mark_safe('<span style="color: #9ca3af;">No Image</span>')
     image_preview.short_description = 'Preview'
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        set_protected_image_uploader(obj, "image", request.user)
+        _message_image_duplicate_review(self, request, obj, "image")
 
 
 # =================================

@@ -93,6 +93,27 @@ class TestUrls(SimpleTestCase):
         self.assertEqual(resolve(url).func, views.debug_colors)
 
 
+class ProductDescriptionSanitizationTests(SimpleTestCase):
+    def test_placeholder_description_images_are_removed(self):
+        html = (
+            '<p>Before</p>'
+            '<figure class="image"><img src="UPLOAD_PRODUCT_IMAGE_URL_HERE"></figure>'
+            '<p>After</p>'
+        )
+
+        cleaned = Product._strip_placeholder_images(html)
+
+        self.assertNotIn('UPLOAD_PRODUCT_IMAGE_URL_HERE', cleaned)
+        self.assertNotIn('<figure', cleaned)
+        self.assertIn('<p>Before</p>', cleaned)
+        self.assertIn('<p>After</p>', cleaned)
+
+    def test_real_description_images_are_preserved(self):
+        html = '<figure class="image"><img src="/media/products/real.webp"></figure>'
+
+        self.assertEqual(Product._strip_placeholder_images(html), html)
+
+
 class CartCurrencyTests(TestCase):
     def setUp(self):
         self.ngn = Currency.objects.create(
@@ -253,3 +274,39 @@ class CartCurrencyTests(TestCase):
         filtered = views.apply_filters(Product.objects.all(), request)
 
         self.assertEqual(list(filtered), [featured])
+
+    def test_duplicate_product_names_get_vendor_aware_slugs(self):
+        first = Product.objects.create(
+            sku='SLUG-001',
+            name='Shared Marketplace Camera',
+            slug='shared-marketplace-camera',
+            description='First vendor listing',
+            category=self.category,
+            vendor=self.vendor,
+            price=Decimal('100.00'),
+            stock_quantity=5,
+            is_active=True,
+            approval_status='approved',
+        )
+        second_vendor = get_user_model().objects.create_user(
+            email='vendor-two@example.com',
+            username='vendor-two',
+            password='test-pass-123',
+            user_type='vendor',
+        )
+        second = Product.objects.create(
+            sku='SLUG-002',
+            name='Shared Marketplace Camera',
+            slug='shared-marketplace-camera',
+            description='Second vendor listing',
+            category=self.category,
+            vendor=second_vendor,
+            price=Decimal('100.00'),
+            stock_quantity=5,
+            is_active=True,
+            approval_status='approved',
+        )
+
+        self.assertEqual(first.slug, 'shared-marketplace-camera')
+        self.assertNotEqual(second.slug, first.slug)
+        self.assertTrue(second.slug.startswith('shared-marketplace-camera-'))

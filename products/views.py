@@ -12,11 +12,17 @@ from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 import json
 import re
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 from django.http import HttpResponse
 from decimal import Decimal, InvalidOperation
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
+from core.content_i18n import (
+    prime_translations,
+    translated_field,
+    translated_key,
+    translation_key_for_condition,
+)
 from core.local_cache import local_get_or_set
 from core.models import HomePageAppearance
 from core.media_optimization import get_optimized_image_url, optimized_name_for
@@ -67,6 +73,14 @@ try:
     from hero_banners.models import HeroBanner
 except ImportError:
     HeroBanner = None
+
+try:
+    from blog.models import BlogCategory, BlogComment, BlogPost, BlogTag
+except ImportError:
+    BlogCategory = None
+    BlogComment = None
+    BlogPost = None
+    BlogTag = None
 
 try:
     from ads.models import Advertisement, AdBanner, AdCreative, AdPlacement
@@ -1635,9 +1649,23 @@ def product_detail(request, slug):
     vendor_profile = getattr(product.vendor, "vendor_profile", None)
     vendor_contact_options = _vendor_contact_options(vendor_profile, product=product, request=request)
     condition_value = getattr(product, "condition", "") or ""
-    condition_label = getattr(product, "condition_label", "") or condition_value.replace("_", " ").title()
+    default_condition_label = (
+        getattr(product, "condition_label", "")
+        or condition_value.replace("_", " ").title()
+    )
+    condition_label = translated_key(
+        translation_key_for_condition(condition_value),
+        default_condition_label,
+        request=request,
+    )
     vendor_name = getattr(product, "vendor_display_name", "") or (getattr(vendor_profile, "store_name", "") if vendor_profile else "")
     vendor_package = getattr(product, "vendor_package_name", "") or (getattr(vendor_profile, "active_plan_name", "") if vendor_profile else "")
+    if vendor_profile:
+        vendor_package = translated_key(
+            f"subscription.plan.{getattr(vendor_profile, 'subscription_tier', 'free')}",
+            vendor_package,
+            request=request,
+        )
     location_label = getattr(product, "location_label", "") or ""
     try:
         from installers.services import suggested_categories_for_product, suggested_providers_for_product
@@ -2663,9 +2691,11 @@ def _mobile_category_payload(request, category, include_children=True):
 
     return {
         "id": category.id,
-        "name": category.name,
+        "name": translated_field(category, "name", request=request),
         "slug": category.slug,
-        "description": strip_tags(category.description or "")[:180],
+        "description": strip_tags(
+            translated_field(category, "description", request=request, default="") or ""
+        )[:180],
         "image": _mobile_file_url(request, category_image, preset="category_card"),
         "thumbnail_url": _mobile_file_url(request, category_image, preset="category_card"),
         "background_image": _mobile_file_url(request, category_background, preset="category_banner"),
@@ -2677,8 +2707,8 @@ def _mobile_category_payload(request, category, include_children=True):
         "fallback_image_url": "",
         "original_url": _mobile_original_file_url(request, category_background or category_image),
         "url": request.build_absolute_uri(reverse("products:category", args=[category.slug])),
-        "hero_title": getattr(category, "hero_title", "") or "",
-        "hero_subtitle": getattr(category, "hero_subtitle", "") or "",
+        "hero_title": translated_field(category, "hero_title", request=request, default="") or "",
+        "hero_subtitle": translated_field(category, "hero_subtitle", request=request, default="") or "",
         "show_hero_title": bool(getattr(category, "show_hero_title", True)),
         "show_hero_subtitle": bool(getattr(category, "show_hero_subtitle", True)),
         "show_hero_text": bool(getattr(category, "show_hero_title", True) or getattr(category, "show_hero_subtitle", True)),
@@ -2897,6 +2927,11 @@ def _mobile_vendor_payload(request, vendor_profile, include_products=False):
     if getattr(vendor_profile, "is_top_rated", False):
         badges.append("Top Supplier")
     subscription_badge = getattr(vendor_profile, "active_plan_name", "") or getattr(vendor_profile, "badge_level", "") or getattr(vendor_profile, "subscription_plan_label", "")
+    subscription_badge = translated_key(
+        f"subscription.plan.{getattr(vendor_profile, 'subscription_tier', 'free')}",
+        subscription_badge,
+        request=request,
+    )
     if subscription_badge:
         badges.append(subscription_badge)
 
@@ -2918,7 +2953,7 @@ def _mobile_vendor_payload(request, vendor_profile, include_products=False):
         "logo_url": _mobile_file_url(request, getattr(vendor_profile, "store_logo", None), preset="logo"),
         "banner": _mobile_file_url(request, getattr(vendor_profile, "store_banner", None), preset="hero_banner"),
         "banner_url": _mobile_file_url(request, getattr(vendor_profile, "store_banner", None), preset="hero_banner"),
-        "description": getattr(vendor_profile, "description", ""),
+        "description": translated_field(vendor_profile, "description", request=request),
         "verified": bool(getattr(vendor_profile, "is_verified", False)),
         "is_verified": bool(getattr(vendor_profile, "is_verified", False)),
         "manufacturer_verified": bool(vendor_type == "manufacturer" and getattr(vendor_profile, "manufacturer_verified", False)),
@@ -2942,7 +2977,11 @@ def _mobile_vendor_payload(request, vendor_profile, include_products=False):
         "business_phone": getattr(vendor_profile, "business_phone", ""),
         "whatsapp_number": getattr(vendor_profile, "whatsapp_number", ""),
         "website": getattr(vendor_profile, "website", ""),
-        "store_slogan": getattr(vendor_profile, "store_slogan", ""),
+        "store_slogan": translated_field(vendor_profile, "store_slogan", request=request),
+        "business_hours": translated_field(vendor_profile, "business_hours", request=request),
+        "return_policy": translated_field(vendor_profile, "return_policy", request=request),
+        "warranty_note": translated_field(vendor_profile, "warranty_note", request=request),
+        "delivery_note": translated_field(vendor_profile, "delivery_note", request=request),
         "storefront_accent_color": getattr(vendor_profile, "storefront_accent", "#FF7A00"),
         "store_video_url": getattr(vendor_profile, "store_video_url", ""),
         "featured_categories": getattr(vendor_profile, "featured_category_list", []),
@@ -2976,8 +3015,56 @@ def _mobile_vendor_payload(request, vendor_profile, include_products=False):
 
 
 def _mobile_ad_payload(request, ad, ad_type):
+    linked_article = getattr(ad, "linked_article", None)
+
+    def destination_payload(target_url):
+        if linked_article:
+            return {
+                "destination_type": "article",
+                "linked_article_id": linked_article.id,
+                "linked_article_slug": linked_article.slug,
+                "linked_article_title": translated_field(
+                    linked_article,
+                    "title",
+                    request=request,
+                ),
+                "linked_article_url": request.build_absolute_uri(
+                    linked_article.get_absolute_url()
+                ),
+            }
+
+        raw_url = str(target_url or "").strip()
+        path = urlparse(raw_url).path if raw_url else ""
+        parts = [part for part in path.split("/") if part]
+        if len(parts) >= 2 and parts[0] == "products" and parts[1] not in {
+            "category",
+            "cart",
+            "checkout",
+        }:
+            product_slug = parts[1]
+            if Product.objects.filter(
+                slug=product_slug,
+                is_active=True,
+                approval_status="approved",
+            ).exists():
+                return {
+                    "destination_type": "product",
+                    "product_slug": product_slug,
+                }
+            return {
+                "destination_type": "search",
+                "search_query": getattr(ad, "title", "") or product_slug.replace("-", " "),
+            }
+        if "/blog/" in path or "/articles/" in path:
+            return {
+                "destination_type": "article",
+                "linked_article_slug": parts[-1] if parts else "",
+            }
+        return {"destination_type": "web"}
+
     if ad_type == "creative":
         image = _mobile_file_url(request, getattr(ad, "image_mobile", None) or getattr(ad, "image", None), preset="ad")
+        destination = destination_payload(ad.clickthrough_url)
         return {
             "id": f"creative-{ad.id}",
             "type": "creative",
@@ -2990,11 +3077,13 @@ def _mobile_ad_payload(request, ad, ad_type):
             "image": image,
             "thumbnail_url": image,
             "creative_type": ad.creative_type,
+            **destination,
         }
 
     if ad_type == "banner":
         image = _mobile_file_url(request, getattr(ad, "image_mobile", None) or getattr(ad, "image", None), preset="ad")
         placement = getattr(ad, "placement", None)
+        destination = destination_payload(ad.target_url)
         return {
             "id": f"banner-{ad.id}",
             "type": "banner",
@@ -3011,9 +3100,11 @@ def _mobile_ad_payload(request, ad, ad_type):
             "mobile_width": ad.mobile_width_override or ad.width_override or (placement.width if placement else 1200),
             "mobile_image_fit": ad.mobile_image_fit,
             "image_fit": ad.image_fit,
+            **destination,
         }
 
     image = _mobile_file_url(request, getattr(ad, "image", None), preset="ad")
+    destination = destination_payload(ad.target_url)
     return {
         "id": f"ad-{ad.id}",
         "type": "simple",
@@ -3026,7 +3117,412 @@ def _mobile_ad_payload(request, ad, ad_type):
         "image": image,
         "thumbnail_url": image,
         "is_featured": ad.is_featured,
+        **destination,
     }
+
+
+def _mobile_article_card_payload(request, article):
+    image = getattr(article, "display_image", None)
+    category = getattr(article, "category", None)
+    return {
+        "id": article.id,
+        "slug": article.slug,
+        "title": translated_field(article, "title", request=request),
+        "excerpt": translated_field(article, "excerpt", request=request, default=""),
+        "url": request.build_absolute_uri(article.get_absolute_url()),
+        "image_url": _mobile_file_url(request, image, preset="blog_card") if image else "",
+        "thumbnail_url": _mobile_file_url(request, image, preset="blog_card") if image else "",
+        "category": (
+            translated_field(category, "name", request=request)
+            if category
+            else ""
+        ),
+        "reading_time": article.reading_time,
+        "published_at": article.published_at.isoformat() if article.published_at else None,
+        "views": article.views,
+    }
+
+
+def _mobile_article_comment_payload(request, comment):
+    user = comment.user
+    avatar = getattr(user, "avatar", None)
+    author_name = user.get_full_name() or getattr(user, "username", "") or "Arolana customer"
+    return {
+        "id": comment.id,
+        "comment": comment.comment,
+        "author": {
+            "id": user.id,
+            "name": author_name,
+            "avatar_url": _mobile_file_url(request, avatar, preset="avatar") if avatar else "",
+        },
+        "likes": comment.likes,
+        "created_at": comment.created_at.isoformat() if comment.created_at else None,
+        "replies": [
+            _mobile_article_comment_payload(request, reply)
+            for reply in comment.replies.filter(is_approved=True).select_related("user")
+        ],
+    }
+
+
+def _mobile_article_category_payload(category):
+    return {
+        "id": category.id,
+        "name": category.name,
+        "slug": category.slug,
+        "color": category.color,
+        "post_count": getattr(category, "post_count", 0),
+    }
+
+
+def _mobile_article_request_customer(request, payload=None):
+    if _auth_mobile_customer_from_request_data is None:
+        raise PermissionError("Customer authentication is unavailable.")
+    auth_data = dict(payload or {})
+    authorization = str(request.headers.get("Authorization") or "")
+    if authorization.lower().startswith("bearer ") and not auth_data.get("api_token"):
+        auth_data["api_token"] = authorization.split(" ", 1)[1].strip()
+    return _auth_mobile_customer_from_request_data(auth_data)
+
+
+def _mobile_product_article_payload(request, article_link):
+    article = getattr(article_link, "article", None)
+    if not article:
+        return None
+    image = getattr(article, "display_image", None)
+    category = getattr(article, "category", None)
+    article_payload = {
+        "id": article.id,
+        "slug": article.slug,
+        "title": translated_field(article, "title", request=request),
+        "excerpt": translated_field(article, "excerpt", request=request, default=""),
+        "content": translated_field(article, "content", request=request, default=""),
+        "url": request.build_absolute_uri(article.get_absolute_url()),
+        "image_url": _mobile_file_url(request, image, preset="blog_detail") if image else "",
+        "thumbnail_url": _mobile_file_url(request, image, preset="blog_card") if image else "",
+        "original_url": _mobile_original_file_url(request, image) if image else "",
+        "gallery_images": article.gallery_images or [],
+        "video_url": article.video_url or "",
+        "category": (
+            translated_field(category, "name", request=request)
+            if category
+            else ""
+        ),
+        "author": (
+            article.author.get_full_name()
+            or getattr(article.author, "username", "")
+            or "Arolana"
+        ),
+        "reading_time": article.reading_time,
+        "published_at": article.published_at.isoformat() if article.published_at else None,
+        "seo": {
+            "title": article.meta_title or article.title,
+            "description": article.meta_description or article.excerpt,
+            "keywords": article.meta_keywords or "",
+        },
+    }
+    return {
+        "id": article_link.id,
+        "placement": article_link.placement,
+        "sort_order": article_link.sort_order,
+        "open_behavior": article_link.open_behavior,
+        "label": translated_field(
+            article_link,
+            "label",
+            request=request,
+            default="",
+        ) or article_payload["title"],
+        "teaser": translated_field(
+            article_link,
+            "teaser",
+            request=request,
+            default="",
+        ) or article_payload["excerpt"],
+        "article": article_payload,
+        **article_payload,
+    }
+
+
+@require_GET
+def mobile_article_detail_api(request, slug):
+    if BlogPost is None:
+        return JsonResponse({"detail": "Articles are unavailable."}, status=503)
+
+    article = get_object_or_404(
+        BlogPost.objects.select_related("category", "author").prefetch_related("tags"),
+        slug=slug,
+        is_published=True,
+    )
+    prime_translations(
+        request,
+        [item for item in (article, article.category) if item],
+    )
+    BlogPost.objects.filter(pk=article.pk).update(views=F("views") + 1)
+
+    image = article.display_image
+    related_queryset = (
+        BlogPost.objects.filter(is_published=True)
+        .exclude(pk=article.pk)
+        .select_related("category", "author")
+    )
+    if article.category_id:
+        related_queryset = related_queryset.filter(category_id=article.category_id)
+    related_articles = list(related_queryset.order_by("-published_at")[:4])
+    popular_articles = list(
+        BlogPost.objects.filter(is_published=True)
+        .exclude(pk=article.pk)
+        .select_related("category", "author")
+        .order_by("-views", "-published_at")[:5]
+    )
+    categories = list(
+        BlogCategory.objects.filter(is_active=True)
+        .annotate(
+            post_count=Count(
+                "posts",
+                filter=Q(posts__is_published=True),
+                distinct=True,
+            )
+        )
+        .order_by("-post_count", "name")
+    ) if BlogCategory is not None else []
+    comments = list(
+        article.comments.filter(is_approved=True, parent=None)
+        .select_related("user")
+        .prefetch_related("replies__user")
+    ) if BlogComment is not None else []
+    prime_translations(
+        request,
+        [
+            item
+            for related in related_articles
+            for item in (related, related.category)
+            if item
+        ],
+    )
+
+    author_name = (
+        article.author.get_full_name()
+        or getattr(article.author, "username", "")
+        or "Arolana"
+    )
+    author_avatar = getattr(article.author, "avatar", None)
+    share_url = request.build_absolute_uri(article.get_absolute_url())
+    return JsonResponse({
+        "ok": True,
+        "article": {
+            "id": article.id,
+            "slug": article.slug,
+            "title": translated_field(article, "title", request=request),
+            "excerpt": translated_field(article, "excerpt", request=request, default=""),
+            "content": translated_field(article, "content", request=request, default=""),
+            "url": share_url,
+            "share_url": share_url,
+            "image_url": _mobile_file_url(request, image, preset="blog_detail") if image else "",
+            "thumbnail_url": _mobile_file_url(request, image, preset="blog_card") if image else "",
+            "original_url": _mobile_original_file_url(request, image) if image else "",
+            "category": (
+                translated_field(article.category, "name", request=request)
+                if article.category
+                else ""
+            ),
+            "category_slug": article.category.slug if article.category else "",
+            "author": author_name,
+            "author_details": {
+                "id": article.author_id,
+                "name": author_name,
+                "role": "Staff Writer at Arolana",
+                "avatar_url": (
+                    _mobile_file_url(request, author_avatar, preset="avatar")
+                    if author_avatar
+                    else ""
+                ),
+            },
+            "reading_time": article.reading_time,
+            "published_at": article.published_at.isoformat() if article.published_at else None,
+            "updated_at": article.updated_at.isoformat() if article.updated_at else None,
+            "video_url": article.video_url or "",
+            "video_embed_url": article.get_video_embed_url() or "",
+            "local_video_url": article.local_video_url or "",
+            "gallery_images": article.gallery_images or [],
+            "tags": [
+                {"id": tag.id, "name": tag.name, "slug": tag.slug}
+                for tag in article.tags.all()
+            ],
+        },
+        "related_articles": [
+            _mobile_article_card_payload(request, related)
+            for related in related_articles
+        ],
+        "popular_posts": [
+            _mobile_article_card_payload(request, popular)
+            for popular in popular_articles
+        ],
+        "categories": [
+            _mobile_article_category_payload(category)
+            for category in categories
+        ],
+        "comments": [
+            _mobile_article_comment_payload(request, comment)
+            for comment in comments
+        ],
+        "comment_count": sum(
+            1 + len(comment.replies.all())
+            for comment in comments
+        ),
+        "share_url": share_url,
+    })
+
+
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+def mobile_article_comments_api(request, slug):
+    if BlogPost is None or BlogComment is None:
+        return JsonResponse({"detail": "Article comments are unavailable."}, status=503)
+    article = get_object_or_404(BlogPost, slug=slug, is_published=True)
+
+    if request.method == "POST":
+        try:
+            payload = json.loads(request.body.decode("utf-8") or "{}")
+        except Exception:
+            return JsonResponse({"success": False, "message": "Invalid JSON payload."}, status=400)
+        try:
+            customer = _mobile_article_request_customer(request, payload)
+        except Exception as error:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "login_required": True,
+                    "message": str(error) or "Sign in to comment.",
+                },
+                status=401,
+            )
+        comment_text = str(payload.get("comment") or "").strip()
+        if not comment_text:
+            return JsonResponse(
+                {"success": False, "message": "Please enter a comment."},
+                status=400,
+            )
+        if len(comment_text) > 5000:
+            return JsonResponse(
+                {"success": False, "message": "Comment is too long."},
+                status=400,
+            )
+        comment = BlogComment.objects.create(
+            post=article,
+            user=customer.user,
+            comment=comment_text,
+            is_approved=True,
+        )
+        return JsonResponse(
+            {
+                "success": True,
+                "message": "Comment added successfully.",
+                "comment": _mobile_article_comment_payload(request, comment),
+            },
+            status=201,
+        )
+
+    comments = list(
+        article.comments.filter(is_approved=True, parent=None)
+        .select_related("user")
+        .prefetch_related("replies__user")
+    )
+    return JsonResponse(
+        {
+            "success": True,
+            "comments": [
+                _mobile_article_comment_payload(request, comment)
+                for comment in comments
+            ],
+            "comment_count": sum(1 + len(comment.replies.all()) for comment in comments),
+        }
+    )
+
+
+@require_GET
+def mobile_article_categories_api(request):
+    if BlogCategory is None:
+        return JsonResponse({"categories": []})
+    categories = (
+        BlogCategory.objects.filter(is_active=True)
+        .annotate(
+            post_count=Count(
+                "posts",
+                filter=Q(posts__is_published=True),
+                distinct=True,
+            )
+        )
+        .order_by("-post_count", "name")
+    )
+    return JsonResponse({
+        "categories": [
+            _mobile_article_category_payload(category)
+            for category in categories
+        ]
+    })
+
+
+@require_GET
+def mobile_articles_api(request):
+    if BlogPost is None:
+        return JsonResponse({"articles": []})
+    category_slug = str(request.GET.get("category") or "").strip()
+    tag_slug = str(request.GET.get("tag") or "").strip()
+    search_query = str(request.GET.get("q") or "").strip()
+    queryset = (
+        BlogPost.objects.filter(is_published=True)
+        .select_related("category", "author")
+        .order_by("-published_at")
+    )
+    if category_slug:
+        queryset = queryset.filter(category__slug=category_slug)
+    if tag_slug:
+        queryset = queryset.filter(tags__slug=tag_slug)
+    if search_query:
+        queryset = queryset.filter(
+            Q(title__icontains=search_query)
+            | Q(excerpt__icontains=search_query)
+            | Q(content__icontains=search_query)
+        )
+    articles = list(queryset.distinct()[:50])
+    return JsonResponse({
+        "articles": [
+            _mobile_article_card_payload(request, article)
+            for article in articles
+        ],
+        "filters": {
+            "category": category_slug,
+            "tag": tag_slug,
+            "query": search_query,
+        },
+    })
+
+
+@require_GET
+def mobile_article_tags_api(request):
+    if BlogTag is None:
+        return JsonResponse({"tags": []})
+    tags = (
+        BlogTag.objects.annotate(
+            post_count=Count(
+                "posts",
+                filter=Q(posts__is_published=True),
+                distinct=True,
+            )
+        )
+        .filter(post_count__gt=0)
+        .order_by("-post_count", "name")
+    )
+    return JsonResponse({
+        "tags": [
+            {
+                "id": tag.id,
+                "name": tag.name,
+                "slug": tag.slug,
+                "post_count": tag.post_count,
+            }
+            for tag in tags
+        ]
+    })
 
 
 def _mobile_home_ads_payload(request, limit=8):
@@ -3057,7 +3553,7 @@ def _mobile_home_ads_payload(request, limit=8):
                     start_date__lte=now,
                 )
                 .filter(Q(end_date__isnull=True) | Q(end_date__gte=now))
-                .select_related("placement", "creative", "campaign")
+                .select_related("placement", "creative", "campaign", "linked_article")
                 .order_by("-priority", "-created_at")[:limit]
             )
             ads_payload.extend(_mobile_ad_payload(request, banner, "banner") for banner in banners)
@@ -3072,6 +3568,7 @@ def _mobile_home_ads_payload(request, limit=8):
             simple_ads = simple_ads.filter(show_to_logged_in=True)
         else:
             simple_ads = simple_ads.filter(show_to_guests=True)
+        simple_ads = simple_ads.select_related("linked_article")
         ads_payload.extend(_mobile_ad_payload(request, ad, "simple") for ad in simple_ads.order_by("-is_featured", "-created_at")[:limit])
 
     seen = set()
@@ -3137,7 +3634,11 @@ def _mobile_product_payload(request, product):
     vendor_user = getattr(product, "vendor", None)
     vendor_profile = getattr(vendor_user, "vendor_profile", None) if vendor_user else None
 
-    category_name = category.name if category and hasattr(category, "name") else "Arolana"
+    category_name = (
+        translated_field(category, "name", request=request)
+        if category and hasattr(category, "name")
+        else "Arolana"
+    )
     brand_name = brand.name if brand and hasattr(brand, "name") else ""
 
     regular_price = _mobile_get_value(product, "regular_price", "compare_price", "old_price", default="")
@@ -3153,8 +3654,22 @@ def _mobile_product_payload(request, product):
     vendor_verified = bool(getattr(vendor_profile, "is_verified", False)) if vendor_profile else False
     vendor_name = getattr(product, "vendor_display_name", "") or (getattr(vendor_profile, "store_name", "") if vendor_profile else "")
     vendor_package = getattr(product, "vendor_package_name", "") or (getattr(vendor_profile, "active_plan_name", "") if vendor_profile else "")
+    if vendor_profile:
+        vendor_package = translated_key(
+            f"subscription.plan.{getattr(vendor_profile, 'subscription_tier', 'free')}",
+            vendor_package,
+            request=request,
+        )
     condition_value = getattr(product, "condition", "") or ""
-    condition_label = getattr(product, "condition_label", "") or condition_value.replace("_", " ").title()
+    default_condition_label = (
+        getattr(product, "condition_label", "")
+        or condition_value.replace("_", " ").title()
+    )
+    condition_label = translated_key(
+        translation_key_for_condition(condition_value),
+        default_condition_label,
+        request=request,
+    )
     location_label = getattr(product, "location_label", "") or ""
 
     badges = []
@@ -3186,7 +3701,18 @@ def _mobile_product_payload(request, product):
 
     return {
         "id": product.id,
-        "name": _mobile_get_value(product, "name", "title", "product_name", default="Unnamed product"),
+        "name": translated_field(
+            product,
+            "name",
+            request=request,
+            default=_mobile_get_value(
+                product,
+                "name",
+                "title",
+                "product_name",
+                default="Unnamed product",
+            ),
+        ),
         "slug": _mobile_get_value(product, "slug", default=""),
         "price": str(price or ""),
         "regular_price": str(regular_price or ""),
@@ -3254,38 +3780,74 @@ def mobile_home_api(request):
         "vendor",
         "vendor__vendor_profile",
     )
-    product_queryset = order_storefront_products(
-        product_queryset,
-        "-is_featured",
-        "-sales_count",
-        "-created_at",
-    )[:48]
+    product_queryset = list(
+        order_storefront_products(
+            product_queryset,
+            "-is_featured",
+            "-sales_count",
+            "-created_at",
+        )[:48]
+    )
+    prime_translations(
+        request,
+        [
+            item
+            for product in product_queryset
+            for item in (product, getattr(product, "category", None))
+            if item
+        ],
+    )
 
     hero_banner_payloads = []
     if HeroBanner:
-        hero_banners = HeroBanner.objects.filter(is_active=True).order_by("display_order", "-created_at")[:8]
+        hero_banners = (
+            HeroBanner.objects.filter(is_active=True)
+            .select_related("linked_article")
+            .order_by("display_order", "-created_at")[:8]
+        )
         for banner in hero_banners:
+            linked_article = banner.linked_article
+            linked_article_url = (
+                request.build_absolute_uri(linked_article.get_absolute_url())
+                if linked_article
+                else ""
+            )
             hero_banner_payloads.append({
                 "id": banner.id,
-                "title": banner.title,
-                "subtitle": banner.subtitle,
-                "description": banner.description,
+                "title": translated_field(banner, "title", request=request),
+                "subtitle": translated_field(banner, "subtitle", request=request),
+                "description": translated_field(banner, "description", request=request),
                 "show_content": banner.show_content,
                 "show_title": banner.show_title,
                 "show_subtitle": banner.show_subtitle,
                 "show_description": banner.show_description,
                 "show_button": banner.show_buttons,
-                "button_text": banner.button1_text,
+                "button_text": translated_field(banner, "button1_text", request=request),
                 "button_url": banner.button1_url,
-                "button1_text": banner.button1_text,
+                "button1_text": translated_field(banner, "button1_text", request=request),
                 "button1_url": banner.button1_url,
-                "button2_text": banner.button2_text,
+                "button2_text": translated_field(banner, "button2_text", request=request),
                 "button2_url": banner.button2_url,
-                "button3_text": banner.button3_text,
+                "button3_text": translated_field(banner, "button3_text", request=request),
                 "button3_url": banner.button3_url,
                 "effective_slide_link_url": banner.effective_slide_link_url,
                 "slide_link_url": banner.slide_link_url,
                 "enable_slide_link": banner.enable_slide_link,
+                "linked_article_id": linked_article.id if linked_article else None,
+                "linked_article_slug": linked_article.slug if linked_article else "",
+                "linked_article_title": (
+                    translated_field(linked_article, "title", request=request)
+                    if linked_article
+                    else ""
+                ),
+                "linked_article_url": linked_article_url,
+                "article_url": linked_article_url,
+                "article_button_text": translated_field(
+                    banner,
+                    "article_button_text",
+                    request=request,
+                ),
+                "article_open_behavior": banner.article_open_behavior,
                 "mobile_content_layout": banner.mobile_content_layout,
                 "content_layout": banner.mobile_content_layout,
                 "text_alignment": banner.text_alignment,
@@ -3308,9 +3870,9 @@ def mobile_home_api(request):
                     banner.image_mobile or banner.image_tablet or banner.image_desktop,
                     preset="hero_banner",
                 ),
-                "hero_title": banner.title,
-                "hero_subtitle": banner.subtitle,
-                "hero_cta_text": banner.button1_text,
+                "hero_title": translated_field(banner, "title", request=request),
+                "hero_subtitle": translated_field(banner, "subtitle", request=request),
+                "hero_cta_text": translated_field(banner, "button1_text", request=request),
                 "hero_cta_url": banner.button1_url,
                 "hero_mobile_image_url": _mobile_file_url(request, banner.image_mobile, preset="hero_banner"),
                 "hero_image_url": _mobile_file_url(
@@ -3342,9 +3904,9 @@ def mobile_home_api(request):
             image = background or center or (uploaded_images[0] if uploaded_images else None)
             promo_banner_payloads.append({
                 "id": banner.id,
-                "title": banner.title,
-                "subtitle": banner.subtitle,
-                "button_text": banner.button_text,
+                "title": translated_field(banner, "title", request=request),
+                "subtitle": translated_field(banner, "subtitle", request=request),
+                "button_text": translated_field(banner, "button_text", request=request),
                 "button_url": banner.button_url,
                 "background_color_start": banner.background_color_start,
                 "background_color_end": banner.background_color_end,
@@ -3602,9 +4164,15 @@ def mobile_category_detail_api(request, slug):
         "success": True,
         "category": category_payload,
         "breadcrumbs": [
-            {"name": ancestor.name, "slug": ancestor.slug}
+            {
+                "name": translated_field(ancestor, "name", request=request),
+                "slug": ancestor.slug,
+            }
             for ancestor in category.get_ancestors()
-        ] + [{"name": category.name, "slug": category.slug}],
+        ] + [{
+            "name": translated_field(category, "name", request=request),
+            "slug": category.slug,
+        }],
         "subcategories": category_payload.get("children", []),
         "articles": category_articles,
         "products": [_mobile_product_payload(request, product) for product in page_obj.object_list],
@@ -3708,7 +4276,17 @@ def mobile_products_api(request):
     else:
         products = order_storefront_products(products, "-is_featured", "-created_at")
 
-    data = [_mobile_product_payload(request, product) for product in products[:120]]
+    product_items = list(products[:120])
+    prime_translations(
+        request,
+        [
+            item
+            for product in product_items
+            for item in (product, getattr(product, "category", None))
+            if item
+        ],
+    )
+    data = [_mobile_product_payload(request, product) for product in product_items]
 
     return JsonResponse(
         {
@@ -3842,6 +4420,14 @@ def mobile_product_detail_api(request, slug):
             "additional_videos",
             "wholesale_tiers",
             "product_accessories__accessory",
+            Prefetch(
+                "article_links",
+                queryset=ProductArticleLink.objects.filter(
+                    is_active=True,
+                    article__is_published=True,
+                ).select_related("article", "article__category", "article__author"),
+                to_attr="mobile_article_links",
+            ),
         ),
         slug=slug,
         is_active=True,
@@ -4100,6 +4686,16 @@ def mobile_product_detail_api(request, slug):
             "discount_when_bought_together": str(accessory_link.discount_when_bought_together),
         })
 
+    product_articles = [
+        payload
+        for payload in (
+            _mobile_product_article_payload(request, article_link)
+            for article_link in getattr(product, "mobile_article_links", [])
+        )
+        if payload
+    ]
+    product_article = product_articles[0] if product_articles else None
+
     vendor_url = ""
     if vendor_profile:
         try:
@@ -4108,9 +4704,23 @@ def mobile_product_detail_api(request, slug):
             vendor_url = ""
     vendor_contact_options = _vendor_contact_options(vendor_profile, product=product, request=request)
     condition_value = getattr(product, "condition", "") or ""
-    condition_label = getattr(product, "condition_label", "") or condition_value.replace("_", " ").title()
+    default_condition_label = (
+        getattr(product, "condition_label", "")
+        or condition_value.replace("_", " ").title()
+    )
+    condition_label = translated_key(
+        translation_key_for_condition(condition_value),
+        default_condition_label,
+        request=request,
+    )
     vendor_name = getattr(product, "vendor_display_name", "") or (getattr(vendor_profile, "store_name", "") if vendor_profile else "")
     vendor_package = getattr(product, "vendor_package_name", "") or (getattr(vendor_profile, "active_plan_name", "") if vendor_profile else "")
+    if vendor_profile:
+        vendor_package = translated_key(
+            f"subscription.plan.{getattr(vendor_profile, 'subscription_tier', 'free')}",
+            vendor_package,
+            request=request,
+        )
     location_label = getattr(product, "location_label", "") or ""
     # Description images remain inside description_html in their authored
     # positions. Gallery images are returned only by the gallery/images fields.
@@ -4145,7 +4755,7 @@ def mobile_product_detail_api(request, slug):
 
     return JsonResponse({
         "id": product.id,
-        "name": product.name,
+        "name": translated_field(product, "name", request=request),
         "slug": product.slug,
         "sku": product.sku,
         "arolana_sku": product.sku,
@@ -4172,16 +4782,20 @@ def mobile_product_detail_api(request, slug):
         "package_details": package_details,
         "wholesale_tiers": wholesale_tiers,
         "accessories": accessories,
+        "product_article": product_article,
+        "product_articles": product_articles,
         "rfq_available": bool(vendor_profile),
         "badges": _mobile_product_payload(request, product).get("badges", []),
-        "description": getattr(product, "description", "") or "",
-        "description_html": getattr(product, "description", "") or "",
+        "description": translated_field(product, "description", request=request, default="") or "",
+        "description_html": translated_field(product, "description", request=request, default="") or "",
         "description_images": description_images,
         "overview_gallery": description_images,
-        "short_description": getattr(product, "short_description", "") or "",
-        "specifications": getattr(product, "specifications", "") or "",
-        "specifications_text": strip_tags(getattr(product, "specifications", "") or ""),
-        "category_name": category.name if category else "Arolana",
+        "short_description": translated_field(product, "short_description", request=request, default="") or "",
+        "specifications": translated_field(product, "specifications", request=request, default="") or "",
+        "specifications_text": strip_tags(
+            translated_field(product, "specifications", request=request, default="") or ""
+        ),
+        "category_name": translated_field(category, "name", request=request) if category else "Arolana",
         "brand_name": brand.name if brand else "",
         "vendor_name": vendor_name,
         "vendor_verified": getattr(product, "vendor_verified", False),

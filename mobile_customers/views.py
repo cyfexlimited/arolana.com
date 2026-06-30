@@ -5,6 +5,7 @@ from django.contrib.auth import authenticate
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password, make_password
 from django.core import signing
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q
 from django.http import JsonResponse
@@ -13,6 +14,9 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
 from accounts.utils.otp_utils import create_otp, verify_otp
+from accounts.forms import normalize_and_validate_real_email, validate_password_strength
+from accounts.models import UserProfile
+from accounts.utils.messaging import send_registration_messages_once, sync_newsletter_subscriber
 from products.models import Product
 from .models import MobileCustomer, MobileWishlistItem
 
@@ -281,6 +285,24 @@ def _customer_login_challenge(user, phone_number, otp_type):
     )
 
 
+def _unique_customer_username(User, email, full_name):
+    base = "".join(
+        character
+        for character in (
+            _clean_text(full_name).lower().replace(" ", "_")
+            or _clean_text(email).split("@", 1)[0].lower()
+            or "arolana_customer"
+        )
+        if character.isalnum() or character == "_"
+    )[:120].strip("_") or "arolana_customer"
+    candidate = base
+    suffix = 1
+    while User.objects.filter(username__iexact=candidate).exists():
+        suffix += 1
+        candidate = f"{base[:110]}_{suffix}"
+    return candidate
+
+
 def _load_customer_login_challenge(token):
     return signing.loads(
         token,
@@ -462,16 +484,13 @@ def _auth_mobile_customer_from_request_data(data):
     )
     api_token = _clean_text(data.get("api_token") or data.get("apiToken"))
 
-    if not phone_number:
-        raise ValueError("Phone number is required.")
-
     if not api_token:
         raise PermissionError("Login token is required. Login/register again.")
 
-    customer = MobileCustomer.objects.filter(
-        phone_number=phone_number,
-        api_token=api_token,
-    ).first()
+    customer_query = MobileCustomer.objects.filter(api_token=api_token, is_active=True)
+    if phone_number:
+        customer_query = customer_query.filter(phone_number=phone_number)
+    customer = customer_query.first()
 
     if not customer:
         raise PermissionError("Login expired or invalid. Login/register again.")
@@ -562,6 +581,112 @@ def mobile_customer_account_login_api(request):
 
 @csrf_exempt
 @require_POST
+def mobile_customer_account_register_api(request):
+    payload = _json_payload(request)
+    if payload is None:
+        return _json_error("Invalid JSON payload.")
+
+    full_name = _clean_text(payload.get("full_name") or payload.get("fullName"))
+    email = _clean_text(payload.get("email")).lower()
+    phone_number = _clean_phone(
+        payload.get("phone_number") or payload.get("phoneNumber") or payload.get("phone")
+    )
+    password = str(payload.get("password") or "")
+    confirm_password = str(
+        payload.get("confirm_password") or payload.get("confirmPassword") or ""
+    )
+    terms_accepted = payload.get("terms_accepted")
+    newsletter_opt_in = bool(payload.get("newsletter_opt_in"))
+
+    errors = []
+    if not full_name:
+        errors.append("Full name is required.")
+    try:
+        email = normalize_and_validate_real_email(email)
+    except ValidationError as error:
+        errors.extend(error.messages)
+    if not phone_number:
+        errors.append("Phone number is required.")
+    try:
+        validate_password_strength(password)
+    except ValidationError as error:
+        errors.extend(error.messages)
+    if password != confirm_password:
+        errors.append("Passwords do not match.")
+    if terms_accepted is not True:
+        errors.append("You must agree to the Terms of Service.")
+
+    User = get_user_model()
+    if email and User.objects.filter(email__iexact=email).exists():
+        errors.append("An Arolana account already exists with this email. Sign in instead.")
+    if phone_number:
+        phone_in_use = (
+            User.objects.filter(phone_number=phone_number).exists()
+            or MobileCustomer.objects.filter(phone_number=phone_number).exists()
+        )
+        if phone_in_use:
+            errors.append(
+                "This phone number is linked to another Arolana account. Contact Arolana support."
+            )
+    if errors:
+        return _json_error(" ".join(dict.fromkeys(errors)))
+
+    first_name, last_name = _split_name(full_name)
+    try:
+        with transaction.atomic():
+            user = User.objects.create_user(
+                username=_unique_customer_username(User, email, full_name),
+                email=email,
+                password=password,
+                first_name=first_name,
+                last_name=last_name,
+                user_type="customer",
+                phone_number=phone_number,
+                email_verified=False,
+            )
+            UserProfile.objects.get_or_create(
+                user=user,
+                defaults={
+                    "newsletter_subscription": newsletter_opt_in,
+                    "promo_emails": newsletter_opt_in,
+                    "marketing_emails": newsletter_opt_in,
+                },
+            )
+            sync_newsletter_subscriber(
+                user,
+                subscribe=newsletter_opt_in,
+                source="mobile_registration",
+            )
+            if not create_otp(user, user.email, "email"):
+                raise RuntimeError(
+                    "Your account could not be verified because the email code was not sent."
+                )
+    except Exception as error:
+        return _json_error(
+            f"Could not create your Arolana account. {error}",
+            status=503,
+        )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "ok": True,
+            "otp_required": True,
+            "verification_type": "email",
+            "challenge_token": _customer_login_challenge(
+                user,
+                phone_number,
+                "email",
+            ),
+            "masked_email": _mask_email(user.email),
+            "message": "Account created. Verification code sent to your email.",
+        },
+        status=201,
+    )
+
+
+@csrf_exempt
+@require_POST
 def mobile_customer_account_verify_otp_api(request):
     payload = _json_payload(request)
     if payload is None:
@@ -592,6 +717,7 @@ def mobile_customer_account_verify_otp_api(request):
     if otp_type == "email" and not getattr(user, "email_verified", False):
         user.email_verified = True
         user.save(update_fields=["email_verified", "updated_at"])
+        send_registration_messages_once(user, request=request)
 
     try:
         customer = _mobile_customer_for_web_user(user, challenge.get("phone_number", ""))
@@ -646,10 +772,30 @@ def mobile_customer_account_resend_otp_api(request):
     )
 
 
+@csrf_exempt
+@require_POST
+def mobile_customer_account_logout_api(request):
+    payload = _json_payload(request) or {}
+    authorization = str(request.headers.get("Authorization") or "")
+    if authorization.lower().startswith("bearer ") and not payload.get("api_token"):
+        payload["api_token"] = authorization.split(" ", 1)[1].strip()
+    try:
+        customer = _auth_mobile_customer_from_request_data(payload)
+    except Exception:
+        return JsonResponse({"success": True, "message": "Signed out."})
+    customer.api_token = secrets.token_urlsafe(32)
+    customer.save(update_fields=["api_token", "updated_at"])
+    return JsonResponse({"success": True, "message": "Signed out securely."})
+
+
 @require_GET
 def mobile_customer_profile_api(request):
+    auth_data = request.GET.copy()
+    authorization = str(request.headers.get("Authorization") or "")
+    if authorization.lower().startswith("bearer ") and not auth_data.get("api_token"):
+        auth_data["api_token"] = authorization.split(" ", 1)[1].strip()
     try:
-        customer = _auth_mobile_customer_from_request_data(request.GET)
+        customer = _auth_mobile_customer_from_request_data(auth_data)
     except PermissionError as error:
         return _json_error(error, status=403)
     except ValueError as error:

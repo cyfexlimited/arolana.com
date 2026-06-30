@@ -110,6 +110,7 @@ class PerformanceHelperTests(SimpleTestCase):
     def test_customer_facing_and_legacy_presets_are_available(self):
         required_presets = {
             "product_card",
+            "product_card_large",
             "product_detail",
             "product_gallery",
             "product_thumb",

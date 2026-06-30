@@ -16,8 +16,13 @@ from django.views.decorators.http import require_GET, require_POST
 from io import BytesIO
 from .models import DeliveryProvider, DeliveryQuoteRequest, DeliveryRequest, Order, OrderItem, MobilePushToken
 from .services import calculate_delivery_quote, notify_staff_delivery, requires_delivery_admin_quote, select_delivery_provider
-from products.models import Product
+from products.models import Accessory, Product
 from core.media_optimization import get_optimized_image_url
+
+try:
+    from mobile_customers.models import MobileCustomer
+except ImportError:
+    MobileCustomer = None
 
 @login_required
 def orders_home(request):
@@ -321,6 +326,7 @@ def mobile_create_order_api(request):
         )
 
     customer = payload.get("customer") or {}
+    mobile_customer_payload = payload.get("mobile_customer") or {}
     items = payload.get("items") or []
     payment_method = str(payload.get("payment_method") or "paystack").strip().lower()
 
@@ -345,11 +351,51 @@ def mobile_create_order_api(request):
             status=400,
         )
 
+    mobile_customer = None
+    if not request.user.is_authenticated:
+        authorization = str(request.headers.get("Authorization") or "")
+        bearer_token = (
+            authorization.split(" ", 1)[1].strip()
+            if authorization.lower().startswith("bearer ")
+            else ""
+        )
+        api_token = str(
+            mobile_customer_payload.get("api_token")
+            or payload.get("api_token")
+            or bearer_token
+            or ""
+        ).strip()
+        auth_phone = str(
+            mobile_customer_payload.get("phone_number")
+            or payload.get("phone_number")
+            or phone_number
+            or ""
+        ).strip()
+        if MobileCustomer is not None and api_token:
+            mobile_customer = MobileCustomer.objects.select_related("user").filter(
+                api_token=api_token,
+                is_active=True,
+            ).first()
+            if mobile_customer and auth_phone:
+                normalize = lambda value: "".join(ch for ch in str(value or "") if ch.isdigit())
+                if normalize(mobile_customer.phone_number) != normalize(auth_phone):
+                    mobile_customer = None
+        if not mobile_customer:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": "Please sign in to continue checkout.",
+                    "login_required": True,
+                },
+                status=401,
+            )
+
     clean_items = []
     subtotal = Decimal("0.00")
 
     for item in items:
         product_id = item.get("product_id")
+        accessory_id = item.get("accessory_id")
 
         try:
             quantity = int(item.get("quantity") or 1)
@@ -359,13 +405,23 @@ def mobile_create_order_api(request):
         if quantity < 1:
             quantity = 1
 
-        product = Product.objects.filter(id=product_id, is_active=True).first()
+        product = (
+            Product.objects.filter(id=product_id, is_active=True).first()
+            if product_id
+            else None
+        )
+        accessory = (
+            Accessory.objects.filter(id=accessory_id, is_active=True).first()
+            if accessory_id
+            else None
+        )
 
-        if not product:
+        if not product and not accessory:
             continue
 
         try:
-            price = Decimal(str(getattr(product, "price", "0") or "0")).quantize(Decimal("0.01"))
+            purchasable = product or accessory
+            price = Decimal(str(getattr(purchasable, "price", "0") or "0")).quantize(Decimal("0.01"))
         except (InvalidOperation, TypeError, ValueError):
             price = Decimal("0.00")
 
@@ -375,9 +431,11 @@ def mobile_create_order_api(request):
         clean_items.append(
             {
                 "product": product,
-                "product_id": product.id,
-                "name": product.name,
-                "slug": product.slug,
+                "accessory": accessory,
+                "product_id": product.id if product else None,
+                "accessory_id": accessory.id if accessory else None,
+                "name": getattr(purchasable, "name", ""),
+                "slug": getattr(purchasable, "slug", ""),
                 "price": price,
                 "quantity": quantity,
                 "line_total": line_total,
@@ -406,6 +464,8 @@ def mobile_create_order_api(request):
         with transaction.atomic():
             if getattr(request, "user", None) and request.user.is_authenticated:
                 user = request.user
+            elif mobile_customer and mobile_customer.user_id:
+                user = mobile_customer.user
             else:
                 User = get_user_model()
                 clean_phone = "".join(ch for ch in phone_number if ch.isdigit())
@@ -514,6 +574,7 @@ def mobile_create_order_api(request):
                 order_item = OrderItem.objects.create(
                     order=order,
                     product=item["product"],
+                    accessory=item["accessory"],
                     quantity=item["quantity"],
                     price=item["price"],
                     subtotal=item["line_total"],
@@ -523,6 +584,7 @@ def mobile_create_order_api(request):
                     {
                         "id": order_item.id,
                         "product_id": item["product_id"],
+                        "accessory_id": item["accessory_id"],
                         "name": item["name"],
                         "slug": item["slug"],
                         "price": str(item["price"]),
@@ -1173,6 +1235,8 @@ def _mobile_order_image_url(request, product):
 
 def _mobile_order_item_payload(request, item):
     product = getattr(item, "product", None)
+    accessory = getattr(item, "accessory", None)
+    purchasable = product or accessory
 
     price = (
         getattr(item, "price", None)
@@ -1196,25 +1260,27 @@ def _mobile_order_item_payload(request, item):
     return {
         "id": getattr(item, "id", None),
         "product_id": getattr(product, "id", None),
-        "name": getattr(product, "name", "") or getattr(product, "title", "") or str(product or "Product"),
+        "accessory_id": getattr(accessory, "id", None),
+        "item_type": "accessory" if accessory else "product",
+        "name": getattr(purchasable, "name", "") or getattr(purchasable, "title", "") or str(purchasable or "Product"),
         "quantity": quantity,
         "price": str(price or 0),
         "unit_price": str(price or 0),
         "subtotal": str(subtotal_value or 0),
         "line_total": str(subtotal_value or 0),
-        "image": _mobile_order_image_url(request, product),
+        "image": _mobile_order_image_url(request, purchasable),
     }
 
 
 def _mobile_order_items_for_order(order):
     if hasattr(order, "items"):
         try:
-            return order.items.select_related("product").all()
+            return order.items.select_related("product", "accessory").all()
         except Exception:
             pass
 
     try:
-        return order.orderitem_set.select_related("product").all()
+        return order.orderitem_set.select_related("product", "accessory").all()
     except Exception:
         return []
 

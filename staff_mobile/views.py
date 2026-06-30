@@ -19,6 +19,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
+from core.content_i18n import translated_field, translated_key
 from deliveries.models import DeliveryRequest, DeliveryLocationPing, RiderPayout, RiderProfile, RiderWallet
 from deliveries.models import DeliveryVehicle, DeliveryZone
 from deliveries.services import create_live_delivery_for_order
@@ -62,6 +63,7 @@ from installers.services import (
     submit_provider_profile,
 )
 from accounts.utils.otp_utils import create_otp, verify_otp
+from core.image_protection import duplicate_warning_payload, set_protected_image_uploader
 from core.media_optimization import get_optimized_image_url
 
 try:
@@ -2232,6 +2234,7 @@ def _product_payload(product):
     condition_label = getattr(product, "condition_label", "") or condition_value.replace("_", " ").title()
     return {
         "id": product.id,
+        "slug": product.slug,
         "name": product.name,
         "sku": product.sku,
         "manufacturer_sku": product.manufacturer_sku,
@@ -2335,7 +2338,7 @@ def vendor_product_create_api(request):
         category=category,
         brand=brand,
         name=name,
-        slug=slugify(f"{name}-{timezone.now().timestamp()}"),
+        slug="",
         sku=_clean_text(data.get("sku")),
         manufacturer_sku=_clean_text(data.get("manufacturer_sku")),
         description=_clean_text(data.get("description") or name),
@@ -2440,14 +2443,24 @@ def vendor_product_images_api(request, product_id):
         is_main=is_main or gallery_count == 0,
         order=_int_value(request.POST.get("order"), gallery_count),
     )
+    set_protected_image_uploader(product_image, "image", profile.user)
+    duplicate_warning = duplicate_warning_payload(product_image, "image")
     if product_image.is_main or not product.main_image:
         product.main_image = product_image.image
     product.approval_status = "pending"
     product.is_active = False
     product.resubmitted_at = timezone.now()
     product.save(update_fields=["main_image", "approval_status", "is_active", "resubmitted_at", "updated_at"])
+    if product.main_image:
+        set_protected_image_uploader(product, "main_image", profile.user)
     return JsonResponse({
         "success": True,
+        "message": (
+            "Image uploaded. Arolana will review this image because it matches another vendor upload."
+            if duplicate_warning and duplicate_warning.get("needs_review")
+            else "Image uploaded successfully."
+        ),
+        "duplicate_warning": duplicate_warning,
         "image": {
             "id": product_image.id,
             "url": _absolute_media_url(request, product_image.image, "product_gallery"),
@@ -2533,25 +2546,44 @@ def vendor_product_variants_api(request, product_id):
             "is_active": True,
         },
     )
+    duplicate_warnings = []
     main_image = request.FILES.get("image")
     if main_image:
         variant.image = main_image
         variant.save(update_fields=["image", "updated_at"])
+        set_protected_image_uploader(variant, "image", profile.user)
+        warning = duplicate_warning_payload(variant, "image")
+        if warning:
+            duplicate_warnings.append(warning)
     variant_gallery_limit = 10 if profile.image_limit == -1 else min(10, max(0, profile.image_limit))
     gallery_images = request.FILES.getlist("images")[:variant_gallery_limit]
     for index, image_file in enumerate(gallery_images):
-        ProductVariantImage.objects.create(
+        variant_image = ProductVariantImage.objects.create(
             variant=variant,
             image=image_file,
             alt_text=f"{product.name} {name} {value}",
             order=index,
             is_main=index == 0 and not main_image,
         )
+        set_protected_image_uploader(variant_image, "image", profile.user)
+        warning = duplicate_warning_payload(variant_image, "image")
+        if warning:
+            duplicate_warnings.append(warning)
     product.approval_status = "pending"
     product.is_active = False
     product.resubmitted_at = timezone.now()
     product.save(update_fields=["approval_status", "is_active", "resubmitted_at", "updated_at"])
-    return JsonResponse({"success": True, "variant_id": variant.id, "product": _product_payload(product), "message": "Variant saved and product sent for admin review."})
+    return JsonResponse({
+        "success": True,
+        "variant_id": variant.id,
+        "product": _product_payload(product),
+        "duplicate_warnings": duplicate_warnings,
+        "message": (
+            "Variant saved. One or more images require Arolana duplicate review."
+            if any(item.get("needs_review") for item in duplicate_warnings)
+            else "Variant saved and product sent for admin review."
+        ),
+    })
 
 
 @require_GET
@@ -2904,13 +2936,33 @@ def vendor_subscription_plans_api(request):
         existing.setdefault(plan.tier_key, plan)
     plans = [existing[tier] for tier in desired_order if tier in existing]
     current_tier = user_subscription_tier(profile.user)
+    def localized_features(plan):
+        value = translated_field(plan, "feature_bullets", request=request, default=plan.feature_bullets)
+        if isinstance(value, list):
+            return value
+        try:
+            parsed = json.loads(value or "[]")
+            return parsed if isinstance(parsed, list) else plan.get_features_list()
+        except (TypeError, ValueError):
+            return plan.get_features_list()
+
     return JsonResponse({"success": True, "plans": [
         {
             "id": plan.id,
             "name": plan.tier_key,
             "tier": plan.tier_key,
-            "display_name": subscription_label(plan.tier_key),
-            "description": plan.description,
+            "display_name": translated_field(
+                plan,
+                "display_name",
+                request=request,
+                default=translated_key(
+                    f"subscription.plan.{plan.tier_key}",
+                    subscription_label(plan.tier_key),
+                    request=request,
+                ),
+            ),
+            "description": translated_field(plan, "description", request=request),
+            "features": localized_features(plan),
             "price_monthly": str(plan.price_monthly),
             "price_yearly": str(plan.price_yearly),
             "limits": get_tier_limits(plan.tier_key),

@@ -9,6 +9,8 @@ from django.http import JsonResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
+
+from core.content_i18n import get_request_language, translated_key
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.db.models import Q
@@ -403,9 +405,14 @@ def api_message(request):
         product = Product.objects.filter(id=product_id).select_related("category", "brand", "vendor").first()
 
     conversation = _get_or_create_conversation(request, data, product=product)
+    preferred_language = get_request_language(request)
+    conversation.context = {
+        **(conversation.context or {}),
+        "preferred_language": preferred_language,
+    }
     selected_variants = data.get("selected_variants") or {}
     conversation.selected_variants = selected_variants
-    conversation.save(update_fields=["selected_variants", "updated_at"])
+    conversation.save(update_fields=["context", "selected_variants", "updated_at"])
 
     user_message = SmartChatMessage.objects.create(
         conversation=conversation,
@@ -416,6 +423,7 @@ def api_message(request):
             "selected_variants": selected_variants,
             "sku": data.get("sku", ""),
             "product_name": data.get("product_name", ""),
+            "preferred_language": preferred_language,
         },
     )
     _set_typing(conversation.id, "customer", False)
@@ -462,7 +470,11 @@ def api_message(request):
                 "Customer requested Arolana admin",
                 f"{conversation.customer_display} requested admin support from Smart Chat.",
             )
-        reply = "I have alerted an Arolana admin. A real person can continue from this chat shortly."
+        reply = translated_key(
+            "smartchat.handoff_confirmed",
+            "I have alerted an Arolana admin. A real person can continue from this chat shortly.",
+            language_code=preferred_language,
+        )
         ai_message = SmartChatMessage.objects.create(
             conversation=conversation,
             sender_type=SmartChatMessage.SENDER_AI,

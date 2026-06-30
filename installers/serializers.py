@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from core.content_i18n import translated_field
 from core.media_optimization import get_optimized_image_url
 
 from .models import (
@@ -31,6 +32,8 @@ def absolute_optimized_url(request, image, preset):
 class ServiceCategorySerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
     provider_count = serializers.SerializerMethodField()
+    name = serializers.SerializerMethodField()
+    description = serializers.SerializerMethodField()
 
     class Meta:
         model = ServiceCategory
@@ -38,6 +41,12 @@ class ServiceCategorySerializer(serializers.ModelSerializer):
 
     def get_image(self, obj):
         return absolute_optimized_url(self.context.get("request"), obj.image, "category_card")
+
+    def get_name(self, obj):
+        return translated_field(obj, "name", request=self.context.get("request"))
+
+    def get_description(self, obj):
+        return translated_field(obj, "description", request=self.context.get("request"))
 
     def get_provider_count(self, obj):
         return obj.provider_services.filter(
@@ -50,10 +59,18 @@ class ServiceCategorySerializer(serializers.ModelSerializer):
 
 class ProviderServiceSerializer(serializers.ModelSerializer):
     category = ServiceCategorySerializer(read_only=True)
+    service_name = serializers.SerializerMethodField()
+    description = serializers.SerializerMethodField()
 
     class Meta:
         model = ProviderService
         fields = ["id", "category", "service_name", "description", "starting_price"]
+
+    def get_service_name(self, obj):
+        return translated_field(obj, "service_name", request=self.context.get("request"))
+
+    def get_description(self, obj):
+        return translated_field(obj, "description", request=self.context.get("request"))
 
 
 class ServicePortfolioSerializer(serializers.ModelSerializer):
@@ -98,6 +115,7 @@ class ServiceProviderListSerializer(serializers.ModelSerializer):
     approval_allows_dashboard = serializers.BooleanField(read_only=True)
     sensitive_update_locked = serializers.BooleanField(read_only=True)
     sensitive_update_available_at = serializers.DateTimeField(read_only=True)
+    description = serializers.SerializerMethodField()
 
     class Meta:
         model = ServiceProviderProfile
@@ -115,6 +133,9 @@ class ServiceProviderListSerializer(serializers.ModelSerializer):
 
     def get_profile_image(self, obj):
         return absolute_optimized_url(self.context.get("request"), obj.profile_image, "avatar")
+
+    def get_description(self, obj):
+        return translated_field(obj, "description", request=self.context.get("request"))
 
     def get_business_logo(self, obj):
         return absolute_optimized_url(self.context.get("request"), obj.business_logo, "avatar")

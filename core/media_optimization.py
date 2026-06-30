@@ -11,9 +11,11 @@ from django.core.files.storage import default_storage
 from django.db import models
 
 try:
-    from PIL import Image, ImageOps
+    from PIL import Image, ImageCms, ImageFilter, ImageOps
 except Exception:
     Image = None
+    ImageCms = None
+    ImageFilter = None
     ImageOps = None
 
 logger = logging.getLogger(__name__)
@@ -87,10 +89,11 @@ PRESETS = {
     "category_card": {"max_size": (1000, 700), "quality": 82},
     "category_banner": {"max_size": (1920, 1080), "quality": 84},
 
-    "product_thumb": {"max_size": (700, 700), "quality": 80},
-    "product_card": {"max_size": (900, 900), "quality": 80},
-    "product_gallery": {"max_size": (1200, 1200), "quality": 82},
-    "product_detail": {"max_size": (1600, 1600), "quality": 84},
+    "product_thumb": {"max_size": (700, 700), "quality": 84, "sharpen": True},
+    "product_card": {"max_size": (1100, 1100), "quality": 88, "sharpen": True},
+    "product_card_large": {"max_size": (1400, 1400), "quality": 90, "sharpen": True},
+    "product_gallery": {"max_size": (1600, 1600), "quality": 90, "sharpen": True},
+    "product_detail": {"max_size": (2000, 2000), "quality": 91, "sharpen": True},
 
     "ad_card": {"max_size": (900, 500), "quality": 82},
     "ad": {"max_size": (1600, 900), "quality": 83},
@@ -395,19 +398,39 @@ def create_optimized_image(storage, original_name, optimized_name, preset):
                 return False
 
             img = ImageOps.exif_transpose(img)
+            icc_profile = img.info.get("icc_profile")
+            if icc_profile and ImageCms is not None:
+                try:
+                    source_profile = ImageCms.ImageCmsProfile(BytesIO(icc_profile))
+                    target_profile = ImageCms.createProfile("sRGB")
+                    img = ImageCms.profileToProfile(
+                        img,
+                        source_profile,
+                        target_profile,
+                        outputMode="RGBA" if img.mode in ("RGBA", "LA") else "RGB",
+                    )
+                    icc_profile = None
+                except Exception:
+                    logger.debug("Could not normalize ICC profile for %s", original_name)
             img.thumbnail(config["max_size"], Image.Resampling.LANCZOS)
 
             has_alpha = img.mode in ("RGBA", "LA") or "transparency" in img.info
             img = img.convert("RGBA" if has_alpha else "RGB")
+            if config.get("sharpen") and ImageFilter is not None:
+                img = img.filter(
+                    ImageFilter.UnsharpMask(radius=0.8, percent=115, threshold=3)
+                )
 
             output = BytesIO()
-            img.save(
-                output,
-                format="WEBP",
-                quality=config["quality"],
-                method=6,
-                optimize=True,
-            )
+            save_options = {
+                "format": "WEBP",
+                "quality": config["quality"],
+                "method": 6,
+                "optimize": True,
+            }
+            if icc_profile:
+                save_options["icc_profile"] = icc_profile
+            img.save(output, **save_options)
 
         storage.save(optimized_name, ContentFile(output.getvalue()))
         return True
@@ -452,7 +475,14 @@ def presets_for_field(model, field):
         return ["ad", "ad_card", "banner", "seo"]
 
     if any(word in text for word in ("product", "variant", "gallery")):
-        return ["seo", "product_detail", "product_gallery", "product_card", "product_thumb"]
+        return [
+            "seo",
+            "product_detail",
+            "product_gallery",
+            "product_card_large",
+            "product_card",
+            "product_thumb",
+        ]
 
     if "accessory" in text:
         return ["accessory_thumb", "product_card", "thumbnail"]

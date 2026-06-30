@@ -5,6 +5,7 @@ from django.db.models import F
 from django.urls import reverse
 from django.utils import timezone
 
+from core.content_i18n import translated_field, translated_key
 from .models import (
     AICustomerMemory,
     AICategoryRouterLog,
@@ -248,8 +249,13 @@ def request_human_takeover(conversation, requested_by=None, reason="", priority=
 
 def generate_managed_reply(conversation, user_message, actor_user=None):
     settings_obj = AISettings.load()
+    preferred_language = (conversation.context or {}).get("preferred_language") or "en"
     if not settings_obj.enabled:
-        return settings_obj.fallback_message, {
+        return translated_key(
+            "smartchat.fallback",
+            settings_obj.fallback_message,
+            language_code=preferred_language,
+        ), {
             "source_type": "disabled", "source_label": "AI disabled", "confidence": 0,
         }
 
@@ -281,7 +287,12 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
             AIKnowledgeBase.objects.filter(pk=item.pk).update(
                 usage_count=F("usage_count") + 1, last_used_at=timezone.now(),
             )
-        reply = item.answer if hasattr(item, "answer") else item.proposed_answer
+        answer_field = "answer" if hasattr(item, "answer") else "proposed_answer"
+        reply = translated_field(
+            item,
+            answer_field,
+            language_code=preferred_language,
+        )
         source = {
             "source_type": source_type,
             "source_label": str(item),
@@ -316,7 +327,11 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
 
     if confidence < settings_obj.minimum_confidence:
         request_human_takeover(conversation, actor_user, user_message)
-        reply = settings_obj.fallback_message
+        reply = translated_key(
+            "smartchat.fallback",
+            settings_obj.fallback_message,
+            language_code=preferred_language,
+        )
         source_type = "human_handoff"
 
     source = {

@@ -28,6 +28,7 @@ from subscriptions.models import SubscriptionPlan, VendorSubscription, subscript
 from arolana_payments.models import PaymentTransaction
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
+from core.image_protection import duplicate_warning_payload, set_protected_image_uploader
 
 from order_robot.models import OrderRobotVendorTask
 from order_robot.services import vendor_mark_confirmed, vendor_mark_rejected
@@ -75,6 +76,34 @@ def vendor_selectable_categories():
         .filter(Q(parent__isnull=False) | Q(active_child_count=0))
         .order_by('parent__name', 'order', 'name')
     )
+
+
+def _vendor_image_review_notice(request, instance, field_name):
+    if not getattr(instance, field_name, None):
+        return None
+    set_protected_image_uploader(instance, field_name, request.user)
+    warning = duplicate_warning_payload(instance, field_name)
+    if not warning:
+        return None
+    if warning.get("needs_review"):
+        messages.warning(
+            request,
+            warning.get("message")
+            or "This image matches another vendor upload and has been sent for Arolana review.",
+        )
+    elif warning.get("same_vendor_reuse"):
+        messages.info(
+            request,
+            warning.get("message") or "Image reused from your existing Arolana catalogue.",
+        )
+    return warning
+
+
+def _vendor_image_review_payload(user, instance, field_name):
+    if not getattr(instance, field_name, None):
+        return None
+    set_protected_image_uploader(instance, field_name, user)
+    return duplicate_warning_payload(instance, field_name)
 
 
 def _decimal_or_none(value):
@@ -764,6 +793,7 @@ def vendor_add_product(request):
                 if main_image:
                     product.main_image = main_image
                     product.save(update_fields=['main_image'])
+                    _vendor_image_review_notice(request, product, 'main_image')
 
                 manual_pdf = request.FILES.get('manual_pdf')
                 if manual_pdf:
@@ -777,7 +807,8 @@ def vendor_add_product(request):
                 max_images = subscription_limits['max_images_per_product']
                 image_limit = len(additional_images) if max_images == -1 else max_images
                 for order, img in enumerate(additional_images[:image_limit]):
-                    ProductImage.objects.create(product=product, image=img, order=order)
+                    product_image = ProductImage.objects.create(product=product, image=img, order=order)
+                    _vendor_image_review_notice(request, product_image, 'image')
 
                 max_variants = subscription_limits['max_variants_per_product']
                 variant_indexes = request.POST.getlist('variant_index[]')
@@ -818,13 +849,15 @@ def vendor_add_product(request):
                             if image_order == 0:
                                 variant.image = image_file
                                 variant.save(update_fields=['image'])
-                            ProductVariantImage.objects.create(
+                                _vendor_image_review_notice(request, variant, 'image')
+                            variant_image = ProductVariantImage.objects.create(
                                 variant=variant,
                                 image=image_file,
                                 order=image_order,
                                 is_main=image_order == 0,
                                 alt_text=f"{product.name} {variant.value}",
                             )
+                            _vendor_image_review_notice(request, variant_image, 'image')
 
                 if max_variants != -1 and len(variant_indexes) > max_variants:
                     messages.warning(request, f'Your plan allows {max_variants} variants per product. Extra variants were not saved.')
@@ -905,6 +938,8 @@ def vendor_product_detail(request, product_id):
                     product.local_video = request.FILES['local_video']
             
             product.save()
+            if main_image:
+                _vendor_image_review_notice(request, product, 'main_image')
 
             additional_images = request.FILES.getlist('additional_images')
             if additional_images:
@@ -912,7 +947,8 @@ def vendor_product_detail(request, product_id):
                 existing_images = product.images.count()
                 remaining = len(additional_images) if max_images == -1 else max(0, max_images - existing_images)
                 for order, img in enumerate(additional_images[:remaining], start=existing_images):
-                    ProductImage.objects.create(product=product, image=img, order=order)
+                    product_image = ProductImage.objects.create(product=product, image=img, order=order)
+                    _vendor_image_review_notice(request, product_image, 'image')
                 if max_images != -1 and len(additional_images) > remaining:
                     messages.warning(request, f'Only {remaining} gallery image(s) were added because of your plan limit.')
 
@@ -1026,9 +1062,23 @@ def vendor_product_images(request, product_id):
 
         try:
             images = request.FILES.getlist('images')
+            duplicate_warnings = []
             for img in images:
-                ProductImage.objects.create(product=product, image=img)
-            return JsonResponse({'success': True, 'count': len(images)})
+                product_image = ProductImage.objects.create(product=product, image=img)
+                warning = _vendor_image_review_payload(request.user, product_image, 'image')
+                if warning:
+                    duplicate_warnings.append(warning)
+            return JsonResponse({
+                'success': True,
+                'count': len(images),
+                'duplicate_warnings': duplicate_warnings,
+                'review_count': len([item for item in duplicate_warnings if item.get('needs_review')]),
+                'message': (
+                    'Image uploaded. One or more images require Arolana duplicate review.'
+                    if any(item.get('needs_review') for item in duplicate_warnings)
+                    else 'Images uploaded successfully.'
+                ),
+            })
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
     

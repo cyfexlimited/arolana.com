@@ -4,6 +4,7 @@ from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
+from core.content_i18n import translated_field
 from .models import (
     CareerCategory,
     ContactPageSettings,
@@ -23,18 +24,36 @@ except Exception:
     get_optimized_image_url = None
 
 
+def _localize(instance, request, *field_names):
+    if not instance:
+        return instance
+    for field_name in field_names:
+        setattr(
+            instance,
+            field_name,
+            translated_field(instance, field_name, request=request),
+        )
+    return instance
+
+
 def help_center(request):
     """Public Help Center page."""
 
     topics = SupportTopic.objects.filter(is_active=True).order_by("order", "title")
 
-    featured_faqs = FAQ.objects.filter(
+    featured_faqs = list(FAQ.objects.filter(
         is_active=True,
         is_featured=True,
-    ).order_by("order", "question")[:6]
+    ).order_by("order", "question")[:6])
 
     if not featured_faqs:
-        featured_faqs = FAQ.objects.filter(is_active=True).order_by("order", "question")[:6]
+        featured_faqs = list(
+            FAQ.objects.filter(is_active=True).order_by("order", "question")[:6]
+        )
+    featured_faqs = [
+        _localize(faq, request, "question", "answer")
+        for faq in featured_faqs
+    ]
 
     # Prefer an active hero that actually has an uploaded background image.
     hero = (
@@ -76,7 +95,10 @@ def help_center(request):
 def faq_page(request):
     """Public FAQ page grouped by category."""
 
-    faqs = FAQ.objects.filter(is_active=True).order_by("category", "order", "question")
+    faqs = list(
+        FAQ.objects.filter(is_active=True).order_by("category", "order", "question")
+    )
+    faqs = [_localize(faq, request, "question", "answer") for faq in faqs]
 
     categories = {}
     for faq in faqs:
@@ -85,7 +107,7 @@ def faq_page(request):
 
     context = {
         "categories": categories,
-        "total_faqs": faqs.count(),
+        "total_faqs": len(faqs),
         "page_title": "Frequently Asked Questions",
     }
     return render(request, "pages/faq.html", context)
@@ -102,8 +124,9 @@ def article_detail(request, slug):
 
     SupportArticle.objects.filter(pk=article.pk).update(views=F("views") + 1)
     article.refresh_from_db(fields=["views"])
+    _localize(article, request, "title", "content")
 
-    related_articles = (
+    related_articles = list(
         SupportArticle.objects.filter(
             category=article.category,
             is_active=True,
@@ -111,6 +134,10 @@ def article_detail(request, slug):
         .exclude(pk=article.pk)
         .select_related("category")[:5]
     )
+    related_articles = [
+        _localize(item, request, "title", "content")
+        for item in related_articles
+    ]
 
     context = {
         "article": article,
@@ -124,6 +151,7 @@ def page_detail(request, slug):
     """Generic editable page detail."""
 
     page = get_object_or_404(Page, slug=slug, is_active=True)
+    _localize(page, request, "title", "content", "sidebar_content", "meta_description")
 
     context = {
         "page": page,
@@ -136,6 +164,7 @@ def page_by_slug(request, slug):
     """Render public editable pages by root slug."""
 
     page = get_object_or_404(Page, slug=slug, is_active=True)
+    _localize(page, request, "title", "content", "sidebar_content", "meta_description")
 
     context = {
         "page": page,

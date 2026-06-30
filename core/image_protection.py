@@ -9,7 +9,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from django.db.models import ImageField
+from django.db.models import ImageField, Q
 from django.utils import timezone
 from django.utils.deconstruct import deconstructible
 
@@ -41,6 +41,7 @@ class ProtectedImageUploadPath:
 class ImageFingerprint:
     file_name: str
     sha256: str
+    original_filename: str = ""
     perceptual_hash: str = ""
     width: int | None = None
     height: int | None = None
@@ -58,28 +59,37 @@ def _is_new_upload(image_file):
     return bool(image_file and not getattr(image_file, "_committed", True))
 
 
-def _object_vendor_key(obj):
+def _object_ownership(obj):
     product = getattr(obj, "product", None)
     variant = getattr(obj, "variant", None)
     if variant is not None:
         product = getattr(variant, "product", None)
+    if obj._meta.label_lower == "products.product":
+        product = obj
 
     if product is not None:
         vendor = getattr(product, "vendor", None)
-        return f"user:{getattr(vendor, 'pk', '')}" if vendor else ""
+        return vendor, getattr(product, "pk", None)
 
     vendor = getattr(obj, "vendor", None)
     if vendor is not None:
-        return f"user:{getattr(vendor, 'pk', '')}"
+        return vendor, None
 
     user = getattr(obj, "user", None)
     if user is not None:
-        return f"user:{getattr(user, 'pk', '')}"
+        return user, None
 
-    return ""
+    return None, None
+
+
+def _object_vendor_key(obj):
+    vendor, _product_id = _object_ownership(obj)
+    return f"user:{getattr(vendor, 'pk', '')}" if vendor else ""
 
 
 def _asset_vendor_key(asset):
+    if getattr(asset, "vendor_id", None):
+        return f"user:{asset.vendor_id}"
     try:
         obj = asset.content_type.get_object_for_this_type(pk=asset.object_id)
     except Exception:
@@ -111,7 +121,7 @@ def _webp_bytes_and_metadata(data):
     return output.getvalue(), width, height, perceptual_hash
 
 
-def protect_uploaded_image(instance, field_name, block_cross_vendor_duplicates=True):
+def protect_uploaded_image(instance, field_name, block_cross_vendor_duplicates=False):
     image_file = getattr(instance, field_name, None)
     if not _is_new_upload(image_file):
         return None
@@ -121,6 +131,7 @@ def protect_uploaded_image(instance, field_name, block_cross_vendor_duplicates=T
     except Exception:
         pass
 
+    original_filename = str(getattr(image_file, "name", "") or "")
     raw = image_file.read()
     if not raw:
         return None
@@ -144,14 +155,19 @@ def protect_uploaded_image(instance, field_name, block_cross_vendor_duplicates=T
 
     protected_name = f"{uuid.uuid4().hex}.webp"
     setattr(instance, field_name, ContentFile(webp_data, name=protected_name))
-    return ImageFingerprint(
+    fingerprint = ImageFingerprint(
         file_name=protected_name,
         sha256=sha256,
+        original_filename=original_filename,
         perceptual_hash=perceptual_hash,
         width=width,
         height=height,
         size_bytes=len(webp_data),
     )
+    upload_context = getattr(instance, "_protected_image_upload_context", {})
+    upload_context[field_name] = fingerprint
+    instance._protected_image_upload_context = upload_context
+    return fingerprint
 
 
 def record_protected_image(instance, field_name):
@@ -159,9 +175,11 @@ def record_protected_image(instance, field_name):
     file_name = clean_storage_name(getattr(image_file, "name", ""))
     if not file_name:
         return None
-    fingerprint = fingerprint_image(image_file, file_name)
+    upload_context = getattr(instance, "_protected_image_upload_context", {})
+    fingerprint = upload_context.get(field_name) or fingerprint_image(image_file, file_name)
     if not fingerprint:
         return None
+    fingerprint.file_name = file_name
     asset, _is_duplicate, _duplicate_of = upsert_protected_asset(instance, instance._meta.get_field(field_name), fingerprint)
     return asset
 
@@ -219,6 +237,7 @@ def fingerprint_image(image_file, file_name=None):
     return ImageFingerprint(
         file_name=file_name,
         sha256=sha256,
+        original_filename=file_name.rsplit("/", 1)[-1],
         perceptual_hash=perceptual_hash,
         width=width,
         height=height,
@@ -249,15 +268,79 @@ def upsert_protected_asset(obj, field, fingerprint: ImageFingerprint, dry_run=Fa
 
     content_type = ContentType.objects.get_for_model(obj.__class__)
 
-    exact_duplicate = (
+    duplicate_of = (
         ProtectedImageAsset.objects
         .filter(sha256=fingerprint.sha256)
         .exclude(content_type=content_type, object_id=obj.pk, field_name=field.name, file_name=fingerprint.file_name)
         .order_by("created_at")
         .first()
     )
+    duplicate_type = "exact" if duplicate_of else ""
+    perceptual_distance = 0 if duplicate_of else None
 
-    is_duplicate = exact_duplicate is not None
+    if duplicate_of is None and fingerprint.perceptual_hash:
+        minimum_width = max(1, int((fingerprint.width or 1) * 0.45))
+        maximum_width = max(1, int((fingerprint.width or 1) * 2.2))
+        minimum_height = max(1, int((fingerprint.height or 1) * 0.45))
+        maximum_height = max(1, int((fingerprint.height or 1) * 2.2))
+        candidates = (
+            ProtectedImageAsset.objects
+            .exclude(perceptual_hash="")
+            .exclude(
+                content_type=content_type,
+                object_id=obj.pk,
+                field_name=field.name,
+                file_name=fingerprint.file_name,
+            )
+            .filter(
+                Q(width__isnull=True)
+                | Q(height__isnull=True)
+                | Q(
+                    width__gte=minimum_width,
+                    width__lte=maximum_width,
+                    height__gte=minimum_height,
+                    height__lte=maximum_height,
+                )
+            )
+            .order_by("created_at")[:500]
+        )
+        for candidate in candidates:
+            distance = hamming_distance(
+                fingerprint.perceptual_hash,
+                candidate.perceptual_hash,
+            )
+            if distance is not None and distance <= 6:
+                duplicate_of = candidate
+                duplicate_type = "near"
+                perceptual_distance = distance
+                break
+
+    is_duplicate = duplicate_of is not None
+    vendor, source_product_id = _object_ownership(obj)
+    current_vendor_key = f"user:{getattr(vendor, 'pk', '')}" if vendor else ""
+    duplicate_vendor_key = _asset_vendor_key(duplicate_of) if duplicate_of else ""
+    same_vendor = bool(
+        is_duplicate
+        and current_vendor_key
+        and duplicate_vendor_key
+        and current_vendor_key == duplicate_vendor_key
+    )
+
+    if not is_duplicate:
+        duplicate_status = "original"
+        duplicate_reason = ""
+    elif same_vendor:
+        duplicate_status = "same_vendor_reuse"
+        duplicate_reason = "Image reused by the same vendor."
+    elif getattr(duplicate_of, "allow_duplicate", False):
+        duplicate_status = "approved"
+        duplicate_reason = "Matched an image already approved for legitimate shared use."
+    else:
+        duplicate_status = "needs_review"
+        duplicate_reason = (
+            "This image appears to already be used by another vendor on Arolana. "
+            "Please confirm that you have the right to use it or upload your own original product image."
+        )
 
     asset, _created = ProtectedImageAsset.objects.update_or_create(
         content_type=content_type,
@@ -266,15 +349,66 @@ def upsert_protected_asset(obj, field, fingerprint: ImageFingerprint, dry_run=Fa
         file_name=fingerprint.file_name,
         defaults={
             "sha256": fingerprint.sha256,
+            "original_filename": fingerprint.original_filename,
             "perceptual_hash": fingerprint.perceptual_hash,
             "width": fingerprint.width,
             "height": fingerprint.height,
             "size_bytes": fingerprint.size_bytes,
             "is_duplicate": is_duplicate,
-            "duplicate_of": exact_duplicate,
+            "duplicate_type": duplicate_type,
+            "duplicate_status": duplicate_status,
+            "perceptual_distance": perceptual_distance,
+            "duplicate_of": duplicate_of,
+            "duplicate_reason": duplicate_reason,
+            "uploader": vendor,
+            "vendor": vendor,
+            "source_product_id": source_product_id,
         },
     )
-    return asset, is_duplicate, exact_duplicate
+    return asset, is_duplicate, duplicate_of
+
+
+def protected_asset_for(instance, field_name):
+    if not instance or not getattr(instance, "pk", None):
+        return None
+    image_file = getattr(instance, field_name, None)
+    file_name = clean_storage_name(getattr(image_file, "name", ""))
+    if not file_name:
+        return None
+    content_type = ContentType.objects.get_for_model(instance.__class__)
+    return ProtectedImageAsset.objects.filter(
+        content_type=content_type,
+        object_id=instance.pk,
+        field_name=field_name,
+        file_name=file_name,
+    ).first()
+
+
+def set_protected_image_uploader(instance, field_name, uploader):
+    if not uploader:
+        return protected_asset_for(instance, field_name)
+    asset = protected_asset_for(instance, field_name)
+    if asset and asset.uploader_id != getattr(uploader, "pk", None):
+        asset.uploader = uploader
+        asset.save(update_fields=["uploader", "updated_at"])
+    return asset
+
+
+def duplicate_warning_payload(instance, field_name):
+    asset = protected_asset_for(instance, field_name)
+    if not asset:
+        return None
+    return {
+        "asset_id": asset.id,
+        "is_duplicate": asset.is_duplicate,
+        "duplicate_type": asset.duplicate_type,
+        "duplicate_status": asset.duplicate_status,
+        "needs_review": asset.duplicate_status == "needs_review",
+        "same_vendor_reuse": asset.duplicate_status == "same_vendor_reuse",
+        "message": asset.duplicate_reason,
+        "matched_asset_id": asset.duplicate_of_id,
+        "perceptual_distance": asset.perceptual_distance,
+    }
 
 
 def group_exact_duplicates(assets: Iterable[ProtectedImageAsset]):

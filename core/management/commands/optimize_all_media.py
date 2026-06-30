@@ -4,7 +4,7 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.management.base import BaseCommand
 from django.db.models import ImageField
-from PIL import Image, ImageOps, UnidentifiedImageError
+from PIL import Image, ImageFilter, ImageOps, UnidentifiedImageError
 
 from core.media_optimization import PRESETS, optimized_name_for
 
@@ -19,7 +19,12 @@ class Command(BaseCommand):
         parser.add_argument("--dry-run", action="store_true")
         parser.add_argument("--overwrite", action="store_true")
         parser.add_argument("--limit", type=int, default=0)
-        parser.add_argument("--quality", type=int, default=82)
+        parser.add_argument(
+            "--quality",
+            type=int,
+            default=95,
+            help="Maximum quality cap. Preset quality remains authoritative.",
+        )
         parser.add_argument("--model", action="append", default=[])
 
     def handle(self, *args, **options):
@@ -169,6 +174,10 @@ def optimize_image(image_name, presets, dry_run=False, overwrite=False, quality=
                 out_img = out_img.convert("RGBA" if "A" in out_img.getbands() else "RGB")
 
             out_img.thumbnail(config["max_size"], Image.Resampling.LANCZOS)
+            if config.get("sharpen"):
+                out_img = out_img.filter(
+                    ImageFilter.UnsharpMask(radius=0.8, percent=115, threshold=3)
+                )
 
             output = BytesIO()
             out_img.save(
@@ -219,11 +228,11 @@ def choose_presets(model_label, field_name, image_name):
     elif "background" in text and "mobile" in text:
         add("background_mobile", "mobile_hero", "seo")
     elif "products.product.main_image" in text:
-        add("seo", "product_detail", "product_gallery", "product_card", "product_thumb")
+        add("seo", "product_detail", "product_gallery", "product_card_large", "product_card", "product_thumb")
     elif "productimage" in text or "products/gallery" in text:
-        add("product_detail", "product_gallery", "product_card", "product_thumb", "seo")
+        add("product_detail", "product_gallery", "product_card_large", "product_card", "product_thumb", "seo")
     elif "variant" in text and "image" in text:
-        add("product_detail", "product_gallery", "product_card", "product_thumb")
+        add("product_detail", "product_gallery", "product_card_large", "product_card", "product_thumb")
     elif "accessory" in text:
         add("accessory_thumb", "product_card", "thumbnail")
     elif "category" in text and any(word in text for word in ("banner", "background", "hero")):

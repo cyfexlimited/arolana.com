@@ -700,12 +700,14 @@ class Product(BaseModel):
         if not self.sku:
             self.sku = self._generate_sku()
 
-        # Always slugify - this removes parentheses and special chars
-        if not self.slug:
-            self.slug = slugify(self.name)
-        else:
-            # Re-sanitize existing slugs to remove invalid characters
-            self.slug = slugify(self.slug)
+        requested_slug = slugify(self.slug or self.name)
+        self.slug = self.build_unique_slug(
+            name=self.name,
+            vendor=self.vendor,
+            requested_slug=requested_slug,
+            current_pk=self.pk,
+        )
+        self._slug_was_adjusted = self.slug != requested_slug
 
         # Update stock status
         self.is_in_stock = self.get_available_stock() > 0
@@ -714,6 +716,49 @@ class Product(BaseModel):
 
         record_protected_image(self, "main_image")
         record_protected_image(self, "video_thumbnail")
+
+    @classmethod
+    def build_unique_slug(
+        cls,
+        name,
+        vendor=None,
+        requested_slug="",
+        current_pk=None,
+    ):
+        base = slugify(requested_slug or name) or "product"
+        base = base[:255].strip("-") or "product"
+        queryset = cls.objects.all()
+        if current_pk:
+            queryset = queryset.exclude(pk=current_pk)
+        if not queryset.filter(slug=base).exists():
+            return base
+
+        vendor_suffixes = []
+        if vendor is not None:
+            try:
+                profile_slug = slugify(vendor.vendor_profile.store_slug)
+            except Exception:
+                profile_slug = ""
+            for value in (
+                profile_slug,
+                slugify(getattr(vendor, "username", "")),
+                f"vendor-{getattr(vendor, 'pk', '')}" if getattr(vendor, "pk", None) else "",
+            ):
+                if value and value not in vendor_suffixes:
+                    vendor_suffixes.append(value)
+
+        for suffix in vendor_suffixes:
+            candidate = f"{base[: max(1, 254 - len(suffix))]}-{suffix}".strip("-")
+            if not queryset.filter(slug=candidate).exists():
+                return candidate
+
+        counter = 2
+        while True:
+            suffix = str(counter)
+            candidate = f"{base[: max(1, 254 - len(suffix))]}-{suffix}".strip("-")
+            if not queryset.filter(slug=candidate).exists():
+                return candidate
+            counter += 1
 
     def _generate_sku(self):
         """Generate unique SKU"""

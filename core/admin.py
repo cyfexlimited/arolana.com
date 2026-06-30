@@ -9,10 +9,73 @@ from datetime import timedelta
 from django.utils.timezone import now
 from django.conf import settings
 
-from .models import AdminAppearance, SiteSettings, PromoBanner, HomePageAppearance, ProtectedImageAsset
+from .models import (
+    AdminAppearance,
+    ContentTranslation,
+    HomePageAppearance,
+    PromoBanner,
+    ProtectedImageAsset,
+    SiteSettings,
+)
 from products.models import Product
 from orders.models import Order
 from vendors.models import VendorProfile
+
+
+@admin.register(ContentTranslation)
+class ContentTranslationAdmin(admin.ModelAdmin):
+    list_display = (
+        "target",
+        "language_code",
+        "field_name",
+        "translated_preview",
+        "is_active",
+        "updated_at",
+    )
+    list_filter = ("language_code", "is_active", "content_type", "field_name")
+    search_fields = (
+        "translation_key",
+        "field_name",
+        "translated_text",
+        "object_id",
+    )
+    list_editable = ("is_active",)
+    ordering = ("content_type", "object_id", "field_name", "language_code")
+    raw_id_fields = ("content_type",)
+
+    fieldsets = (
+        ("Translation Target", {
+            "fields": (
+                "content_type",
+                "object_id",
+                "field_name",
+                "translation_key",
+            ),
+            "description": (
+                "For database content, select the model type, object ID, and field. "
+                "For a shared label such as a product condition, use Translation key only."
+            ),
+        }),
+        ("Localized Content", {
+            "fields": ("language_code", "translated_text", "is_active"),
+        }),
+        ("Timestamps", {
+            "fields": ("created_at", "updated_at"),
+            "classes": ("collapse",),
+        }),
+    )
+    readonly_fields = ("created_at", "updated_at")
+
+    @admin.display(description="Target")
+    def target(self, obj):
+        if obj.translation_key:
+            return obj.translation_key
+        return f"{obj.content_type} #{obj.object_id}"
+
+    @admin.display(description="Translation")
+    def translated_preview(self, obj):
+        value = str(obj.translated_text or "").replace("\n", " ")
+        return value if len(value) <= 100 else f"{value[:97]}..."
 
 
 # =========================
@@ -22,6 +85,10 @@ from vendors.models import VendorProfile
 class ProtectedImageAssetAdmin(admin.ModelAdmin):
     list_display = (
         "file_name_short",
+        "original_filename_short",
+        "vendor",
+        "uploader",
+        "source_product_id",
         "content_type",
         "object_id",
         "field_name",
@@ -30,11 +97,18 @@ class ProtectedImageAssetAdmin(admin.ModelAdmin):
         "perceptual_hash_short",
         "duplicate_badge",
         "duplicate_of",
+        "used_by_count",
         "allow_duplicate",
         "updated_at",
     )
 
     list_editable = ("allow_duplicate",)
+    list_select_related = (
+        "content_type",
+        "duplicate_of",
+        "vendor",
+        "uploader",
+    )
     list_per_page = 50
 
     actions = (
@@ -49,7 +123,17 @@ class ProtectedImageAssetAdmin(admin.ModelAdmin):
         fields = self.get_model_field_names()
         filters = []
 
-        for field in ("is_duplicate", "allow_duplicate", "content_type", "field_name", "updated_at"):
+        for field in (
+            "duplicate_status",
+            "duplicate_type",
+            "is_duplicate",
+            "allow_duplicate",
+            "vendor",
+            "uploader",
+            "content_type",
+            "field_name",
+            "updated_at",
+        ):
             if field in fields:
                 filters.append(field)
 
@@ -59,7 +143,17 @@ class ProtectedImageAssetAdmin(admin.ModelAdmin):
         fields = self.get_model_field_names()
         search_fields = []
 
-        for field in ("file_name", "sha256", "perceptual_hash", "duplicate_reason", "field_name"):
+        for field in (
+            "file_name",
+            "original_filename",
+            "sha256",
+            "perceptual_hash",
+            "duplicate_reason",
+            "field_name",
+            "vendor__email",
+            "vendor__username",
+            "uploader__email",
+        ):
             if field in fields:
                 search_fields.append(field)
 
@@ -74,13 +168,20 @@ class ProtectedImageAssetAdmin(admin.ModelAdmin):
             "object_id",
             "field_name",
             "file_name",
+            "original_filename",
             "sha256",
             "perceptual_hash",
             "width",
             "height",
             "size_bytes",
             "is_duplicate",
+            "duplicate_type",
+            "duplicate_status",
+            "perceptual_distance",
             "duplicate_of",
+            "vendor",
+            "uploader",
+            "source_product_id",
             "created_at",
             "updated_at",
         ):
@@ -95,6 +196,11 @@ class ProtectedImageAssetAdmin(admin.ModelAdmin):
             return "-"
         return name if len(name) <= 75 else f"...{name[-75:]}"
     file_name_short.short_description = "File"
+
+    def original_filename_short(self, obj):
+        name = str(getattr(obj, "original_filename", "") or "")
+        return name if len(name) <= 45 else f"{name[:42]}..."
+    original_filename_short.short_description = "Original name"
 
     def sha256_short(self, obj):
         value = getattr(obj, "sha256", "") or ""
@@ -120,15 +226,31 @@ class ProtectedImageAssetAdmin(admin.ModelAdmin):
                 '<span style="background:#2563eb;color:#fff;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700;">Approved Shared</span>'
             )
 
-        if getattr(obj, "is_duplicate", False):
+        if getattr(obj, "duplicate_status", "") == "same_vendor_reuse":
             return format_html(
-                '<span style="background:#dc2626;color:#fff;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700;">Duplicate / Review</span>'
+                '<span style="background:#0f766e;color:#fff;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700;">Same Vendor Reuse</span>'
+            )
+
+        if getattr(obj, "duplicate_status", "") == "rejected":
+            return format_html(
+                '<span style="background:#991b1b;color:#fff;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700;">Rejected</span>'
+            )
+
+        if getattr(obj, "is_duplicate", False):
+            label = "Exact Duplicate" if getattr(obj, "duplicate_type", "") == "exact" else "Likely Duplicate"
+            return format_html(
+                '<span style="background:#dc2626;color:#fff;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700;">{} / Review</span>',
+                label,
             )
 
         return format_html(
             '<span style="background:#059669;color:#fff;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700;">Original</span>'
         )
     duplicate_badge.short_description = "Status"
+
+    def used_by_count(self, obj):
+        return obj.duplicate_assets.count() + 1
+    used_by_count.short_description = "Used by"
 
     @admin.action(description="✅ Allow selected duplicate/shared images")
     def allow_selected_duplicates(self, request, queryset):

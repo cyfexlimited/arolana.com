@@ -35,6 +35,11 @@ urlpatterns = [
     # ================================
     path('debug-colors/<int:product_id>/', views.debug_colors, name='debug_colors'),
     path("mobile/home/", views.mobile_home_api, name="mobile_home_api"),
+    path("mobile/articles/", views.mobile_articles_api, name="mobile_articles_api"),
+    path("mobile/articles/categories/", views.mobile_article_categories_api, name="mobile_article_categories_api"),
+    path("mobile/articles/tags/", views.mobile_article_tags_api, name="mobile_article_tags_api"),
+    path("mobile/articles/<slug:slug>/comments/", views.mobile_article_comments_api, name="mobile_article_comments_api"),
+    path("mobile/articles/<slug:slug>/", views.mobile_article_detail_api, name="mobile_article_detail_api"),
     path("mobile/product-config/", views.mobile_product_config_api, name="mobile_product_config_api"),
     path("mobile/products/", views.mobile_products_api, name="mobile_products_api"),
     path("mobile/categories/<slug:slug>/", views.mobile_category_detail_api, name="mobile_category_detail_api"),

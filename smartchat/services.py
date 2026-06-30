@@ -753,8 +753,10 @@ def ai_operations_reply(
     rider=None,
     customer_memory=None,
 ):
+    preferred_language = (conversation.context or {}).get("preferred_language") or "en"
     context = build_operations_context(conversation, user_message, audience=audience, actor_user=actor_user, rider=rider)
     context["customer_memory"] = customer_memory or []
+    context["preferred_language"] = preferred_language
     intent = context.get("intent", {})
     conversation.audience = audience or conversation.audience
     conversation.current_intent = intent.get("intent", "")
@@ -790,9 +792,12 @@ Use only the provided Arolana database context. Do not invent payments, stock, d
 You may explain status, search/recommend products, summarize vendor/rider/account information, and suggest next steps.
 You must not directly approve refunds, payouts, KYC, account deletion, price changes, product approval, or vendor suspension.
 For sensitive decisions, say admin review is required and offer a support ticket/handoff.
+Reply in the requested language whenever it is not English. Keep Arolana, brand names, model numbers,
+SKUs, order IDs, tracking codes, phone numbers, and prices unchanged.
 """.strip()
         input_text = f"""
 AUDIENCE: {audience}
+RESPONSE LANGUAGE: {preferred_language}
 CUSTOMER/USER: {conversation.customer_display}
 INTENT: {intent}
 TOOLS CONTEXT: {context}

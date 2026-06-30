@@ -68,6 +68,23 @@ class MobileCustomerWebAccountAuthenticationTests(TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(MobileCustomer.objects.count(), 0)
 
+    def test_profile_endpoint_accepts_bearer_mobile_token(self):
+        customer = MobileCustomer.objects.create(
+            user=self.user,
+            full_name=self.user.get_full_name(),
+            phone_number=str(self.user.phone_number),
+            email=self.user.email,
+            api_token="secure-bearer-token",
+        )
+
+        response = self.client.get(
+            "/api/mobile/customer/profile/",
+            HTTP_AUTHORIZATION=f"Bearer {customer.api_token}",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["customer"]["user_id"], self.user.id)
+
     def test_customer_language_setting_persists_and_is_returned(self):
         customer = MobileCustomer.objects.create(
             user=self.user,
@@ -104,3 +121,39 @@ class MobileCustomerWebAccountAuthenticationTests(TestCase):
         )
         self.assertEqual(fetched.status_code, 200)
         self.assertEqual(fetched.json()["preferred_language"], "yoruba")
+
+    @patch("accounts.utils.otp_utils.send_otp_email", return_value=True)
+    def test_native_registration_creates_real_user_then_verifies_otp(self, _send_email):
+        registration = self.post_json(
+            "/api/mobile/auth/register/",
+            {
+                "full_name": "Native Arolana Customer",
+                "email": "native.arolana.customer@gmail.com",
+                "phone_number": "+2348098765432",
+                "password": "StrongNative123!",
+                "confirm_password": "StrongNative123!",
+                "terms_accepted": True,
+            },
+        )
+
+        self.assertEqual(registration.status_code, 201)
+        self.assertTrue(registration.json()["otp_required"])
+        user = User.objects.get(email="native.arolana.customer@gmail.com")
+        self.assertEqual(user.user_type, "customer")
+        self.assertFalse(user.email_verified)
+        self.assertEqual(MobileCustomer.objects.filter(user=user).count(), 0)
+
+        otp = UserOTP.objects.get(user=user, otp_type="email", is_used=False)
+        verified = self.post_json(
+            "/api/mobile/auth/verify-otp/",
+            {
+                "challenge_token": registration.json()["challenge_token"],
+                "otp_code": otp.otp_code,
+            },
+        )
+
+        self.assertEqual(verified.status_code, 200)
+        user.refresh_from_db()
+        self.assertTrue(user.email_verified)
+        self.assertTrue(verified.json()["api_token"])
+        self.assertTrue(MobileCustomer.objects.filter(user=user).exists())

@@ -5,7 +5,14 @@ from . import views
 app_name = "mobile_customers"
 
 urlpatterns = [
+    path("api/mobile/auth/login/", views.mobile_customer_account_login_api, name="mobile_auth_login_api"),
+    path("api/mobile/auth/register/", views.mobile_customer_account_register_api, name="mobile_auth_register_api"),
+    path("api/mobile/auth/verify-otp/", views.mobile_customer_account_verify_otp_api, name="mobile_auth_verify_otp_api"),
+    path("api/mobile/auth/resend-otp/", views.mobile_customer_account_resend_otp_api, name="mobile_auth_resend_otp_api"),
+    path("api/mobile/auth/me/", views.mobile_customer_profile_api, name="mobile_auth_me_api"),
+    path("api/mobile/auth/logout/", views.mobile_customer_account_logout_api, name="mobile_auth_logout_api"),
     path("api/mobile/customer/account-login/", views.mobile_customer_account_login_api, name="mobile_customer_account_login_api"),
+    path("api/mobile/customer/account-register/", views.mobile_customer_account_register_api, name="mobile_customer_account_register_api"),
     path("api/mobile/customer/account-login/verify-otp/", views.mobile_customer_account_verify_otp_api, name="mobile_customer_account_verify_otp_api"),
     path("api/mobile/customer/account-login/resend-otp/", views.mobile_customer_account_resend_otp_api, name="mobile_customer_account_resend_otp_api"),
     path("api/mobile/customer/login/", views.mobile_customer_login_api, name="mobile_customer_login_api"),
