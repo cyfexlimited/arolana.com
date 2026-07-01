@@ -369,19 +369,19 @@
 {% block dashboard_content %}
 <div class="vendor-quotes-page">
     <div class="quotes-topbar">
-        <div>
-            <div class="quotes-eyebrow">Arolana Vendor OS</div>
-            <h1 class="quotes-title">Quote Requests</h1>
-            <p class="quotes-subtitle">
-                Requests sent from your public vendor store. Arolana admin also sees these for trust, follow-up, and marketplace control.
-            </p>
-        </div>
-
-        <a href="{% url 'dashboard:vendor_dashboard' %}" class="quotes-back-btn">
-            <i class="fas fa-arrow-left"></i>
-            Back to Dashboard
-        </a>
+    <div>
+        <div class="quotes-eyebrow">Arolana Vendor OS</div>
+        <h1 class="quotes-title">Quote Requests</h1>
+        <p class="quotes-subtitle">
+            Requests sent from your public vendor store. Arolana admin also sees these for trust, follow-up, and marketplace control.
+        </p>
     </div>
+
+    <a href="{{ back_url|default:'/dashboard/vendor/' }}" class="quotes-back-btn">
+        <i class="fas fa-arrow-left"></i>
+        Back to Dashboard
+    </a>
+</div>
 
     <div class="quotes-stats-grid">
         <div class="quotes-stat-card">
