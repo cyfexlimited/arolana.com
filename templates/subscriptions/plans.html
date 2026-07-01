@@ -26,7 +26,7 @@
 
     .arolana-subscription-page {
         width: 100%;
-        max-width: 1280px;
+        max-width: 1320px;
         margin: 0 auto;
         padding: 1.25rem;
         color: var(--arolana-text);
@@ -44,7 +44,7 @@
     .subscription-hero-top {
         position: relative;
         overflow: hidden;
-        min-height: 280px;
+        min-height: 300px;
         background:
             radial-gradient(circle at 12% 18%, rgba(56,189,248,.24), transparent 28%),
             radial-gradient(circle at 88% 16%, rgba(255,122,0,.28), transparent 24%),
@@ -52,7 +52,7 @@
         color: #fff;
         padding: 1.5rem;
         display: grid;
-        grid-template-columns: minmax(0, 1.1fr) minmax(320px, .9fr);
+        grid-template-columns: minmax(0, .95fr) minmax(360px, 1.05fr);
         gap: 1.25rem;
         align-items: center;
     }
@@ -82,7 +82,7 @@
     .subscription-subtitle {
         margin-top: .8rem;
         max-width: 46rem;
-        color: rgba(255,255,255,.82);
+        color: rgba(255,255,255,.86);
         font-size: .98rem;
         line-height: 1.6;
         font-weight: 750;
@@ -115,22 +115,22 @@
         border-radius: 1.25rem;
         overflow: hidden;
         border: 1px solid rgba(255,255,255,.25);
-        background: rgba(255,255,255,.08);
+        background: #fff;
         box-shadow: 0 20px 45px rgba(0,0,0,.18);
     }
 
     .subscription-hero-visual img {
         display: block;
         width: 100%;
-        height: 100%;
-        max-height: 320px;
-        object-fit: cover;
+        height: auto;
+        max-height: 340px;
+        object-fit: contain;
         background: #fff;
     }
 
     .subscription-benefit-grid {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(6, minmax(0, 1fr));
         gap: .75rem;
         padding: .9rem;
         background: #F8FBFF;
@@ -146,7 +146,7 @@
 
     .subscription-benefit-label {
         color: var(--arolana-muted);
-        font-size: .68rem;
+        font-size: .66rem;
         font-weight: 950;
         text-transform: uppercase;
         letter-spacing: .04em;
@@ -157,6 +157,7 @@
         color: var(--arolana-orange);
         font-size: .86rem;
         font-weight: 950;
+        line-height: 1.25;
     }
 
     .subscription-current {
@@ -243,6 +244,7 @@
         font-weight: 950;
         text-decoration: none;
         box-shadow: 0 8px 22px rgba(15,23,42,.05);
+        white-space: nowrap;
     }
 
     .subscription-history-link:hover {
@@ -281,7 +283,7 @@
     }
 
     .popular-ribbon {
-        background: linear-gradient(135deg, var(--arolana-blue), #064B99);
+        background: linear-gradient(135deg, var(--arolana-orange), #E85F00);
         color: #fff;
         min-height: 2.2rem;
         display: flex;
@@ -347,6 +349,21 @@
         color: var(--arolana-muted);
         font-size: .78rem;
         font-weight: 800;
+    }
+
+    .plan-commission {
+        margin-top: .45rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .35rem;
+        min-height: 1.9rem;
+        padding: .35rem .65rem;
+        border-radius: 999px;
+        background: #FFF7ED;
+        color: #C2410C;
+        font-size: .68rem;
+        font-weight: 950;
     }
 
     .plan-features {
@@ -458,6 +475,12 @@
         font-weight: 750;
         text-align: center;
         box-shadow: 0 12px 30px rgba(15,23,42,.055);
+    }
+
+    @media (max-width: 1180px) {
+        .subscription-benefit-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
     }
 
     @media (max-width: 1100px) {
@@ -597,6 +620,10 @@
             font-size: .68rem;
         }
 
+        .plan-commission {
+            font-size: .62rem;
+        }
+
         .plan-feature {
             font-size: .68rem;
         }
@@ -626,13 +653,21 @@
         <div class="subscription-hero-top">
             <div class="subscription-hero-content">
                 <div class="subscription-eyebrow">Arolana Vendor Growth Plans</div>
-                <h1 class="subscription-title">Choose the plan that matches your business stage.</h1>
+
+                <h1 class="subscription-title">Grow your business with the right Arolana plan.</h1>
+
                 <p class="subscription-subtitle">
-                    Benefits activate after payment verification and sync across your vendor dashboard, staff mobile app,
-                    customer website, and customer mobile app.
+                    Start free, then upgrade when your store needs more products, more images, RFQ access,
+                    customer chat, callback requests, homepage visibility, and stronger marketplace ranking.
+                    Benefits sync across website, vendor dashboard, admin, staff app, customer app, invoices,
+                    search ranking, and notifications.
                 </p>
 
                 <div class="subscription-hero-badges">
+                    <span class="subscription-hero-badge">
+                        <i class="fas fa-box"></i>
+                        10 products free
+                    </span>
                     <span class="subscription-hero-badge">
                         <i class="fas fa-store"></i>
                         Vendor marketplace access
@@ -651,7 +686,7 @@
             <div class="subscription-hero-visual">
                 <img
                     src="{% static 'images/arolana-vendor-subscription-benefits.png' %}"
-                    alt="Arolana subscription growth ladder"
+                    alt="Arolana vendor subscription plans showing Free, Basic, Plus, Pro, Special and Enterprise benefits"
                     loading="lazy"
                     decoding="async"
                     onerror="this.style.display='none';"
@@ -662,12 +697,17 @@
         <div class="subscription-benefit-grid">
             <div class="subscription-benefit">
                 <div class="subscription-benefit-label">Product Uploads</div>
-                <div class="subscription-benefit-value">1 to unlimited</div>
+                <div class="subscription-benefit-value">10 to unlimited</div>
             </div>
 
             <div class="subscription-benefit">
-                <div class="subscription-benefit-label">Search Ranking</div>
-                <div class="subscription-benefit-value">Higher by plan</div>
+                <div class="subscription-benefit-label">Images</div>
+                <div class="subscription-benefit-value">3 to 30 per product</div>
+            </div>
+
+            <div class="subscription-benefit">
+                <div class="subscription-benefit-label">Variants</div>
+                <div class="subscription-benefit-value">0 to unlimited</div>
             </div>
 
             <div class="subscription-benefit">
@@ -676,7 +716,12 @@
             </div>
 
             <div class="subscription-benefit">
-                <div class="subscription-benefit-label">Homepage Boost</div>
+                <div class="subscription-benefit-label">Homepage Visibility</div>
+                <div class="subscription-benefit-value">Pro and above</div>
+            </div>
+
+            <div class="subscription-benefit">
+                <div class="subscription-benefit-label">Direct Contact</div>
                 <div class="subscription-benefit-value">Special & Enterprise</div>
             </div>
         </div>
@@ -707,7 +752,8 @@
         <div>
             <h2 class="plans-header-title">Available vendor plans</h2>
             <p class="plans-header-subtitle">
-                Select a plan based on how many products, images, variants, ranking boosts, and support benefits your business needs.
+                Choose based on your product capacity, images, variants, ranking priority, commission rate,
+                chat access, RFQ access, callback requests, and homepage visibility.
             </p>
         </div>
 
@@ -723,7 +769,7 @@
             {% if plan.is_popular %}
             <div class="popular-ribbon">
                 <i class="fas fa-star"></i>
-                Most Popular
+                Best Value for Growing Vendors
             </div>
             {% endif %}
 
@@ -743,20 +789,129 @@
                             <span class="plan-period">/month</span>
                         {% endif %}
                     </div>
+
+                    <div class="plan-commission">
+                        <i class="fas fa-percent"></i>
+                        {{ plan.commission_rate|floatformat:0 }}% commission
+                    </div>
                 </div>
 
                 <div class="plan-features">
-                    {% for feature in plan.get_features_list %}
+                    {% if plan.max_products == -1 %}
                     <div class="plan-feature">
                         <i class="fas fa-check-circle"></i>
-                        <span>{{ feature }}</span>
+                        <span>Unlimited product uploads</span>
                     </div>
-                    {% endfor %}
+                    {% else %}
+                    <div class="plan-feature">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Up to {{ plan.max_products|intcomma }} product upload{{ plan.max_products|pluralize }}</span>
+                    </div>
+                    {% endif %}
 
-                    {% if not plan.limits.chat_enabled %}
+                    <div class="plan-feature">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Up to {{ plan.max_images_per_product }} image{{ plan.max_images_per_product|pluralize }} per product</span>
+                    </div>
+
+                    {% if plan.max_variants_per_product == -1 %}
+                    <div class="plan-feature">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Unlimited variants per product</span>
+                    </div>
+                    {% elif plan.max_variants_per_product > 0 %}
+                    <div class="plan-feature">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Up to {{ plan.max_variants_per_product }} variant{{ plan.max_variants_per_product|pluralize }} per product</span>
+                    </div>
+                    {% else %}
                     <div class="plan-feature locked">
                         <i class="fas fa-lock"></i>
-                        <span>Product chat locked on this plan</span>
+                        <span>Product variants not included</span>
+                    </div>
+                    {% endif %}
+
+                    {% if plan.priority_score > 0 %}
+                    <div class="plan-feature">
+                        <i class="fas fa-check-circle"></i>
+                        <span>{{ plan.priority_score }} ranking priority score</span>
+                    </div>
+                    {% else %}
+                    <div class="plan-feature locked">
+                        <i class="fas fa-lock"></i>
+                        <span>No ranking boost</span>
+                    </div>
+                    {% endif %}
+
+                    {% if plan.chat_enabled %}
+                    <div class="plan-feature">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Customer chat access</span>
+                    </div>
+                    {% else %}
+                    <div class="plan-feature locked">
+                        <i class="fas fa-lock"></i>
+                        <span>Customer chat not included</span>
+                    </div>
+                    {% endif %}
+
+                    {% if plan.can_access_rfq %}
+                    <div class="plan-feature">
+                        <i class="fas fa-check-circle"></i>
+                        <span>RFQ access for buyer enquiries</span>
+                    </div>
+                    {% else %}
+                    <div class="plan-feature locked">
+                        <i class="fas fa-lock"></i>
+                        <span>RFQ access not included</span>
+                    </div>
+                    {% endif %}
+
+                    {% if plan.can_receive_callback_requests %}
+                    <div class="plan-feature">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Can receive customer callback requests</span>
+                    </div>
+                    {% else %}
+                    <div class="plan-feature locked">
+                        <i class="fas fa-lock"></i>
+                        <span>Callback requests not included</span>
+                    </div>
+                    {% endif %}
+
+                    {% if plan.can_show_phone %}
+                    <div class="plan-feature">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Can show phone number to customers</span>
+                    </div>
+                    {% else %}
+                    <div class="plan-feature locked">
+                        <i class="fas fa-lock"></i>
+                        <span>Phone number hidden from customers</span>
+                    </div>
+                    {% endif %}
+
+                    {% if plan.can_show_whatsapp %}
+                    <div class="plan-feature">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Can show WhatsApp contact</span>
+                    </div>
+                    {% else %}
+                    <div class="plan-feature locked">
+                        <i class="fas fa-lock"></i>
+                        <span>WhatsApp contact hidden from customers</span>
+                    </div>
+                    {% endif %}
+
+                    {% if plan.can_show_on_homepage %}
+                    <div class="plan-feature">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Eligible for homepage visibility</span>
+                    </div>
+                    {% else %}
+                    <div class="plan-feature locked">
+                        <i class="fas fa-lock"></i>
+                        <span>Homepage visibility not included</span>
                     </div>
                     {% endif %}
                 </div>
@@ -797,8 +952,10 @@
     </section>
 
     <div class="subscription-note">
-        Arolana should keep free plans useful for onboarding, but paid plans should unlock stronger trust, better visibility,
-        more product capacity, more media, chat access, RFQ access, and marketplace growth tools.
+        Arolana plans are built for startup growth: Free Vendor helps sellers test the marketplace,
+        Basic supports small sellers, Plus is the best value for growing vendors, Pro is for serious businesses,
+        Special unlocks premium visibility and direct contact, while Enterprise supports large distributors,
+        brands, manufacturers, and high-volume vendors.
     </div>
 </div>
 {% endblock %}
