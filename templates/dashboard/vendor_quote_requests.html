@@ -1,0 +1,546 @@
+{% extends 'dashboard/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Quote Requests - Vendor Dashboard{% endblock %}
+
+{% block dashboard_side_ad %}{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<style>
+    :root {
+        --arolana-navy: #071A44;
+        --arolana-blue: #0066CC;
+        --arolana-orange: #FF7A00;
+        --arolana-border: #E3ECF8;
+        --arolana-muted: #65758B;
+        --arolana-bg: #F4F7FB;
+    }
+
+    body {
+        background: var(--arolana-bg) !important;
+    }
+
+    body:has(.vendor-quotes-page) .arolana-following-ad,
+    body:has(.vendor-quotes-page) .arolana-floating-ad-shell,
+    body:has(.vendor-quotes-page) .arolana-ad-placeholder {
+        display: none !important;
+    }
+
+    .vendor-quotes-page {
+        width: 100%;
+        max-width: none;
+        padding: 1.25rem;
+        color: var(--arolana-navy);
+    }
+
+    .quotes-topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .quotes-eyebrow {
+        color: var(--arolana-orange);
+        font-size: .72rem;
+        font-weight: 950;
+        letter-spacing: .18em;
+        text-transform: uppercase;
+    }
+
+    .quotes-title {
+        margin-top: .15rem;
+        color: var(--arolana-navy);
+        font-size: clamp(1.7rem, 2.6vw, 2.6rem);
+        line-height: 1;
+        font-weight: 950;
+        letter-spacing: -.03em;
+    }
+
+    .quotes-subtitle {
+        margin-top: .45rem;
+        color: var(--arolana-muted);
+        font-size: .92rem;
+        font-weight: 700;
+        line-height: 1.5;
+    }
+
+    .quotes-back-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .5rem;
+        min-height: 2.65rem;
+        border-radius: .95rem;
+        background: #fff;
+        border: 1px solid var(--arolana-border);
+        color: var(--arolana-navy);
+        padding: .7rem 1rem;
+        font-size: .84rem;
+        font-weight: 950;
+        text-decoration: none;
+        box-shadow: 0 8px 22px rgba(15, 23, 42, .05);
+    }
+
+    .quotes-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: .8rem;
+        margin-bottom: 1rem;
+    }
+
+    .quotes-stat-card {
+        border-radius: 1rem;
+        background: #fff;
+        border: 1px solid var(--arolana-border);
+        padding: .9rem;
+        box-shadow: 0 10px 26px rgba(15, 23, 42, .045);
+    }
+
+    .quotes-stat-label {
+        color: var(--arolana-muted);
+        font-size: .68rem;
+        font-weight: 900;
+    }
+
+    .quotes-stat-value {
+        margin-top: .2rem;
+        color: var(--arolana-navy);
+        font-size: 1.45rem;
+        font-weight: 950;
+    }
+
+    .quotes-filter-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .55rem;
+        margin-bottom: 1rem;
+        padding: .55rem;
+        border-radius: 1rem;
+        border: 1px solid var(--arolana-border);
+        background: #fff;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, .045);
+    }
+
+    .quotes-filter-link {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        min-height: 2.35rem;
+        padding: .55rem .8rem;
+        border-radius: .8rem;
+        color: var(--arolana-navy);
+        font-size: .76rem;
+        font-weight: 950;
+        text-decoration: none;
+    }
+
+    .quotes-filter-link.active,
+    .quotes-filter-link:hover {
+        background: var(--arolana-blue);
+        color: #fff;
+        text-decoration: none;
+    }
+
+    .quotes-panel {
+        overflow: hidden;
+        border-radius: 1.15rem;
+        background: #fff;
+        border: 1px solid var(--arolana-border);
+        box-shadow: 0 12px 30px rgba(15, 23, 42, .055);
+    }
+
+    .quotes-table-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .quotes-table {
+        width: 100%;
+        min-width: 980px;
+        border-collapse: collapse;
+    }
+
+    .quotes-table th {
+        padding: .85rem;
+        background: #F8FBFF;
+        border-bottom: 1px solid var(--arolana-border);
+        color: var(--arolana-muted);
+        font-size: .72rem;
+        font-weight: 950;
+        text-align: left;
+        white-space: nowrap;
+    }
+
+    .quotes-table td {
+        padding: .9rem .85rem;
+        border-bottom: 1px solid var(--arolana-border);
+        color: var(--arolana-navy);
+        font-size: .82rem;
+        font-weight: 750;
+        vertical-align: top;
+    }
+
+    .quote-title {
+        font-weight: 950;
+        color: var(--arolana-navy);
+        line-height: 1.3;
+    }
+
+    .quote-meta {
+        margin-top: .25rem;
+        color: var(--arolana-muted);
+        font-size: .72rem;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+    }
+
+    .quote-message {
+        max-width: 360px;
+        color: #475569;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+    }
+
+    .quote-status {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        min-height: 1.65rem;
+        padding: .3rem .6rem;
+        border-radius: 999px;
+        font-size: .68rem;
+        font-weight: 950;
+        white-space: nowrap;
+    }
+
+    .status-new { background: #FEF3C7; color: #B45309; }
+    .status-admin_review { background: #FFEDD5; color: #C2410C; }
+    .status-sent_to_vendor { background: #DBEAFE; color: #1D4ED8; }
+    .status-vendor_replied { background: #DCFCE7; color: #15803D; }
+    .status-closed { background: #F1F5F9; color: #475569; }
+    .status-spam { background: #FEE2E2; color: #B91C1C; }
+
+    .quotes-mobile-list {
+        display: none;
+    }
+
+    .quote-mobile-card {
+        border-bottom: 1px solid var(--arolana-border);
+        padding: .9rem;
+    }
+
+    .quote-mobile-card:last-child {
+        border-bottom: 0;
+    }
+
+    .quote-mobile-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: .7rem;
+    }
+
+    .quotes-empty {
+        padding: 3rem 1rem;
+        text-align: center;
+        color: var(--arolana-muted);
+        font-weight: 800;
+    }
+
+    .pagination-row {
+        display: flex;
+        justify-content: center;
+        gap: .5rem;
+        margin-top: 1rem;
+    }
+
+    .pagination-row a,
+    .pagination-row span {
+        min-width: 2.4rem;
+        min-height: 2.4rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: .75rem;
+        background: #fff;
+        border: 1px solid var(--arolana-border);
+        color: var(--arolana-navy);
+        font-size: .8rem;
+        font-weight: 950;
+        text-decoration: none;
+    }
+
+    .pagination-row span {
+        background: var(--arolana-blue);
+        color: #fff;
+    }
+
+    @media (max-width: 1100px) {
+        .quotes-stats-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 768px) {
+        .vendor-quotes-page {
+            padding: .75rem .6rem 5rem;
+        }
+
+        .quotes-topbar {
+            flex-direction: column;
+            gap: .75rem;
+        }
+
+        .quotes-back-btn {
+            width: 100%;
+        }
+
+        .quotes-title {
+            font-size: 1.55rem;
+        }
+
+        .quotes-subtitle {
+            font-size: .78rem;
+        }
+
+        .quotes-stats-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: .6rem;
+        }
+
+        .quotes-stat-card {
+            padding: .75rem;
+        }
+
+        .quotes-stat-value {
+            font-size: 1.15rem;
+        }
+
+        .quotes-filter-bar {
+            overflow-x: auto;
+            flex-wrap: nowrap;
+            margin-left: -.6rem;
+            margin-right: -.6rem;
+            border-radius: 0;
+            border-left: 0;
+            border-right: 0;
+        }
+
+        .quotes-filter-link {
+            flex: 0 0 auto;
+            font-size: .66rem;
+            padding: .5rem .7rem;
+        }
+
+        .quotes-table-wrap {
+            display: none;
+        }
+
+        .quotes-mobile-list {
+            display: block;
+        }
+
+        .quote-title {
+            font-size: .82rem;
+        }
+
+        .quote-meta,
+        .quote-message {
+            font-size: .68rem;
+        }
+
+        .quote-status {
+            font-size: .56rem;
+            padding: .25rem .5rem;
+        }
+    }
+
+    @media (max-width: 380px) {
+        .quotes-stats-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="vendor-quotes-page">
+    <div class="quotes-topbar">
+        <div>
+            <div class="quotes-eyebrow">Arolana Vendor OS</div>
+            <h1 class="quotes-title">Quote Requests</h1>
+            <p class="quotes-subtitle">
+                Requests sent from your public vendor store. Arolana admin also sees these for trust, follow-up, and marketplace control.
+            </p>
+        </div>
+
+        <a href="{% url 'dashboard:vendor_dashboard' %}" class="quotes-back-btn">
+            <i class="fas fa-arrow-left"></i>
+            Back to Dashboard
+        </a>
+    </div>
+
+    <div class="quotes-stats-grid">
+        <div class="quotes-stat-card">
+            <div class="quotes-stat-label">All Requests</div>
+            <div class="quotes-stat-value">{{ status_counts.all|default:0 }}</div>
+        </div>
+        <div class="quotes-stat-card">
+            <div class="quotes-stat-label">New</div>
+            <div class="quotes-stat-value">{{ status_counts.new|default:0 }}</div>
+        </div>
+        <div class="quotes-stat-card">
+            <div class="quotes-stat-label">Admin Review</div>
+            <div class="quotes-stat-value">{{ status_counts.admin_review|default:0 }}</div>
+        </div>
+        <div class="quotes-stat-card">
+            <div class="quotes-stat-label">Sent to Vendor</div>
+            <div class="quotes-stat-value">{{ status_counts.sent_to_vendor|default:0 }}</div>
+        </div>
+        <div class="quotes-stat-card">
+            <div class="quotes-stat-label">Replied</div>
+            <div class="quotes-stat-value">{{ status_counts.vendor_replied|default:0 }}</div>
+        </div>
+        <div class="quotes-stat-card">
+            <div class="quotes-stat-label">Closed</div>
+            <div class="quotes-stat-value">{{ status_counts.closed|default:0 }}</div>
+        </div>
+    </div>
+
+    <nav class="quotes-filter-bar">
+        <a href="{% url 'dashboard:vendor_quote_requests' %}" class="quotes-filter-link {% if not status_filter %}active{% endif %}">
+            All
+        </a>
+        <a href="?status=new" class="quotes-filter-link {% if status_filter == 'new' %}active{% endif %}">
+            New
+        </a>
+        <a href="?status=admin_review" class="quotes-filter-link {% if status_filter == 'admin_review' %}active{% endif %}">
+            Admin Review
+        </a>
+        <a href="?status=sent_to_vendor" class="quotes-filter-link {% if status_filter == 'sent_to_vendor' %}active{% endif %}">
+            Sent to Vendor
+        </a>
+        <a href="?status=vendor_replied" class="quotes-filter-link {% if status_filter == 'vendor_replied' %}active{% endif %}">
+            Replied
+        </a>
+        <a href="?status=closed" class="quotes-filter-link {% if status_filter == 'closed' %}active{% endif %}">
+            Closed
+        </a>
+    </nav>
+
+    <section class="quotes-panel">
+        {% if quote_requests %}
+        <div class="quotes-table-wrap">
+            <table class="quotes-table">
+                <thead>
+                    <tr>
+                        <th>Customer</th>
+                        <th>Subject</th>
+                        <th>Message</th>
+                        <th>Product</th>
+                        <th>Status</th>
+                        <th>Received</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for quote in quote_requests %}
+                    <tr>
+                        <td>
+                            <div class="quote-title">{{ quote.name }}</div>
+                            <div class="quote-meta">
+                                {% if quote.email %}{{ quote.email }}{% endif %}
+                                {% if quote.email and quote.phone %}<br>{% endif %}
+                                {% if quote.phone %}{{ quote.phone }}{% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="quote-title">{{ quote.subject|default:"Quote request" }}</div>
+                        </td>
+                        <td>
+                            <div class="quote-message">{{ quote.message|truncatewords:26 }}</div>
+                        </td>
+                        <td>
+                            {% if quote.product_name %}
+                                <div class="quote-title">{{ quote.product_name }}</div>
+                            {% else %}
+                                <div class="quote-meta">General store enquiry</div>
+                            {% endif %}
+
+                            {% if quote.product_url %}
+                                <a href="{{ quote.product_url }}" class="quote-meta" target="_blank" rel="noopener noreferrer">
+                                    Open product
+                                </a>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="quote-status status-{{ quote.status }}">
+                                {{ quote.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="quote-meta">{{ quote.created_at|date:"M d, Y" }}</div>
+                            <div class="quote-meta">{{ quote.created_at|timesince }} ago</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="quotes-mobile-list">
+            {% for quote in quote_requests %}
+            <article class="quote-mobile-card">
+                <div class="quote-mobile-top">
+                    <div style="min-width:0;">
+                        <div class="quote-title">{{ quote.subject|default:"Quote request" }}</div>
+                        <div class="quote-meta">{{ quote.name }} · {{ quote.created_at|timesince }} ago</div>
+                    </div>
+                    <span class="quote-status status-{{ quote.status }}">
+                        {{ quote.get_status_display }}
+                    </span>
+                </div>
+
+                <div class="quote-message" style="margin-top:.55rem;">
+                    {{ quote.message|truncatewords:22 }}
+                </div>
+
+                <div class="quote-meta" style="margin-top:.55rem;">
+                    {% if quote.email %}{{ quote.email }}{% endif %}
+                    {% if quote.email and quote.phone %} · {% endif %}
+                    {% if quote.phone %}{{ quote.phone }}{% endif %}
+                </div>
+
+                {% if quote.product_name %}
+                <div class="quote-meta" style="margin-top:.35rem;">
+                    Product: {{ quote.product_name }}
+                </div>
+                {% endif %}
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="quotes-empty">
+            <i class="fas fa-file-signature text-4xl text-slate-300"></i>
+            <p style="margin-top:.75rem;">No quote requests found.</p>
+        </div>
+        {% endif %}
+    </section>
+
+    {% if page_obj.has_other_pages %}
+    <div class="pagination-row">
+        {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}">‹</a>
+        {% endif %}
+
+        <span>{{ page_obj.number }}</span>
+
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}">›</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
