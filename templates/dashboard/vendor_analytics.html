@@ -602,7 +602,7 @@
             </div>
 
             <div class="analytics-action-row">
-                <a href="{% url 'dashboard:vendor_dashboard' %}" class="analytics-btn analytics-btn-light">
+                <a href="/dashboard/vendor/" class="analytics-btn analytics-btn-light">
                     <i class="fas fa-gauge-high"></i>
                     Dashboard
                 </a>
@@ -830,11 +830,10 @@
                                                     {% with product_img=product.main_image|optimized_image_url:'product_card' %}
                                                         <img
                                                             src="{{ product_img }}"
-                                                            data-original-src="{{ product.main_image.url }}"
                                                             alt="{{ product.name }}"
                                                             loading="lazy"
                                                             decoding="async"
-                                                            onerror="this.onerror=null; this.src=this.dataset.originalSrc;"
+                                                            onerror="this.onerror=null; this.style.display='none';"
                                                         >
                                                     {% endwith %}
                                                 {% else %}
