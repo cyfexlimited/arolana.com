@@ -156,7 +156,7 @@
         overflow: hidden;
         min-height: 220px;
         border-radius: 1.45rem;
-        background: var(--arolana-navy);
+        background: linear-gradient(135deg, var(--arolana-navy), var(--arolana-blue));
         box-shadow: 0 20px 48px rgba(7, 26, 68, .14);
         border: 1px solid rgba(255,255,255,.2);
     }
@@ -164,20 +164,23 @@
     .vendor-hero-bg {
         position: absolute;
         inset: 0;
+        z-index: 0;
         width: 100%;
         height: 100%;
         object-fit: cover;
-        opacity: .28;
-        filter: saturate(1.08) contrast(1.05);
+        object-position: center;
+        opacity: .62;
+        filter: saturate(1.12) contrast(1.08) brightness(.92);
     }
 
     .vendor-hero-gradient {
         position: absolute;
         inset: 0;
+        z-index: 1;
         background:
-            radial-gradient(circle at 15% 18%, rgba(56,189,248,.28), transparent 26%),
-            radial-gradient(circle at 84% 20%, rgba(255,122,0,.25), transparent 24%),
-            linear-gradient(135deg, rgba(7,26,68,.96), rgba(7,26,68,.86));
+            linear-gradient(90deg, rgba(7, 26, 68, .88), rgba(7, 26, 68, .48), rgba(7, 26, 68, .72)),
+            radial-gradient(circle at 15% 18%, rgba(56, 189, 248, .18), transparent 28%),
+            radial-gradient(circle at 84% 20%, rgba(255, 122, 0, .18), transparent 26%);
     }
 
     .vendor-hero-content {
@@ -953,15 +956,35 @@
         <div class="vendor-hero-grid">
             <section class="vendor-hero-card">
                 {% if vendor_profile.store_banner %}
-                    <img src="{{ vendor_profile.store_banner|optimized_image_url:'hero_banner' }}" alt="{{ vendor_profile.store_name }} banner" class="vendor-hero-bg" loading="lazy" decoding="async">
+                    {% with banner_url=vendor_profile.store_banner|optimized_image_url:'hero_banner' %}
+                        <img
+                            src="{{ banner_url }}"
+                            data-original-src="{{ vendor_profile.store_banner.url }}"
+                            alt="{{ vendor_profile.store_name }} banner"
+                            class="vendor-hero-bg"
+                            loading="eager"
+                            decoding="async"
+                            onerror="this.onerror=null; this.src=this.dataset.originalSrc;"
+                        >
+                    {% endwith %}
                 {% endif %}
+
                 <div class="vendor-hero-gradient"></div>
 
                 <div class="vendor-hero-content">
                     <div class="vendor-store-block">
                         <div class="vendor-store-logo">
                             {% if vendor_profile.store_logo %}
-                                <img src="{{ vendor_profile.store_logo|optimized_image_url:'logo' }}" alt="{{ vendor_profile.store_name }} logo" loading="lazy" decoding="async">
+                                {% with logo_url=vendor_profile.store_logo|optimized_image_url:'logo' %}
+                                    <img
+                                        src="{{ logo_url }}"
+                                        data-original-src="{{ vendor_profile.store_logo.url }}"
+                                        alt="{{ vendor_profile.store_name }} logo"
+                                        loading="lazy"
+                                        decoding="async"
+                                        onerror="this.onerror=null; this.src=this.dataset.originalSrc;"
+                                    >
+                                {% endwith %}
                             {% else %}
                                 {{ vendor_profile.store_name|slice:":1"|upper }}
                             {% endif %}
@@ -1396,7 +1419,16 @@
                                 <div class="vendor-list-left">
                                     <div class="vendor-product-thumb">
                                         {% if product.main_image %}
-                                            <img src="{{ product.main_image|optimized_image_url:'product_card' }}" alt="{{ product.name }}" loading="lazy" decoding="async">
+                                            {% with product_img=product.main_image|optimized_image_url:'product_card' %}
+                                                <img
+                                                    src="{{ product_img }}"
+                                                    data-original-src="{{ product.main_image.url }}"
+                                                    alt="{{ product.name }}"
+                                                    loading="lazy"
+                                                    decoding="async"
+                                                    onerror="this.onerror=null; this.src=this.dataset.originalSrc;"
+                                                >
+                                            {% endwith %}
                                         {% else %}
                                             <i class="fas fa-box" style="color:#94a3b8;"></i>
                                         {% endif %}
