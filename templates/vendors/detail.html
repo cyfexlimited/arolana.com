@@ -1,6 +1,7 @@
 {% extends 'base/base.html' %}
 {% load static optimized_images %}
 {% load currency_filters %}
+{% load humanize %}
 
 {% block title %}{{ vendor.store_name }} Store | Arolana{% endblock %}
 
@@ -16,6 +17,8 @@
         --arolana-text: #0B1E46;
         --arolana-muted: #64748B;
         --arolana-bg: #F4F8FF;
+        --arolana-success: #059669;
+        --arolana-warning: #F59E0B;
     }
 
     html,
@@ -24,12 +27,12 @@
         background: var(--arolana-bg);
     }
 
-    .vendor-store-shell,
-    .vendor-store-shell * {
+    .vendor-store-page,
+    .vendor-store-page * {
         box-sizing: border-box;
     }
 
-    .vendor-store-shell {
+    .vendor-store-page {
         width: 100%;
         max-width: 1480px;
         margin: 0 auto;
@@ -42,81 +45,75 @@
         overflow: hidden;
         border-radius: 2rem;
         background: #fff;
-        box-shadow: 0 22px 60px rgba(15, 23, 42, 0.10);
         border: 1px solid rgba(226, 232, 240, 0.95);
+        box-shadow: 0 22px 60px rgba(15, 23, 42, 0.10);
         margin-bottom: 1.25rem;
     }
 
-    .vendor-store-banner {
+    .vendor-hero-banner {
         position: relative;
-        min-height: clamp(220px, 26vw, 360px);
+        min-height: clamp(250px, 26vw, 360px);
         background:
             radial-gradient(circle at 80% 10%, rgba(0, 102, 204, 0.18), transparent 35%),
             radial-gradient(circle at 10% 20%, rgba(255, 122, 0, 0.14), transparent 35%),
-            linear-gradient(135deg, #eff6ff, #f8fafc);
+            linear-gradient(135deg, #eef6ff, #f8fafc);
     }
 
-    .vendor-store-banner img {
+    .vendor-hero-banner img {
         position: absolute;
         inset: 0;
         width: 100%;
         height: 100%;
         object-fit: cover;
-        filter: none;
-        opacity: 1;
-        image-rendering: auto;
         transform: translateZ(0);
     }
 
-    .vendor-store-banner::after {
+    .vendor-hero-banner::after {
         content: "";
         position: absolute;
         inset: 0;
         background:
-            linear-gradient(180deg, rgba(7, 26, 68, 0.04), rgba(255, 255, 255, 0.20)),
-            linear-gradient(90deg, rgba(7, 26, 68, 0.12), transparent 42%);
+            linear-gradient(180deg, rgba(7, 26, 68, 0.05), rgba(255,255,255,0.18)),
+            linear-gradient(90deg, rgba(7, 26, 68, 0.10), transparent 42%);
         pointer-events: none;
     }
 
-    .vendor-store-profile {
+    .vendor-hero-content {
         position: relative;
         z-index: 2;
         margin-top: -82px;
-        padding: 0 1.25rem 1.4rem;
-        color: #0f172a;
+        padding: 0 1.3rem 1.35rem;
     }
 
-    .vendor-store-profile-inner {
+    .vendor-hero-card {
         display: grid;
-        grid-template-columns: auto minmax(0, 1fr) auto;
-        gap: 1.25rem;
-        align-items: end;
-        border-radius: 1.5rem;
-        background: rgba(255, 255, 255, 0.94);
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 1.15rem;
+        padding: 1.15rem;
+        background: rgba(255,255,255,0.96);
         border: 1px solid rgba(226, 232, 240, 0.95);
-        box-shadow: 0 18px 50px rgba(15, 23, 42, 0.10);
-        padding: 1rem;
-        backdrop-filter: blur(14px);
+        border-radius: 1.6rem;
+        box-shadow: 0 20px 50px rgba(15, 23, 42, 0.10);
+        backdrop-filter: blur(16px);
     }
 
-    .vendor-logo-wrap {
-        width: 132px;
-        height: 132px;
+    .vendor-logo-box {
+        width: 136px;
+        height: 136px;
         border-radius: 2rem;
         overflow: hidden;
-        display: grid;
-        place-items: center;
+        flex: 0 0 auto;
         background: #fff;
         border: 5px solid #fff;
-        box-shadow: 0 18px 55px rgba(0, 0, 0, 0.22);
-        flex: 0 0 auto;
+        display: grid;
+        place-items: center;
+        box-shadow: 0 18px 42px rgba(0,0,0,0.16);
     }
 
-    .vendor-logo-wrap img {
+    .vendor-logo-box img {
         width: 100%;
         height: 100%;
         object-fit: cover;
-        image-rendering: auto;
     }
 
     .vendor-logo-fallback {
@@ -124,118 +121,98 @@
         height: 100%;
         display: grid;
         place-items: center;
-        background: linear-gradient(135deg, var(--arolana-blue), var(--arolana-orange));
         color: #fff;
         font-size: 3rem;
+        background: linear-gradient(135deg, var(--arolana-blue), var(--arolana-orange));
     }
 
-    .vendor-title-area {
+    .vendor-main {
         min-width: 0;
     }
 
-    .vendor-title-row {
+    .vendor-main-top {
         display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
         flex-wrap: wrap;
-        align-items: center;
-        gap: 0.55rem;
-        margin-bottom: 0.45rem;
     }
 
-    .vendor-title-row h1 {
+    .vendor-title-block {
+        min-width: 0;
+        flex: 1 1 620px;
+    }
+
+    .vendor-title {
         margin: 0;
         color: var(--arolana-navy);
-        font-size: clamp(1.8rem, 3.7vw, 3.8rem);
-        line-height: 0.98;
+        font-size: clamp(2rem, 4vw, 4.1rem);
+        line-height: 0.92;
         font-weight: 950;
-        letter-spacing: -0.055em;
+        letter-spacing: -0.06em;
+        max-width: 760px;
         overflow-wrap: anywhere;
+    }
+
+    .vendor-subline {
+        margin-top: 0.65rem;
+        color: var(--arolana-muted);
+        font-size: 0.96rem;
+        font-weight: 800;
+        line-height: 1.6;
+        max-width: 760px;
+    }
+
+    .vendor-badge-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+        margin-top: 0.9rem;
     }
 
     .vendor-badge {
         display: inline-flex;
         align-items: center;
-        gap: 0.35rem;
-        min-height: 28px;
-        padding: 0.3rem 0.65rem;
+        gap: 0.38rem;
+        min-height: 2rem;
+        padding: 0.42rem 0.8rem;
         border-radius: 999px;
-        font-size: 0.72rem;
+        font-size: 0.76rem;
         font-weight: 950;
         color: #fff;
-        border: 1px solid rgba(255, 255, 255, 0.22);
-        background: rgba(0, 102, 204, 0.92);
         white-space: nowrap;
     }
 
     .vendor-badge.verified {
-        background: rgba(5, 150, 105, 0.92);
+        background: linear-gradient(135deg, #10B981, #059669);
+    }
+
+    .vendor-badge.plan {
+        background: linear-gradient(135deg, #FB923C, #F97316);
+    }
+
+    .vendor-badge.location {
+        background: linear-gradient(135deg, #FBBF24, #F59E0B);
     }
 
     .vendor-badge.top {
-        background: rgba(245, 158, 11, 0.95);
+        background: linear-gradient(135deg, #F59E0B, #F97316);
     }
 
     .vendor-badge.best {
-        background: rgba(249, 115, 22, 0.95);
-    }
-
-    .vendor-slogan {
-        margin: 0.5rem 0 0;
-        max-width: 56rem;
-        color: #475569;
-        font-size: 0.94rem;
-        line-height: 1.55;
-        font-weight: 800;
-    }
-
-    .vendor-stats {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.65rem;
-        margin-top: 0.85rem;
-    }
-
-    .vendor-stat {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.45rem;
-        padding: 0.62rem 0.8rem;
-        border-radius: 1rem;
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        font-weight: 850;
-        color: #334155;
-        font-size: 0.82rem;
-        min-width: 0;
-    }
-
-    .vendor-stat i {
-        color: var(--arolana-blue);
-    }
-
-    .vendor-stat .star-icon {
-        color: #f59e0b;
-    }
-
-    .vendor-stat .green-icon {
-        color: #059669;
-    }
-
-    .vendor-stat .orange-icon {
-        color: var(--arolana-orange);
+        background: linear-gradient(135deg, #FB923C, #F97316);
     }
 
     .vendor-actions {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.7rem;
+        gap: 0.65rem;
         justify-content: flex-end;
         align-items: center;
+        flex: 0 0 auto;
     }
 
-    .vendor-follow-btn,
-    .vendor-contact-btn,
-    .vendor-chat-btn,
-    .vendor-quote-btn {
+    .vendor-btn {
         min-height: 46px;
         border: 0;
         border-radius: 999px;
@@ -246,204 +223,248 @@
         gap: 0.5rem;
         font-weight: 950;
         color: #fff;
-        box-shadow: 0 14px 32px rgba(0, 0, 0, 0.16);
-        transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, opacity 0.18s ease;
-        white-space: nowrap;
         text-decoration: none;
         cursor: pointer;
+        white-space: nowrap;
+        box-shadow: 0 14px 32px rgba(0, 0, 0, 0.14);
+        transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
     }
 
-    .vendor-follow-btn {
+    .vendor-btn:hover {
+        transform: translateY(-2px);
+        color: #fff;
+        text-decoration: none;
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.20);
+    }
+
+    .vendor-btn:disabled {
+        opacity: 0.75;
+        transform: none;
+        cursor: wait;
+    }
+
+    .vendor-btn.follow {
         background: linear-gradient(135deg, var(--arolana-blue), #064b99);
     }
 
-    .vendor-follow-btn.is-following {
+    .vendor-btn.follow.is-following {
         background: linear-gradient(135deg, #334155, #0f172a);
     }
 
-    .vendor-follow-btn:disabled {
-        opacity: 0.72;
-        cursor: wait;
-        transform: none;
+    .vendor-btn.chat {
+        background: linear-gradient(135deg, #0EA5E9, #0066CC);
     }
 
-    .vendor-contact-btn,
-    .vendor-quote-btn {
+    .vendor-btn.quote {
         background: linear-gradient(135deg, var(--arolana-orange), #E85F00);
     }
 
-    .vendor-chat-btn {
-        background: linear-gradient(135deg, #059669, var(--arolana-blue));
+    .vendor-btn.view {
+        background: linear-gradient(135deg, #0B1E46, #233B78);
     }
 
-    .vendor-chat-btn.is-locked {
-        background: rgba(15, 23, 42, 0.58);
-        cursor: not-allowed;
+    .vendor-stat-row {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 0.75rem;
+        margin-top: 1rem;
     }
 
-    .vendor-follow-btn:hover,
-    .vendor-contact-btn:hover,
-    .vendor-chat-btn:hover,
-    .vendor-quote-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
-        color: #fff;
-        text-decoration: none;
+    .vendor-stat-card {
+        min-width: 0;
+        display: grid;
+        gap: 0.24rem;
+        padding: 0.85rem 0.95rem;
+        border-radius: 1.05rem;
+        border: 1px solid #E2E8F0;
+        background: linear-gradient(180deg, #ffffff, #f8fbff);
+        box-shadow: 0 10px 26px rgba(15, 23, 42, 0.04);
+    }
+
+    .vendor-stat-top {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        color: #64748B;
+        font-size: 0.76rem;
+        font-weight: 900;
+    }
+
+    .vendor-stat-top i {
+        color: var(--arolana-blue);
+    }
+
+    .vendor-stat-top .star {
+        color: var(--arolana-warning);
+    }
+
+    .vendor-stat-value {
+        color: var(--arolana-navy);
+        font-size: 1.05rem;
+        font-weight: 950;
+        line-height: 1.1;
+        letter-spacing: -0.03em;
+    }
+
+    .vendor-stat-note {
+        color: var(--arolana-muted);
+        font-size: 0.72rem;
+        font-weight: 800;
+        line-height: 1.4;
     }
 
     .vendor-body-grid {
         display: grid;
         grid-template-columns: minmax(0, 1fr) 340px;
         gap: 1rem;
-        margin-bottom: 1.25rem;
+        margin-bottom: 1.2rem;
     }
 
-    .vendor-info-card,
+    .vendor-card,
     .vendor-score-card,
     .vendor-trust-card,
-    .vendor-review-panel,
-    .vendor-review-form {
+    .vendor-review-card,
+    .vendor-review-form,
+    .vendor-media-card {
         border-radius: 1.35rem;
-        background: rgba(255, 255, 255, 0.96);
+        background: rgba(255,255,255,0.97);
         border: 1px solid rgba(148, 163, 184, 0.22);
         box-shadow: 0 18px 55px rgba(15, 23, 42, 0.07);
         padding: 1.1rem;
     }
 
-    .vendor-info-card h3,
+    .vendor-card h3,
     .vendor-score-card h3,
-    .vendor-trust-card h3 {
-        margin: 0 0 0.55rem;
+    .vendor-trust-card h3,
+    .vendor-review-card h3,
+    .vendor-review-form h3,
+    .vendor-media-card h3 {
+        margin: 0 0 0.6rem;
         color: var(--arolana-navy);
         font-size: 1rem;
         font-weight: 950;
     }
 
-    .vendor-info-card p,
-    .vendor-trust-card p {
-        color: #64748b;
-        line-height: 1.7;
+    .vendor-card p,
+    .vendor-trust-card p,
+    .vendor-media-card p {
         margin: 0;
-        font-weight: 650;
+        color: #64748B;
+        line-height: 1.7;
+        font-weight: 700;
     }
 
     .vendor-score-value {
-        font-size: 2.3rem;
+        font-size: 2.35rem;
         line-height: 1;
         font-weight: 950;
         color: var(--arolana-blue);
         letter-spacing: -0.05em;
     }
 
-    .score-bars {
+    .score-list {
         display: grid;
-        gap: 0.75rem;
+        gap: 0.85rem;
         margin-top: 0.85rem;
     }
 
-    .score-bar-label {
+    .score-item-label {
         display: flex;
+        align-items: center;
         justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 0.35rem;
         color: #475569;
         font-size: 0.8rem;
         font-weight: 850;
-        margin-bottom: 0.35rem;
-        gap: 1rem;
     }
 
     .score-track {
         height: 9px;
         border-radius: 999px;
-        background: #e2e8f0;
         overflow: hidden;
+        background: #E2E8F0;
     }
 
     .score-fill {
         height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--arolana-blue), var(--arolana-orange));
+    }
+
+    .vendor-chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-top: 0.95rem;
+    }
+
+    .vendor-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
         border-radius: 999px;
-        background: linear-gradient(135deg, var(--arolana-blue), var(--arolana-orange));
+        background: #EFF6FF;
+        color: var(--arolana-blue);
+        padding: 0.42rem 0.78rem;
+        font-size: 0.74rem;
+        font-weight: 900;
     }
 
     .vendor-trust-grid {
         display: grid;
-        gap: 1rem;
         grid-template-columns: repeat(4, minmax(0, 1fr));
-        margin-top: 1.25rem;
+        gap: 1rem;
+        margin-top: 1.2rem;
     }
 
     .vendor-trust-icon {
-        margin-bottom: 0.75rem;
-        display: inline-flex;
-        height: 2.75rem;
         width: 2.75rem;
+        height: 2.75rem;
+        border-radius: 1rem;
+        background: #EFF6FF;
+        color: var(--arolana-blue);
+        display: inline-flex;
         align-items: center;
         justify-content: center;
-        border-radius: 1rem;
-        background: #eff6ff;
-        color: var(--arolana-blue);
-    }
-
-    .vendor-trust-card h3 {
-        margin-bottom: 0.45rem;
+        margin-bottom: 0.75rem;
     }
 
     .vendor-media-grid {
         display: grid;
-        gap: 1rem;
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        margin-top: 1.25rem;
+        gap: 1rem;
+        margin-top: 1.2rem;
     }
 
-    .vendor-video-card,
-    .vendor-highlights-card,
-    .vendor-hours-card {
-        border-radius: 1.35rem;
-        border: 1px solid rgba(148, 163, 184, 0.22);
-        background: #fff;
-        box-shadow: 0 18px 55px rgba(15, 23, 42, 0.06);
-        padding: 1.1rem;
-    }
-
-    .vendor-video-card {
-        background:
-            radial-gradient(circle at 85% 15%, rgba(255, 122, 0, 0.20), transparent 30%),
-            linear-gradient(135deg, var(--arolana-navy), #0b3e7c);
+    .vendor-media-card.video {
         color: #fff;
+        background:
+            radial-gradient(circle at 85% 15%, rgba(255, 122, 0, 0.18), transparent 28%),
+            linear-gradient(135deg, var(--arolana-navy), #0B3E7C);
     }
 
-    .vendor-video-card h3,
-    .vendor-highlights-card h3,
-    .vendor-hours-card h3 {
-        margin: 0;
-        font-size: 1rem;
-        font-weight: 950;
+    .vendor-media-card.video p {
+        color: rgba(255,255,255,0.76);
     }
 
-    .vendor-video-card p,
-    .vendor-highlights-card p,
-    .vendor-hours-card p {
-        margin: 0.6rem 0 0;
-        font-size: 0.9rem;
-        line-height: 1.65;
-        font-weight: 700;
-    }
-
-    .vendor-video-card p {
-        color: rgba(255, 255, 255, 0.76);
-    }
-
-    .vendor-media-link {
-        margin-top: 1rem;
+    .vendor-link-btn {
+        margin-top: 0.95rem;
         display: inline-flex;
         align-items: center;
         gap: 0.45rem;
+        padding: 0.7rem 1rem;
         border-radius: 999px;
         background: #fff;
         color: var(--arolana-navy);
-        padding: 0.65rem 1rem;
-        font-size: 0.85rem;
+        font-size: 0.84rem;
         font-weight: 950;
         text-decoration: none;
+    }
+
+    .vendor-link-btn:hover {
+        text-decoration: none;
+        color: var(--arolana-navy);
     }
 
     .vendor-highlight-list {
@@ -452,41 +473,41 @@
         margin-top: 0.8rem;
     }
 
-    .vendor-highlight-list p {
-        margin: 0;
+    .vendor-highlight-list div {
         border-radius: 1rem;
-        background: #f8fafc;
-        padding: 0.7rem 0.85rem;
+        background: #F8FAFC;
+        padding: 0.75rem 0.85rem;
         color: #475569;
         font-size: 0.84rem;
         font-weight: 750;
+        line-height: 1.55;
     }
 
     .vendor-interaction-grid {
         display: grid;
         grid-template-columns: minmax(0, 1fr) 380px;
         gap: 1rem;
-        margin: 1.25rem 0;
+        margin: 1.2rem 0;
     }
 
-    .vendor-review-list {
+    .review-list {
         display: grid;
-        gap: 0.8rem;
+        gap: 0.85rem;
         margin-top: 1rem;
     }
 
-    .vendor-review-item {
-        border-bottom: 1px solid #e2e8f0;
-        padding-bottom: 0.8rem;
+    .review-item {
+        padding-bottom: 0.85rem;
+        border-bottom: 1px solid #E2E8F0;
     }
 
-    .vendor-review-item:last-child {
+    .review-item:last-child {
         border-bottom: 0;
         padding-bottom: 0;
     }
 
-    .vendor-review-stars {
-        color: #f59e0b;
+    .review-stars {
+        color: #F59E0B;
         display: inline-flex;
         gap: 0.08rem;
     }
@@ -503,9 +524,9 @@
     .vendor-review-form select,
     .vendor-review-form textarea {
         width: 100%;
-        border: 1px solid #cbd5e1;
+        border: 1px solid #CBD5E1;
         border-radius: 0.9rem;
-        padding: 0.7rem 0.85rem;
+        padding: 0.75rem 0.85rem;
         outline: none;
         font-size: 0.9rem;
     }
@@ -514,10 +535,10 @@
     .vendor-review-form select:focus,
     .vendor-review-form textarea:focus {
         border-color: var(--arolana-blue);
-        box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.12);
+        box-shadow: 0 0 0 3px rgba(0,102,204,0.12);
     }
 
-    .vendor-review-submit {
+    .review-submit-btn {
         width: 100%;
         min-height: 44px;
         border: 0;
@@ -533,14 +554,14 @@
 
     .store-toolbar {
         display: flex;
-        justify-content: space-between;
         align-items: center;
+        justify-content: space-between;
         gap: 1rem;
         flex-wrap: wrap;
-        margin: 1.25rem 0 1rem;
-        padding: 0.9rem;
+        margin: 1.2rem 0 1rem;
+        padding: 0.95rem 1rem;
         border-radius: 1.25rem;
-        background: rgba(255, 255, 255, 0.96);
+        background: rgba(255,255,255,0.97);
         border: 1px solid rgba(148, 163, 184, 0.22);
         box-shadow: 0 18px 50px rgba(15, 23, 42, 0.06);
     }
@@ -548,22 +569,22 @@
     .store-toolbar h2 {
         margin: 0;
         color: var(--arolana-navy);
-        font-size: clamp(1.2rem, 2.3vw, 2rem);
+        font-size: clamp(1.2rem, 2.2vw, 2rem);
         font-weight: 950;
         letter-spacing: -0.04em;
     }
 
     .store-sort {
         min-height: 42px;
-        border: 1px solid #e2e8f0;
+        border: 1px solid #E2E8F0;
         border-radius: 0.95rem;
         background: #fff;
         color: var(--arolana-navy);
         font-weight: 850;
         font-size: 0.84rem;
-        padding: 0 0.85rem;
+        padding: 0 0.9rem;
         outline: none;
-        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.045);
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
     }
 
     .vendor-products-grid {
@@ -572,10 +593,10 @@
         gap: 1rem;
     }
 
-    .vendor-product-card {
+    .product-card {
         position: relative;
-        min-width: 0;
         overflow: hidden;
+        min-width: 0;
         border-radius: 1.35rem;
         background: #fff;
         border: 1px solid rgba(148, 163, 184, 0.22);
@@ -583,12 +604,17 @@
         transition: transform 0.25s ease, box-shadow 0.25s ease;
     }
 
-    .vendor-product-card:hover {
+    .product-card:hover {
         transform: translateY(-6px);
         box-shadow: 0 28px 70px rgba(15, 23, 42, 0.14);
     }
 
-    .vendor-product-media {
+    .product-media-link {
+        display: block;
+        text-decoration: none;
+    }
+
+    .product-media {
         position: relative;
         aspect-ratio: 1 / 1;
         padding: 0.9rem;
@@ -597,23 +623,22 @@
             linear-gradient(180deg, #f8fafc, #fff);
     }
 
-    .vendor-product-media img {
+    .product-media img {
         width: 100%;
         height: 100%;
         object-fit: contain;
         transition: transform 0.35s ease;
-        image-rendering: auto;
     }
 
-    .vendor-product-card:hover .vendor-product-media img {
+    .product-card:hover .product-media img {
         transform: scale(1.04);
     }
 
-    .vendor-product-fallback {
+    .product-fallback {
         height: 100%;
         display: grid;
         place-items: center;
-        color: #cbd5e1;
+        color: #CBD5E1;
         font-size: 3rem;
     }
 
@@ -623,82 +648,89 @@
         left: 0.75rem;
         display: inline-flex;
         align-items: center;
-        padding: 0.25rem 0.55rem;
+        padding: 0.25rem 0.58rem;
         border-radius: 999px;
         color: #fff;
         font-size: 0.65rem;
         font-weight: 950;
-        background: linear-gradient(135deg, #10b981, #059669);
+        background: linear-gradient(135deg, #10B981, #059669);
         box-shadow: 0 10px 24px rgba(15, 23, 42, 0.15);
     }
 
-    .product-discount {
+    .product-pill.discount {
         left: auto;
         right: 0.75rem;
-        background: linear-gradient(135deg, #ef4444, var(--arolana-orange));
+        background: linear-gradient(135deg, #EF4444, var(--arolana-orange));
     }
 
-    .vendor-product-body {
-        padding: 0.95rem;
+    .product-body {
         display: grid;
         gap: 0.5rem;
+        padding: 0.95rem;
     }
 
-    .vendor-product-title {
+    .product-title {
         color: var(--arolana-navy);
         font-size: 0.92rem;
         font-weight: 950;
         line-height: 1.35;
         min-height: 2.5rem;
+        text-decoration: none;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
-        text-decoration: none;
     }
 
-    .vendor-product-title:hover {
+    .product-title:hover {
         color: var(--arolana-blue);
         text-decoration: none;
     }
 
-    .vendor-product-rating {
+    .product-meta {
+        color: #64748B;
+        font-size: 0.74rem;
+        font-weight: 750;
+        line-height: 1.45;
+    }
+
+    .product-rating-row {
         display: flex;
         align-items: center;
         gap: 0.45rem;
-        color: #64748b;
-        font-size: 0.75rem;
-        font-weight: 750;
+        color: #64748B;
+        font-size: 0.74rem;
+        font-weight: 800;
     }
 
-    .vendor-stars {
-        color: #f59e0b;
+    .product-stars {
+        color: #F59E0B;
         display: inline-flex;
         gap: 0.08rem;
     }
 
-    .vendor-product-price {
+    .product-price-row {
         display: flex;
         align-items: baseline;
         gap: 0.5rem;
         flex-wrap: wrap;
     }
 
-    .vendor-price-current {
+    .product-current-price {
         color: var(--arolana-blue);
-        font-size: 1.16rem;
+        font-size: 1.14rem;
         font-weight: 950;
         letter-spacing: -0.04em;
     }
 
-    .vendor-price-compare {
-        color: #94a3b8;
+    .product-compare-price {
+        color: #94A3B8;
         text-decoration: line-through;
         font-size: 0.78rem;
         font-weight: 750;
     }
 
-    .vendor-cart-btn {
+    .product-cart-btn {
         width: 100%;
         min-height: 40px;
         border: 0;
@@ -713,74 +745,31 @@
         transition: transform 0.18s ease, box-shadow 0.18s ease;
     }
 
-    .vendor-cart-btn:hover {
+    .product-cart-btn:hover {
         transform: translateY(-1px);
         box-shadow: 0 16px 32px rgba(0, 102, 204, 0.22);
     }
 
-    .similar-vendors-grid {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 1rem;
-    }
-
-    .similar-vendor-card {
-        border-radius: 1.25rem;
-        background: #fff;
-        border: 1px solid rgba(148, 163, 184, 0.22);
-        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.06);
-        padding: 1rem;
-        text-align: center;
-        transition: transform 0.22s ease, box-shadow 0.22s ease;
-        text-decoration: none;
-    }
-
-    .similar-vendor-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 28px 70px rgba(15, 23, 42, 0.12);
-        text-decoration: none;
-    }
-
-    .similar-vendor-logo {
-        width: 72px;
-        height: 72px;
-        margin: 0 auto 0.65rem;
-        border-radius: 1.35rem;
-        overflow: hidden;
-        display: grid;
-        place-items: center;
-        background: linear-gradient(135deg, #eff6ff, #fff7ed);
-        color: var(--arolana-blue);
-        font-size: 1.8rem;
-    }
-
-    .similar-vendor-logo img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        image-rendering: auto;
-    }
-
-    .vendor-empty-state {
+    .empty-state {
         border-radius: 1.5rem;
         background: #fff;
-        border: 1px dashed #cbd5e1;
+        border: 1px dashed #CBD5E1;
         text-align: center;
         padding: 4rem 1rem;
     }
 
     .vendor-toast {
         position: fixed;
-        bottom: 1.5rem;
         right: 1.5rem;
+        bottom: 1.5rem;
         z-index: 99999;
+        max-width: min(360px, calc(100vw - 2rem));
         padding: 0.85rem 1rem;
         border-radius: 1rem;
         color: #fff;
-        box-shadow: 0 20px 50px rgba(15, 23, 42, 0.22);
-        font-weight: 850;
         font-size: 0.9rem;
-        max-width: min(360px, calc(100vw - 2rem));
+        font-weight: 850;
+        box-shadow: 0 20px 50px rgba(15, 23, 42, 0.22);
     }
 
     .vendor-toast.success {
@@ -788,15 +777,15 @@
     }
 
     .vendor-toast.error {
-        background: #dc2626;
+        background: #DC2626;
     }
 
-    @media (max-width: 1180px) {
-        .vendor-products-grid {
+    @media (max-width: 1200px) {
+        .vendor-stat-row {
             grid-template-columns: repeat(3, minmax(0, 1fr));
         }
 
-        .similar-vendors-grid {
+        .vendor-products-grid {
             grid-template-columns: repeat(3, minmax(0, 1fr));
         }
 
@@ -809,164 +798,138 @@
         }
     }
 
-    @media (max-width: 900px) {
-        .vendor-store-profile-inner {
-            grid-template-columns: auto minmax(0, 1fr);
-            align-items: center;
-        }
-
-        .vendor-actions {
-            grid-column: 1 / -1;
-            justify-content: flex-start;
-        }
-
+    @media (max-width: 980px) {
         .vendor-body-grid,
         .vendor-interaction-grid {
             grid-template-columns: 1fr;
         }
 
-        .vendor-products-grid,
-        .similar-vendors-grid {
+        .vendor-products-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
     }
 
-    @media (max-width: 640px) {
-        .vendor-store-shell {
-            padding: 0.65rem;
+    @media (max-width: 760px) {
+        .vendor-store-page {
+            padding: 0.75rem;
         }
 
         .vendor-store-hero {
-            border-radius: 1.25rem;
-            margin-bottom: 0.85rem;
+            border-radius: 1.4rem;
+            margin-bottom: 0.9rem;
         }
 
-        .vendor-store-banner {
-            min-height: 185px;
+        .vendor-hero-banner {
+            min-height: 190px;
         }
 
-        .vendor-store-banner::after {
-            background:
-                linear-gradient(180deg, rgba(7, 26, 68, 0.02), rgba(255, 255, 255, 0.28));
+        .vendor-hero-content {
+            margin-top: -46px;
+            padding: 0 0.75rem 0.9rem;
         }
 
-        .vendor-store-profile {
-            margin-top: -42px;
-            padding: 0 0.65rem 0.85rem;
-        }
-
-        .vendor-store-profile-inner {
+        .vendor-hero-card {
             grid-template-columns: 1fr;
-            gap: 0.75rem;
-            padding: 0.85rem;
+            gap: 0.85rem;
+            padding: 0.9rem;
             border-radius: 1.15rem;
         }
 
-        .vendor-logo-wrap {
-            width: 94px;
-            height: 94px;
-            border-radius: 1.35rem;
+        .vendor-logo-box {
+            width: 100px;
+            height: 100px;
+            border-radius: 1.4rem;
             border-width: 4px;
         }
 
-        .vendor-title-row {
-            gap: 0.4rem;
+        .vendor-main-top {
+            flex-direction: column;
+            align-items: stretch;
         }
 
-        .vendor-title-row h1 {
-            width: 100%;
-            font-size: 1.6rem;
-            line-height: 1.08;
-            letter-spacing: -0.02em;
+        .vendor-title {
+            font-size: 1.9rem;
+            line-height: 1.02;
+            letter-spacing: -0.03em;
+        }
+
+        .vendor-subline {
+            font-size: 0.85rem;
+        }
+
+        .vendor-badge-grid {
+            gap: 0.45rem;
         }
 
         .vendor-badge {
+            font-size: 0.67rem;
+            padding: 0.36rem 0.62rem;
             min-height: 26px;
-            font-size: 0.66rem;
-            padding: 0.28rem 0.55rem;
-        }
-
-        .vendor-slogan {
-            font-size: 0.84rem;
-            line-height: 1.55;
-        }
-
-        .vendor-stats {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 0.5rem;
-        }
-
-        .vendor-stat {
-            justify-content: flex-start;
-            padding: 0.58rem 0.65rem;
-            font-size: 0.74rem;
-            border-radius: 0.85rem;
-            overflow: hidden;
         }
 
         .vendor-actions {
             width: 100%;
             display: grid;
             grid-template-columns: 1fr;
-            gap: 0.55rem;
         }
 
-        .vendor-follow-btn,
-        .vendor-contact-btn,
-        .vendor-chat-btn,
-        .vendor-quote-btn {
+        .vendor-btn {
             width: 100%;
             min-height: 44px;
-            padding: 0 0.75rem;
             font-size: 0.82rem;
         }
 
-        .vendor-body-grid {
-            gap: 0.75rem;
-            margin-bottom: 0.85rem;
+        .vendor-stat-row {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.55rem;
         }
 
-        .vendor-info-card,
+        .vendor-stat-card {
+            padding: 0.75rem;
+            border-radius: 0.9rem;
+        }
+
+        .vendor-stat-top {
+            font-size: 0.71rem;
+        }
+
+        .vendor-stat-value {
+            font-size: 0.98rem;
+        }
+
+        .vendor-stat-note {
+            font-size: 0.67rem;
+        }
+
+        .vendor-card,
         .vendor-score-card,
         .vendor-trust-card,
-        .vendor-review-panel,
+        .vendor-review-card,
         .vendor-review-form,
-        .vendor-video-card,
-        .vendor-highlights-card,
-        .vendor-hours-card {
-            border-radius: 1.05rem;
+        .vendor-media-card {
             padding: 0.9rem;
-            box-shadow: 0 10px 26px rgba(15, 23, 42, 0.055);
+            border-radius: 1.05rem;
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
         }
 
         .vendor-trust-grid {
             grid-template-columns: 1fr;
             gap: 0.75rem;
-            margin-top: 0.85rem;
+            margin-top: 0.9rem;
         }
 
-        .vendor-media-grid {
-            gap: 0.75rem;
-            margin-top: 0.85rem;
-        }
-
+        .vendor-media-grid,
         .vendor-interaction-grid {
-            gap: 0.75rem;
-            margin: 0.85rem 0;
+            gap: 0.8rem;
+            margin-top: 0.9rem;
         }
 
         .store-toolbar {
             display: grid;
             grid-template-columns: 1fr;
-            margin: 0.85rem 0;
-            padding: 0.75rem;
+            gap: 0.7rem;
+            padding: 0.8rem;
             border-radius: 1.05rem;
-        }
-
-        .store-toolbar h2 {
-            font-size: 1.2rem;
-            line-height: 1.18;
         }
 
         .store-sort {
@@ -974,73 +937,75 @@
         }
 
         .vendor-products-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 0.65rem;
+            gap: 0.75rem;
         }
 
-        .vendor-product-card {
+        .product-card {
             border-radius: 1rem;
-            box-shadow: 0 10px 26px rgba(15, 23, 42, 0.065);
+            box-shadow: 0 10px 26px rgba(15, 23, 42, 0.06);
         }
 
-        .vendor-product-media {
-            padding: 0.55rem;
+        .product-media {
+            padding: 0.6rem;
         }
 
-        .vendor-product-body {
-            padding: 0.7rem;
+        .product-body {
+            padding: 0.75rem;
             gap: 0.42rem;
         }
 
-        .vendor-product-title {
-            font-size: 0.78rem;
-            line-height: 1.3;
-            min-height: 2.05rem;
+        .product-title {
+            font-size: 0.8rem;
+            min-height: 2.08rem;
         }
 
-        .vendor-product-rating {
-            font-size: 0.68rem;
+        .product-meta,
+        .product-rating-row {
+            font-size: 0.69rem;
         }
 
-        .vendor-price-current {
-            font-size: 0.95rem;
+        .product-current-price {
+            font-size: 0.98rem;
         }
 
-        .vendor-price-compare {
-            font-size: 0.68rem;
+        .product-compare-price {
+            font-size: 0.69rem;
         }
 
-        .vendor-cart-btn {
+        .product-cart-btn {
             min-height: 38px;
-            font-size: 0.75rem;
-            border-radius: 0.8rem;
+            border-radius: 0.82rem;
+            font-size: 0.76rem;
+        }
+    }
+
+    @media (max-width: 460px) {
+        .vendor-stat-row {
+            grid-template-columns: 1fr;
         }
 
-        .product-pill {
-            top: 0.5rem;
-            left: 0.5rem;
-            font-size: 0.58rem;
+        .vendor-products-grid {
+            grid-template-columns: 1fr;
         }
 
-        .product-discount {
-            left: auto;
-            right: 0.5rem;
+        .product-card {
+            display: grid;
+            grid-template-columns: 38% minmax(0, 1fr);
+            align-items: stretch;
         }
 
-        .similar-vendors-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 0.65rem;
+        .product-media-link {
+            min-width: 0;
         }
 
-        .similar-vendor-card {
-            padding: 0.8rem;
-            border-radius: 1rem;
+        .product-media {
+            height: 100%;
+            min-height: 150px;
+            aspect-ratio: auto;
         }
 
-        .similar-vendor-logo {
-            width: 58px;
-            height: 58px;
-            border-radius: 1rem;
+        .product-title {
+            min-height: auto;
         }
 
         .vendor-toast {
@@ -1050,84 +1015,52 @@
             max-width: none;
         }
     }
-
-    @media (max-width: 420px) {
-        .vendor-store-banner {
-            min-height: 170px;
-        }
-
-        .vendor-stats {
-            grid-template-columns: 1fr;
-        }
-
-        .vendor-products-grid,
-        .similar-vendors-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .vendor-product-card {
-            display: grid;
-            grid-template-columns: 42% minmax(0, 1fr);
-            align-items: stretch;
-        }
-
-        .vendor-product-card > a.block {
-            min-width: 0;
-        }
-
-        .vendor-product-media {
-            height: 100%;
-            min-height: 150px;
-            aspect-ratio: auto;
-        }
-
-        .vendor-product-title {
-            min-height: auto;
-        }
-    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="vendor-store-shell"
+<div class="vendor-store-page"
      data-track-click="true"
      data-event-type="vendor"
      data-vendor-id="{{ vendor.id }}"
      data-click-text="{{ vendor.store_name }}">
 
     <section class="vendor-store-hero"
-             style="--vendor-accent: {{ vendor.storefront_accent|default:'#FF7A00' }};"
              data-track-click="true"
              data-event-type="vendor"
              data-vendor-id="{{ vendor.id }}"
              data-click-text="Vendor Store Hero - {{ vendor.store_name }}">
 
-        <div class="vendor-store-banner">
+        <div class="vendor-hero-banner">
             {% if vendor.store_banner %}
                 {% optimized_image_url vendor.store_banner 'hero_banner' as vendor_banner_url %}
-                <img src="{{ vendor_banner_url }}"
-                     data-fallback-src="{{ vendor.store_banner.url }}"
-                     alt="{{ vendor.store_name }} banner"
-                     width="2400"
-                     height="1200"
-                     fetchpriority="high"
-                     decoding="async"
-                     onerror="if(this.dataset.fallbackSrc && this.src !== this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}else{this.hidden=true;}">
+                <img
+                    src="{{ vendor_banner_url }}"
+                    data-fallback-src="{{ vendor.store_banner.url }}"
+                    alt="{{ vendor.store_name }} banner"
+                    width="2400"
+                    height="1200"
+                    fetchpriority="high"
+                    decoding="async"
+                    onerror="if(this.dataset.fallbackSrc && this.src !== this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}else{this.hidden=true;}"
+                >
             {% endif %}
         </div>
 
-        <div class="vendor-store-profile">
-            <div class="vendor-store-profile-inner">
-                <div class="vendor-logo-wrap">
+        <div class="vendor-hero-content">
+            <div class="vendor-hero-card">
+                <div class="vendor-logo-box">
                     {% if vendor.store_logo %}
                         {% optimized_image_url vendor.store_logo 'logo' as vendor_logo_url %}
-                        <img src="{{ vendor_logo_url }}"
-                             data-fallback-src="{{ vendor.store_logo.url }}"
-                             alt="{{ vendor.store_name }} logo"
-                             width="220"
-                             height="220"
-                             decoding="async"
-                             onerror="if(this.dataset.fallbackSrc && this.src !== this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}else{this.hidden=true;}">
+                        <img
+                            src="{{ vendor_logo_url }}"
+                            data-fallback-src="{{ vendor.store_logo.url }}"
+                            alt="{{ vendor.store_name }} logo"
+                            width="220"
+                            height="220"
+                            decoding="async"
+                            onerror="if(this.dataset.fallbackSrc && this.src !== this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}else{this.hidden=true;}"
+                        >
                     {% else %}
                         <div class="vendor-logo-fallback">
                             <i class="fas fa-store"></i>
@@ -1135,150 +1068,193 @@
                     {% endif %}
                 </div>
 
-                <div class="vendor-title-area">
-                    <div class="vendor-title-row">
-                        <h1>{{ vendor.store_name }}</h1>
+                <div class="vendor-main">
+                    <div class="vendor-main-top">
+                        <div class="vendor-title-block">
+                            <h1 class="vendor-title">{{ vendor.store_name }}</h1>
 
-                        {% if vendor.is_verified %}
-                            <span class="vendor-badge verified"><i class="fas fa-check-circle"></i> Verified</span>
-                        {% endif %}
+                            {% if vendor.store_slogan %}
+                                <p class="vendor-subline">{{ vendor.store_slogan }}</p>
+                            {% elif vendor.description %}
+                                <p class="vendor-subline">{{ vendor.description|truncatewords:22 }}</p>
+                            {% endif %}
 
-                        <span class="vendor-badge best"><i class="fas fa-gem"></i> {{ vendor.active_plan_name }}</span>
+                            <div class="vendor-badge-grid">
+                                {% if vendor.is_verified %}
+                                    <span class="vendor-badge verified"><i class="fas fa-check-circle"></i> Verified</span>
+                                {% endif %}
 
-                        {% if vendor.location_label %}
-                            <span class="vendor-badge top"><i class="fas fa-location-dot"></i> {{ vendor.location_label }}</span>
-                        {% endif %}
+                                <span class="vendor-badge plan">
+                                    <i class="fas fa-gem"></i>
+                                    {{ vendor.active_plan_name|default:vendor.subscription_plan_label|default:"Vendor" }}
+                                </span>
 
-                        {% if vendor.is_top_rated %}
-                            <span class="vendor-badge top"><i class="fas fa-trophy"></i> Top Rated</span>
-                        {% endif %}
+                                {% if vendor.location_label %}
+                                    <span class="vendor-badge location"><i class="fas fa-location-dot"></i> {{ vendor.location_label }}</span>
+                                {% elif vendor.city or vendor.state %}
+                                    <span class="vendor-badge location">
+                                        <i class="fas fa-location-dot"></i>
+                                        {{ vendor.city|default:"" }}{% if vendor.city and vendor.state %}, {% endif %}{{ vendor.state|default:"" }}
+                                    </span>
+                                {% endif %}
 
-                        {% if vendor.is_best_seller %}
-                            <span class="vendor-badge best"><i class="fas fa-crown"></i> Best Seller</span>
-                        {% endif %}
+                                {% if vendor.is_top_rated %}
+                                    <span class="vendor-badge top"><i class="fas fa-trophy"></i> Top Rated</span>
+                                {% endif %}
+
+                                {% if vendor.is_best_seller %}
+                                    <span class="vendor-badge best"><i class="fas fa-crown"></i> Best Seller</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="vendor-actions">
+                            <button
+                                type="button"
+                                onclick="followVendor({{ vendor.id }})"
+                                class="vendor-btn follow {% if is_following %}is-following{% endif %}"
+                                id="followBtn"
+                                data-following="{% if is_following %}true{% else %}false{% endif %}"
+                                data-track-click="true"
+                                data-event-type="vendor"
+                                data-vendor-id="{{ vendor.id }}"
+                                data-click-text="{% if is_following %}Unfollow Store{% else %}Follow Store{% endif %} - {{ vendor.store_name }}"
+                            >
+                                <i class="fas {% if is_following %}fa-bell-slash{% else %}fa-bell{% endif %}"></i>
+                                <span id="followText">{% if is_following %}Following{% else %}Follow Store{% endif %}</span>
+                            </button>
+
+                            {% if chat_enabled %}
+                                <a href="{% url 'chat:start_vendor' vendor.user.id %}"
+                                   class="vendor-btn chat"
+                                   data-track-click="true"
+                                   data-event-type="vendor"
+                                   data-vendor-id="{{ vendor.id }}"
+                                   data-click-text="Chat with Vendor - {{ vendor.store_name }}">
+                                    <i class="fas fa-comments"></i>
+                                    Chat with Vendor
+                                </a>
+                            {% endif %}
+
+                            <a href="{% url 'core:request_vendor_quote' %}?vendor={{ vendor.id }}"
+                               class="vendor-btn quote"
+                               data-track-click="true"
+                               data-event-type="vendor"
+                               data-vendor-id="{{ vendor.id }}"
+                               data-click-text="Request Quote - {{ vendor.store_name }}">
+                                <i class="fas fa-file-signature"></i>
+                                Request Quote
+                            </a>
+
+                            <a href="#vendor-products"
+                               class="vendor-btn view"
+                               data-track-click="true"
+                               data-event-type="vendor"
+                               data-vendor-id="{{ vendor.id }}"
+                               data-click-text="View Products - {{ vendor.store_name }}">
+                                <i class="fas fa-box-open"></i>
+                                View Products
+                            </a>
+                        </div>
                     </div>
 
-                    {% if vendor.store_slogan %}
-                        <p class="vendor-slogan">{{ vendor.store_slogan }}</p>
-                    {% endif %}
+                    <div class="vendor-stat-row">
+                        <div class="vendor-stat-card">
+                            <div class="vendor-stat-top">
+                                <i class="fas fa-star star"></i>
+                                <span>Rating</span>
+                            </div>
+                            <div class="vendor-stat-value">{{ vendor.rating_avg|default:0|floatformat:1 }}</div>
+                            <div class="vendor-stat-note">{{ vendor.total_reviews|default:0 }} review{{ vendor.total_reviews|pluralize }}</div>
+                        </div>
 
-                    <div class="vendor-stats">
-                        <span class="vendor-stat">
-                            <i class="fas fa-star star-icon"></i>
-                            <strong>{{ vendor.rating_avg|floatformat:1 }}</strong>
-                            ({{ vendor.total_reviews }} reviews)
-                        </span>
+                        <div class="vendor-stat-card">
+                            <div class="vendor-stat-top">
+                                <i class="fas fa-chart-line"></i>
+                                <span>Sales</span>
+                            </div>
+                            <div class="vendor-stat-value">{{ vendor.total_sales|default:0 }}</div>
+                            <div class="vendor-stat-note">Marketplace sales recorded</div>
+                        </div>
 
-                        <span class="vendor-stat">
-                            <i class="fas fa-chart-line"></i>
-                            {{ vendor.total_sales }} sales
-                        </span>
+                        <div class="vendor-stat-card">
+                            <div class="vendor-stat-top">
+                                <i class="fas fa-users"></i>
+                                <span>Followers</span>
+                            </div>
+                            <div class="vendor-stat-value" id="followersCount">{{ followers_count|default:vendor.followers_count|default:0 }}</div>
+                            <div class="vendor-stat-note">Store followers</div>
+                        </div>
 
-                        <span class="vendor-stat">
-                            <i class="fas fa-users green-icon"></i>
-                            <span id="followersCount">{{ followers_count|default:vendor.followers_count|default:0 }}</span> followers
-                        </span>
+                        <div class="vendor-stat-card">
+                            <div class="vendor-stat-top">
+                                <i class="fas fa-clock"></i>
+                                <span>Response</span>
+                            </div>
+                            <div class="vendor-stat-value">{{ vendor.response_time|default:"Fast" }}</div>
+                            <div class="vendor-stat-note">Typical response speed</div>
+                        </div>
 
-                        <span class="vendor-stat">
-                            <i class="fas fa-clock"></i>
-                            Response: {{ vendor.response_time|default:"Fast" }}
-                        </span>
-
-                        <span class="vendor-stat">
-                            <i class="fas fa-percent orange-icon"></i>
-                            Fulfillment: {{ vendor.fulfillment_rate|default:0 }}%
-                        </span>
+                        <div class="vendor-stat-card">
+                            <div class="vendor-stat-top">
+                                <i class="fas fa-percent"></i>
+                                <span>Fulfillment</span>
+                            </div>
+                            <div class="vendor-stat-value">{{ vendor.fulfillment_rate|default:0 }}%</div>
+                            <div class="vendor-stat-note">Order fulfillment performance</div>
+                        </div>
                     </div>
-                </div>
-
-                <div class="vendor-actions">
-                    <button
-                        type="button"
-                        onclick="followVendor({{ vendor.id }})"
-                        class="vendor-follow-btn {% if is_following %}is-following{% endif %}"
-                        id="followBtn"
-                        data-following="{% if is_following %}true{% else %}false{% endif %}"
-                        data-track-click="true"
-                        data-event-type="vendor"
-                        data-vendor-id="{{ vendor.id }}"
-                        data-click-text="{% if is_following %}Unfollow Store{% else %}Follow Store{% endif %} - {{ vendor.store_name }}"
-                    >
-                        <i class="fas {% if is_following %}fa-bell-slash{% else %}fa-bell{% endif %}"></i>
-                        <span id="followText">{% if is_following %}Following{% else %}Follow Store{% endif %}</span>
-                    </button>
-
-                    {% if chat_enabled %}
-                    <a href="{% url 'chat:start_vendor' vendor.user.id %}"
-                       class="vendor-chat-btn"
-                       data-track-click="true"
-                       data-event-type="vendor"
-                       data-vendor-id="{{ vendor.id }}"
-                       data-click-text="Chat with Vendor - {{ vendor.store_name }}">
-                        <i class="fas fa-comments"></i>
-                        Chat with Vendor
-                    </a>
-                    {% else %}
-                    <span class="vendor-chat-btn is-locked"
-                          title="Vendor chat is available for paid vendor plans"
-                          data-track-click="true"
-                          data-event-type="vendor"
-                          data-vendor-id="{{ vendor.id }}"
-                          data-click-text="Chat Locked - {{ vendor.store_name }}">
-                        <i class="fas fa-lock"></i>
-                        Chat Locked
-                    </span>
-                    {% endif %}
-
-                    <a href="{% url 'core:request_vendor_quote' %}?vendor={{ vendor.id }}"
-                        class="vendor-quote-btn"
-                        data-track-click="true"
-                        data-event-type="vendor"
-                        data-vendor-id="{{ vendor.id }}"
-                        data-click-text="Request Quote - {{ vendor.store_name }}">
-                            <i class="fas fa-file-signature"></i>
-                            Request Quote
-                    </a>
                 </div>
             </div>
         </div>
     </section>
 
     <section class="vendor-body-grid">
-        <div class="vendor-info-card">
+        <div class="vendor-card">
             <h3>About {{ vendor.store_name }}</h3>
             <p>{{ vendor.description|default:"This vendor has not added a store description yet." }}</p>
 
             {% if vendor.featured_category_list %}
-            <div class="mt-4 flex flex-wrap gap-2">
-                {% for category_name in vendor.featured_category_list %}
-                    <span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">{{ category_name }}</span>
-                {% endfor %}
-            </div>
+                <div class="vendor-chip-row">
+                    {% for category_name in vendor.featured_category_list %}
+                        <span class="vendor-chip">{{ category_name }}</span>
+                    {% endfor %}
+                </div>
             {% endif %}
         </div>
 
         <aside class="vendor-score-card">
             <h3>Vendor Score</h3>
-            <div class="vendor-score-value">{{ vendor_score|default:"0" }}</div>
+            <div class="vendor-score-value">{{ vendor_score|default:"0"|floatformat:2 }}</div>
 
-            <div class="score-bars">
+            <div class="score-list">
                 <div>
-                    <div class="score-bar-label">
+                    <div class="score-item-label">
                         <span>Rating</span>
-                        <span>{{ vendor.rating_avg|floatformat:1 }} / 5</span>
+                        <span>{{ vendor.rating_avg|default:0|floatformat:1 }} / 5</span>
                     </div>
                     <div class="score-track">
-                        <div class="score-fill" style="width:{% widthratio vendor.rating_avg 5 100 %}%"></div>
+                        <div class="score-fill" style="width:{% widthratio vendor.rating_avg|default:0 5 100 %}%"></div>
                     </div>
                 </div>
 
                 <div>
-                    <div class="score-bar-label">
+                    <div class="score-item-label">
                         <span>Fulfillment</span>
                         <span>{{ vendor.fulfillment_rate|default:0 }}%</span>
                     </div>
                     <div class="score-track">
                         <div class="score-fill" style="width:{{ vendor.fulfillment_rate|default:0 }}%"></div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="score-item-label">
+                        <span>Customer trust</span>
+                        <span>{{ vendor.total_reviews|default:0 }} review{{ vendor.total_reviews|pluralize }}</span>
+                    </div>
+                    <div class="score-track">
+                        <div class="score-fill" style="width:{% widthratio vendor.total_reviews|default:0 20 100 %}%"></div>
                     </div>
                 </div>
             </div>
@@ -1287,132 +1263,127 @@
 
     <section class="vendor-trust-grid">
         <div class="vendor-trust-card">
-            <div class="vendor-trust-icon">
-                <i class="fas fa-shield-alt"></i>
-            </div>
+            <span class="vendor-trust-icon"><i class="fas fa-shield-alt"></i></span>
             <h3>Verified vendor</h3>
-            <p>
-                {% if vendor.is_verified %}
-                    Arolana has verified this vendor profile.
-                {% else %}
-                    Verification is pending or managed by Arolana admin.
-                {% endif %}
-            </p>
+            <p>Arolana has reviewed this vendor profile and verified the available store information.</p>
         </div>
 
         <div class="vendor-trust-card">
-            <div class="vendor-trust-icon">
-                <i class="fas fa-truck-fast"></i>
-            </div>
+            <span class="vendor-trust-icon"><i class="fas fa-truck-fast"></i></span>
             <h3>Delivery support</h3>
-            <p>{{ vendor.delivery_note|default:"Delivery is coordinated through Arolana checkout and vendor fulfilment." }}</p>
+            <p>Orders and quotes can be coordinated through Arolana checkout and vendor fulfillment support.</p>
         </div>
 
         <div class="vendor-trust-card">
-            <div class="vendor-trust-icon">
-                <i class="fas fa-screwdriver-wrench"></i>
-            </div>
+            <span class="vendor-trust-icon"><i class="fas fa-screwdriver-wrench"></i></span>
             <h3>Warranty/support</h3>
-            <p>{{ vendor.warranty_note|default:"Warranty and support details are confirmed on eligible products." }}</p>
+            <p>Warranty and after-sales support details can be confirmed based on eligible products and agreements.</p>
         </div>
 
         <div class="vendor-trust-card">
-            <div class="vendor-trust-icon">
-                <i class="fas fa-rotate-left"></i>
-            </div>
+            <span class="vendor-trust-icon"><i class="fas fa-rotate-left"></i></span>
             <h3>Return policy</h3>
-            <p>{{ vendor.return_policy|default:"Returns are handled according to Arolana marketplace policy and product condition." }}</p>
+            <p>Returns and related support are handled according to Arolana marketplace rules and product conditions.</p>
         </div>
     </section>
 
-    {% if vendor.store_video_url or vendor.store_gallery_list or vendor.business_hours %}
     <section class="vendor-media-grid">
         {% if vendor.store_video_url %}
-        <div class="vendor-video-card">
-            <h3>Store video</h3>
-            <p>Watch this vendor’s store or product showcase.</p>
-            <a href="{{ vendor.store_video_url }}"
-               target="_blank"
-               rel="noopener noreferrer"
-               class="vendor-media-link"
-               data-track-click="true"
-               data-event-type="video"
-               data-vendor-id="{{ vendor.id }}"
-               data-click-text="Open Store Video - {{ vendor.store_name }}"
-               data-click-url="{{ vendor.store_video_url }}">
-                Open video <i class="fas fa-arrow-up-right-from-square text-xs"></i>
-            </a>
-        </div>
+            <div class="vendor-media-card video">
+                <h3>Store introduction</h3>
+                <p>Watch a quick introduction or demo from {{ vendor.store_name }}.</p>
+                <a href="{{ vendor.store_video_url }}" target="_blank" rel="noopener" class="vendor-link-btn">
+                    <i class="fas fa-play-circle"></i>
+                    Watch video
+                </a>
+            </div>
         {% endif %}
 
-        {% if vendor.store_gallery_list %}
-        <div class="vendor-highlights-card {% if not vendor.store_video_url %}lg:col-span-2{% endif %}">
-            <h3>Store highlights</h3>
+        <div class="vendor-media-card">
+            <h3>Highlights</h3>
             <div class="vendor-highlight-list">
-                {% for item in vendor.store_gallery_list|slice:":5" %}
-                    <p>{{ item }}</p>
-                {% endfor %}
+                {% if vendor.business_hours %}
+                    <div><strong>Business hours:</strong> {{ vendor.business_hours }}</div>
+                {% endif %}
+                {% if vendor.support_email %}
+                    <div><strong>Email:</strong> {{ vendor.support_email }}</div>
+                {% endif %}
+                {% if vendor.support_phone %}
+                    <div><strong>Phone:</strong> {{ vendor.support_phone }}</div>
+                {% endif %}
+                {% if vendor.website %}
+                    <div><strong>Website:</strong> {{ vendor.website }}</div>
+                {% endif %}
+                {% if not vendor.business_hours and not vendor.support_email and not vendor.support_phone and not vendor.website %}
+                    <div>Store highlights and service details will appear here as the vendor updates the profile.</div>
+                {% endif %}
             </div>
         </div>
-        {% endif %}
 
-        {% if vendor.business_hours %}
-        <div class="vendor-hours-card">
-            <h3>Business hours</h3>
-            <p class="whitespace-pre-line">{{ vendor.business_hours }}</p>
+        <div class="vendor-media-card">
+            <h3>Why buy here?</h3>
+            <div class="vendor-highlight-list">
+                <div>Request direct quotes from the vendor and receive follow-up through Arolana.</div>
+                <div>Review products, ratings, and vendor trust signals before ordering.</div>
+                <div>Use Arolana marketplace support when you need help with response delays or clarification.</div>
+            </div>
         </div>
-        {% endif %}
     </section>
-    {% endif %}
 
     <section class="vendor-interaction-grid">
-        <div class="vendor-review-panel">
+        <div class="vendor-review-card">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                    <h3 class="text-xl font-black text-gray-900 m-0">Store Reviews</h3>
-                    <p class="text-sm text-gray-500 mt-1">
-                        {{ store_review_count }} store comment{{ store_review_count|pluralize }} · {{ store_review_avg|floatformat:1 }} average
+                    <h3 class="m-0 text-xl font-black text-gray-900">Store Reviews</h3>
+                    <p class="mt-1 text-sm text-gray-500">
+                        {{ store_review_count|default:vendor.total_reviews|default:0 }} store review{{ store_review_count|default:vendor.total_reviews|default:0|pluralize }}
+                        ·
+                        {{ store_review_avg|default:vendor.rating_avg|default:0|floatformat:1 }} average
                     </p>
                 </div>
 
                 {% if store_reviews_enabled %}
-                <span class="inline-flex items-center gap-2 rounded-full bg-green-50 px-3 py-2 text-sm font-bold text-green-700">
-                    <i class="fas fa-unlock"></i> Reviews open
-                </span>
+                    <span class="inline-flex items-center gap-2 rounded-full bg-green-50 px-3 py-2 text-sm font-bold text-green-700">
+                        <i class="fas fa-unlock"></i> Reviews open
+                    </span>
                 {% else %}
-                <span class="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-2 text-sm font-bold text-gray-600">
-                    <i class="fas fa-lock"></i> Paid plan required
-                </span>
+                    <span class="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-2 text-sm font-bold text-gray-600">
+                        <i class="fas fa-lock"></i> Paid plan required
+                    </span>
                 {% endif %}
             </div>
 
-            <div class="vendor-review-list">
+            <div class="review-list">
                 {% for review in vendor_reviews %}
-                <article class="vendor-review-item">
-                    <div class="flex items-start justify-between gap-3">
-                        <div>
-                            <div class="vendor-review-stars">
-                                {% for i in "12345"|make_list %}
-                                    {% if forloop.counter <= review.rating %}<i class="fas fa-star"></i>{% else %}<i class="far fa-star"></i>{% endif %}
-                                {% endfor %}
+                    <article class="review-item">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <div class="review-stars">
+                                    {% for i in "12345"|make_list %}
+                                        {% if forloop.counter <= review.rating %}
+                                            <i class="fas fa-star"></i>
+                                        {% else %}
+                                            <i class="far fa-star"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                                <h4 class="mt-1 mb-1 font-black text-gray-900">{{ review.title|default:"Store experience" }}</h4>
+                                <p class="text-sm leading-relaxed text-gray-600">{{ review.comment }}</p>
                             </div>
-                            <h4 class="font-black text-gray-900 mt-1 mb-1">{{ review.title|default:"Store experience" }}</h4>
-                            <p class="text-sm text-gray-600 leading-relaxed">{{ review.comment }}</p>
-                        </div>
 
-                        <div class="text-right text-xs text-gray-500 shrink-0">
-                            <div>{{ review.user.get_full_name|default:review.user.username }}</div>
-                            {% if review.is_verified_customer %}
-                            <span class="mt-1 inline-flex rounded-full bg-blue-50 px-2 py-1 font-bold text-blue-700">Verified customer</span>
-                            {% endif %}
+                            <div class="shrink-0 text-right text-xs text-gray-500">
+                                <div>{{ review.user.get_full_name|default:review.user.username }}</div>
+                                {% if review.is_verified_customer %}
+                                    <span class="mt-1 inline-flex rounded-full bg-blue-50 px-2 py-1 font-bold text-blue-700">Verified customer</span>
+                                {% endif %}
+                            </div>
                         </div>
-                    </div>
-                </article>
+                    </article>
                 {% empty %}
-                <div class="rounded-xl border border-dashed border-gray-200 p-6 text-center text-gray-500">
-                    <i class="fas fa-star text-3xl text-gray-200 mb-2"></i>
-                    <p>No store reviews yet.</p>
-                </div>
+                    <div class="rounded-xl border border-dashed border-gray-200 p-6 text-center text-gray-500">
+                        <i class="fas fa-star mb-2 text-3xl text-gray-200"></i>
+                        <p>No store reviews yet.</p>
+                    </div>
                 {% endfor %}
             </div>
         </div>
@@ -1424,11 +1395,7 @@
                 <p class="text-sm text-gray-600">
                     Please
                     <a href="{% url 'accounts:login' %}?next={{ request.path }}"
-                       class="text-blue-600 font-bold"
-                       data-track-click="true"
-                       data-event-type="link"
-                       data-vendor-id="{{ vendor.id }}"
-                       data-click-text="Sign in to Review Vendor - {{ vendor.store_name }}">
+                       class="font-bold text-blue-600">
                         sign in
                     </a>
                     to leave a store review.
@@ -1436,12 +1403,13 @@
             {% elif request.user.id == vendor.user.id %}
                 <p class="text-sm text-gray-600">You cannot review your own store.</p>
             {% elif not store_reviews_enabled %}
-                <p class="text-sm text-gray-600">This vendor needs an active paid subscription before customers can rate and comment on the store.</p>
+                <p class="text-sm text-gray-600">
+                    This vendor needs an active paid subscription before customers can rate and comment on the store.
+                </p>
             {% else %}
-                <form method="POST"
-                      action="{% url 'vendors:add_review' vendor.id %}"
-                      class="grid gap-4">
+                <form method="POST" action="{% url 'vendors:add_review' vendor.id %}" class="grid gap-4">
                     {% csrf_token %}
+
                     <div>
                         <label for="vendorRating">Rating</label>
                         <select id="vendorRating" name="rating">
@@ -1463,18 +1431,13 @@
                         <textarea id="vendorReviewComment" name="comment" rows="5" required placeholder="Tell other customers about your experience with this vendor."></textarea>
 
                         {% if customer_has_order %}
-                        <p class="text-xs text-blue-600 font-bold mt-2">
-                            <i class="fas fa-check-circle"></i> Your review will show as verified customer.
-                        </p>
+                            <p class="mt-2 text-xs font-bold text-blue-600">
+                                <i class="fas fa-check-circle"></i> Your review will show as verified customer.
+                            </p>
                         {% endif %}
                     </div>
 
-                    <button type="submit"
-                            class="vendor-review-submit"
-                            data-track-click="true"
-                            data-event-type="button"
-                            data-vendor-id="{{ vendor.id }}"
-                            data-click-text="Submit Vendor Review - {{ vendor.store_name }}">
+                    <button type="submit" class="review-submit-btn">
                         <i class="fas fa-paper-plane"></i>
                         Submit Review
                     </button>
@@ -1483,15 +1446,9 @@
         </aside>
     </section>
 
-    <section class="store-toolbar">
+    <section class="store-toolbar" id="vendor-products">
         <h2>Products from {{ vendor.store_name }}</h2>
-        <select id="sortProducts"
-                onchange="sortProducts(this.value)"
-                class="store-sort"
-                data-track-click="true"
-                data-event-type="button"
-                data-vendor-id="{{ vendor.id }}"
-                data-click-text="Sort Vendor Products - {{ vendor.store_name }}">
+        <select id="sortProducts" onchange="sortProducts(this.value)" class="store-sort">
             <option value="newest">Newest First</option>
             <option value="price_low">Price: Low to High</option>
             <option value="price_high">Price: High to Low</option>
@@ -1501,274 +1458,190 @@
     {% if products %}
         <section class="vendor-products-grid" id="productsGrid">
             {% for product in products %}
-            <article class="vendor-product-card product-card"
-                     data-price="{{ product.price }}"
-                     data-track-click="true"
-                     data-event-type="product"
-                     data-product-id="{{ product.id }}"
-                     data-category-id="{{ product.category.id }}"
-                     data-vendor-id="{{ vendor.id }}"
-                     data-click-text="{{ product.name }}"
-                     data-click-url="{{ product.get_absolute_url }}">
-                <a href="{{ product.get_absolute_url }}"
-                   class="block product-card"
-                   data-track-click="true"
-                   data-event-type="product"
-                   data-product-id="{{ product.id }}"
-                   data-category-id="{{ product.category.id }}"
-                   data-vendor-id="{{ vendor.id }}"
-                   data-click-text="{{ product.name }}">
-                    <div class="vendor-product-media">
-                        {% if product.main_image %}
-                            {% optimized_image_url product.main_image 'product_card' as product_card_url %}
-                            <img src="{{ product_card_url }}"
-                                 data-fallback-src="{{ product.main_image.url }}"
-                                 alt="{{ product.name }}"
-                                 loading="lazy"
-                                 decoding="async"
-                                 width="700"
-                                 height="700"
-                                 onerror="if(this.dataset.fallbackSrc && this.src !== this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}else{this.hidden=true;}">
-                        {% else %}
-                            <div class="vendor-product-fallback">
-                                <i class="fas fa-image"></i>
-                            </div>
-                        {% endif %}
+                <article class="product-card"
+                         data-price="{{ product.price|default:0 }}"
+                         data-name="{{ product.name|lower }}"
+                         data-product-id="{{ product.id }}">
 
-                        {% if product.is_new %}
-                            <span class="product-pill">New</span>
-                        {% endif %}
+                    <a href="{{ product.get_absolute_url }}" class="product-media-link">
+                        <div class="product-media">
+                            {% if product.main_image %}
+                                {% optimized_image_url product.main_image 'product_card' as product_card_url %}
+                                <img
+                                    src="{{ product_card_url }}"
+                                    data-fallback-src="{{ product.main_image.url }}"
+                                    alt="{{ product.name }}"
+                                    loading="lazy"
+                                    decoding="async"
+                                    width="700"
+                                    height="700"
+                                    onerror="if(this.dataset.fallbackSrc && this.src !== this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}else{this.hidden=true;}"
+                                >
+                            {% else %}
+                                <div class="product-fallback">
+                                    <i class="fas fa-image"></i>
+                                </div>
+                            {% endif %}
 
-                        {% if product.discount_percent > 0 %}
-                            <span class="product-pill product-discount">-{{ product.discount_percent }}%</span>
-                        {% endif %}
-                    </div>
-                </a>
+                            {% if product.is_new %}
+                                <span class="product-pill">New</span>
+                            {% endif %}
 
-                <div class="vendor-product-body">
-                    <a href="{{ product.get_absolute_url }}"
-                       class="vendor-product-title product-card"
-                       data-track-click="true"
-                       data-event-type="product"
-                       data-product-id="{{ product.id }}"
-                       data-category-id="{{ product.category.id }}"
-                       data-vendor-id="{{ vendor.id }}"
-                       data-click-text="{{ product.name }}">
-                        {{ product.name }}
+                            {% if product.discount_percent > 0 %}
+                                <span class="product-pill discount">-{{ product.discount_percent }}%</span>
+                            {% endif %}
+                        </div>
                     </a>
 
-                    {% include "products/partials/product_vendor_meta.html" with product=product %}
+                    <div class="product-body">
+                        <a href="{{ product.get_absolute_url }}" class="product-title">{{ product.name }}</a>
 
-                    <div class="vendor-product-rating">
-                        <div class="vendor-stars">
-                            {% for i in "12345"|make_list %}
-                                {% if forloop.counter <= product.rating_avg|add:"0" %}
-                                    <i class="fas fa-star"></i>
-                                {% elif forloop.counter <= product.rating_avg|add:"0.5" %}
-                                    <i class="fas fa-star-half-alt"></i>
-                                {% else %}
-                                    <i class="far fa-star"></i>
-                                {% endif %}
-                            {% endfor %}
+                        <div class="product-meta">
+                            {{ product.category.name|default:"General category" }}
+                            {% if product.total_sold %}
+                                · {{ product.total_sold }} sold
+                            {% endif %}
                         </div>
-                        <span>({{ product.rating_count }})</span>
+
+                        <div class="product-rating-row">
+                            <span class="product-stars">
+                                {% for i in "12345"|make_list %}
+                                    {% if forloop.counter <= product.avg_rating|default:0 %}
+                                        <i class="fas fa-star"></i>
+                                    {% else %}
+                                        <i class="far fa-star"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </span>
+                            <span>{{ product.review_count|default:0 }} review{{ product.review_count|default:0|pluralize }}</span>
+                        </div>
+
+                        <div class="product-price-row">
+                            <span class="product-current-price">{{ product.price|currency:request }}</span>
+                            {% if product.compare_price %}
+                                <span class="product-compare-price">{{ product.compare_price|currency:request }}</span>
+                            {% endif %}
+                        </div>
+
+                        <a href="{{ product.get_absolute_url }}" class="product-cart-btn">
+                            <i class="fas fa-eye"></i>
+                            View Product
+                        </a>
                     </div>
-
-                    <div class="vendor-product-price">
-                        <span class="vendor-price-current">{{ product.price|currency:request }}</span>
-
-                        {% if product.compare_price %}
-                            <span class="vendor-price-compare">{{ product.compare_price|currency:request }}</span>
-                        {% endif %}
-                    </div>
-
-                    <form method="POST"
-                          action="{% url 'products:add_to_cart' product.slug %}"
-                          class="vendor-cart-form arolana-ajax-cart-form"
-                          data-cart-ajax="true">
-                        {% csrf_token %}
-                        <input type="hidden" name="quantity" value="1">
-
-                        <button type="submit"
-                                class="vendor-cart-btn"
-                                data-cart-button
-                                data-track-click="true"
-                                data-event-type="button"
-                                data-product-id="{{ product.id }}"
-                                data-category-id="{{ product.category.id }}"
-                                data-vendor-id="{{ vendor.id }}"
-                                data-click-text="Add to Cart - {{ product.name }}"
-                                data-click-url="{{ product.get_absolute_url }}">
-                            <i class="fas fa-cart-plus"></i>
-                            Add to Cart
-                        </button>
-                    </form>
-                </div>
-            </article>
+                </article>
             {% endfor %}
         </section>
     {% else %}
-        <div class="vendor-empty-state">
-            <i class="fas fa-box-open text-6xl text-gray-400 mb-4"></i>
-            <p class="text-gray-500 text-lg">No products available from this vendor yet.</p>
+        <div class="empty-state">
+            <i class="fas fa-box-open mb-3 text-5xl text-gray-300"></i>
+            <h3 class="mb-2 text-xl font-black text-gray-900">No products yet</h3>
+            <p class="text-gray-500">This vendor has not added products yet. Check back soon.</p>
         </div>
-    {% endif %}
-
-    {% if similar_vendors %}
-    <section class="mt-12">
-        <h2 class="text-2xl font-black text-gray-900 mb-6">Similar Vendors You Might Like</h2>
-
-        <div class="similar-vendors-grid">
-            {% for similar in similar_vendors %}
-            <a href="{% url 'vendors:detail' similar.store_slug %}"
-               class="similar-vendor-card group"
-               data-track-click="true"
-               data-event-type="vendor"
-               data-vendor-id="{{ similar.id }}"
-               data-click-text="Similar Vendor - {{ similar.store_name }}"
-               data-click-url="{% url 'vendors:detail' similar.store_slug %}">
-                <div class="similar-vendor-logo">
-                    {% if similar.store_logo %}
-                        {% optimized_image_url similar.store_logo 'logo' as similar_logo_url %}
-                        <img src="{{ similar_logo_url }}"
-                             data-fallback-src="{{ similar.store_logo.url }}"
-                             alt="{{ similar.store_name }}"
-                             loading="lazy"
-                             decoding="async"
-                             width="144"
-                             height="144"
-                             onerror="if(this.dataset.fallbackSrc && this.src !== this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}else{this.hidden=true;}">
-                    {% else %}
-                        <i class="fas fa-store"></i>
-                    {% endif %}
-                </div>
-
-                <h3 class="font-black text-gray-900">{{ similar.store_name }}</h3>
-                <p class="text-sm text-gray-500 mt-1">{{ similar.rating_avg|floatformat:1 }} ★ ({{ similar.total_sales }} sales)</p>
-            </a>
-            {% endfor %}
-        </div>
-    </section>
     {% endif %}
 </div>
 
 <script>
-function getCookie(name) {
-    let cookieValue = null;
+    function showVendorToast(message, type = 'success') {
+        const existing = document.querySelector('.vendor-toast');
+        if (existing) existing.remove();
 
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
+        const toast = document.createElement('div');
+        toast.className = `vendor-toast ${type}`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
 
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
+        setTimeout(() => {
+            toast.remove();
+        }, 2800);
+    }
 
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
+    function getCookie(name) {
+        let cookieValue = null;
+
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
             }
         }
+
+        return cookieValue;
     }
 
-    return cookieValue;
-}
+    async function followVendor(vendorId) {
+        const button = document.getElementById('followBtn');
+        const text = document.getElementById('followText');
+        const countEl = document.getElementById('followersCount');
 
-function showVendorToast(message, type) {
-    const existingToast = document.querySelector('.vendor-toast');
+        if (!button || !text) return;
 
-    if (existingToast) {
-        existingToast.remove();
+        const wasFollowing = button.dataset.following === 'true';
+        button.disabled = true;
+
+        try {
+            const response = await fetch(`/vendors/${vendorId}/follow/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                const isFollowing = !!data.is_following;
+                button.dataset.following = isFollowing ? 'true' : 'false';
+                button.classList.toggle('is-following', isFollowing);
+
+                button.innerHTML = `
+                    <i class="fas ${isFollowing ? 'fa-bell-slash' : 'fa-bell'}"></i>
+                    <span id="followText">${isFollowing ? 'Following' : 'Follow Store'}</span>
+                `;
+
+                if (countEl && typeof data.followers_count !== 'undefined') {
+                    countEl.textContent = data.followers_count;
+                }
+
+                showVendorToast(isFollowing ? 'Store followed successfully.' : 'Store unfollowed successfully.');
+            } else {
+                showVendorToast(data.message || 'Unable to update follow status.', 'error');
+                button.dataset.following = wasFollowing ? 'true' : 'false';
+            }
+        } catch (error) {
+            showVendorToast('Something went wrong. Please try again.', 'error');
+            button.dataset.following = wasFollowing ? 'true' : 'false';
+        } finally {
+            button.disabled = false;
+        }
     }
 
-    const toast = document.createElement('div');
-    toast.className = `vendor-toast ${type === 'success' ? 'success' : 'error'}`;
-    toast.textContent = message;
-    document.body.appendChild(toast);
+    function sortProducts(sortBy) {
+        const grid = document.getElementById('productsGrid');
+        if (!grid) return;
 
-    setTimeout(() => toast.remove(), 2800);
-}
+        const cards = Array.from(grid.querySelectorAll('.product-card'));
 
-function setFollowButtonState(isFollowing, followersCount) {
-    const btn = document.getElementById('followBtn');
-    const followersCountEl = document.getElementById('followersCount');
+        cards.sort((a, b) => {
+            const priceA = parseFloat(a.dataset.price || 0);
+            const priceB = parseFloat(b.dataset.price || 0);
+            const nameA = (a.dataset.name || '').toLowerCase();
+            const nameB = (b.dataset.name || '').toLowerCase();
 
-    if (!btn) return;
-
-    btn.disabled = false;
-    btn.dataset.following = isFollowing ? 'true' : 'false';
-
-    if (isFollowing) {
-        btn.classList.add('is-following');
-        btn.innerHTML = '<i class="fas fa-bell-slash"></i><span id="followText">Following</span>';
-        btn.setAttribute('data-click-text', 'Unfollow Store');
-    } else {
-        btn.classList.remove('is-following');
-        btn.innerHTML = '<i class="fas fa-bell"></i><span id="followText">Follow Store</span>';
-        btn.setAttribute('data-click-text', 'Follow Store');
-    }
-
-    if (followersCountEl && typeof followersCount !== 'undefined') {
-        followersCountEl.textContent = followersCount;
-    }
-}
-
-async function followVendor(vendorId) {
-    const btn = document.getElementById('followBtn');
-
-    if (!btn || btn.disabled) {
-        return;
-    }
-
-    const wasFollowing = btn.dataset.following === 'true';
-
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Updating...</span>';
-
-    try {
-        const response = await fetch(`/vendors/follow/${vendorId}/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCookie('csrftoken'),
-                'X-Requested-With': 'XMLHttpRequest',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({})
+            if (sortBy === 'price_low') return priceA - priceB;
+            if (sortBy === 'price_high') return priceB - priceA;
+            if (sortBy === 'name') return nameA.localeCompare(nameB);
+            return 0;
         });
 
-        const data = await response.json();
-
-        if (!response.ok || !data.success) {
-            throw new Error(data.message || 'Could not update follow status.');
-        }
-
-        setFollowButtonState(data.followed, data.followers_count);
-        showVendorToast(data.message || (data.followed ? 'Store followed.' : 'Store unfollowed.'), 'success');
-
-    } catch (error) {
-        setFollowButtonState(wasFollowing);
-        showVendorToast(error.message || 'Could not update follow status.', 'error');
+        cards.forEach(card => grid.appendChild(card));
     }
-}
-
-function sortProducts(sortBy) {
-    const grid = document.getElementById('productsGrid');
-
-    if (!grid) return;
-
-    const products = Array.from(grid.children);
-
-    products.sort((a, b) => {
-        if (sortBy === 'price_low') {
-            return parseFloat(a.dataset.price || 0) - parseFloat(b.dataset.price || 0);
-        }
-
-        if (sortBy === 'price_high') {
-            return parseFloat(b.dataset.price || 0) - parseFloat(a.dataset.price || 0);
-        }
-
-        return 0;
-    });
-
-    products.forEach(product => grid.appendChild(product));
-}
 </script>
 {% endblock %}
