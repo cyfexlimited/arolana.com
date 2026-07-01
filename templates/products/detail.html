@@ -288,6 +288,60 @@
         contain-intrinsic-size: auto 430px;
     }
 
+    .product-personalization-shelf {
+        width: fit-content;
+        max-width: 100%;
+        padding: 1.5rem;
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 1.25rem;
+        background:
+            radial-gradient(circle at top right, rgba(41, 197, 255, 0.22), transparent 38%),
+            linear-gradient(120deg, #071A44 0%, #0066CC 70%, #008ECF 100%);
+        box-shadow: 0 20px 45px rgba(7, 26, 68, 0.14);
+    }
+
+    .product-personalization-track {
+        display: flex;
+        width: max-content;
+        max-width: 100%;
+        gap: 1rem;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 0.15rem 0 0.6rem;
+        scroll-snap-type: x proximity;
+        scrollbar-color: rgba(255, 255, 255, 0.58) rgba(255, 255, 255, 0.14);
+        scrollbar-width: thin;
+    }
+
+    .product-personalization-card {
+        flex: 0 0 164px;
+        width: 164px;
+        scroll-snap-align: start;
+    }
+
+    .product-personalization-image {
+        display: block;
+        width: 100%;
+        height: 8rem;
+        padding: 0.55rem;
+        object-fit: contain;
+        background: #fff;
+    }
+
+    @media (max-width: 640px) {
+        .product-personalization-shelf {
+            width: 100%;
+            padding: 1rem;
+            border-radius: 1rem;
+        }
+
+        .product-personalization-card {
+            flex-basis: 154px;
+            width: 154px;
+        }
+    }
+
     /* Animated Price Tag */
     .price-pulse {
         animation: priceGlow 2s ease-in-out infinite;
@@ -4335,20 +4389,20 @@
 
     <!-- Pick Up Where You Left Off -->
     {% if recently_viewed %}
-    <div class="mt-12 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-8 text-white arolana-deferred-content">
+    <div class="mt-12 product-personalization-shelf arolana-deferred-content">
         <div class="flex items-center justify-between mb-6">
             <div>
                 <h2 class="text-2xl font-bold">Pick Up Where You Left Off</h2>
                 <p class="mt-1 opacity-90">Continue browsing your recent items</p>
             </div>
         </div>
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+        <div class="product-personalization-track">
             {% for item in recently_viewed|slice:":6" %}
-            <a href="{{ item.product.get_absolute_url }}" class="bg-white rounded-xl overflow-hidden text-gray-800 hover:shadow-2xl transition transform hover:scale-105">
+            <a href="{{ item.product.get_absolute_url }}" class="product-personalization-card bg-white rounded-xl overflow-hidden text-gray-800 hover:shadow-2xl transition transform hover:-translate-y-1">
                 <div class="h-32 overflow-hidden">
                     {% if item.product.main_image %}
                         {% optimized_image_url item.product.main_image 'product_card' as recommendation_image_url %}
-                        <img src="{{ recommendation_image_url }}" alt="{{ item.product.name }}" class="w-full h-full object-cover" loading="lazy" decoding="async">
+                        <img src="{{ recommendation_image_url }}" alt="{{ item.product.name }}" class="product-personalization-image" loading="lazy" decoding="async">
                     {% else %}
                         <div class="w-full h-full bg-gray-100 flex items-center justify-center">
                             <i class="fas fa-image text-3xl text-gray-400"></i>
@@ -4390,21 +4444,21 @@
 
     <!-- AI Smart Recommendations -->
     {% if ai_recommendations %}
-    <div class="mt-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white arolana-deferred-content">
+    <div class="mt-12 product-personalization-shelf arolana-deferred-content">
         <div class="flex items-center justify-between mb-6">
             <div>
                 <h2 class="text-2xl font-bold">Smart Recommendations</h2>
                 <p class="mt-1 opacity-90">Personalized for you based on your browsing history</p>
             </div>
         </div>
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+        <div class="product-personalization-track">
             {% for item in ai_recommendations %}
-            <div class="bg-white rounded-xl text-gray-800 overflow-hidden hover:shadow-2xl transition transform hover:scale-105">
+            <div class="product-personalization-card bg-white rounded-xl text-gray-800 overflow-hidden hover:shadow-2xl transition transform hover:-translate-y-1">
                 <a href="{{ item.get_absolute_url }}">
                     <div class="h-32 overflow-hidden">
                         {% if item.main_image %}
                             {% optimized_image_url item.main_image 'product_card' as recommendation_image_url %}
-                            <img src="{{ recommendation_image_url }}" alt="{{ item.name }}" class="w-full h-full object-cover" loading="lazy" decoding="async">
+                            <img src="{{ recommendation_image_url }}" alt="{{ item.name }}" class="product-personalization-image" loading="lazy" decoding="async">
                         {% else %}
                             <div class="w-full h-full bg-gray-100 flex items-center justify-center">
                                 <i class="fas fa-image text-3xl text-gray-400"></i>
