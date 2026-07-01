@@ -17,6 +17,9 @@
         --arolana-text: #0B1E46;
         --arolana-muted: #65758B;
         --arolana-bg: #F4F7FB;
+        --arolana-green: #16A34A;
+        --arolana-red: #DC2626;
+        --arolana-yellow: #F59E0B;
     }
 
     html,
@@ -24,10 +27,14 @@
         width: 100%;
         min-height: 100%;
         overflow-x: hidden;
+        background: var(--arolana-bg) !important;
     }
 
-    body {
-        background: var(--arolana-bg) !important;
+    * {
+        box-sizing: border-box;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
     }
 
     body:has(.vendor-dashboard-page) main,
@@ -55,7 +62,7 @@
         width: 100%;
         max-width: none !important;
         margin: 0 !important;
-        padding: 1.25rem 1.5rem 2rem !important;
+        padding: 1.1rem 1.25rem 2rem !important;
         color: var(--arolana-text);
     }
 
@@ -75,31 +82,33 @@
 
     .vendor-eyebrow {
         color: var(--arolana-orange);
-        font-size: .72rem;
-        font-weight: 950;
+        font-size: .66rem;
+        font-weight: 900;
         letter-spacing: .18em;
         text-transform: uppercase;
     }
 
     .vendor-page-title {
-        margin: .15rem 0 0;
+        margin: .12rem 0 0;
         color: var(--arolana-navy);
-        font-size: clamp(1.7rem, 2.5vw, 2.55rem);
-        line-height: 1;
+        font-size: clamp(1.55rem, 2.1vw, 2.25rem);
+        line-height: 1.02;
         font-weight: 950;
+        letter-spacing: -.03em;
     }
 
     .vendor-page-subtitle {
-        margin-top: .45rem;
+        margin-top: .35rem;
         color: var(--arolana-muted);
-        font-size: .95rem;
+        font-size: .84rem;
+        line-height: 1.45;
         font-weight: 700;
     }
 
     .vendor-action-row {
         display: flex;
         align-items: center;
-        gap: .65rem;
+        gap: .55rem;
         flex-wrap: wrap;
     }
 
@@ -107,17 +116,18 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: .5rem;
-        min-height: 2.65rem;
-        padding: .7rem 1rem;
-        border-radius: .95rem;
-        font-size: .84rem;
-        font-weight: 950;
+        gap: .45rem;
+        min-height: 2.35rem;
+        padding: .58rem .85rem;
+        border-radius: .8rem;
+        font-size: .74rem;
+        font-weight: 900;
         text-decoration: none;
         transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
         border: 1px solid transparent;
         white-space: nowrap;
         cursor: pointer;
+        line-height: 1.1;
     }
 
     .vendor-btn:hover {
@@ -128,36 +138,36 @@
     .vendor-btn-primary {
         background: linear-gradient(135deg, var(--arolana-blue), #064b99);
         color: #fff;
-        box-shadow: 0 12px 26px rgba(0, 102, 204, .20);
+        box-shadow: 0 10px 22px rgba(0, 102, 204, .18);
     }
 
     .vendor-btn-orange {
         background: linear-gradient(135deg, var(--arolana-orange), #E85F00);
         color: #fff;
-        box-shadow: 0 12px 26px rgba(255, 122, 0, .20);
+        box-shadow: 0 10px 22px rgba(255, 122, 0, .18);
     }
 
     .vendor-btn-light {
         background: #fff;
         color: var(--arolana-navy);
         border-color: var(--arolana-border);
-        box-shadow: 0 8px 22px rgba(15, 23, 42, .05);
+        box-shadow: 0 6px 16px rgba(15, 23, 42, .05);
     }
 
     .vendor-hero-grid {
         display: grid;
-        grid-template-columns: minmax(0, 1.45fr) minmax(320px, .55fr);
-        gap: 1rem;
-        margin-bottom: 1rem;
+        grid-template-columns: minmax(0, 1.45fr) minmax(300px, .55fr);
+        gap: .9rem;
+        margin-bottom: .9rem;
     }
 
     .vendor-hero-card {
         position: relative;
         overflow: hidden;
-        min-height: 220px;
-        border-radius: 1.45rem;
+        min-height: 210px;
+        border-radius: 1.25rem;
         background: linear-gradient(135deg, var(--arolana-navy), var(--arolana-blue));
-        box-shadow: 0 20px 48px rgba(7, 26, 68, .14);
+        box-shadow: 0 16px 38px rgba(7, 26, 68, .13);
         border: 1px solid rgba(255,255,255,.2);
     }
 
@@ -186,36 +196,36 @@
     .vendor-hero-content {
         position: relative;
         z-index: 2;
-        min-height: 220px;
+        min-height: 210px;
         display: flex;
         align-items: flex-end;
         justify-content: space-between;
-        gap: 1.25rem;
-        padding: 1.35rem;
+        gap: 1rem;
+        padding: 1.15rem;
     }
 
     .vendor-store-block {
         display: flex;
         align-items: center;
-        gap: 1rem;
+        gap: .85rem;
         min-width: 0;
     }
 
     .vendor-store-logo {
-        width: 5.6rem;
-        height: 5.6rem;
+        width: 5rem;
+        height: 5rem;
         flex: 0 0 auto;
         overflow: hidden;
-        border-radius: 1.15rem;
-        border: 4px solid rgba(255,255,255,.92);
+        border-radius: 1rem;
+        border: 3px solid rgba(255,255,255,.92);
         background: var(--arolana-orange);
         color: #fff;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 2.1rem;
+        font-size: 1.85rem;
         font-weight: 950;
-        box-shadow: 0 16px 32px rgba(0,0,0,.20);
+        box-shadow: 0 14px 28px rgba(0,0,0,.18);
     }
 
     .vendor-store-logo img {
@@ -226,37 +236,40 @@
 
     .vendor-store-name {
         color: #fff;
-        font-size: clamp(1.7rem, 2.7vw, 2.9rem);
-        line-height: .98;
+        font-size: clamp(1.55rem, 2.45vw, 2.45rem);
+        line-height: 1;
         font-weight: 950;
         max-width: 820px;
+        letter-spacing: -.03em;
+        word-break: break-word;
     }
 
     .vendor-store-meta {
-        margin-top: .45rem;
-        color: rgba(255,255,255,.78);
-        font-size: .86rem;
+        margin-top: .35rem;
+        color: rgba(255,255,255,.82);
+        font-size: .78rem;
         font-weight: 800;
     }
 
     .vendor-pill-row {
         display: flex;
         flex-wrap: wrap;
-        gap: .45rem;
-        margin-top: .8rem;
+        gap: .38rem;
+        margin-top: .7rem;
     }
 
     .vendor-pill {
         display: inline-flex;
         align-items: center;
-        gap: .35rem;
-        min-height: 1.78rem;
-        padding: .34rem .68rem;
+        gap: .3rem;
+        min-height: 1.55rem;
+        padding: .28rem .56rem;
         border-radius: 999px;
         background: rgba(255,255,255,.92);
         color: var(--arolana-navy);
-        font-size: .70rem;
+        font-size: .62rem;
         font-weight: 950;
+        line-height: 1.1;
     }
 
     .vendor-pill.orange {
@@ -271,25 +284,25 @@
     }
 
     .vendor-progress-card {
-        width: min(340px, 100%);
-        border-radius: 1.15rem;
+        width: min(310px, 100%);
+        border-radius: 1rem;
         background: rgba(255,255,255,.96);
-        padding: .95rem;
-        box-shadow: 0 16px 34px rgba(0,0,0,.14);
+        padding: .82rem;
+        box-shadow: 0 14px 30px rgba(0,0,0,.13);
     }
 
     .vendor-progress-title {
         display: flex;
         justify-content: space-between;
-        gap: .75rem;
+        gap: .6rem;
         color: var(--arolana-navy);
-        font-size: .82rem;
+        font-size: .72rem;
         font-weight: 950;
     }
 
     .vendor-progress-track {
-        margin-top: .6rem;
-        height: .58rem;
+        margin-top: .52rem;
+        height: .48rem;
         overflow: hidden;
         border-radius: 999px;
         background: #E7EEF8;
@@ -302,20 +315,20 @@
     }
 
     .vendor-progress-card p {
-        margin-top: .7rem;
+        margin-top: .62rem;
         color: var(--arolana-muted);
-        font-size: .74rem;
-        line-height: 1.42;
+        font-size: .66rem;
+        line-height: 1.4;
         font-weight: 700;
     }
 
     .vendor-balance-card {
-        border-radius: 1.35rem;
+        border-radius: 1.2rem;
         background: linear-gradient(135deg, #071A44, #0B3E7C);
         color: #fff;
-        min-height: 220px;
-        padding: 1.15rem;
-        box-shadow: 0 20px 48px rgba(7,26,68,.15);
+        min-height: 210px;
+        padding: 1rem;
+        box-shadow: 0 16px 38px rgba(7,26,68,.14);
         display: flex;
         flex-direction: column;
         justify-content: space-between;
@@ -323,41 +336,43 @@
 
     .vendor-balance-label {
         color: rgba(255,255,255,.72);
-        font-size: .76rem;
+        font-size: .66rem;
         font-weight: 950;
         text-transform: uppercase;
         letter-spacing: .08em;
     }
 
     .vendor-balance-amount {
-        margin-top: .32rem;
+        margin-top: .26rem;
         color: #fff;
-        font-size: clamp(2rem, 3.3vw, 3rem);
+        font-size: clamp(1.55rem, 2.6vw, 2.35rem);
         font-weight: 950;
         line-height: 1;
+        word-break: break-word;
     }
 
     .vendor-balance-note {
-        margin-top: .42rem;
+        margin-top: .35rem;
         color: rgba(255,255,255,.72);
-        font-size: .80rem;
+        font-size: .7rem;
+        line-height: 1.4;
         font-weight: 700;
     }
 
     .vendor-mini-actions {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: .62rem;
+        gap: .5rem;
     }
 
     .vendor-mini-actions a {
-        min-height: 2.45rem;
-        border-radius: .85rem;
+        min-height: 2.15rem;
+        border-radius: .75rem;
         display: flex;
         align-items: center;
         justify-content: center;
         color: #fff;
-        font-size: .78rem;
+        font-size: .68rem;
         font-weight: 950;
         background: rgba(255,255,255,.12);
         border: 1px solid rgba(255,255,255,.16);
@@ -367,60 +382,64 @@
     .vendor-kpi-grid {
         display: grid;
         grid-template-columns: repeat(6, minmax(0, 1fr));
-        gap: 1rem;
-        margin-bottom: 1rem;
+        gap: .8rem;
+        margin-bottom: .9rem;
     }
 
     .vendor-kpi-card {
         position: relative;
         overflow: hidden;
-        border-radius: 1.05rem;
+        border-radius: .95rem;
         background: #fff;
-        padding: .95rem;
-        min-height: 108px;
+        padding: .78rem;
+        min-height: 96px;
         border: 1px solid var(--arolana-border);
-        box-shadow: 0 12px 28px rgba(15, 23, 42, .05);
+        box-shadow: 0 10px 24px rgba(15, 23, 42, .045);
     }
 
     .vendor-kpi-card:before {
         content: "";
         position: absolute;
         inset: 0 0 auto 0;
-        height: 4px;
+        height: 3px;
         background: linear-gradient(90deg, var(--arolana-blue), var(--arolana-orange));
     }
 
     .vendor-kpi-icon {
-        width: 2.35rem;
-        height: 2.35rem;
-        border-radius: .9rem;
+        width: 2.1rem;
+        height: 2.1rem;
+        border-radius: .75rem;
         display: flex;
         align-items: center;
         justify-content: center;
         background: #ECF6FF;
         color: var(--arolana-blue);
-        margin-bottom: .58rem;
+        margin-bottom: .5rem;
+        font-size: .82rem;
     }
 
     .vendor-kpi-label {
         color: var(--arolana-muted);
-        font-size: .72rem;
+        font-size: .64rem;
         font-weight: 900;
+        line-height: 1.2;
     }
 
     .vendor-kpi-value {
-        margin-top: .1rem;
+        margin-top: .08rem;
         color: var(--arolana-navy);
-        font-size: 1.55rem;
+        font-size: 1.25rem;
         font-weight: 950;
         line-height: 1;
+        word-break: break-word;
     }
 
     .vendor-kpi-sub {
-        margin-top: .4rem;
+        margin-top: .32rem;
         color: var(--arolana-muted);
-        font-size: .70rem;
+        font-size: .62rem;
         font-weight: 750;
+        line-height: 1.25;
     }
 
     .vendor-command-nav {
@@ -428,16 +447,17 @@
         top: 0;
         z-index: 30;
         display: flex;
-        gap: .5rem;
-        padding: .5rem;
-        margin-bottom: 1rem;
+        gap: .42rem;
+        padding: .42rem;
+        margin-bottom: .9rem;
         overflow-x: auto;
         border: 1px solid var(--arolana-border);
-        border-radius: 1rem;
-        background: rgba(255,255,255,.94);
+        border-radius: .9rem;
+        background: rgba(255,255,255,.95);
         backdrop-filter: blur(18px);
-        box-shadow: 0 12px 26px rgba(15,23,42,.05);
+        box-shadow: 0 10px 24px rgba(15,23,42,.045);
         scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
     }
 
     .vendor-command-nav::-webkit-scrollbar {
@@ -446,13 +466,14 @@
 
     .vendor-command-nav a {
         flex: 0 0 auto;
-        padding: .68rem .9rem;
-        border-radius: .78rem;
+        padding: .58rem .74rem;
+        border-radius: .68rem;
         color: var(--arolana-navy);
-        font-size: .80rem;
+        font-size: .7rem;
         font-weight: 950;
         text-decoration: none;
         border: 1px solid transparent;
+        white-space: nowrap;
     }
 
     .vendor-command-nav a.active,
@@ -464,36 +485,36 @@
     .vendor-main-grid {
         display: grid;
         grid-template-columns: 1fr;
-        gap: 1rem;
+        gap: .9rem;
         align-items: start;
     }
 
     .vendor-dashboard-section-grid {
         display: grid;
-        grid-template-columns: minmax(0, 1.25fr) minmax(320px, .75fr);
-        gap: 1rem;
+        grid-template-columns: minmax(0, 1.25fr) minmax(300px, .75fr);
+        gap: .9rem;
         align-items: start;
     }
 
     .vendor-side-grid {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 1rem;
+        gap: .9rem;
         margin-bottom: 0;
     }
 
     .vendor-bottom-grid {
         display: grid;
-        grid-template-columns: minmax(0, 1.18fr) minmax(320px, .82fr);
-        gap: 1rem;
+        grid-template-columns: minmax(0, 1.18fr) minmax(300px, .82fr);
+        gap: .9rem;
         align-items: start;
     }
 
     .vendor-panel {
-        border-radius: 1.15rem;
+        border-radius: 1rem;
         background: #fff;
         border: 1px solid var(--arolana-border);
-        box-shadow: 0 12px 30px rgba(15,23,42,.055);
+        box-shadow: 0 10px 26px rgba(15,23,42,.048);
         overflow: hidden;
         min-width: 0;
     }
@@ -502,8 +523,8 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: .85rem;
-        padding: .9rem 1rem;
+        gap: .7rem;
+        padding: .78rem .85rem;
         border-bottom: 1px solid var(--arolana-border);
         background: linear-gradient(180deg, #fff, #f8fbff);
     }
@@ -511,29 +532,31 @@
     .vendor-panel-title {
         margin: 0;
         color: var(--arolana-navy);
-        font-size: 1rem;
+        font-size: .88rem;
         font-weight: 950;
+        line-height: 1.2;
     }
 
     .vendor-panel-subtitle {
-        margin-top: .15rem;
+        margin-top: .12rem;
         color: var(--arolana-muted);
-        font-size: .74rem;
+        font-size: .66rem;
         font-weight: 700;
+        line-height: 1.35;
     }
 
     .vendor-panel-body {
-        padding: .9rem;
+        padding: .78rem;
     }
 
     .vendor-chart-grid {
         display: grid;
         grid-template-columns: minmax(0, .72fr) minmax(0, 1.28fr);
-        gap: .9rem;
+        gap: .8rem;
     }
 
     .vendor-chart-box {
-        min-height: 230px;
+        min-height: 210px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -545,16 +568,16 @@
 
     .vendor-list {
         display: grid;
-        gap: .65rem;
+        gap: .56rem;
     }
 
     .vendor-list-item {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: .75rem;
-        padding: .78rem;
-        border-radius: .95rem;
+        gap: .62rem;
+        padding: .66rem;
+        border-radius: .82rem;
         background: #F8FBFF;
         border: 1px solid #EAF1FB;
         min-width: 0;
@@ -563,14 +586,14 @@
     .vendor-list-left {
         display: flex;
         align-items: center;
-        gap: .7rem;
+        gap: .58rem;
         min-width: 0;
     }
 
     .vendor-product-thumb {
-        width: 3.1rem;
-        height: 3.1rem;
-        border-radius: .78rem;
+        width: 2.8rem;
+        height: 2.8rem;
+        border-radius: .68rem;
         overflow: hidden;
         background: #fff;
         border: 1px solid var(--arolana-border);
@@ -584,12 +607,12 @@
         width: 100%;
         height: 100%;
         object-fit: contain;
-        padding: .22rem;
+        padding: .18rem;
     }
 
     .vendor-list-title {
         color: var(--arolana-navy);
-        font-size: .84rem;
+        font-size: .74rem;
         font-weight: 950;
         line-height: 1.25;
         overflow: hidden;
@@ -599,22 +622,24 @@
     }
 
     .vendor-list-meta {
-        margin-top: .12rem;
+        margin-top: .1rem;
         color: var(--arolana-muted);
-        font-size: .71rem;
+        font-size: .62rem;
         font-weight: 750;
+        line-height: 1.25;
     }
 
     .vendor-status-pill {
         display: inline-flex;
         align-items: center;
-        gap: .35rem;
-        min-height: 1.55rem;
-        padding: .27rem .55rem;
+        gap: .28rem;
+        min-height: 1.38rem;
+        padding: .22rem .46rem;
         border-radius: 999px;
-        font-size: .66rem;
+        font-size: .58rem;
         font-weight: 950;
         white-space: nowrap;
+        line-height: 1.1;
     }
 
     .status-green { background: #DCFCE7; color: #15803D; }
@@ -627,13 +652,13 @@
     .vendor-quick-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: .65rem;
+        gap: .56rem;
     }
 
     .vendor-quick-card {
-        min-height: 86px;
-        border-radius: 1rem;
-        padding: .85rem;
+        min-height: 78px;
+        border-radius: .88rem;
+        padding: .72rem;
         background: #F8FBFF;
         border: 1px solid var(--arolana-border);
         text-decoration: none;
@@ -652,27 +677,29 @@
 
     .vendor-quick-card i {
         color: var(--arolana-blue);
-        font-size: 1.1rem;
+        font-size: .95rem;
     }
 
     .vendor-quick-card strong {
         display: block;
-        margin-top: .45rem;
+        margin-top: .38rem;
         color: var(--arolana-navy);
-        font-size: .86rem;
+        font-size: .76rem;
         font-weight: 950;
+        line-height: 1.15;
     }
 
     .vendor-quick-card span {
         color: var(--arolana-muted);
-        font-size: .69rem;
+        font-size: .6rem;
         font-weight: 750;
+        line-height: 1.25;
     }
 
     .vendor-alert-card {
-        border-radius: 1.05rem;
-        padding: .9rem;
-        margin-bottom: 1rem;
+        border-radius: .95rem;
+        padding: .78rem;
+        margin-bottom: .9rem;
         border: 1px solid;
     }
 
@@ -692,35 +719,41 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: .85rem;
+        gap: .72rem;
     }
 
     .vendor-alert-left {
         display: flex;
-        gap: .75rem;
+        gap: .62rem;
         align-items: flex-start;
     }
 
+    .vendor-alert-left strong {
+        font-size: .82rem;
+        line-height: 1.2;
+    }
+
     .vendor-alert-icon {
-        width: 2.45rem;
-        height: 2.45rem;
-        border-radius: .85rem;
+        width: 2.15rem;
+        height: 2.15rem;
+        border-radius: .75rem;
         display: flex;
         align-items: center;
         justify-content: center;
         background: rgba(255,122,0,.14);
         color: var(--arolana-orange);
         flex: 0 0 auto;
+        font-size: .82rem;
     }
 
     .vendor-notifications {
         display: grid;
-        gap: .6rem;
+        gap: .52rem;
     }
 
     .notification-item {
-        border-radius: .9rem;
-        padding: .72rem;
+        border-radius: .8rem;
+        padding: .62rem;
         border: 1px solid var(--arolana-border);
         background: #fff;
     }
@@ -731,15 +764,15 @@
 
     .vendor-accordion {
         border: 1px solid var(--arolana-border);
-        border-radius: .95rem;
+        border-radius: .85rem;
         overflow: hidden;
         background: #fff;
-        margin-bottom: .7rem;
+        margin-bottom: .6rem;
     }
 
     .vendor-accordion summary {
         cursor: pointer;
-        padding: .85rem;
+        padding: .72rem;
         list-style: none;
         font-weight: 950;
         color: var(--arolana-navy);
@@ -747,7 +780,8 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 1rem;
+        gap: .8rem;
+        font-size: .78rem;
     }
 
     .vendor-accordion summary::-webkit-details-marker {
@@ -768,15 +802,16 @@
     .vendor-form-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: .75rem;
-        padding: .85rem;
+        gap: .62rem;
+        padding: .72rem;
     }
 
     .vendor-form-grid label,
     .vendor-form-full label {
         color: var(--arolana-navy);
-        font-size: .74rem;
+        font-size: .66rem;
         font-weight: 950;
+        line-height: 1.25;
     }
 
     .vendor-form-grid input,
@@ -785,15 +820,22 @@
     .vendor-form-full textarea,
     .vendor-form-full input {
         width: 100%;
-        margin-top: .32rem;
-        min-height: 2.55rem;
-        border-radius: .82rem;
+        margin-top: .28rem;
+        min-height: 2.25rem;
+        border-radius: .72rem;
         border: 1px solid var(--arolana-border);
         background: #fff;
-        padding: .68rem .78rem;
+        padding: .58rem .68rem;
         color: var(--arolana-navy);
+        font-size: .72rem;
         font-weight: 750;
         outline: none;
+    }
+
+    .vendor-form-grid textarea,
+    .vendor-form-full textarea {
+        min-height: 4.6rem;
+        resize: vertical;
     }
 
     .vendor-form-grid input:focus,
@@ -806,44 +848,56 @@
     }
 
     .vendor-form-full {
-        padding: 0 .85rem .85rem;
+        padding: 0 .72rem .72rem;
         display: grid;
-        gap: .75rem;
+        gap: .62rem;
     }
 
     .vendor-table-wrap {
         overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
 
     .vendor-table {
         width: 100%;
-        min-width: 760px;
+        min-width: 720px;
         border-collapse: collapse;
     }
 
     .vendor-table th {
-        padding: .72rem;
+        padding: .62rem;
         text-align: left;
         color: var(--arolana-muted);
-        font-size: .70rem;
+        font-size: .62rem;
         font-weight: 950;
         background: #F8FBFF;
         border-bottom: 1px solid var(--arolana-border);
+        white-space: nowrap;
     }
 
     .vendor-table td {
-        padding: .78rem;
+        padding: .68rem;
         border-bottom: 1px solid var(--arolana-border);
         color: var(--arolana-navy);
-        font-size: .80rem;
+        font-size: .7rem;
         font-weight: 750;
+        white-space: nowrap;
     }
 
     .vendor-empty {
-        padding: 1.5rem 1rem;
+        padding: 1.25rem .85rem;
         text-align: center;
         color: var(--arolana-muted);
+        font-size: .76rem;
         font-weight: 800;
+    }
+
+    .vendor-mobile-only {
+        display: none;
+    }
+
+    .vendor-desktop-only {
+        display: block;
     }
 
     @media (max-width: 1280px) {
@@ -867,57 +921,398 @@
     }
 
     @media (max-width: 768px) {
+        body:has(.vendor-dashboard-page) {
+            background: #F3F7FC !important;
+        }
+
         .vendor-dashboard-page {
-            padding: .85rem .8rem 1.5rem !important;
+            padding: .72rem .62rem 5.5rem !important;
+        }
+
+        .vendor-command-shell {
+            display: block;
         }
 
         .vendor-topbar {
             align-items: stretch;
             flex-direction: column;
+            gap: .72rem;
+            margin-bottom: .72rem;
+        }
+
+        .vendor-page-title {
+            font-size: 1.55rem;
+        }
+
+        .vendor-page-subtitle {
+            font-size: .75rem;
+            line-height: 1.42;
         }
 
         .vendor-action-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
+            gap: .52rem;
+            width: 100%;
+        }
+
+        .vendor-action-row .vendor-btn {
+            width: 100%;
+            min-height: 2.65rem;
+            font-size: .72rem;
+            border-radius: .85rem;
+        }
+
+        .vendor-action-row .vendor-btn-orange {
+            grid-column: 1 / -1;
+        }
+
+        .vendor-hero-grid {
+            grid-template-columns: 1fr;
+            gap: .72rem;
+            margin-bottom: .72rem;
+        }
+
+        .vendor-hero-card {
+            min-height: auto;
+            border-radius: 1.05rem;
+        }
+
+        .vendor-hero-bg {
+            opacity: .45;
+            object-position: center;
+        }
+
+        .vendor-hero-gradient {
+            background:
+                linear-gradient(180deg, rgba(7, 26, 68, .78), rgba(7, 26, 68, .92)),
+                radial-gradient(circle at 20% 10%, rgba(56, 189, 248, .18), transparent 28%),
+                radial-gradient(circle at 90% 20%, rgba(255, 122, 0, .18), transparent 26%);
         }
 
         .vendor-hero-content {
-            align-items: flex-start;
+            min-height: auto;
+            align-items: stretch;
             flex-direction: column;
+            gap: .9rem;
+            padding: .9rem;
         }
 
         .vendor-store-block {
             align-items: flex-start;
-            flex-direction: column;
+            flex-direction: row;
+            gap: .7rem;
         }
 
         .vendor-store-logo {
-            width: 5rem;
-            height: 5rem;
+            width: 4.1rem;
+            height: 4.1rem;
+            border-radius: .9rem;
+            border-width: 2px;
+            font-size: 1.4rem;
+        }
+
+        .vendor-store-name {
+            font-size: 1.35rem;
+            line-height: 1.05;
+            -webkit-line-clamp: 2;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+        }
+
+        .vendor-store-meta {
+            font-size: .68rem;
+        }
+
+        .vendor-pill-row {
+            gap: .3rem;
+            margin-top: .55rem;
+        }
+
+        .vendor-pill {
+            min-height: 1.4rem;
+            padding: .24rem .48rem;
+            font-size: .55rem;
+        }
+
+        .vendor-progress-card {
+            width: 100%;
+            padding: .72rem;
+            border-radius: .9rem;
+        }
+
+        .vendor-progress-card p {
+            font-size: .62rem;
+        }
+
+        .vendor-balance-card {
+            min-height: auto;
+            border-radius: 1rem;
+            padding: .9rem;
+            gap: .85rem;
+        }
+
+        .vendor-balance-amount {
+            font-size: 1.45rem;
+        }
+
+        .vendor-mini-actions a {
+            min-height: 2.25rem;
+            font-size: .66rem;
+        }
+
+        .vendor-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: .62rem;
+            margin-bottom: .72rem;
+        }
+
+        .vendor-kpi-card {
+            min-height: 88px;
+            padding: .68rem;
+            border-radius: .88rem;
+        }
+
+        .vendor-kpi-icon {
+            width: 1.9rem;
+            height: 1.9rem;
+            border-radius: .7rem;
+            margin-bottom: .42rem;
+            font-size: .76rem;
+        }
+
+        .vendor-kpi-label {
+            font-size: .58rem;
+        }
+
+        .vendor-kpi-value {
+            font-size: 1.08rem;
+        }
+
+        .vendor-kpi-sub {
+            font-size: .55rem;
+        }
+
+        .vendor-command-nav {
+            margin-left: -.62rem;
+            margin-right: -.62rem;
+            border-radius: 0;
+            border-left: 0;
+            border-right: 0;
+            padding: .45rem .62rem;
+            top: 0;
+        }
+
+        .vendor-command-nav a {
+            padding: .56rem .7rem;
+            font-size: .64rem;
+        }
+
+        .vendor-alert-card {
+            padding: .7rem;
+            border-radius: .88rem;
+            margin-bottom: .72rem;
+        }
+
+        .vendor-alert-flex {
+            align-items: stretch;
+            flex-direction: column;
+            gap: .65rem;
+        }
+
+        .vendor-alert-left {
+            gap: .55rem;
+        }
+
+        .vendor-alert-left p {
+            font-size: .68rem !important;
+            line-height: 1.4;
+        }
+
+        .vendor-alert-left strong {
+            font-size: .76rem;
+        }
+
+        .vendor-alert-card .vendor-btn {
+            width: 100%;
+            min-height: 2.45rem;
+        }
+
+        .vendor-main-grid,
+        .vendor-dashboard-section-grid,
+        .vendor-side-grid,
+        .vendor-bottom-grid,
+        .vendor-chart-grid {
+            grid-template-columns: 1fr;
+            gap: .72rem;
+        }
+
+        .vendor-panel {
+            border-radius: .95rem;
+        }
+
+        .vendor-panel-header {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: .52rem;
+            padding: .72rem;
+        }
+
+        .vendor-panel-header .vendor-btn {
+            width: 100%;
+        }
+
+        .vendor-panel-title {
+            font-size: .84rem;
+        }
+
+        .vendor-panel-subtitle {
+            font-size: .62rem;
+        }
+
+        .vendor-panel-body {
+            padding: .68rem;
+        }
+
+        .vendor-chart-box {
+            min-height: 170px;
+            max-height: 230px;
+        }
+
+        .vendor-quick-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: .52rem;
+        }
+
+        .vendor-quick-card {
+            min-height: 74px;
+            padding: .65rem;
+            border-radius: .8rem;
+        }
+
+        .vendor-quick-card strong {
+            font-size: .7rem;
+        }
+
+        .vendor-quick-card span {
+            font-size: .56rem;
+        }
+
+        .vendor-list-item {
+            padding: .58rem;
+            border-radius: .78rem;
+            align-items: flex-start;
+        }
+
+        .vendor-list-left {
+            gap: .52rem;
+            align-items: flex-start;
+        }
+
+        .vendor-product-thumb {
+            width: 2.55rem;
+            height: 2.55rem;
+        }
+
+        .vendor-list-title {
+            font-size: .68rem;
+            -webkit-line-clamp: 2;
+        }
+
+        .vendor-list-meta {
+            font-size: .56rem;
+        }
+
+        .vendor-status-pill {
+            min-height: 1.28rem;
+            font-size: .52rem;
+            padding: .2rem .38rem;
+        }
+
+        .vendor-table-wrap {
+            border-radius: .8rem;
+            border: 1px solid var(--arolana-border);
+        }
+
+        .vendor-table {
+            min-width: 640px;
+        }
+
+        .vendor-form-grid {
+            grid-template-columns: 1fr;
+            gap: .58rem;
+            padding: .65rem;
+        }
+
+        .vendor-form-full {
+            padding: 0 .65rem .65rem;
+        }
+
+        .vendor-form-grid input,
+        .vendor-form-grid select,
+        .vendor-form-grid textarea,
+        .vendor-form-full textarea,
+        .vendor-form-full input {
+            min-height: 2.55rem;
+            font-size: .76rem;
+            border-radius: .8rem;
+        }
+
+        .vendor-accordion summary {
+            padding: .72rem;
+            font-size: .74rem;
+        }
+
+        .vendor-desktop-only {
+            display: none !important;
+        }
+
+        .vendor-mobile-only {
+            display: block;
+        }
+    }
+
+    @media (max-width: 430px) {
+        .vendor-dashboard-page {
+            padding-left: .55rem !important;
+            padding-right: .55rem !important;
+        }
+
+        .vendor-action-row {
+            grid-template-columns: 1fr;
+        }
+
+        .vendor-action-row .vendor-btn-orange {
+            grid-column: auto;
         }
 
         .vendor-kpi-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
-        .vendor-form-grid {
-            grid-template-columns: 1fr;
+        .vendor-store-block {
+            flex-direction: row;
         }
 
-        .vendor-quick-grid,
-        .vendor-side-grid {
-            grid-template-columns: 1fr;
+        .vendor-store-logo {
+            width: 3.75rem;
+            height: 3.75rem;
         }
 
-        .vendor-alert-flex {
-            align-items: stretch;
-            flex-direction: column;
+        .vendor-store-name {
+            font-size: 1.22rem;
+        }
+
+        .vendor-quick-grid {
+            grid-template-columns: 1fr 1fr;
         }
     }
 
-    @media (max-width: 430px) {
+    @media (max-width: 360px) {
         .vendor-kpi-grid,
-        .vendor-action-row {
+        .vendor-quick-grid {
             grid-template-columns: 1fr;
         }
     }
@@ -1040,7 +1435,7 @@
 
                 <div>
                     <div class="vendor-balance-label">This month so far</div>
-                    <div class="vendor-balance-amount" style="font-size:2rem;">
+                    <div class="vendor-balance-amount" style="font-size:1.5rem;">
                         ₦{{ monthly_earnings|default:total_sales|default:0|floatformat:2 }}
                     </div>
                 </div>
@@ -1057,7 +1452,7 @@
                 <div class="vendor-kpi-icon"><i class="fas fa-shopping-bag"></i></div>
                 <div class="vendor-kpi-label">Total Orders</div>
                 <div class="vendor-kpi-value">{{ total_orders|default:0 }}</div>
-                <div class="vendor-kpi-sub">All-time vendor orders</div>
+                <div class="vendor-kpi-sub">All-time orders</div>
             </div>
 
             <div class="vendor-kpi-card">
@@ -1073,7 +1468,7 @@
                 <div class="vendor-kpi-icon"><i class="fas fa-check-circle"></i></div>
                 <div class="vendor-kpi-label">Approved</div>
                 <div class="vendor-kpi-value">{{ approved_count|default:0 }}</div>
-                <div class="vendor-kpi-sub">Live marketplace products</div>
+                <div class="vendor-kpi-sub">Live products</div>
             </div>
 
             <div class="vendor-kpi-card">
@@ -1105,7 +1500,7 @@
             <a href="#store-setup">Store Setup</a>
             <a href="#subscription">Subscription</a>
             <a href="#analytics">Analytics</a>
-            <a href="#trust">Trust & Compliance</a>
+            <a href="#trust">Trust</a>
         </nav>
 
         {% if not vendor_profile.pickup_location_is_ready %}
@@ -1115,8 +1510,8 @@
                     <span class="vendor-alert-icon"><i class="fas fa-location-crosshairs"></i></span>
                     <div>
                         <strong>Add your exact pickup location</strong>
-                        <p style="margin:.25rem 0 0;font-size:.85rem;font-weight:700;">
-                            Delivery pricing and nearby rider assignment need your exact store or warehouse map pin.
+                        <p style="margin:.25rem 0 0;font-size:.78rem;font-weight:700;">
+                            Delivery pricing and rider assignment need your exact store or warehouse map pin.
                         </p>
                     </div>
                 </div>
@@ -1133,8 +1528,8 @@
                     <span class="vendor-alert-icon" style="background:#DCFCE7;color:#16a34a;"><i class="fas fa-check"></i></span>
                     <div>
                         <strong>Pickup pin ready</strong>
-                        <p style="margin:.25rem 0 0;font-size:.85rem;font-weight:700;">
-                            Riders can navigate to your pickup location and checkout can calculate distance-based delivery.
+                        <p style="margin:.25rem 0 0;font-size:.78rem;font-weight:700;">
+                            Riders can navigate to your pickup location and checkout can calculate delivery.
                         </p>
                     </div>
                 </div>
@@ -1150,7 +1545,7 @@
 
             <section class="vendor-dashboard-section-grid">
                 <main>
-                    <section id="overview" class="vendor-panel" style="margin-bottom:1rem;">
+                    <section id="overview" class="vendor-panel" style="margin-bottom:.9rem;">
                         <div class="vendor-panel-header">
                             <div>
                                 <h2 class="vendor-panel-title">Business Overview</h2>
@@ -1162,7 +1557,7 @@
                         <div class="vendor-panel-body">
                             <div class="vendor-chart-grid">
                                 <div class="vendor-chart-box">
-                                    <canvas id="orderStatusChart" width="240" height="240"></canvas>
+                                    <canvas id="orderStatusChart" width="220" height="220"></canvas>
                                 </div>
 
                                 <div>
@@ -1171,7 +1566,7 @@
                                             <i class="fas fa-clock"></i>
                                             <div>
                                                 <strong>{{ pending_count|default:0 }} Pending</strong>
-                                                <span>Products awaiting approval</span>
+                                                <span>Awaiting approval</span>
                                             </div>
                                         </a>
 
@@ -1187,7 +1582,7 @@
                                             <i class="fas fa-pen-to-square"></i>
                                             <div>
                                                 <strong>{{ changes_required_count|default:0 }} Changes</strong>
-                                                <span>Need vendor update</span>
+                                                <span>Needs update</span>
                                             </div>
                                         </a>
 
@@ -1195,21 +1590,21 @@
                                             <i class="fas fa-circle-xmark"></i>
                                             <div>
                                                 <strong>{{ rejected_count|default:0 }} Rejected</strong>
-                                                <span>Review and resubmit</span>
+                                                <span>Review again</span>
                                             </div>
                                         </a>
                                     </div>
 
-                                    <div class="vendor-panel" style="margin-top:.9rem;box-shadow:none;">
+                                    <div class="vendor-panel" style="margin-top:.75rem;box-shadow:none;">
                                         <div class="vendor-panel-body">
-                                            <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+                                            <div style="display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;">
                                                 <div>
                                                     <div class="vendor-kpi-label">Fulfillment Rate</div>
                                                     <div class="vendor-kpi-value" style="color:#16a34a;">{{ fulfillment_rate|default:0|floatformat:1 }}%</div>
                                                     <div class="vendor-kpi-sub">Return rate {{ return_rate|default:0|floatformat:1 }}%</div>
                                                 </div>
 
-                                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;min-width:190px;">
+                                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:.42rem;min-width:170px;">
                                                     <span class="vendor-status-pill status-green">Delivered {{ delivered_count|default:0 }}</span>
                                                     <span class="vendor-status-pill status-blue">Shipped {{ shipped_count|default:0 }}</span>
                                                     <span class="vendor-status-pill status-red">Cancelled {{ cancelled_count|default:0 }}</span>
@@ -1224,7 +1619,7 @@
                         </div>
                     </section>
 
-                    <section id="orders" class="vendor-panel" style="margin-bottom:1rem;">
+                    <section id="orders" class="vendor-panel" style="margin-bottom:.9rem;">
                         <div class="vendor-panel-header">
                             <div>
                                 <h2 class="vendor-panel-title">Recent Orders</h2>
@@ -1280,7 +1675,7 @@
                 </main>
 
                 <aside>
-                    <section class="vendor-panel" style="margin-bottom:1rem;">
+                    <section class="vendor-panel" style="margin-bottom:.9rem;">
                         <div class="vendor-panel-header">
                             <div>
                                 <h2 class="vendor-panel-title">Quick Actions</h2>
@@ -1348,7 +1743,7 @@
                                 <h2 class="vendor-panel-title">Notifications</h2>
                                 <p class="vendor-panel-subtitle">{{ unread_notification_count|default:0 }} unread · {{ notification_count|default:0 }} total</p>
                             </div>
-                            <button onclick="deleteAllNotifications()" class="vendor-btn vendor-btn-light" style="min-height:2.2rem;padding:.45rem .7rem;color:#dc2626;">
+                            <button onclick="deleteAllNotifications()" class="vendor-btn vendor-btn-light" style="min-height:2.1rem;padding:.42rem .65rem;color:#dc2626;">
                                 Clear
                             </button>
                         </div>
@@ -1357,9 +1752,9 @@
                             <div class="vendor-notifications" id="dashboardNotifications">
                                 {% for notif in notifications|slice:":4" %}
                                 <div id="notif-{{ notif.id }}" class="notification-item">
-                                    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.7rem;">
+                                    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.6rem;">
                                         <div style="min-width:0;">
-                                            <strong style="display:block;color:var(--arolana-navy);font-size:.82rem;">
+                                            <strong style="display:block;color:var(--arolana-navy);font-size:.72rem;line-height:1.25;">
                                                 {% if notif.notification_type == 'product_approved' %}
                                                     <i class="fas fa-check-circle" style="color:#16a34a;"></i>
                                                 {% elif notif.notification_type == 'product_rejected' %}
@@ -1374,16 +1769,16 @@
                                                 {{ notif.title }}
                                             </strong>
 
-                                            <p style="margin:.22rem 0 0;color:var(--arolana-muted);font-size:.73rem;font-weight:700;">
+                                            <p style="margin:.2rem 0 0;color:var(--arolana-muted);font-size:.62rem;font-weight:700;line-height:1.35;">
                                                 {{ notif.message|truncatewords:14 }}
                                             </p>
 
-                                            <span style="display:block;margin-top:.22rem;color:#94a3b8;font-size:.66rem;font-weight:800;">
+                                            <span style="display:block;margin-top:.2rem;color:#94a3b8;font-size:.58rem;font-weight:800;">
                                                 {{ notif.created_at|timesince }} ago
                                             </span>
 
                                             {% if notif.action_url %}
-                                            <a href="{{ notif.action_url }}" style="display:inline-block;margin-top:.3rem;color:var(--arolana-blue);font-size:.70rem;font-weight:950;">
+                                            <a href="{{ notif.action_url }}" style="display:inline-block;margin-top:.28rem;color:var(--arolana-blue);font-size:.62rem;font-weight:950;">
                                                 View Details →
                                             </a>
                                             {% endif %}
@@ -1409,7 +1804,7 @@
                             <h2 class="vendor-panel-title">Top Products</h2>
                             <p class="vendor-panel-subtitle">Performance and approval status.</p>
                         </div>
-                        <a href="{% url 'dashboard:vendor_add_product' %}" class="vendor-btn vendor-btn-primary" style="min-height:2.2rem;padding:.45rem .7rem;">Add</a>
+                        <a href="{% url 'dashboard:vendor_add_product' %}" class="vendor-btn vendor-btn-primary" style="min-height:2.1rem;padding:.42rem .65rem;">Add</a>
                     </div>
 
                     <div class="vendor-panel-body">
@@ -1456,12 +1851,12 @@
                             <h2 class="vendor-panel-title">Subscription</h2>
                             <p class="vendor-panel-subtitle">{{ subscription_label }} · {% if subscription_active %}Active{% else %}Inactive{% endif %}</p>
                         </div>
-                        <a href="{% url 'subscriptions:plans' %}" class="vendor-btn vendor-btn-orange" style="min-height:2.2rem;padding:.45rem .7rem;">Upgrade</a>
+                        <a href="{% url 'subscriptions:plans' %}" class="vendor-btn vendor-btn-orange" style="min-height:2.1rem;padding:.42rem .65rem;">Upgrade</a>
                     </div>
 
                     <div class="vendor-panel-body">
                         {% if subscription_benefits_image_url %}
-                        <img src="{{ subscription_benefits_image_url }}" alt="Arolana vendor subscription benefits" style="width:100%;max-height:120px;object-fit:cover;border-radius:.95rem;border:1px solid var(--arolana-border);margin-bottom:.85rem;" loading="lazy" decoding="async">
+                        <img src="{{ subscription_benefits_image_url }}" alt="Arolana vendor subscription benefits" style="width:100%;max-height:110px;object-fit:cover;border-radius:.85rem;border:1px solid var(--arolana-border);margin-bottom:.72rem;" loading="lazy" decoding="async">
                         {% endif %}
 
                         <div class="vendor-list">
@@ -1484,7 +1879,7 @@
                         </div>
 
                         {% if subscription_expiring_soon %}
-                        <div class="vendor-alert-card vendor-alert-amber" style="margin-top:.85rem;margin-bottom:0;">
+                        <div class="vendor-alert-card vendor-alert-amber" style="margin-top:.72rem;margin-bottom:0;">
                             Your subscription expires soon.
                         </div>
                         {% endif %}
@@ -1504,7 +1899,7 @@
                             {% csrf_token %}
                             <input type="hidden" name="dashboard_action" value="change_password">
 
-                            <div class="vendor-form-full" style="padding:0;gap:.7rem;">
+                            <div class="vendor-form-full" style="padding:0;gap:.6rem;">
                                 <label>Current password/PIN
                                     <input type="password" name="current_password" autocomplete="current-password" required>
                                 </label>
@@ -1516,11 +1911,11 @@
                                 </label>
                             </div>
 
-                            <p style="margin:.75rem 0 0;border-radius:.9rem;background:#EFF6FF;padding:.72rem;color:#1D4ED8;font-size:.72rem;font-weight:800;line-height:1.42;">
+                            <p style="margin:.68rem 0 0;border-radius:.82rem;background:#EFF6FF;padding:.65rem;color:#1D4ED8;font-size:.64rem;font-weight:800;line-height:1.42;">
                                 A security alert and confirmation email will be sent to <strong>{{ request.user.email }}</strong>.
                             </p>
 
-                            <button class="vendor-btn vendor-btn-primary" style="width:100%;margin-top:.85rem;" type="submit">
+                            <button class="vendor-btn vendor-btn-primary" style="width:100%;margin-top:.72rem;" type="submit">
                                 Change Password / PIN
                             </button>
                         </form>
@@ -1681,7 +2076,7 @@
                 </section>
 
                 <aside>
-                    <section id="analytics" class="vendor-panel" style="margin-bottom:1rem;">
+                    <section id="analytics" class="vendor-panel" style="margin-bottom:.9rem;">
                         <div class="vendor-panel-header">
                             <div>
                                 <h2 class="vendor-panel-title">Monthly Sales Analytics</h2>
@@ -1689,11 +2084,11 @@
                             </div>
                         </div>
                         <div class="vendor-panel-body">
-                            <canvas id="salesChart" height="135"></canvas>
+                            <canvas id="salesChart" height="120"></canvas>
                         </div>
                     </section>
 
-                    <section class="vendor-panel" style="margin-bottom:1rem;">
+                    <section class="vendor-panel" style="margin-bottom:.9rem;">
                         <div class="vendor-panel-header">
                             <div>
                                 <h2 class="vendor-panel-title">Invoices / Receipts</h2>
@@ -1724,7 +2119,7 @@
                                 <h2 class="vendor-panel-title">Recent Reviews</h2>
                                 <p class="vendor-panel-subtitle">Customer feedback and trust signals.</p>
                             </div>
-                            <a href="{% url 'dashboard:vendor_reviews' %}" class="vendor-btn vendor-btn-light" style="min-height:2.2rem;padding:.45rem .7rem;">View All</a>
+                            <a href="{% url 'dashboard:vendor_reviews' %}" class="vendor-btn vendor-btn-light" style="min-height:2.1rem;padding:.42rem .65rem;">View All</a>
                         </div>
 
                         <div class="vendor-panel-body">
@@ -1733,8 +2128,8 @@
                                 {% for review in recent_reviews|slice:":3" %}
                                 <div class="vendor-list-item">
                                     <div style="min-width:0;">
-                                        <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.22rem;">
-                                            <div style="color:#F59E0B;">
+                                        <div style="display:flex;align-items:center;gap:.42rem;margin-bottom:.2rem;">
+                                            <div style="color:#F59E0B;font-size:.68rem;">
                                                 {% for i in "12345"|make_list %}
                                                     {% if forloop.counter <= review.rating %}
                                                         <i class="fas fa-star"></i>
@@ -1787,14 +2182,16 @@
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: true,
                 cutout: '68%',
                 plugins: {
                     legend: {
                         position: 'bottom',
                         labels: {
                             usePointStyle: true,
-                            boxWidth: 8,
+                            boxWidth: 7,
                             font: {
+                                size: 10,
                                 weight: 'bold'
                             }
                         }
@@ -1818,7 +2215,8 @@
                     backgroundColor: 'rgba(0, 102, 204, 0.10)',
                     pointBackgroundColor: '#FF7A00',
                     pointBorderColor: '#FF7A00',
-                    pointRadius: 4,
+                    pointRadius: 3,
+                    borderWidth: 2,
                     tension: 0.42,
                     fill: true
                 }]
@@ -1834,11 +2232,21 @@
                 scales: {
                     x: {
                         grid: { display: false },
-                        ticks: { font: { weight: 'bold' } }
+                        ticks: {
+                            font: {
+                                size: 9,
+                                weight: 'bold'
+                            }
+                        }
                     },
                     y: {
                         grid: { color: 'rgba(148, 163, 184, .18)' },
-                        ticks: { font: { weight: 'bold' } }
+                        ticks: {
+                            font: {
+                                size: 9,
+                                weight: 'bold'
+                            }
+                        }
                     }
                 }
             }
