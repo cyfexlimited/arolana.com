@@ -194,6 +194,8 @@ class VendorQuoteRequest(models.Model):
         ("admin_review", "Admin Review"),
         ("sent_to_vendor", "Sent to Vendor"),
         ("vendor_replied", "Vendor Replied"),
+        ("admin_follow_up", "Admin Follow-up"),
+        ("customer_updated", "Customer Updated"),
         ("closed", "Closed"),
         ("spam", "Spam"),
     )
@@ -231,6 +233,22 @@ class VendorQuoteRequest(models.Model):
 
     admin_notes = models.TextField(blank=True)
     vendor_response = models.TextField(blank=True)
+    admin_customer_response = models.TextField(blank=True)
+    internal_resolution_notes = models.TextField(blank=True)
+    sent_to_vendor_at = models.DateTimeField(null=True, blank=True)
+    vendor_responded_at = models.DateTimeField(null=True, blank=True)
+    admin_last_followed_up_at = models.DateTimeField(null=True, blank=True)
+    customer_last_notified_at = models.DateTimeField(null=True, blank=True)
+    escalation_level = models.PositiveSmallIntegerField(default=0, db_index=True)
+    is_admin_intervention_required = models.BooleanField(default=False, db_index=True)
+    email_notification_status = models.JSONField(default=dict, blank=True)
+    assigned_admin = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_vendor_quote_requests",
+    )
 
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     user_agent = models.TextField(blank=True)
@@ -250,6 +268,34 @@ class VendorQuoteRequest(models.Model):
 
     def __str__(self):
         return f"Quote request for {self.vendor} from {self.name}"
+
+
+class VendorQuoteMessage(models.Model):
+    quote_request = models.ForeignKey(VendorQuoteRequest, on_delete=models.CASCADE, related_name="quote_messages")
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="sent_vendor_quote_messages")
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="received_vendor_quote_messages",
+    )
+    message = models.TextField()
+    is_admin_message = models.BooleanField(default=False)
+    is_vendor_message = models.BooleanField(default=False)
+    is_read = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("created_at",)
+        indexes = [
+            models.Index(fields=("quote_request", "created_at")),
+            models.Index(fields=("recipient", "is_read")),
+        ]
+
+    def __str__(self):
+        return f"Quote #{self.quote_request_id} message by {self.sender}"
 
 class SiteSettings(BaseModel):
     # Basic Information

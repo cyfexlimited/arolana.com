@@ -26,6 +26,8 @@ urlpatterns = [
     path("admin/broadcast/", views.admin_send_broadcast, name="admin_broadcast"),
     path("vendor/quote-requests/", views.vendor_quote_requests, name="vendor_quote_requests"),
     path("vendor/quote-requests/<int:quote_id>/respond/", views.vendor_quote_response, name="vendor_quote_response"),
+    path("vendor/quote-requests/<int:quote_id>/messages/", views.vendor_quote_messages, name="vendor_quote_messages"),
+    path("vendor/quote-requests/<int:quote_id>/messages/send/", views.vendor_quote_send_message, name="vendor_quote_send_message"),
     # API endpoints for admin panel
     path("api/dashboard/", views.api_dashboard, name="api_dashboard"),
     path("api/products/", views.api_products, name="api_products"),

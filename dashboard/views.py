@@ -14,13 +14,16 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_http_methods
 from django.db import transaction
+from django.conf import settings
+from django.core.mail import send_mail
 from decimal import Decimal, InvalidOperation
 import json
+import logging
 import random
 import string
 
 from products.models import Product, Category, ProductReview, Wishlist, RecentlyViewed, ProductVariant, ProductVariantImage, ProductQuestion, Accessory, AccessoryProduct, ProductImage, ProductVideo, Brand
-from core.models import VendorQuoteRequest
+from core.models import VendorQuoteMessage, VendorQuoteRequest
 from vendors.models import VendorProfile
 from accounts.models import User
 from orders.models import Order, OrderItem
@@ -40,6 +43,8 @@ from order_robot.models import OrderRobotVendorTask
 from order_robot.services import vendor_mark_confirmed, vendor_mark_rejected
 from vendors.security import send_vendor_password_changed_email
 from notifications.models import Notification
+
+logger = logging.getLogger(__name__)
 
 try:
     from chat.models import VendorChatRoom
@@ -619,6 +624,37 @@ def vendor_dashboard(request):
 
     return render(request, 'dashboard/vendor_dashboard.html', context)
 
+def _vendor_quote_access(user):
+    limits = user_subscription_limits(user)
+    limit = int(limits.get("max_quote_responses_per_month", 0))
+    month_start = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    used = VendorQuoteRequest.objects.filter(
+        vendor__user=user,
+        vendor_responded_at__gte=month_start,
+    ).count()
+    return {
+        "limit": limit,
+        "used": used,
+        "remaining": -1 if limit < 0 else max(limit - used, 0),
+        "allowed": limit < 0 or used < limit,
+        "chat_enabled": bool(limits.get("quote_chat_enabled")),
+    }
+
+
+def _refresh_vendor_quote_escalation(quote):
+    if quote.status != "sent_to_vendor" or not quote.sent_to_vendor_at or quote.vendor_responded_at:
+        return
+    age = timezone.now() - quote.sent_to_vendor_at
+    if age >= timedelta(hours=24):
+        quote.status = "admin_follow_up"
+        quote.escalation_level = max(quote.escalation_level, 2)
+        quote.is_admin_intervention_required = True
+        quote.save(update_fields=["status", "escalation_level", "is_admin_intervention_required", "updated_at"])
+    elif age >= timedelta(hours=6) and quote.escalation_level < 1:
+        quote.escalation_level = 1
+        quote.save(update_fields=["escalation_level", "updated_at"])
+
+
 @login_required
 def vendor_quote_requests(request):
     """
@@ -650,6 +686,8 @@ def vendor_quote_requests(request):
         "admin_review",
         "sent_to_vendor",
         "vendor_replied",
+        "admin_follow_up",
+        "customer_updated",
         "closed",
         "spam",
     }
@@ -667,6 +705,8 @@ def vendor_quote_requests(request):
 
     paginator = Paginator(quote_requests_qs, 20)
     page_obj = paginator.get_page(request.GET.get("page"))
+    for quote in page_obj.object_list:
+        _refresh_vendor_quote_escalation(quote)
 
     status_counts = {
         "all": VendorQuoteRequest.objects.filter(vendor=vendor_profile).count(),
@@ -674,6 +714,8 @@ def vendor_quote_requests(request):
         "admin_review": VendorQuoteRequest.objects.filter(vendor=vendor_profile, status="admin_review").count(),
         "sent_to_vendor": VendorQuoteRequest.objects.filter(vendor=vendor_profile, status="sent_to_vendor").count(),
         "vendor_replied": VendorQuoteRequest.objects.filter(vendor=vendor_profile, status="vendor_replied").count(),
+        "admin_follow_up": VendorQuoteRequest.objects.filter(vendor=vendor_profile, status="admin_follow_up").count(),
+        "customer_updated": VendorQuoteRequest.objects.filter(vendor=vendor_profile, status="customer_updated").count(),
         "closed": VendorQuoteRequest.objects.filter(vendor=vendor_profile, status="closed").count(),
         "spam": VendorQuoteRequest.objects.filter(vendor=vendor_profile, status="spam").count(),
     }
@@ -690,6 +732,7 @@ def vendor_quote_requests(request):
         "status_filter": status_filter,
         "status_counts": status_counts,
         "back_url": back_url,
+        "quote_access": _vendor_quote_access(request.user),
     }
 
     try:
@@ -739,17 +782,133 @@ def vendor_quote_response(request, quote_id):
     )
 
     vendor_response = (request.POST.get("vendor_response") or "").strip()
+    wants_json = request.headers.get("x-requested-with") == "XMLHttpRequest" or "application/json" in request.headers.get("accept", "")
 
     if not vendor_response:
+        if wants_json:
+            return JsonResponse({"success": False, "message": "Please enter your response before saving."}, status=400)
         messages.error(request, "Please enter your response before saving.")
         return redirect("dashboard:vendor_quote_requests")
 
+    access = _vendor_quote_access(request.user)
+    if not access["allowed"] and not quote.vendor_responded_at:
+        text = "Your current plan has reached its quote response limit. Upgrade to continue responding to customer quote requests."
+        if wants_json:
+            return JsonResponse({"success": False, "reason": "subscription_limit", "message": text}, status=403)
+        messages.warning(request, text)
+        return redirect("dashboard:vendor_quote_requests")
+
+    now = timezone.now()
     quote.vendor_response = vendor_response
     quote.status = "vendor_replied"
-    quote.save(update_fields=["vendor_response", "status", "updated_at"])
+    quote.vendor_responded_at = now
+    quote.escalation_level = 0
+    quote.is_admin_intervention_required = False
+    quote.save(update_fields=[
+        "vendor_response", "status", "vendor_responded_at",
+        "escalation_level", "is_admin_intervention_required", "updated_at",
+    ])
 
-    messages.success(request, "Your response has been saved successfully.")
+    admin_link = f"/admin/core/vendorquoterequest/{quote.id}/change/"
+    for admin_user in User.objects.filter(Q(is_staff=True) | Q(is_superuser=True), is_active=True).distinct()[:20]:
+        Notification.send(
+            user=admin_user,
+            notification_type="vendor",
+            title=f"{vendor_profile.store_name} responded to quote request #{quote.id}",
+            message=vendor_response[:240],
+            link=admin_link,
+            metadata={"quote_request_id": quote.id},
+            priority=3,
+        )
+    if quote.customer_id:
+        Notification.send(
+            user=quote.customer,
+            notification_type="vendor",
+            title="Vendor has responded to your quote request",
+            message=f"{vendor_profile.store_name}: {vendor_response[:220]}",
+            link="/account/",
+            metadata={"quote_request_id": quote.id},
+            priority=3,
+        )
+    email_ok = False
+    if quote.email:
+        try:
+            send_mail(
+                "Vendor response to your Arolana quote request",
+                f"Quote request #{quote.id}\n\n{vendor_profile.store_name} responded:\n{vendor_response}",
+                getattr(settings, "DEFAULT_FROM_EMAIL", None),
+                [quote.email],
+            )
+            email_ok = True
+            quote.customer_last_notified_at = now
+        except Exception:
+            logger.exception("Customer quote response email failed for quote %s", quote.id)
+    quote.email_notification_status = {
+        **(quote.email_notification_status or {}),
+        "vendor_response_customer": email_ok,
+    }
+    quote.save(update_fields=["email_notification_status", "customer_last_notified_at", "updated_at"])
+
+    if wants_json:
+        return JsonResponse({
+            "success": True,
+            "message": "Response sent successfully.",
+            "status": quote.status,
+            "status_label": quote.get_status_display(),
+            "vendor_response": quote.vendor_response,
+            "updated_at": now.isoformat(),
+        })
+    messages.success(request, "Response sent successfully.")
     return redirect("dashboard:vendor_quote_requests")
+
+
+@login_required
+@require_http_methods(["GET"])
+def vendor_quote_messages(request, quote_id):
+    quote = get_object_or_404(VendorQuoteRequest, id=quote_id, vendor__user=request.user)
+    quote.quote_messages.filter(recipient=request.user, is_read=False).update(is_read=True)
+    return JsonResponse({"success": True, "messages": [
+        {
+            "id": note.id,
+            "sender": note.sender.get_full_name() or note.sender.username,
+            "message": note.message,
+            "is_admin_message": note.is_admin_message,
+            "created_at": note.created_at.isoformat(),
+        }
+        for note in quote.quote_messages.select_related("sender")
+    ]})
+
+
+@login_required
+@require_http_methods(["POST"])
+def vendor_quote_send_message(request, quote_id):
+    quote = get_object_or_404(VendorQuoteRequest, id=quote_id, vendor__user=request.user)
+    if not _vendor_quote_access(request.user)["chat_enabled"]:
+        return JsonResponse({"success": False, "message": "Quote chat is not included in your current plan."}, status=403)
+    text = (request.POST.get("message") or "").strip()
+    if not text:
+        return JsonResponse({"success": False, "message": "Enter a message before sending."}, status=400)
+    recipient = quote.assigned_admin or User.objects.filter(
+        Q(is_staff=True) | Q(is_superuser=True), is_active=True
+    ).first()
+    note = VendorQuoteMessage.objects.create(
+        quote_request=quote,
+        sender=request.user,
+        recipient=recipient,
+        message=text,
+        is_vendor_message=True,
+    )
+    if recipient:
+        Notification.send(
+            user=recipient,
+            notification_type="message",
+            title=f"Quote message from {quote.vendor.store_name}",
+            message=text[:240],
+            link=f"/admin/core/vendorquoterequest/{quote.id}/change/",
+            metadata={"quote_request_id": quote.id, "quote_message_id": note.id},
+            priority=3,
+        )
+    return JsonResponse({"success": True, "message": "Message sent to Arolana."})
 
 @login_required
 def vendor_pickup_location(request):

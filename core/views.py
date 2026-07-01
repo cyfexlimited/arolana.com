@@ -8,7 +8,7 @@ from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.files.storage import default_storage
 from django.core.mail import EmailMultiAlternatives, mail_admins
-from django.db.models import F, Sum
+from django.db.models import F, Q, Sum
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -18,6 +18,7 @@ from accounts.models import User
 from orders.models import Order
 from products.models import Product
 from vendors.models import VendorProfile
+from notifications.models import Notification
 
 from .models import VendorQuoteRequest
 
@@ -293,7 +294,40 @@ def request_vendor_quote(request):
 
         if email_result.get("vendor_email_sent"):
             quote.status = "sent_to_vendor"
-            quote.save(update_fields=["status", "updated_at"])
+            quote.sent_to_vendor_at = timezone.now()
+        quote.email_notification_status = email_result
+        quote.save(update_fields=["status", "sent_to_vendor_at", "email_notification_status", "updated_at"])
+
+        Notification.send(
+            user=vendor.user,
+            notification_type="vendor",
+            title="New quote request from your Arolana store",
+            message=f"{name} requested a quote for {product_name or vendor.store_name}.",
+            link="/dashboard/vendor/quote-requests/",
+            metadata={"quote_request_id": quote.id},
+            priority=3,
+        )
+        for admin_user in User.objects.filter(is_active=True).filter(
+            Q(is_staff=True) | Q(is_superuser=True)
+        ).distinct()[:20]:
+            Notification.send(
+                user=admin_user,
+                notification_type="vendor",
+                title="New Arolana quote request",
+                message=f"{name} requested a quote from {vendor.store_name}.",
+                link=f"/admin/core/vendorquoterequest/{quote.id}/change/",
+                metadata={"quote_request_id": quote.id},
+                priority=3,
+            )
+        if quote.customer_id:
+            Notification.send(
+                user=quote.customer,
+                notification_type="success",
+                title="We received your quote request",
+                message=f"Arolana and {vendor.store_name} have received your request.",
+                link="/account/",
+                metadata={"quote_request_id": quote.id},
+            )
 
         messages.success(
             request,

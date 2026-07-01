@@ -222,6 +222,11 @@
     .status-vendor_replied { background: #DCFCE7; color: #15803D; }
     .status-closed { background: #F1F5F9; color: #475569; }
     .status-spam { background: #FEE2E2; color: #B91C1C; }
+    .status-admin_follow_up { background: #F3E8FF; color: #7E22CE; }
+    .status-customer_updated { background: #CCFBF1; color: #0F766E; }
+    .quote-toast-host{position:fixed;right:1.25rem;top:5.5rem;z-index:9999;display:grid;gap:.55rem}
+    .quote-toast{min-width:280px;max-width:420px;border-radius:.85rem;padding:.85rem 1rem;color:#fff;font-size:.8rem;font-weight:900;box-shadow:0 16px 38px rgba(15,23,42,.2)}
+    .quote-toast.success{background:#15803D}.quote-toast.error{background:#DC2626}
 
     .quotes-mobile-list {
         display: none;
@@ -383,6 +388,12 @@
     </a>
 </div>
 
+    <div style="margin-bottom:1rem;border:1px solid #E3ECF8;border-radius:1rem;background:#fff;padding:.8rem 1rem;color:#071A44;font-size:.78rem;font-weight:850;">
+        Quote responses this month: {{ quote_access.used }} used ·
+        {% if quote_access.limit < 0 %}Unlimited plan{% else %}{{ quote_access.remaining }} remaining{% endif %}
+        {% if not quote_access.allowed %}<span style="color:#C2410C;"> · Upgrade to respond to new requests.</span>{% endif %}
+    </div>
+
     <div class="quotes-stats-grid">
         <div class="quotes-stat-card">
             <div class="quotes-stat-label">All Requests</div>
@@ -476,27 +487,27 @@
                             {% endif %}
                         </td>
                         <td>
-                            <span class="quote-status status-{{ quote.status }}">
+                            <span class="quote-status status-{{ quote.status }}" data-status>
                                 {{ quote.get_status_display }}
                             </span>
 
                             {% if quote.vendor_response %}
-                                <div class="quote-meta" style="margin-top:.55rem;">
+                                <div class="quote-meta" data-saved-response style="margin-top:.55rem;">
                                     <strong>Response:</strong> {{ quote.vendor_response|truncatewords:16 }}
                                 </div>
                             {% endif %}
 
-                            <form method="post"
+                            <form method="post" data-quote-response-form
                                 action="{% url 'dashboard:vendor_quote_response' quote.id %}"
                                 style="margin-top:.65rem;">
                                 {% csrf_token %}
                                 <textarea name="vendor_response"
                                         rows="3"
                                         placeholder="Write vendor response..."
-                                        style="width:100%;min-width:220px;border:1px solid #E3ECF8;border-radius:.75rem;padding:.65rem;font-size:.75rem;">{{ quote.vendor_response }}</textarea>
+                                        style="width:100%;min-width:220px;border:1px solid #E3ECF8;border-radius:.75rem;padding:.65rem;font-size:.75rem;" {% if not quote_access.allowed and not quote.vendor_responded_at %}disabled{% endif %}>{{ quote.vendor_response }}</textarea>
 
                                 <button type="submit"
-                                        style="margin-top:.45rem;display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:.75rem;background:#0066CC;color:white;padding:.5rem .75rem;font-size:.72rem;font-weight:950;">
+                                        style="margin-top:.45rem;display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:.75rem;background:#0066CC;color:white;padding:.5rem .75rem;font-size:.72rem;font-weight:950;" {% if not quote_access.allowed and not quote.vendor_responded_at %}disabled{% endif %}>
                                     Save Response
                                 </button>
                             </form>
@@ -520,7 +531,7 @@
                         <div class="quote-meta">{{ quote.name }} · {{ quote.created_at|timesince }} ago</div>
                     </div>
 
-                    <span class="quote-status status-{{ quote.status }}">
+                    <span class="quote-status status-{{ quote.status }}" data-status>
                         {{ quote.get_status_display }}
                     </span>
                 </div>
@@ -542,22 +553,22 @@
                 {% endif %}
 
                 {% if quote.vendor_response %}
-                <div class="quote-meta" style="margin-top:.65rem;border-radius:.75rem;background:#F0FDF4;padding:.65rem;color:#15803D;">
+                <div class="quote-meta" data-saved-response style="margin-top:.65rem;border-radius:.75rem;background:#F0FDF4;padding:.65rem;color:#15803D;">
                     <strong>Response:</strong> {{ quote.vendor_response }}
                 </div>
                 {% endif %}
 
-                <form method="post"
+                <form method="post" data-quote-response-form
                     action="{% url 'dashboard:vendor_quote_response' quote.id %}"
                     style="margin-top:.75rem;">
                     {% csrf_token %}
                     <textarea name="vendor_response"
                             rows="3"
                             placeholder="Write vendor response..."
-                            style="width:100%;border:1px solid #E3ECF8;border-radius:.75rem;padding:.65rem;font-size:.72rem;">{{ quote.vendor_response }}</textarea>
+                            style="width:100%;border:1px solid #E3ECF8;border-radius:.75rem;padding:.65rem;font-size:.72rem;" {% if not quote_access.allowed and not quote.vendor_responded_at %}disabled{% endif %}>{{ quote.vendor_response }}</textarea>
 
                     <button type="submit"
-                            style="margin-top:.45rem;width:100%;border:0;border-radius:.75rem;background:#0066CC;color:white;padding:.65rem .75rem;font-size:.72rem;font-weight:950;">
+                            style="margin-top:.45rem;width:100%;border:0;border-radius:.75rem;background:#0066CC;color:white;padding:.65rem .75rem;font-size:.72rem;font-weight:950;" {% if not quote_access.allowed and not quote.vendor_responded_at %}disabled{% endif %}>
                         Save Response
                     </button>
                 </form>
@@ -586,4 +597,53 @@
     </div>
     {% endif %}
 </div>
+<div id="quote-toast-host" class="quote-toast-host"></div>
+<script>
+    function showQuoteToast(message, type) {
+        const host = document.getElementById('quote-toast-host');
+        const toast = document.createElement('div');
+        toast.className = `quote-toast ${type || 'success'}`;
+        toast.textContent = message;
+        host.appendChild(toast);
+        window.setTimeout(() => toast.remove(), 4200);
+    }
+    document.querySelectorAll('[data-quote-response-form]').forEach((form) => {
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const button = form.querySelector('button[type="submit"]');
+            const original = button.textContent;
+            button.disabled = true;
+            button.textContent = 'Saving...';
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: new FormData(form),
+                    credentials: 'same-origin',
+                    headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'}
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) throw new Error(data.message || 'Response could not be saved.');
+                const container = form.closest('tr') || form.closest('.quote-mobile-card');
+                const badge = container.querySelector('[data-status]');
+                badge.textContent = data.status_label;
+                badge.className = `quote-status status-${data.status}`;
+                let saved = container.querySelector('[data-saved-response]');
+                if (!saved) {
+                    saved = document.createElement('div');
+                    saved.setAttribute('data-saved-response', '');
+                    saved.className = 'quote-meta';
+                    saved.style.cssText = 'margin-top:.55rem;border-radius:.75rem;background:#F0FDF4;padding:.65rem;color:#15803D;';
+                    form.before(saved);
+                }
+                saved.innerHTML = `<strong>Response:</strong> ${data.vendor_response.replace(/[&<>"']/g, value => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',\"'\":'&#039;'}[value]))}`;
+                showQuoteToast(data.message, 'success');
+            } catch (error) {
+                showQuoteToast(error.message || 'Response could not be saved.', 'error');
+            } finally {
+                button.disabled = false;
+                button.textContent = original;
+            }
+        });
+    });
+</script>
 {% endblock %}

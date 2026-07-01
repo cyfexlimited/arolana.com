@@ -16,6 +16,7 @@ from .models import (
     PromoBanner,
     ProtectedImageAsset,
     SiteSettings,
+    VendorQuoteMessage,
     VendorQuoteRequest,
 )
 from products.models import Product
@@ -283,6 +284,13 @@ class ProtectedImageAssetAdmin(admin.ModelAdmin):
         updated = queryset.update(**update_data)
         self.message_user(request, f"❌ {updated} image asset duplicate approval(s) removed.")
 
+class VendorQuoteMessageInline(admin.TabularInline):
+    model = VendorQuoteMessage
+    extra = 0
+    fields = ("sender", "recipient", "message", "is_admin_message", "is_vendor_message", "is_read", "created_at")
+    readonly_fields = ("created_at",)
+
+
 @admin.register(VendorQuoteRequest)
 class VendorQuoteRequestAdmin(admin.ModelAdmin):
     list_display = (
@@ -292,11 +300,15 @@ class VendorQuoteRequestAdmin(admin.ModelAdmin):
         "email",
         "phone",
         "status",
+        "escalation_level",
+        "is_admin_intervention_required",
         "subject",
         "created_at",
     )
     list_filter = (
         "status",
+        "escalation_level",
+        "is_admin_intervention_required",
         "created_at",
         "vendor",
     )
@@ -325,6 +337,7 @@ class VendorQuoteRequestAdmin(admin.ModelAdmin):
         "user_agent",
         "created_at",
         "updated_at",
+        "email_notification_status",
     )
     fieldsets = (
         ("Quote Request", {
@@ -349,7 +362,21 @@ class VendorQuoteRequestAdmin(admin.ModelAdmin):
         ("Admin / Vendor Response", {
             "fields": (
                 "admin_notes",
+                "admin_customer_response",
+                "internal_resolution_notes",
                 "vendor_response",
+            ),
+        }),
+        ("Escalation and delivery", {
+            "fields": (
+                "assigned_admin",
+                "sent_to_vendor_at",
+                "vendor_responded_at",
+                "admin_last_followed_up_at",
+                "customer_last_notified_at",
+                "escalation_level",
+                "is_admin_intervention_required",
+                "email_notification_status",
             ),
         }),
         ("Technical Details", {
@@ -362,6 +389,38 @@ class VendorQuoteRequestAdmin(admin.ModelAdmin):
             "classes": ("collapse",),
         }),
     )
+    inlines = (VendorQuoteMessageInline,)
+    actions = ("send_to_vendor", "mark_admin_review", "mark_customer_updated", "mark_closed", "mark_spam", "escalate")
+
+    @admin.action(description="Send selected requests to vendor")
+    def send_to_vendor(self, request, queryset):
+        queryset.update(status="sent_to_vendor", sent_to_vendor_at=now())
+
+    @admin.action(description="Mark selected requests admin review")
+    def mark_admin_review(self, request, queryset):
+        queryset.update(status="admin_review", assigned_admin=request.user)
+
+    @admin.action(description="Mark selected requests customer updated")
+    def mark_customer_updated(self, request, queryset):
+        queryset.update(status="customer_updated", customer_last_notified_at=now())
+
+    @admin.action(description="Mark selected requests closed")
+    def mark_closed(self, request, queryset):
+        queryset.update(status="closed")
+
+    @admin.action(description="Mark selected requests spam")
+    def mark_spam(self, request, queryset):
+        queryset.update(status="spam")
+
+    @admin.action(description="Escalate for admin intervention")
+    def escalate(self, request, queryset):
+        queryset.update(
+            status="admin_follow_up",
+            escalation_level=2,
+            is_admin_intervention_required=True,
+            assigned_admin=request.user,
+            admin_last_followed_up_at=now(),
+        )
     date_hierarchy = "created_at"
 # =========================
 # ADMIN APPEARANCE FORM
