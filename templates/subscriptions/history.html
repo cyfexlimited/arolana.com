@@ -1,133 +1,944 @@
 {% extends 'base/base.html' %}
+{% load static humanize %}
 
 {% block title %}Subscription Payment History | Arolana{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-6xl px-4 py-8">
-    <div class="mb-8 overflow-hidden rounded-2xl bg-slate-950 text-white shadow-lg">
-        <div class="p-6 md:p-8">
-            <p class="text-sm font-bold uppercase tracking-widest text-orange-300">Vendor Subscription</p>
-            <h1 class="mt-2 text-3xl font-black md:text-4xl">Payment History & Receipts</h1>
-            <p class="mt-3 max-w-3xl text-slate-200">
-                Website and staff mobile payments appear here from the same Arolana payment records.
-            </p>
-        </div>
-    </div>
+<style>
+    :root {
+        --arolana-navy: #071A44;
+        --arolana-blue: #0066CC;
+        --arolana-orange: #FF7A00;
+        --arolana-cyan: #38BDF8;
+        --arolana-soft: #F4F8FF;
+        --arolana-border: #E3ECF8;
+        --arolana-text: #0B1E46;
+        --arolana-muted: #65758B;
+        --arolana-bg: #F4F7FB;
+        --arolana-green: #16A34A;
+        --arolana-red: #DC2626;
+        --arolana-amber: #F59E0B;
+    }
 
-    <div class="mb-8 grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100 lg:col-span-2">
-            <p class="text-sm font-bold uppercase tracking-wide text-blue-700">Current Subscription</p>
-            {% if current_subscription %}
-                <h2 class="mt-2 text-2xl font-black text-slate-950">{{ current_subscription.plan.vendor_label }}</h2>
-                <div class="mt-4 grid grid-cols-1 gap-3 text-sm text-slate-700 sm:grid-cols-3">
-                    <div class="rounded-xl bg-slate-50 p-3">
-                        <span class="block text-slate-500">Status</span>
-                        <strong class="text-green-700">Active</strong>
-                    </div>
-                    <div class="rounded-xl bg-slate-50 p-3">
-                        <span class="block text-slate-500">Started</span>
-                        <strong>{{ current_subscription.start_date|date:"M d, Y" }}</strong>
-                    </div>
-                    <div class="rounded-xl bg-slate-50 p-3">
-                        <span class="block text-slate-500">Expires</span>
-                        <strong>{{ current_subscription.end_date|date:"M d, Y" }}</strong>
-                    </div>
+    body {
+        background: var(--arolana-bg) !important;
+    }
+
+    .subscription-history-page {
+        width: 100%;
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 1.25rem;
+        color: var(--arolana-text);
+    }
+
+    .history-hero {
+        overflow: hidden;
+        border-radius: 1.45rem;
+        background:
+            radial-gradient(circle at 12% 18%, rgba(56,189,248,.22), transparent 28%),
+            radial-gradient(circle at 88% 16%, rgba(255,122,0,.24), transparent 24%),
+            linear-gradient(135deg, #071A44, #063E85);
+        color: #fff;
+        box-shadow: 0 18px 42px rgba(7,26,68,.18);
+        margin-bottom: 1rem;
+    }
+
+    .history-hero-inner {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.35rem;
+    }
+
+    .history-eyebrow {
+        color: #FFD7B0;
+        font-size: .7rem;
+        font-weight: 950;
+        letter-spacing: .18em;
+        text-transform: uppercase;
+    }
+
+    .history-title {
+        margin: .25rem 0 0;
+        color: #fff;
+        font-size: clamp(1.7rem, 2.8vw, 2.8rem);
+        line-height: 1.05;
+        font-weight: 950;
+        letter-spacing: -.03em;
+    }
+
+    .history-subtitle {
+        margin-top: .5rem;
+        max-width: 52rem;
+        color: rgba(255,255,255,.78);
+        font-size: .88rem;
+        line-height: 1.5;
+        font-weight: 750;
+    }
+
+    .history-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: .6rem;
+    }
+
+    .history-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .45rem;
+        min-height: 2.55rem;
+        padding: .7rem 1rem;
+        border-radius: .9rem;
+        border: 1px solid transparent;
+        font-size: .76rem;
+        font-weight: 950;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: .18s ease;
+        cursor: pointer;
+    }
+
+    .history-btn:hover {
+        transform: translateY(-1px);
+        text-decoration: none;
+    }
+
+    .history-btn-orange {
+        background: var(--arolana-orange);
+        color: #fff;
+        box-shadow: 0 12px 26px rgba(255,122,0,.2);
+    }
+
+    .history-btn-light {
+        background: rgba(255,255,255,.14);
+        color: #fff;
+        border-color: rgba(255,255,255,.25);
+    }
+
+    .history-btn-blue {
+        background: linear-gradient(135deg, var(--arolana-blue), #064B99);
+        color: #fff;
+        box-shadow: 0 12px 26px rgba(0,102,204,.18);
+    }
+
+    .history-top-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.35fr) minmax(300px, .65fr);
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .history-panel {
+        overflow: hidden;
+        border-radius: 1.15rem;
+        background: #fff;
+        border: 1px solid var(--arolana-border);
+        box-shadow: 0 14px 34px rgba(15,23,42,.06);
+        min-width: 0;
+    }
+
+    .history-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .85rem;
+        padding: 1rem;
+        border-bottom: 1px solid var(--arolana-border);
+        background: linear-gradient(180deg, #fff, #F8FBFF);
+    }
+
+    .history-panel-title {
+        margin: 0;
+        color: var(--arolana-navy);
+        font-size: 1.05rem;
+        line-height: 1.2;
+        font-weight: 950;
+    }
+
+    .history-panel-subtitle {
+        margin-top: .22rem;
+        color: var(--arolana-muted);
+        font-size: .72rem;
+        line-height: 1.45;
+        font-weight: 750;
+    }
+
+    .history-panel-body {
+        padding: 1rem;
+    }
+
+    .current-plan-name {
+        margin-top: .25rem;
+        color: var(--arolana-navy);
+        font-size: 1.55rem;
+        line-height: 1.15;
+        font-weight: 950;
+    }
+
+    .current-plan-empty {
+        margin-top: .45rem;
+        color: var(--arolana-muted);
+        font-size: .82rem;
+        line-height: 1.55;
+        font-weight: 750;
+    }
+
+    .current-plan-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: .75rem;
+        margin-top: 1rem;
+    }
+
+    .current-plan-box {
+        border-radius: .95rem;
+        background: #F8FBFF;
+        border: 1px solid var(--arolana-border);
+        padding: .85rem;
+        min-width: 0;
+    }
+
+    .current-plan-label {
+        display: block;
+        color: var(--arolana-muted);
+        font-size: .66rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+    }
+
+    .current-plan-value {
+        display: block;
+        margin-top: .25rem;
+        color: var(--arolana-navy);
+        font-size: .82rem;
+        font-weight: 950;
+        overflow-wrap: anywhere;
+    }
+
+    .current-plan-value.green {
+        color: var(--arolana-green);
+    }
+
+    .upgrade-card {
+        border-radius: 1.15rem;
+        border: 1px solid #FED7AA;
+        background:
+            radial-gradient(circle at 100% 0%, rgba(255,122,0,.18), transparent 30%),
+            #FFF7ED;
+        box-shadow: 0 14px 34px rgba(15,23,42,.055);
+        padding: 1rem;
+        height: 100%;
+    }
+
+    .upgrade-eyebrow {
+        color: #C2410C;
+        font-size: .68rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+    }
+
+    .upgrade-title {
+        margin-top: .35rem;
+        color: var(--arolana-navy);
+        font-size: 1.2rem;
+        font-weight: 950;
+    }
+
+    .upgrade-text {
+        margin-top: .45rem;
+        color: #7C2D12;
+        font-size: .78rem;
+        line-height: 1.55;
+        font-weight: 750;
+    }
+
+    .invoice-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 1.9rem;
+        padding: .35rem .75rem;
+        border-radius: 999px;
+        background: #EFF6FF;
+        color: var(--arolana-blue);
+        font-size: .7rem;
+        font-weight: 950;
+    }
+
+    .invoice-table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--arolana-border);
+        border-radius: 1rem;
+    }
+
+    .invoice-table {
+        width: 100%;
+        min-width: 900px;
+        border-collapse: collapse;
+    }
+
+    .invoice-table thead {
+        background: #F8FBFF;
+    }
+
+    .invoice-table th {
+        padding: .85rem;
+        color: var(--arolana-muted);
+        font-size: .68rem;
+        font-weight: 950;
+        text-align: left;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        border-bottom: 1px solid var(--arolana-border);
+    }
+
+    .invoice-table th:last-child {
+        text-align: right;
+    }
+
+    .invoice-table td {
+        padding: .9rem .85rem;
+        color: var(--arolana-text);
+        font-size: .78rem;
+        font-weight: 750;
+        border-bottom: 1px solid #EEF4FB;
+        vertical-align: middle;
+    }
+
+    .invoice-table tbody tr:hover {
+        background: #F8FBFF;
+    }
+
+    .invoice-table tbody tr:last-child td {
+        border-bottom: 0;
+    }
+
+    .invoice-ref {
+        color: var(--arolana-navy);
+        font-weight: 950;
+        overflow-wrap: anywhere;
+    }
+
+    .invoice-muted {
+        color: var(--arolana-muted);
+        font-weight: 750;
+        overflow-wrap: anywhere;
+    }
+
+    .invoice-amount {
+        color: var(--arolana-navy);
+        font-weight: 950;
+        white-space: nowrap;
+    }
+
+    .history-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 1.6rem;
+        padding: .32rem .65rem;
+        border-radius: 999px;
+        font-size: .64rem;
+        font-weight: 950;
+        white-space: nowrap;
+    }
+
+    .pill-success {
+        background: #DCFCE7;
+        color: #15803D;
+    }
+
+    .pill-failed {
+        background: #FEE2E2;
+        color: #B91C1C;
+    }
+
+    .pill-pending {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .pill-ended {
+        background: #F1F5F9;
+        color: #475569;
+    }
+
+    .invoice-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: .45rem;
+        flex-wrap: wrap;
+    }
+
+    .invoice-action-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .3rem;
+        min-height: 2rem;
+        padding: .45rem .7rem;
+        border-radius: 999px;
+        font-size: .68rem;
+        font-weight: 950;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .invoice-action-outline {
+        border: 1px solid #BFDBFE;
+        color: var(--arolana-blue);
+        background: #fff;
+    }
+
+    .invoice-action-solid {
+        border: 1px solid var(--arolana-blue);
+        background: var(--arolana-blue);
+        color: #fff;
+    }
+
+    .mobile-invoice-list {
+        display: none;
+    }
+
+    .mobile-invoice-card {
+        border-radius: 1rem;
+        border: 1px solid var(--arolana-border);
+        background: #fff;
+        padding: .85rem;
+        box-shadow: 0 10px 24px rgba(15,23,42,.045);
+    }
+
+    .mobile-invoice-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: .75rem;
+        margin-bottom: .75rem;
+    }
+
+    .mobile-invoice-reference {
+        color: var(--arolana-navy);
+        font-size: .82rem;
+        font-weight: 950;
+        overflow-wrap: anywhere;
+    }
+
+    .mobile-invoice-plan {
+        margin-top: .2rem;
+        color: var(--arolana-muted);
+        font-size: .68rem;
+        line-height: 1.4;
+        font-weight: 750;
+    }
+
+    .mobile-invoice-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: .6rem;
+        margin-top: .75rem;
+    }
+
+    .mobile-invoice-box {
+        border-radius: .8rem;
+        background: #F8FBFF;
+        border: 1px solid var(--arolana-border);
+        padding: .65rem;
+        min-width: 0;
+    }
+
+    .mobile-invoice-label {
+        color: var(--arolana-muted);
+        font-size: .58rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+    }
+
+    .mobile-invoice-value {
+        margin-top: .2rem;
+        color: var(--arolana-navy);
+        font-size: .68rem;
+        font-weight: 850;
+        overflow-wrap: anywhere;
+    }
+
+    .mobile-invoice-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: .55rem;
+        margin-top: .75rem;
+    }
+
+    .history-empty {
+        text-align: center;
+        border-radius: 1rem;
+        background: #F8FBFF;
+        border: 1px dashed #CBD5E1;
+        padding: 2.5rem 1rem;
+        color: var(--arolana-muted);
+    }
+
+    .history-empty-icon {
+        width: 4rem;
+        height: 4rem;
+        margin: 0 auto 1rem;
+        border-radius: 1.2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #fff;
+        color: #CBD5E1;
+        font-size: 1.6rem;
+        border: 1px solid var(--arolana-border);
+    }
+
+    .history-empty-title {
+        color: var(--arolana-navy);
+        font-size: 1.1rem;
+        font-weight: 950;
+    }
+
+    .history-empty-text {
+        margin-top: .35rem;
+        color: var(--arolana-muted);
+        font-size: .78rem;
+        line-height: 1.5;
+        font-weight: 750;
+    }
+
+    .activity-list {
+        display: grid;
+        gap: .75rem;
+    }
+
+    .activity-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .75rem;
+        border-radius: 1rem;
+        background: #F8FBFF;
+        border: 1px solid var(--arolana-border);
+        padding: .85rem;
+    }
+
+    .activity-title {
+        color: var(--arolana-navy);
+        font-size: .84rem;
+        font-weight: 950;
+    }
+
+    .activity-date {
+        margin-top: .18rem;
+        color: var(--arolana-muted);
+        font-size: .68rem;
+        line-height: 1.4;
+        font-weight: 750;
+    }
+
+    @media (max-width: 1024px) {
+        .history-top-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .current-plan-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .subscription-history-page {
+            padding: .7rem .55rem 5rem;
+        }
+
+        .history-hero {
+            border-radius: 1rem;
+        }
+
+        .history-hero-inner {
+            flex-direction: column;
+            align-items: stretch;
+            padding: 1rem;
+        }
+
+        .history-title {
+            font-size: 1.45rem;
+            line-height: 1.08;
+        }
+
+        .history-subtitle {
+            font-size: .72rem;
+        }
+
+        .history-actions {
+            display: grid;
+            grid-template-columns: 1fr;
+        }
+
+        .history-btn {
+            width: 100%;
+            min-height: 2.45rem;
+            font-size: .68rem;
+        }
+
+        .history-panel,
+        .upgrade-card {
+            border-radius: 1rem;
+        }
+
+        .history-panel-header {
+            flex-direction: column;
+            align-items: stretch;
+            padding: .8rem;
+        }
+
+        .history-panel-body {
+            padding: .8rem;
+        }
+
+        .history-panel-title {
+            font-size: .92rem;
+        }
+
+        .history-panel-subtitle {
+            font-size: .66rem;
+        }
+
+        .current-plan-name {
+            font-size: 1.1rem;
+        }
+
+        .current-plan-box {
+            border-radius: .8rem;
+            padding: .7rem;
+        }
+
+        .upgrade-card {
+            padding: .85rem;
+        }
+
+        .upgrade-title {
+            font-size: 1rem;
+        }
+
+        .upgrade-text {
+            font-size: .68rem;
+        }
+
+        .invoice-table-wrap {
+            display: none;
+        }
+
+        .mobile-invoice-list {
+            display: grid;
+            gap: .75rem;
+        }
+
+        .mobile-invoice-actions {
+            grid-template-columns: 1fr;
+        }
+
+        .invoice-action-link {
+            width: 100%;
+            border-radius: .8rem;
+            min-height: 2.35rem;
+            font-size: .66rem;
+        }
+
+        .mobile-invoice-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .history-empty {
+            padding: 2rem .8rem;
+            border-radius: .9rem;
+        }
+
+        .history-empty-title {
+            font-size: .95rem;
+        }
+
+        .history-empty-text {
+            font-size: .68rem;
+        }
+
+        .activity-card {
+            align-items: flex-start;
+            flex-direction: column;
+            border-radius: .9rem;
+            padding: .75rem;
+        }
+
+        .activity-title {
+            font-size: .74rem;
+        }
+
+        .activity-date {
+            font-size: .62rem;
+        }
+    }
+</style>
+
+<div class="subscription-history-page">
+    <section class="history-hero">
+        <div class="history-hero-inner">
+            <div>
+                <div class="history-eyebrow">Vendor Subscription</div>
+                <h1 class="history-title">Payment History & Receipts</h1>
+                <p class="history-subtitle">
+                    Website and staff mobile subscription payments appear here from the same Arolana payment records.
+                    Keep receipts, references, and plan activity in one place.
+                </p>
+            </div>
+
+            <div class="history-actions">
+                <a href="{% url 'subscriptions:plans' %}" class="history-btn history-btn-orange">
+                    <i class="fas fa-crown"></i>
+                    View Plans
+                </a>
+                <a href="{% url 'dashboard:vendor_dashboard' %}" class="history-btn history-btn-light">
+                    <i class="fas fa-store"></i>
+                    Vendor Dashboard
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <section class="history-top-grid">
+        <div class="history-panel">
+            <div class="history-panel-header">
+                <div>
+                    <h2 class="history-panel-title">Current Subscription</h2>
+                    <p class="history-panel-subtitle">Your active vendor subscription status.</p>
                 </div>
-            {% else %}
-                <h2 class="mt-2 text-2xl font-black text-slate-950">{{ vendor_profile.subscription_plan_label }}</h2>
-                <p class="mt-3 text-slate-600">No active paid subscription is currently running. You can activate Free Vendor or choose a paid plan.</p>
-            {% endif %}
+            </div>
+
+            <div class="history-panel-body">
+                {% if current_subscription %}
+                    <div class="current-plan-name">{{ current_subscription.plan.vendor_label }}</div>
+
+                    <div class="current-plan-grid">
+                        <div class="current-plan-box">
+                            <span class="current-plan-label">Status</span>
+                            <span class="current-plan-value green">Active</span>
+                        </div>
+
+                        <div class="current-plan-box">
+                            <span class="current-plan-label">Started</span>
+                            <span class="current-plan-value">{{ current_subscription.start_date|date:"M d, Y" }}</span>
+                        </div>
+
+                        <div class="current-plan-box">
+                            <span class="current-plan-label">Expires</span>
+                            <span class="current-plan-value">{{ current_subscription.end_date|date:"M d, Y" }}</span>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="current-plan-name">{{ vendor_profile.subscription_plan_label }}</div>
+                    <p class="current-plan-empty">
+                        No active paid subscription is currently running. You can activate Free Vendor or choose a paid plan.
+                    </p>
+                {% endif %}
+            </div>
         </div>
 
-        <div class="rounded-2xl bg-orange-50 p-5 shadow-sm ring-1 ring-orange-100">
-            <p class="text-sm font-bold uppercase tracking-wide text-orange-700">Need an upgrade?</p>
-            <h3 class="mt-2 text-xl font-black text-slate-950">Grow with Arolana</h3>
-            <p class="mt-2 text-sm text-slate-700">Choose a higher plan to unlock more products, images, RFQ, analytics, ads, and visibility.</p>
-            <a href="{% url 'subscriptions:plans' %}" class="mt-4 inline-flex rounded-full bg-orange-500 px-5 py-2.5 text-sm font-black text-white hover:bg-orange-600">
+        <aside class="upgrade-card">
+            <div class="upgrade-eyebrow">Need an upgrade?</div>
+            <h3 class="upgrade-title">Grow with Arolana</h3>
+            <p class="upgrade-text">
+                Choose a higher plan to unlock more products, images, RFQ, analytics, ads, visibility, and vendor growth features.
+            </p>
+            <a href="{% url 'subscriptions:plans' %}" class="history-btn history-btn-orange" style="margin-top:1rem;">
+                <i class="fas fa-arrow-up-right-dots"></i>
                 View Plans
             </a>
-        </div>
-    </div>
+        </aside>
+    </section>
 
-    <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
-        <div class="mb-5 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+    <section class="history-panel">
+        <div class="history-panel-header">
             <div>
-                <p class="text-sm font-bold uppercase tracking-wide text-blue-700">Payment History</p>
-                <h2 class="text-2xl font-black text-slate-950">Subscription Invoices</h2>
+                <h2 class="history-panel-title">Subscription Invoices</h2>
+                <p class="history-panel-subtitle">Payment references, status, receipt view, and PDF download.</p>
             </div>
-            <p class="text-sm text-slate-500">{{ invoices|length }} record{{ invoices|length|pluralize }}</p>
+
+            <span class="invoice-count">
+                {{ invoices|length }} record{{ invoices|length|pluralize }}
+            </span>
         </div>
 
-        {% if invoices %}
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 text-left text-sm">
-                    <thead class="bg-slate-50 text-xs font-black uppercase tracking-wide text-slate-500">
-                        <tr>
-                            <th class="px-4 py-3">Invoice</th>
-                            <th class="px-4 py-3">Plan</th>
-                            <th class="px-4 py-3">Amount</th>
-                            <th class="px-4 py-3">Reference</th>
-                            <th class="px-4 py-3">Status</th>
-                            <th class="px-4 py-3">Date</th>
-                            <th class="px-4 py-3 text-right">Receipt</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100">
-                        {% for invoice in invoices %}
-                            <tr class="hover:bg-slate-50">
-                                <td class="px-4 py-4 font-black text-slate-950">{{ invoice.reference }}</td>
-                                <td class="px-4 py-4 text-slate-700">
-                                    {{ invoice.checkout_data.plan_name|default:invoice.checkout_data.tier|default:"Vendor Subscription" }}
+        <div class="history-panel-body">
+            {% if invoices %}
+                <div class="invoice-table-wrap">
+                    <table class="invoice-table">
+                        <thead>
+                            <tr>
+                                <th>Invoice</th>
+                                <th>Plan</th>
+                                <th>Amount</th>
+                                <th>Reference</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                                <th>Receipt</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for invoice in invoices %}
+                            <tr>
+                                <td>
+                                    <div class="invoice-ref">{{ invoice.reference }}</div>
                                 </td>
-                                <td class="px-4 py-4 font-bold text-slate-950">{{ invoice.currency }} {{ invoice.amount }}</td>
-                                <td class="px-4 py-4 text-slate-600">{{ invoice.gateway_reference|default:invoice.reference }}</td>
-                                <td class="px-4 py-4">
-                                    <span class="rounded-full px-3 py-1 text-xs font-black {% if invoice.status == 'success' %}bg-green-100 text-green-700{% elif invoice.status == 'failed' %}bg-red-100 text-red-700{% else %}bg-amber-100 text-amber-700{% endif %}">
+
+                                <td>
+                                    <div class="invoice-muted">
+                                        {{ invoice.checkout_data.plan_name|default:invoice.checkout_data.tier|default:"Vendor Subscription" }}
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <div class="invoice-amount">{{ invoice.currency }} {{ invoice.amount|floatformat:2|intcomma }}</div>
+                                </td>
+
+                                <td>
+                                    <div class="invoice-muted">{{ invoice.gateway_reference|default:invoice.reference }}</div>
+                                </td>
+
+                                <td>
+                                    <span class="history-pill {% if invoice.status == 'success' %}pill-success{% elif invoice.status == 'failed' %}pill-failed{% else %}pill-pending{% endif %}">
                                         {{ invoice.status|title }}
                                     </span>
                                 </td>
-                                <td class="px-4 py-4 text-slate-600">{{ invoice.created_at|date:"M d, Y H:i" }}</td>
-                                <td class="px-4 py-4 text-right">
-                                    <a href="/api/staff/vendor/subscription/invoices/{{ invoice.id }}/pdf/" target="_blank" class="inline-flex rounded-full border border-blue-200 px-3 py-1.5 font-black text-blue-700 hover:bg-blue-50">
-                                        View receipt
-                                    </a>
-                                    <a href="/api/staff/vendor/subscription/invoices/{{ invoice.id }}/pdf/" download class="ml-2 inline-flex rounded-full bg-blue-700 px-3 py-1.5 font-black text-white hover:bg-blue-800">
-                                        Download PDF
-                                    </a>
+
+                                <td>
+                                    <div class="invoice-muted">{{ invoice.created_at|date:"M d, Y H:i" }}</div>
+                                </td>
+
+                                <td>
+                                    <div class="invoice-actions">
+                                        <a href="/api/staff/vendor/subscription/invoices/{{ invoice.id }}/pdf/" target="_blank" class="invoice-action-link invoice-action-outline">
+                                            <i class="fas fa-eye"></i>
+                                            View
+                                        </a>
+
+                                        <a href="/api/staff/vendor/subscription/invoices/{{ invoice.id }}/pdf/" download class="invoice-action-link invoice-action-solid">
+                                            <i class="fas fa-download"></i>
+                                            PDF
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% else %}
-            <div class="rounded-2xl bg-slate-50 p-8 text-center">
-                <h3 class="text-xl font-black text-slate-950">No subscription payments yet</h3>
-                <p class="mt-2 text-slate-600">When you activate Free Vendor or pay for a plan on web or staff mobile, the invoice will appear here.</p>
-                <a href="{% url 'subscriptions:plans' %}" class="mt-5 inline-flex rounded-full bg-orange-500 px-5 py-2.5 text-sm font-black text-white hover:bg-orange-600">
-                    Choose a Plan
-                </a>
-            </div>
-        {% endif %}
-    </div>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mobile-invoice-list">
+                    {% for invoice in invoices %}
+                    <article class="mobile-invoice-card">
+                        <div class="mobile-invoice-top">
+                            <div>
+                                <div class="mobile-invoice-reference">{{ invoice.reference }}</div>
+                                <div class="mobile-invoice-plan">
+                                    {{ invoice.checkout_data.plan_name|default:invoice.checkout_data.tier|default:"Vendor Subscription" }}
+                                </div>
+                            </div>
+
+                            <span class="history-pill {% if invoice.status == 'success' %}pill-success{% elif invoice.status == 'failed' %}pill-failed{% else %}pill-pending{% endif %}">
+                                {{ invoice.status|title }}
+                            </span>
+                        </div>
+
+                        <div class="mobile-invoice-grid">
+                            <div class="mobile-invoice-box">
+                                <div class="mobile-invoice-label">Amount</div>
+                                <div class="mobile-invoice-value">{{ invoice.currency }} {{ invoice.amount|floatformat:2|intcomma }}</div>
+                            </div>
+
+                            <div class="mobile-invoice-box">
+                                <div class="mobile-invoice-label">Reference</div>
+                                <div class="mobile-invoice-value">{{ invoice.gateway_reference|default:invoice.reference }}</div>
+                            </div>
+
+                            <div class="mobile-invoice-box">
+                                <div class="mobile-invoice-label">Date</div>
+                                <div class="mobile-invoice-value">{{ invoice.created_at|date:"M d, Y H:i" }}</div>
+                            </div>
+
+                            <div class="mobile-invoice-box">
+                                <div class="mobile-invoice-label">Invoice ID</div>
+                                <div class="mobile-invoice-value">{{ invoice.id }}</div>
+                            </div>
+                        </div>
+
+                        <div class="mobile-invoice-actions">
+                            <a href="/api/staff/vendor/subscription/invoices/{{ invoice.id }}/pdf/" target="_blank" class="invoice-action-link invoice-action-outline">
+                                <i class="fas fa-eye"></i>
+                                View Receipt
+                            </a>
+
+                            <a href="/api/staff/vendor/subscription/invoices/{{ invoice.id }}/pdf/" download class="invoice-action-link invoice-action-solid">
+                                <i class="fas fa-download"></i>
+                                Download PDF
+                            </a>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="history-empty">
+                    <div class="history-empty-icon">
+                        <i class="fas fa-receipt"></i>
+                    </div>
+                    <div class="history-empty-title">No subscription payments yet</div>
+                    <p class="history-empty-text">
+                        When you activate Free Vendor or pay for a plan on web or staff mobile, the invoice will appear here.
+                    </p>
+
+                    <a href="{% url 'subscriptions:plans' %}" class="history-btn history-btn-orange" style="margin-top:1rem;">
+                        <i class="fas fa-crown"></i>
+                        Choose a Plan
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </section>
 
     {% if subscriptions %}
-        <div class="mt-8 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-gray-100">
-            <p class="text-sm font-bold uppercase tracking-wide text-blue-700">Plan Activity</p>
-            <div class="mt-4 space-y-3">
+    <section class="history-panel" style="margin-top:1rem;">
+        <div class="history-panel-header">
+            <div>
+                <h2 class="history-panel-title">Plan Activity</h2>
+                <p class="history-panel-subtitle">Subscription start dates, expiry dates, and active/ended status.</p>
+            </div>
+        </div>
+
+        <div class="history-panel-body">
+            <div class="activity-list">
                 {% for subscription in subscriptions %}
-                    <div class="flex flex-col gap-1 rounded-xl bg-slate-50 p-4 md:flex-row md:items-center md:justify-between">
-                        <div>
-                            <p class="font-black text-slate-950">{{ subscription.plan.vendor_label }}</p>
-                            <p class="text-sm text-slate-500">{{ subscription.start_date|date:"M d, Y" }} to {{ subscription.end_date|date:"M d, Y" }}</p>
+                <div class="activity-card">
+                    <div>
+                        <div class="activity-title">{{ subscription.plan.vendor_label }}</div>
+                        <div class="activity-date">
+                            {{ subscription.start_date|date:"M d, Y" }} to {{ subscription.end_date|date:"M d, Y" }}
                         </div>
-                        <span class="rounded-full px-3 py-1 text-xs font-black {% if subscription.is_active %}bg-green-100 text-green-700{% else %}bg-slate-200 text-slate-600{% endif %}">
-                            {% if subscription.is_active %}Active{% else %}Ended{% endif %}
-                        </span>
                     </div>
+
+                    <span class="history-pill {% if subscription.is_active %}pill-success{% else %}pill-ended{% endif %}">
+                        {% if subscription.is_active %}Active{% else %}Ended{% endif %}
+                    </span>
+                </div>
                 {% endfor %}
             </div>
         </div>
+    </section>
     {% endif %}
 </div>
 {% endblock %}

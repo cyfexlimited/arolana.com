@@ -1,105 +1,804 @@
 {% extends 'base/base.html' %}
+{% load static humanize %}
 
 {% block title %}Subscription Plans | Arolana{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto">
-    <div class="mb-10 overflow-hidden rounded-2xl bg-white shadow-lg ring-1 ring-gray-100">
-        <div class="bg-slate-950 px-6 py-8 text-white md:px-10">
-            <p class="text-sm font-bold uppercase tracking-widest text-orange-300">Arolana Vendor Growth Plans</p>
-            <h1 class="mt-2 text-4xl font-black">Choose the plan that matches your business stage.</h1>
-            <p class="mt-3 max-w-3xl text-lg text-slate-200">Benefits activate instantly after payment verification and sync across your website dashboard, staff mobile app, customer website, and customer mobile app.</p>
+<style>
+    :root {
+        --arolana-navy: #071A44;
+        --arolana-blue: #0066CC;
+        --arolana-orange: #FF7A00;
+        --arolana-cyan: #38BDF8;
+        --arolana-soft: #F4F8FF;
+        --arolana-border: #E3ECF8;
+        --arolana-text: #0B1E46;
+        --arolana-muted: #65758B;
+        --arolana-bg: #F4F7FB;
+        --arolana-green: #16A34A;
+        --arolana-red: #DC2626;
+        --arolana-amber: #F59E0B;
+    }
+
+    body {
+        background: var(--arolana-bg) !important;
+    }
+
+    .arolana-subscription-page {
+        width: 100%;
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 1.25rem;
+        color: var(--arolana-text);
+    }
+
+    .subscription-hero {
+        overflow: hidden;
+        border-radius: 1.5rem;
+        background: #fff;
+        border: 1px solid var(--arolana-border);
+        box-shadow: 0 18px 44px rgba(15,23,42,.08);
+        margin-bottom: 1rem;
+    }
+
+    .subscription-hero-top {
+        position: relative;
+        overflow: hidden;
+        min-height: 280px;
+        background:
+            radial-gradient(circle at 12% 18%, rgba(56,189,248,.24), transparent 28%),
+            radial-gradient(circle at 88% 16%, rgba(255,122,0,.28), transparent 24%),
+            linear-gradient(135deg, #071A44, #063E85);
+        color: #fff;
+        padding: 1.5rem;
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(320px, .9fr);
+        gap: 1.25rem;
+        align-items: center;
+    }
+
+    .subscription-hero-content {
+        position: relative;
+        z-index: 2;
+    }
+
+    .subscription-eyebrow {
+        color: #FFD7B0;
+        font-size: .72rem;
+        font-weight: 950;
+        letter-spacing: .18em;
+        text-transform: uppercase;
+    }
+
+    .subscription-title {
+        margin: .4rem 0 0;
+        color: #fff;
+        font-size: clamp(2rem, 4vw, 4rem);
+        line-height: .98;
+        font-weight: 950;
+        letter-spacing: -.04em;
+    }
+
+    .subscription-subtitle {
+        margin-top: .8rem;
+        max-width: 46rem;
+        color: rgba(255,255,255,.82);
+        font-size: .98rem;
+        line-height: 1.6;
+        font-weight: 750;
+    }
+
+    .subscription-hero-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .5rem;
+        margin-top: 1rem;
+    }
+
+    .subscription-hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        min-height: 2rem;
+        padding: .4rem .75rem;
+        border-radius: 999px;
+        background: rgba(255,255,255,.14);
+        border: 1px solid rgba(255,255,255,.22);
+        color: #fff;
+        font-size: .72rem;
+        font-weight: 950;
+    }
+
+    .subscription-hero-visual {
+        position: relative;
+        z-index: 2;
+        border-radius: 1.25rem;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,.25);
+        background: rgba(255,255,255,.08);
+        box-shadow: 0 20px 45px rgba(0,0,0,.18);
+    }
+
+    .subscription-hero-visual img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        max-height: 320px;
+        object-fit: cover;
+        background: #fff;
+    }
+
+    .subscription-benefit-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: .75rem;
+        padding: .9rem;
+        background: #F8FBFF;
+    }
+
+    .subscription-benefit {
+        border-radius: 1rem;
+        background: #fff;
+        border: 1px solid var(--arolana-border);
+        padding: .9rem;
+        min-width: 0;
+    }
+
+    .subscription-benefit-label {
+        color: var(--arolana-muted);
+        font-size: .68rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+    }
+
+    .subscription-benefit-value {
+        margin-top: .25rem;
+        color: var(--arolana-orange);
+        font-size: .86rem;
+        font-weight: 950;
+    }
+
+    .subscription-current {
+        border-radius: 1.1rem;
+        border: 1px solid #BBF7D0;
+        background: #F0FDF4;
+        color: #166534;
+        box-shadow: 0 12px 30px rgba(15,23,42,.055);
+        padding: 1rem;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .subscription-current-left {
+        display: flex;
+        align-items: flex-start;
+        gap: .75rem;
+    }
+
+    .subscription-current-icon {
+        width: 2.6rem;
+        height: 2.6rem;
+        border-radius: .9rem;
+        background: var(--arolana-green);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+    }
+
+    .subscription-current-title {
+        color: #166534;
+        font-size: .9rem;
+        font-weight: 950;
+    }
+
+    .subscription-current-text {
+        margin-top: .15rem;
+        color: #15803D;
+        font-size: .76rem;
+        line-height: 1.45;
+        font-weight: 750;
+    }
+
+    .plans-header {
+        margin: 1.2rem 0 1rem;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .plans-header-title {
+        color: var(--arolana-navy);
+        font-size: 1.35rem;
+        font-weight: 950;
+        margin: 0;
+    }
+
+    .plans-header-subtitle {
+        margin-top: .25rem;
+        color: var(--arolana-muted);
+        font-size: .82rem;
+        line-height: 1.5;
+        font-weight: 750;
+    }
+
+    .subscription-history-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .45rem;
+        min-height: 2.5rem;
+        padding: .68rem 1rem;
+        border-radius: .85rem;
+        background: #fff;
+        color: var(--arolana-blue);
+        border: 1px solid var(--arolana-border);
+        font-size: .76rem;
+        font-weight: 950;
+        text-decoration: none;
+        box-shadow: 0 8px 22px rgba(15,23,42,.05);
+    }
+
+    .subscription-history-link:hover {
+        text-decoration: none;
+        background: #EFF6FF;
+    }
+
+    .plans-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1rem;
+        align-items: stretch;
+    }
+
+    .plan-card {
+        position: relative;
+        overflow: hidden;
+        border-radius: 1.25rem;
+        background: #fff;
+        border: 1px solid var(--arolana-border);
+        box-shadow: 0 14px 34px rgba(15,23,42,.06);
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        transition: .2s ease;
+    }
+
+    .plan-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 20px 44px rgba(15,23,42,.1);
+    }
+
+    .plan-card.popular {
+        border-color: rgba(0,102,204,.45);
+        box-shadow: 0 18px 42px rgba(0,102,204,.12);
+    }
+
+    .popular-ribbon {
+        background: linear-gradient(135deg, var(--arolana-blue), #064B99);
+        color: #fff;
+        min-height: 2.2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: .45rem;
+        font-size: .72rem;
+        font-weight: 950;
+    }
+
+    .plan-body {
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+    }
+
+    .plan-top {
+        text-align: center;
+        padding: .5rem .25rem 1rem;
+        border-bottom: 1px solid var(--arolana-border);
+    }
+
+    .plan-icon {
+        width: 4rem;
+        height: 4rem;
+        margin: 0 auto .75rem;
+        border-radius: 1.25rem;
+        background: #EFF6FF;
+        color: var(--arolana-blue);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+    }
+
+    .plan-card.popular .plan-icon {
+        background: linear-gradient(135deg, var(--arolana-blue), #064B99);
+        color: #fff;
+    }
+
+    .plan-name {
+        color: var(--arolana-navy);
+        font-size: 1.15rem;
+        line-height: 1.25;
+        font-weight: 950;
+        margin: 0;
+    }
+
+    .plan-price-wrap {
+        margin-top: .85rem;
+        color: var(--arolana-navy);
+    }
+
+    .plan-price {
+        font-size: 2rem;
+        line-height: 1;
+        font-weight: 950;
+        letter-spacing: -.03em;
+    }
+
+    .plan-period {
+        color: var(--arolana-muted);
+        font-size: .78rem;
+        font-weight: 800;
+    }
+
+    .plan-features {
+        display: grid;
+        gap: .7rem;
+        padding: 1rem 0;
+        flex: 1;
+    }
+
+    .plan-feature {
+        display: flex;
+        align-items: flex-start;
+        gap: .55rem;
+        color: var(--arolana-text);
+        font-size: .78rem;
+        line-height: 1.45;
+        font-weight: 750;
+    }
+
+    .plan-feature i {
+        color: var(--arolana-green);
+        margin-top: .18rem;
+        flex: 0 0 auto;
+    }
+
+    .plan-feature.locked {
+        color: var(--arolana-muted);
+    }
+
+    .plan-feature.locked i {
+        color: #94A3B8;
+    }
+
+    .plan-action {
+        margin-top: auto;
+        padding-top: .9rem;
+        border-top: 1px solid var(--arolana-border);
+    }
+
+    .plan-current-btn,
+    .plan-free-btn,
+    .plan-pay-btn {
+        width: 100%;
+        min-height: 2.7rem;
+        border: 0;
+        border-radius: .9rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .45rem;
+        font-size: .78rem;
+        font-weight: 950;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .plan-current-btn {
+        background: #E2E8F0;
+        color: #475569;
+        cursor: not-allowed;
+    }
+
+    .plan-free-btn {
+        background: var(--arolana-navy);
+        color: #fff;
+    }
+
+    .plan-pay-btn {
+        background: linear-gradient(135deg, var(--arolana-blue), #064B99);
+        color: #fff;
+    }
+
+    .plan-card.popular .plan-pay-btn {
+        background: linear-gradient(135deg, var(--arolana-orange), #E85F00);
+    }
+
+    .plan-payment-form {
+        display: grid;
+        gap: .7rem;
+    }
+
+    .plan-gateway-select {
+        width: 100%;
+        min-height: 2.55rem;
+        border: 1px solid var(--arolana-border);
+        border-radius: .85rem;
+        background: #F8FBFF;
+        color: var(--arolana-navy);
+        padding: .65rem .75rem;
+        font-size: .76rem;
+        font-weight: 850;
+        outline: none;
+    }
+
+    .plan-gateway-select:focus {
+        border-color: var(--arolana-blue);
+        box-shadow: 0 0 0 4px rgba(0,102,204,.12);
+    }
+
+    .subscription-note {
+        margin-top: 1rem;
+        border-radius: 1.1rem;
+        border: 1px solid var(--arolana-border);
+        background: #fff;
+        padding: 1rem;
+        color: var(--arolana-muted);
+        font-size: .78rem;
+        line-height: 1.6;
+        font-weight: 750;
+        text-align: center;
+        box-shadow: 0 12px 30px rgba(15,23,42,.055);
+    }
+
+    @media (max-width: 1100px) {
+        .plans-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .subscription-hero-top {
+            grid-template-columns: 1fr;
+        }
+
+        .subscription-hero-visual img {
+            max-height: 260px;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .arolana-subscription-page {
+            padding: .7rem .55rem 5rem;
+        }
+
+        .subscription-hero {
+            border-radius: 1rem;
+        }
+
+        .subscription-hero-top {
+            min-height: 0;
+            padding: 1rem;
+            gap: 1rem;
+        }
+
+        .subscription-eyebrow {
+            font-size: .62rem;
+        }
+
+        .subscription-title {
+            font-size: 1.55rem;
+            line-height: 1.08;
+        }
+
+        .subscription-subtitle {
+            font-size: .72rem;
+        }
+
+        .subscription-hero-badge {
+            width: 100%;
+            justify-content: center;
+            font-size: .66rem;
+        }
+
+        .subscription-hero-visual {
+            border-radius: .95rem;
+        }
+
+        .subscription-hero-visual img {
+            max-height: 180px;
+        }
+
+        .subscription-benefit-grid {
+            grid-template-columns: 1fr;
+            padding: .75rem;
+            gap: .6rem;
+        }
+
+        .subscription-benefit {
+            border-radius: .85rem;
+            padding: .75rem;
+        }
+
+        .subscription-benefit-label {
+            font-size: .58rem;
+        }
+
+        .subscription-benefit-value {
+            font-size: .74rem;
+        }
+
+        .subscription-current {
+            flex-direction: column;
+            align-items: stretch;
+            border-radius: 1rem;
+            padding: .8rem;
+        }
+
+        .plans-header {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .plans-header-title {
+            font-size: 1.05rem;
+        }
+
+        .plans-header-subtitle {
+            font-size: .7rem;
+        }
+
+        .subscription-history-link {
+            width: 100%;
+            min-height: 2.45rem;
+            font-size: .68rem;
+        }
+
+        .plans-grid {
+            grid-template-columns: 1fr;
+            gap: .8rem;
+        }
+
+        .plan-card {
+            border-radius: 1rem;
+        }
+
+        .plan-body {
+            padding: .85rem;
+        }
+
+        .popular-ribbon {
+            font-size: .66rem;
+        }
+
+        .plan-icon {
+            width: 3.2rem;
+            height: 3.2rem;
+            border-radius: 1rem;
+            font-size: 1.35rem;
+        }
+
+        .plan-name {
+            font-size: .98rem;
+        }
+
+        .plan-price {
+            font-size: 1.45rem;
+        }
+
+        .plan-period {
+            font-size: .68rem;
+        }
+
+        .plan-feature {
+            font-size: .68rem;
+        }
+
+        .plan-current-btn,
+        .plan-free-btn,
+        .plan-pay-btn {
+            min-height: 2.55rem;
+            border-radius: .8rem;
+            font-size: .7rem;
+        }
+
+        .plan-gateway-select {
+            font-size: .68rem;
+        }
+
+        .subscription-note {
+            border-radius: 1rem;
+            padding: .8rem;
+            font-size: .68rem;
+        }
+    }
+</style>
+
+<div class="arolana-subscription-page">
+    <section class="subscription-hero">
+        <div class="subscription-hero-top">
+            <div class="subscription-hero-content">
+                <div class="subscription-eyebrow">Arolana Vendor Growth Plans</div>
+                <h1 class="subscription-title">Choose the plan that matches your business stage.</h1>
+                <p class="subscription-subtitle">
+                    Benefits activate after payment verification and sync across your vendor dashboard, staff mobile app,
+                    customer website, and customer mobile app.
+                </p>
+
+                <div class="subscription-hero-badges">
+                    <span class="subscription-hero-badge">
+                        <i class="fas fa-store"></i>
+                        Vendor marketplace access
+                    </span>
+                    <span class="subscription-hero-badge">
+                        <i class="fas fa-chart-line"></i>
+                        Ranking and growth benefits
+                    </span>
+                    <span class="subscription-hero-badge">
+                        <i class="fas fa-mobile-screen"></i>
+                        Web and app synced
+                    </span>
+                </div>
+            </div>
+
+            <div class="subscription-hero-visual">
+                <img
+                    src="{% static 'images/arolana-vendor-subscription-benefits.png' %}"
+                    alt="Arolana subscription growth ladder"
+                    loading="lazy"
+                    decoding="async"
+                    onerror="this.style.display='none';"
+                >
+            </div>
         </div>
-        <img src="/static/images/arolana-vendor-subscription-benefits.png" alt="Arolana subscription growth ladder" class="w-full bg-white object-cover">
-        <div class="grid grid-cols-2 gap-3 bg-slate-50 p-4 text-sm font-bold text-slate-700 md:grid-cols-4">
-            <div class="rounded-xl bg-white p-3">Product uploads<br><span class="text-orange-600">1 to unlimited</span></div>
-            <div class="rounded-xl bg-white p-3">Search ranking<br><span class="text-orange-600">Higher by plan</span></div>
-            <div class="rounded-xl bg-white p-3">RFQ access<br><span class="text-orange-600">Plus and above</span></div>
-            <div class="rounded-xl bg-white p-3">Homepage boost<br><span class="text-orange-600">Special & Enterprise</span></div>
+
+        <div class="subscription-benefit-grid">
+            <div class="subscription-benefit">
+                <div class="subscription-benefit-label">Product Uploads</div>
+                <div class="subscription-benefit-value">1 to unlimited</div>
+            </div>
+
+            <div class="subscription-benefit">
+                <div class="subscription-benefit-label">Search Ranking</div>
+                <div class="subscription-benefit-value">Higher by plan</div>
+            </div>
+
+            <div class="subscription-benefit">
+                <div class="subscription-benefit-label">RFQ Access</div>
+                <div class="subscription-benefit-value">Plus and above</div>
+            </div>
+
+            <div class="subscription-benefit">
+                <div class="subscription-benefit-label">Homepage Boost</div>
+                <div class="subscription-benefit-value">Special & Enterprise</div>
+            </div>
         </div>
-    </div>
-    
+    </section>
+
     {% if current_subscription %}
-    <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg mb-8">
-        <i class="fas fa-check-circle"></i>
-        <strong>Current Plan:</strong> {{ current_subscription.plan.vendor_label }}
-        (Expires: {{ current_subscription.end_date|date:"M d, Y" }})
+    <div class="subscription-current">
+        <div class="subscription-current-left">
+            <span class="subscription-current-icon">
+                <i class="fas fa-check-circle"></i>
+            </span>
+            <div>
+                <div class="subscription-current-title">Current Plan: {{ current_subscription.plan.vendor_label }}</div>
+                <div class="subscription-current-text">
+                    Expires: {{ current_subscription.end_date|date:"M d, Y" }}
+                </div>
+            </div>
+        </div>
+
+        <a href="{% url 'subscriptions:history' %}" class="subscription-history-link">
+            <i class="fas fa-receipt"></i>
+            View History
+        </a>
     </div>
     {% endif %}
-    
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+
+    <div class="plans-header">
+        <div>
+            <h2 class="plans-header-title">Available vendor plans</h2>
+            <p class="plans-header-subtitle">
+                Select a plan based on how many products, images, variants, ranking boosts, and support benefits your business needs.
+            </p>
+        </div>
+
+        <a href="{% url 'subscriptions:history' %}" class="subscription-history-link">
+            <i class="fas fa-clock-rotate-left"></i>
+            Subscription History
+        </a>
+    </div>
+
+    <section class="plans-grid">
         {% for plan in plans %}
-        <div class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition {% if plan.is_popular %}ring-2 ring-blue-500{% endif %}">
+        <article class="plan-card {% if plan.is_popular %}popular{% endif %}">
             {% if plan.is_popular %}
-            <div class="bg-blue-500 text-white text-center py-1 text-sm">
-                <i class="fas fa-star"></i> Most Popular
+            <div class="popular-ribbon">
+                <i class="fas fa-star"></i>
+                Most Popular
             </div>
             {% endif %}
-            
-            <div class="p-6">
-                <div class="text-center">
-                    <i class="{{ plan.icon|default:'fas fa-store' }} text-5xl text-blue-600 mb-3"></i>
-                    <h3 class="text-2xl font-bold">{{ plan.vendor_label }}</h3>
-                    <div class="mt-4">
+
+            <div class="plan-body">
+                <div class="plan-top">
+                    <div class="plan-icon">
+                        <i class="{{ plan.icon|default:'fas fa-store' }}"></i>
+                    </div>
+
+                    <h3 class="plan-name">{{ plan.vendor_label }}</h3>
+
+                    <div class="plan-price-wrap">
                         {% if plan.price_monthly == 0 %}
-                            <span class="text-4xl font-bold">Free</span>
+                            <span class="plan-price">Free</span>
                         {% else %}
-                            <span class="text-4xl font-bold">₦{{ plan.price_monthly }}</span>
-                            <span class="text-gray-500">/month</span>
+                            <span class="plan-price">₦{{ plan.price_monthly|floatformat:0|intcomma }}</span>
+                            <span class="plan-period">/month</span>
                         {% endif %}
                     </div>
                 </div>
-                
-	                <div class="mt-6 space-y-3">
-	                    {% for feature in plan.get_features_list %}
-	                    <div class="flex items-start gap-2 text-sm">
-	                        <i class="fas fa-check-circle text-green-500 mt-1"></i>
-	                        <span>{{ feature }}</span>
-	                    </div>
-	                    {% endfor %}
-	                    {% if not plan.limits.chat_enabled %}
-	                    <div class="flex items-start gap-2 text-sm text-gray-500">
-	                        <i class="fas fa-lock mt-1"></i>
-	                        <span>Product chat locked on this plan</span>
-	                    </div>
-	                    {% endif %}
-	                </div>
-                
-                <div class="mt-6">
+
+                <div class="plan-features">
+                    {% for feature in plan.get_features_list %}
+                    <div class="plan-feature">
+                        <i class="fas fa-check-circle"></i>
+                        <span>{{ feature }}</span>
+                    </div>
+                    {% endfor %}
+
+                    {% if not plan.limits.chat_enabled %}
+                    <div class="plan-feature locked">
+                        <i class="fas fa-lock"></i>
+                        <span>Product chat locked on this plan</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="plan-action">
                     {% if current_subscription and current_subscription.plan.id == plan.id %}
-                        <button class="w-full bg-gray-300 text-gray-700 py-2 rounded-lg cursor-not-allowed" disabled>
+                        <button class="plan-current-btn" disabled>
+                            <i class="fas fa-check"></i>
                             Current Plan
                         </button>
                     {% elif plan.price_monthly == 0 %}
-                        <a href="{% url 'subscriptions:subscribe' plan.id %}" class="block w-full bg-gray-600 text-white text-center py-2 rounded-lg hover:bg-gray-700 transition">
+                        <a href="{% url 'subscriptions:subscribe' plan.id %}" class="plan-free-btn">
+                            <i class="fas fa-bolt"></i>
                             Activate Free Vendor
                         </a>
                     {% else %}
-                        <form method="post" action="{% url 'subscriptions:subscribe' plan.id %}" class="space-y-3">
+                        <form method="post" action="{% url 'subscriptions:subscribe' plan.id %}" class="plan-payment-form">
                             {% csrf_token %}
-                            <select name="payment_gateway" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold">
+
+                            <select name="payment_gateway" class="plan-gateway-select">
                                 {% for gateway in payment_gateways %}
-                                    <option value="{{ gateway.gateway }}" {% if not gateway.available %}disabled{% endif %}>
-                                        {{ gateway.display_name }}{% if not gateway.available %} - not configured{% endif %}
-                                    </option>
+                                <option value="{{ gateway.gateway }}" {% if not gateway.available %}disabled{% endif %}>
+                                    {{ gateway.display_name }}{% if not gateway.available %} - not configured{% endif %}
+                                </option>
                                 {% endfor %}
                             </select>
-                            <button type="submit" class="block w-full rounded-lg bg-blue-600 py-2 text-center font-bold text-white transition hover:bg-blue-700">
+
+                            <button type="submit" class="plan-pay-btn">
+                                <i class="fas fa-credit-card"></i>
                                 Pay / Choose
                             </button>
                         </form>
                     {% endif %}
                 </div>
             </div>
-        </div>
+        </article>
         {% endfor %}
-    </div>
-    
-    <!-- Add to main navigation -->
-    <div class="mt-8 text-center">
-        <a href="{% url 'subscriptions:history' %}" class="text-blue-600 hover:underline">
-            View Subscription History →
-        </a>
+    </section>
+
+    <div class="subscription-note">
+        Arolana should keep free plans useful for onboarding, but paid plans should unlock stronger trust, better visibility,
+        more product capacity, more media, chat access, RFQ access, and marketplace growth tools.
     </div>
 </div>
 {% endblock %}
