@@ -1,32 +1,570 @@
 {% extends 'base/base.html' %}
+{% load humanize %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto">
-    <h1 class="text-3xl font-bold mb-8">Orders Management</h1>
-    
-    <div class="bg-white rounded-lg shadow-md overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead class="bg-gray-50">
+<style>
+    :root {
+        --arolana-navy: #071A44;
+        --arolana-blue: #0066CC;
+        --arolana-orange: #FF7A00;
+        --arolana-soft: #F4F8FF;
+        --arolana-border: #E3ECF8;
+        --arolana-text: #0B1E46;
+        --arolana-muted: #65758B;
+        --arolana-bg: #F4F7FB;
+        --arolana-green: #16A34A;
+        --arolana-red: #DC2626;
+        --arolana-amber: #F59E0B;
+    }
+
+    body {
+        background: var(--arolana-bg);
+    }
+
+    .orders-admin-page {
+        width: 100%;
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 1.25rem;
+        color: var(--arolana-text);
+    }
+
+    .orders-header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .orders-eyebrow {
+        color: var(--arolana-orange);
+        font-size: .72rem;
+        font-weight: 950;
+        letter-spacing: .18em;
+        text-transform: uppercase;
+    }
+
+    .orders-title {
+        margin: .2rem 0 0;
+        color: var(--arolana-navy);
+        font-size: clamp(1.7rem, 2.8vw, 2.7rem);
+        line-height: 1;
+        font-weight: 950;
+        letter-spacing: -.03em;
+    }
+
+    .orders-subtitle {
+        margin-top: .45rem;
+        color: var(--arolana-muted);
+        font-size: .9rem;
+        font-weight: 750;
+    }
+
+    .orders-count-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 2.4rem;
+        padding: .65rem 1rem;
+        border-radius: 999px;
+        background: #fff;
+        border: 1px solid var(--arolana-border);
+        color: var(--arolana-navy);
+        font-size: .78rem;
+        font-weight: 950;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, .05);
+    }
+
+    .orders-panel {
+        overflow: hidden;
+        border-radius: 1.2rem;
+        background: #fff;
+        border: 1px solid var(--arolana-border);
+        box-shadow: 0 16px 38px rgba(15, 23, 42, .06);
+    }
+
+    .orders-panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1rem;
+        border-bottom: 1px solid var(--arolana-border);
+        background: linear-gradient(180deg, #fff, #F8FBFF);
+    }
+
+    .orders-panel-title {
+        margin: 0;
+        color: var(--arolana-navy);
+        font-size: 1.05rem;
+        font-weight: 950;
+    }
+
+    .orders-panel-subtitle {
+        margin-top: .2rem;
+        color: var(--arolana-muted);
+        font-size: .76rem;
+        font-weight: 750;
+    }
+
+    .orders-refresh {
+        min-height: 2.45rem;
+        border: 1px solid var(--arolana-border);
+        border-radius: .85rem;
+        background: #fff;
+        color: var(--arolana-blue);
+        padding: .65rem .9rem;
+        font-size: .75rem;
+        font-weight: 950;
+        cursor: pointer;
+    }
+
+    .orders-table-wrap {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .orders-table {
+        width: 100%;
+        min-width: 920px;
+        border-collapse: collapse;
+    }
+
+    .orders-table th {
+        padding: .85rem 1rem;
+        text-align: left;
+        background: #F8FBFF;
+        color: var(--arolana-muted);
+        font-size: .72rem;
+        font-weight: 950;
+        border-bottom: 1px solid var(--arolana-border);
+        text-transform: uppercase;
+        letter-spacing: .04em;
+    }
+
+    .orders-table td {
+        padding: .95rem 1rem;
+        color: var(--arolana-navy);
+        font-size: .82rem;
+        font-weight: 750;
+        border-bottom: 1px solid var(--arolana-border);
+        vertical-align: middle;
+    }
+
+    .orders-table tr:hover {
+        background: #F8FBFF;
+    }
+
+    .order-number {
+        font-weight: 950;
+        color: var(--arolana-navy);
+    }
+
+    .order-customer {
+        color: var(--arolana-muted);
+        font-size: .78rem;
+        font-weight: 800;
+        word-break: break-word;
+    }
+
+    .order-total {
+        color: var(--arolana-navy);
+        font-size: .92rem;
+        font-weight: 950;
+    }
+
+    .order-status-select {
+        min-height: 2.25rem;
+        border-radius: .75rem;
+        border: 1px solid var(--arolana-border);
+        background: #fff;
+        color: var(--arolana-navy);
+        padding: .45rem .65rem;
+        font-size: .76rem;
+        font-weight: 850;
+        outline: none;
+    }
+
+    .order-status-select:focus {
+        border-color: var(--arolana-blue);
+        box-shadow: 0 0 0 3px rgba(0, 102, 204, .12);
+    }
+
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 1.8rem;
+        padding: .35rem .7rem;
+        border-radius: 999px;
+        font-size: .68rem;
+        font-weight: 950;
+        white-space: nowrap;
+    }
+
+    .status-pending {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .status-processing {
+        background: #DBEAFE;
+        color: #1D4ED8;
+    }
+
+    .status-shipped {
+        background: #E0F2FE;
+        color: #0369A1;
+    }
+
+    .status-delivered {
+        background: #DCFCE7;
+        color: #15803D;
+    }
+
+    .status-cancelled {
+        background: #FEE2E2;
+        color: #B91C1C;
+    }
+
+    .status-default {
+        background: #F1F5F9;
+        color: #475569;
+    }
+
+    .order-action-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 2.2rem;
+        padding: .55rem .8rem;
+        border-radius: .75rem;
+        background: #EFF6FF;
+        color: var(--arolana-blue);
+        font-size: .74rem;
+        font-weight: 950;
+        text-decoration: none;
+    }
+
+    .order-action-link:hover {
+        background: #DBEAFE;
+        text-decoration: none;
+    }
+
+    .orders-mobile-list {
+        display: none;
+        padding: .8rem;
+        gap: .8rem;
+    }
+
+    .order-mobile-card {
+        border: 1px solid var(--arolana-border);
+        border-radius: 1rem;
+        background: #fff;
+        overflow: hidden;
+    }
+
+    .order-mobile-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: .8rem;
+        padding: .9rem;
+        border-bottom: 1px solid var(--arolana-border);
+        background: #F8FBFF;
+    }
+
+    .order-mobile-number {
+        color: var(--arolana-navy);
+        font-size: 1rem;
+        font-weight: 950;
+        line-height: 1.2;
+    }
+
+    .order-mobile-date {
+        margin-top: .25rem;
+        color: var(--arolana-muted);
+        font-size: .7rem;
+        font-weight: 800;
+    }
+
+    .order-mobile-body {
+        display: grid;
+        gap: .7rem;
+        padding: .9rem;
+    }
+
+    .order-mobile-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: .75rem;
+        border-bottom: 1px solid #EEF3FA;
+        padding-bottom: .65rem;
+    }
+
+    .order-mobile-row:last-child {
+        border-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    .order-mobile-label {
+        color: var(--arolana-muted);
+        font-size: .7rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+    }
+
+    .order-mobile-value {
+        color: var(--arolana-navy);
+        font-size: .78rem;
+        font-weight: 850;
+        text-align: right;
+        word-break: break-word;
+    }
+
+    .order-mobile-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: .7rem;
+        padding: .9rem;
+        border-top: 1px solid var(--arolana-border);
+        background: #fff;
+    }
+
+    .order-mobile-actions .order-status-select,
+    .order-mobile-actions .order-action-link {
+        width: 100%;
+        min-height: 2.65rem;
+    }
+
+    .orders-empty {
+        padding: 3rem 1rem;
+        text-align: center;
+        color: var(--arolana-muted);
+        font-weight: 850;
+    }
+
+    .orders-empty-icon {
+        width: 4rem;
+        height: 4rem;
+        margin: 0 auto 1rem;
+        border-radius: 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #EFF6FF;
+        color: var(--arolana-blue);
+        font-size: 1.5rem;
+    }
+
+    .orders-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: .6rem;
+        margin-top: 1.25rem;
+        flex-wrap: wrap;
+    }
+
+    .orders-page-link,
+    .orders-page-current {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 2.5rem;
+        padding: .65rem 1rem;
+        border-radius: .85rem;
+        font-size: .78rem;
+        font-weight: 950;
+        text-decoration: none;
+    }
+
+    .orders-page-link {
+        background: #fff;
+        color: var(--arolana-navy);
+        border: 1px solid var(--arolana-border);
+    }
+
+    .orders-page-current {
+        background: var(--arolana-blue);
+        color: #fff;
+        border: 1px solid var(--arolana-blue);
+    }
+
+    @media (max-width: 768px) {
+        .orders-admin-page {
+            padding: .65rem .55rem 5rem;
+        }
+
+        .orders-header {
+            flex-direction: column;
+            align-items: stretch;
+            gap: .8rem;
+        }
+
+        .orders-title {
+            font-size: 1.55rem;
+        }
+
+        .orders-subtitle {
+            font-size: .72rem;
+            line-height: 1.45;
+        }
+
+        .orders-count-pill {
+            width: 100%;
+            min-height: 2.35rem;
+            font-size: .72rem;
+        }
+
+        .orders-panel {
+            border-radius: 1rem;
+        }
+
+        .orders-panel-head {
+            padding: .8rem;
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .orders-panel-title {
+            font-size: .95rem;
+        }
+
+        .orders-panel-subtitle {
+            font-size: .68rem;
+        }
+
+        .orders-refresh {
+            width: 100%;
+        }
+
+        .orders-table-wrap {
+            display: none;
+        }
+
+        .orders-mobile-list {
+            display: grid;
+        }
+
+        .order-mobile-top,
+        .order-mobile-body,
+        .order-mobile-actions {
+            padding: .8rem;
+        }
+
+        .order-mobile-number {
+            font-size: .88rem;
+        }
+
+        .status-pill {
+            font-size: .62rem;
+            min-height: 1.6rem;
+            padding: .3rem .55rem;
+        }
+
+        .orders-pagination {
+            gap: .45rem;
+        }
+
+        .orders-page-link,
+        .orders-page-current {
+            flex: 1 1 auto;
+            min-height: 2.4rem;
+            padding: .6rem .8rem;
+            font-size: .7rem;
+        }
+    }
+</style>
+
+<div class="orders-admin-page">
+    <div class="orders-header">
+        <div>
+            <div class="orders-eyebrow">Arolana Vendor Orders</div>
+            <h1 class="orders-title">Orders Management</h1>
+            <p class="orders-subtitle">
+                View customer orders, update fulfillment status, and open order details.
+            </p>
+        </div>
+
+        <div class="orders-count-pill">
+            {% if orders.paginator.count %}
+                {{ orders.paginator.count|intcomma }} order{{ orders.paginator.count|pluralize }}
+            {% else %}
+                Orders overview
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="orders-panel">
+        <div class="orders-panel-head">
+            <div>
+                <h2 class="orders-panel-title">Recent Orders</h2>
+                <p class="orders-panel-subtitle">
+                    Update status carefully. Customers may see these changes in their tracking timeline.
+                </p>
+            </div>
+
+            <button type="button" class="orders-refresh" onclick="window.location.reload()">
+                Refresh Orders
+            </button>
+        </div>
+
+        {% if orders %}
+        <div class="orders-table-wrap">
+            <table class="orders-table">
+                <thead>
                     <tr>
-                        <th class="px-6 py-3 text-left text-sm font-semibold">Order #</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold">Date</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold">Customer</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold">Total</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold">Status</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold">Actions</th>
+                        <th>Order #</th>
+                        <th>Date</th>
+                        <th>Customer</th>
+                        <th>Total</th>
+                        <th>Current Status</th>
+                        <th>Update Status</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
+
                 <tbody>
                     {% for order in orders %}
-                    <tr class="border-t hover:bg-gray-50">
-                        <td class="px-6 py-4">#{{ order.order_number }}</td>
-                        <td class="px-6 py-4">{{ order.created_at|date:"M d, Y H:i" }}</td>
-                        <td class="px-6 py-4">{{ order.user.email }}</td>
-                        <td class="px-6 py-4 font-semibold">${{ order.total }}</td>
-                        <td class="px-6 py-4">
-                            <select onchange="updateOrderStatus({{ order.id }}, this.value)" 
-                                    class="px-2 py-1 rounded text-sm border">
+                    <tr>
+                        <td>
+                            <span class="order-number">#{{ order.order_number }}</span>
+                        </td>
+
+                        <td>{{ order.created_at|date:"M d, Y H:i" }}</td>
+
+                        <td>
+                            <span class="order-customer">
+                                {{ order.user.email|default:"Guest customer" }}
+                            </span>
+                        </td>
+
+                        <td>
+                            <span class="order-total">₦{{ order.total|floatformat:2|intcomma }}</span>
+                        </td>
+
+                        <td>
+                            <span class="status-pill
+                                {% if order.status == 'pending' %}status-pending
+                                {% elif order.status == 'processing' %}status-processing
+                                {% elif order.status == 'shipped' %}status-shipped
+                                {% elif order.status == 'delivered' %}status-delivered
+                                {% elif order.status == 'cancelled' %}status-cancelled
+                                {% else %}status-default{% endif %}">
+                                {{ order.status|title }}
+                            </span>
+                        </td>
+
+                        <td>
+                            <select
+                                onchange="updateOrderStatus('{{ order.id }}', this.value)"
+                                class="order-status-select"
+                                aria-label="Update status for order {{ order.order_number }}"
+                            >
                                 <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>Pending</option>
                                 <option value="processing" {% if order.status == 'processing' %}selected{% endif %}>Processing</option>
                                 <option value="shipped" {% if order.status == 'shipped' %}selected{% endif %}>Shipped</option>
@@ -34,51 +572,151 @@
                                 <option value="cancelled" {% if order.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
                             </select>
                         </td>
-                        <td class="px-6 py-4">
-                            <a href="/dashboard/vendor/order/{{ order.id }}/" class="text-blue-600 hover:underline">View Details</a>
+
+                        <td>
+                            <a href="{% url 'dashboard:vendor_order_detail' order.id %}" class="order-action-link">
+                                View Details
+                            </a>
                         </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="6" class="text-center py-8 text-gray-500">No orders found</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-    </div>
-    
-    <!-- Pagination -->
-    {% if orders.has_other_pages %}
-    <div class="flex justify-center mt-8 gap-2">
-        {% if orders.has_previous %}
-            <a href="?page={{ orders.previous_page_number }}" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Previous</a>
+
+        <div class="orders-mobile-list">
+            {% for order in orders %}
+            <article class="order-mobile-card">
+                <div class="order-mobile-top">
+                    <div>
+                        <div class="order-mobile-number">#{{ order.order_number }}</div>
+                        <div class="order-mobile-date">{{ order.created_at|date:"M d, Y H:i" }}</div>
+                    </div>
+
+                    <span class="status-pill
+                        {% if order.status == 'pending' %}status-pending
+                        {% elif order.status == 'processing' %}status-processing
+                        {% elif order.status == 'shipped' %}status-shipped
+                        {% elif order.status == 'delivered' %}status-delivered
+                        {% elif order.status == 'cancelled' %}status-cancelled
+                        {% else %}status-default{% endif %}">
+                        {{ order.status|title }}
+                    </span>
+                </div>
+
+                <div class="order-mobile-body">
+                    <div class="order-mobile-row">
+                        <span class="order-mobile-label">Customer</span>
+                        <span class="order-mobile-value">{{ order.user.email|default:"Guest customer" }}</span>
+                    </div>
+
+                    <div class="order-mobile-row">
+                        <span class="order-mobile-label">Total</span>
+                        <span class="order-mobile-value">₦{{ order.total|floatformat:2|intcomma }}</span>
+                    </div>
+                </div>
+
+                <div class="order-mobile-actions">
+                    <select
+                        onchange="updateOrderStatus('{{ order.id }}', this.value)"
+                        class="order-status-select"
+                        aria-label="Update status for order {{ order.order_number }}"
+                    >
+                        <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>Pending</option>
+                        <option value="processing" {% if order.status == 'processing' %}selected{% endif %}>Processing</option>
+                        <option value="shipped" {% if order.status == 'shipped' %}selected{% endif %}>Shipped</option>
+                        <option value="delivered" {% if order.status == 'delivered' %}selected{% endif %}>Delivered</option>
+                        <option value="cancelled" {% if order.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                    </select>
+
+                    <a href="{% url 'dashboard:vendor_order_detail' order.id %}" class="order-action-link">
+                        View Order Details
+                    </a>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+
+        {% else %}
+        <div class="orders-empty">
+            <div class="orders-empty-icon">
+                <i class="fas fa-receipt"></i>
+            </div>
+            No orders found.
+        </div>
         {% endif %}
-        
-        <span class="px-4 py-2 bg-blue-600 text-white rounded">Page {{ orders.number }} of {{ orders.paginator.num_pages }}</span>
-        
+    </div>
+
+    {% if orders.has_other_pages %}
+    <div class="orders-pagination">
+        {% if orders.has_previous %}
+            <a href="?page={{ orders.previous_page_number }}" class="orders-page-link">Previous</a>
+        {% endif %}
+
+        <span class="orders-page-current">
+            Page {{ orders.number }} of {{ orders.paginator.num_pages }}
+        </span>
+
         {% if orders.has_next %}
-            <a href="?page={{ orders.next_page_number }}" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Next</a>
+            <a href="?page={{ orders.next_page_number }}" class="orders-page-link">Next</a>
         {% endif %}
     </div>
     {% endif %}
 </div>
 
 <script>
-function updateOrderStatus(orderId, status) {
-    fetch(`/dashboard/vendor/order/${orderId}/update/`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token }}'
-        },
-        body: JSON.stringify({status: status})
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
+function getCookie(name) {
+    let cookieValue = null;
+
+    if (document.cookie && document.cookie !== "") {
+        const cookies = document.cookie.split(";");
+
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+
+            if (cookie.substring(0, name.length + 1) === (name + "=")) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
         }
+    }
+
+    return cookieValue;
+}
+
+function updateOrderStatus(orderId, status) {
+    const confirmed = confirm("Update this order status to " + status + "?");
+
+    if (!confirmed) {
+        window.location.reload();
+        return;
+    }
+
+    fetch(`/dashboard/vendor/order/${orderId}/update/`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken")
+        },
+        body: JSON.stringify({
+            status: status
+        })
+    })
+    .then(function (response) {
+        return response.json();
+    })
+    .then(function (data) {
+        if (data.success) {
+            window.location.reload();
+            return;
+        }
+
+        alert(data.error || "Unable to update order status. Please try again.");
+        window.location.reload();
+    })
+    .catch(function () {
+        alert("Network error. Please check your connection and try again.");
+        window.location.reload();
     });
 }
 </script>

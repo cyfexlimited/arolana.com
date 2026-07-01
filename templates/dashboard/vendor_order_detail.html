@@ -1,204 +1,986 @@
 {% extends 'dashboard/base_dashboard.html' %}
+{% load humanize %}
 
 {% block dashboard_title %}Order {{ order.order_number }}{% endblock %}
 
+{% block extra_css %}
+{{ block.super }}
+<style>
+    :root {
+        --arolana-navy: #071A44;
+        --arolana-blue: #0066CC;
+        --arolana-orange: #FF7A00;
+        --arolana-soft: #F4F8FF;
+        --arolana-border: #E3ECF8;
+        --arolana-text: #0B1E46;
+        --arolana-muted: #65758B;
+        --arolana-bg: #F4F7FB;
+        --arolana-green: #16A34A;
+        --arolana-red: #DC2626;
+        --arolana-amber: #F59E0B;
+    }
+
+    body {
+        background: var(--arolana-bg) !important;
+    }
+
+    .vendor-order-detail-page {
+        width: 100%;
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 1.25rem;
+        color: var(--arolana-text);
+    }
+
+    .order-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 1.45rem;
+        background:
+            radial-gradient(circle at 15% 20%, rgba(56,189,248,.22), transparent 28%),
+            radial-gradient(circle at 90% 18%, rgba(255,122,0,.22), transparent 25%),
+            linear-gradient(135deg, #071A44, #063E85);
+        color: #fff;
+        box-shadow: 0 18px 42px rgba(7, 26, 68, .18);
+        margin-bottom: 1rem;
+    }
+
+    .order-hero-inner {
+        position: relative;
+        z-index: 1;
+        padding: 1.25rem;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .order-back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: .45rem;
+        color: rgba(255,255,255,.78);
+        font-size: .78rem;
+        font-weight: 950;
+        text-decoration: none;
+        margin-bottom: .8rem;
+    }
+
+    .order-back-link:hover {
+        color: #fff;
+        text-decoration: none;
+    }
+
+    .order-eyebrow {
+        color: #FFD7B0;
+        font-size: .7rem;
+        font-weight: 950;
+        letter-spacing: .18em;
+        text-transform: uppercase;
+    }
+
+    .order-title {
+        margin: .25rem 0 0;
+        color: #fff;
+        font-size: clamp(1.65rem, 2.8vw, 2.8rem);
+        font-weight: 950;
+        line-height: 1;
+        letter-spacing: -.03em;
+    }
+
+    .order-subtitle {
+        margin-top: .45rem;
+        color: rgba(255,255,255,.75);
+        font-size: .82rem;
+        font-weight: 800;
+    }
+
+    .order-hero-pills {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: .55rem;
+    }
+
+    .order-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 2.15rem;
+        padding: .5rem .8rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,.24);
+        background: rgba(255,255,255,.12);
+        color: #fff;
+        font-size: .72rem;
+        font-weight: 950;
+        white-space: nowrap;
+    }
+
+    .order-pill.orange {
+        border-color: rgba(255,122,0,.35);
+        background: var(--arolana-orange);
+    }
+
+    .order-message {
+        border-radius: 1rem;
+        border: 1px solid var(--arolana-border);
+        padding: .85rem 1rem;
+        font-size: .78rem;
+        font-weight: 850;
+        margin-bottom: .8rem;
+    }
+
+    .order-message.success {
+        border-color: #BBF7D0;
+        background: #F0FDF4;
+        color: #166534;
+    }
+
+    .order-message.error {
+        border-color: #FECACA;
+        background: #FEF2F2;
+        color: #B91C1C;
+    }
+
+    .order-message.info {
+        border-color: #BFDBFE;
+        background: #EFF6FF;
+        color: #1D4ED8;
+    }
+
+    .order-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: .9rem;
+        margin-bottom: 1rem;
+    }
+
+    .order-kpi-card {
+        position: relative;
+        overflow: hidden;
+        border-radius: 1.1rem;
+        background: #fff;
+        border: 1px solid var(--arolana-border);
+        box-shadow: 0 12px 30px rgba(15, 23, 42, .055);
+        padding: 1rem;
+        min-width: 0;
+    }
+
+    .order-kpi-card:before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--arolana-blue), var(--arolana-orange));
+    }
+
+    .order-kpi-label {
+        color: var(--arolana-muted);
+        font-size: .68rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+    }
+
+    .order-kpi-value {
+        margin-top: .45rem;
+        color: var(--arolana-navy);
+        font-size: 1.15rem;
+        font-weight: 950;
+        line-height: 1.15;
+        overflow-wrap: anywhere;
+    }
+
+    .order-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.45fr) minmax(320px, .55fr);
+        gap: 1rem;
+        align-items: start;
+    }
+
+    .order-main-stack,
+    .order-side-stack {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .order-panel {
+        overflow: hidden;
+        border-radius: 1.15rem;
+        background: #fff;
+        border: 1px solid var(--arolana-border);
+        box-shadow: 0 12px 30px rgba(15, 23, 42, .055);
+        min-width: 0;
+    }
+
+    .order-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .8rem;
+        padding: .95rem 1rem;
+        border-bottom: 1px solid var(--arolana-border);
+        background: linear-gradient(180deg, #fff, #F8FBFF);
+    }
+
+    .order-panel-title {
+        margin: 0;
+        color: var(--arolana-navy);
+        font-size: 1.02rem;
+        font-weight: 950;
+    }
+
+    .order-panel-subtitle {
+        margin-top: .18rem;
+        color: var(--arolana-muted);
+        font-size: .72rem;
+        font-weight: 750;
+    }
+
+    .order-status-form {
+        display: flex;
+        align-items: center;
+        gap: .6rem;
+        flex-wrap: wrap;
+    }
+
+    .order-select {
+        min-height: 2.45rem;
+        border-radius: .85rem;
+        border: 1px solid var(--arolana-border);
+        background: #fff;
+        color: var(--arolana-navy);
+        padding: .6rem .8rem;
+        font-size: .75rem;
+        font-weight: 900;
+        outline: none;
+    }
+
+    .order-select:focus {
+        border-color: var(--arolana-blue);
+        box-shadow: 0 0 0 3px rgba(0,102,204,.12);
+    }
+
+    .order-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .4rem;
+        min-height: 2.45rem;
+        padding: .65rem .95rem;
+        border-radius: .85rem;
+        border: 0;
+        background: linear-gradient(135deg, var(--arolana-orange), #E85F00);
+        color: #fff;
+        font-size: .75rem;
+        font-weight: 950;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .order-table-wrap {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .order-items-table {
+        width: 100%;
+        min-width: 720px;
+        border-collapse: collapse;
+    }
+
+    .order-items-table th {
+        padding: .8rem .9rem;
+        text-align: left;
+        background: #F8FBFF;
+        color: var(--arolana-muted);
+        font-size: .68rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        border-bottom: 1px solid var(--arolana-border);
+    }
+
+    .order-items-table td {
+        padding: .9rem;
+        border-bottom: 1px solid var(--arolana-border);
+        color: var(--arolana-navy);
+        font-size: .8rem;
+        font-weight: 800;
+        vertical-align: top;
+    }
+
+    .order-item-name {
+        color: var(--arolana-navy);
+        font-size: .86rem;
+        font-weight: 950;
+        line-height: 1.3;
+    }
+
+    .order-item-meta {
+        margin-top: .25rem;
+        color: var(--arolana-muted);
+        font-size: .68rem;
+        font-weight: 800;
+    }
+
+    .order-mobile-items {
+        display: none;
+        padding: .8rem;
+        gap: .8rem;
+    }
+
+    .order-mobile-item-card {
+        border: 1px solid var(--arolana-border);
+        border-radius: 1rem;
+        background: #fff;
+        overflow: hidden;
+    }
+
+    .order-mobile-item-top {
+        padding: .85rem;
+        background: #F8FBFF;
+        border-bottom: 1px solid var(--arolana-border);
+    }
+
+    .order-mobile-item-body {
+        display: grid;
+        gap: .65rem;
+        padding: .85rem;
+    }
+
+    .order-mobile-row {
+        display: flex;
+        justify-content: space-between;
+        gap: .8rem;
+        border-bottom: 1px solid #EEF3FA;
+        padding-bottom: .6rem;
+    }
+
+    .order-mobile-row:last-child {
+        border-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    .order-mobile-label {
+        color: var(--arolana-muted);
+        font-size: .68rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+    }
+
+    .order-mobile-value {
+        color: var(--arolana-navy);
+        font-size: .76rem;
+        font-weight: 900;
+        text-align: right;
+    }
+
+    .tracking-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: .8rem;
+        padding: 1rem;
+    }
+
+    .tracking-card {
+        border-radius: 1rem;
+        background: #F8FBFF;
+        border: 1px solid #EAF1FB;
+        padding: .9rem;
+        min-width: 0;
+    }
+
+    .tracking-label {
+        color: var(--arolana-muted);
+        font-size: .68rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+    }
+
+    .tracking-value {
+        margin-top: .4rem;
+        color: var(--arolana-navy);
+        font-size: .86rem;
+        font-weight: 900;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+        white-space: pre-line;
+    }
+
+    .tracking-empty {
+        margin: 1rem;
+        border-radius: 1rem;
+        background: #F8FBFF;
+        border: 1px solid #EAF1FB;
+        padding: 1rem;
+        color: var(--arolana-muted);
+        font-size: .8rem;
+        font-weight: 850;
+        line-height: 1.6;
+    }
+
+    .side-card {
+        padding: 1rem;
+    }
+
+    .side-card-title {
+        margin: 0 0 .8rem;
+        color: var(--arolana-navy);
+        font-size: 1rem;
+        font-weight: 950;
+    }
+
+    .side-info-list {
+        display: grid;
+        gap: .75rem;
+    }
+
+    .side-info-item {
+        border-radius: .95rem;
+        background: #F8FBFF;
+        border: 1px solid #EAF1FB;
+        padding: .8rem;
+    }
+
+    .side-info-label {
+        color: var(--arolana-muted);
+        font-size: .68rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+    }
+
+    .side-info-value {
+        margin-top: .28rem;
+        color: var(--arolana-navy);
+        font-size: .8rem;
+        font-weight: 850;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+        white-space: pre-line;
+    }
+
+    .payment-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: .8rem;
+        padding: .65rem 0;
+        border-bottom: 1px solid #EEF3FA;
+        font-size: .78rem;
+    }
+
+    .payment-row:last-child {
+        border-bottom: 0;
+    }
+
+    .payment-row span:first-child {
+        color: var(--arolana-muted);
+        font-weight: 850;
+    }
+
+    .payment-row span:last-child {
+        color: var(--arolana-navy);
+        font-weight: 950;
+        text-align: right;
+    }
+
+    .payment-row.total {
+        margin-top: .35rem;
+        padding-top: .9rem;
+        border-top: 1px solid var(--arolana-border);
+        font-size: .95rem;
+    }
+
+    .payment-row.total span:last-child {
+        color: var(--arolana-blue);
+    }
+
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 1.85rem;
+        padding: .35rem .7rem;
+        border-radius: 999px;
+        font-size: .68rem;
+        font-weight: 950;
+        white-space: nowrap;
+    }
+
+    .status-pending {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .status-processing {
+        background: #DBEAFE;
+        color: #1D4ED8;
+    }
+
+    .status-shipped {
+        background: #E0F2FE;
+        color: #0369A1;
+    }
+
+    .status-delivered {
+        background: #DCFCE7;
+        color: #15803D;
+    }
+
+    .status-cancelled {
+        background: #FEE2E2;
+        color: #B91C1C;
+    }
+
+    .status-default {
+        background: #F1F5F9;
+        color: #475569;
+    }
+
+    @media (max-width: 1024px) {
+        .order-layout,
+        .order-kpi-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .vendor-order-detail-page {
+            padding: .65rem .55rem 5rem;
+        }
+
+        .order-hero {
+            border-radius: 1rem;
+        }
+
+        .order-hero-inner {
+            flex-direction: column;
+            align-items: stretch;
+            padding: 1rem;
+        }
+
+        .order-title {
+            font-size: 1.45rem;
+            line-height: 1.08;
+        }
+
+        .order-subtitle {
+            font-size: .72rem;
+        }
+
+        .order-hero-pills {
+            justify-content: flex-start;
+        }
+
+        .order-pill {
+            font-size: .65rem;
+            min-height: 1.85rem;
+            padding: .35rem .58rem;
+        }
+
+        .order-kpi-grid {
+            grid-template-columns: 1fr 1fr;
+            gap: .65rem;
+        }
+
+        .order-kpi-card {
+            border-radius: .95rem;
+            padding: .8rem;
+        }
+
+        .order-kpi-label {
+            font-size: .6rem;
+        }
+
+        .order-kpi-value {
+            font-size: .88rem;
+            line-height: 1.25;
+        }
+
+        .order-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .order-panel {
+            border-radius: 1rem;
+        }
+
+        .order-panel-header {
+            flex-direction: column;
+            align-items: stretch;
+            padding: .85rem;
+        }
+
+        .order-panel-title {
+            font-size: .95rem;
+        }
+
+        .order-panel-subtitle {
+            font-size: .68rem;
+            line-height: 1.45;
+        }
+
+        .order-status-form {
+            display: grid;
+            grid-template-columns: 1fr;
+            width: 100%;
+        }
+
+        .order-select,
+        .order-btn {
+            width: 100%;
+            min-height: 2.6rem;
+        }
+
+        .order-table-wrap {
+            display: none;
+        }
+
+        .order-mobile-items {
+            display: grid;
+        }
+
+        .tracking-grid {
+            grid-template-columns: 1fr;
+            padding: .8rem;
+        }
+
+        .tracking-card {
+            padding: .8rem;
+        }
+
+        .side-card {
+            padding: .85rem;
+        }
+
+        .side-info-item {
+            padding: .75rem;
+        }
+    }
+
+    @media (max-width: 420px) {
+        .order-kpi-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block dashboard_content %}
-<div class="space-y-6">
-    <div class="flex flex-col gap-4 rounded-3xl bg-gradient-to-r from-blue-950 to-blue-800 p-6 text-white shadow-lg md:flex-row md:items-center md:justify-between">
-        <div>
-            <a href="{% url 'dashboard:vendor_orders' %}" class="mb-3 inline-flex items-center gap-2 text-sm font-bold text-blue-100 hover:text-white">
-                <i class="fas fa-arrow-left"></i> Back to Orders
-            </a>
-            <p class="text-sm font-black uppercase tracking-widest text-orange-200">Vendor Order Detail</p>
-            <h1 class="mt-2 text-3xl font-black">Order {{ order.order_number }}</h1>
-            <p class="mt-2 text-blue-100">Placed {{ order.created_at|date:"M d, Y H:i" }}</p>
+<div class="vendor-order-detail-page">
+    <section class="order-hero">
+        <div class="order-hero-inner">
+            <div>
+                <a href="{% url 'dashboard:vendor_orders' %}" class="order-back-link">
+                    <i class="fas fa-arrow-left"></i>
+                    Back to Orders
+                </a>
+
+                <div class="order-eyebrow">Vendor Order Detail</div>
+                <h1 class="order-title">Order {{ order.order_number }}</h1>
+                <p class="order-subtitle">Placed {{ order.created_at|date:"M d, Y H:i" }}</p>
+            </div>
+
+            <div class="order-hero-pills">
+                <span class="order-pill">Order: {{ order.status|title }}</span>
+                <span class="order-pill">Payment: {{ order.payment_status|title }}</span>
+                {% if delivery %}
+                    <span class="order-pill orange">{{ delivery.get_status_display }}</span>
+                {% endif %}
+            </div>
         </div>
-        <div class="flex flex-wrap gap-2">
-            <span class="rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm font-black">{{ order.status|title }}</span>
-            <span class="rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm font-black">Payment: {{ order.payment_status|title }}</span>
-            {% if delivery %}
-            <span class="rounded-full border border-orange-200 bg-orange-500 px-4 py-2 text-sm font-black text-white">{{ delivery.get_status_display }}</span>
-            {% endif %}
-        </div>
-    </div>
+    </section>
 
     {% if messages %}
         {% for message in messages %}
-        <div class="rounded-2xl border px-4 py-3 text-sm font-bold {% if message.tags == 'success' %}border-green-200 bg-green-50 text-green-700{% elif message.tags == 'error' %}border-red-200 bg-red-50 text-red-700{% else %}border-blue-200 bg-blue-50 text-blue-700{% endif %}">
-            {{ message }}
-        </div>
+            <div class="order-message {% if message.tags == 'success' %}success{% elif message.tags == 'error' %}error{% else %}info{% endif %}">
+                {{ message }}
+            </div>
         {% endfor %}
     {% endif %}
 
-    <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-        <div class="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
-            <p class="text-xs font-black uppercase tracking-wide text-gray-500">Order Total</p>
-            <p class="mt-2 text-2xl font-black text-gray-950">₦{{ order.total|floatformat:0 }}</p>
+    <section class="order-kpi-grid">
+        <div class="order-kpi-card">
+            <div class="order-kpi-label">Order Total</div>
+            <div class="order-kpi-value">₦{{ order.total|floatformat:0|intcomma }}</div>
         </div>
-        <div class="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
-            <p class="text-xs font-black uppercase tracking-wide text-gray-500">Vendor Items</p>
-            <p class="mt-2 text-2xl font-black text-gray-950">{{ vendor_items|length }}</p>
-        </div>
-        <div class="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
-            <p class="text-xs font-black uppercase tracking-wide text-gray-500">Tracking</p>
-            <p class="mt-2 text-xl font-black text-gray-950">{% if delivery %}{{ delivery.tracking_code }}{% elif order.tracking_number %}{{ order.tracking_number }}{% else %}Not assigned{% endif %}</p>
-        </div>
-        <div class="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
-            <p class="text-xs font-black uppercase tracking-wide text-gray-500">Rider</p>
-            <p class="mt-2 text-xl font-black text-gray-950">
-                {% if delivery and delivery.rider %}{{ delivery.rider.user.get_full_name|default:delivery.rider.user.email }}{% else %}Not assigned{% endif %}
-            </p>
-        </div>
-    </div>
 
-    <div class="grid gap-6 xl:grid-cols-3">
-        <div class="space-y-6 xl:col-span-2">
-            <div class="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-                <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div class="order-kpi-card">
+            <div class="order-kpi-label">Vendor Items</div>
+            <div class="order-kpi-value">{{ vendor_items|length }}</div>
+        </div>
+
+        <div class="order-kpi-card">
+            <div class="order-kpi-label">Tracking</div>
+            <div class="order-kpi-value">
+                {% if delivery %}
+                    {{ delivery.tracking_code }}
+                {% elif order.tracking_number %}
+                    {{ order.tracking_number }}
+                {% else %}
+                    Not assigned
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="order-kpi-card">
+            <div class="order-kpi-label">Rider</div>
+            <div class="order-kpi-value">
+                {% if delivery and delivery.rider %}
+                    {{ delivery.rider.user.get_full_name|default:delivery.rider.user.email }}
+                {% else %}
+                    Not assigned
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <section class="order-layout">
+        <main class="order-main-stack">
+            <section class="order-panel">
+                <div class="order-panel-header">
                     <div>
-                        <h2 class="text-2xl font-black text-gray-950">Items In This Order</h2>
-                        <p class="mt-1 text-sm font-semibold text-gray-500">Only products owned by your vendor account are shown here.</p>
+                        <h2 class="order-panel-title">Items In This Order</h2>
+                        <p class="order-panel-subtitle">Only products owned by your vendor account are shown here.</p>
                     </div>
-                    <form method="post" class="flex flex-col gap-2 sm:flex-row sm:items-center">
+
+                    <form method="post" class="order-status-form">
                         {% csrf_token %}
-                        <select name="status" class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-bold text-gray-800">
+                        <select name="status" class="order-select">
                             <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>Pending</option>
                             <option value="processing" {% if order.status == 'processing' %}selected{% endif %}>Processing</option>
                             <option value="shipped" {% if order.status == 'shipped' %}selected{% endif %}>Shipped</option>
                             <option value="delivered" {% if order.status == 'delivered' %}selected{% endif %}>Delivered</option>
                             <option value="cancelled" {% if order.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
                         </select>
-                        <button class="rounded-2xl bg-orange-500 px-5 py-3 text-sm font-black text-white hover:bg-orange-600">Update</button>
+                        <button type="submit" class="order-btn">
+                            <i class="fas fa-rotate"></i>
+                            Update
+                        </button>
                     </form>
                 </div>
 
-                <div class="mt-6 overflow-hidden rounded-2xl border border-gray-100">
-                    <table class="w-full min-w-[680px] text-left">
-                        <thead class="bg-gray-50 text-xs font-black uppercase tracking-wide text-gray-500">
+                <div class="order-table-wrap">
+                    <table class="order-items-table">
+                        <thead>
                             <tr>
-                                <th class="px-4 py-3">Product</th>
-                                <th class="px-4 py-3">Variant</th>
-                                <th class="px-4 py-3">Qty</th>
-                                <th class="px-4 py-3">Unit Price</th>
-                                <th class="px-4 py-3">Subtotal</th>
+                                <th>Product</th>
+                                <th>Variant</th>
+                                <th>Qty</th>
+                                <th>Unit Price</th>
+                                <th>Subtotal</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-100 bg-white">
+
+                        <tbody>
                             {% for item in vendor_items %}
                             <tr>
-                                <td class="px-4 py-4">
-                                    <p class="font-black text-gray-950">{{ item.item_name }}</p>
+                                <td>
+                                    <div class="order-item-name">{{ item.item_name }}</div>
                                     {% if item.product and item.product.sku %}
-                                    <p class="mt-1 text-xs font-bold text-gray-500">SKU: {{ item.product.sku }}</p>
+                                        <div class="order-item-meta">SKU: {{ item.product.sku }}</div>
                                     {% elif item.variant and item.variant.product.sku %}
-                                    <p class="mt-1 text-xs font-bold text-gray-500">SKU: {{ item.variant.product.sku }}</p>
+                                        <div class="order-item-meta">SKU: {{ item.variant.product.sku }}</div>
                                     {% endif %}
                                 </td>
-                                <td class="px-4 py-4 text-sm font-bold text-gray-700">
-                                    {% if item.variant %}{{ item.variant.name }}: {{ item.variant.value }}{% else %}-{% endif %}
+
+                                <td>
+                                    {% if item.variant %}
+                                        {{ item.variant.name }}: {{ item.variant.value }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
                                 </td>
-                                <td class="px-4 py-4 text-sm font-black text-gray-950">{{ item.quantity }}</td>
-                                <td class="px-4 py-4 text-sm font-black text-gray-950">₦{{ item.price|floatformat:0 }}</td>
-                                <td class="px-4 py-4 text-sm font-black text-gray-950">₦{{ item.subtotal|floatformat:0 }}</td>
+
+                                <td>{{ item.quantity }}</td>
+                                <td>₦{{ item.price|floatformat:0|intcomma }}</td>
+                                <td>₦{{ item.subtotal|floatformat:0|intcomma }}</td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="5" class="px-4 py-8 text-center text-sm font-bold text-gray-500">No vendor-owned items found.</td>
+                                <td colspan="5" style="text-align:center;padding:2rem;color:var(--arolana-muted);">
+                                    No vendor-owned items found.
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
-            </div>
 
-            <div class="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-                <h2 class="text-2xl font-black text-gray-950">Delivery And Tracking</h2>
+                <div class="order-mobile-items">
+                    {% for item in vendor_items %}
+                    <article class="order-mobile-item-card">
+                        <div class="order-mobile-item-top">
+                            <div class="order-item-name">{{ item.item_name }}</div>
+                            {% if item.product and item.product.sku %}
+                                <div class="order-item-meta">SKU: {{ item.product.sku }}</div>
+                            {% elif item.variant and item.variant.product.sku %}
+                                <div class="order-item-meta">SKU: {{ item.variant.product.sku }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="order-mobile-item-body">
+                            <div class="order-mobile-row">
+                                <span class="order-mobile-label">Variant</span>
+                                <span class="order-mobile-value">
+                                    {% if item.variant %}
+                                        {{ item.variant.name }}: {{ item.variant.value }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </span>
+                            </div>
+
+                            <div class="order-mobile-row">
+                                <span class="order-mobile-label">Quantity</span>
+                                <span class="order-mobile-value">{{ item.quantity }}</span>
+                            </div>
+
+                            <div class="order-mobile-row">
+                                <span class="order-mobile-label">Unit Price</span>
+                                <span class="order-mobile-value">₦{{ item.price|floatformat:0|intcomma }}</span>
+                            </div>
+
+                            <div class="order-mobile-row">
+                                <span class="order-mobile-label">Subtotal</span>
+                                <span class="order-mobile-value">₦{{ item.subtotal|floatformat:0|intcomma }}</span>
+                            </div>
+                        </div>
+                    </article>
+                    {% empty %}
+                    <div class="tracking-empty">No vendor-owned items found.</div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="order-panel">
+                <div class="order-panel-header">
+                    <div>
+                        <h2 class="order-panel-title">Delivery And Tracking</h2>
+                        <p class="order-panel-subtitle">Pickup, drop-off, rider assignment, and customer tracking information.</p>
+                    </div>
+                </div>
+
                 {% if delivery %}
-                <div class="mt-5 grid gap-4 md:grid-cols-2">
-                    <div class="rounded-2xl bg-gray-50 p-4">
-                        <p class="text-xs font-black uppercase tracking-wide text-gray-500">Delivery Status</p>
-                        <p class="mt-2 text-lg font-black text-gray-950">{{ delivery.get_status_display }}</p>
+                <div class="tracking-grid">
+                    <div class="tracking-card">
+                        <div class="tracking-label">Delivery Status</div>
+                        <div class="tracking-value">{{ delivery.get_status_display }}</div>
                     </div>
-                    <div class="rounded-2xl bg-gray-50 p-4">
-                        <p class="text-xs font-black uppercase tracking-wide text-gray-500">Tracking Code</p>
-                        <p class="mt-2 text-lg font-black text-gray-950">{{ delivery.tracking_code }}</p>
+
+                    <div class="tracking-card">
+                        <div class="tracking-label">Tracking Code</div>
+                        <div class="tracking-value">{{ delivery.tracking_code }}</div>
                     </div>
-                    <div class="rounded-2xl bg-gray-50 p-4">
-                        <p class="text-xs font-black uppercase tracking-wide text-gray-500">Pickup</p>
-                        <p class="mt-2 whitespace-pre-line text-sm font-semibold text-gray-700">{{ delivery.pickup_address|default:"Pickup address not set." }}</p>
+
+                    <div class="tracking-card">
+                        <div class="tracking-label">Pickup</div>
+                        <div class="tracking-value">{{ delivery.pickup_address|default:"Pickup address not set." }}</div>
                     </div>
-                    <div class="rounded-2xl bg-gray-50 p-4">
-                        <p class="text-xs font-black uppercase tracking-wide text-gray-500">Dropoff</p>
-                        <p class="mt-2 whitespace-pre-line text-sm font-semibold text-gray-700">{{ delivery.dropoff_address|default:order.shipping_address }}</p>
+
+                    <div class="tracking-card">
+                        <div class="tracking-label">Dropoff</div>
+                        <div class="tracking-value">{{ delivery.dropoff_address|default:order.shipping_address }}</div>
                     </div>
                 </div>
                 {% else %}
-                <p class="mt-4 rounded-2xl bg-gray-50 p-4 text-sm font-semibold text-gray-600">No rider has been assigned yet. Admin will assign a rider after the order is ready for pickup.</p>
+                <div class="tracking-empty">
+                    No rider has been assigned yet. Admin will assign a rider after the order is ready for pickup.
+                </div>
                 {% endif %}
-            </div>
-        </div>
+            </section>
+        </main>
 
-        <div class="space-y-6">
-            <div class="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-                <h2 class="text-xl font-black text-gray-950">Customer</h2>
-                <div class="mt-4 space-y-3 text-sm">
-                    <div>
-                        <p class="font-black text-gray-500">Name</p>
-                        <p class="font-bold text-gray-900">{{ order.customer_name|default:order.user.get_full_name|default:"Customer" }}</p>
-                    </div>
-                    <div>
-                        <p class="font-black text-gray-500">Email</p>
-                        <p class="font-bold text-gray-900">{{ order.customer_email|default:order.user.email }}</p>
-                    </div>
-                    <div>
-                        <p class="font-black text-gray-500">Phone</p>
-                        <p class="font-bold text-gray-900">{{ order.customer_phone|default:"Phone not provided" }}</p>
+        <aside class="order-side-stack">
+            <section class="order-panel">
+                <div class="side-card">
+                    <h2 class="side-card-title">Customer</h2>
+
+                    <div class="side-info-list">
+                        <div class="side-info-item">
+                            <div class="side-info-label">Name</div>
+                            <div class="side-info-value">
+                                {{ order.customer_name|default:order.user.get_full_name|default:"Customer" }}
+                            </div>
+                        </div>
+
+                        <div class="side-info-item">
+                            <div class="side-info-label">Email</div>
+                            <div class="side-info-value">
+                                {{ order.customer_email|default:order.user.email|default:"No email provided" }}
+                            </div>
+                        </div>
+
+                        <div class="side-info-item">
+                            <div class="side-info-label">Phone</div>
+                            <div class="side-info-value">
+                                {{ order.customer_phone|default:"Phone not provided" }}
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <div class="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-                <h2 class="text-xl font-black text-gray-950">Address</h2>
-                <div class="mt-4 space-y-4 text-sm">
-                    <div>
-                        <p class="font-black text-gray-500">Shipping Address</p>
-                        <p class="mt-1 whitespace-pre-line font-semibold text-gray-800">{{ order.shipping_address }}</p>
-                    </div>
-                    {% if order.billing_address %}
-                    <div>
-                        <p class="font-black text-gray-500">Billing Address</p>
-                        <p class="mt-1 whitespace-pre-line font-semibold text-gray-800">{{ order.billing_address }}</p>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
+            <section class="order-panel">
+                <div class="side-card">
+                    <h2 class="side-card-title">Address</h2>
 
-            <div class="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
-                <h2 class="text-xl font-black text-gray-950">Payment</h2>
-                <div class="mt-4 space-y-3 text-sm">
-                    <div class="flex justify-between gap-4">
-                        <span class="font-bold text-gray-500">Method</span>
-                        <span class="font-black text-gray-900">{{ order.payment_method|title }}</span>
-                    </div>
-                    <div class="flex justify-between gap-4">
-                        <span class="font-bold text-gray-500">Status</span>
-                        <span class="font-black text-gray-900">{{ order.payment_status|title }}</span>
-                    </div>
-                    <div class="flex justify-between gap-4">
-                        <span class="font-bold text-gray-500">Subtotal</span>
-                        <span class="font-black text-gray-900">₦{{ order.subtotal|floatformat:0 }}</span>
-                    </div>
-                    <div class="flex justify-between gap-4">
-                        <span class="font-bold text-gray-500">Shipping</span>
-                        <span class="font-black text-gray-900">₦{{ order.shipping_cost|floatformat:0 }}</span>
-                    </div>
-                    <div class="flex justify-between gap-4 border-t border-gray-100 pt-3 text-base">
-                        <span class="font-black text-gray-900">Total</span>
-                        <span class="font-black text-blue-900">₦{{ order.total|floatformat:0 }}</span>
+                    <div class="side-info-list">
+                        <div class="side-info-item">
+                            <div class="side-info-label">Shipping Address</div>
+                            <div class="side-info-value">
+                                {{ order.shipping_address|default:"Shipping address not provided." }}
+                            </div>
+                        </div>
+
+                        {% if order.billing_address %}
+                        <div class="side-info-item">
+                            <div class="side-info-label">Billing Address</div>
+                            <div class="side-info-value">
+                                {{ order.billing_address }}
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
+            </section>
+
+            <section class="order-panel">
+                <div class="side-card">
+                    <h2 class="side-card-title">Payment</h2>
+
+                    <div class="payment-row">
+                        <span>Method</span>
+                        <span>{{ order.payment_method|default:"Not set"|title }}</span>
+                    </div>
+
+                    <div class="payment-row">
+                        <span>Status</span>
+                        <span>{{ order.payment_status|default:"Pending"|title }}</span>
+                    </div>
+
+                    <div class="payment-row">
+                        <span>Subtotal</span>
+                        <span>₦{{ order.subtotal|floatformat:0|intcomma }}</span>
+                    </div>
+
+                    <div class="payment-row">
+                        <span>Shipping</span>
+                        <span>₦{{ order.shipping_cost|floatformat:0|intcomma }}</span>
+                    </div>
+
+                    <div class="payment-row total">
+                        <span>Total</span>
+                        <span>₦{{ order.total|floatformat:0|intcomma }}</span>
+                    </div>
+                </div>
+            </section>
+        </aside>
+    </section>
 </div>
 {% endblock %}

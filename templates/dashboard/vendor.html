@@ -1,225 +1,897 @@
 {% extends 'base/base.html' %}
+{% load humanize %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto">
-    <h1 class="text-3xl font-bold mb-8">Vendor Dashboard</h1>
-    
-    <!-- Customer Messages Card -->
-    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg shadow-md p-6 mb-8">
-        <a href="{% url 'chat:vendor_list' %}" class="flex items-center justify-between hover:opacity-90 transition">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
-                    <i class="fas fa-comments text-white text-xl"></i>
-                </div>
-                <div>
-                    <h2 class="text-xl font-bold text-gray-800">Customer Messages</h2>
-                    <p class="text-gray-600 text-sm">View and reply to customer inquiries</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-3">
-                <span id="vendor-chat-badge" class="bg-red-500 text-white text-sm rounded-full px-3 py-1 hidden">0</span>
-                <i class="fas fa-chevron-right text-gray-400"></i>
-            </div>
-        </a>
-    </div>
-    
-    <!-- KYC Status Banner -->
-    <div class="mb-8">
-        {% if vendor_profile.kyc_status == 'verified' %}
-            <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg flex justify-between items-center">
-                <div>
-                    <i class="fas fa-check-circle"></i>
-                    <span class="font-semibold">KYC Verified!</span>
-                    <span class="text-sm">Your account is fully verified. You can now sell products.</span>
-                </div>
-                <a href="{% url 'kyc:dashboard' %}" class="bg-green-600 text-white px-4 py-1 rounded text-sm">View Status</a>
-            </div>
-        {% elif vendor_profile.kyc_status == 'pending' %}
-            <div class="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded-lg flex justify-between items-center">
-                <div>
-                    <i class="fas fa-clock"></i>
-                    <span class="font-semibold">KYC Pending Review!</span>
-                    <span class="text-sm">Your documents are being reviewed.</span>
-                </div>
-                <a href="{% url 'kyc:dashboard' %}" class="bg-yellow-600 text-white px-4 py-1 rounded text-sm">Check Status</a>
-            </div>
-        {% else %}
-            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg flex justify-between items-center">
-                <div>
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <span class="font-semibold">KYC Required!</span>
-                    <span class="text-sm">Complete KYC verification to start selling.</span>
-                </div>
-                <a href="{% url 'kyc:dashboard' %}" class="bg-red-600 text-white px-4 py-1 rounded text-sm">Complete KYC</a>
-            </div>
-        {% endif %}
-    </div>
-    
-<!-- Add subscription link in quick actions -->
-<div class="bg-white rounded-lg shadow-md p-6 mb-8">
-    <div class="flex justify-between items-center">
-        <div>
-            <h3 class="font-bold text-lg">Subscription</h3>
-            <p class="text-sm text-gray-600">Current Plan: {{ vendor_profile.subscription_plan_label }}</p>
-        </div>
-        <a href="{% url 'subscriptions:plans' %}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-            Upgrade Plan
-        </a>
-    </div>
-</div>
+<style>
+    :root {
+        --arolana-navy: #071A44;
+        --arolana-blue: #0066CC;
+        --arolana-orange: #FF7A00;
+        --arolana-soft: #F4F8FF;
+        --arolana-border: #E3ECF8;
+        --arolana-text: #0B1E46;
+        --arolana-muted: #65758B;
+        --arolana-bg: #F4F7FB;
+        --arolana-green: #16A34A;
+        --arolana-red: #DC2626;
+        --arolana-amber: #F59E0B;
+    }
 
-    <!-- Stats Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-gray-500 text-sm">Total Products</p>
-                    <p class="text-3xl font-bold">{{ total_products }}</p>
-                </div>
-                <i class="fas fa-box text-4xl text-blue-500"></i>
+    body {
+        background: var(--arolana-bg);
+    }
+
+    .vendor-public-dashboard {
+        width: 100%;
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 1.25rem;
+        color: var(--arolana-text);
+    }
+
+    .vendor-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 1.5rem;
+        background:
+            radial-gradient(circle at 12% 20%, rgba(56,189,248,.22), transparent 28%),
+            radial-gradient(circle at 88% 18%, rgba(255,122,0,.22), transparent 25%),
+            linear-gradient(135deg, #071A44, #063E85);
+        color: #fff;
+        box-shadow: 0 18px 42px rgba(7, 26, 68, .18);
+        margin-bottom: 1rem;
+    }
+
+    .vendor-hero-inner {
+        padding: 1.35rem;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .vendor-eyebrow {
+        color: #FFD7B0;
+        font-size: .7rem;
+        font-weight: 950;
+        letter-spacing: .18em;
+        text-transform: uppercase;
+    }
+
+    .vendor-title {
+        margin: .25rem 0 0;
+        font-size: clamp(1.7rem, 2.8vw, 2.8rem);
+        line-height: 1;
+        font-weight: 950;
+        letter-spacing: -.03em;
+    }
+
+    .vendor-subtitle {
+        margin-top: .5rem;
+        color: rgba(255,255,255,.78);
+        font-size: .88rem;
+        font-weight: 750;
+        line-height: 1.5;
+    }
+
+    .vendor-hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: .6rem;
+    }
+
+    .vendor-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .45rem;
+        min-height: 2.55rem;
+        padding: .7rem 1rem;
+        border-radius: .9rem;
+        border: 1px solid transparent;
+        font-size: .76rem;
+        font-weight: 950;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: .18s ease;
+        cursor: pointer;
+    }
+
+    .vendor-btn:hover {
+        transform: translateY(-1px);
+        text-decoration: none;
+    }
+
+    .vendor-btn-primary {
+        background: var(--arolana-orange);
+        color: #fff;
+        box-shadow: 0 12px 26px rgba(255,122,0,.2);
+    }
+
+    .vendor-btn-light {
+        background: rgba(255,255,255,.14);
+        color: #fff;
+        border-color: rgba(255,255,255,.25);
+    }
+
+    .vendor-status-banner {
+        border-radius: 1.1rem;
+        border: 1px solid var(--arolana-border);
+        background: #fff;
+        box-shadow: 0 12px 30px rgba(15,23,42,.055);
+        padding: 1rem;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .vendor-status-left {
+        display: flex;
+        align-items: flex-start;
+        gap: .8rem;
+    }
+
+    .vendor-status-icon {
+        width: 2.6rem;
+        height: 2.6rem;
+        border-radius: .9rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        flex: 0 0 auto;
+    }
+
+    .status-ok .vendor-status-icon { background: var(--arolana-green); }
+    .status-pending .vendor-status-icon { background: var(--arolana-amber); }
+    .status-danger .vendor-status-icon { background: var(--arolana-red); }
+
+    .vendor-status-title {
+        color: var(--arolana-navy);
+        font-size: .92rem;
+        font-weight: 950;
+    }
+
+    .vendor-status-text {
+        margin-top: .18rem;
+        color: var(--arolana-muted);
+        font-size: .76rem;
+        line-height: 1.45;
+        font-weight: 750;
+    }
+
+    .vendor-status-banner.status-ok {
+        border-color: #BBF7D0;
+        background: #F0FDF4;
+    }
+
+    .vendor-status-banner.status-pending {
+        border-color: #FDE68A;
+        background: #FFFBEB;
+    }
+
+    .vendor-status-banner.status-danger {
+        border-color: #FECACA;
+        background: #FEF2F2;
+    }
+
+    .vendor-message-card {
+        display: block;
+        border-radius: 1.1rem;
+        border: 1px solid var(--arolana-border);
+        background: linear-gradient(135deg, #EFF6FF, #F8FBFF);
+        box-shadow: 0 12px 30px rgba(15,23,42,.055);
+        padding: 1rem;
+        margin-bottom: 1rem;
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .vendor-message-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .vendor-message-left {
+        display: flex;
+        align-items: center;
+        gap: .85rem;
+    }
+
+    .vendor-message-icon {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 1rem;
+        background: var(--arolana-blue);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+    }
+
+    .vendor-message-title {
+        color: var(--arolana-navy);
+        font-size: 1rem;
+        font-weight: 950;
+    }
+
+    .vendor-message-text {
+        margin-top: .18rem;
+        color: var(--arolana-muted);
+        font-size: .76rem;
+        font-weight: 750;
+    }
+
+    .vendor-chat-badge {
+        background: var(--arolana-red);
+        color: #fff;
+        font-size: .68rem;
+        font-weight: 950;
+        border-radius: 999px;
+        padding: .28rem .6rem;
+    }
+
+    .vendor-chat-badge.hidden {
+        display: none;
+    }
+
+    .vendor-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: .9rem;
+        margin-bottom: 1rem;
+    }
+
+    .vendor-stat-card {
+        position: relative;
+        overflow: hidden;
+        border-radius: 1.1rem;
+        background: #fff;
+        border: 1px solid var(--arolana-border);
+        box-shadow: 0 12px 30px rgba(15,23,42,.055);
+        padding: 1rem;
+        min-width: 0;
+    }
+
+    .vendor-stat-card:before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--arolana-blue), var(--arolana-orange));
+    }
+
+    .vendor-stat-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: .8rem;
+    }
+
+    .vendor-stat-label {
+        color: var(--arolana-muted);
+        font-size: .68rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+    }
+
+    .vendor-stat-value {
+        margin-top: .35rem;
+        color: var(--arolana-navy);
+        font-size: 1.35rem;
+        line-height: 1.05;
+        font-weight: 950;
+        overflow-wrap: anywhere;
+    }
+
+    .vendor-stat-icon {
+        width: 2.35rem;
+        height: 2.35rem;
+        border-radius: .85rem;
+        background: #EFF6FF;
+        color: var(--arolana-blue);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+    }
+
+    .vendor-quick-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: .9rem;
+        margin-bottom: 1rem;
+    }
+
+    .vendor-quick-card {
+        min-height: 7.5rem;
+        border-radius: 1.1rem;
+        padding: 1rem;
+        color: #fff;
+        text-decoration: none;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        box-shadow: 0 12px 30px rgba(15,23,42,.08);
+        transition: .18s ease;
+    }
+
+    .vendor-quick-card:hover {
+        transform: translateY(-2px);
+        text-decoration: none;
+        color: #fff;
+    }
+
+    .quick-blue { background: linear-gradient(135deg, var(--arolana-blue), #064B99); }
+    .quick-orange { background: linear-gradient(135deg, var(--arolana-orange), #E85F00); }
+    .quick-green { background: linear-gradient(135deg, var(--arolana-green), #0F7A35); }
+    .quick-navy { background: linear-gradient(135deg, var(--arolana-navy), #0B3E7C); }
+
+    .vendor-quick-card i {
+        font-size: 1.35rem;
+    }
+
+    .vendor-quick-title {
+        margin-top: .7rem;
+        font-size: .95rem;
+        font-weight: 950;
+    }
+
+    .vendor-quick-text {
+        margin-top: .2rem;
+        color: rgba(255,255,255,.78);
+        font-size: .72rem;
+        line-height: 1.4;
+        font-weight: 750;
+    }
+
+    .vendor-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.25fr) minmax(320px, .75fr);
+        gap: 1rem;
+        align-items: start;
+    }
+
+    .vendor-panel {
+        border-radius: 1.1rem;
+        background: #fff;
+        border: 1px solid var(--arolana-border);
+        box-shadow: 0 12px 30px rgba(15,23,42,.055);
+        overflow: hidden;
+    }
+
+    .vendor-panel-header {
+        padding: 1rem;
+        border-bottom: 1px solid var(--arolana-border);
+        background: linear-gradient(180deg, #fff, #F8FBFF);
+    }
+
+    .vendor-panel-title {
+        color: var(--arolana-navy);
+        font-size: 1rem;
+        font-weight: 950;
+        margin: 0;
+    }
+
+    .vendor-panel-subtitle {
+        margin-top: .2rem;
+        color: var(--arolana-muted);
+        font-size: .72rem;
+        font-weight: 750;
+    }
+
+    .vendor-panel-body {
+        padding: 1rem;
+    }
+
+    .vendor-info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: .75rem;
+    }
+
+    .vendor-info-box {
+        border-radius: .95rem;
+        border: 1px solid #EAF1FB;
+        background: #F8FBFF;
+        padding: .85rem;
+        min-width: 0;
+    }
+
+    .vendor-info-label {
+        color: var(--arolana-muted);
+        font-size: .64rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+    }
+
+    .vendor-info-value {
+        margin-top: .28rem;
+        color: var(--arolana-navy);
+        font-size: .78rem;
+        font-weight: 850;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+    }
+
+    .vendor-info-value a {
+        color: var(--arolana-blue);
+        font-weight: 950;
+        text-decoration: none;
+    }
+
+    .vendor-app-list {
+        display: grid;
+        gap: .7rem;
+    }
+
+    .vendor-app-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .75rem;
+        border: 1px solid #EAF1FB;
+        background: #F8FBFF;
+        border-radius: .95rem;
+        padding: .85rem;
+    }
+
+    .vendor-app-name {
+        color: var(--arolana-navy);
+        font-size: .84rem;
+        font-weight: 950;
+    }
+
+    .vendor-app-date {
+        margin-top: .18rem;
+        color: var(--arolana-muted);
+        font-size: .68rem;
+        font-weight: 750;
+    }
+
+    .vendor-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: .3rem;
+        border-radius: 999px;
+        padding: .35rem .65rem;
+        font-size: .66rem;
+        font-weight: 950;
+        white-space: nowrap;
+    }
+
+    .pill-green { background: #DCFCE7; color: #15803D; }
+    .pill-red { background: #FEE2E2; color: #B91C1C; }
+    .pill-yellow { background: #FEF3C7; color: #92400E; }
+    .pill-blue { background: #DBEAFE; color: #1D4ED8; }
+
+    .vendor-empty {
+        text-align: center;
+        padding: 2rem 1rem;
+        color: var(--arolana-muted);
+        font-size: .78rem;
+        font-weight: 800;
+    }
+
+    @media (max-width: 1024px) {
+        .vendor-grid,
+        .vendor-quick-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .vendor-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .vendor-public-dashboard {
+            padding: .65rem .55rem 5rem;
+        }
+
+        .vendor-hero {
+            border-radius: 1rem;
+        }
+
+        .vendor-hero-inner {
+            padding: 1rem;
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .vendor-title {
+            font-size: 1.45rem;
+            line-height: 1.08;
+        }
+
+        .vendor-subtitle {
+            font-size: .72rem;
+        }
+
+        .vendor-hero-actions {
+            display: grid;
+            grid-template-columns: 1fr;
+            justify-content: stretch;
+        }
+
+        .vendor-btn {
+            width: 100%;
+            min-height: 2.45rem;
+            font-size: .7rem;
+        }
+
+        .vendor-status-banner {
+            padding: .8rem;
+            border-radius: 1rem;
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .vendor-status-title {
+            font-size: .82rem;
+        }
+
+        .vendor-status-text {
+            font-size: .68rem;
+        }
+
+        .vendor-message-card {
+            padding: .85rem;
+            border-radius: 1rem;
+        }
+
+        .vendor-message-inner {
+            align-items: flex-start;
+        }
+
+        .vendor-message-icon {
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: .85rem;
+        }
+
+        .vendor-message-title {
+            font-size: .88rem;
+        }
+
+        .vendor-message-text {
+            font-size: .68rem;
+        }
+
+        .vendor-grid,
+        .vendor-quick-grid,
+        .vendor-info-grid {
+            grid-template-columns: 1fr;
+            gap: .75rem;
+        }
+
+        .vendor-stat-card,
+        .vendor-panel,
+        .vendor-quick-card {
+            border-radius: 1rem;
+        }
+
+        .vendor-stat-card,
+        .vendor-panel-body,
+        .vendor-panel-header {
+            padding: .8rem;
+        }
+
+        .vendor-stat-value {
+            font-size: 1.1rem;
+        }
+
+        .vendor-quick-card {
+            min-height: 6.4rem;
+        }
+
+        .vendor-app-item {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+    }
+</style>
+
+<div class="vendor-public-dashboard">
+    <section class="vendor-hero">
+        <div class="vendor-hero-inner">
+            <div>
+                <div class="vendor-eyebrow">Arolana Vendor OS</div>
+                <h1 class="vendor-title">Vendor Dashboard</h1>
+                <p class="vendor-subtitle">
+                    Manage your products, customer messages, KYC status, subscription, manufacturer applications, and store activity.
+                </p>
+            </div>
+
+            <div class="vendor-hero-actions">
+                <a href="{% url 'dashboard:vendor_add_product' %}" class="vendor-btn vendor-btn-primary">
+                    <i class="fas fa-plus"></i>
+                    Add Product
+                </a>
+                <a href="{% url 'vendors:detail' vendor_profile.store_slug %}" class="vendor-btn vendor-btn-light">
+                    <i class="fas fa-store"></i>
+                    View Store
+                </a>
             </div>
         </div>
-        
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-gray-500 text-sm">Total Orders</p>
-                    <p class="text-3xl font-bold">{{ total_orders }}</p>
+    </section>
+
+    <a href="{% url 'chat:vendor_list' %}" class="vendor-message-card">
+        <div class="vendor-message-inner">
+            <div class="vendor-message-left">
+                <div class="vendor-message-icon">
+                    <i class="fas fa-comments"></i>
                 </div>
-                <i class="fas fa-shopping-cart text-4xl text-green-500"></i>
+                <div>
+                    <div class="vendor-message-title">Customer Messages</div>
+                    <div class="vendor-message-text">View and reply to customer inquiries.</div>
+                </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:.6rem;">
+                <span id="vendor-chat-badge" class="vendor-chat-badge hidden">0</span>
+                <i class="fas fa-chevron-right" style="color:#94A3B8;"></i>
             </div>
         </div>
-        
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-gray-500 text-sm">Total Sales</p>
-                    <p class="text-3xl font-bold">${{ total_sales|floatformat:2 }}</p>
-                </div>
-                <i class="fas fa-dollar-sign text-4xl text-yellow-500"></i>
+    </a>
+
+    {% if vendor_profile.kyc_status == 'verified' %}
+    <div class="vendor-status-banner status-ok">
+        <div class="vendor-status-left">
+            <span class="vendor-status-icon">
+                <i class="fas fa-check-circle"></i>
+            </span>
+            <div>
+                <div class="vendor-status-title">KYC Verified</div>
+                <div class="vendor-status-text">Your account is fully verified. You can sell products on Arolana.</div>
             </div>
         </div>
-        
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <div class="flex items-center justify-between">
+        <a href="{% url 'kyc:dashboard' %}" class="vendor-btn vendor-btn-light" style="color:var(--arolana-navy);background:#fff;">View Status</a>
+    </div>
+    {% elif vendor_profile.kyc_status == 'pending' %}
+    <div class="vendor-status-banner status-pending">
+        <div class="vendor-status-left">
+            <span class="vendor-status-icon">
+                <i class="fas fa-clock"></i>
+            </span>
+            <div>
+                <div class="vendor-status-title">KYC Pending Review</div>
+                <div class="vendor-status-text">Your documents are being reviewed by Arolana admin.</div>
+            </div>
+        </div>
+        <a href="{% url 'kyc:dashboard' %}" class="vendor-btn vendor-btn-light" style="color:var(--arolana-navy);background:#fff;">Check Status</a>
+    </div>
+    {% else %}
+    <div class="vendor-status-banner status-danger">
+        <div class="vendor-status-left">
+            <span class="vendor-status-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </span>
+            <div>
+                <div class="vendor-status-title">KYC Required</div>
+                <div class="vendor-status-text">Complete KYC verification to start selling with trust and approval.</div>
+            </div>
+        </div>
+        <a href="{% url 'kyc:dashboard' %}" class="vendor-btn vendor-btn-light" style="color:var(--arolana-navy);background:#fff;">Complete KYC</a>
+    </div>
+    {% endif %}
+
+    <section class="vendor-grid">
+        <div class="vendor-stat-card">
+            <div class="vendor-stat-head">
                 <div>
-                    <p class="text-gray-500 text-sm">KYC Status</p>
-                    <p class="text-3xl font-bold">
+                    <div class="vendor-stat-label">Total Products</div>
+                    <div class="vendor-stat-value">{{ total_products|default:0|intcomma }}</div>
+                </div>
+                <span class="vendor-stat-icon"><i class="fas fa-box"></i></span>
+            </div>
+        </div>
+
+        <div class="vendor-stat-card">
+            <div class="vendor-stat-head">
+                <div>
+                    <div class="vendor-stat-label">Total Orders</div>
+                    <div class="vendor-stat-value">{{ total_orders|default:0|intcomma }}</div>
+                </div>
+                <span class="vendor-stat-icon"><i class="fas fa-shopping-cart"></i></span>
+            </div>
+        </div>
+
+        <div class="vendor-stat-card">
+            <div class="vendor-stat-head">
+                <div>
+                    <div class="vendor-stat-label">Total Sales</div>
+                    <div class="vendor-stat-value">₦{{ total_sales|default:0|floatformat:2|intcomma }}</div>
+                </div>
+                <span class="vendor-stat-icon"><i class="fas fa-naira-sign"></i></span>
+            </div>
+        </div>
+
+        <div class="vendor-stat-card">
+            <div class="vendor-stat-head">
+                <div>
+                    <div class="vendor-stat-label">KYC Status</div>
+                    <div class="vendor-stat-value">
                         {% if vendor_profile.kyc_status == 'verified' %}
-                            ✓
+                            Verified
                         {% elif vendor_profile.kyc_status == 'pending' %}
-                            ⏳
+                            Pending
                         {% else %}
-                            ✗
+                            Required
                         {% endif %}
-                    </p>
+                    </div>
                 </div>
-                <i class="fas fa-shield-alt text-4xl text-purple-500"></i>
+                <span class="vendor-stat-icon"><i class="fas fa-shield-alt"></i></span>
             </div>
         </div>
-    </div>
-    
-    <!-- Quick Actions -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <a href="/admin/products/product/add/" class="bg-blue-600 text-white p-6 rounded-lg shadow-md hover:bg-blue-700 transition text-center">
-            <i class="fas fa-plus-circle text-3xl mb-2"></i>
-            <h3 class="font-bold text-lg">Add Product</h3>
-            <p class="text-sm opacity-90">List new products for sale</p>
-        </a>
-        
-        <a href="{% url 'manufacturers:list' %}" class="bg-purple-600 text-white p-6 rounded-lg shadow-md hover:bg-purple-700 transition text-center">
-            <i class="fas fa-industry text-3xl mb-2"></i>
-            <h3 class="font-bold text-lg">Find Manufacturers</h3>
-            <p class="text-sm opacity-90">Apply to represent brands</p>
-        </a>
-        
-        <a href="{% url 'kyc:dashboard' %}" class="bg-green-600 text-white p-6 rounded-lg shadow-md hover:bg-green-700 transition text-center">
-            <i class="fas fa-id-card text-3xl mb-2"></i>
-            <h3 class="font-bold text-lg">KYC Status</h3>
-            <p class="text-sm opacity-90">View verification status</p>
-        </a>
-    </div>
-    
-    <!-- Store Info -->
-    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-        <h2 class="text-xl font-bold mb-4">Store Information</h2>
-        <div class="grid grid-cols-2 gap-4">
+    </section>
+
+    <section class="vendor-quick-grid">
+        <a href="{% url 'dashboard:vendor_add_product' %}" class="vendor-quick-card quick-blue">
+            <i class="fas fa-plus-circle"></i>
             <div>
-                <p class="text-gray-500 text-sm">Store Name</p>
-                <p class="font-semibold">{{ vendor_profile.store_name }}</p>
+                <div class="vendor-quick-title">Add Product</div>
+                <div class="vendor-quick-text">List a new product for marketplace approval.</div>
             </div>
+        </a>
+
+        <a href="{% url 'dashboard:vendor_products' %}" class="vendor-quick-card quick-navy">
+            <i class="fas fa-boxes-stacked"></i>
             <div>
-                <p class="text-gray-500 text-sm">Store URL</p>
-                <a href="{% url 'vendors:detail' vendor_profile.store_slug %}" class="text-blue-600 hover:underline">
-                    arolana.com/vendors/{{ vendor_profile.store_slug }}
-                </a>
+                <div class="vendor-quick-title">My Products</div>
+                <div class="vendor-quick-text">Manage images, stock, pricing, and approvals.</div>
             </div>
+        </a>
+
+        <a href="{% url 'subscriptions:plans' %}" class="vendor-quick-card quick-orange">
+            <i class="fas fa-crown"></i>
             <div>
-                <p class="text-gray-500 text-sm">Verification Status</p>
-                <span class="{% if vendor_profile.is_verified %}text-green-600{% else %}text-yellow-600{% endif %}">
-                    {% if vendor_profile.is_verified %}Verified{% else %}Pending Verification{% endif %}
-                </span>
+                <div class="vendor-quick-title">Subscription</div>
+                <div class="vendor-quick-text">Current plan: {{ vendor_profile.subscription_plan_label }}</div>
             </div>
+        </a>
+
+        <a href="{% url 'kyc:dashboard' %}" class="vendor-quick-card quick-green">
+            <i class="fas fa-id-card"></i>
             <div>
-                <p class="text-gray-500 text-sm">KYC Status</p>
-                <span class="{% if vendor_profile.kyc_status == 'verified' %}text-green-600{% elif vendor_profile.kyc_status == 'pending' %}text-yellow-600{% else %}text-red-600{% endif %}">
-                    {{ vendor_profile.get_kyc_status_display }}
-                </span>
+                <div class="vendor-quick-title">KYC Status</div>
+                <div class="vendor-quick-text">View or complete your verification.</div>
+            </div>
+        </a>
+    </section>
+
+    <section class="vendor-layout">
+        <div class="vendor-panel">
+            <div class="vendor-panel-header">
+                <h2 class="vendor-panel-title">Store Information</h2>
+                <p class="vendor-panel-subtitle">Public store details and verification information.</p>
+            </div>
+
+            <div class="vendor-panel-body">
+                <div class="vendor-info-grid">
+                    <div class="vendor-info-box">
+                        <div class="vendor-info-label">Store Name</div>
+                        <div class="vendor-info-value">{{ vendor_profile.store_name }}</div>
+                    </div>
+
+                    <div class="vendor-info-box">
+                        <div class="vendor-info-label">Store URL</div>
+                        <div class="vendor-info-value">
+                            <a href="{% url 'vendors:detail' vendor_profile.store_slug %}">
+                                arolana.com/vendors/{{ vendor_profile.store_slug }}
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="vendor-info-box">
+                        <div class="vendor-info-label">Verification Status</div>
+                        <div class="vendor-info-value">
+                            {% if vendor_profile.is_verified %}
+                                <span class="vendor-pill pill-green">Verified</span>
+                            {% else %}
+                                <span class="vendor-pill pill-yellow">Pending Verification</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="vendor-info-box">
+                        <div class="vendor-info-label">KYC Status</div>
+                        <div class="vendor-info-value">
+                            {% if vendor_profile.kyc_status == 'verified' %}
+                                <span class="vendor-pill pill-green">{{ vendor_profile.get_kyc_status_display }}</span>
+                            {% elif vendor_profile.kyc_status == 'pending' %}
+                                <span class="vendor-pill pill-yellow">{{ vendor_profile.get_kyc_status_display }}</span>
+                            {% else %}
+                                <span class="vendor-pill pill-red">{{ vendor_profile.get_kyc_status_display }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="vendor-info-box">
+                        <div class="vendor-info-label">Subscription</div>
+                        <div class="vendor-info-value">{{ vendor_profile.subscription_plan_label }}</div>
+                    </div>
+
+                    <div class="vendor-info-box">
+                        <div class="vendor-info-label">Action</div>
+                        <div class="vendor-info-value">
+                            <a href="{% url 'subscriptions:plans' %}">Upgrade or manage plan</a>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-    
-    <!-- Manufacturer Applications -->
-    <div class="bg-white rounded-lg shadow-md p-6">
-        <h2 class="text-xl font-bold mb-4">Manufacturer Applications</h2>
-        <div class="space-y-3">
-            {% for app in manufacturer_applications %}
-            <div class="flex justify-between items-center p-3 border rounded-lg">
-                <div>
-                    <p class="font-semibold">{{ app.manufacturer.name }}</p>
-                    <p class="text-sm text-gray-500">Applied: {{ app.created_at|date }}</p>
-                </div>
-                <div>
-                    {% if app.status == 'approved' %}
-                        <span class="text-green-600"><i class="fas fa-check-circle"></i> Approved</span>
-                    {% elif app.status == 'rejected' %}
-                        <span class="text-red-600"><i class="fas fa-times-circle"></i> Rejected</span>
-                    {% else %}
-                        <span class="text-yellow-600"><i class="fas fa-clock"></i> Pending</span>
-                    {% endif %}
+
+        <div class="vendor-panel">
+            <div class="vendor-panel-header">
+                <h2 class="vendor-panel-title">Manufacturer Applications</h2>
+                <p class="vendor-panel-subtitle">Track applications to represent manufacturers or brands.</p>
+            </div>
+
+            <div class="vendor-panel-body">
+                <div class="vendor-app-list">
+                    {% for app in manufacturer_applications %}
+                    <div class="vendor-app-item">
+                        <div>
+                            <div class="vendor-app-name">{{ app.manufacturer.name }}</div>
+                            <div class="vendor-app-date">Applied: {{ app.created_at|date }}</div>
+                        </div>
+
+                        <div>
+                            {% if app.status == 'approved' %}
+                                <span class="vendor-pill pill-green"><i class="fas fa-check-circle"></i> Approved</span>
+                            {% elif app.status == 'rejected' %}
+                                <span class="vendor-pill pill-red"><i class="fas fa-times-circle"></i> Rejected</span>
+                            {% else %}
+                                <span class="vendor-pill pill-yellow"><i class="fas fa-clock"></i> Pending</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="vendor-empty">
+                        <p>No manufacturer applications yet.</p>
+                        <a href="{% url 'manufacturers:list' %}" class="vendor-btn vendor-btn-primary" style="margin-top:.8rem;">
+                            Browse Manufacturers
+                        </a>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
-            {% empty %}
-            <p class="text-gray-500 text-center py-4">No manufacturer applications yet.</p>
-            <div class="text-center">
-                <a href="{% url 'manufacturers:list' %}" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
-                    Browse Manufacturers
-                </a>
-            </div>
-            {% endfor %}
         </div>
-    </div>
+    </section>
 </div>
 
 <script>
 function updateVendorUnread() {
     fetch('/chat/vendor/unread-count/')
-        .then(response => response.json())
-        .then(data => {
+        .then(function (response) {
+            return response.json();
+        })
+        .then(function (data) {
             const badge = document.getElementById('vendor-chat-badge');
-            if (badge) {
-                if (data.unread_count > 0) {
-                    badge.textContent = data.unread_count > 99 ? '99+' : data.unread_count;
-                    badge.classList.remove('hidden');
-                } else {
-                    badge.classList.add('hidden');
-                }
+
+            if (!badge) {
+                return;
+            }
+
+            if (data.unread_count > 0) {
+                badge.textContent = data.unread_count > 99 ? '99+' : data.unread_count;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
             }
         })
-        .catch(error => console.error('Error fetching unread count:', error));
+        .catch(function () {});
 }
 
-// Update every 5 seconds
 setInterval(updateVendorUnread, 5000);
 updateVendorUnread();
 </script>

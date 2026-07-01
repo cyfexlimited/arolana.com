@@ -3,198 +3,823 @@
 
 {% block dashboard_title %}Pickup Location{% endblock %}
 
+{% block dashboard_side_ad %}{% endblock %}
+
 {% block extra_css %}
 {{ block.super }}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
 <style>
-    .vendor-pickup-page {
-        max-width: 1100px;
+    :root {
+        --arolana-navy: #071A44;
+        --arolana-blue: #0066CC;
+        --arolana-orange: #FF7A00;
+        --arolana-soft: #F4F8FF;
+        --arolana-border: #E3ECF8;
+        --arolana-text: #0B1E46;
+        --arolana-muted: #65758B;
+        --arolana-bg: #F4F7FB;
+        --arolana-green: #16A34A;
+        --arolana-amber: #F59E0B;
+        --arolana-red: #DC2626;
     }
 
-    .vendor-pickup-map {
-        min-height: 420px;
+    html,
+    body {
         width: 100%;
-        border-radius: 1.25rem;
-        border: 1px solid #dbe4f0;
-        overflow: hidden;
-        background: #eef4ff;
+        min-height: 100%;
+        overflow-x: hidden;
+        background: var(--arolana-bg) !important;
     }
 
-    .vendor-pickup-map-empty {
-        align-items: center;
-        color: #64748b;
+    * {
+        box-sizing: border-box;
+    }
+
+    body:has(.vendor-pickup-page) main,
+    body:has(.vendor-pickup-page) .main-content,
+    body:has(.vendor-pickup-page) .dashboard-content,
+    body:has(.vendor-pickup-page) .content-wrapper,
+    body:has(.vendor-pickup-page) .container,
+    body:has(.vendor-pickup-page) .container-fluid {
+        width: 100% !important;
+        max-width: none !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    body:has(.vendor-pickup-page) .arolana-following-ad,
+    body:has(.vendor-pickup-page) .arolana-floating-ad-shell,
+    body:has(.vendor-pickup-page) .arolana-ad-placeholder,
+    .arolana-following-ad,
+    .arolana-floating-ad-shell,
+    .arolana-ad-placeholder {
+        display: none !important;
+    }
+
+    .vendor-pickup-page {
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        padding: 1rem 1.25rem 2rem;
+        color: var(--arolana-text);
+    }
+
+    .vendor-pickup-shell {
+        width: 100%;
+        max-width: 100%;
+        margin: 0 auto;
+    }
+
+    .vendor-pickup-header {
         display: flex;
-        font-weight: 800;
-        height: 100%;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .vendor-pickup-eyebrow {
+        margin: 0;
+        color: var(--arolana-orange);
+        font-size: .68rem;
+        font-weight: 950;
+        letter-spacing: .18em;
+        text-transform: uppercase;
+    }
+
+    .vendor-pickup-title {
+        margin: .2rem 0 0;
+        color: var(--arolana-navy);
+        font-size: clamp(1.7rem, 2.6vw, 2.55rem);
+        line-height: 1;
+        font-weight: 950;
+        letter-spacing: -.03em;
+    }
+
+    .vendor-pickup-subtitle {
+        margin-top: .45rem;
+        max-width: 58rem;
+        color: var(--arolana-muted);
+        font-size: .9rem;
+        line-height: 1.55;
+        font-weight: 750;
+    }
+
+    .vendor-pickup-btn {
+        display: inline-flex;
+        align-items: center;
         justify-content: center;
-        min-height: 420px;
-        text-align: center;
+        gap: .45rem;
+        min-height: 2.65rem;
+        padding: .7rem 1rem;
+        border-radius: .9rem;
+        border: 1px solid transparent;
+        font-size: .78rem;
+        font-weight: 950;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: .18s ease;
+        cursor: pointer;
+    }
+
+    .vendor-pickup-btn:hover {
+        transform: translateY(-1px);
+        text-decoration: none;
+    }
+
+    .vendor-pickup-btn-dark {
+        background: var(--arolana-navy);
+        color: #fff;
+        box-shadow: 0 12px 26px rgba(7, 26, 68, .16);
+    }
+
+    .vendor-pickup-btn-primary {
+        background: linear-gradient(135deg, var(--arolana-blue), #064B99);
+        color: #fff;
+        box-shadow: 0 12px 26px rgba(0, 102, 204, .18);
+    }
+
+    .vendor-pickup-btn-light {
+        background: #fff;
+        color: var(--arolana-blue);
+        border-color: #BFD8FF;
+    }
+
+    .vendor-pickup-messages {
+        display: grid;
+        gap: .7rem;
+        margin-bottom: 1rem;
+    }
+
+    .vendor-pickup-message {
+        border-radius: 1rem;
+        border: 1px solid var(--arolana-border);
+        padding: .85rem 1rem;
+        font-size: .78rem;
+        line-height: 1.45;
+        font-weight: 850;
+        background: #fff;
+        color: var(--arolana-navy);
+    }
+
+    .vendor-pickup-message.success {
+        border-color: #BBF7D0;
+        background: #F0FDF4;
+        color: #166534;
+    }
+
+    .vendor-pickup-message.error {
+        border-color: #FECACA;
+        background: #FEF2F2;
+        color: #991B1B;
+    }
+
+    .vendor-pickup-grid {
+        display: grid;
+        grid-template-columns: minmax(360px, .86fr) minmax(0, 1.14fr);
+        gap: 1rem;
+        align-items: start;
+    }
+
+    .vendor-pickup-panel {
+        overflow: hidden;
+        border-radius: 1.2rem;
+        background: #fff;
+        border: 1px solid var(--arolana-border);
+        box-shadow: 0 14px 34px rgba(15, 23, 42, .06);
+    }
+
+    .vendor-pickup-panel-header {
+        padding: 1rem;
+        border-bottom: 1px solid var(--arolana-border);
+        background: linear-gradient(180deg, #fff, #F8FBFF);
+    }
+
+    .vendor-pickup-panel-title {
+        margin: 0;
+        color: var(--arolana-navy);
+        font-size: 1.05rem;
+        font-weight: 950;
+    }
+
+    .vendor-pickup-panel-subtitle {
+        margin-top: .25rem;
+        color: var(--arolana-muted);
+        font-size: .76rem;
+        line-height: 1.45;
+        font-weight: 750;
+    }
+
+    .vendor-pickup-panel-body {
+        padding: 1rem;
+    }
+
+    .vendor-pickup-status-card {
+        border-radius: 1rem;
+        border: 1px solid;
+        padding: .85rem;
+        margin-bottom: 1rem;
+    }
+
+    .vendor-pickup-status-card.ready {
+        border-color: #BBF7D0;
+        background: #F0FDF4;
+        color: #166534;
+    }
+
+    .vendor-pickup-status-card.pending {
+        border-color: #FDE68A;
+        background: #FFFBEB;
+        color: #92400E;
+    }
+
+    .vendor-pickup-status-inner {
+        display: flex;
+        align-items: flex-start;
+        gap: .75rem;
+    }
+
+    .vendor-pickup-status-icon {
+        width: 2.45rem;
+        height: 2.45rem;
+        flex: 0 0 auto;
+        border-radius: .85rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+    }
+
+    .vendor-pickup-status-icon.ready {
+        background: var(--arolana-green);
+    }
+
+    .vendor-pickup-status-icon.pending {
+        background: var(--arolana-amber);
+    }
+
+    .vendor-pickup-status-title {
+        color: inherit;
+        font-size: .88rem;
+        font-weight: 950;
+        line-height: 1.25;
+    }
+
+    .vendor-pickup-status-text {
+        margin-top: .2rem;
+        color: inherit;
+        font-size: .72rem;
+        line-height: 1.5;
+        font-weight: 750;
+    }
+
+    .vendor-pickup-form {
+        display: grid;
+        gap: .85rem;
+    }
+
+    .vendor-pickup-label {
+        display: grid;
+        gap: .35rem;
+    }
+
+    .vendor-pickup-label span {
+        color: var(--arolana-navy);
+        font-size: .76rem;
+        font-weight: 950;
+    }
+
+    .vendor-pickup-required {
+        color: var(--arolana-red);
     }
 
     .vendor-pickup-field {
-        border: 1px solid #d8e1ee;
-        border-radius: 0.9rem;
-        min-height: 46px;
-        padding: 0.75rem 0.9rem;
         width: 100%;
-    }
-
-    .vendor-pickup-field:focus {
-        border-color: #2563eb;
-        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+        min-height: 2.85rem;
+        border: 1px solid var(--arolana-border);
+        border-radius: .9rem;
+        background: #fff;
+        color: var(--arolana-navy);
+        padding: .75rem .9rem;
+        font-size: .82rem;
+        font-weight: 750;
         outline: none;
     }
 
-    @media (max-width: 768px) {
-        .vendor-pickup-map,
+    .vendor-pickup-field::placeholder {
+        color: #9AA8BA;
+    }
+
+    .vendor-pickup-field:focus {
+        border-color: var(--arolana-blue);
+        box-shadow: 0 0 0 4px rgba(0, 102, 204, .12);
+    }
+
+    textarea.vendor-pickup-field {
+        min-height: 7.5rem;
+        resize: vertical;
+        line-height: 1.5;
+    }
+
+    .vendor-pickup-info {
+        border-radius: 1rem;
+        border: 1px solid #BFDBFE;
+        background: #EFF6FF;
+        color: #1E3A8A;
+        padding: .85rem;
+    }
+
+    .vendor-pickup-info-inner {
+        display: flex;
+        align-items: flex-start;
+        gap: .65rem;
+    }
+
+    .vendor-pickup-info p {
+        margin: 0;
+        font-size: .74rem;
+        line-height: 1.5;
+        font-weight: 750;
+    }
+
+    .vendor-pickup-status-line {
+        min-height: 1.2rem;
+        margin: 0;
+        color: var(--arolana-muted);
+        font-size: .76rem;
+        line-height: 1.45;
+        font-weight: 850;
+    }
+
+    .vendor-pickup-status-line.success {
+        color: var(--arolana-green);
+    }
+
+    .vendor-pickup-status-line.error {
+        color: var(--arolana-red);
+    }
+
+    .vendor-pickup-map-card {
+        overflow: hidden;
+        border-radius: 1.2rem;
+        background: #fff;
+        border: 1px solid var(--arolana-border);
+        box-shadow: 0 14px 34px rgba(15, 23, 42, .06);
+    }
+
+    .vendor-pickup-map-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1rem;
+        border-bottom: 1px solid var(--arolana-border);
+        background: linear-gradient(180deg, #fff, #F8FBFF);
+    }
+
+    .vendor-pickup-map-title {
+        margin: 0;
+        color: var(--arolana-navy);
+        font-size: 1.05rem;
+        font-weight: 950;
+    }
+
+    .vendor-pickup-map-subtitle {
+        margin-top: .25rem;
+        color: var(--arolana-muted);
+        font-size: .76rem;
+        line-height: 1.45;
+        font-weight: 750;
+    }
+
+    .vendor-pickup-map-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        min-height: 1.75rem;
+        padding: .35rem .65rem;
+        border-radius: 999px;
+        background: #F1F5F9;
+        color: #475569;
+        font-size: .66rem;
+        font-weight: 950;
+        white-space: nowrap;
+    }
+
+    .vendor-pickup-map-wrap {
+        padding: 1rem;
+    }
+
+    .vendor-pickup-map {
+        width: 100%;
+        min-height: 460px;
+        border-radius: 1rem;
+        border: 1px solid var(--arolana-border);
+        overflow: hidden;
+        background: #EEF4FF;
+        z-index: 1;
+    }
+
+    .vendor-pickup-map-empty {
+        min-height: 460px;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--arolana-muted);
+        text-align: center;
+        font-weight: 850;
+        padding: 1rem;
+    }
+
+    .vendor-pickup-map-help {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: .65rem;
+        margin-top: .85rem;
+    }
+
+    .vendor-pickup-help-card {
+        border-radius: .9rem;
+        border: 1px solid var(--arolana-border);
+        background: #F8FBFF;
+        padding: .75rem;
+        color: var(--arolana-navy);
+    }
+
+    .vendor-pickup-help-card strong {
+        display: block;
+        font-size: .7rem;
+        font-weight: 950;
+    }
+
+    .vendor-pickup-help-card span {
+        display: block;
+        margin-top: .15rem;
+        color: var(--arolana-muted);
+        font-size: .66rem;
+        line-height: 1.35;
+        font-weight: 750;
+    }
+
+    .leaflet-container {
+        font-family: inherit;
+    }
+
+    .leaflet-control-container {
+        font-size: .78rem;
+    }
+
+    @media (max-width: 1180px) {
+        .vendor-pickup-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .vendor-pickup-map {
+            min-height: 420px;
+        }
+
         .vendor-pickup-map-empty {
-            min-height: 330px;
+            min-height: 420px;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .vendor-pickup-page {
+            padding: .7rem .55rem 5rem !important;
+        }
+
+        .vendor-pickup-header {
+            align-items: stretch;
+            flex-direction: column;
+            gap: .75rem;
+        }
+
+        .vendor-pickup-title {
+            font-size: 1.45rem;
+        }
+
+        .vendor-pickup-subtitle {
+            font-size: .74rem;
+            line-height: 1.45;
+        }
+
+        .vendor-pickup-btn {
+            width: 100%;
+            min-height: 2.5rem;
+            border-radius: .82rem;
+            font-size: .7rem;
+        }
+
+        .vendor-pickup-panel,
+        .vendor-pickup-map-card {
+            border-radius: 1rem;
+        }
+
+        .vendor-pickup-panel-header,
+        .vendor-pickup-panel-body,
+        .vendor-pickup-map-header,
+        .vendor-pickup-map-wrap {
+            padding: .75rem;
+        }
+
+        .vendor-pickup-panel-title,
+        .vendor-pickup-map-title {
+            font-size: .92rem;
+        }
+
+        .vendor-pickup-panel-subtitle,
+        .vendor-pickup-map-subtitle {
+            font-size: .68rem;
+        }
+
+        .vendor-pickup-status-card {
+            padding: .72rem;
+            border-radius: .9rem;
+        }
+
+        .vendor-pickup-status-icon {
+            width: 2.15rem;
+            height: 2.15rem;
+            border-radius: .75rem;
+        }
+
+        .vendor-pickup-status-title {
+            font-size: .76rem;
+        }
+
+        .vendor-pickup-status-text {
+            font-size: .66rem;
+        }
+
+        .vendor-pickup-label span {
+            font-size: .68rem;
+        }
+
+        .vendor-pickup-field {
+            min-height: 2.55rem;
+            border-radius: .78rem;
+            padding: .65rem .75rem;
+            font-size: .72rem;
+        }
+
+        textarea.vendor-pickup-field {
+            min-height: 6.5rem;
+        }
+
+        .vendor-pickup-info {
+            padding: .7rem;
+            border-radius: .85rem;
+        }
+
+        .vendor-pickup-info p,
+        .vendor-pickup-status-line {
+            font-size: .66rem;
+        }
+
+        .vendor-pickup-map-badge {
+            display: none;
+        }
+
+        .vendor-pickup-map {
+            min-height: 340px;
+            border-radius: .85rem;
+        }
+
+        .vendor-pickup-map-empty {
+            min-height: 340px;
+        }
+
+        .vendor-pickup-map-help {
+            grid-template-columns: 1fr;
+            gap: .5rem;
+        }
+
+        .vendor-pickup-help-card {
+            padding: .65rem;
+            border-radius: .78rem;
+        }
+    }
+
+    @media (max-width: 420px) {
+        .vendor-pickup-page {
+            padding-left: .45rem !important;
+            padding-right: .45rem !important;
+        }
+
+        .vendor-pickup-map {
+            min-height: 310px;
+        }
+
+        .vendor-pickup-map-empty {
+            min-height: 310px;
         }
     }
 </style>
 {% endblock %}
 
 {% block dashboard_content %}
-<div class="vendor-pickup-page mx-auto">
-    <div class="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-            <p class="text-sm font-black uppercase tracking-[0.18em] text-blue-600">Delivery setup</p>
-            <h1 class="mt-2 text-3xl font-black text-gray-950">Pickup Location</h1>
-            <p class="mt-2 max-w-2xl text-gray-600">
-                Save the exact store or warehouse point riders should navigate to. Checkout delivery fees and nearby rider assignment use this pin.
-            </p>
-        </div>
-        {% if vendor_profile.pickup_location_is_ready %}
-        <a
-            href="https://www.google.com/maps/search/?api=1&query={{ vendor_profile.pickup_latitude }},{{ vendor_profile.pickup_longitude }}"
-            target="_blank"
-            rel="noopener"
-            class="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-gray-950 px-5 py-2.5 text-sm font-black text-white hover:bg-gray-800"
-        >
-            <i class="fas fa-map-location-dot"></i>
-            Open in Google Maps
-        </a>
-        {% endif %}
-    </div>
+<div class="vendor-pickup-page">
+    <div class="vendor-pickup-shell">
 
-    {% if messages %}
-    <div class="mb-6 space-y-3">
-        {% for message in messages %}
-        <div class="rounded-2xl border px-4 py-3 text-sm font-bold {% if message.tags == 'success' %}border-green-200 bg-green-50 text-green-800{% elif message.tags == 'error' %}border-red-200 bg-red-50 text-red-800{% else %}border-blue-200 bg-blue-50 text-blue-800{% endif %}">
-            {{ message }}
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
-
-    <div class="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <form method="post" class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-            {% csrf_token %}
-            <div class="mb-5 rounded-2xl border {% if vendor_profile.pickup_location_is_ready %}border-green-200 bg-green-50 text-green-900{% else %}border-amber-200 bg-amber-50 text-amber-900{% endif %} p-4">
-                <div class="flex items-start gap-3">
-                    <span class="inline-flex h-10 w-10 flex-none items-center justify-center rounded-full {% if vendor_profile.pickup_location_is_ready %}bg-green-600{% else %}bg-amber-500{% endif %} text-white">
-                        <i class="fas {% if vendor_profile.pickup_location_is_ready %}fa-check{% else %}fa-location-crosshairs{% endif %}"></i>
-                    </span>
-                    <div>
-                        <h2 class="font-black">{% if vendor_profile.pickup_location_is_ready %}Pickup pin is ready{% else %}Pickup pin required{% endif %}</h2>
-                        <p class="mt-1 text-sm leading-6">
-                            {% if vendor_profile.pickup_location_is_ready %}
-                            Riders can locate your pickup point and the checkout can calculate distance-based delivery fees.
-                            {% else %}
-                            Add your exact pickup address and set the map pin before delivery pricing can be fully accurate.
-                            {% endif %}
-                        </p>
-                    </div>
-                </div>
+        <div class="vendor-pickup-header">
+            <div>
+                <p class="vendor-pickup-eyebrow">Delivery Setup</p>
+                <h1 class="vendor-pickup-title">Pickup Location</h1>
+                <p class="vendor-pickup-subtitle">
+                    Save the exact store or warehouse point riders should navigate to. Checkout delivery fees and nearby rider assignment use this pin.
+                </p>
             </div>
 
-            <div class="grid gap-4">
-                <label class="grid gap-2">
-                    <span class="text-sm font-black text-gray-800">Pickup contact name</span>
-                    <input
-                        class="vendor-pickup-field"
-                        type="text"
-                        name="pickup_contact_name"
-                        value="{{ vendor_profile.pickup_contact_name }}"
-                        placeholder="{{ vendor_profile.store_name }}"
-                        autocomplete="name"
-                    >
-                </label>
-
-                <label class="grid gap-2">
-                    <span class="text-sm font-black text-gray-800">Pickup phone</span>
-                    <input
-                        class="vendor-pickup-field"
-                        type="tel"
-                        name="pickup_phone"
-                        value="{{ vendor_profile.pickup_phone }}"
-                        placeholder="+234..."
-                        autocomplete="tel"
-                    >
-                </label>
-
-                <label class="grid gap-2">
-                    <span class="text-sm font-black text-gray-800">Exact pickup address <span class="text-red-500">*</span></span>
-                    <textarea
-                        id="vendor-pickup-address"
-                        class="vendor-pickup-field min-h-32 resize-y"
-                        name="pickup_address"
-                        required
-                        placeholder="Shop number, building, street, area, city, state, country"
-                    >{{ vendor_profile.pickup_address }}</textarea>
-                </label>
-
-                <input id="vendor-pickup-latitude" type="hidden" name="pickup_latitude" value="{{ vendor_profile.pickup_latitude|default_if_none:'' }}" required>
-                <input id="vendor-pickup-longitude" type="hidden" name="pickup_longitude" value="{{ vendor_profile.pickup_longitude|default_if_none:'' }}" required>
-
-                <div class="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
-                    <div class="flex items-start gap-3">
-                        <i class="fas fa-circle-info mt-1 text-blue-600"></i>
-                        <p class="leading-6">
-                            Use the map pin for the exact gate, store entrance, warehouse door, or pickup desk. A clear pin helps the nearest online rider find you quickly.
-                        </p>
-                    </div>
-                </div>
-
-                <button
-                    id="vendor-pickup-current-location"
-                    type="button"
-                    class="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-blue-200 bg-white px-4 py-2.5 text-sm font-black text-blue-700 hover:bg-blue-50"
-                >
-                    <i class="fas fa-location-crosshairs"></i>
-                    Use my current location
-                </button>
-
-                <p id="vendor-pickup-status" class="text-sm font-bold text-gray-500"></p>
-
-                <button type="submit" class="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-blue-600 px-5 py-3 font-black text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700">
-                    <i class="fas fa-floppy-disk"></i>
-                    Save Pickup Location
-                </button>
-            </div>
-        </form>
-
-        <section class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-            <div class="mb-4 flex items-start justify-between gap-3">
-                <div>
-                    <h2 class="text-xl font-black text-gray-950">Map Pin</h2>
-                    <p class="mt-1 text-sm text-gray-600">Drag the marker to the exact rider pickup point.</p>
-                </div>
-                <span class="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs font-black text-gray-600">
-                    <i class="fas fa-map"></i>
-                    Live map
-                </span>
-            </div>
-            <div
-                id="vendor-pickup-map"
-                class="vendor-pickup-map"
-                data-latitude="{{ vendor_profile.pickup_latitude|default_if_none:'' }}"
-                data-longitude="{{ vendor_profile.pickup_longitude|default_if_none:'' }}"
-                data-address="{{ vendor_profile.pickup_address|default:'' }}"
+            {% if vendor_profile.pickup_location_is_ready %}
+            <a
+                href="https://www.google.com/maps/search/?api=1&query={{ vendor_profile.pickup_latitude }},{{ vendor_profile.pickup_longitude }}"
+                target="_blank"
+                rel="noopener"
+                class="vendor-pickup-btn vendor-pickup-btn-dark"
             >
-                <div class="vendor-pickup-map-empty">Loading pickup map...</div>
+                <i class="fas fa-map-location-dot"></i>
+                Open in Google Maps
+            </a>
+            {% endif %}
+        </div>
+
+        {% if messages %}
+        <div class="vendor-pickup-messages">
+            {% for message in messages %}
+            <div class="vendor-pickup-message {% if message.tags == 'success' %}success{% elif message.tags == 'error' %}error{% endif %}">
+                {{ message }}
             </div>
-        </section>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="vendor-pickup-grid">
+            <form method="post" class="vendor-pickup-panel">
+                {% csrf_token %}
+
+                <div class="vendor-pickup-panel-header">
+                    <h2 class="vendor-pickup-panel-title">Pickup Details</h2>
+                    <p class="vendor-pickup-panel-subtitle">
+                        Add a clear address and place the pin exactly where riders should collect packages.
+                    </p>
+                </div>
+
+                <div class="vendor-pickup-panel-body">
+                    <div class="vendor-pickup-status-card {% if vendor_profile.pickup_location_is_ready %}ready{% else %}pending{% endif %}">
+                        <div class="vendor-pickup-status-inner">
+                            <span class="vendor-pickup-status-icon {% if vendor_profile.pickup_location_is_ready %}ready{% else %}pending{% endif %}">
+                                <i class="fas {% if vendor_profile.pickup_location_is_ready %}fa-check{% else %}fa-location-crosshairs{% endif %}"></i>
+                            </span>
+
+                            <div>
+                                <h2 class="vendor-pickup-status-title">
+                                    {% if vendor_profile.pickup_location_is_ready %}
+                                        Pickup pin is ready
+                                    {% else %}
+                                        Pickup pin required
+                                    {% endif %}
+                                </h2>
+
+                                <p class="vendor-pickup-status-text">
+                                    {% if vendor_profile.pickup_location_is_ready %}
+                                        Riders can locate your pickup point and checkout can calculate distance-based delivery fees.
+                                    {% else %}
+                                        Add your exact pickup address and set the map pin before delivery pricing can be fully accurate.
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="vendor-pickup-form">
+                        <label class="vendor-pickup-label">
+                            <span>Pickup contact name</span>
+                            <input
+                                class="vendor-pickup-field"
+                                type="text"
+                                name="pickup_contact_name"
+                                value="{{ vendor_profile.pickup_contact_name }}"
+                                placeholder="{{ vendor_profile.store_name }}"
+                                autocomplete="name"
+                            >
+                        </label>
+
+                        <label class="vendor-pickup-label">
+                            <span>Pickup phone</span>
+                            <input
+                                class="vendor-pickup-field"
+                                type="tel"
+                                name="pickup_phone"
+                                value="{{ vendor_profile.pickup_phone }}"
+                                placeholder="+234..."
+                                autocomplete="tel"
+                            >
+                        </label>
+
+                        <label class="vendor-pickup-label">
+                            <span>Exact pickup address <b class="vendor-pickup-required">*</b></span>
+                            <textarea
+                                id="vendor-pickup-address"
+                                class="vendor-pickup-field"
+                                name="pickup_address"
+                                required
+                                placeholder="Shop number, building, street, area, city, state, country"
+                            >{{ vendor_profile.pickup_address }}</textarea>
+                        </label>
+
+                        <input
+                            id="vendor-pickup-latitude"
+                            type="hidden"
+                            name="pickup_latitude"
+                            value="{{ vendor_profile.pickup_latitude|default_if_none:'' }}"
+                            required
+                        >
+
+                        <input
+                            id="vendor-pickup-longitude"
+                            type="hidden"
+                            name="pickup_longitude"
+                            value="{{ vendor_profile.pickup_longitude|default_if_none:'' }}"
+                            required
+                        >
+
+                        <div class="vendor-pickup-info">
+                            <div class="vendor-pickup-info-inner">
+                                <i class="fas fa-circle-info"></i>
+                                <p>
+                                    Use the map pin for the exact gate, store entrance, warehouse door, or pickup desk.
+                                    A clear pin helps the nearest online rider find you quickly.
+                                </p>
+                            </div>
+                        </div>
+
+                        <button
+                            id="vendor-pickup-current-location"
+                            type="button"
+                            class="vendor-pickup-btn vendor-pickup-btn-light"
+                        >
+                            <i class="fas fa-location-crosshairs"></i>
+                            Use My Current Location
+                        </button>
+
+                        <p id="vendor-pickup-status" class="vendor-pickup-status-line"></p>
+
+                        <button type="submit" class="vendor-pickup-btn vendor-pickup-btn-primary">
+                            <i class="fas fa-floppy-disk"></i>
+                            Save Pickup Location
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <section class="vendor-pickup-map-card">
+                <div class="vendor-pickup-map-header">
+                    <div>
+                        <h2 class="vendor-pickup-map-title">Map Pin</h2>
+                        <p class="vendor-pickup-map-subtitle">
+                            Drag the marker to the exact rider pickup point.
+                        </p>
+                    </div>
+
+                    <span class="vendor-pickup-map-badge">
+                        <i class="fas fa-map"></i>
+                        Live Map
+                    </span>
+                </div>
+
+                <div class="vendor-pickup-map-wrap">
+                    <div
+                        id="vendor-pickup-map"
+                        class="vendor-pickup-map"
+                        data-latitude="{{ vendor_profile.pickup_latitude|default_if_none:'' }}"
+                        data-longitude="{{ vendor_profile.pickup_longitude|default_if_none:'' }}"
+                        data-address="{{ vendor_profile.pickup_address|default:'' }}"
+                    >
+                        <div class="vendor-pickup-map-empty">Loading pickup map...</div>
+                    </div>
+
+                    <div class="vendor-pickup-map-help">
+                        <div class="vendor-pickup-help-card">
+                            <strong>1. Enter address</strong>
+                            <span>Use full shop, street, area, city, and state.</span>
+                        </div>
+
+                        <div class="vendor-pickup-help-card">
+                            <strong>2. Set pin</strong>
+                            <span>Use current location or drag the marker manually.</span>
+                        </div>
+
+                        <div class="vendor-pickup-help-card">
+                            <strong>3. Save</strong>
+                            <span>Riders and delivery pricing will use this location.</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
     </div>
 </div>
 {% endblock %}
@@ -202,12 +827,16 @@
 {% block extra_js %}
 {{ block.super }}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <script>
 (function () {
     "use strict";
 
     const mapEl = document.getElementById("vendor-pickup-map");
-    if (!mapEl || !window.L) return;
+
+    if (!mapEl || !window.L) {
+        return;
+    }
 
     const latInput = document.getElementById("vendor-pickup-latitude");
     const lngInput = document.getElementById("vendor-pickup-longitude");
@@ -220,69 +849,133 @@
     }
 
     function setStatus(message, kind) {
-        if (!statusEl) return;
+        if (!statusEl) {
+            return;
+        }
+
         statusEl.textContent = message || "";
-        statusEl.className = "text-sm font-bold " + (kind === "error" ? "text-red-600" : kind === "success" ? "text-green-700" : "text-gray-500");
+        statusEl.className = "vendor-pickup-status-line";
+
+        if (kind === "error") {
+            statusEl.classList.add("error");
+        }
+
+        if (kind === "success") {
+            statusEl.classList.add("success");
+        }
     }
 
     const savedLat = numberOrNull(mapEl.dataset.latitude);
     const savedLng = numberOrNull(mapEl.dataset.longitude);
-    const start = savedLat !== null && savedLng !== null ? [savedLat, savedLng] : [6.5244, 3.3792];
-    const map = L.map(mapEl, { scrollWheelZoom: false }).setView(start, savedLat !== null ? 16 : 11);
+
+    const start = savedLat !== null && savedLng !== null
+        ? [savedLat, savedLng]
+        : [6.5244, 3.3792];
+
+    const map = L.map(mapEl, {
+        scrollWheelZoom: false
+    }).setView(start, savedLat !== null ? 16 : 11);
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
         attribution: "&copy; OpenStreetMap contributors"
     }).addTo(map);
 
-    const marker = L.marker(start, { draggable: true }).addTo(map);
+    const marker = L.marker(start, {
+        draggable: true
+    }).addTo(map);
+
     marker.bindPopup("Pickup point").openPopup();
 
     function setPin(latitude, longitude, message) {
         const lat = Number(latitude);
         const lng = Number(longitude);
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+            return;
+        }
+
         const next = [lat, lng];
+
         marker.setLatLng(next);
         map.setView(next, 17);
-        if (latInput) latInput.value = lat.toFixed(7);
-        if (lngInput) lngInput.value = lng.toFixed(7);
-        if (message) setStatus(message, "success");
+
+        if (latInput) {
+            latInput.value = lat.toFixed(7);
+        }
+
+        if (lngInput) {
+            lngInput.value = lng.toFixed(7);
+        }
+
+        if (message) {
+            setStatus(message, "success");
+        }
     }
 
     document.addEventListener("arolana:address-selected", function (event) {
         const detail = event.detail || {};
+
         if (detail.field && detail.field.name === "pickup_address" && detail.latitude && detail.longitude) {
-            setPin(detail.latitude, detail.longitude, "Pickup pin set from the selected address. Save to apply it.");
+            setPin(
+                detail.latitude,
+                detail.longitude,
+                "Pickup pin set from the selected address. Save to apply it."
+            );
         }
     });
 
     marker.on("dragend", function () {
         const point = marker.getLatLng();
-        setPin(point.lat, point.lng, "Pickup pin updated. Save to apply it.");
-    });
 
-    currentButton?.addEventListener("click", function () {
-        if (!navigator.geolocation) {
-            setStatus("Your browser does not support current location.", "error");
-            return;
-        }
-
-        setStatus("Finding your current location...", "info");
-        navigator.geolocation.getCurrentPosition(
-            function (position) {
-                setPin(position.coords.latitude, position.coords.longitude, "Current location added. Move the pin if the entrance is slightly different.");
-            },
-            function () {
-                setStatus("We could not read your location. Allow location access or drag the map pin manually.", "error");
-            },
-            { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
+        setPin(
+            point.lat,
+            point.lng,
+            "Pickup pin updated. Save to apply it."
         );
     });
+
+    if (currentButton) {
+        currentButton.addEventListener("click", function () {
+            if (!navigator.geolocation) {
+                setStatus("Your browser does not support current location.", "error");
+                return;
+            }
+
+            setStatus("Finding your current location...", "info");
+
+            navigator.geolocation.getCurrentPosition(
+                function (position) {
+                    setPin(
+                        position.coords.latitude,
+                        position.coords.longitude,
+                        "Current location added. Move the pin if the entrance is slightly different."
+                    );
+                },
+                function () {
+                    setStatus(
+                        "We could not read your location. Allow location access or drag the map pin manually.",
+                        "error"
+                    );
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 15000,
+                    maximumAge: 30000
+                }
+            );
+        });
+    }
 
     setTimeout(function () {
         map.invalidateSize();
     }, 180);
+
+    window.addEventListener("resize", function () {
+        setTimeout(function () {
+            map.invalidateSize();
+        }, 180);
+    });
 })();
 </script>
 {% endblock %}

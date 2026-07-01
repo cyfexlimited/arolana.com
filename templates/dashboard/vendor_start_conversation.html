@@ -2,42 +2,574 @@
 {% load static %}
 
 {% block title %}Start Conversation - Vendor Dashboard{% endblock %}
+{% block dashboard_side_ad %}{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<style>
+    :root {
+        --arolana-navy: #071A44;
+        --arolana-blue: #0066CC;
+        --arolana-orange: #FF7A00;
+        --arolana-soft: #F4F8FF;
+        --arolana-border: #E3ECF8;
+        --arolana-text: #0B1E46;
+        --arolana-muted: #65758B;
+        --arolana-bg: #F4F7FB;
+        --arolana-green: #16A34A;
+        --arolana-red: #DC2626;
+    }
+
+    html,
+    body {
+        width: 100%;
+        min-height: 100%;
+        overflow-x: hidden;
+        background: var(--arolana-bg) !important;
+    }
+
+    * {
+        box-sizing: border-box;
+    }
+
+    body:has(.vendor-start-conversation-page) main,
+    body:has(.vendor-start-conversation-page) .main-content,
+    body:has(.vendor-start-conversation-page) .dashboard-content,
+    body:has(.vendor-start-conversation-page) .content-wrapper,
+    body:has(.vendor-start-conversation-page) .container,
+    body:has(.vendor-start-conversation-page) .container-fluid {
+        width: 100% !important;
+        max-width: none !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    body:has(.vendor-start-conversation-page) .arolana-following-ad,
+    body:has(.vendor-start-conversation-page) .arolana-floating-ad-shell,
+    body:has(.vendor-start-conversation-page) .arolana-ad-placeholder,
+    .arolana-following-ad,
+    .arolana-floating-ad-shell,
+    .arolana-ad-placeholder {
+        display: none !important;
+    }
+
+    .vendor-start-conversation-page {
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        padding: 1rem 1.25rem 2rem;
+        color: var(--arolana-text);
+    }
+
+    .vendor-start-shell {
+        width: 100%;
+        max-width: 1080px;
+        margin: 0 auto;
+    }
+
+    .vendor-start-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 1.35rem;
+        background:
+            radial-gradient(circle at 14% 18%, rgba(56,189,248,.24), transparent 28%),
+            radial-gradient(circle at 88% 16%, rgba(255,122,0,.24), transparent 24%),
+            linear-gradient(135deg, #071A44, #063E85);
+        color: #fff;
+        box-shadow: 0 18px 42px rgba(7, 26, 68, .18);
+        margin-bottom: 1rem;
+    }
+
+    .vendor-start-hero-inner {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.25rem;
+    }
+
+    .vendor-start-eyebrow {
+        color: #FFD7B0;
+        font-size: .68rem;
+        font-weight: 950;
+        letter-spacing: .18em;
+        text-transform: uppercase;
+    }
+
+    .vendor-start-title {
+        margin: .25rem 0 0;
+        color: #fff;
+        font-size: clamp(1.55rem, 2.6vw, 2.45rem);
+        line-height: 1.05;
+        font-weight: 950;
+        letter-spacing: -.03em;
+    }
+
+    .vendor-start-subtitle {
+        margin-top: .45rem;
+        max-width: 46rem;
+        color: rgba(255,255,255,.78);
+        font-size: .84rem;
+        line-height: 1.5;
+        font-weight: 750;
+    }
+
+    .vendor-start-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .45rem;
+        min-height: 2.55rem;
+        padding: .7rem 1rem;
+        border-radius: .9rem;
+        border: 1px solid transparent;
+        font-size: .76rem;
+        font-weight: 950;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: .18s ease;
+        cursor: pointer;
+    }
+
+    .vendor-start-btn:hover {
+        transform: translateY(-1px);
+        text-decoration: none;
+    }
+
+    .vendor-start-btn-light {
+        background: rgba(255,255,255,.14);
+        color: #fff;
+        border-color: rgba(255,255,255,.25);
+    }
+
+    .vendor-start-btn-primary {
+        background: linear-gradient(135deg, var(--arolana-blue), #064B99);
+        color: #fff;
+        box-shadow: 0 12px 26px rgba(0, 102, 204, .18);
+    }
+
+    .vendor-start-btn-orange {
+        background: linear-gradient(135deg, var(--arolana-orange), #E85F00);
+        color: #fff;
+        box-shadow: 0 12px 26px rgba(255, 122, 0, .18);
+    }
+
+    .vendor-start-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.25fr) minmax(300px, .75fr);
+        gap: 1rem;
+        align-items: start;
+    }
+
+    .vendor-start-panel {
+        overflow: hidden;
+        border-radius: 1.15rem;
+        background: #fff;
+        border: 1px solid var(--arolana-border);
+        box-shadow: 0 14px 34px rgba(15, 23, 42, .06);
+        min-width: 0;
+    }
+
+    .vendor-start-panel-header {
+        padding: 1rem;
+        border-bottom: 1px solid var(--arolana-border);
+        background: linear-gradient(180deg, #fff, #F8FBFF);
+    }
+
+    .vendor-start-panel-title {
+        margin: 0;
+        color: var(--arolana-navy);
+        font-size: 1.05rem;
+        line-height: 1.2;
+        font-weight: 950;
+    }
+
+    .vendor-start-panel-subtitle {
+        margin-top: .25rem;
+        color: var(--arolana-muted);
+        font-size: .74rem;
+        line-height: 1.45;
+        font-weight: 750;
+    }
+
+    .vendor-start-panel-body {
+        padding: 1rem;
+    }
+
+    .vendor-start-form {
+        display: grid;
+        gap: .9rem;
+    }
+
+    .vendor-start-label {
+        display: block;
+        margin-bottom: .35rem;
+        color: var(--arolana-navy);
+        font-size: .74rem;
+        font-weight: 950;
+    }
+
+    .vendor-start-input,
+    .vendor-start-select,
+    .vendor-start-textarea {
+        width: 100%;
+        min-height: 2.75rem;
+        border: 1px solid var(--arolana-border);
+        border-radius: .9rem;
+        background: #fff;
+        color: var(--arolana-navy);
+        padding: .75rem .9rem;
+        font-size: .82rem;
+        font-weight: 750;
+        outline: none;
+    }
+
+    .vendor-start-textarea {
+        min-height: 10rem;
+        resize: vertical;
+        line-height: 1.55;
+    }
+
+    .vendor-start-input:focus,
+    .vendor-start-select:focus,
+    .vendor-start-textarea:focus {
+        border-color: var(--arolana-blue);
+        box-shadow: 0 0 0 4px rgba(0, 102, 204, .12);
+    }
+
+    .vendor-start-help {
+        margin-top: .3rem;
+        color: var(--arolana-muted);
+        font-size: .66rem;
+        line-height: 1.4;
+        font-weight: 750;
+    }
+
+    .vendor-start-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: .7rem;
+        flex-wrap: wrap;
+        padding-top: .4rem;
+    }
+
+    .vendor-info-card {
+        border-radius: 1rem;
+        border: 1px solid #BFDBFE;
+        background: #EFF6FF;
+        color: #1E3A8A;
+        padding: .9rem;
+        margin-bottom: .8rem;
+    }
+
+    .vendor-info-card strong {
+        display: block;
+        color: var(--arolana-navy);
+        font-size: .82rem;
+        font-weight: 950;
+        margin-bottom: .25rem;
+    }
+
+    .vendor-info-card p {
+        margin: 0;
+        font-size: .72rem;
+        line-height: 1.5;
+        font-weight: 750;
+    }
+
+    .vendor-tips-list {
+        display: grid;
+        gap: .7rem;
+    }
+
+    .vendor-tip {
+        display: flex;
+        gap: .7rem;
+        align-items: flex-start;
+        border-radius: .95rem;
+        border: 1px solid var(--arolana-border);
+        background: #F8FBFF;
+        padding: .8rem;
+    }
+
+    .vendor-tip-icon {
+        width: 2.2rem;
+        height: 2.2rem;
+        border-radius: .75rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #DBEAFE;
+        color: var(--arolana-blue);
+        flex: 0 0 auto;
+    }
+
+    .vendor-tip-title {
+        color: var(--arolana-navy);
+        font-size: .78rem;
+        font-weight: 950;
+    }
+
+    .vendor-tip-text {
+        margin-top: .15rem;
+        color: var(--arolana-muted);
+        font-size: .68rem;
+        line-height: 1.4;
+        font-weight: 750;
+    }
+
+    .vendor-empty-admin {
+        border-radius: 1rem;
+        border: 1px solid #FDE68A;
+        background: #FFFBEB;
+        color: #92400E;
+        padding: .9rem;
+        font-size: .76rem;
+        line-height: 1.5;
+        font-weight: 850;
+    }
+
+    @media (max-width: 900px) {
+        .vendor-start-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .vendor-start-conversation-page {
+            padding: .7rem .55rem 5rem !important;
+        }
+
+        .vendor-start-hero {
+            border-radius: 1rem;
+        }
+
+        .vendor-start-hero-inner {
+            flex-direction: column;
+            align-items: stretch;
+            padding: 1rem;
+        }
+
+        .vendor-start-title {
+            font-size: 1.35rem;
+        }
+
+        .vendor-start-subtitle {
+            font-size: .72rem;
+        }
+
+        .vendor-start-btn {
+            width: 100%;
+            min-height: 2.5rem;
+            font-size: .7rem;
+            border-radius: .82rem;
+        }
+
+        .vendor-start-panel {
+            border-radius: 1rem;
+        }
+
+        .vendor-start-panel-header,
+        .vendor-start-panel-body {
+            padding: .78rem;
+        }
+
+        .vendor-start-panel-title {
+            font-size: .92rem;
+        }
+
+        .vendor-start-panel-subtitle {
+            font-size: .66rem;
+        }
+
+        .vendor-start-label {
+            font-size: .68rem;
+        }
+
+        .vendor-start-input,
+        .vendor-start-select,
+        .vendor-start-textarea {
+            min-height: 2.5rem;
+            border-radius: .78rem;
+            padding: .65rem .75rem;
+            font-size: .72rem;
+        }
+
+        .vendor-start-textarea {
+            min-height: 8rem;
+        }
+
+        .vendor-start-actions {
+            display: grid;
+            grid-template-columns: 1fr;
+        }
+
+        .vendor-info-card,
+        .vendor-tip {
+            border-radius: .85rem;
+            padding: .72rem;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block dashboard_content %}
-<div class="bg-white rounded-xl shadow-lg p-6">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold">Start New Conversation with Admin</h1>
-        <a href="{% url 'dashboard:vendor_messages' %}" class="text-gray-600 hover:text-gray-800">
-            <i class="fas fa-arrow-left"></i> Back to Messages
-        </a>
+<div class="vendor-start-conversation-page">
+    <div class="vendor-start-shell">
+
+        <section class="vendor-start-hero">
+            <div class="vendor-start-hero-inner">
+                <div>
+                    <div class="vendor-start-eyebrow">Arolana Vendor Support</div>
+                    <h1 class="vendor-start-title">Start Conversation With Admin</h1>
+                    <p class="vendor-start-subtitle">
+                        Send a clear message to Arolana admin about products, approvals, KYC, subscription, orders, payments, delivery, or support issues.
+                    </p>
+                </div>
+
+                <a href="{% url 'dashboard:vendor_messages' %}" class="vendor-start-btn vendor-start-btn-light">
+                    <i class="fas fa-arrow-left"></i>
+                    Back to Messages
+                </a>
+            </div>
+        </section>
+
+        <div class="vendor-start-grid">
+            <section class="vendor-start-panel">
+                <div class="vendor-start-panel-header">
+                    <h2 class="vendor-start-panel-title">Message Details</h2>
+                    <p class="vendor-start-panel-subtitle">
+                        Choose the admin, write a short subject, and explain what you need help with.
+                    </p>
+                </div>
+
+                <div class="vendor-start-panel-body">
+                    {% if admins %}
+                    <form method="POST" class="vendor-start-form">
+                        {% csrf_token %}
+
+                        <div>
+                            <label class="vendor-start-label">Select Admin</label>
+                            <select name="admin_id" required class="vendor-start-select">
+                                <option value="">Select an administrator</option>
+                                {% for admin in admins %}
+                                <option value="{{ admin.id }}">
+                                    {% if admin.get_full_name %}
+                                        {{ admin.get_full_name }} — {{ admin.email }}
+                                    {% else %}
+                                        {{ admin.email }}
+                                    {% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <p class="vendor-start-help">Choose the admin or support account you want to contact.</p>
+                        </div>
+
+                        <div>
+                            <label class="vendor-start-label">Subject</label>
+                            <input
+                                type="text"
+                                name="subject"
+                                required
+                                placeholder="Example: Product approval request, KYC issue, order support..."
+                                class="vendor-start-input"
+                            >
+                            <p class="vendor-start-help">Keep the subject short and specific.</p>
+                        </div>
+
+                        <div>
+                            <label class="vendor-start-label">Message</label>
+                            <textarea
+                                name="message"
+                                rows="6"
+                                required
+                                placeholder="Type your message here. Include product name, order number, tracking code, payment reference, or screenshots if needed..."
+                                class="vendor-start-textarea"
+                            ></textarea>
+                            <p class="vendor-start-help">Add enough detail so admin can act faster.</p>
+                        </div>
+
+                        <div class="vendor-start-actions">
+                            <a href="{% url 'dashboard:vendor_messages' %}" class="vendor-start-btn vendor-start-btn-light" style="color:var(--arolana-navy);background:#fff;">
+                                Cancel
+                            </a>
+
+                            <button type="submit" class="vendor-start-btn vendor-start-btn-primary">
+                                <i class="fas fa-paper-plane"></i>
+                                Send Message
+                            </button>
+                        </div>
+                    </form>
+                    {% else %}
+                    <div class="vendor-empty-admin">
+                        No admin account is available to message right now. Please contact Arolana support or try again later.
+                    </div>
+                    {% endif %}
+                </div>
+            </section>
+
+            <aside class="vendor-start-panel">
+                <div class="vendor-start-panel-header">
+                    <h2 class="vendor-start-panel-title">Before You Send</h2>
+                    <p class="vendor-start-panel-subtitle">
+                        Faster messages get faster replies.
+                    </p>
+                </div>
+
+                <div class="vendor-start-panel-body">
+                    <div class="vendor-info-card">
+                        <strong>Use this for serious vendor support</strong>
+                        <p>
+                            Best for product approval, KYC, payout, subscription, order robot, rider pickup, customer complaint, or store verification issues.
+                        </p>
+                    </div>
+
+                    <div class="vendor-tips-list">
+                        <div class="vendor-tip">
+                            <span class="vendor-tip-icon">
+                                <i class="fas fa-box"></i>
+                            </span>
+                            <div>
+                                <div class="vendor-tip-title">Product issue</div>
+                                <div class="vendor-tip-text">Include product name, SKU, and what admin should review.</div>
+                            </div>
+                        </div>
+
+                        <div class="vendor-tip">
+                            <span class="vendor-tip-icon">
+                                <i class="fas fa-receipt"></i>
+                            </span>
+                            <div>
+                                <div class="vendor-tip-title">Order issue</div>
+                                <div class="vendor-tip-text">Include order number, tracking code, and customer issue.</div>
+                            </div>
+                        </div>
+
+                        <div class="vendor-tip">
+                            <span class="vendor-tip-icon">
+                                <i class="fas fa-id-card"></i>
+                            </span>
+                            <div>
+                                <div class="vendor-tip-title">KYC or payout</div>
+                                <div class="vendor-tip-text">Mention the exact verification or payment problem.</div>
+                            </div>
+                        </div>
+
+                        <div class="vendor-tip">
+                            <span class="vendor-tip-icon">
+                                <i class="fas fa-clock"></i>
+                            </span>
+                            <div>
+                                <div class="vendor-tip-title">Approval timeline</div>
+                                <div class="vendor-tip-text">Ask clearly what is pending and what admin needs from you.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
     </div>
-    
-    <form method="POST" class="space-y-4">
-        {% csrf_token %}
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Select Admin</label>
-            <select name="admin_id" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
-                <option value="">Select an administrator</option>
-                {% for admin in admins %}
-                <option value="{{ admin.id }}">{{ admin.email }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Subject</label>
-            <input type="text" name="subject" required placeholder="Enter subject" 
-                   class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Message</label>
-            <textarea name="message" rows="6" required placeholder="Type your message here..." 
-                      class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"></textarea>
-        </div>
-        <div class="flex justify-end">
-            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
-                <i class="fas fa-paper-plane"></i> Send Message
-            </button>
-        </div>
-    </form>
 </div>
 {% endblock %}

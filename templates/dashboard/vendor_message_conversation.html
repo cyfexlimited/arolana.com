@@ -2,77 +2,657 @@
 {% load static %}
 
 {% block title %}Conversation with Admin - Vendor Dashboard{% endblock %}
+{% block dashboard_side_ad %}{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<style>
+    :root {
+        --arolana-navy: #071A44;
+        --arolana-blue: #0066CC;
+        --arolana-orange: #FF7A00;
+        --arolana-soft: #F4F8FF;
+        --arolana-border: #E3ECF8;
+        --arolana-text: #0B1E46;
+        --arolana-muted: #65758B;
+        --arolana-bg: #F4F7FB;
+        --arolana-green: #16A34A;
+        --arolana-red: #DC2626;
+    }
+
+    html,
+    body {
+        width: 100%;
+        min-height: 100%;
+        overflow-x: hidden;
+        background: var(--arolana-bg) !important;
+    }
+
+    * {
+        box-sizing: border-box;
+    }
+
+    body:has(.vendor-conversation-page) main,
+    body:has(.vendor-conversation-page) .main-content,
+    body:has(.vendor-conversation-page) .dashboard-content,
+    body:has(.vendor-conversation-page) .content-wrapper,
+    body:has(.vendor-conversation-page) .container,
+    body:has(.vendor-conversation-page) .container-fluid {
+        width: 100% !important;
+        max-width: none !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    body:has(.vendor-conversation-page) .arolana-following-ad,
+    body:has(.vendor-conversation-page) .arolana-floating-ad-shell,
+    body:has(.vendor-conversation-page) .arolana-ad-placeholder,
+    .arolana-following-ad,
+    .arolana-floating-ad-shell,
+    .arolana-ad-placeholder {
+        display: none !important;
+    }
+
+    .vendor-conversation-page {
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        padding: 1rem 1.25rem 2rem;
+        color: var(--arolana-text);
+    }
+
+    .vendor-conversation-shell {
+        width: 100%;
+        max-width: 1100px;
+        margin: 0 auto;
+    }
+
+    .vendor-conversation-hero {
+        overflow: hidden;
+        border-radius: 1.35rem;
+        background:
+            radial-gradient(circle at 14% 18%, rgba(56,189,248,.24), transparent 28%),
+            radial-gradient(circle at 88% 16%, rgba(255,122,0,.24), transparent 24%),
+            linear-gradient(135deg, #071A44, #063E85);
+        color: #fff;
+        box-shadow: 0 18px 42px rgba(7, 26, 68, .18);
+        margin-bottom: 1rem;
+    }
+
+    .vendor-conversation-hero-inner {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.25rem;
+    }
+
+    .vendor-conversation-eyebrow {
+        color: #FFD7B0;
+        font-size: .68rem;
+        font-weight: 950;
+        letter-spacing: .18em;
+        text-transform: uppercase;
+    }
+
+    .vendor-conversation-title {
+        margin: .25rem 0 0;
+        color: #fff;
+        font-size: clamp(1.55rem, 2.6vw, 2.45rem);
+        line-height: 1.05;
+        font-weight: 950;
+        letter-spacing: -.03em;
+    }
+
+    .vendor-conversation-subtitle {
+        margin-top: .45rem;
+        max-width: 46rem;
+        color: rgba(255,255,255,.78);
+        font-size: .84rem;
+        line-height: 1.5;
+        font-weight: 750;
+        overflow-wrap: anywhere;
+    }
+
+    .vendor-conversation-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: .6rem;
+        flex-wrap: wrap;
+    }
+
+    .vendor-conversation-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .45rem;
+        min-height: 2.55rem;
+        padding: .7rem 1rem;
+        border-radius: .9rem;
+        border: 1px solid transparent;
+        font-size: .76rem;
+        font-weight: 950;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: .18s ease;
+        cursor: pointer;
+    }
+
+    .vendor-conversation-btn:hover {
+        transform: translateY(-1px);
+        text-decoration: none;
+    }
+
+    .vendor-conversation-btn-light {
+        background: rgba(255,255,255,.14);
+        color: #fff;
+        border-color: rgba(255,255,255,.25);
+    }
+
+    .vendor-conversation-btn-danger {
+        background: rgba(220, 38, 38, .14);
+        color: #fff;
+        border-color: rgba(255,255,255,.25);
+    }
+
+    .vendor-conversation-btn-primary {
+        background: linear-gradient(135deg, var(--arolana-blue), #064B99);
+        color: #fff;
+        box-shadow: 0 12px 26px rgba(0, 102, 204, .18);
+    }
+
+    .vendor-conversation-panel {
+        overflow: hidden;
+        border-radius: 1.15rem;
+        background: #fff;
+        border: 1px solid var(--arolana-border);
+        box-shadow: 0 14px 34px rgba(15, 23, 42, .06);
+        margin-bottom: 1rem;
+    }
+
+    .vendor-conversation-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .85rem;
+        padding: 1rem;
+        border-bottom: 1px solid var(--arolana-border);
+        background: linear-gradient(180deg, #fff, #F8FBFF);
+    }
+
+    .vendor-conversation-panel-title {
+        margin: 0;
+        color: var(--arolana-navy);
+        font-size: 1.05rem;
+        line-height: 1.2;
+        font-weight: 950;
+    }
+
+    .vendor-conversation-panel-subtitle {
+        margin-top: .22rem;
+        color: var(--arolana-muted);
+        font-size: .72rem;
+        line-height: 1.45;
+        font-weight: 750;
+    }
+
+    .vendor-message-container {
+        height: min(62vh, 560px);
+        min-height: 360px;
+        overflow-y: auto;
+        padding: 1rem;
+        background:
+            radial-gradient(circle at 0% 0%, rgba(0,102,204,.05), transparent 26%),
+            radial-gradient(circle at 100% 0%, rgba(255,122,0,.06), transparent 24%),
+            #F8FBFF;
+        scroll-behavior: smooth;
+    }
+
+    .vendor-message-container::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .vendor-message-container::-webkit-scrollbar-track {
+        background: #EEF3FA;
+        border-radius: 999px;
+    }
+
+    .vendor-message-container::-webkit-scrollbar-thumb {
+        background: #C7D7EA;
+        border-radius: 999px;
+    }
+
+    .vendor-message-row {
+        display: flex;
+        margin-bottom: .9rem;
+        position: relative;
+    }
+
+    .vendor-message-row.mine {
+        justify-content: flex-end;
+    }
+
+    .vendor-message-bubble {
+        width: fit-content;
+        max-width: min(72%, 680px);
+        border-radius: 1.05rem;
+        padding: .85rem .95rem;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, .06);
+        border: 1px solid var(--arolana-border);
+        background: #fff;
+        color: var(--arolana-navy);
+    }
+
+    .vendor-message-row.mine .vendor-message-bubble {
+        background: linear-gradient(135deg, var(--arolana-blue), #064B99);
+        color: #fff;
+        border-color: rgba(255,255,255,.15);
+    }
+
+    .vendor-message-sender {
+        margin-bottom: .28rem;
+        font-size: .68rem;
+        font-weight: 950;
+        color: var(--arolana-muted);
+    }
+
+    .vendor-message-row.mine .vendor-message-sender {
+        color: rgba(255,255,255,.78);
+    }
+
+    .vendor-message-text {
+        font-size: .82rem;
+        line-height: 1.55;
+        font-weight: 750;
+        white-space: pre-line;
+        overflow-wrap: anywhere;
+    }
+
+    .vendor-message-time {
+        margin-top: .42rem;
+        font-size: .62rem;
+        font-weight: 800;
+        color: #94A3B8;
+    }
+
+    .vendor-message-row.mine .vendor-message-time {
+        color: rgba(255,255,255,.65);
+    }
+
+    .vendor-message-delete {
+        position: absolute;
+        top: .35rem;
+        right: -2rem;
+        width: 1.65rem;
+        height: 1.65rem;
+        border-radius: 999px;
+        background: #FEE2E2;
+        color: #B91C1C;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        opacity: 0;
+        transition: .18s ease;
+        font-size: .72rem;
+    }
+
+    .vendor-message-row.mine:hover .vendor-message-delete {
+        opacity: 1;
+    }
+
+    .vendor-empty-chat {
+        min-height: 280px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        color: var(--arolana-muted);
+        font-size: .82rem;
+        font-weight: 800;
+    }
+
+    .vendor-empty-chat-icon {
+        width: 4rem;
+        height: 4rem;
+        margin: 0 auto 1rem;
+        border-radius: 1.2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #fff;
+        color: #CBD5E1;
+        font-size: 1.6rem;
+        border: 1px solid var(--arolana-border);
+    }
+
+    .vendor-reply-panel {
+        border-top: 1px solid var(--arolana-border);
+        background: #fff;
+        padding: 1rem;
+    }
+
+    .vendor-reply-form {
+        display: grid;
+        gap: .8rem;
+    }
+
+    .vendor-reply-grid {
+        display: grid;
+        grid-template-columns: minmax(220px, .38fr) minmax(0, .62fr);
+        gap: .8rem;
+    }
+
+    .vendor-reply-label {
+        display: block;
+        margin-bottom: .35rem;
+        color: var(--arolana-navy);
+        font-size: .7rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+    }
+
+    .vendor-reply-input,
+    .vendor-reply-textarea {
+        width: 100%;
+        min-height: 2.65rem;
+        border: 1px solid var(--arolana-border);
+        border-radius: .9rem;
+        background: #fff;
+        color: var(--arolana-navy);
+        padding: .72rem .85rem;
+        font-size: .8rem;
+        font-weight: 750;
+        outline: none;
+    }
+
+    .vendor-reply-textarea {
+        min-height: 7rem;
+        resize: vertical;
+        line-height: 1.55;
+    }
+
+    .vendor-reply-input:focus,
+    .vendor-reply-textarea:focus {
+        border-color: var(--arolana-blue);
+        box-shadow: 0 0 0 4px rgba(0, 102, 204, .12);
+    }
+
+    .vendor-reply-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: .7rem;
+        flex-wrap: wrap;
+    }
+
+    .vendor-reply-help {
+        color: var(--arolana-muted);
+        font-size: .68rem;
+        line-height: 1.45;
+        font-weight: 750;
+    }
+
+    @media (max-width: 768px) {
+        .vendor-conversation-page {
+            padding: .7rem .55rem 5rem !important;
+        }
+
+        .vendor-conversation-hero {
+            border-radius: 1rem;
+        }
+
+        .vendor-conversation-hero-inner {
+            flex-direction: column;
+            align-items: stretch;
+            padding: 1rem;
+        }
+
+        .vendor-conversation-title {
+            font-size: 1.35rem;
+        }
+
+        .vendor-conversation-subtitle {
+            font-size: .72rem;
+        }
+
+        .vendor-conversation-actions {
+            display: grid;
+            grid-template-columns: 1fr;
+        }
+
+        .vendor-conversation-btn {
+            width: 100%;
+            min-height: 2.5rem;
+            font-size: .7rem;
+            border-radius: .82rem;
+        }
+
+        .vendor-conversation-panel {
+            border-radius: 1rem;
+        }
+
+        .vendor-conversation-panel-header {
+            padding: .78rem;
+        }
+
+        .vendor-conversation-panel-title {
+            font-size: .92rem;
+        }
+
+        .vendor-conversation-panel-subtitle {
+            font-size: .66rem;
+        }
+
+        .vendor-message-container {
+            min-height: 420px;
+            height: 58vh;
+            padding: .75rem;
+        }
+
+        .vendor-message-bubble {
+            max-width: 88%;
+            border-radius: .95rem;
+            padding: .75rem .8rem;
+        }
+
+        .vendor-message-text {
+            font-size: .72rem;
+        }
+
+        .vendor-message-sender {
+            font-size: .62rem;
+        }
+
+        .vendor-message-time {
+            font-size: .58rem;
+        }
+
+        .vendor-message-delete {
+            position: static;
+            opacity: 1;
+            margin-top: .35rem;
+            margin-left: auto;
+        }
+
+        .vendor-reply-panel {
+            padding: .78rem;
+        }
+
+        .vendor-reply-grid {
+            grid-template-columns: 1fr;
+            gap: .7rem;
+        }
+
+        .vendor-reply-label {
+            font-size: .62rem;
+        }
+
+        .vendor-reply-input,
+        .vendor-reply-textarea {
+            min-height: 2.5rem;
+            border-radius: .78rem;
+            padding: .65rem .75rem;
+            font-size: .72rem;
+        }
+
+        .vendor-reply-textarea {
+            min-height: 6.5rem;
+        }
+
+        .vendor-reply-actions {
+            display: grid;
+            grid-template-columns: 1fr;
+        }
+
+        .vendor-reply-help {
+            font-size: .62rem;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block dashboard_content %}
-<div class="bg-white rounded-xl shadow-lg p-6">
-    <div class="flex justify-between items-center mb-6">
-        <div>
-            <h1 class="text-2xl font-bold">Conversation with Admin</h1>
-            <p class="text-sm text-gray-500">{{ admin.email }}</p>
-        </div>
-        <div class="flex gap-2">
-            <a href="?delete_all=1" class="text-red-600 hover:text-red-800 transition" 
-               onclick="return confirm('Delete entire conversation? This action cannot be undone.')">
-                <i class="fas fa-trash-alt"></i> Delete All
-            </a>
-            <a href="{% url 'dashboard:vendor_messages' %}" class="text-gray-600 hover:text-gray-800 ml-4">
-                <i class="fas fa-arrow-left"></i> Back
-            </a>
-        </div>
-    </div>
-    
-    <!-- Messages Display -->
-    <div class="bg-gray-50 rounded-lg p-4 mb-6 max-h-96 overflow-y-auto" id="messageContainer">
-        {% if messages %}
-            {% for msg in messages %}
-            <div class="mb-4 group {% if msg.sender == request.user %}text-right{% endif %} relative">
-                <div class="inline-block max-w-[70%] {% if msg.sender == request.user %}bg-blue-600 text-white{% else %}bg-white border{% endif %} rounded-lg p-3 shadow-sm">
-                    <p class="text-sm font-semibold mb-1">
-                        {% if msg.sender == request.user %}You{% else %}Admin{% endif %}
-                    </p>
-                    <p class="text-sm">{{ msg.message }}</p>
-                    <p class="text-xs {% if msg.sender == request.user %}text-blue-200{% else %}text-gray-400{% endif %} mt-1">
-                        {{ msg.created_at|date:"M d, Y H:i" }}
+<div class="vendor-conversation-page">
+    <div class="vendor-conversation-shell">
+
+        <section class="vendor-conversation-hero">
+            <div class="vendor-conversation-hero-inner">
+                <div>
+                    <div class="vendor-conversation-eyebrow">Arolana Vendor Support</div>
+                    <h1 class="vendor-conversation-title">Conversation With Admin</h1>
+                    <p class="vendor-conversation-subtitle">
+                        {{ admin.email }}
                     </p>
                 </div>
-                {% if msg.sender == request.user %}
-                <div class="absolute -right-8 top-2 opacity-0 group-hover:opacity-100 transition">
-                    <a href="?delete={{ msg.id }}" class="text-red-500 hover:text-red-700" 
-                       onclick="return confirm('Delete this message?')">
-                        <i class="fas fa-trash"></i>
+
+                <div class="vendor-conversation-actions">
+                    <a
+                        href="?delete_all=1"
+                        class="vendor-conversation-btn vendor-conversation-btn-danger"
+                        onclick="return confirm('Delete entire conversation? This action cannot be undone.')"
+                    >
+                        <i class="fas fa-trash-alt"></i>
+                        Delete All
                     </a>
+
+                    <a href="{% url 'dashboard:vendor_messages' %}" class="vendor-conversation-btn vendor-conversation-btn-light">
+                        <i class="fas fa-arrow-left"></i>
+                        Back
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <section class="vendor-conversation-panel">
+            <div class="vendor-conversation-panel-header">
+                <div>
+                    <h2 class="vendor-conversation-panel-title">Message Thread</h2>
+                    <p class="vendor-conversation-panel-subtitle">
+                        Keep your product approval, KYC, order, payment, and support conversation in one place.
+                    </p>
+                </div>
+            </div>
+
+            <div class="vendor-message-container" id="messageContainer">
+                {% if messages %}
+                    {% for msg in messages %}
+                    <div class="vendor-message-row {% if msg.sender == request.user %}mine{% endif %}">
+                        <div>
+                            <div class="vendor-message-bubble">
+                                <div class="vendor-message-sender">
+                                    {% if msg.sender == request.user %}
+                                        You
+                                    {% else %}
+                                        Admin
+                                    {% endif %}
+                                </div>
+
+                                <div class="vendor-message-text">{{ msg.message }}</div>
+
+                                <div class="vendor-message-time">
+                                    {{ msg.created_at|date:"M d, Y H:i" }}
+                                </div>
+                            </div>
+
+                            {% if msg.sender == request.user %}
+                            <a
+                                href="?delete={{ msg.id }}"
+                                class="vendor-message-delete"
+                                onclick="return confirm('Delete this message?')"
+                                title="Delete message"
+                            >
+                                <i class="fas fa-trash"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="vendor-empty-chat">
+                    <div>
+                        <div class="vendor-empty-chat-icon">
+                            <i class="fas fa-comments"></i>
+                        </div>
+                        <p>No messages yet. Start the conversation.</p>
+                    </div>
                 </div>
                 {% endif %}
             </div>
-            {% endfor %}
-            <script>
-                document.getElementById('messageContainer').scrollTop = document.getElementById('messageContainer').scrollHeight;
-            </script>
-        {% else %}
-        <div class="text-center py-8">
-            <p class="text-gray-500">No messages yet. Start the conversation!</p>
-        </div>
-        {% endif %}
+
+            <div class="vendor-reply-panel">
+                <form method="POST" class="vendor-reply-form">
+                    {% csrf_token %}
+
+                    <div class="vendor-reply-grid">
+                        <div>
+                            <label class="vendor-reply-label">Subject</label>
+                            <input
+                                type="text"
+                                name="subject"
+                                required
+                                placeholder="Example: Product approval, KYC issue, payout support..."
+                                class="vendor-reply-input"
+                            >
+                            <p class="vendor-reply-help">Use a short subject so admin understands the issue quickly.</p>
+                        </div>
+
+                        <div>
+                            <label class="vendor-reply-label">Message</label>
+                            <textarea
+                                name="message"
+                                rows="4"
+                                required
+                                placeholder="Type your message here..."
+                                class="vendor-reply-textarea"
+                            ></textarea>
+                        </div>
+                    </div>
+
+                    <div class="vendor-reply-actions">
+                        <button type="submit" class="vendor-conversation-btn vendor-conversation-btn-primary">
+                            <i class="fas fa-paper-plane"></i>
+                            Send Message
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
     </div>
-    
-    <!-- Send Message Form -->
-    <form method="POST" class="space-y-4">
-        {% csrf_token %}
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Subject</label>
-            <input type="text" name="subject" required placeholder="Enter subject" 
-                   class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Message</label>
-            <textarea name="message" rows="4" required placeholder="Type your message here..." 
-                      class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"></textarea>
-        </div>
-        <div class="flex justify-end">
-            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
-                <i class="fas fa-paper-plane"></i> Send Message
-            </button>
-        </div>
-    </form>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+(function () {
+    const messageContainer = document.getElementById("messageContainer");
+
+    if (messageContainer) {
+        messageContainer.scrollTop = messageContainer.scrollHeight;
+    }
+})();
+</script>
 {% endblock %}

@@ -1,92 +1,631 @@
 {% extends 'base/base.html' %}
-{% load static %}
-
-{% block title %}Dashboard | Arolana{% endblock %}
+{% load humanize %}
 
 {% block content %}
-<div class="min-h-[70vh] flex items-center justify-center px-4 py-12">
-    <div class="relative max-w-2xl w-full overflow-hidden rounded-3xl bg-white shadow-2xl border border-gray-100">
+<style>
+    :root {
+        --arolana-navy: #071A44;
+        --arolana-blue: #0066CC;
+        --arolana-orange: #FF7A00;
+        --arolana-soft: #F4F8FF;
+        --arolana-border: #E3ECF8;
+        --arolana-text: #0B1E46;
+        --arolana-muted: #65758B;
+        --arolana-bg: #F4F7FB;
+        --arolana-green: #16A34A;
+        --arolana-red: #DC2626;
+        --arolana-amber: #F59E0B;
+    }
 
-        <!-- Top Gradient -->
-        <div class="h-2 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600"></div>
+    body {
+        background: var(--arolana-bg) !important;
+    }
 
-        <div class="p-8 sm:p-12 text-center">
+    .arolana-admin-page {
+        width: 100%;
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 1.25rem;
+        color: var(--arolana-text);
+    }
 
-            <!-- Icon -->
-            <div class="mx-auto mb-6 w-24 h-24 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
-                <i class="fas fa-chart-line text-5xl text-blue-600"></i>
+    .arolana-admin-hero {
+        overflow: hidden;
+        border-radius: 1.45rem;
+        background:
+            radial-gradient(circle at 12% 18%, rgba(56,189,248,.22), transparent 28%),
+            radial-gradient(circle at 88% 16%, rgba(255,122,0,.24), transparent 24%),
+            linear-gradient(135deg, #071A44, #063E85);
+        color: #fff;
+        box-shadow: 0 18px 42px rgba(7,26,68,.18);
+        margin-bottom: 1rem;
+    }
+
+    .arolana-admin-hero-inner {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.35rem;
+    }
+
+    .arolana-admin-eyebrow {
+        color: #FFD7B0;
+        font-size: .7rem;
+        font-weight: 950;
+        letter-spacing: .18em;
+        text-transform: uppercase;
+    }
+
+    .arolana-admin-title {
+        margin: .25rem 0 0;
+        color: #fff;
+        font-size: clamp(1.7rem, 2.8vw, 2.8rem);
+        line-height: 1;
+        font-weight: 950;
+        letter-spacing: -.03em;
+    }
+
+    .arolana-admin-subtitle {
+        margin-top: .5rem;
+        max-width: 48rem;
+        color: rgba(255,255,255,.78);
+        font-size: .88rem;
+        line-height: 1.5;
+        font-weight: 750;
+    }
+
+    .arolana-admin-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: .6rem;
+    }
+
+    .arolana-admin-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .45rem;
+        min-height: 2.55rem;
+        padding: .7rem 1rem;
+        border-radius: .9rem;
+        border: 1px solid transparent;
+        font-size: .76rem;
+        font-weight: 950;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: .18s ease;
+        cursor: pointer;
+    }
+
+    .arolana-admin-btn:hover {
+        transform: translateY(-1px);
+        text-decoration: none;
+    }
+
+    .arolana-admin-btn-orange {
+        background: var(--arolana-orange);
+        color: #fff;
+        box-shadow: 0 12px 26px rgba(255,122,0,.2);
+    }
+
+    .arolana-admin-btn-light {
+        background: rgba(255,255,255,.14);
+        color: #fff;
+        border-color: rgba(255,255,255,.25);
+    }
+
+    .arolana-admin-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: .9rem;
+        margin-bottom: 1rem;
+    }
+
+    .arolana-admin-kpi {
+        position: relative;
+        overflow: hidden;
+        border-radius: 1.1rem;
+        background: #fff;
+        border: 1px solid var(--arolana-border);
+        box-shadow: 0 12px 30px rgba(15,23,42,.055);
+        padding: 1rem;
+        min-width: 0;
+    }
+
+    .arolana-admin-kpi:before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--arolana-blue), var(--arolana-orange));
+    }
+
+    .arolana-admin-kpi-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: .8rem;
+    }
+
+    .arolana-admin-kpi-label {
+        color: var(--arolana-muted);
+        font-size: .68rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+    }
+
+    .arolana-admin-kpi-value {
+        margin-top: .35rem;
+        color: var(--arolana-navy);
+        font-size: 1.55rem;
+        line-height: 1.05;
+        font-weight: 950;
+        overflow-wrap: anywhere;
+    }
+
+    .arolana-admin-kpi-note {
+        margin-top: .35rem;
+        color: var(--arolana-muted);
+        font-size: .68rem;
+        font-weight: 750;
+    }
+
+    .arolana-admin-kpi-icon {
+        width: 2.45rem;
+        height: 2.45rem;
+        border-radius: .9rem;
+        background: #EFF6FF;
+        color: var(--arolana-blue);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+    }
+
+    .arolana-admin-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 1rem;
+    }
+
+    .arolana-admin-panel {
+        overflow: hidden;
+        border-radius: 1.15rem;
+        background: #fff;
+        border: 1px solid var(--arolana-border);
+        box-shadow: 0 14px 34px rgba(15,23,42,.06);
+        min-width: 0;
+    }
+
+    .arolana-admin-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .8rem;
+        padding: 1rem;
+        border-bottom: 1px solid var(--arolana-border);
+        background: linear-gradient(180deg, #fff, #F8FBFF);
+    }
+
+    .arolana-admin-panel-title {
+        margin: 0;
+        color: var(--arolana-navy);
+        font-size: 1.05rem;
+        line-height: 1.2;
+        font-weight: 950;
+    }
+
+    .arolana-admin-panel-subtitle {
+        margin-top: .22rem;
+        color: var(--arolana-muted);
+        font-size: .72rem;
+        line-height: 1.45;
+        font-weight: 750;
+    }
+
+    .arolana-admin-panel-body {
+        padding: 1rem;
+    }
+
+    .arolana-admin-list {
+        display: grid;
+        gap: .75rem;
+    }
+
+    .arolana-admin-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .9rem;
+        border: 1px solid #EAF1FB;
+        background: #F8FBFF;
+        border-radius: 1rem;
+        padding: .85rem;
+        min-width: 0;
+    }
+
+    .arolana-admin-item-left {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+        min-width: 0;
+    }
+
+    .arolana-admin-avatar {
+        width: 2.65rem;
+        height: 2.65rem;
+        border-radius: .9rem;
+        background: #DBEAFE;
+        color: var(--arolana-blue);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+    }
+
+    .arolana-admin-item-title {
+        color: var(--arolana-navy);
+        font-size: .84rem;
+        font-weight: 950;
+        line-height: 1.25;
+        overflow-wrap: anywhere;
+    }
+
+    .arolana-admin-item-meta {
+        margin-top: .18rem;
+        color: var(--arolana-muted);
+        font-size: .68rem;
+        font-weight: 750;
+        overflow-wrap: anywhere;
+    }
+
+    .arolana-admin-item-right {
+        text-align: right;
+        flex: 0 0 auto;
+    }
+
+    .arolana-admin-money {
+        color: var(--arolana-navy);
+        font-size: .86rem;
+        font-weight: 950;
+    }
+
+    .arolana-admin-date {
+        margin-top: .18rem;
+        color: #94A3B8;
+        font-size: .66rem;
+        font-weight: 800;
+    }
+
+    .arolana-admin-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 1.55rem;
+        padding: .3rem .65rem;
+        border-radius: 999px;
+        font-size: .64rem;
+        font-weight: 950;
+        white-space: nowrap;
+    }
+
+    .pill-blue {
+        background: #DBEAFE;
+        color: #1D4ED8;
+    }
+
+    .pill-green {
+        background: #DCFCE7;
+        color: #15803D;
+    }
+
+    .pill-orange {
+        background: #FFEDD5;
+        color: #C2410C;
+    }
+
+    .pill-gray {
+        background: #F1F5F9;
+        color: #475569;
+    }
+
+    .arolana-admin-empty {
+        text-align: center;
+        padding: 2.5rem 1rem;
+        color: var(--arolana-muted);
+        font-size: .82rem;
+        font-weight: 800;
+    }
+
+    .arolana-admin-empty-icon {
+        width: 4rem;
+        height: 4rem;
+        margin: 0 auto 1rem;
+        border-radius: 1.2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #F8FBFF;
+        color: #CBD5E1;
+        font-size: 1.6rem;
+        border: 1px solid var(--arolana-border);
+    }
+
+    @media (max-width: 1024px) {
+        .arolana-admin-kpi-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .arolana-admin-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .arolana-admin-page {
+            padding: .7rem .55rem 5rem;
+        }
+
+        .arolana-admin-hero {
+            border-radius: 1rem;
+        }
+
+        .arolana-admin-hero-inner {
+            flex-direction: column;
+            align-items: stretch;
+            padding: 1rem;
+        }
+
+        .arolana-admin-title {
+            font-size: 1.45rem;
+            line-height: 1.08;
+        }
+
+        .arolana-admin-subtitle {
+            font-size: .72rem;
+        }
+
+        .arolana-admin-actions {
+            display: grid;
+            grid-template-columns: 1fr;
+        }
+
+        .arolana-admin-btn {
+            width: 100%;
+            min-height: 2.45rem;
+            font-size: .7rem;
+        }
+
+        .arolana-admin-kpi-grid {
+            grid-template-columns: 1fr;
+            gap: .75rem;
+        }
+
+        .arolana-admin-kpi,
+        .arolana-admin-panel {
+            border-radius: 1rem;
+        }
+
+        .arolana-admin-kpi,
+        .arolana-admin-panel-header,
+        .arolana-admin-panel-body {
+            padding: .8rem;
+        }
+
+        .arolana-admin-kpi-value {
+            font-size: 1.2rem;
+        }
+
+        .arolana-admin-panel-title {
+            font-size: .92rem;
+        }
+
+        .arolana-admin-panel-subtitle {
+            font-size: .66rem;
+        }
+
+        .arolana-admin-item {
+            align-items: flex-start;
+            border-radius: .9rem;
+            padding: .75rem;
+        }
+
+        .arolana-admin-avatar {
+            width: 2.35rem;
+            height: 2.35rem;
+            border-radius: .8rem;
+        }
+
+        .arolana-admin-item-title {
+            font-size: .74rem;
+        }
+
+        .arolana-admin-item-meta,
+        .arolana-admin-date {
+            font-size: .62rem;
+        }
+
+        .arolana-admin-money {
+            font-size: .74rem;
+        }
+
+        .arolana-admin-pill {
+            font-size: .58rem;
+            padding: .25rem .5rem;
+        }
+    }
+</style>
+
+<div class="arolana-admin-page">
+    <section class="arolana-admin-hero">
+        <div class="arolana-admin-hero-inner">
+            <div>
+                <div class="arolana-admin-eyebrow">Arolana Admin OS</div>
+                <h1 class="arolana-admin-title">Admin Dashboard</h1>
+                <p class="arolana-admin-subtitle">
+                    Monitor users, vendors, pending approvals, orders, revenue activity, and marketplace operations from one clean command center.
+                </p>
             </div>
 
-            {% if user.is_authenticated %}
-                <h1 class="text-3xl sm:text-4xl font-black text-gray-900 mb-4">
-                    Welcome to your Dashboard
-                </h1>
-
-                <p class="text-gray-600 mb-8 max-w-lg mx-auto">
-                    Choose where you want to go. Manage your account, vendor tools, or admin controls from one place.
-                </p>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-                    {% if user.is_staff or user.is_superuser %}
-                    <a href="{% url 'dashboard:admin_home' %}"
-                       class="group rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 text-white p-5 font-bold shadow-lg hover:shadow-2xl transition transform hover:-translate-y-1">
-                        <i class="fas fa-crown text-2xl mb-3"></i>
-                        <div>Admin Dashboard</div>
-                        <span class="text-xs opacity-80">Manage Arolana</span>
-                    </a>
-                    {% endif %}
-
-                    {% if user.user_type == 'vendor' %}
-                    <a href="{% url 'dashboard:vendor_home' %}"
-                       class="group rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 text-white p-5 font-bold shadow-lg hover:shadow-2xl transition transform hover:-translate-y-1">
-                        <i class="fas fa-store text-2xl mb-3"></i>
-                        <div>Vendor Dashboard</div>
-                        <span class="text-xs opacity-80">Manage products & orders</span>
-                    </a>
-                    {% endif %}
-
-                    <a href="{% url 'accounts:profile' %}"
-                       class="group rounded-2xl bg-gray-100 text-gray-800 p-5 font-bold hover:bg-gray-200 transition">
-                        <i class="fas fa-user-circle text-2xl mb-3 text-blue-600"></i>
-                        <div>My Account</div>
-                        <span class="text-xs text-gray-500">Profile & settings</span>
-                    </a>
-
-                    <a href="/products/"
-                       class="group rounded-2xl bg-gray-100 text-gray-800 p-5 font-bold hover:bg-gray-200 transition">
-                        <i class="fas fa-shopping-bag text-2xl mb-3 text-purple-600"></i>
-                        <div>Continue Shopping</div>
-                        <span class="text-xs text-gray-500">Browse marketplace</span>
-                    </a>
-
-                </div>
-
-            {% else %}
-                <h1 class="text-3xl sm:text-4xl font-black text-gray-900 mb-4">
-                    Dashboard Access
-                </h1>
-
-                <p class="text-gray-600 mb-8 max-w-lg mx-auto">
-                    Please log in to access your Arolana dashboard, manage orders, products, messages, and account settings.
-                </p>
-
-                <div class="flex flex-col sm:flex-row justify-center gap-4">
-                    <a href="{% url 'accounts:login' %}"
-                       class="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-xl font-bold hover:shadow-xl transition">
-                        <i class="fas fa-sign-in-alt"></i>
-                        Login
-                    </a>
-
-                    <a href="{% url 'accounts:register' %}"
-                       class="inline-flex items-center justify-center gap-2 bg-gray-100 text-gray-800 px-8 py-3 rounded-xl font-bold hover:bg-gray-200 transition">
-                        <i class="fas fa-user-plus"></i>
-                        Create Account
-                    </a>
-                </div>
-            {% endif %}
-
+            <div class="arolana-admin-actions">
+                <a href="/dashboard/admin/" class="arolana-admin-btn arolana-admin-btn-light">
+                    <i class="fas fa-gauge-high"></i>
+                    Admin Home
+                </a>
+                <a href="/admin/" class="arolana-admin-btn arolana-admin-btn-orange">
+                    <i class="fas fa-lock"></i>
+                    Django Admin
+                </a>
+            </div>
         </div>
-    </div>
+    </section>
+
+    <section class="arolana-admin-kpi-grid">
+        <div class="arolana-admin-kpi">
+            <div class="arolana-admin-kpi-head">
+                <div>
+                    <div class="arolana-admin-kpi-label">Total Users</div>
+                    <div class="arolana-admin-kpi-value">{{ total_users|default:0|intcomma }}</div>
+                    <div class="arolana-admin-kpi-note">Customers, vendors, staff, providers, and riders.</div>
+                </div>
+                <span class="arolana-admin-kpi-icon">
+                    <i class="fas fa-users"></i>
+                </span>
+            </div>
+        </div>
+
+        <div class="arolana-admin-kpi">
+            <div class="arolana-admin-kpi-head">
+                <div>
+                    <div class="arolana-admin-kpi-label">Total Vendors</div>
+                    <div class="arolana-admin-kpi-value">{{ total_vendors|default:0|intcomma }}</div>
+                    <div class="arolana-admin-kpi-note">Registered vendor and manufacturer accounts.</div>
+                </div>
+                <span class="arolana-admin-kpi-icon">
+                    <i class="fas fa-store"></i>
+                </span>
+            </div>
+        </div>
+
+        <div class="arolana-admin-kpi">
+            <div class="arolana-admin-kpi-head">
+                <div>
+                    <div class="arolana-admin-kpi-label">Pending Vendors</div>
+                    <div class="arolana-admin-kpi-value">{{ pending_vendors|default:0|intcomma }}</div>
+                    <div class="arolana-admin-kpi-note">Waiting for verification or admin approval.</div>
+                </div>
+                <span class="arolana-admin-kpi-icon">
+                    <i class="fas fa-clock"></i>
+                </span>
+            </div>
+        </div>
+
+        <div class="arolana-admin-kpi">
+            <div class="arolana-admin-kpi-head">
+                <div>
+                    <div class="arolana-admin-kpi-label">Total Orders</div>
+                    <div class="arolana-admin-kpi-value">{{ total_orders|default:0|intcomma }}</div>
+                    <div class="arolana-admin-kpi-note">All customer marketplace orders.</div>
+                </div>
+                <span class="arolana-admin-kpi-icon">
+                    <i class="fas fa-shopping-cart"></i>
+                </span>
+            </div>
+        </div>
+    </section>
+
+    <section class="arolana-admin-layout">
+        <div class="arolana-admin-panel">
+            <div class="arolana-admin-panel-header">
+                <div>
+                    <h2 class="arolana-admin-panel-title">Recent Orders</h2>
+                    <p class="arolana-admin-panel-subtitle">Latest customer orders across the marketplace.</p>
+                </div>
+            </div>
+
+            <div class="arolana-admin-panel-body">
+                {% if recent_orders %}
+                <div class="arolana-admin-list">
+                    {% for order in recent_orders %}
+                    <div class="arolana-admin-item">
+                        <div class="arolana-admin-item-left">
+                            <span class="arolana-admin-avatar">
+                                <i class="fas fa-receipt"></i>
+                            </span>
+                            <div>
+                                <div class="arolana-admin-item-title">{{ order.order_number }}</div>
+                                <div class="arolana-admin-item-meta">{{ order.user.email }}</div>
+                            </div>
+                        </div>
+
+                        <div class="arolana-admin-item-right">
+                            <div class="arolana-admin-money">₦{{ order.total|default:0|floatformat:2|intcomma }}</div>
+                            <div class="arolana-admin-date">{{ order.created_at|date:"M d, Y" }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="arolana-admin-empty">
+                    <div class="arolana-admin-empty-icon">
+                        <i class="fas fa-receipt"></i>
+                    </div>
+                    <p>No orders yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="arolana-admin-panel">
+            <div class="arolana-admin-panel-header">
+                <div>
+                    <h2 class="arolana-admin-panel-title">Recent Users</h2>
+                    <p class="arolana-admin-panel-subtitle">Newest accounts created on Arolana.</p>
+                </div>
+            </div>
+
+            <div class="arolana-admin-panel-body">
+                {% if recent_users %}
+                <div class="arolana-admin-list">
+                    {% for user in recent_users %}
+                    <div class="arolana-admin-item">
+                        <div class="arolana-admin-item-left">
+                            <span class="arolana-admin-avatar">
+                                <i class="fas fa-user"></i>
+                            </span>
+                            <div>
+                                <div class="arolana-admin-item-title">{{ user.username|default:user.email }}</div>
+                                <div class="arolana-admin-item-meta">{{ user.email }}</div>
+                            </div>
+                        </div>
+
+                        <div class="arolana-admin-item-right">
+                            {% if user.user_type == 'vendor' %}
+                                <span class="arolana-admin-pill pill-green">Vendor</span>
+                            {% elif user.user_type == 'admin' or user.is_staff %}
+                                <span class="arolana-admin-pill pill-orange">Staff</span>
+                            {% elif user.user_type %}
+                                <span class="arolana-admin-pill pill-blue">{{ user.user_type|title }}</span>
+                            {% else %}
+                                <span class="arolana-admin-pill pill-gray">Customer</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="arolana-admin-empty">
+                    <div class="arolana-admin-empty-icon">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <p>No users yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
 </div>
 {% endblock %}
