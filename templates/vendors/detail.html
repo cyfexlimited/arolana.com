@@ -234,7 +234,8 @@
 
     .vendor-follow-btn,
     .vendor-contact-btn,
-    .vendor-chat-btn {
+    .vendor-chat-btn,
+    .vendor-quote-btn {
         min-height: 46px;
         border: 0;
         border-radius: 999px;
@@ -266,8 +267,9 @@
         transform: none;
     }
 
-    .vendor-contact-btn {
-        background: linear-gradient(135deg, #0f172a, #334155);
+    .vendor-contact-btn,
+    .vendor-quote-btn {
+        background: linear-gradient(135deg, var(--arolana-orange), #E85F00);
     }
 
     .vendor-chat-btn {
@@ -281,7 +283,8 @@
 
     .vendor-follow-btn:hover,
     .vendor-contact-btn:hover,
-    .vendor-chat-btn:hover {
+    .vendor-chat-btn:hover,
+    .vendor-quote-btn:hover {
         transform: translateY(-2px);
         box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
         color: #fff;
@@ -911,7 +914,8 @@
 
         .vendor-follow-btn,
         .vendor-contact-btn,
-        .vendor-chat-btn {
+        .vendor-chat-btn,
+        .vendor-quote-btn {
             width: 100%;
             min-height: 44px;
             padding: 0 0.75rem;
@@ -1092,7 +1096,7 @@
      data-click-text="{{ vendor.store_name }}">
 
     <section class="vendor-store-hero"
-             style="--vendor-accent: {{ vendor.storefront_accent }};"
+             style="--vendor-accent: {{ vendor.storefront_accent|default:'#FF7A00' }};"
              data-track-click="true"
              data-event-type="vendor"
              data-vendor-id="{{ vendor.id }}"
@@ -1100,7 +1104,7 @@
 
         <div class="vendor-store-banner">
             {% if vendor.store_banner %}
-                {% optimized_image_url vendor.store_banner 'vendor_banner' as vendor_banner_url %}
+                {% optimized_image_url vendor.store_banner 'hero_banner' as vendor_banner_url %}
                 <img src="{{ vendor_banner_url }}"
                      data-fallback-src="{{ vendor.store_banner.url }}"
                      alt="{{ vendor.store_name }} banner"
@@ -1225,14 +1229,14 @@
                     </span>
                     {% endif %}
 
-                    <a href="/contact/?vendor={{ vendor.id }}"
-                       class="vendor-contact-btn"
+                    <a href="/contact/?vendor={{ vendor.id }}&type=quote"
+                       class="vendor-quote-btn"
                        data-track-click="true"
                        data-event-type="vendor"
                        data-vendor-id="{{ vendor.id }}"
-                       data-click-text="Contact Vendor - {{ vendor.store_name }}">
-                        <i class="fas fa-envelope"></i>
-                        Contact
+                       data-click-text="Request Quote - {{ vendor.store_name }}">
+                        <i class="fas fa-file-signature"></i>
+                        Request Quote
                     </a>
                 </div>
             </div>
