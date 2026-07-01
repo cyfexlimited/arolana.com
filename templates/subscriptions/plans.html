@@ -843,15 +843,15 @@
                     </div>
                     {% endif %}
 
-                    {% if plan.chat_enabled %}
+                    {% if plan.can_receive_direct_enquiries %}
                     <div class="plan-feature">
                         <i class="fas fa-check-circle"></i>
-                        <span>Customer chat access</span>
+                        <span>Customer chat and direct enquiries</span>
                     </div>
                     {% else %}
                     <div class="plan-feature locked">
                         <i class="fas fa-lock"></i>
-                        <span>Customer chat not included</span>
+                        <span>Customer chat and direct enquiries not included</span>
                     </div>
                     {% endif %}
 
