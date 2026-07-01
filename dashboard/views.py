@@ -702,6 +702,44 @@ def vendor_quote_requests(request):
 
     return render(request, "dashboard/vendor_quote_requests.html", context)
 
+    @login_required
+def vendor_quote_response(request, quote_id):
+    """
+    Allow vendor to respond to a quote request assigned to their own store.
+    """
+    try:
+        vendor_profile = request.user.vendor_profile
+    except Exception:
+        try:
+            vendor_profile = VendorProfile.objects.get(user=request.user)
+        except VendorProfile.DoesNotExist:
+            return render(request, "dashboard/access_denied.html", {
+                "message": "Your vendor profile is not set up. Please contact Arolana support."
+            })
+
+    quote = get_object_or_404(
+        VendorQuoteRequest,
+        id=quote_id,
+        vendor=vendor_profile,
+    )
+
+    if request.method != "POST":
+        return redirect("dashboard:vendor_quote_requests")
+
+    vendor_response = (request.POST.get("vendor_response") or "").strip()
+
+    if not vendor_response:
+        messages.error(request, "Please enter your response before saving.")
+        return redirect("dashboard:vendor_quote_requests")
+
+    quote.vendor_response = vendor_response
+    quote.status = "vendor_replied"
+    quote.save(update_fields=["vendor_response", "status", "updated_at"])
+
+    messages.success(request, "Your response has been saved successfully.")
+
+    return redirect("dashboard:vendor_quote_requests")
+
 @login_required
 def vendor_pickup_location(request):
     if not hasattr(request.user, 'vendor_profile') and request.user.user_type != 'vendor':

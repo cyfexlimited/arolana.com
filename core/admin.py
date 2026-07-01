@@ -292,7 +292,7 @@ class VendorQuoteRequestAdmin(admin.ModelAdmin):
         "email",
         "phone",
         "status",
-        "product_name",
+        "subject",
         "created_at",
     )
     list_filter = (
@@ -307,7 +307,6 @@ class VendorQuoteRequestAdmin(admin.ModelAdmin):
         "subject",
         "message",
         "product_name",
-        "product_url",
         "vendor__store_name",
         "vendor__store_slug",
     )

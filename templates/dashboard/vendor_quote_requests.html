@@ -479,6 +479,27 @@
                             <span class="quote-status status-{{ quote.status }}">
                                 {{ quote.get_status_display }}
                             </span>
+
+                            {% if quote.vendor_response %}
+                                <div class="quote-meta" style="margin-top:.55rem;">
+                                    <strong>Response:</strong> {{ quote.vendor_response|truncatewords:16 }}
+                                </div>
+                            {% endif %}
+
+                            <form method="post"
+                                action="{% url 'dashboard:vendor_quote_response' quote.id %}"
+                                style="margin-top:.65rem;">
+                                {% csrf_token %}
+                                <textarea name="vendor_response"
+                                        rows="3"
+                                        placeholder="Write vendor response..."
+                                        style="width:100%;min-width:220px;border:1px solid #E3ECF8;border-radius:.75rem;padding:.65rem;font-size:.75rem;">{{ quote.vendor_response }}</textarea>
+
+                                <button type="submit"
+                                        style="margin-top:.45rem;display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:.75rem;background:#0066CC;color:white;padding:.5rem .75rem;font-size:.72rem;font-weight:950;">
+                                    Save Response
+                                </button>
+                            </form>
                         </td>
                         <td>
                             <div class="quote-meta">{{ quote.created_at|date:"M d, Y" }}</div>
@@ -498,6 +519,7 @@
                         <div class="quote-title">{{ quote.subject|default:"Quote request" }}</div>
                         <div class="quote-meta">{{ quote.name }} · {{ quote.created_at|timesince }} ago</div>
                     </div>
+
                     <span class="quote-status status-{{ quote.status }}">
                         {{ quote.get_status_display }}
                     </span>
@@ -518,6 +540,27 @@
                     Product: {{ quote.product_name }}
                 </div>
                 {% endif %}
+
+                {% if quote.vendor_response %}
+                <div class="quote-meta" style="margin-top:.65rem;border-radius:.75rem;background:#F0FDF4;padding:.65rem;color:#15803D;">
+                    <strong>Response:</strong> {{ quote.vendor_response }}
+                </div>
+                {% endif %}
+
+                <form method="post"
+                    action="{% url 'dashboard:vendor_quote_response' quote.id %}"
+                    style="margin-top:.75rem;">
+                    {% csrf_token %}
+                    <textarea name="vendor_response"
+                            rows="3"
+                            placeholder="Write vendor response..."
+                            style="width:100%;border:1px solid #E3ECF8;border-radius:.75rem;padding:.65rem;font-size:.72rem;">{{ quote.vendor_response }}</textarea>
+
+                    <button type="submit"
+                            style="margin-top:.45rem;width:100%;border:0;border-radius:.75rem;background:#0066CC;color:white;padding:.65rem .75rem;font-size:.72rem;font-weight:950;">
+                        Save Response
+                    </button>
+                </form>
             </article>
             {% endfor %}
         </div>
