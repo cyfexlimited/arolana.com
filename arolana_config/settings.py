@@ -584,6 +584,10 @@ EMAIL_CONFIGURED = (
     ]
     or SMTP_EMAIL_CONFIGURED
 )
+CONTACT_EMAIL = config(
+    "CONTACT_EMAIL",
+    default=config("AROLANA_SUPPORT_EMAIL", default="admin@arolana.com"),
+)
 
 NEWSLETTER_FROM_EMAIL = os.getenv(
     "NEWSLETTER_FROM_EMAIL",
