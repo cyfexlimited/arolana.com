@@ -239,6 +239,8 @@ def choose_presets(model_label, field_name, image_name):
         add("category_banner", "category_card", "seo", "thumbnail")
     elif "category" in text:
         add("category_card", "category_banner", "seo", "thumbnail")
+    elif "vendors.vendorprofile.store_banner" in text or "store_banner" in text:
+        add("vendor_banner", "hero_banner", "seo")
     elif "logo" in text:
         add("logo", "thumbnail", "seo")
     elif "banner" in text:

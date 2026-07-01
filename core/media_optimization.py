@@ -89,15 +89,18 @@ PRESETS = {
     "category_card": {"max_size": (1000, 700), "quality": 82},
     "category_banner": {"max_size": (1920, 1080), "quality": 84},
 
-    "product_thumb": {"max_size": (700, 700), "quality": 84, "sharpen": True},
-    "product_card": {"max_size": (1100, 1100), "quality": 88, "sharpen": True},
-    "product_card_large": {"max_size": (1400, 1400), "quality": 90, "sharpen": True},
-    "product_gallery": {"max_size": (1600, 1600), "quality": 90, "sharpen": True},
-    "product_detail": {"max_size": (2000, 2000), "quality": 91, "sharpen": True},
+    # Product imagery must preserve the vendor's source tones. Extra unsharp
+    # masking made already-processed photos look harsh across detail-page cards.
+    "product_thumb": {"max_size": (700, 700), "quality": 86},
+    "product_card": {"max_size": (1100, 1100), "quality": 90},
+    "product_card_large": {"max_size": (1400, 1400), "quality": 91},
+    "product_gallery": {"max_size": (1800, 1800), "quality": 92},
+    "product_detail": {"max_size": (2200, 2200), "quality": 93},
 
     "ad_card": {"max_size": (900, 500), "quality": 82},
     "ad": {"max_size": (1600, 900), "quality": 83},
     "banner": {"max_size": (1920, 1080), "quality": 84},
+    "vendor_banner": {"max_size": (2400, 1200), "quality": 92},
     "hero": {"max_size": (1920, 1080), "quality": 84},
     "homepage_hero": {"max_size": (1920, 1080), "quality": 84},
     "hero_banner": {"max_size": (1920, 1080), "quality": 84},

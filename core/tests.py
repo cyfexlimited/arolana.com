@@ -130,6 +130,7 @@ class PerformanceHelperTests(SimpleTestCase):
             "ad",
             "ad_card",
             "banner",
+            "vendor_banner",
             "seo",
             "thumbnail",
             "video_thumb",

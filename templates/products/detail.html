@@ -1919,11 +1919,19 @@
         pointer-events: auto !important;
     }
 
+    #main-product-image,
+    #product-image-thumbnails img,
+    .apd-auto-overview-gallery-item img {
+        filter: none !important;
+        image-rendering: auto;
+    }
+
     /* ============================================================
        AROLANA OPTIONAL SHIPPING + PACKAGE INFO
        Every value is optional: if admin leaves it empty, it will not show.
        ============================================================ */
     .apd-shipping-info-card,
+    .apd-warranty-info-card,
     .apd-package-spec-card {
         border: 1px solid rgba(0, 102, 204, 0.14);
         background: radial-gradient(circle at 12% 0%, rgba(0, 184, 255, .08), transparent 14rem),
@@ -1933,6 +1941,7 @@
         box-shadow: 0 18px 50px rgba(7, 26, 68, 0.08);
     }
     .apd-shipping-info-title,
+    .apd-warranty-info-title,
     .apd-package-spec-title {
         display: flex;
         align-items: center;
@@ -1944,16 +1953,19 @@
         letter-spacing: -0.01em;
     }
     .apd-shipping-info-title i,
+    .apd-warranty-info-title i,
     .apd-package-spec-title i {
         color: var(--arolana-orange, #FF7A00);
     }
     .apd-shipping-info-grid,
+    .apd-warranty-info-grid,
     .apd-package-spec-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 0.65rem;
     }
     .apd-shipping-info-item,
+    .apd-warranty-info-item,
     .apd-package-spec-item {
         min-width: 0;
         border: 1px solid rgba(7, 26, 68, 0.08);
@@ -1962,6 +1974,7 @@
         padding: 0.72rem 0.78rem;
     }
     .apd-shipping-info-label,
+    .apd-warranty-info-label,
     .apd-package-spec-label {
         display: block;
         color: #64748B;
@@ -1972,6 +1985,7 @@
         margin-bottom: 0.2rem;
     }
     .apd-shipping-info-value,
+    .apd-warranty-info-value,
     .apd-package-spec-value {
         display: block;
         color: var(--arolana-text, #0F172A);
@@ -1985,6 +1999,7 @@
     .apd-free-shipping-badge { display: inline-flex; align-items: center; gap: 0.4rem; color: #047857; }
     @media (max-width: 640px) {
         .apd-shipping-info-grid,
+        .apd-warranty-info-grid,
         .apd-package-spec-grid { grid-template-columns: 1fr; }
     }
 
@@ -3162,6 +3177,96 @@
                 {% endif %}
                 {% endwith %}
 
+                {% if manufacturer_warranty or product.warranty_years or product.warranty_description or product.extended_warranty_available or product.vendor_profile.warranty_note %}
+                <div class="apd-warranty-info-card mb-4">
+                    <h2 class="apd-warranty-info-title">
+                        <i class="fas fa-shield-halved"></i>
+                        Warranty & Support
+                    </h2>
+                    <div class="apd-warranty-info-grid">
+                        <div class="apd-warranty-info-item">
+                            <span class="apd-warranty-info-label">Warranty Period</span>
+                            <span class="apd-warranty-info-value">
+                                {% if manufacturer_warranty %}
+                                    {{ manufacturer_warranty.duration_text }}
+                                {% elif product.warranty_years %}
+                                    {{ product.warranty_years }} year{{ product.warranty_years|pluralize }}
+                                {% else %}
+                                    Contact vendor for coverage
+                                {% endif %}
+                            </span>
+                        </div>
+
+                        {% if manufacturer_warranty.provider %}
+                        <div class="apd-warranty-info-item">
+                            <span class="apd-warranty-info-label">Warranty Provider</span>
+                            <span class="apd-warranty-info-value">{{ manufacturer_warranty.provider }}</span>
+                        </div>
+                        {% endif %}
+
+                        {% if manufacturer_warranty.coverage_details or product.warranty_description %}
+                        <div class="apd-warranty-info-item" style="grid-column: 1 / -1;">
+                            <span class="apd-warranty-info-label">Coverage</span>
+                            <span class="apd-warranty-info-value">{{ manufacturer_warranty.coverage_details|default:product.warranty_description|linebreaksbr }}</span>
+                        </div>
+                        {% endif %}
+
+                        {% if manufacturer_warranty.exclusions %}
+                        <div class="apd-warranty-info-item" style="grid-column: 1 / -1;">
+                            <span class="apd-warranty-info-label">Exclusions</span>
+                            <span class="apd-warranty-info-value">{{ manufacturer_warranty.exclusions|linebreaksbr }}</span>
+                        </div>
+                        {% endif %}
+
+                        {% if product.extended_warranty_available %}
+                        <div class="apd-warranty-info-item">
+                            <span class="apd-warranty-info-label">Extended Warranty</span>
+                            <span class="apd-warranty-info-value">
+                                Available{% if product.extended_warranty_price %} · {{ product.extended_warranty_price|currency:request }}{% endif %}
+                            </span>
+                        </div>
+                        {% endif %}
+
+                        {% if manufacturer_warranty.registration_required %}
+                        <div class="apd-warranty-info-item">
+                            <span class="apd-warranty-info-label">Registration</span>
+                            <span class="apd-warranty-info-value">
+                                Required
+                                {% if manufacturer_warranty.registration_url %}
+                                    · <a href="{{ manufacturer_warranty.registration_url }}" target="_blank" rel="noopener" class="text-blue-700 underline">Register warranty</a>
+                                {% endif %}
+                            </span>
+                        </div>
+                        {% endif %}
+
+                        {% if manufacturer_warranty.customer_support_phone or manufacturer_warranty.customer_support_email %}
+                        <div class="apd-warranty-info-item">
+                            <span class="apd-warranty-info-label">Warranty Support</span>
+                            <span class="apd-warranty-info-value">
+                                {% if manufacturer_warranty.customer_support_phone %}<a href="tel:{{ manufacturer_warranty.customer_support_phone }}">{{ manufacturer_warranty.customer_support_phone }}</a>{% endif %}
+                                {% if manufacturer_warranty.customer_support_phone and manufacturer_warranty.customer_support_email %}<br>{% endif %}
+                                {% if manufacturer_warranty.customer_support_email %}<a href="mailto:{{ manufacturer_warranty.customer_support_email }}">{{ manufacturer_warranty.customer_support_email }}</a>{% endif %}
+                            </span>
+                        </div>
+                        {% endif %}
+
+                        {% if manufacturer_warranty.terms_url %}
+                        <div class="apd-warranty-info-item">
+                            <span class="apd-warranty-info-label">Warranty Terms</span>
+                            <span class="apd-warranty-info-value"><a href="{{ manufacturer_warranty.terms_url }}" target="_blank" rel="noopener" class="text-blue-700 underline">View full terms</a></span>
+                        </div>
+                        {% endif %}
+
+                        {% if product.vendor_profile.warranty_note %}
+                        <div class="apd-warranty-info-item" style="grid-column: 1 / -1;">
+                            <span class="apd-warranty-info-label">Vendor Warranty Note</span>
+                            <span class="apd-warranty-info-value">{{ product.vendor_profile.warranty_note|linebreaksbr }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
 {% if product_article_links_hero %}
                 <div class="grid gap-3 mb-4">
                     {% for article_link in product_article_links_hero %}
@@ -3587,7 +3692,10 @@
                     </div>
                     <div class="mt-4 grid gap-4 md:grid-cols-2">
                         {% for article_link in product_article_links_overview %}
+                        {% if article_link.article.display_image %}
                         <a href="{{ article_link.article.get_absolute_url }}"
+                           aria-label="Read {{ article_link.display_label }}"
+                           title="{{ article_link.display_label }}"
                            data-product-article-link="true"
                            data-article-url="{{ article_link.article.get_absolute_url }}"
                            data-article-open-behavior="{{ article_link.open_behavior|default:'same_page' }}"
@@ -3604,27 +3712,14 @@
                            data-reader-show-newsletter="{{ article_link.reader_show_newsletter|yesno:'true,false' }}"
                            data-reader-show-comments="{{ article_link.reader_show_comments|yesno:'true,false' }}"
                            {% endif %}
-                           class="group overflow-hidden rounded-xl border border-gray-100 bg-gray-50 transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-white hover:shadow-xl"
+                           class="group block overflow-hidden rounded-xl transition hover:-translate-y-0.5 hover:shadow-xl"
                            >
-                            <div class="aspect-[16/9] bg-gradient-to-br from-blue-100 to-slate-100">
-                                {% if article_link.article.display_image %}
+                            <div class="aspect-[16/9] bg-white">
                                     {% optimized_image_url article_link.article.display_image 'blog_card' as article_card_url %}
-	                                    <img src="{{ article_card_url }}" data-fallback-src="{{ article_link.article.display_image|optimized_image_url:'seo' }}" alt="{{ article_link.display_label }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" decoding="async" width="560" height="315" onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}else{this.hidden=true;this.nextElementSibling.hidden=false;}">
-	                                    <div hidden class="flex h-full items-center justify-center text-blue-500">
-	                                        <i class="fas fa-newspaper text-4xl"></i>
-	                                    </div>
-                                {% else %}
-                                    <div class="flex h-full items-center justify-center text-blue-500">
-                                        <i class="fas fa-newspaper text-4xl"></i>
-                                    </div>
-                                {% endif %}
-                            </div>
-                            <div class="p-4">
-                                <p class="text-[11px] font-black uppercase tracking-[0.14em] text-blue-600">{{ article_link.article.category.name|default:"Article" }}</p>
-                                <h4 class="mt-1 line-clamp-2 text-lg font-black text-gray-950 group-hover:text-blue-700">{{ article_link.display_label }}</h4>
-                                <p class="mt-2 line-clamp-3 text-sm text-gray-600">{{ article_link.display_teaser }}</p>
+	                                    <img src="{{ article_card_url }}" data-fallback-src="{{ article_link.article.display_image.url }}" alt="{{ article_link.display_label }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" decoding="async" width="560" height="315" onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}else{this.closest('a').style.display='none';}">
                             </div>
                         </a>
+                        {% endif %}
                         {% endfor %}
                     </div>
                 </div>
@@ -3904,7 +3999,10 @@
             <div x-show="tab=='articles'" x-transition.duration.300ms>
                 <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
                     {% for article_link in product_article_links_tab %}
+                    {% if article_link.article.display_image %}
                     <a href="{{ article_link.article.get_absolute_url }}"
+                       aria-label="Read {{ article_link.display_label }}"
+                       title="{{ article_link.display_label }}"
                        data-product-article-link="true"
                        data-article-url="{{ article_link.article.get_absolute_url }}"
                        data-article-open-behavior="{{ article_link.open_behavior|default:'same_page' }}"
@@ -3921,34 +4019,14 @@
                        data-reader-show-newsletter="{{ article_link.reader_show_newsletter|yesno:'true,false' }}"
                        data-reader-show-comments="{{ article_link.reader_show_comments|yesno:'true,false' }}"
                        {% endif %}
-                       class="group overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-1 hover:border-blue-200 hover:shadow-2xl"
+                       class="group block overflow-hidden rounded-2xl transition hover:-translate-y-1 hover:shadow-2xl"
                        >
-                        <div class="aspect-[16/10] bg-gradient-to-br from-blue-100 to-slate-100">
-                            {% if article_link.article.display_image %}
+                        <div class="aspect-[16/10] bg-white">
                                 {% optimized_image_url article_link.article.display_image 'blog_card' as article_tab_url %}
-	                                <img src="{{ article_tab_url }}" data-fallback-src="{{ article_link.article.display_image|optimized_image_url:'seo' }}" alt="{{ article_link.display_label }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" decoding="async" width="560" height="350" onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}else{this.hidden=true;this.nextElementSibling.hidden=false;}">
-	                                <div hidden class="flex h-full items-center justify-center text-blue-500">
-	                                    <i class="fas fa-newspaper text-5xl"></i>
-	                                </div>
-                            {% else %}
-                                <div class="flex h-full items-center justify-center text-blue-500">
-                                    <i class="fas fa-newspaper text-5xl"></i>
-                                </div>
-                            {% endif %}
-                        </div>
-                        <div class="p-5">
-                            <div class="flex flex-wrap items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-blue-600">
-                                <span>{{ article_link.article.category.name|default:"Article" }}</span>
-                                <span class="text-gray-300">•</span>
-                                <span>{{ article_link.article.get_reading_time_display }}</span>
-                            </div>
-                            <h3 class="mt-2 line-clamp-2 text-lg font-black text-gray-950 group-hover:text-blue-700">{{ article_link.display_label }}</h3>
-                            <p class="mt-2 line-clamp-3 text-sm text-gray-600">{{ article_link.display_teaser }}</p>
-                            <span class="mt-4 inline-flex items-center gap-2 text-sm font-black text-blue-600">
-                                Read article <i class="fas fa-arrow-right text-xs"></i>
-                            </span>
+	                                <img src="{{ article_tab_url }}" data-fallback-src="{{ article_link.article.display_image.url }}" alt="{{ article_link.display_label }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" decoding="async" width="560" height="350" onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}else{this.closest('a').style.display='none';}">
                         </div>
                     </a>
+                    {% endif %}
                     {% endfor %}
                 </div>
             </div>

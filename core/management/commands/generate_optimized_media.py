@@ -58,7 +58,7 @@ class Command(BaseCommand):
             (Accessory.objects.filter(is_active=True), [('image', 'accessory_thumb')]),
             (BlogPost.objects.filter(is_published=True), [('featured_image', 'hero'), ('thumbnail_image', 'category_card')]),
             (BlogCategory.objects.filter(is_active=True), [('featured_image', 'category_card')]),
-            (VendorProfile.objects.filter(is_active=True), [('store_logo', 'avatar'), ('store_banner', 'hero')]),
+            (VendorProfile.objects.filter(is_active=True), [('store_logo', 'avatar'), ('store_banner', 'vendor_banner')]),
             (Manufacturer.objects.filter(is_active=True), [('logo', 'avatar'), ('banner', 'ad_card')]),
             (AdBanner.objects.filter(is_active=True), [('image', 'ad_card'), ('image_mobile', 'ad_card')]),
             (AdCreative.objects.filter(is_active=True), [('image', 'ad_card'), ('image_mobile', 'ad_card')]),

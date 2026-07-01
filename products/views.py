@@ -31,7 +31,7 @@ from .models import (
     ProductVariant, ProductQuestion, Accessory, AccessoryProduct,
     ProductImage, ProductVideo, ProductVariantImage, Brand, ProductListingBanner,
     ProductArticleLink, CategoryArticleLink, ProductWholesaleTier, ProductDetailSection,
-    ProductDetailFieldConfig, ProductVariantTypeConfig
+    ProductDetailFieldConfig, ProductVariantTypeConfig, ManufacturerWarranty
 )
 from accounts.models import User
 from currency.templatetags.currency_filters import currency as format_currency
@@ -1300,6 +1300,8 @@ def product_detail(request, slug):
             'brand',
             'vendor',
             'vendor__vendor_profile',
+            'manufacturer_warranty',
+            'shipping_info',
         ).prefetch_related(
             Prefetch(
                 'images',
@@ -1647,6 +1649,10 @@ def product_detail(request, slug):
         in_wishlist = str(product.id) in guest_wishlist
 
     vendor_profile = getattr(product.vendor, "vendor_profile", None)
+    try:
+        manufacturer_warranty = product.manufacturer_warranty
+    except ManufacturerWarranty.DoesNotExist:
+        manufacturer_warranty = None
     vendor_contact_options = _vendor_contact_options(vendor_profile, product=product, request=request)
     condition_value = getattr(product, "condition", "") or ""
     default_condition_label = (
@@ -1701,6 +1707,7 @@ def product_detail(request, slug):
 
         'vendor_chat_available': vendor_contact_options.get('can_chat', False),
         'vendor_contact_options': vendor_contact_options,
+        'manufacturer_warranty': manufacturer_warranty,
         'accessories': accessories,
         'product_accessories': accessories,
         'videos': videos,
@@ -2951,8 +2958,8 @@ def _mobile_vendor_payload(request, vendor_profile, include_products=False):
         "location_label": getattr(vendor_profile, "location_label", ""),
         "logo": _mobile_file_url(request, getattr(vendor_profile, "store_logo", None), preset="logo"),
         "logo_url": _mobile_file_url(request, getattr(vendor_profile, "store_logo", None), preset="logo"),
-        "banner": _mobile_file_url(request, getattr(vendor_profile, "store_banner", None), preset="hero_banner"),
-        "banner_url": _mobile_file_url(request, getattr(vendor_profile, "store_banner", None), preset="hero_banner"),
+        "banner": _mobile_file_url(request, getattr(vendor_profile, "store_banner", None), preset="vendor_banner"),
+        "banner_url": _mobile_file_url(request, getattr(vendor_profile, "store_banner", None), preset="vendor_banner"),
         "description": translated_field(vendor_profile, "description", request=request),
         "verified": bool(getattr(vendor_profile, "is_verified", False)),
         "is_verified": bool(getattr(vendor_profile, "is_verified", False)),
@@ -4411,7 +4418,14 @@ def mobile_product_question_api(request, slug):
 @require_GET
 def mobile_product_detail_api(request, slug):
     product = get_object_or_404(
-        Product.objects.select_related("category", "brand", "vendor", "vendor__vendor_profile").prefetch_related(
+        Product.objects.select_related(
+            "category",
+            "brand",
+            "vendor",
+            "vendor__vendor_profile",
+            "manufacturer_warranty",
+            "shipping_info",
+        ).prefetch_related(
             "images",
             "variants",
             "variants__images",
@@ -4657,6 +4671,32 @@ def mobile_product_detail_api(request, slug):
         "shipping_restrictions": getattr(shipping_info, "shipping_restrictions", "") if shipping_info else "",
         "hazmat": bool(getattr(shipping_info, "hazmat", False)) if shipping_info else False,
     }
+    try:
+        manufacturer_warranty = product.manufacturer_warranty
+    except ManufacturerWarranty.DoesNotExist:
+        manufacturer_warranty = None
+    warranty_info = {
+        "years": getattr(product, "warranty_years", 0) or 0,
+        "description": getattr(product, "warranty_description", "") or "",
+        "extended_available": bool(getattr(product, "extended_warranty_available", False)),
+        "extended_price": str(getattr(product, "extended_warranty_price", "") or ""),
+        "provider": getattr(manufacturer_warranty, "provider", "") if manufacturer_warranty else "",
+        "duration": manufacturer_warranty.duration_text() if manufacturer_warranty else (
+            f"{product.warranty_years} year{'s' if product.warranty_years != 1 else ''}"
+            if getattr(product, "warranty_years", 0)
+            else ""
+        ),
+        "coverage": getattr(manufacturer_warranty, "coverage_details", "") if manufacturer_warranty else (
+            getattr(product, "warranty_description", "") or ""
+        ),
+        "exclusions": getattr(manufacturer_warranty, "exclusions", "") if manufacturer_warranty else "",
+        "terms_url": getattr(manufacturer_warranty, "terms_url", "") if manufacturer_warranty else "",
+        "registration_required": bool(getattr(manufacturer_warranty, "registration_required", False)) if manufacturer_warranty else False,
+        "registration_url": getattr(manufacturer_warranty, "registration_url", "") if manufacturer_warranty else "",
+        "support_phone": getattr(manufacturer_warranty, "customer_support_phone", "") if manufacturer_warranty else "",
+        "support_email": getattr(manufacturer_warranty, "customer_support_email", "") if manufacturer_warranty else "",
+        "vendor_note": getattr(vendor_profile, "warranty_note", "") if vendor_profile else "",
+    }
 
     wholesale_tiers = [
         {
@@ -4808,6 +4848,8 @@ def mobile_product_detail_api(request, slug):
         "rating_count": getattr(product, "rating_count", 0),
         "manual_pdf": safe_url(getattr(product, "manual_pdf", None)),
         "delivery_info": delivery_info,
+        "warranty": warranty_info,
+        "warranty_info": warranty_info,
         "vendor": {
             **(_mobile_vendor_payload(request, vendor_profile) or {
                 "id": vendor.id if vendor else None,

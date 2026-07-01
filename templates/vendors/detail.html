@@ -36,13 +36,15 @@
         width: 100%;
         height: 100%;
         object-fit: cover;
+        filter: none;
+        image-rendering: auto;
     }
 
     .vendor-store-banner::after {
         content: "";
         position: absolute;
         inset: 0;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.58));
+        background: linear-gradient(180deg, rgba(7, 26, 68, 0.02), rgba(255, 255, 255, 0.18));
         pointer-events: none;
     }
 
@@ -652,7 +654,15 @@
              data-click-text="Vendor Store Hero - {{ vendor.store_name }}">
         <div class="vendor-store-banner">
             {% if vendor.store_banner %}
-                <img src="{{ vendor.store_banner|optimized_image_url:'banner' }}" alt="{{ vendor.store_name }} banner">
+                {% optimized_image_url vendor.store_banner 'vendor_banner' as vendor_banner_url %}
+                <img src="{{ vendor_banner_url }}"
+                     data-fallback-src="{{ vendor.store_banner.url }}"
+                     alt="{{ vendor.store_name }} banner"
+                     width="2400"
+                     height="1200"
+                     fetchpriority="high"
+                     decoding="async"
+                     onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}else{this.hidden=true;}">
             {% endif %}
         </div>
 
