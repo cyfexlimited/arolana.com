@@ -628,6 +628,11 @@ def vendor_quote_requests(request):
     Arolana admin sees all quote requests from Django admin.
     """
 
+    if not hasattr(request.user, "vendor_profile") and getattr(request.user, "user_type", "") != "vendor":
+        return render(request, "dashboard/access_denied.html", {
+            "message": "You are not registered as a vendor. Please become a vendor first."
+        })
+
     try:
         vendor_profile = request.user.vendor_profile
     except Exception:
@@ -649,9 +654,11 @@ def vendor_quote_requests(request):
         "spam",
     }
 
-    quote_requests_qs = VendorQuoteRequest.objects.filter(
-        vendor=vendor_profile
-    ).order_by("-created_at")
+    quote_requests_qs = (
+        VendorQuoteRequest.objects
+        .filter(vendor=vendor_profile)
+        .order_by("-created_at")
+    )
 
     if status_filter in valid_statuses:
         quote_requests_qs = quote_requests_qs.filter(status=status_filter)
@@ -702,11 +709,19 @@ def vendor_quote_requests(request):
 
     return render(request, "dashboard/vendor_quote_requests.html", context)
 
-    @login_required
+
+@login_required
+@require_http_methods(["POST"])
 def vendor_quote_response(request, quote_id):
     """
     Allow vendor to respond to a quote request assigned to their own store.
     """
+
+    if not hasattr(request.user, "vendor_profile") and getattr(request.user, "user_type", "") != "vendor":
+        return render(request, "dashboard/access_denied.html", {
+            "message": "You are not registered as a vendor. Please become a vendor first."
+        })
+
     try:
         vendor_profile = request.user.vendor_profile
     except Exception:
@@ -723,9 +738,6 @@ def vendor_quote_response(request, quote_id):
         vendor=vendor_profile,
     )
 
-    if request.method != "POST":
-        return redirect("dashboard:vendor_quote_requests")
-
     vendor_response = (request.POST.get("vendor_response") or "").strip()
 
     if not vendor_response:
@@ -737,7 +749,6 @@ def vendor_quote_response(request, quote_id):
     quote.save(update_fields=["vendor_response", "status", "updated_at"])
 
     messages.success(request, "Your response has been saved successfully.")
-
     return redirect("dashboard:vendor_quote_requests")
 
 @login_required
