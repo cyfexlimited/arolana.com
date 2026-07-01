@@ -1975,7 +1975,7 @@
             text-align: left;
             text-transform: uppercase;
             padding-bottom: 0.75rem;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
             border-bottom: 1px solid #1f2937;
         }
 
@@ -3593,7 +3593,7 @@
 
     <footer class="site-footer bg-gray-900 text-gray-300 mt-10 lg:mt-12">
         <div class="container mx-auto px-4">
-            <div class="site-footer-newsletter border-b border-gray-800 py-7 lg:py-8">
+            <div class="site-footer-newsletter border-b border-gray-800 py-6 lg:py-7">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
                     <div>
                         <h3 class="text-2xl font-bold text-white mb-2">Subscribe to Our Newsletter</h3>
@@ -3618,17 +3618,17 @@
                 </div>
             </div>
 
-            <div class="site-footer-main grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8 lg:gap-8 mb-6 py-8 border-b border-gray-800">
+            <div class="site-footer-main grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 lg:gap-6 mb-4 py-6 border-b border-gray-800">
                 <div class="site-footer-brand lg:col-span-1">
                     {% if site_settings.footer_logo %}
                         {% optimized_image_url site_settings.footer_logo 'logo' as footer_logo_url %}
-                        <img src="{{ footer_logo_url }}" alt="{{ site_settings.site_name }}" class="mb-6 w-auto object-contain" style="height: var(--arolana-footer-logo-height);" loading="lazy">
+                        <img src="{{ footer_logo_url }}" alt="{{ site_settings.site_name }}" class="mb-4 w-auto object-contain" style="height: var(--arolana-footer-logo-height);" loading="lazy">
                     {% else %}
-                        <h3 class="arolana-wordmark text-2xl text-white mb-6">{{ site_settings.site_name }}</h3>
+                        <h3 class="arolana-wordmark text-2xl text-white mb-4">{{ site_settings.site_name }}</h3>
                     {% endif %}
-                    <p class="text-sm text-gray-400 mb-6 leading-relaxed">{{ site_settings.site_description|truncatewords:20 }}</p>
+                    <p class="text-sm text-gray-400 mb-4 leading-relaxed">{{ site_settings.site_description|truncatewords:20 }}</p>
 
-                    <div class="site-footer-social flex gap-4 mb-8">
+                    <div class="site-footer-social flex gap-3 mb-4">
                         {% if site_settings.facebook_url %}
                             <a href="{{ site_settings.facebook_url }}" target="_blank" rel="noopener" class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center text-gray-400 hover:bg-blue-600 hover:text-white transition duration-300" aria-label="Facebook">
                                 <i class="fab fa-facebook-f"></i>
@@ -3651,7 +3651,7 @@
                         {% endif %}
                     </div>
 
-                    <div class="site-footer-trust border-t border-gray-800 pt-6">
+                    <div class="site-footer-trust border-t border-gray-800 pt-4">
                         <p class="text-xs text-gray-500 mb-3">Safe & Secure</p>
                         <div class="flex flex-wrap gap-3 text-sm">
                             <div class="text-gray-400"><i class="fas fa-lock"></i> SSL Secure</div>
@@ -3698,7 +3698,7 @@
                         <i class="fas fa-chevron-down" aria-hidden="true"></i>
                     </button>
                     <div class="site-footer-menu-list">
-                    <ul class="site-footer-contact-list space-y-4 text-sm">
+                    <ul class="site-footer-contact-list space-y-3 text-sm">
                         {% if site_settings.contact_email %}
                             <li class="flex items-start gap-3 group">
                                 <i class="fas fa-envelope text-blue-500 w-5 mt-0.5 shrink-0 group-hover:text-blue-400 transition"></i>
@@ -3728,8 +3728,8 @@
                         {% endif %}
                     </ul>
 
-                    <div class="mt-6 pt-6 border-t border-gray-800">
-                        <p class="text-xs text-gray-500 mb-3">Business Hours</p>
+                    <div class="mt-4 pt-4 border-t border-gray-800">
+                        <p class="text-xs text-gray-500 mb-2">Business Hours</p>
                         <p class="text-sm text-gray-300">Mon - Fri: 9:00 AM - 6:00 PM EST</p>
                         <p class="text-sm text-gray-300">Sat - Sun: 10:00 AM - 5:00 PM EST</p>
                     </div>
@@ -3737,8 +3737,8 @@
                 </div>
             </div>
 
-            <div class="site-footer-bottom py-6">
-                <div class="site-footer-bottom-grid grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 text-sm text-gray-400 items-center">
+            <div class="site-footer-bottom py-5">
+                <div class="site-footer-bottom-grid grid grid-cols-1 md:grid-cols-3 gap-5 mb-4 text-sm text-gray-400 items-center">
                     <div class="site-footer-legal flex flex-wrap gap-3 justify-center md:justify-start">
                         <a href="/privacy/" class="hover:text-white transition">Privacy Policy</a>
                         <span class="text-gray-700">|</span>
