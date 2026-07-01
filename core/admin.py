@@ -16,6 +16,7 @@ from .models import (
     PromoBanner,
     ProtectedImageAsset,
     SiteSettings,
+    VendorQuoteRequest,
 )
 from products.models import Product
 from orders.models import Order
@@ -282,7 +283,87 @@ class ProtectedImageAssetAdmin(admin.ModelAdmin):
         updated = queryset.update(**update_data)
         self.message_user(request, f"❌ {updated} image asset duplicate approval(s) removed.")
 
-
+@admin.register(VendorQuoteRequest)
+class VendorQuoteRequestAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "vendor",
+        "name",
+        "email",
+        "phone",
+        "status",
+        "product_name",
+        "created_at",
+    )
+    list_filter = (
+        "status",
+        "created_at",
+        "vendor",
+    )
+    search_fields = (
+        "name",
+        "email",
+        "phone",
+        "subject",
+        "message",
+        "product_name",
+        "product_url",
+        "vendor__store_name",
+        "vendor__store_slug",
+    )
+    list_editable = ("status",)
+    readonly_fields = (
+        "customer",
+        "vendor",
+        "name",
+        "email",
+        "phone",
+        "subject",
+        "message",
+        "product_name",
+        "product_url",
+        "ip_address",
+        "user_agent",
+        "created_at",
+        "updated_at",
+    )
+    fieldsets = (
+        ("Quote Request", {
+            "fields": (
+                "status",
+                "vendor",
+                "customer",
+                "name",
+                "email",
+                "phone",
+                "subject",
+                "message",
+            ),
+        }),
+        ("Product Context", {
+            "fields": (
+                "product_name",
+                "product_url",
+            ),
+            "classes": ("collapse",),
+        }),
+        ("Admin / Vendor Response", {
+            "fields": (
+                "admin_notes",
+                "vendor_response",
+            ),
+        }),
+        ("Technical Details", {
+            "fields": (
+                "ip_address",
+                "user_agent",
+                "created_at",
+                "updated_at",
+            ),
+            "classes": ("collapse",),
+        }),
+    )
+    date_hierarchy = "created_at"
 # =========================
 # ADMIN APPEARANCE FORM
 # =========================

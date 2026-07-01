@@ -1,0 +1,96 @@
+{% extends "base/base.html" %}
+{% load static optimized_images %}
+
+{% block title %}Request Quote from {{ vendor.store_name }} | Arolana{% endblock %}
+
+{% block content %}
+<main class="bg-slate-50 py-10">
+    <section class="mx-auto max-w-4xl px-4">
+        <div class="mb-6 rounded-3xl bg-[#071A44] p-6 text-white shadow-xl">
+            <div class="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <p class="text-xs font-black uppercase tracking-[0.22em] text-orange-400">
+                        Arolana Quote Request
+                    </p>
+                    <h1 class="mt-2 text-3xl font-black md:text-4xl">
+                        Request a quote from {{ vendor.store_name }}
+                    </h1>
+                    <p class="mt-3 max-w-2xl text-sm font-semibold leading-6 text-blue-100">
+                        Tell us what you need. Arolana and the vendor will receive your request.
+                    </p>
+                </div>
+
+                <div class="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-white text-3xl font-black text-[#071A44]">
+                    {% if vendor.store_logo %}
+                        <img src="{{ vendor.store_logo|optimized_image_url:'logo' }}" alt="{{ vendor.store_name }} logo" class="h-full w-full object-cover">
+                    {% else %}
+                        {{ vendor.store_name|slice:":1"|upper }}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="mb-6 rounded-2xl bg-blue-50 p-4">
+                <h2 class="text-lg font-black text-[#071A44]">Quote details</h2>
+                <p class="mt-1 text-sm font-semibold text-slate-600">
+                    Vendor: <strong>{{ vendor.store_name }}</strong>
+                </p>
+                {% if product_name %}
+                    <p class="mt-1 text-sm font-semibold text-slate-600">
+                        Product: <strong>{{ product_name }}</strong>
+                    </p>
+                {% endif %}
+            </div>
+
+            <form method="post" class="space-y-5">
+                {% csrf_token %}
+                <input type="hidden" name="vendor" value="{{ vendor.id }}">
+                <input type="hidden" name="product_name" value="{{ product_name }}">
+                <input type="hidden" name="product_url" value="{{ product_url }}">
+
+                <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+                    <label class="block text-sm font-black text-slate-700">
+                        Full name
+                        <input name="name" value="{{ form_data.name|default:'' }}" required class="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3" placeholder="Your full name">
+                    </label>
+
+                    <label class="block text-sm font-black text-slate-700">
+                        Email address
+                        <input type="email" name="email" value="{{ form_data.email|default:'' }}" class="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3" placeholder="Your email address">
+                    </label>
+
+                    <label class="block text-sm font-black text-slate-700">
+                        Phone / WhatsApp
+                        <input name="phone" value="{{ form_data.phone|default:'' }}" class="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3" placeholder="Your phone or WhatsApp number">
+                    </label>
+
+                    <label class="block text-sm font-black text-slate-700">
+                        Subject
+                        <input name="subject" value="{{ form_data.subject|default:'' }}" class="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3" placeholder="What do you need a quote for?">
+                    </label>
+                </div>
+
+                <label class="block text-sm font-black text-slate-700">
+                    Message
+                    <textarea name="message" rows="6" required class="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3" placeholder="Describe what you want, quantity, location, delivery/installation needs, and deadline.">{{ form_data.message|default:'' }}</textarea>
+                </label>
+
+                <div class="rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm font-semibold text-orange-800">
+                    Your request will be visible to Arolana admin and the selected vendor.
+                </div>
+
+                <div class="flex flex-col gap-3 sm:flex-row">
+                    <button type="submit" class="inline-flex min-h-12 items-center justify-center rounded-xl bg-orange-500 px-6 py-3 font-black text-white transition hover:bg-orange-600">
+                        Send Quote Request
+                    </button>
+
+                    <a href="{% url 'vendors:detail' vendor.store_slug %}" class="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-3 font-black text-[#071A44] transition hover:bg-slate-50">
+                        Back to vendor store
+                    </a>
+                </div>
+            </form>
+        </div>
+    </section>
+</main>
+{% endblock %}

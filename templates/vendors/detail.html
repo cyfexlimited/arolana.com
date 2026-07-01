@@ -1229,14 +1229,14 @@
                     </span>
                     {% endif %}
 
-                    <a href="/contact/?vendor={{ vendor.id }}&type=quote"
-                       class="vendor-quote-btn"
-                       data-track-click="true"
-                       data-event-type="vendor"
-                       data-vendor-id="{{ vendor.id }}"
-                       data-click-text="Request Quote - {{ vendor.store_name }}">
-                        <i class="fas fa-file-signature"></i>
-                        Request Quote
+                    <a href="{% url 'core:request_vendor_quote' %}?vendor={{ vendor.id }}"
+                        class="vendor-quote-btn"
+                        data-track-click="true"
+                        data-event-type="vendor"
+                        data-vendor-id="{{ vendor.id }}"
+                        data-click-text="Request Quote - {{ vendor.store_name }}">
+                            <i class="fas fa-file-signature"></i>
+                            Request Quote
                     </a>
                 </div>
             </div>

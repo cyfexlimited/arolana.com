@@ -188,6 +188,69 @@ class ProtectedImageAsset(models.Model):
     def __str__(self):
         return f"{self.content_type} #{self.object_id} {self.field_name}"
 
+class VendorQuoteRequest(models.Model):
+    STATUS_CHOICES = (
+        ("new", "New"),
+        ("admin_review", "Admin Review"),
+        ("sent_to_vendor", "Sent to Vendor"),
+        ("vendor_replied", "Vendor Replied"),
+        ("closed", "Closed"),
+        ("spam", "Spam"),
+    )
+
+    customer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="vendor_quote_requests",
+    )
+
+    vendor = models.ForeignKey(
+        "vendors.VendorProfile",
+        on_delete=models.CASCADE,
+        related_name="quote_requests",
+    )
+
+    name = models.CharField(max_length=180)
+    email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=40, blank=True)
+
+    subject = models.CharField(max_length=220, blank=True)
+    message = models.TextField()
+
+    product_name = models.CharField(max_length=255, blank=True)
+    product_url = models.URLField(blank=True)
+
+    status = models.CharField(
+        max_length=30,
+        choices=STATUS_CHOICES,
+        default="new",
+        db_index=True,
+    )
+
+    admin_notes = models.TextField(blank=True)
+    vendor_response = models.TextField(blank=True)
+
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        indexes = [
+            models.Index(fields=("vendor", "status")),
+            models.Index(fields=("customer", "created_at")),
+            models.Index(fields=("status", "created_at")),
+        ]
+        verbose_name = "Vendor Quote Request"
+        verbose_name_plural = "Vendor Quote Requests"
+
+    def __str__(self):
+        return f"Quote request for {self.vendor} from {self.name}"
+
 class SiteSettings(BaseModel):
     # Basic Information
     site_name = models.CharField(max_length=100, default='Arolana')

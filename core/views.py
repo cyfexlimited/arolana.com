@@ -4,7 +4,7 @@ import posixpath
 from django.conf import settings
 from django.core.files.storage import default_storage
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_safe
 from products.models import Product
 from currency.models import Currency
@@ -15,7 +15,12 @@ from datetime import timedelta
 from orders.models import Order
 from accounts.models import User
 from vendors.models import VendorProfile
+from django.contrib import messages
+from django.core.mail import send_mail
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse
 
+from .models import VendorQuoteRequest
 
 @require_safe
 def proxy_media(request, path):
@@ -167,6 +172,188 @@ def live_stats(request):
         'recent_users': recent_users,
         'recent_products': recent_products,
     })
+
+def request_vendor_quote(request):
+    """
+    Customer quote request flow.
+
+    Flow:
+    Customer -> Arolana Quote Request -> Admin + Assigned Vendor notification.
+    """
+    vendor_id = request.GET.get("vendor") or request.POST.get("vendor")
+    product_name = request.GET.get("product_name") or request.POST.get("product_name") or ""
+    product_url = request.GET.get("product_url") or request.POST.get("product_url") or ""
+
+    if not vendor_id:
+        messages.error(request, "Vendor was not selected for this quote request.")
+        return redirect("vendors:list")
+
+    vendor = get_object_or_404(
+        VendorProfile,
+        id=vendor_id,
+        is_active=True,
+    )
+
+    initial_name = ""
+    initial_email = ""
+
+    if request.user.is_authenticated:
+        initial_name = request.user.get_full_name() or request.user.get_username()
+        initial_email = request.user.email or ""
+
+    if request.method == "POST":
+        name = (request.POST.get("name") or "").strip()
+        email = (request.POST.get("email") or "").strip()
+        phone = (request.POST.get("phone") or "").strip()
+        subject = (request.POST.get("subject") or "").strip()
+        message = (request.POST.get("message") or "").strip()
+
+        errors = []
+
+        if not name:
+            errors.append("Please enter your full name.")
+
+        if not email and not phone:
+            errors.append("Please enter either your email address or phone/WhatsApp number.")
+
+        if not message:
+            errors.append("Please describe what you need a quote for.")
+
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+
+            return render(
+                request,
+                "core/request_vendor_quote.html",
+                {
+                    "vendor": vendor,
+                    "product_name": product_name,
+                    "product_url": product_url,
+                    "form_data": request.POST,
+                },
+            )
+
+        quote = VendorQuoteRequest.objects.create(
+            customer=request.user if request.user.is_authenticated else None,
+            vendor=vendor,
+            name=name,
+            email=email,
+            phone=phone,
+            subject=subject or f"Quote request for {vendor.store_name}",
+            message=message,
+            product_name=product_name[:255],
+            product_url=product_url,
+            ip_address=get_client_ip(request),
+            user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            status="new",
+        )
+
+        send_vendor_quote_notifications(quote)
+
+        messages.success(
+            request,
+            "Your quote request has been sent to Arolana and the vendor. You will be contacted shortly.",
+        )
+
+        return redirect("vendors:detail", vendor.store_slug)
+
+    return render(
+        request,
+        "core/request_vendor_quote.html",
+        {
+            "vendor": vendor,
+            "product_name": product_name,
+            "product_url": product_url,
+            "form_data": {
+                "name": initial_name,
+                "email": initial_email,
+                "subject": f"Quote request for {product_name or vendor.store_name}",
+            },
+        },
+    )
+
+
+def get_client_ip(request):
+    forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+
+    return request.META.get("REMOTE_ADDR")
+
+
+def send_vendor_quote_notifications(quote):
+    """
+    Notify Arolana admin and assigned vendor.
+    This keeps Arolana in control while still alerting the vendor.
+    """
+    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "admin@arolana.com")
+    admin_email = getattr(settings, "CONTACT_EMAIL", None) or getattr(settings, "DEFAULT_FROM_EMAIL", "admin@arolana.com")
+
+    vendor_email = (
+        getattr(quote.vendor, "support_email", "")
+        or getattr(quote.vendor, "business_email", "")
+        or getattr(getattr(quote.vendor, "user", None), "email", "")
+    )
+
+    subject = f"New Arolana quote request: {quote.vendor.store_name}"
+
+    admin_message = f"""
+New quote request received on Arolana.
+
+Vendor: {quote.vendor.store_name}
+Customer: {quote.name}
+Email: {quote.email}
+Phone: {quote.phone}
+Subject: {quote.subject}
+
+Message:
+{quote.message}
+
+Product: {quote.product_name}
+Product URL: {quote.product_url}
+
+Quote ID: {quote.id}
+"""
+
+    vendor_message = f"""
+You have a new quote request from Arolana.
+
+Customer: {quote.name}
+Email: {quote.email}
+Phone: {quote.phone}
+Subject: {quote.subject}
+
+Message:
+{quote.message}
+
+Product: {quote.product_name}
+Product URL: {quote.product_url}
+
+Please respond quickly from your vendor dashboard or contact Arolana support.
+"""
+
+    try:
+        send_mail(
+            subject,
+            admin_message,
+            from_email,
+            [admin_email],
+            fail_silently=True,
+        )
+
+        if vendor_email:
+            send_mail(
+                subject,
+                vendor_message,
+                from_email,
+                [vendor_email],
+                fail_silently=True,
+            )
+
+    except Exception:
+        pass
 
 def debug_home(request):
     """Debug view to test currency on homepage"""
