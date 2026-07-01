@@ -32,9 +32,6 @@
 
     * {
         box-sizing: border-box;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-        text-rendering: optimizeLegibility;
     }
 
     body:has(.vendor-dashboard-page) main,
@@ -62,7 +59,7 @@
         width: 100%;
         max-width: none !important;
         margin: 0 !important;
-        padding: 1.1rem 1.25rem 2rem !important;
+        padding: 1rem 1.25rem 2rem !important;
         color: var(--arolana-text);
     }
 
@@ -74,7 +71,7 @@
 
     .vendor-topbar {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: space-between;
         gap: 1rem;
         margin-bottom: 1rem;
@@ -82,33 +79,34 @@
 
     .vendor-eyebrow {
         color: var(--arolana-orange);
-        font-size: .66rem;
+        font-size: .68rem;
         font-weight: 900;
         letter-spacing: .18em;
         text-transform: uppercase;
     }
 
     .vendor-page-title {
-        margin: .12rem 0 0;
+        margin: .18rem 0 0;
         color: var(--arolana-navy);
-        font-size: clamp(1.55rem, 2.1vw, 2.25rem);
+        font-size: clamp(1.65rem, 2.3vw, 2.35rem);
         line-height: 1.02;
         font-weight: 950;
         letter-spacing: -.03em;
     }
 
     .vendor-page-subtitle {
-        margin-top: .35rem;
+        margin-top: .4rem;
         color: var(--arolana-muted);
-        font-size: .84rem;
+        font-size: .88rem;
         line-height: 1.45;
         font-weight: 700;
+        max-width: 820px;
     }
 
     .vendor-action-row {
         display: flex;
         align-items: center;
-        gap: .55rem;
+        gap: .6rem;
         flex-wrap: wrap;
     }
 
@@ -117,11 +115,11 @@
         align-items: center;
         justify-content: center;
         gap: .45rem;
-        min-height: 2.35rem;
-        padding: .58rem .85rem;
-        border-radius: .8rem;
-        font-size: .74rem;
-        font-weight: 900;
+        min-height: 2.45rem;
+        padding: .65rem .95rem;
+        border-radius: .85rem;
+        font-size: .76rem;
+        font-weight: 950;
         text-decoration: none;
         transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
         border: 1px solid transparent;
@@ -138,25 +136,25 @@
     .vendor-btn-primary {
         background: linear-gradient(135deg, var(--arolana-blue), #064b99);
         color: #fff;
-        box-shadow: 0 10px 22px rgba(0, 102, 204, .18);
+        box-shadow: 0 10px 24px rgba(0, 102, 204, .18);
     }
 
     .vendor-btn-orange {
         background: linear-gradient(135deg, var(--arolana-orange), #E85F00);
         color: #fff;
-        box-shadow: 0 10px 22px rgba(255, 122, 0, .18);
+        box-shadow: 0 10px 24px rgba(255, 122, 0, .18);
     }
 
     .vendor-btn-light {
         background: #fff;
         color: var(--arolana-navy);
         border-color: var(--arolana-border);
-        box-shadow: 0 6px 16px rgba(15, 23, 42, .05);
+        box-shadow: 0 8px 20px rgba(15, 23, 42, .05);
     }
 
     .vendor-hero-grid {
         display: grid;
-        grid-template-columns: minmax(0, 1.45fr) minmax(300px, .55fr);
+        grid-template-columns: minmax(0, 1.45fr) minmax(320px, .55fr);
         gap: .9rem;
         margin-bottom: .9rem;
     }
@@ -164,11 +162,11 @@
     .vendor-hero-card {
         position: relative;
         overflow: hidden;
-        min-height: 210px;
-        border-radius: 1.25rem;
-        background: linear-gradient(135deg, var(--arolana-navy), var(--arolana-blue));
-        box-shadow: 0 16px 38px rgba(7, 26, 68, .13);
-        border: 1px solid rgba(255,255,255,.2);
+        min-height: 220px;
+        border-radius: 1.2rem;
+        background: linear-gradient(135deg, var(--arolana-navy), #0B3E7C);
+        box-shadow: 0 18px 40px rgba(7, 26, 68, .13);
+        border: 1px solid rgba(255,255,255,.16);
     }
 
     .vendor-hero-bg {
@@ -179,8 +177,8 @@
         height: 100%;
         object-fit: cover;
         object-position: center;
-        opacity: .62;
-        filter: saturate(1.12) contrast(1.08) brightness(.92);
+        opacity: .55;
+        filter: saturate(1.06) contrast(1.04) brightness(.94);
     }
 
     .vendor-hero-gradient {
@@ -188,32 +186,32 @@
         inset: 0;
         z-index: 1;
         background:
-            linear-gradient(90deg, rgba(7, 26, 68, .88), rgba(7, 26, 68, .48), rgba(7, 26, 68, .72)),
-            radial-gradient(circle at 15% 18%, rgba(56, 189, 248, .18), transparent 28%),
-            radial-gradient(circle at 84% 20%, rgba(255, 122, 0, .18), transparent 26%);
+            linear-gradient(90deg, rgba(7, 26, 68, .88), rgba(7, 26, 68, .56), rgba(7, 26, 68, .72)),
+            radial-gradient(circle at 15% 18%, rgba(56,189,248,.16), transparent 26%),
+            radial-gradient(circle at 84% 20%, rgba(255,122,0,.14), transparent 24%);
     }
 
     .vendor-hero-content {
         position: relative;
         z-index: 2;
-        min-height: 210px;
+        min-height: 220px;
         display: flex;
         align-items: flex-end;
         justify-content: space-between;
         gap: 1rem;
-        padding: 1.15rem;
+        padding: 1.05rem;
     }
 
     .vendor-store-block {
         display: flex;
         align-items: center;
-        gap: .85rem;
+        gap: .8rem;
         min-width: 0;
     }
 
     .vendor-store-logo {
-        width: 5rem;
-        height: 5rem;
+        width: 4.8rem;
+        height: 4.8rem;
         flex: 0 0 auto;
         overflow: hidden;
         border-radius: 1rem;
@@ -223,9 +221,9 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.85rem;
+        font-size: 1.75rem;
         font-weight: 950;
-        box-shadow: 0 14px 28px rgba(0,0,0,.18);
+        box-shadow: 0 12px 28px rgba(0,0,0,.18);
     }
 
     .vendor-store-logo img {
@@ -236,10 +234,9 @@
 
     .vendor-store-name {
         color: #fff;
-        font-size: clamp(1.55rem, 2.45vw, 2.45rem);
+        font-size: clamp(1.55rem, 2.5vw, 2.5rem);
         line-height: 1;
         font-weight: 950;
-        max-width: 820px;
         letter-spacing: -.03em;
         word-break: break-word;
     }
@@ -249,13 +246,14 @@
         color: rgba(255,255,255,.82);
         font-size: .78rem;
         font-weight: 800;
+        line-height: 1.35;
     }
 
     .vendor-pill-row {
         display: flex;
         flex-wrap: wrap;
         gap: .38rem;
-        margin-top: .7rem;
+        margin-top: .65rem;
     }
 
     .vendor-pill {
@@ -263,13 +261,13 @@
         align-items: center;
         gap: .3rem;
         min-height: 1.55rem;
-        padding: .28rem .56rem;
+        padding: .28rem .58rem;
         border-radius: 999px;
         background: rgba(255,255,255,.92);
         color: var(--arolana-navy);
         font-size: .62rem;
         font-weight: 950;
-        line-height: 1.1;
+        line-height: 1.15;
     }
 
     .vendor-pill.orange {
@@ -279,30 +277,30 @@
 
     .vendor-pill.blue {
         background: rgba(56,189,248,.16);
-        color: #dff7ff;
-        border: 1px solid rgba(56,189,248,.28);
+        color: #DFF7FF;
+        border: 1px solid rgba(56,189,248,.25);
     }
 
     .vendor-progress-card {
-        width: min(310px, 100%);
+        width: min(320px, 100%);
         border-radius: 1rem;
-        background: rgba(255,255,255,.96);
-        padding: .82rem;
-        box-shadow: 0 14px 30px rgba(0,0,0,.13);
+        background: rgba(255,255,255,.97);
+        padding: .85rem;
+        box-shadow: 0 14px 30px rgba(0,0,0,.12);
     }
 
     .vendor-progress-title {
         display: flex;
         justify-content: space-between;
-        gap: .6rem;
+        gap: .65rem;
         color: var(--arolana-navy);
-        font-size: .72rem;
+        font-size: .74rem;
         font-weight: 950;
     }
 
     .vendor-progress-track {
-        margin-top: .52rem;
-        height: .48rem;
+        margin-top: .55rem;
+        height: .5rem;
         overflow: hidden;
         border-radius: 999px;
         background: #E7EEF8;
@@ -317,25 +315,26 @@
     .vendor-progress-card p {
         margin-top: .62rem;
         color: var(--arolana-muted);
-        font-size: .66rem;
-        line-height: 1.4;
+        font-size: .67rem;
+        line-height: 1.42;
         font-weight: 700;
     }
 
     .vendor-balance-card {
-        border-radius: 1.2rem;
+        border-radius: 1.15rem;
         background: linear-gradient(135deg, #071A44, #0B3E7C);
         color: #fff;
-        min-height: 210px;
+        min-height: 220px;
         padding: 1rem;
-        box-shadow: 0 16px 38px rgba(7,26,68,.14);
+        box-shadow: 0 18px 40px rgba(7,26,68,.14);
         display: flex;
         flex-direction: column;
         justify-content: space-between;
+        gap: .75rem;
     }
 
     .vendor-balance-label {
-        color: rgba(255,255,255,.72);
+        color: rgba(255,255,255,.74);
         font-size: .66rem;
         font-weight: 950;
         text-transform: uppercase;
@@ -343,7 +342,7 @@
     }
 
     .vendor-balance-amount {
-        margin-top: .26rem;
+        margin-top: .28rem;
         color: #fff;
         font-size: clamp(1.55rem, 2.6vw, 2.35rem);
         font-weight: 950;
@@ -352,10 +351,10 @@
     }
 
     .vendor-balance-note {
-        margin-top: .35rem;
-        color: rgba(255,255,255,.72);
-        font-size: .7rem;
-        line-height: 1.4;
+        margin-top: .34rem;
+        color: rgba(255,255,255,.74);
+        font-size: .69rem;
+        line-height: 1.42;
         font-weight: 700;
     }
 
@@ -366,13 +365,13 @@
     }
 
     .vendor-mini-actions a {
-        min-height: 2.15rem;
-        border-radius: .75rem;
+        min-height: 2.2rem;
+        border-radius: .78rem;
         display: flex;
         align-items: center;
         justify-content: center;
         color: #fff;
-        font-size: .68rem;
+        font-size: .67rem;
         font-weight: 950;
         background: rgba(255,255,255,.12);
         border: 1px solid rgba(255,255,255,.16);
@@ -391,10 +390,10 @@
         overflow: hidden;
         border-radius: .95rem;
         background: #fff;
-        padding: .78rem;
-        min-height: 96px;
+        padding: .8rem;
+        min-height: 100px;
         border: 1px solid var(--arolana-border);
-        box-shadow: 0 10px 24px rgba(15, 23, 42, .045);
+        box-shadow: 0 10px 26px rgba(15, 23, 42, .045);
     }
 
     .vendor-kpi-card:before {
@@ -406,29 +405,29 @@
     }
 
     .vendor-kpi-icon {
-        width: 2.1rem;
-        height: 2.1rem;
-        border-radius: .75rem;
+        width: 2rem;
+        height: 2rem;
+        border-radius: .72rem;
         display: flex;
         align-items: center;
         justify-content: center;
         background: #ECF6FF;
         color: var(--arolana-blue);
-        margin-bottom: .5rem;
-        font-size: .82rem;
+        margin-bottom: .45rem;
+        font-size: .8rem;
     }
 
     .vendor-kpi-label {
         color: var(--arolana-muted);
-        font-size: .64rem;
+        font-size: .63rem;
         font-weight: 900;
-        line-height: 1.2;
+        line-height: 1.25;
     }
 
     .vendor-kpi-value {
-        margin-top: .08rem;
+        margin-top: .12rem;
         color: var(--arolana-navy);
-        font-size: 1.25rem;
+        font-size: 1.2rem;
         font-weight: 950;
         line-height: 1;
         word-break: break-word;
@@ -437,7 +436,7 @@
     .vendor-kpi-sub {
         margin-top: .32rem;
         color: var(--arolana-muted);
-        font-size: .62rem;
+        font-size: .6rem;
         font-weight: 750;
         line-height: 1.25;
     }
@@ -447,17 +446,17 @@
         top: 0;
         z-index: 30;
         display: flex;
-        gap: .42rem;
-        padding: .42rem;
+        gap: .45rem;
+        padding: .45rem;
         margin-bottom: .9rem;
         overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
         border: 1px solid var(--arolana-border);
-        border-radius: .9rem;
-        background: rgba(255,255,255,.95);
+        border-radius: .95rem;
+        background: rgba(255,255,255,.94);
         backdrop-filter: blur(18px);
         box-shadow: 0 10px 24px rgba(15,23,42,.045);
         scrollbar-width: none;
-        -webkit-overflow-scrolling: touch;
     }
 
     .vendor-command-nav::-webkit-scrollbar {
@@ -466,10 +465,10 @@
 
     .vendor-command-nav a {
         flex: 0 0 auto;
-        padding: .58rem .74rem;
-        border-radius: .68rem;
+        padding: .58rem .78rem;
+        border-radius: .72rem;
         color: var(--arolana-navy);
-        font-size: .7rem;
+        font-size: .68rem;
         font-weight: 950;
         text-decoration: none;
         border: 1px solid transparent;
@@ -486,12 +485,11 @@
         display: grid;
         grid-template-columns: 1fr;
         gap: .9rem;
-        align-items: start;
     }
 
     .vendor-dashboard-section-grid {
         display: grid;
-        grid-template-columns: minmax(0, 1.25fr) minmax(300px, .75fr);
+        grid-template-columns: minmax(0, 1.25fr) minmax(320px, .75fr);
         gap: .9rem;
         align-items: start;
     }
@@ -500,12 +498,11 @@
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: .9rem;
-        margin-bottom: 0;
     }
 
     .vendor-bottom-grid {
         display: grid;
-        grid-template-columns: minmax(0, 1.18fr) minmax(300px, .82fr);
+        grid-template-columns: minmax(0, 1.18fr) minmax(320px, .82fr);
         gap: .9rem;
         align-items: start;
     }
@@ -514,7 +511,7 @@
         border-radius: 1rem;
         background: #fff;
         border: 1px solid var(--arolana-border);
-        box-shadow: 0 10px 26px rgba(15,23,42,.048);
+        box-shadow: 0 10px 28px rgba(15,23,42,.05);
         overflow: hidden;
         min-width: 0;
     }
@@ -523,47 +520,56 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: .7rem;
-        padding: .78rem .85rem;
+        gap: .75rem;
+        padding: .8rem .9rem;
         border-bottom: 1px solid var(--arolana-border);
         background: linear-gradient(180deg, #fff, #f8fbff);
+        flex-wrap: wrap;
+    }
+
+    .vendor-panel-header .vendor-btn {
+        flex: 0 0 auto;
     }
 
     .vendor-panel-title {
         margin: 0;
         color: var(--arolana-navy);
-        font-size: .88rem;
+        font-size: .92rem;
         font-weight: 950;
         line-height: 1.2;
     }
 
     .vendor-panel-subtitle {
-        margin-top: .12rem;
+        margin-top: .14rem;
         color: var(--arolana-muted);
-        font-size: .66rem;
+        font-size: .67rem;
         font-weight: 700;
         line-height: 1.35;
     }
 
     .vendor-panel-body {
-        padding: .78rem;
+        padding: .8rem;
+        min-width: 0;
     }
 
     .vendor-chart-grid {
         display: grid;
-        grid-template-columns: minmax(0, .72fr) minmax(0, 1.28fr);
+        grid-template-columns: minmax(0, .78fr) minmax(0, 1.22fr);
         gap: .8rem;
+        align-items: start;
     }
 
     .vendor-chart-box {
-        min-height: 210px;
+        min-height: 220px;
         display: flex;
         align-items: center;
         justify-content: center;
+        overflow: hidden;
     }
 
     .vendor-chart-box canvas {
         max-width: 100%;
+        max-height: 220px;
     }
 
     .vendor-list {
@@ -575,9 +581,9 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: .62rem;
-        padding: .66rem;
-        border-radius: .82rem;
+        gap: .65rem;
+        padding: .68rem;
+        border-radius: .85rem;
         background: #F8FBFF;
         border: 1px solid #EAF1FB;
         min-width: 0;
@@ -588,12 +594,13 @@
         align-items: center;
         gap: .58rem;
         min-width: 0;
+        flex: 1 1 auto;
     }
 
     .vendor-product-thumb {
-        width: 2.8rem;
-        height: 2.8rem;
-        border-radius: .68rem;
+        width: 2.85rem;
+        height: 2.85rem;
+        border-radius: .7rem;
         overflow: hidden;
         background: #fff;
         border: 1px solid var(--arolana-border);
@@ -617,24 +624,26 @@
         line-height: 1.25;
         overflow: hidden;
         display: -webkit-box;
-        -webkit-line-clamp: 1;
+        -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
+        word-break: break-word;
     }
 
     .vendor-list-meta {
-        margin-top: .1rem;
+        margin-top: .12rem;
         color: var(--arolana-muted);
-        font-size: .62rem;
+        font-size: .61rem;
         font-weight: 750;
-        line-height: 1.25;
+        line-height: 1.3;
+        overflow-wrap: anywhere;
     }
 
     .vendor-status-pill {
         display: inline-flex;
         align-items: center;
         gap: .28rem;
-        min-height: 1.38rem;
-        padding: .22rem .46rem;
+        min-height: 1.35rem;
+        padding: .22rem .48rem;
         border-radius: 999px;
         font-size: .58rem;
         font-weight: 950;
@@ -652,12 +661,12 @@
     .vendor-quick-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: .56rem;
+        gap: .6rem;
     }
 
     .vendor-quick-card {
-        min-height: 78px;
-        border-radius: .88rem;
+        min-height: 82px;
+        border-radius: .9rem;
         padding: .72rem;
         background: #F8FBFF;
         border: 1px solid var(--arolana-border);
@@ -666,6 +675,7 @@
         flex-direction: column;
         justify-content: space-between;
         transition: transform .18s ease, border-color .18s ease, background .18s ease;
+        min-width: 0;
     }
 
     .vendor-quick-card:hover {
@@ -682,18 +692,20 @@
 
     .vendor-quick-card strong {
         display: block;
-        margin-top: .38rem;
+        margin-top: .4rem;
         color: var(--arolana-navy);
         font-size: .76rem;
         font-weight: 950;
-        line-height: 1.15;
+        line-height: 1.2;
+        word-break: break-word;
     }
 
     .vendor-quick-card span {
         color: var(--arolana-muted);
         font-size: .6rem;
         font-weight: 750;
-        line-height: 1.25;
+        line-height: 1.3;
+        word-break: break-word;
     }
 
     .vendor-alert-card {
@@ -720,42 +732,49 @@
         align-items: center;
         justify-content: space-between;
         gap: .72rem;
+        flex-wrap: wrap;
     }
 
     .vendor-alert-left {
         display: flex;
-        gap: .62rem;
+        gap: .6rem;
         align-items: flex-start;
+        min-width: 0;
     }
 
     .vendor-alert-left strong {
-        font-size: .82rem;
+        font-size: .8rem;
         line-height: 1.2;
     }
 
+    .vendor-alert-left p {
+        overflow-wrap: anywhere;
+    }
+
     .vendor-alert-icon {
-        width: 2.15rem;
-        height: 2.15rem;
-        border-radius: .75rem;
+        width: 2.1rem;
+        height: 2.1rem;
+        border-radius: .74rem;
         display: flex;
         align-items: center;
         justify-content: center;
         background: rgba(255,122,0,.14);
         color: var(--arolana-orange);
         flex: 0 0 auto;
-        font-size: .82rem;
+        font-size: .8rem;
     }
 
     .vendor-notifications {
         display: grid;
-        gap: .52rem;
+        gap: .56rem;
     }
 
     .notification-item {
-        border-radius: .8rem;
-        padding: .62rem;
+        border-radius: .85rem;
+        padding: .7rem;
         border: 1px solid var(--arolana-border);
         background: #fff;
+        overflow: hidden;
     }
 
     .notification-item:hover {
@@ -764,15 +783,15 @@
 
     .vendor-accordion {
         border: 1px solid var(--arolana-border);
-        border-radius: .85rem;
+        border-radius: .88rem;
         overflow: hidden;
         background: #fff;
-        margin-bottom: .6rem;
+        margin-bottom: .65rem;
     }
 
     .vendor-accordion summary {
         cursor: pointer;
-        padding: .72rem;
+        padding: .78rem;
         list-style: none;
         font-weight: 950;
         color: var(--arolana-navy);
@@ -793,6 +812,7 @@
         font-family: "Font Awesome 6 Free";
         font-weight: 900;
         color: var(--arolana-blue);
+        flex: 0 0 auto;
     }
 
     .vendor-accordion[open] summary:after {
@@ -802,16 +822,16 @@
     .vendor-form-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: .62rem;
-        padding: .72rem;
+        gap: .65rem;
+        padding: .78rem;
     }
 
     .vendor-form-grid label,
     .vendor-form-full label {
         color: var(--arolana-navy);
-        font-size: .66rem;
+        font-size: .68rem;
         font-weight: 950;
-        line-height: 1.25;
+        line-height: 1.28;
     }
 
     .vendor-form-grid input,
@@ -821,20 +841,21 @@
     .vendor-form-full input {
         width: 100%;
         margin-top: .28rem;
-        min-height: 2.25rem;
-        border-radius: .72rem;
+        min-height: 2.35rem;
+        border-radius: .75rem;
         border: 1px solid var(--arolana-border);
         background: #fff;
-        padding: .58rem .68rem;
+        padding: .58rem .72rem;
         color: var(--arolana-navy);
-        font-size: .72rem;
+        font-size: .74rem;
         font-weight: 750;
         outline: none;
+        overflow-wrap: anywhere;
     }
 
     .vendor-form-grid textarea,
     .vendor-form-full textarea {
-        min-height: 4.6rem;
+        min-height: 4.9rem;
         resize: vertical;
     }
 
@@ -848,9 +869,9 @@
     }
 
     .vendor-form-full {
-        padding: 0 .72rem .72rem;
+        padding: 0 .78rem .78rem;
         display: grid;
-        gap: .62rem;
+        gap: .65rem;
     }
 
     .vendor-table-wrap {
@@ -865,7 +886,7 @@
     }
 
     .vendor-table th {
-        padding: .62rem;
+        padding: .66rem;
         text-align: left;
         color: var(--arolana-muted);
         font-size: .62rem;
@@ -876,7 +897,7 @@
     }
 
     .vendor-table td {
-        padding: .68rem;
+        padding: .7rem .66rem;
         border-bottom: 1px solid var(--arolana-border);
         color: var(--arolana-navy);
         font-size: .7rem;
@@ -885,7 +906,7 @@
     }
 
     .vendor-empty {
-        padding: 1.25rem .85rem;
+        padding: 1.3rem .9rem;
         text-align: center;
         color: var(--arolana-muted);
         font-size: .76rem;
@@ -898,6 +919,22 @@
 
     .vendor-desktop-only {
         display: block;
+    }
+
+    .vendor-mobile-order-list {
+        display: none;
+    }
+
+    .vendor-security-note {
+        margin: .7rem 0 0;
+        border-radius: .82rem;
+        background: #EFF6FF;
+        padding: .7rem;
+        color: #1D4ED8;
+        font-size: .66rem;
+        font-weight: 800;
+        line-height: 1.42;
+        overflow-wrap: anywhere;
     }
 
     @media (max-width: 1280px) {
@@ -921,50 +958,35 @@
     }
 
     @media (max-width: 768px) {
-        body:has(.vendor-dashboard-page) {
-            background: #F3F7FC !important;
-        }
-
         .vendor-dashboard-page {
-            padding: .72rem .62rem 5.5rem !important;
-        }
-
-        .vendor-command-shell {
-            display: block;
+            padding: .75rem .6rem 5rem !important;
         }
 
         .vendor-topbar {
-            align-items: stretch;
             flex-direction: column;
-            gap: .72rem;
-            margin-bottom: .72rem;
+            gap: .75rem;
+            margin-bottom: .75rem;
         }
 
         .vendor-page-title {
-            font-size: 1.55rem;
+            font-size: 1.52rem;
         }
 
         .vendor-page-subtitle {
-            font-size: .75rem;
+            font-size: .76rem;
             line-height: 1.42;
         }
 
         .vendor-action-row {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: .52rem;
+            grid-template-columns: 1fr;
+            gap: .5rem;
             width: 100%;
         }
 
         .vendor-action-row .vendor-btn {
             width: 100%;
-            min-height: 2.65rem;
-            font-size: .72rem;
-            border-radius: .85rem;
-        }
-
-        .vendor-action-row .vendor-btn-orange {
-            grid-column: 1 / -1;
+            min-height: 2.55rem;
         }
 
         .vendor-hero-grid {
@@ -975,71 +997,47 @@
 
         .vendor-hero-card {
             min-height: auto;
-            border-radius: 1.05rem;
-        }
-
-        .vendor-hero-bg {
-            opacity: .45;
-            object-position: center;
-        }
-
-        .vendor-hero-gradient {
-            background:
-                linear-gradient(180deg, rgba(7, 26, 68, .78), rgba(7, 26, 68, .92)),
-                radial-gradient(circle at 20% 10%, rgba(56, 189, 248, .18), transparent 28%),
-                radial-gradient(circle at 90% 20%, rgba(255, 122, 0, .18), transparent 26%);
+            border-radius: 1rem;
         }
 
         .vendor-hero-content {
             min-height: auto;
             align-items: stretch;
             flex-direction: column;
-            gap: .9rem;
+            gap: .8rem;
             padding: .9rem;
         }
 
         .vendor-store-block {
             align-items: flex-start;
-            flex-direction: row;
-            gap: .7rem;
+            gap: .68rem;
         }
 
         .vendor-store-logo {
-            width: 4.1rem;
-            height: 4.1rem;
+            width: 4rem;
+            height: 4rem;
             border-radius: .9rem;
-            border-width: 2px;
-            font-size: 1.4rem;
+            font-size: 1.35rem;
         }
 
         .vendor-store-name {
-            font-size: 1.35rem;
+            font-size: 1.25rem;
             line-height: 1.05;
-            -webkit-line-clamp: 2;
-            overflow: hidden;
-            display: -webkit-box;
-            -webkit-box-orient: vertical;
         }
 
         .vendor-store-meta {
             font-size: .68rem;
         }
 
-        .vendor-pill-row {
-            gap: .3rem;
-            margin-top: .55rem;
-        }
-
         .vendor-pill {
-            min-height: 1.4rem;
+            font-size: .56rem;
+            min-height: 1.42rem;
             padding: .24rem .48rem;
-            font-size: .55rem;
         }
 
         .vendor-progress-card {
             width: 100%;
-            padding: .72rem;
-            border-radius: .9rem;
+            padding: .75rem;
         }
 
         .vendor-progress-card p {
@@ -1048,47 +1046,35 @@
 
         .vendor-balance-card {
             min-height: auto;
-            border-radius: 1rem;
             padding: .9rem;
-            gap: .85rem;
+            gap: .8rem;
         }
 
         .vendor-balance-amount {
-            font-size: 1.45rem;
+            font-size: 1.42rem;
         }
 
-        .vendor-mini-actions a {
-            min-height: 2.25rem;
-            font-size: .66rem;
+        .vendor-mini-actions {
+            grid-template-columns: 1fr 1fr;
         }
 
         .vendor-kpi-grid {
-            display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: .62rem;
+            gap: .6rem;
             margin-bottom: .72rem;
         }
 
         .vendor-kpi-card {
-            min-height: 88px;
-            padding: .68rem;
-            border-radius: .88rem;
+            min-height: 90px;
+            padding: .7rem;
         }
 
-        .vendor-kpi-icon {
-            width: 1.9rem;
-            height: 1.9rem;
-            border-radius: .7rem;
-            margin-bottom: .42rem;
-            font-size: .76rem;
+        .vendor-kpi-value {
+            font-size: 1.05rem;
         }
 
         .vendor-kpi-label {
             font-size: .58rem;
-        }
-
-        .vendor-kpi-value {
-            font-size: 1.08rem;
         }
 
         .vendor-kpi-sub {
@@ -1096,48 +1082,41 @@
         }
 
         .vendor-command-nav {
-            margin-left: -.62rem;
-            margin-right: -.62rem;
+            margin-left: -.6rem;
+            margin-right: -.6rem;
             border-radius: 0;
             border-left: 0;
             border-right: 0;
-            padding: .45rem .62rem;
-            top: 0;
+            padding: .45rem .6rem;
+            margin-bottom: .72rem;
         }
 
         .vendor-command-nav a {
-            padding: .56rem .7rem;
             font-size: .64rem;
+            padding: .55rem .72rem;
         }
 
         .vendor-alert-card {
-            padding: .7rem;
-            border-radius: .88rem;
+            padding: .72rem;
+            border-radius: .9rem;
             margin-bottom: .72rem;
         }
 
         .vendor-alert-flex {
-            align-items: stretch;
             flex-direction: column;
-            gap: .65rem;
-        }
-
-        .vendor-alert-left {
-            gap: .55rem;
-        }
-
-        .vendor-alert-left p {
-            font-size: .68rem !important;
-            line-height: 1.4;
+            align-items: stretch;
         }
 
         .vendor-alert-left strong {
             font-size: .76rem;
         }
 
+        .vendor-alert-left p {
+            font-size: .68rem !important;
+        }
+
         .vendor-alert-card .vendor-btn {
             width: 100%;
-            min-height: 2.45rem;
         }
 
         .vendor-main-grid,
@@ -1154,100 +1133,82 @@
         }
 
         .vendor-panel-header {
-            align-items: flex-start;
-            flex-direction: column;
-            gap: .52rem;
             padding: .72rem;
-        }
-
-        .vendor-panel-header .vendor-btn {
-            width: 100%;
+            gap: .55rem;
+            align-items: flex-start;
         }
 
         .vendor-panel-title {
-            font-size: .84rem;
+            font-size: .86rem;
         }
 
         .vendor-panel-subtitle {
-            font-size: .62rem;
+            font-size: .63rem;
+        }
+
+        .vendor-panel-header .vendor-btn {
+            width: auto;
+            min-width: 110px;
+            margin-left: auto;
         }
 
         .vendor-panel-body {
-            padding: .68rem;
+            padding: .72rem;
         }
 
         .vendor-chart-box {
-            min-height: 170px;
-            max-height: 230px;
+            min-height: 200px;
+            max-height: 220px;
+            padding-bottom: .25rem;
+        }
+
+        .vendor-chart-box canvas {
+            max-height: 200px;
         }
 
         .vendor-quick-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: .52rem;
+            grid-template-columns: 1fr;
+            gap: .55rem;
         }
 
         .vendor-quick-card {
-            min-height: 74px;
-            padding: .65rem;
-            border-radius: .8rem;
+            min-height: 78px;
+            padding: .72rem;
         }
 
         .vendor-quick-card strong {
-            font-size: .7rem;
+            font-size: .74rem;
         }
 
         .vendor-quick-card span {
-            font-size: .56rem;
+            font-size: .6rem;
         }
 
         .vendor-list-item {
-            padding: .58rem;
-            border-radius: .78rem;
             align-items: flex-start;
-        }
-
-        .vendor-list-left {
-            gap: .52rem;
-            align-items: flex-start;
-        }
-
-        .vendor-product-thumb {
-            width: 2.55rem;
-            height: 2.55rem;
+            padding: .62rem;
         }
 
         .vendor-list-title {
-            font-size: .68rem;
-            -webkit-line-clamp: 2;
+            font-size: .69rem;
         }
 
         .vendor-list-meta {
-            font-size: .56rem;
+            font-size: .58rem;
         }
 
         .vendor-status-pill {
-            min-height: 1.28rem;
-            font-size: .52rem;
-            padding: .2rem .38rem;
-        }
-
-        .vendor-table-wrap {
-            border-radius: .8rem;
-            border: 1px solid var(--arolana-border);
-        }
-
-        .vendor-table {
-            min-width: 640px;
+            font-size: .54rem;
         }
 
         .vendor-form-grid {
             grid-template-columns: 1fr;
             gap: .58rem;
-            padding: .65rem;
+            padding: .72rem;
         }
 
         .vendor-form-full {
-            padding: 0 .65rem .65rem;
+            padding: 0 .72rem .72rem;
         }
 
         .vendor-form-grid input,
@@ -1255,14 +1216,17 @@
         .vendor-form-grid textarea,
         .vendor-form-full textarea,
         .vendor-form-full input {
-            min-height: 2.55rem;
+            min-height: 2.5rem;
             font-size: .76rem;
-            border-radius: .8rem;
         }
 
         .vendor-accordion summary {
-            padding: .72rem;
             font-size: .74rem;
+            padding: .72rem;
+        }
+
+        .vendor-security-note {
+            font-size: .62rem;
         }
 
         .vendor-desktop-only {
@@ -1270,49 +1234,103 @@
         }
 
         .vendor-mobile-only {
-            display: block;
+            display: block !important;
+        }
+
+        .vendor-mobile-order-list {
+            display: grid;
+            gap: .55rem;
+            padding: .72rem;
+        }
+
+        .vendor-mobile-order-card {
+            border: 1px solid var(--arolana-border);
+            background: #F8FBFF;
+            border-radius: .85rem;
+            padding: .72rem;
+        }
+
+        .vendor-mobile-order-card .top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: .6rem;
+        }
+
+        .vendor-mobile-order-card .order-no {
+            color: var(--arolana-navy);
+            font-size: .74rem;
+            font-weight: 950;
+            line-height: 1.2;
+        }
+
+        .vendor-mobile-order-card .meta {
+            margin-top: .16rem;
+            color: var(--arolana-muted);
+            font-size: .6rem;
+            font-weight: 750;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        .vendor-mobile-order-card .bottom {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: .55rem;
+            margin-top: .6rem;
+            flex-wrap: wrap;
+        }
+
+        .vendor-mobile-order-card .amount {
+            color: var(--arolana-navy);
+            font-size: .78rem;
+            font-weight: 950;
+        }
+
+        .vendor-mobile-order-card .actions a {
+            color: var(--arolana-blue);
+            font-size: .68rem;
+            font-weight: 950;
+            text-decoration: none;
+        }
+
+        .vendor-table-wrap {
+            display: none;
+        }
+
+        .vendor-notifications {
+            gap: .5rem;
+        }
+
+        .notification-item {
+            padding: .68rem;
         }
     }
 
     @media (max-width: 430px) {
         .vendor-dashboard-page {
-            padding-left: .55rem !important;
-            padding-right: .55rem !important;
-        }
-
-        .vendor-action-row {
-            grid-template-columns: 1fr;
-        }
-
-        .vendor-action-row .vendor-btn-orange {
-            grid-column: auto;
+            padding-left: .5rem !important;
+            padding-right: .5rem !important;
         }
 
         .vendor-kpi-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
-        .vendor-store-block {
-            flex-direction: row;
+        .vendor-mini-actions {
+            grid-template-columns: 1fr;
         }
 
-        .vendor-store-logo {
-            width: 3.75rem;
-            height: 3.75rem;
-        }
-
-        .vendor-store-name {
-            font-size: 1.22rem;
-        }
-
-        .vendor-quick-grid {
-            grid-template-columns: 1fr 1fr;
+        .vendor-panel-header .vendor-btn {
+            min-width: 96px;
+            padding-left: .72rem;
+            padding-right: .72rem;
         }
     }
 
     @media (max-width: 360px) {
-        .vendor-kpi-grid,
-        .vendor-quick-grid {
+        .vendor-kpi-grid {
             grid-template-columns: 1fr;
         }
     }
@@ -1435,7 +1453,7 @@
 
                 <div>
                     <div class="vendor-balance-label">This month so far</div>
-                    <div class="vendor-balance-amount" style="font-size:1.5rem;">
+                    <div class="vendor-balance-amount" style="font-size:1.45rem;">
                         ₦{{ monthly_earnings|default:total_sales|default:0|floatformat:2 }}
                     </div>
                 </div>
@@ -1613,7 +1631,6 @@
                                             </div>
                                         </div>
                                     </div>
-
                                 </div>
                             </div>
                         </div>
@@ -1630,7 +1647,7 @@
 
                         <div class="vendor-panel-body" style="padding:0;">
                             {% if recent_orders %}
-                            <div class="vendor-table-wrap">
+                            <div class="vendor-table-wrap vendor-desktop-only">
                                 <table class="vendor-table">
                                     <thead>
                                         <tr>
@@ -1666,6 +1683,34 @@
                                         {% endfor %}
                                     </tbody>
                                 </table>
+                            </div>
+
+                            <div class="vendor-mobile-order-list vendor-mobile-only">
+                                {% for order in recent_orders %}
+                                <div class="vendor-mobile-order-card">
+                                    <div class="top">
+                                        <div>
+                                            <div class="order-no">#{{ order.id }}</div>
+                                            <div class="meta">{{ order.created_at|date:"M d, Y" }}</div>
+                                            <div class="meta">{{ order.user.email }}</div>
+                                        </div>
+                                        <span class="vendor-status-pill
+                                            {% if order.status == 'delivered' %}status-green
+                                            {% elif order.status == 'pending' %}status-yellow
+                                            {% elif order.status == 'processing' %}status-blue
+                                            {% elif order.status == 'cancelled' %}status-red
+                                            {% else %}status-gray{% endif %}">
+                                            {{ order.status|title }}
+                                        </span>
+                                    </div>
+                                    <div class="bottom">
+                                        <div class="amount">₦{{ order.total|floatformat:2 }}</div>
+                                        <div class="actions">
+                                            <a href="{% url 'dashboard:vendor_order_detail' order.id %}">View Order →</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
                             </div>
                             {% else %}
                                 <div class="vendor-empty">No orders yet.</div>
@@ -1704,7 +1749,7 @@
                                 <a href="{% url 'dashboard:vendor_order_robot_tasks' %}" class="vendor-quick-card">
                                     <i class="fas fa-robot"></i>
                                     <div>
-                                        <strong>Order</strong>
+                                        <strong>Order Robot</strong>
                                         <span>{{ robot_pending_count|default:0 }} pending</span>
                                     </div>
                                 </a>
@@ -1721,7 +1766,7 @@
                                     <i class="fas {% if chat_enabled %}fa-comments{% else %}fa-lock{% endif %}"></i>
                                     <div>
                                         <strong>Customer Chat</strong>
-                                        <span>{% if chat_enabled %}Open messages{% else %}Upgrade{% endif %}</span>
+                                        <span>{% if chat_enabled %}Open messages{% else %}Upgrade to unlock{% endif %}</span>
                                     </div>
                                 </a>
 
@@ -1743,7 +1788,7 @@
                                 <h2 class="vendor-panel-title">Notifications</h2>
                                 <p class="vendor-panel-subtitle">{{ unread_notification_count|default:0 }} unread · {{ notification_count|default:0 }} total</p>
                             </div>
-                            <button onclick="deleteAllNotifications()" class="vendor-btn vendor-btn-light" style="min-height:2.1rem;padding:.42rem .65rem;color:#dc2626;">
+                            <button onclick="deleteAllNotifications()" class="vendor-btn vendor-btn-light" style="color:#dc2626;">
                                 Clear
                             </button>
                         </div>
@@ -1753,8 +1798,8 @@
                                 {% for notif in notifications|slice:":4" %}
                                 <div id="notif-{{ notif.id }}" class="notification-item">
                                     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.6rem;">
-                                        <div style="min-width:0;">
-                                            <strong style="display:block;color:var(--arolana-navy);font-size:.72rem;line-height:1.25;">
+                                        <div style="min-width:0;overflow:hidden;">
+                                            <strong style="display:block;color:var(--arolana-navy);font-size:.74rem;line-height:1.25;overflow-wrap:anywhere;">
                                                 {% if notif.notification_type == 'product_approved' %}
                                                     <i class="fas fa-check-circle" style="color:#16a34a;"></i>
                                                 {% elif notif.notification_type == 'product_rejected' %}
@@ -1769,22 +1814,22 @@
                                                 {{ notif.title }}
                                             </strong>
 
-                                            <p style="margin:.2rem 0 0;color:var(--arolana-muted);font-size:.62rem;font-weight:700;line-height:1.35;">
-                                                {{ notif.message|truncatewords:14 }}
+                                            <p style="margin:.22rem 0 0;color:var(--arolana-muted);font-size:.62rem;font-weight:700;line-height:1.4;overflow-wrap:anywhere;">
+                                                {{ notif.message|truncatewords:18 }}
                                             </p>
 
-                                            <span style="display:block;margin-top:.2rem;color:#94a3b8;font-size:.58rem;font-weight:800;">
+                                            <span style="display:block;margin-top:.24rem;color:#94a3b8;font-size:.58rem;font-weight:800;">
                                                 {{ notif.created_at|timesince }} ago
                                             </span>
 
                                             {% if notif.action_url %}
-                                            <a href="{{ notif.action_url }}" style="display:inline-block;margin-top:.28rem;color:var(--arolana-blue);font-size:.62rem;font-weight:950;">
+                                            <a href="{{ notif.action_url }}" style="display:inline-block;margin-top:.3rem;color:var(--arolana-blue);font-size:.64rem;font-weight:950;">
                                                 View Details →
                                             </a>
                                             {% endif %}
                                         </div>
 
-                                        <button onclick="deleteNotification({{ notif.id }})" style="border:0;background:transparent;color:#94a3b8;">
+                                        <button onclick="deleteNotification({{ notif.id }})" style="border:0;background:transparent;color:#94a3b8;flex:0 0 auto;">
                                             <i class="fas fa-times"></i>
                                         </button>
                                     </div>
@@ -1804,7 +1849,7 @@
                             <h2 class="vendor-panel-title">Top Products</h2>
                             <p class="vendor-panel-subtitle">Performance and approval status.</p>
                         </div>
-                        <a href="{% url 'dashboard:vendor_add_product' %}" class="vendor-btn vendor-btn-primary" style="min-height:2.1rem;padding:.42rem .65rem;">Add</a>
+                        <a href="{% url 'dashboard:vendor_add_product' %}" class="vendor-btn vendor-btn-primary">Add</a>
                     </div>
 
                     <div class="vendor-panel-body">
@@ -1851,12 +1896,18 @@
                             <h2 class="vendor-panel-title">Subscription</h2>
                             <p class="vendor-panel-subtitle">{{ subscription_label }} · {% if subscription_active %}Active{% else %}Inactive{% endif %}</p>
                         </div>
-                        <a href="{% url 'subscriptions:plans' %}" class="vendor-btn vendor-btn-orange" style="min-height:2.1rem;padding:.42rem .65rem;">Upgrade</a>
+                        <a href="{% url 'subscriptions:plans' %}" class="vendor-btn vendor-btn-orange">Upgrade</a>
                     </div>
 
                     <div class="vendor-panel-body">
                         {% if subscription_benefits_image_url %}
-                        <img src="{{ subscription_benefits_image_url }}" alt="Arolana vendor subscription benefits" style="width:100%;max-height:110px;object-fit:cover;border-radius:.85rem;border:1px solid var(--arolana-border);margin-bottom:.72rem;" loading="lazy" decoding="async">
+                        <img
+                            src="{{ subscription_benefits_image_url }}"
+                            alt="Arolana vendor subscription benefits"
+                            style="width:100%;max-height:140px;object-fit:cover;border-radius:.85rem;border:1px solid var(--arolana-border);margin-bottom:.72rem;"
+                            loading="lazy"
+                            decoding="async"
+                        >
                         {% endif %}
 
                         <div class="vendor-list">
@@ -1911,7 +1962,7 @@
                                 </label>
                             </div>
 
-                            <p style="margin:.68rem 0 0;border-radius:.82rem;background:#EFF6FF;padding:.65rem;color:#1D4ED8;font-size:.64rem;font-weight:800;line-height:1.42;">
+                            <p class="vendor-security-note">
                                 A security alert and confirmation email will be sent to <strong>{{ request.user.email }}</strong>.
                             </p>
 
@@ -2119,7 +2170,7 @@
                                 <h2 class="vendor-panel-title">Recent Reviews</h2>
                                 <p class="vendor-panel-subtitle">Customer feedback and trust signals.</p>
                             </div>
-                            <a href="{% url 'dashboard:vendor_reviews' %}" class="vendor-btn vendor-btn-light" style="min-height:2.1rem;padding:.42rem .65rem;">View All</a>
+                            <a href="{% url 'dashboard:vendor_reviews' %}" class="vendor-btn vendor-btn-light">View All</a>
                         </div>
 
                         <div class="vendor-panel-body">
@@ -2128,7 +2179,7 @@
                                 {% for review in recent_reviews|slice:":3" %}
                                 <div class="vendor-list-item">
                                     <div style="min-width:0;">
-                                        <div style="display:flex;align-items:center;gap:.42rem;margin-bottom:.2rem;">
+                                        <div style="display:flex;align-items:center;gap:.42rem;margin-bottom:.2rem;flex-wrap:wrap;">
                                             <div style="color:#F59E0B;font-size:.68rem;">
                                                 {% for i in "12345"|make_list %}
                                                     {% if forloop.counter <= review.rating %}
@@ -2154,7 +2205,6 @@
                     </section>
                 </aside>
             </section>
-
         </div>
     </div>
 </div>
@@ -2177,21 +2227,26 @@
                         {{ cancelled_count|default:0 }}
                     ],
                     backgroundColor: ['#16A34A', '#0066CC', '#FF7A00', '#DC2626'],
-                    borderWidth: 0
+                    borderWidth: 0,
+                    hoverOffset: 4
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: true,
                 cutout: '68%',
+                layout: {
+                    padding: 0
+                },
                 plugins: {
                     legend: {
                         position: 'bottom',
                         labels: {
                             usePointStyle: true,
                             boxWidth: 7,
+                            padding: 12,
                             font: {
-                                size: 10,
+                                size: window.innerWidth < 768 ? 10 : 11,
                                 weight: 'bold'
                             }
                         }
@@ -2215,7 +2270,7 @@
                     backgroundColor: 'rgba(0, 102, 204, 0.10)',
                     pointBackgroundColor: '#FF7A00',
                     pointBorderColor: '#FF7A00',
-                    pointRadius: 3,
+                    pointRadius: window.innerWidth < 768 ? 2.5 : 3.5,
                     borderWidth: 2,
                     tension: 0.42,
                     fill: true
@@ -2234,7 +2289,7 @@
                         grid: { display: false },
                         ticks: {
                             font: {
-                                size: 9,
+                                size: window.innerWidth < 768 ? 9 : 10,
                                 weight: 'bold'
                             }
                         }
@@ -2243,7 +2298,7 @@
                         grid: { color: 'rgba(148, 163, 184, .18)' },
                         ticks: {
                             font: {
-                                size: 9,
+                                size: window.innerWidth < 768 ? 9 : 10,
                                 weight: 'bold'
                             }
                         }
@@ -2254,7 +2309,6 @@
     }
 
     const navLinks = document.querySelectorAll('.vendor-command-nav a');
-
     navLinks.forEach(function (link) {
         link.addEventListener('click', function () {
             navLinks.forEach(function (item) {
