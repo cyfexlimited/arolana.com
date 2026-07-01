@@ -16,12 +16,35 @@
         --arolana-border: #E3ECF8;
         --arolana-text: #0B1E46;
         --arolana-muted: #65758B;
+        --arolana-bg: #F4F7FB;
+    }
+
+    html,
+    body {
+        width: 100%;
+        min-height: 100%;
+        overflow-x: hidden;
     }
 
     body {
-        background: #f4f7fb !important;
+        background: var(--arolana-bg) !important;
     }
 
+    body:has(.vendor-dashboard-page) main,
+    body:has(.vendor-dashboard-page) .main-content,
+    body:has(.vendor-dashboard-page) .dashboard-content,
+    body:has(.vendor-dashboard-page) .content-wrapper,
+    body:has(.vendor-dashboard-page) .container,
+    body:has(.vendor-dashboard-page) .container-fluid {
+        width: 100% !important;
+        max-width: none !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    body:has(.vendor-dashboard-page) .arolana-following-ad,
+    body:has(.vendor-dashboard-page) .arolana-floating-ad-shell,
+    body:has(.vendor-dashboard-page) .arolana-ad-placeholder,
     .arolana-following-ad,
     .arolana-floating-ad-shell,
     .arolana-ad-placeholder {
@@ -32,13 +55,14 @@
         width: 100%;
         max-width: none !important;
         margin: 0 !important;
-        padding: 0 1.25rem 2rem;
+        padding: 1.25rem 1.5rem 2rem !important;
         color: var(--arolana-text);
     }
 
     .vendor-command-shell {
         width: 100%;
         max-width: 100%;
+        margin: 0;
     }
 
     .vendor-topbar {
@@ -46,7 +70,7 @@
         align-items: center;
         justify-content: space-between;
         gap: 1rem;
-        margin-bottom: 1.25rem;
+        margin-bottom: 1rem;
     }
 
     .vendor-eyebrow {
@@ -60,7 +84,7 @@
     .vendor-page-title {
         margin: .15rem 0 0;
         color: var(--arolana-navy);
-        font-size: clamp(1.7rem, 2.5vw, 2.65rem);
+        font-size: clamp(1.7rem, 2.5vw, 2.55rem);
         line-height: 1;
         font-weight: 950;
     }
@@ -84,15 +108,16 @@
         align-items: center;
         justify-content: center;
         gap: .5rem;
-        min-height: 2.75rem;
-        padding: .75rem 1rem;
+        min-height: 2.65rem;
+        padding: .7rem 1rem;
         border-radius: .95rem;
-        font-size: .86rem;
+        font-size: .84rem;
         font-weight: 950;
         text-decoration: none;
         transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
         border: 1px solid transparent;
         white-space: nowrap;
+        cursor: pointer;
     }
 
     .vendor-btn:hover {
@@ -103,25 +128,25 @@
     .vendor-btn-primary {
         background: linear-gradient(135deg, var(--arolana-blue), #064b99);
         color: #fff;
-        box-shadow: 0 14px 30px rgba(0, 102, 204, .22);
+        box-shadow: 0 12px 26px rgba(0, 102, 204, .20);
     }
 
     .vendor-btn-orange {
         background: linear-gradient(135deg, var(--arolana-orange), #E85F00);
         color: #fff;
-        box-shadow: 0 14px 30px rgba(255, 122, 0, .22);
+        box-shadow: 0 12px 26px rgba(255, 122, 0, .20);
     }
 
     .vendor-btn-light {
         background: #fff;
         color: var(--arolana-navy);
         border-color: var(--arolana-border);
-        box-shadow: 0 8px 24px rgba(15, 23, 42, .06);
+        box-shadow: 0 8px 22px rgba(15, 23, 42, .05);
     }
 
     .vendor-hero-grid {
         display: grid;
-        grid-template-columns: minmax(0, 1.35fr) minmax(320px, .65fr);
+        grid-template-columns: minmax(0, 1.45fr) minmax(320px, .55fr);
         gap: 1rem;
         margin-bottom: 1rem;
     }
@@ -129,10 +154,10 @@
     .vendor-hero-card {
         position: relative;
         overflow: hidden;
-        min-height: 260px;
-        border-radius: 1.6rem;
+        min-height: 220px;
+        border-radius: 1.45rem;
         background: var(--arolana-navy);
-        box-shadow: 0 24px 60px rgba(7, 26, 68, .15);
+        box-shadow: 0 20px 48px rgba(7, 26, 68, .14);
         border: 1px solid rgba(255,255,255,.2);
     }
 
@@ -151,19 +176,19 @@
         inset: 0;
         background:
             radial-gradient(circle at 15% 18%, rgba(56,189,248,.28), transparent 26%),
-            radial-gradient(circle at 84% 20%, rgba(255,122,0,.28), transparent 24%),
+            radial-gradient(circle at 84% 20%, rgba(255,122,0,.25), transparent 24%),
             linear-gradient(135deg, rgba(7,26,68,.96), rgba(7,26,68,.86));
     }
 
     .vendor-hero-content {
         position: relative;
         z-index: 2;
-        min-height: 260px;
+        min-height: 220px;
         display: flex;
         align-items: flex-end;
         justify-content: space-between;
         gap: 1.25rem;
-        padding: 1.5rem;
+        padding: 1.35rem;
     }
 
     .vendor-store-block {
@@ -174,20 +199,20 @@
     }
 
     .vendor-store-logo {
-        width: 6.25rem;
-        height: 6.25rem;
+        width: 5.6rem;
+        height: 5.6rem;
         flex: 0 0 auto;
         overflow: hidden;
-        border-radius: 1.25rem;
+        border-radius: 1.15rem;
         border: 4px solid rgba(255,255,255,.92);
         background: var(--arolana-orange);
         color: #fff;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 2.25rem;
+        font-size: 2.1rem;
         font-weight: 950;
-        box-shadow: 0 18px 36px rgba(0,0,0,.22);
+        box-shadow: 0 16px 32px rgba(0,0,0,.20);
     }
 
     .vendor-store-logo img {
@@ -198,7 +223,7 @@
 
     .vendor-store-name {
         color: #fff;
-        font-size: clamp(1.8rem, 3vw, 3.2rem);
+        font-size: clamp(1.7rem, 2.7vw, 2.9rem);
         line-height: .98;
         font-weight: 950;
         max-width: 820px;
@@ -207,7 +232,7 @@
     .vendor-store-meta {
         margin-top: .45rem;
         color: rgba(255,255,255,.78);
-        font-size: .9rem;
+        font-size: .86rem;
         font-weight: 800;
     }
 
@@ -215,19 +240,19 @@
         display: flex;
         flex-wrap: wrap;
         gap: .45rem;
-        margin-top: .85rem;
+        margin-top: .8rem;
     }
 
     .vendor-pill {
         display: inline-flex;
         align-items: center;
         gap: .35rem;
-        min-height: 1.85rem;
-        padding: .35rem .7rem;
+        min-height: 1.78rem;
+        padding: .34rem .68rem;
         border-radius: 999px;
         background: rgba(255,255,255,.92);
         color: var(--arolana-navy);
-        font-size: .72rem;
+        font-size: .70rem;
         font-weight: 950;
     }
 
@@ -243,11 +268,11 @@
     }
 
     .vendor-progress-card {
-        width: min(360px, 100%);
-        border-radius: 1.25rem;
+        width: min(340px, 100%);
+        border-radius: 1.15rem;
         background: rgba(255,255,255,.96);
-        padding: 1rem;
-        box-shadow: 0 18px 38px rgba(0,0,0,.15);
+        padding: .95rem;
+        box-shadow: 0 16px 34px rgba(0,0,0,.14);
     }
 
     .vendor-progress-title {
@@ -255,13 +280,13 @@
         justify-content: space-between;
         gap: .75rem;
         color: var(--arolana-navy);
-        font-size: .85rem;
+        font-size: .82rem;
         font-weight: 950;
     }
 
     .vendor-progress-track {
-        margin-top: .65rem;
-        height: .65rem;
+        margin-top: .6rem;
+        height: .58rem;
         overflow: hidden;
         border-radius: 999px;
         background: #E7EEF8;
@@ -274,20 +299,20 @@
     }
 
     .vendor-progress-card p {
-        margin-top: .75rem;
+        margin-top: .7rem;
         color: var(--arolana-muted);
-        font-size: .76rem;
-        line-height: 1.45;
+        font-size: .74rem;
+        line-height: 1.42;
         font-weight: 700;
     }
 
     .vendor-balance-card {
-        border-radius: 1.45rem;
-        background: linear-gradient(135deg, #231258, #3b247a);
+        border-radius: 1.35rem;
+        background: linear-gradient(135deg, #071A44, #0B3E7C);
         color: #fff;
-        min-height: 260px;
-        padding: 1.35rem;
-        box-shadow: 0 24px 60px rgba(35,18,88,.18);
+        min-height: 220px;
+        padding: 1.15rem;
+        box-shadow: 0 20px 48px rgba(7,26,68,.15);
         display: flex;
         flex-direction: column;
         justify-content: space-between;
@@ -295,41 +320,41 @@
 
     .vendor-balance-label {
         color: rgba(255,255,255,.72);
-        font-size: .78rem;
+        font-size: .76rem;
         font-weight: 950;
         text-transform: uppercase;
         letter-spacing: .08em;
     }
 
     .vendor-balance-amount {
-        margin-top: .35rem;
+        margin-top: .32rem;
         color: #fff;
-        font-size: clamp(2.2rem, 4vw, 3.4rem);
+        font-size: clamp(2rem, 3.3vw, 3rem);
         font-weight: 950;
         line-height: 1;
     }
 
     .vendor-balance-note {
-        margin-top: .45rem;
+        margin-top: .42rem;
         color: rgba(255,255,255,.72);
-        font-size: .82rem;
+        font-size: .80rem;
         font-weight: 700;
     }
 
     .vendor-mini-actions {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: .65rem;
+        gap: .62rem;
     }
 
     .vendor-mini-actions a {
-        min-height: 2.6rem;
-        border-radius: .9rem;
+        min-height: 2.45rem;
+        border-radius: .85rem;
         display: flex;
         align-items: center;
         justify-content: center;
         color: #fff;
-        font-size: .8rem;
+        font-size: .78rem;
         font-weight: 950;
         background: rgba(255,255,255,.12);
         border: 1px solid rgba(255,255,255,.16);
@@ -346,12 +371,12 @@
     .vendor-kpi-card {
         position: relative;
         overflow: hidden;
-        border-radius: 1.2rem;
+        border-radius: 1.05rem;
         background: #fff;
-        padding: 1rem;
-        min-height: 124px;
+        padding: .95rem;
+        min-height: 108px;
         border: 1px solid var(--arolana-border);
-        box-shadow: 0 14px 32px rgba(15, 23, 42, .06);
+        box-shadow: 0 12px 28px rgba(15, 23, 42, .05);
     }
 
     .vendor-kpi-card:before {
@@ -363,35 +388,35 @@
     }
 
     .vendor-kpi-icon {
-        width: 2.6rem;
-        height: 2.6rem;
-        border-radius: 1rem;
+        width: 2.35rem;
+        height: 2.35rem;
+        border-radius: .9rem;
         display: flex;
         align-items: center;
         justify-content: center;
         background: #ECF6FF;
         color: var(--arolana-blue);
-        margin-bottom: .65rem;
+        margin-bottom: .58rem;
     }
 
     .vendor-kpi-label {
         color: var(--arolana-muted);
-        font-size: .74rem;
+        font-size: .72rem;
         font-weight: 900;
     }
 
     .vendor-kpi-value {
         margin-top: .1rem;
         color: var(--arolana-navy);
-        font-size: 1.7rem;
+        font-size: 1.55rem;
         font-weight: 950;
         line-height: 1;
     }
 
     .vendor-kpi-sub {
-        margin-top: .45rem;
+        margin-top: .4rem;
         color: var(--arolana-muted);
-        font-size: .72rem;
+        font-size: .70rem;
         font-weight: 750;
     }
 
@@ -400,15 +425,15 @@
         top: 0;
         z-index: 30;
         display: flex;
-        gap: .55rem;
-        padding: .55rem;
+        gap: .5rem;
+        padding: .5rem;
         margin-bottom: 1rem;
         overflow-x: auto;
         border: 1px solid var(--arolana-border);
         border-radius: 1rem;
-        background: rgba(255,255,255,.92);
+        background: rgba(255,255,255,.94);
         backdrop-filter: blur(18px);
-        box-shadow: 0 14px 28px rgba(15,23,42,.06);
+        box-shadow: 0 12px 26px rgba(15,23,42,.05);
         scrollbar-width: none;
     }
 
@@ -418,10 +443,10 @@
 
     .vendor-command-nav a {
         flex: 0 0 auto;
-        padding: .75rem 1rem;
-        border-radius: .8rem;
+        padding: .68rem .9rem;
+        border-radius: .78rem;
         color: var(--arolana-navy);
-        font-size: .82rem;
+        font-size: .80rem;
         font-weight: 950;
         text-decoration: none;
         border: 1px solid transparent;
@@ -435,17 +460,39 @@
 
     .vendor-main-grid {
         display: grid;
-        grid-template-columns: minmax(0, 1.4fr) minmax(360px, .6fr);
+        grid-template-columns: 1fr;
+        gap: 1rem;
+        align-items: start;
+    }
+
+    .vendor-dashboard-section-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.25fr) minmax(320px, .75fr);
+        gap: 1rem;
+        align-items: start;
+    }
+
+    .vendor-side-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1rem;
+        margin-bottom: 0;
+    }
+
+    .vendor-bottom-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.18fr) minmax(320px, .82fr);
         gap: 1rem;
         align-items: start;
     }
 
     .vendor-panel {
-        border-radius: 1.25rem;
+        border-radius: 1.15rem;
         background: #fff;
         border: 1px solid var(--arolana-border);
-        box-shadow: 0 14px 34px rgba(15,23,42,.06);
+        box-shadow: 0 12px 30px rgba(15,23,42,.055);
         overflow: hidden;
+        min-width: 0;
     }
 
     .vendor-panel-header {
@@ -453,7 +500,7 @@
         align-items: center;
         justify-content: space-between;
         gap: .85rem;
-        padding: 1rem 1.1rem;
+        padding: .9rem 1rem;
         border-bottom: 1px solid var(--arolana-border);
         background: linear-gradient(180deg, #fff, #f8fbff);
     }
@@ -461,29 +508,29 @@
     .vendor-panel-title {
         margin: 0;
         color: var(--arolana-navy);
-        font-size: 1.05rem;
+        font-size: 1rem;
         font-weight: 950;
     }
 
     .vendor-panel-subtitle {
-        margin-top: .2rem;
+        margin-top: .15rem;
         color: var(--arolana-muted);
-        font-size: .76rem;
+        font-size: .74rem;
         font-weight: 700;
     }
 
     .vendor-panel-body {
-        padding: 1rem;
+        padding: .9rem;
     }
 
     .vendor-chart-grid {
         display: grid;
-        grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
-        gap: 1rem;
+        grid-template-columns: minmax(0, .72fr) minmax(0, 1.28fr);
+        gap: .9rem;
     }
 
     .vendor-chart-box {
-        min-height: 330px;
+        min-height: 230px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -495,31 +542,32 @@
 
     .vendor-list {
         display: grid;
-        gap: .7rem;
+        gap: .65rem;
     }
 
     .vendor-list-item {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: .8rem;
-        padding: .85rem;
-        border-radius: 1rem;
+        gap: .75rem;
+        padding: .78rem;
+        border-radius: .95rem;
         background: #F8FBFF;
         border: 1px solid #EAF1FB;
+        min-width: 0;
     }
 
     .vendor-list-left {
         display: flex;
         align-items: center;
-        gap: .75rem;
+        gap: .7rem;
         min-width: 0;
     }
 
     .vendor-product-thumb {
-        width: 3.4rem;
-        height: 3.4rem;
-        border-radius: .85rem;
+        width: 3.1rem;
+        height: 3.1rem;
+        border-radius: .78rem;
         overflow: hidden;
         background: #fff;
         border: 1px solid var(--arolana-border);
@@ -533,12 +581,12 @@
         width: 100%;
         height: 100%;
         object-fit: contain;
-        padding: .25rem;
+        padding: .22rem;
     }
 
     .vendor-list-title {
         color: var(--arolana-navy);
-        font-size: .88rem;
+        font-size: .84rem;
         font-weight: 950;
         line-height: 1.25;
         overflow: hidden;
@@ -548,9 +596,9 @@
     }
 
     .vendor-list-meta {
-        margin-top: .15rem;
+        margin-top: .12rem;
         color: var(--arolana-muted);
-        font-size: .74rem;
+        font-size: .71rem;
         font-weight: 750;
     }
 
@@ -558,10 +606,10 @@
         display: inline-flex;
         align-items: center;
         gap: .35rem;
-        min-height: 1.65rem;
-        padding: .3rem .6rem;
+        min-height: 1.55rem;
+        padding: .27rem .55rem;
         border-radius: 999px;
-        font-size: .68rem;
+        font-size: .66rem;
         font-weight: 950;
         white-space: nowrap;
     }
@@ -576,13 +624,13 @@
     .vendor-quick-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: .75rem;
+        gap: .65rem;
     }
 
     .vendor-quick-card {
-        min-height: 112px;
-        border-radius: 1.1rem;
-        padding: 1rem;
+        min-height: 86px;
+        border-radius: 1rem;
+        padding: .85rem;
         background: #F8FBFF;
         border: 1px solid var(--arolana-border);
         text-decoration: none;
@@ -601,26 +649,26 @@
 
     .vendor-quick-card i {
         color: var(--arolana-blue);
-        font-size: 1.2rem;
+        font-size: 1.1rem;
     }
 
     .vendor-quick-card strong {
         display: block;
-        margin-top: .6rem;
+        margin-top: .45rem;
         color: var(--arolana-navy);
-        font-size: .92rem;
+        font-size: .86rem;
         font-weight: 950;
     }
 
     .vendor-quick-card span {
         color: var(--arolana-muted);
-        font-size: .72rem;
+        font-size: .69rem;
         font-weight: 750;
     }
 
     .vendor-alert-card {
-        border-radius: 1.15rem;
-        padding: 1rem;
+        border-radius: 1.05rem;
+        padding: .9rem;
         margin-bottom: 1rem;
         border: 1px solid;
     }
@@ -646,14 +694,14 @@
 
     .vendor-alert-left {
         display: flex;
-        gap: .8rem;
+        gap: .75rem;
         align-items: flex-start;
     }
 
     .vendor-alert-icon {
-        width: 2.6rem;
-        height: 2.6rem;
-        border-radius: .95rem;
+        width: 2.45rem;
+        height: 2.45rem;
+        border-radius: .85rem;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -664,12 +712,12 @@
 
     .vendor-notifications {
         display: grid;
-        gap: .65rem;
+        gap: .6rem;
     }
 
     .notification-item {
-        border-radius: 1rem;
-        padding: .8rem;
+        border-radius: .9rem;
+        padding: .72rem;
         border: 1px solid var(--arolana-border);
         background: #fff;
     }
@@ -680,15 +728,15 @@
 
     .vendor-accordion {
         border: 1px solid var(--arolana-border);
-        border-radius: 1rem;
+        border-radius: .95rem;
         overflow: hidden;
         background: #fff;
-        margin-bottom: .8rem;
+        margin-bottom: .7rem;
     }
 
     .vendor-accordion summary {
         cursor: pointer;
-        padding: 1rem;
+        padding: .85rem;
         list-style: none;
         font-weight: 950;
         color: var(--arolana-navy);
@@ -717,14 +765,14 @@
     .vendor-form-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: .85rem;
-        padding: 1rem;
+        gap: .75rem;
+        padding: .85rem;
     }
 
     .vendor-form-grid label,
     .vendor-form-full label {
         color: var(--arolana-navy);
-        font-size: .78rem;
+        font-size: .74rem;
         font-weight: 950;
     }
 
@@ -734,12 +782,12 @@
     .vendor-form-full textarea,
     .vendor-form-full input {
         width: 100%;
-        margin-top: .35rem;
-        min-height: 2.75rem;
-        border-radius: .9rem;
+        margin-top: .32rem;
+        min-height: 2.55rem;
+        border-radius: .82rem;
         border: 1px solid var(--arolana-border);
         background: #fff;
-        padding: .75rem .85rem;
+        padding: .68rem .78rem;
         color: var(--arolana-navy);
         font-weight: 750;
         outline: none;
@@ -755,9 +803,9 @@
     }
 
     .vendor-form-full {
-        padding: 0 1rem 1rem;
+        padding: 0 .85rem .85rem;
         display: grid;
-        gap: .85rem;
+        gap: .75rem;
     }
 
     .vendor-table-wrap {
@@ -771,25 +819,25 @@
     }
 
     .vendor-table th {
-        padding: .8rem;
+        padding: .72rem;
         text-align: left;
         color: var(--arolana-muted);
-        font-size: .72rem;
+        font-size: .70rem;
         font-weight: 950;
         background: #F8FBFF;
         border-bottom: 1px solid var(--arolana-border);
     }
 
     .vendor-table td {
-        padding: .85rem;
+        padding: .78rem;
         border-bottom: 1px solid var(--arolana-border);
         color: var(--arolana-navy);
-        font-size: .82rem;
+        font-size: .80rem;
         font-weight: 750;
     }
 
     .vendor-empty {
-        padding: 2rem 1rem;
+        padding: 1.5rem 1rem;
         text-align: center;
         color: var(--arolana-muted);
         font-weight: 800;
@@ -800,9 +848,14 @@
             grid-template-columns: repeat(3, minmax(0, 1fr));
         }
 
-        .vendor-main-grid,
-        .vendor-hero-grid {
+        .vendor-hero-grid,
+        .vendor-dashboard-section-grid,
+        .vendor-bottom-grid {
             grid-template-columns: 1fr;
+        }
+
+        .vendor-side-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
         .vendor-chart-grid {
@@ -812,7 +865,7 @@
 
     @media (max-width: 768px) {
         .vendor-dashboard-page {
-            padding: 0 .8rem 1.5rem;
+            padding: .85rem .8rem 1.5rem !important;
         }
 
         .vendor-topbar {
@@ -844,15 +897,12 @@
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
-        .vendor-main-grid {
-            grid-template-columns: 1fr;
-        }
-
         .vendor-form-grid {
             grid-template-columns: 1fr;
         }
 
-        .vendor-quick-grid {
+        .vendor-quick-grid,
+        .vendor-side-grid {
             grid-template-columns: 1fr;
         }
 
@@ -1007,7 +1057,7 @@
                 <div class="vendor-kpi-icon"><i class="fas fa-clock"></i></div>
                 <div class="vendor-kpi-label">Pending</div>
                 <div class="vendor-kpi-value">{{ pending_count|default:0 }}</div>
-                <div class="vendor-kpi-sub">Awaiting Arolana review</div>
+                <div class="vendor-kpi-sub">Awaiting review</div>
             </div>
 
             <div class="vendor-kpi-card">
@@ -1029,7 +1079,6 @@
             <a href="#overview" class="active">Overview</a>
             <a href="#orders">Orders</a>
             <a href="#products">Products</a>
-            <a href="#growth">Growth</a>
             <a href="#store-setup">Store Setup</a>
             <a href="#subscription">Subscription</a>
             <a href="#analytics">Analytics</a>
@@ -1075,143 +1124,274 @@
         {% endif %}
 
         <div class="vendor-main-grid">
-            <main>
-                <section id="overview" class="vendor-panel" style="margin-bottom:1rem;">
-                    <div class="vendor-panel-header">
-                        <div>
-                            <h2 class="vendor-panel-title">Business Overview</h2>
-                            <p class="vendor-panel-subtitle">Orders, fulfillment, sales, and approval activity.</p>
-                        </div>
-                        <a href="{% url 'dashboard:vendor_products' %}" class="vendor-btn vendor-btn-light">Manage Products</a>
-                    </div>
 
-                    <div class="vendor-panel-body">
-                        <div class="vendor-chart-grid">
-                            <div class="vendor-chart-box">
-                                <canvas id="orderStatusChart" width="240" height="240"></canvas>
-                            </div>
-
+            <section class="vendor-dashboard-section-grid">
+                <main>
+                    <section id="overview" class="vendor-panel" style="margin-bottom:1rem;">
+                        <div class="vendor-panel-header">
                             <div>
-                                <div class="vendor-quick-grid">
-                                    <a href="{% url 'dashboard:vendor_products' %}?status=pending" class="vendor-quick-card">
-                                        <i class="fas fa-clock"></i>
-                                        <div>
-                                            <strong>{{ pending_count|default:0 }} Pending</strong>
-                                            <span>Products awaiting approval</span>
-                                        </div>
-                                    </a>
-                                    <a href="{% url 'dashboard:vendor_products' %}?status=approved" class="vendor-quick-card">
-                                        <i class="fas fa-check-circle"></i>
-                                        <div>
-                                            <strong>{{ approved_count|default:0 }} Approved</strong>
-                                            <span>Live products</span>
-                                        </div>
-                                    </a>
-                                    <a href="{% url 'dashboard:vendor_products' %}?status=requires_changes" class="vendor-quick-card">
-                                        <i class="fas fa-pen-to-square"></i>
-                                        <div>
-                                            <strong>{{ changes_required_count|default:0 }} Changes</strong>
-                                            <span>Need vendor update</span>
-                                        </div>
-                                    </a>
-                                    <a href="{% url 'dashboard:vendor_products' %}?status=rejected" class="vendor-quick-card">
-                                        <i class="fas fa-circle-xmark"></i>
-                                        <div>
-                                            <strong>{{ rejected_count|default:0 }} Rejected</strong>
-                                            <span>Review and resubmit</span>
-                                        </div>
-                                    </a>
+                                <h2 class="vendor-panel-title">Business Overview</h2>
+                                <p class="vendor-panel-subtitle">Orders, fulfillment, sales, and approval activity.</p>
+                            </div>
+                            <a href="{% url 'dashboard:vendor_products' %}" class="vendor-btn vendor-btn-light">Manage Products</a>
+                        </div>
+
+                        <div class="vendor-panel-body">
+                            <div class="vendor-chart-grid">
+                                <div class="vendor-chart-box">
+                                    <canvas id="orderStatusChart" width="240" height="240"></canvas>
                                 </div>
 
-                                <div class="vendor-panel" style="margin-top:1rem;box-shadow:none;">
-                                    <div class="vendor-panel-body">
-                                        <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+                                <div>
+                                    <div class="vendor-quick-grid">
+                                        <a href="{% url 'dashboard:vendor_products' %}?status=pending" class="vendor-quick-card">
+                                            <i class="fas fa-clock"></i>
                                             <div>
-                                                <div class="vendor-kpi-label">Fulfillment Rate</div>
-                                                <div class="vendor-kpi-value" style="color:#16a34a;">{{ fulfillment_rate|default:0|floatformat:1 }}%</div>
-                                                <div class="vendor-kpi-sub">Return rate {{ return_rate|default:0|floatformat:1 }}%</div>
+                                                <strong>{{ pending_count|default:0 }} Pending</strong>
+                                                <span>Products awaiting approval</span>
                                             </div>
-                                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.55rem;min-width:190px;">
-                                                <span class="vendor-status-pill status-green">Delivered {{ delivered_count|default:0 }}</span>
-                                                <span class="vendor-status-pill status-blue">Shipped {{ shipped_count|default:0 }}</span>
-                                                <span class="vendor-status-pill status-red">Cancelled {{ cancelled_count|default:0 }}</span>
-                                                <span class="vendor-status-pill status-yellow">Refunded {{ refunded_count|default:0 }}</span>
+                                        </a>
+
+                                        <a href="{% url 'dashboard:vendor_products' %}?status=approved" class="vendor-quick-card">
+                                            <i class="fas fa-check-circle"></i>
+                                            <div>
+                                                <strong>{{ approved_count|default:0 }} Approved</strong>
+                                                <span>Live products</span>
+                                            </div>
+                                        </a>
+
+                                        <a href="{% url 'dashboard:vendor_products' %}?status=requires_changes" class="vendor-quick-card">
+                                            <i class="fas fa-pen-to-square"></i>
+                                            <div>
+                                                <strong>{{ changes_required_count|default:0 }} Changes</strong>
+                                                <span>Need vendor update</span>
+                                            </div>
+                                        </a>
+
+                                        <a href="{% url 'dashboard:vendor_products' %}?status=rejected" class="vendor-quick-card">
+                                            <i class="fas fa-circle-xmark"></i>
+                                            <div>
+                                                <strong>{{ rejected_count|default:0 }} Rejected</strong>
+                                                <span>Review and resubmit</span>
+                                            </div>
+                                        </a>
+                                    </div>
+
+                                    <div class="vendor-panel" style="margin-top:.9rem;box-shadow:none;">
+                                        <div class="vendor-panel-body">
+                                            <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+                                                <div>
+                                                    <div class="vendor-kpi-label">Fulfillment Rate</div>
+                                                    <div class="vendor-kpi-value" style="color:#16a34a;">{{ fulfillment_rate|default:0|floatformat:1 }}%</div>
+                                                    <div class="vendor-kpi-sub">Return rate {{ return_rate|default:0|floatformat:1 }}%</div>
+                                                </div>
+
+                                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;min-width:190px;">
+                                                    <span class="vendor-status-pill status-green">Delivered {{ delivered_count|default:0 }}</span>
+                                                    <span class="vendor-status-pill status-blue">Shipped {{ shipped_count|default:0 }}</span>
+                                                    <span class="vendor-status-pill status-red">Cancelled {{ cancelled_count|default:0 }}</span>
+                                                    <span class="vendor-status-pill status-yellow">Refunded {{ refunded_count|default:0 }}</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
 
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </section>
+                    </section>
 
-                <section id="orders" class="vendor-panel" style="margin-bottom:1rem;">
-                    <div class="vendor-panel-header">
-                        <div>
-                            <h2 class="vendor-panel-title">Recent Orders</h2>
-                            <p class="vendor-panel-subtitle">Newest customer orders and fulfillment status.</p>
+                    <section id="orders" class="vendor-panel" style="margin-bottom:1rem;">
+                        <div class="vendor-panel-header">
+                            <div>
+                                <h2 class="vendor-panel-title">Recent Orders</h2>
+                                <p class="vendor-panel-subtitle">Newest customer orders and fulfillment status.</p>
+                            </div>
+                            <a href="{% url 'dashboard:vendor_orders' %}" class="vendor-btn vendor-btn-light">View All</a>
                         </div>
-                        <a href="{% url 'dashboard:vendor_orders' %}" class="vendor-btn vendor-btn-light">View All</a>
-                    </div>
 
-                    <div class="vendor-panel-body" style="padding:0;">
-                        {% if recent_orders %}
-                        <div class="vendor-table-wrap">
-                            <table class="vendor-table">
-                                <thead>
-                                    <tr>
-                                        <th>Order No.</th>
-                                        <th>Date</th>
-                                        <th>Customer</th>
-                                        <th>Total</th>
-                                        <th>Status</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for order in recent_orders %}
-                                    <tr>
-                                        <td>#{{ order.id }}</td>
-                                        <td>{{ order.created_at|date:"M d, Y" }}</td>
-                                        <td>{{ order.user.email }}</td>
-                                        <td>₦{{ order.total|floatformat:2 }}</td>
-                                        <td>
-                                            <span class="vendor-status-pill
-                                                {% if order.status == 'delivered' %}status-green
-                                                {% elif order.status == 'pending' %}status-yellow
-                                                {% elif order.status == 'processing' %}status-blue
-                                                {% elif order.status == 'cancelled' %}status-red
-                                                {% else %}status-gray{% endif %}">
-                                                {{ order.status|title }}
+                        <div class="vendor-panel-body" style="padding:0;">
+                            {% if recent_orders %}
+                            <div class="vendor-table-wrap">
+                                <table class="vendor-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Order No.</th>
+                                            <th>Date</th>
+                                            <th>Customer</th>
+                                            <th>Total</th>
+                                            <th>Status</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for order in recent_orders %}
+                                        <tr>
+                                            <td>#{{ order.id }}</td>
+                                            <td>{{ order.created_at|date:"M d, Y" }}</td>
+                                            <td>{{ order.user.email }}</td>
+                                            <td>₦{{ order.total|floatformat:2 }}</td>
+                                            <td>
+                                                <span class="vendor-status-pill
+                                                    {% if order.status == 'delivered' %}status-green
+                                                    {% elif order.status == 'pending' %}status-yellow
+                                                    {% elif order.status == 'processing' %}status-blue
+                                                    {% elif order.status == 'cancelled' %}status-red
+                                                    {% else %}status-gray{% endif %}">
+                                                    {{ order.status|title }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <a href="{% url 'dashboard:vendor_order_detail' order.id %}" style="color:var(--arolana-blue);font-weight:950;">View</a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                                <div class="vendor-empty">No orders yet.</div>
+                            {% endif %}
+                        </div>
+                    </section>
+                </main>
+
+                <aside>
+                    <section class="vendor-panel" style="margin-bottom:1rem;">
+                        <div class="vendor-panel-header">
+                            <div>
+                                <h2 class="vendor-panel-title">Quick Actions</h2>
+                                <p class="vendor-panel-subtitle">Fast vendor operations.</p>
+                            </div>
+                        </div>
+
+                        <div class="vendor-panel-body">
+                            <div class="vendor-quick-grid">
+                                <a href="{% url 'dashboard:vendor_add_product' %}" class="vendor-quick-card">
+                                    <i class="fas fa-plus"></i>
+                                    <div>
+                                        <strong>Add Product</strong>
+                                        <span>Create listing</span>
+                                    </div>
+                                </a>
+
+                                <a href="{% url 'dashboard:vendor_products' %}" class="vendor-quick-card">
+                                    <i class="fas fa-boxes-stacked"></i>
+                                    <div>
+                                        <strong>Products</strong>
+                                        <span>Manage inventory</span>
+                                    </div>
+                                </a>
+
+                                <a href="{% url 'dashboard:vendor_order_robot_tasks' %}" class="vendor-quick-card">
+                                    <i class="fas fa-robot"></i>
+                                    <div>
+                                        <strong>Order</strong>
+                                        <span>{{ robot_pending_count|default:0 }} pending</span>
+                                    </div>
+                                </a>
+
+                                <a href="{% url 'dashboard:vendor_pickup_location' %}" class="vendor-quick-card">
+                                    <i class="fas fa-location-dot"></i>
+                                    <div>
+                                        <strong>Pickup Pin</strong>
+                                        <span>Set location</span>
+                                    </div>
+                                </a>
+
+                                <a href="{% if chat_enabled %}{% url 'chat:vendor_list' %}{% else %}{% url 'subscriptions:plans' %}{% endif %}" class="vendor-quick-card">
+                                    <i class="fas {% if chat_enabled %}fa-comments{% else %}fa-lock{% endif %}"></i>
+                                    <div>
+                                        <strong>Customer Chat</strong>
+                                        <span>{% if chat_enabled %}Open messages{% else %}Upgrade{% endif %}</span>
+                                    </div>
+                                </a>
+
+                                <a href="{% url 'subscriptions:plans' %}" class="vendor-quick-card">
+                                    <i class="fas fa-crown"></i>
+                                    <div>
+                                        <strong>Subscription</strong>
+                                        <span>{{ subscription_label }}</span>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                    </section>
+
+                    {% if notifications %}
+                    <section class="vendor-panel">
+                        <div class="vendor-panel-header">
+                            <div>
+                                <h2 class="vendor-panel-title">Notifications</h2>
+                                <p class="vendor-panel-subtitle">{{ unread_notification_count|default:0 }} unread · {{ notification_count|default:0 }} total</p>
+                            </div>
+                            <button onclick="deleteAllNotifications()" class="vendor-btn vendor-btn-light" style="min-height:2.2rem;padding:.45rem .7rem;color:#dc2626;">
+                                Clear
+                            </button>
+                        </div>
+
+                        <div class="vendor-panel-body">
+                            <div class="vendor-notifications" id="dashboardNotifications">
+                                {% for notif in notifications|slice:":4" %}
+                                <div id="notif-{{ notif.id }}" class="notification-item">
+                                    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.7rem;">
+                                        <div style="min-width:0;">
+                                            <strong style="display:block;color:var(--arolana-navy);font-size:.82rem;">
+                                                {% if notif.notification_type == 'product_approved' %}
+                                                    <i class="fas fa-check-circle" style="color:#16a34a;"></i>
+                                                {% elif notif.notification_type == 'product_rejected' %}
+                                                    <i class="fas fa-times-circle" style="color:#dc2626;"></i>
+                                                {% elif notif.notification_type == 'product_changes' %}
+                                                    <i class="fas fa-edit" style="color:#ea580c;"></i>
+                                                {% elif notif.notification_type == 'message' %}
+                                                    <i class="fas fa-envelope" style="color:#2563eb;"></i>
+                                                {% else %}
+                                                    <i class="fas fa-bell" style="color:#64748b;"></i>
+                                                {% endif %}
+                                                {{ notif.title }}
+                                            </strong>
+
+                                            <p style="margin:.22rem 0 0;color:var(--arolana-muted);font-size:.73rem;font-weight:700;">
+                                                {{ notif.message|truncatewords:14 }}
+                                            </p>
+
+                                            <span style="display:block;margin-top:.22rem;color:#94a3b8;font-size:.66rem;font-weight:800;">
+                                                {{ notif.created_at|timesince }} ago
                                             </span>
-                                        </td>
-                                        <td>
-                                            <a href="{% url 'dashboard:vendor_order_detail' order.id %}" style="color:var(--arolana-blue);font-weight:950;">View</a>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                        {% else %}
-                            <div class="vendor-empty">No orders yet.</div>
-                        {% endif %}
-                    </div>
-                </section>
 
-                <section id="products" class="vendor-panel" style="margin-bottom:1rem;">
+                                            {% if notif.action_url %}
+                                            <a href="{{ notif.action_url }}" style="display:inline-block;margin-top:.3rem;color:var(--arolana-blue);font-size:.70rem;font-weight:950;">
+                                                View Details →
+                                            </a>
+                                            {% endif %}
+                                        </div>
+
+                                        <button onclick="deleteNotification({{ notif.id }})" style="border:0;background:transparent;color:#94a3b8;">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </section>
+                    {% endif %}
+                </aside>
+            </section>
+
+            <section class="vendor-side-grid">
+                <section id="products" class="vendor-panel">
                     <div class="vendor-panel-header">
                         <div>
                             <h2 class="vendor-panel-title">Top Products</h2>
-                            <p class="vendor-panel-subtitle">Performance, approval status, and fast edit links.</p>
+                            <p class="vendor-panel-subtitle">Performance and approval status.</p>
                         </div>
-                        <a href="{% url 'dashboard:vendor_add_product' %}" class="vendor-btn vendor-btn-primary">Add Product</a>
+                        <a href="{% url 'dashboard:vendor_add_product' %}" class="vendor-btn vendor-btn-primary" style="min-height:2.2rem;padding:.45rem .7rem;">Add</a>
                     </div>
 
                     <div class="vendor-panel-body">
                         <div class="vendor-list">
-                            {% for product in top_products %}
+                            {% for product in top_products|slice:":5" %}
                             <div class="vendor-list-item">
                                 <div class="vendor-list-left">
                                     <div class="vendor-product-thumb">
@@ -1227,20 +1407,7 @@
                                     </div>
                                 </div>
 
-                                <div style="display:flex;align-items:center;gap:.5rem;">
-                                    {% if product.approval_status == 'approved' %}
-                                        <span class="vendor-status-pill status-green">Approved</span>
-                                    {% elif product.approval_status == 'pending' %}
-                                        <span class="vendor-status-pill status-yellow">Pending</span>
-                                    {% elif product.approval_status == 'requires_changes' %}
-                                        <span class="vendor-status-pill status-orange">Changes</span>
-                                    {% elif product.approval_status == 'rejected' %}
-                                        <span class="vendor-status-pill status-red">Rejected</span>
-                                    {% else %}
-                                        <span class="vendor-status-pill status-gray">{{ product.approval_status|title }}</span>
-                                    {% endif %}
-                                    <a href="{% url 'dashboard:vendor_product_detail' product.id %}" class="vendor-btn vendor-btn-light" style="min-height:2.1rem;padding:.45rem .7rem;">Edit</a>
-                                </div>
+                                <a href="{% url 'dashboard:vendor_product_detail' product.id %}" class="vendor-status-pill status-blue" style="text-decoration:none;">Edit</a>
                             </div>
                             {% empty %}
                             <div class="vendor-empty">
@@ -1251,19 +1418,86 @@
                     </div>
                 </section>
 
-                <section id="analytics" class="vendor-panel" style="margin-bottom:1rem;">
+                <section id="subscription" class="vendor-panel">
                     <div class="vendor-panel-header">
                         <div>
-                            <h2 class="vendor-panel-title">Monthly Sales Analytics</h2>
-                            <p class="vendor-panel-subtitle">Track your revenue trend over time.</p>
+                            <h2 class="vendor-panel-title">Subscription</h2>
+                            <p class="vendor-panel-subtitle">{{ subscription_label }} · {% if subscription_active %}Active{% else %}Inactive{% endif %}</p>
                         </div>
+                        <a href="{% url 'subscriptions:plans' %}" class="vendor-btn vendor-btn-orange" style="min-height:2.2rem;padding:.45rem .7rem;">Upgrade</a>
                     </div>
+
                     <div class="vendor-panel-body">
-                        <canvas id="salesChart" height="110"></canvas>
+                        {% if subscription_benefits_image_url %}
+                        <img src="{{ subscription_benefits_image_url }}" alt="Arolana vendor subscription benefits" style="width:100%;max-height:120px;object-fit:cover;border-radius:.95rem;border:1px solid var(--arolana-border);margin-bottom:.85rem;" loading="lazy" decoding="async">
+                        {% endif %}
+
+                        <div class="vendor-list">
+                            <div class="vendor-list-item">
+                                <span class="vendor-list-title">Products</span>
+                                <strong>{% if subscription_limits.max_products == -1 %}Unlimited{% else %}{{ current_product_count|default:total_products }} / {{ subscription_limits.max_products }}{% endif %}</strong>
+                            </div>
+                            <div class="vendor-list-item">
+                                <span class="vendor-list-title">Images</span>
+                                <strong>{{ subscription_limits.max_images_per_product }}</strong>
+                            </div>
+                            <div class="vendor-list-item">
+                                <span class="vendor-list-title">Customer chat</span>
+                                <strong>{% if subscription_limits.chat_enabled %}Enabled{% else %}Locked{% endif %}</strong>
+                            </div>
+                            <div class="vendor-list-item">
+                                <span class="vendor-list-title">Expires</span>
+                                <strong>{% if subscription_expires_at %}{{ subscription_expires_at|date:"M d, Y" }}{% else %}No expiry{% endif %}</strong>
+                            </div>
+                        </div>
+
+                        {% if subscription_expiring_soon %}
+                        <div class="vendor-alert-card vendor-alert-amber" style="margin-top:.85rem;margin-bottom:0;">
+                            Your subscription expires soon.
+                        </div>
+                        {% endif %}
                     </div>
                 </section>
 
-                <section id="store-setup" class="vendor-panel" style="margin-bottom:1rem;">
+                <section id="trust" class="vendor-panel">
+                    <div class="vendor-panel-header">
+                        <div>
+                            <h2 class="vendor-panel-title">Security</h2>
+                            <p class="vendor-panel-subtitle">Change password/PIN securely.</p>
+                        </div>
+                    </div>
+
+                    <div class="vendor-panel-body">
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="dashboard_action" value="change_password">
+
+                            <div class="vendor-form-full" style="padding:0;gap:.7rem;">
+                                <label>Current password/PIN
+                                    <input type="password" name="current_password" autocomplete="current-password" required>
+                                </label>
+                                <label>New password/PIN
+                                    <input type="password" name="new_password" autocomplete="new-password" minlength="8" required>
+                                </label>
+                                <label>Confirm new password/PIN
+                                    <input type="password" name="confirm_password" autocomplete="new-password" minlength="8" required>
+                                </label>
+                            </div>
+
+                            <p style="margin:.75rem 0 0;border-radius:.9rem;background:#EFF6FF;padding:.72rem;color:#1D4ED8;font-size:.72rem;font-weight:800;line-height:1.42;">
+                                A security alert and confirmation email will be sent to <strong>{{ request.user.email }}</strong>.
+                            </p>
+
+                            <button class="vendor-btn vendor-btn-primary" style="width:100%;margin-top:.85rem;" type="submit">
+                                Change Password / PIN
+                            </button>
+                        </form>
+                    </div>
+                </section>
+            </section>
+
+            <section class="vendor-bottom-grid">
+                <section id="store-setup" class="vendor-panel">
                     <form method="post" enctype="multipart/form-data">
                         {% csrf_token %}
                         <input type="hidden" name="dashboard_action" value="profile_settings">
@@ -1413,269 +1647,88 @@
                         </div>
                     </form>
                 </section>
-            </main>
 
-            <aside>
-                <section class="vendor-panel" style="margin-bottom:1rem;">
-                    <div class="vendor-panel-header">
-                        <div>
-                            <h2 class="vendor-panel-title">Quick Actions</h2>
-                            <p class="vendor-panel-subtitle">Fast vendor operations.</p>
+                <aside>
+                    <section id="analytics" class="vendor-panel" style="margin-bottom:1rem;">
+                        <div class="vendor-panel-header">
+                            <div>
+                                <h2 class="vendor-panel-title">Monthly Sales Analytics</h2>
+                                <p class="vendor-panel-subtitle">Revenue trend over time.</p>
+                            </div>
                         </div>
-                    </div>
-                    <div class="vendor-panel-body">
-                        <div class="vendor-quick-grid">
-                            <a href="{% url 'dashboard:vendor_add_product' %}" class="vendor-quick-card">
-                                <i class="fas fa-plus"></i>
-                                <div>
-                                    <strong>Add Product</strong>
-                                    <span>Create a new listing</span>
-                                </div>
-                            </a>
-
-                            <a href="{% url 'dashboard:vendor_products' %}" class="vendor-quick-card">
-                                <i class="fas fa-boxes-stacked"></i>
-                                <div>
-                                    <strong>Products</strong>
-                                    <span>Manage inventory</span>
-                                </div>
-                            </a>
-
-                            <a href="{% url 'dashboard:vendor_order_robot_tasks' %}" class="vendor-quick-card">
-                                <i class="fas fa-robot"></i>
-                                <div>
-                                    <strong>Order Robot</strong>
-                                    <span>{{ robot_pending_count|default:0 }} pending</span>
-                                </div>
-                            </a>
-
-                            <a href="{% url 'dashboard:vendor_pickup_location' %}" class="vendor-quick-card">
-                                <i class="fas fa-location-dot"></i>
-                                <div>
-                                    <strong>Pickup Pin</strong>
-                                    <span>Set warehouse location</span>
-                                </div>
-                            </a>
-
-                            <a href="{% if chat_enabled %}{% url 'chat:vendor_list' %}{% else %}{% url 'subscriptions:plans' %}{% endif %}" class="vendor-quick-card">
-                                <i class="fas {% if chat_enabled %}fa-comments{% else %}fa-lock{% endif %}"></i>
-                                <div>
-                                    <strong>Customer Chat</strong>
-                                    <span>{% if chat_enabled %}Open messages{% else %}Upgrade to unlock{% endif %}</span>
-                                </div>
-                            </a>
-
-                            <a href="{% url 'subscriptions:plans' %}" class="vendor-quick-card">
-                                <i class="fas fa-crown"></i>
-                                <div>
-                                    <strong>Subscription</strong>
-                                    <span>{{ subscription_label }}</span>
-                                </div>
-                            </a>
+                        <div class="vendor-panel-body">
+                            <canvas id="salesChart" height="135"></canvas>
                         </div>
-                    </div>
-                </section>
+                    </section>
 
-                {% if notifications %}
-                <section class="vendor-panel" style="margin-bottom:1rem;">
-                    <div class="vendor-panel-header">
-                        <div>
-                            <h2 class="vendor-panel-title">Notifications</h2>
-                            <p class="vendor-panel-subtitle">{{ unread_notification_count|default:0 }} unread · {{ notification_count|default:0 }} total</p>
+                    <section class="vendor-panel" style="margin-bottom:1rem;">
+                        <div class="vendor-panel-header">
+                            <div>
+                                <h2 class="vendor-panel-title">Invoices / Receipts</h2>
+                                <p class="vendor-panel-subtitle">Recent subscription payments.</p>
+                            </div>
                         </div>
-                        <button onclick="deleteAllNotifications()" class="vendor-btn vendor-btn-light" style="min-height:2.3rem;padding:.5rem .75rem;color:#dc2626;">
-                            Clear
-                        </button>
-                    </div>
-                    <div class="vendor-panel-body">
-                        <div class="vendor-notifications" id="dashboardNotifications">
-                            {% for notif in notifications|slice:":5" %}
-                            <div id="notif-{{ notif.id }}" class="notification-item">
-                                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.7rem;">
+
+                        <div class="vendor-panel-body">
+                            <div class="vendor-list">
+                                {% for invoice in subscription_invoices|slice:":4" %}
+                                <div class="vendor-list-item">
                                     <div style="min-width:0;">
-                                        <strong style="display:block;color:var(--arolana-navy);font-size:.85rem;">
-                                            {% if notif.notification_type == 'product_approved' %}
-                                                <i class="fas fa-check-circle" style="color:#16a34a;"></i>
-                                            {% elif notif.notification_type == 'product_rejected' %}
-                                                <i class="fas fa-times-circle" style="color:#dc2626;"></i>
-                                            {% elif notif.notification_type == 'product_changes' %}
-                                                <i class="fas fa-edit" style="color:#ea580c;"></i>
-                                            {% elif notif.notification_type == 'message' %}
-                                                <i class="fas fa-envelope" style="color:#2563eb;"></i>
-                                            {% else %}
-                                                <i class="fas fa-bell" style="color:#64748b;"></i>
-                                            {% endif %}
-                                            {{ notif.title }}
-                                        </strong>
-                                        <p style="margin:.25rem 0 0;color:var(--arolana-muted);font-size:.76rem;font-weight:700;">
-                                            {{ notif.message|truncatewords:18 }}
-                                        </p>
-                                        <span style="display:block;margin-top:.25rem;color:#94a3b8;font-size:.68rem;font-weight:800;">
-                                            {{ notif.created_at|timesince }} ago
-                                        </span>
-                                        {% if notif.action_url %}
-                                        <a href="{{ notif.action_url }}" style="display:inline-block;margin-top:.35rem;color:var(--arolana-blue);font-size:.72rem;font-weight:950;">
-                                            View Details →
-                                        </a>
-                                        {% endif %}
+                                        <div class="vendor-list-title">{{ invoice.reference }}</div>
+                                        <div class="vendor-list-meta">{{ invoice.checkout_data.plan_name|default:invoice.checkout_data.tier|default:"Subscription" }} · {{ invoice.currency }} {{ invoice.amount }} · {{ invoice.status|title }}</div>
                                     </div>
-                                    <button onclick="deleteNotification({{ notif.id }})" style="border:0;background:transparent;color:#94a3b8;">
-                                        <i class="fas fa-times"></i>
-                                    </button>
+                                    <a href="/api/staff/vendor/subscription/invoices/{{ invoice.id }}/pdf/" class="vendor-status-pill status-blue" style="text-decoration:none;">Receipt</a>
                                 </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                </section>
-                {% endif %}
-
-                <section id="subscription" class="vendor-panel" style="margin-bottom:1rem;">
-                    <div class="vendor-panel-header">
-                        <div>
-                            <h2 class="vendor-panel-title">Subscription</h2>
-                            <p class="vendor-panel-subtitle">{{ subscription_label }} · {% if subscription_active %}Active{% else %}Inactive{% endif %}</p>
-                        </div>
-                        <a href="{% url 'subscriptions:plans' %}" class="vendor-btn vendor-btn-orange" style="min-height:2.3rem;padding:.5rem .75rem;">Upgrade</a>
-                    </div>
-
-                    <div class="vendor-panel-body">
-                        {% if subscription_benefits_image_url %}
-                        <img src="{{ subscription_benefits_image_url }}" alt="Arolana vendor subscription benefits" style="width:100%;border-radius:1rem;border:1px solid var(--arolana-border);margin-bottom:1rem;" loading="lazy" decoding="async">
-                        {% endif %}
-
-                        <div class="vendor-list">
-                            <div class="vendor-list-item">
-                                <span class="vendor-list-title">Products</span>
-                                <strong>{% if subscription_limits.max_products == -1 %}Unlimited{% else %}{{ current_product_count|default:total_products }} / {{ subscription_limits.max_products }}{% endif %}</strong>
-                            </div>
-                            <div class="vendor-list-item">
-                                <span class="vendor-list-title">Images per product</span>
-                                <strong>{{ subscription_limits.max_images_per_product }}</strong>
-                            </div>
-                            <div class="vendor-list-item">
-                                <span class="vendor-list-title">Variants per product</span>
-                                <strong>{% if subscription_limits.max_variants_per_product == -1 %}Unlimited{% else %}{{ subscription_limits.max_variants_per_product }}{% endif %}</strong>
-                            </div>
-                            <div class="vendor-list-item">
-                                <span class="vendor-list-title">Customer chat</span>
-                                <strong>{% if subscription_limits.chat_enabled %}Enabled{% else %}Locked{% endif %}</strong>
-                            </div>
-                            <div class="vendor-list-item">
-                                <span class="vendor-list-title">Expires</span>
-                                <strong>{% if subscription_expires_at %}{{ subscription_expires_at|date:"M d, Y" }}{% else %}No expiry{% endif %}</strong>
+                                {% empty %}
+                                <div class="vendor-empty">No subscription invoices yet.</div>
+                                {% endfor %}
                             </div>
                         </div>
+                    </section>
 
-                        {% if subscription_expiring_soon %}
-                        <div class="vendor-alert-card vendor-alert-amber" style="margin-top:1rem;margin-bottom:0;">
-                            Your subscription expires soon. Renew to keep your benefits active.
-                        </div>
-                        {% endif %}
-                    </div>
-                </section>
-
-                <section id="trust" class="vendor-panel" style="margin-bottom:1rem;">
-                    <div class="vendor-panel-header">
-                        <div>
-                            <h2 class="vendor-panel-title">Security</h2>
-                            <p class="vendor-panel-subtitle">Change password/PIN securely.</p>
-                        </div>
-                    </div>
-                    <div class="vendor-panel-body">
-                        <form method="post">
-                            {% csrf_token %}
-                            <input type="hidden" name="dashboard_action" value="change_password">
-
-                            <div class="vendor-form-full" style="padding:0;gap:.75rem;">
-                                <label>Current password/PIN
-                                    <input type="password" name="current_password" autocomplete="current-password" required>
-                                </label>
-                                <label>New password/PIN
-                                    <input type="password" name="new_password" autocomplete="new-password" minlength="8" required>
-                                </label>
-                                <label>Confirm new password/PIN
-                                    <input type="password" name="confirm_password" autocomplete="new-password" minlength="8" required>
-                                </label>
+                    <section class="vendor-panel">
+                        <div class="vendor-panel-header">
+                            <div>
+                                <h2 class="vendor-panel-title">Recent Reviews</h2>
+                                <p class="vendor-panel-subtitle">Customer feedback and trust signals.</p>
                             </div>
-
-                            <p style="margin:.85rem 0 0;border-radius:1rem;background:#EFF6FF;padding:.8rem;color:#1D4ED8;font-size:.76rem;font-weight:800;line-height:1.45;">
-                                A security alert and confirmation email will be sent to <strong>{{ request.user.email }}</strong>.
-                            </p>
-
-                            <button class="vendor-btn vendor-btn-primary" style="width:100%;margin-top:1rem;" type="submit">
-                                Change Password / PIN
-                            </button>
-                        </form>
-                    </div>
-                </section>
-
-                <section class="vendor-panel">
-                    <div class="vendor-panel-header">
-                        <div>
-                            <h2 class="vendor-panel-title">Invoices / Receipts</h2>
-                            <p class="vendor-panel-subtitle">Recent subscription payments.</p>
+                            <a href="{% url 'dashboard:vendor_reviews' %}" class="vendor-btn vendor-btn-light" style="min-height:2.2rem;padding:.45rem .7rem;">View All</a>
                         </div>
-                    </div>
-                    <div class="vendor-panel-body">
-                        <div class="vendor-list">
-                            {% for invoice in subscription_invoices|slice:":5" %}
-                            <div class="vendor-list-item">
-                                <div style="min-width:0;">
-                                    <div class="vendor-list-title">{{ invoice.reference }}</div>
-                                    <div class="vendor-list-meta">{{ invoice.checkout_data.plan_name|default:invoice.checkout_data.tier|default:"Subscription" }} · {{ invoice.currency }} {{ invoice.amount }} · {{ invoice.status|title }}</div>
+
+                        <div class="vendor-panel-body">
+                            {% if recent_reviews %}
+                            <div class="vendor-list">
+                                {% for review in recent_reviews|slice:":3" %}
+                                <div class="vendor-list-item">
+                                    <div style="min-width:0;">
+                                        <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.22rem;">
+                                            <div style="color:#F59E0B;">
+                                                {% for i in "12345"|make_list %}
+                                                    {% if forloop.counter <= review.rating %}
+                                                        <i class="fas fa-star"></i>
+                                                    {% else %}
+                                                        <i class="far fa-star"></i>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </div>
+                                            <span class="vendor-list-meta">{{ review.created_at|date:"M d, Y" }}</span>
+                                        </div>
+                                        <div class="vendor-list-title">{{ review.title }}</div>
+                                        <div class="vendor-list-meta">{{ review.review|truncatewords:18 }}</div>
+                                        <div class="vendor-list-meta">Product: {{ review.product.name }}</div>
+                                    </div>
                                 </div>
-                                <a href="/api/staff/vendor/subscription/invoices/{{ invoice.id }}/pdf/" class="vendor-status-pill status-blue" style="text-decoration:none;">Receipt</a>
+                                {% endfor %}
                             </div>
-                            {% empty %}
-                            <div class="vendor-empty">No subscription invoices yet.</div>
-                            {% endfor %}
+                            {% else %}
+                            <div class="vendor-empty">No reviews yet.</div>
+                            {% endif %}
                         </div>
-                    </div>
-                </section>
-            </aside>
+                    </section>
+                </aside>
+            </section>
+
         </div>
-
-        <section class="vendor-panel" style="margin-top:1rem;">
-            <div class="vendor-panel-header">
-                <div>
-                    <h2 class="vendor-panel-title">Recent Reviews</h2>
-                    <p class="vendor-panel-subtitle">Customer feedback and product trust signals.</p>
-                </div>
-                <a href="{% url 'dashboard:vendor_reviews' %}" class="vendor-btn vendor-btn-light">View All</a>
-            </div>
-
-            <div class="vendor-panel-body">
-                {% if recent_reviews %}
-                <div class="vendor-list">
-                    {% for review in recent_reviews %}
-                    <div class="vendor-list-item">
-                        <div style="min-width:0;">
-                            <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.25rem;">
-                                <div style="color:#F59E0B;">
-                                    {% for i in "12345"|make_list %}
-                                        {% if forloop.counter <= review.rating %}
-                                            <i class="fas fa-star"></i>
-                                        {% else %}
-                                            <i class="far fa-star"></i>
-                                        {% endif %}
-                                    {% endfor %}
-                                </div>
-                                <span class="vendor-list-meta">{{ review.created_at|date:"M d, Y" }}</span>
-                            </div>
-                            <div class="vendor-list-title">{{ review.title }}</div>
-                            <div class="vendor-list-meta">{{ review.review|truncatewords:30 }}</div>
-                            <div class="vendor-list-meta">Product: {{ review.product.name }}</div>
-                        </div>
-                        <span class="vendor-status-pill status-gray">by {{ review.user.username }}</span>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <div class="vendor-empty">No reviews yet.</div>
-                {% endif %}
-            </div>
-        </section>
     </div>
 </div>
 
@@ -1683,6 +1736,7 @@
 <script>
 (function () {
     const orderCanvas = document.getElementById('orderStatusChart');
+
     if (orderCanvas) {
         new Chart(orderCanvas.getContext('2d'), {
             type: 'doughnut',
@@ -1719,6 +1773,7 @@
     }
 
     const salesCanvas = document.getElementById('salesChart');
+
     if (salesCanvas) {
         new Chart(salesCanvas.getContext('2d'), {
             type: 'line',
@@ -1759,6 +1814,7 @@
     }
 
     const navLinks = document.querySelectorAll('.vendor-command-nav a');
+
     navLinks.forEach(function (link) {
         link.addEventListener('click', function () {
             navLinks.forEach(function (item) {
