@@ -1,4 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
+from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.password_validation import validate_password
@@ -17,8 +18,9 @@ from decimal import Decimal, InvalidOperation
 import json
 import random
 import string
-from core.models import VendorQuoteRequest
+
 from products.models import Product, Category, ProductReview, Wishlist, RecentlyViewed, ProductVariant, ProductVariantImage, ProductQuestion, Accessory, AccessoryProduct, ProductImage, ProductVideo, Brand
+from core.models import VendorQuoteRequest
 from vendors.models import VendorProfile
 from accounts.models import User
 from orders.models import Order, OrderItem
@@ -623,73 +625,82 @@ def vendor_quote_requests(request):
     Vendor quote requests page.
 
     Vendors only see quote requests assigned to their own vendor profile.
-    Arolana admin still sees all quote requests from Django admin.
+    Arolana admin sees all quote requests from Django admin.
     """
-    if not hasattr(request.user, 'vendor_profile') and request.user.user_type != 'vendor':
-        return render(request, 'dashboard/access_denied.html', {
-            'message': 'You are not registered as a vendor. Please become a vendor first.'
-        })
 
     try:
         vendor_profile = request.user.vendor_profile
-    except VendorProfile.DoesNotExist:
-        return render(request, 'dashboard/access_denied.html', {
-            'message': 'Your vendor profile is not set up. Please contact support.'
-        })
+    except Exception:
+        try:
+            vendor_profile = VendorProfile.objects.get(user=request.user)
+        except VendorProfile.DoesNotExist:
+            return render(request, "dashboard/access_denied.html", {
+                "message": "Your vendor profile is not set up. Please contact Arolana support."
+            })
 
-    status_filter = request.GET.get('status', '').strip()
-
-    quote_requests_qs = (
-        VendorQuoteRequest.objects
-        .filter(vendor=vendor_profile)
-        .order_by('-created_at')
-    )
+    status_filter = (request.GET.get("status") or "").strip()
 
     valid_statuses = {
-        'new',
-        'admin_review',
-        'sent_to_vendor',
-        'vendor_replied',
-        'closed',
-        'spam',
+        "new",
+        "admin_review",
+        "sent_to_vendor",
+        "vendor_replied",
+        "closed",
+        "spam",
     }
+
+    quote_requests_qs = VendorQuoteRequest.objects.filter(
+        vendor=vendor_profile
+    ).order_by("-created_at")
 
     if status_filter in valid_statuses:
         quote_requests_qs = quote_requests_qs.filter(status=status_filter)
     else:
-        status_filter = ''
+        status_filter = ""
+
+    paginator = Paginator(quote_requests_qs, 20)
+    page_obj = paginator.get_page(request.GET.get("page"))
 
     status_counts = {
-        'all': VendorQuoteRequest.objects.filter(vendor=vendor_profile).count(),
-        'new': VendorQuoteRequest.objects.filter(vendor=vendor_profile, status='new').count(),
-        'admin_review': VendorQuoteRequest.objects.filter(vendor=vendor_profile, status='admin_review').count(),
-        'sent_to_vendor': VendorQuoteRequest.objects.filter(vendor=vendor_profile, status='sent_to_vendor').count(),
-        'vendor_replied': VendorQuoteRequest.objects.filter(vendor=vendor_profile, status='vendor_replied').count(),
-        'closed': VendorQuoteRequest.objects.filter(vendor=vendor_profile, status='closed').count(),
-        'spam': VendorQuoteRequest.objects.filter(vendor=vendor_profile, status='spam').count(),
+        "all": VendorQuoteRequest.objects.filter(vendor=vendor_profile).count(),
+        "new": VendorQuoteRequest.objects.filter(vendor=vendor_profile, status="new").count(),
+        "admin_review": VendorQuoteRequest.objects.filter(vendor=vendor_profile, status="admin_review").count(),
+        "sent_to_vendor": VendorQuoteRequest.objects.filter(vendor=vendor_profile, status="sent_to_vendor").count(),
+        "vendor_replied": VendorQuoteRequest.objects.filter(vendor=vendor_profile, status="vendor_replied").count(),
+        "closed": VendorQuoteRequest.objects.filter(vendor=vendor_profile, status="closed").count(),
+        "spam": VendorQuoteRequest.objects.filter(vendor=vendor_profile, status="spam").count(),
     }
 
-    quote_requests = get_paginated_items(
-        quote_requests_qs,
-        request.GET.get('page', 1),
-        20,
-    )
-
-    unread_messages_count = _vendor_unread_admin_count(request.user)
+    try:
+        back_url = reverse("dashboard:vendor_home")
+    except Exception:
+        back_url = "/dashboard/vendor/"
 
     context = {
-        'vendor_profile': vendor_profile,
-        'quote_requests': quote_requests,
-        'page_obj': quote_requests,
-        'status_filter': status_filter,
-        'status_counts': status_counts,
-        'unread_count': unread_messages_count,
+        "vendor_profile": vendor_profile,
+        "quote_requests": page_obj,
+        "page_obj": page_obj,
+        "status_filter": status_filter,
+        "status_counts": status_counts,
+        "back_url": back_url,
     }
 
-    context.update(_vendor_subscription_context(request.user))
-    context.update(_vendor_customer_chat_stats(request.user))
+    try:
+        context.update(_vendor_subscription_context(request.user))
+    except Exception:
+        pass
 
-    return render(request, 'dashboard/vendor_quote_requests.html', context)
+    try:
+        context.update(_vendor_customer_chat_stats(request.user))
+    except Exception:
+        pass
+
+    try:
+        context["unread_count"] = _vendor_unread_admin_count(request.user)
+    except Exception:
+        context["unread_count"] = 0
+
+    return render(request, "dashboard/vendor_quote_requests.html", context)
 
 @login_required
 def vendor_pickup_location(request):
