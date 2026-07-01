@@ -80,7 +80,10 @@ class PerformanceHelperTests(SimpleTestCase):
             {"ready": True},
         )
 
-    @override_settings(OPTIMIZED_MEDIA_GENERATE_ON_REQUEST=False)
+    @override_settings(
+        OPTIMIZED_MEDIA_GENERATE_ON_REQUEST=False,
+        OPTIMIZED_MEDIA_CACHE_VERSION="clarity-test",
+    )
     def test_optimized_image_url_skips_storage_checks_during_request(self):
         image = SimpleNamespace(
             name="products/example.jpg",
@@ -94,7 +97,7 @@ class PerformanceHelperTests(SimpleTestCase):
 
         self.assertEqual(
             result,
-            "/media/optimized/product_card/products/example.webp",
+            "/media/optimized/product_card/products/example.webp?v=clarity-test",
         )
         storage.exists.assert_not_called()
         storage.open.assert_not_called()

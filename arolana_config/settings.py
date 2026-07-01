@@ -426,6 +426,10 @@ AWS_S3_CLIENT_CONFIG = BotoConfig(
     retries={'max_attempts': 3, 'mode': 'adaptive'},
 )
 OPTIMIZED_MEDIA_ENABLED = config('OPTIMIZED_MEDIA_ENABLED', default=True, cast=bool)
+OPTIMIZED_MEDIA_CACHE_VERSION = config(
+    'OPTIMIZED_MEDIA_CACHE_VERSION',
+    default='20260701-clarity-v2',
+)
 CURRENCY_IP_GEOLOCATION_ENABLED = config(
     'CURRENCY_IP_GEOLOCATION_ENABLED',
     default=False,

@@ -4136,7 +4136,7 @@
                     <div class="relative h-40 overflow-hidden">
                         {% if item.main_image %}
                             {% optimized_image_url item.main_image 'product_card' as recommendation_image_url %}
-                            <img src="{{ recommendation_image_url }}" alt="{{ item.name }}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110" loading="lazy" decoding="async">
+                            <img src="{{ recommendation_image_url }}" alt="{{ item.name }}" class="h-full w-full object-contain p-3 transition-transform duration-500 hover:scale-105" loading="lazy" decoding="async">
                         {% else %}
                             <div class="w-full h-full bg-gray-100 flex items-center justify-center">
                                 <i class="fas fa-image text-4xl text-gray-400"></i>
@@ -4182,7 +4182,7 @@
                     <div class="relative h-40 overflow-hidden">
                         {% if related.main_image %}
                             {% optimized_image_url related.main_image 'product_card' as recommendation_image_url %}
-                            <img src="{{ recommendation_image_url }}" alt="{{ related.name }}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110" loading="lazy" decoding="async">
+                            <img src="{{ recommendation_image_url }}" alt="{{ related.name }}" class="h-full w-full object-contain p-3 transition-transform duration-500 hover:scale-105" loading="lazy" decoding="async">
                         {% else %}
                             <div class="w-full h-full bg-gray-100 flex items-center justify-center">
                                 <i class="fas fa-image text-4xl text-gray-400"></i>
@@ -4225,7 +4225,7 @@
                     <div class="relative h-40 overflow-hidden">
                         {% if item.main_image %}
                             {% optimized_image_url item.main_image 'product_card' as recommendation_image_url %}
-                            <img src="{{ recommendation_image_url }}" alt="{{ item.name }}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110" loading="lazy" decoding="async">
+                            <img src="{{ recommendation_image_url }}" alt="{{ item.name }}" class="h-full w-full object-contain p-3 transition-transform duration-500 hover:scale-105" loading="lazy" decoding="async">
                         {% else %}
                             <div class="w-full h-full bg-gray-100 flex items-center justify-center">
                                 <i class="fas fa-image text-4xl text-gray-400"></i>
@@ -4271,7 +4271,7 @@
                     <div class="relative h-40 overflow-hidden">
                         {% if item.main_image %}
                             {% optimized_image_url item.main_image 'product_card' as recommendation_image_url %}
-                            <img src="{{ recommendation_image_url }}" alt="{{ item.name }}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110" loading="lazy" decoding="async">
+                            <img src="{{ recommendation_image_url }}" alt="{{ item.name }}" class="h-full w-full object-contain p-3 transition-transform duration-500 hover:scale-105" loading="lazy" decoding="async">
                         {% else %}
                             <div class="w-full h-full bg-gray-100 flex items-center justify-center">
                                 <i class="fas fa-image text-4xl text-gray-400"></i>
@@ -4313,7 +4313,7 @@
                 <div class="relative h-40 overflow-hidden">
                     {% if item.product.main_image %}
                         {% optimized_image_url item.product.main_image 'product_card' as recommendation_image_url %}
-                        <img src="{{ recommendation_image_url }}" alt="{{ item.product.name }}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110" loading="lazy" decoding="async">
+                        <img src="{{ recommendation_image_url }}" alt="{{ item.product.name }}" class="h-full w-full object-contain p-3 transition-transform duration-500 hover:scale-105" loading="lazy" decoding="async">
                     {% else %}
                         <div class="w-full h-full bg-gray-100 flex items-center justify-center">
                             <i class="fas fa-image text-4xl text-gray-400"></i>

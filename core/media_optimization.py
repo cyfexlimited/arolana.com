@@ -3,7 +3,7 @@ import posixpath
 import time
 from io import BytesIO
 from pathlib import PurePosixPath
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 from django.conf import settings
 from django.core.files.base import ContentFile
@@ -76,6 +76,15 @@ SKIP_KEYWORDS = (
     "video",
     "withdrawal",
 )
+
+VERSIONED_PRESETS = frozenset({
+    "product_thumb",
+    "product_card",
+    "product_card_large",
+    "product_gallery",
+    "product_detail",
+    "vendor_banner",
+})
 
 PRESETS = {
     "seo": {"max_size": (1600, 1600), "quality": 82},
@@ -197,6 +206,27 @@ def optimized_name_for(original_name, preset):
     return normalize_storage_name(f"optimized/{preset}/{without_suffix}.webp")
 
 
+def _versioned_optimized_url(url, preset):
+    """
+    Bust immutable CDN entries when an optimized preset is regenerated.
+
+    Optimized media is cached for one year. Replacing an object at the same
+    path therefore leaves browsers and Cloudflare serving the old pixels.
+    Signed storage URLs cannot be safely modified, so only public media URLs
+    receive the configured version query.
+    """
+    version = str(getattr(settings, "OPTIMIZED_MEDIA_CACHE_VERSION", "") or "").strip()
+    if not url or not version or preset not in VERSIONED_PRESETS:
+        return url
+
+    lowered_url = url.lower()
+    if "x-amz-signature=" in lowered_url or "signature=" in lowered_url:
+        return url
+
+    separator = "&" if "?" in url else "?"
+    return f"{url}{separator}v={quote(version, safe='')}"
+
+
 def _local_cache_get(key):
     cached = _LOCAL_URL_CACHE.get(key)
     if not cached:
@@ -277,7 +307,7 @@ def get_optimized_image_url(image, preset="product_card", force_generate=False):
     # page rendering; those checks were a measurable source of slow pages.
     if not should_generate:
         try:
-            url = storage.url(optimized_name)
+            url = _versioned_optimized_url(storage.url(optimized_name), preset)
             _local_cache_set(cache_key, url, 3600)
             return url
         except Exception:
@@ -285,7 +315,7 @@ def get_optimized_image_url(image, preset="product_card", force_generate=False):
 
     if _storage_exists(storage, optimized_name):
         try:
-            url = storage.url(optimized_name)
+            url = _versioned_optimized_url(storage.url(optimized_name), preset)
             _local_cache_set(cache_key, url, 3600)
             return url
         except Exception:
@@ -300,7 +330,7 @@ def get_optimized_image_url(image, preset="product_card", force_generate=False):
 
     if created and _storage_exists(storage, optimized_name):
         try:
-            url = storage.url(optimized_name)
+            url = _versioned_optimized_url(storage.url(optimized_name), preset)
             _local_cache_set(cache_key, url, 3600)
             return url
         except Exception:
