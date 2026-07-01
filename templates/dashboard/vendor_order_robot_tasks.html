@@ -2,185 +2,1037 @@
 
 {% block dashboard_title %}Order Robot Tasks{% endblock %}
 
+{% block dashboard_side_ad %}{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<style>
+    :root {
+        --arolana-navy: #071A44;
+        --arolana-blue: #0066CC;
+        --arolana-orange: #FF7A00;
+        --arolana-soft: #F4F8FF;
+        --arolana-border: #E3ECF8;
+        --arolana-text: #0B1E46;
+        --arolana-muted: #65758B;
+        --arolana-bg: #F4F7FB;
+        --arolana-green: #16A34A;
+        --arolana-red: #DC2626;
+        --arolana-yellow: #F59E0B;
+    }
+
+    html,
+    body {
+        width: 100%;
+        min-height: 100%;
+        overflow-x: hidden;
+        background: var(--arolana-bg) !important;
+    }
+
+    * {
+        box-sizing: border-box;
+    }
+
+    body:has(.order-robot-page) main,
+    body:has(.order-robot-page) .main-content,
+    body:has(.order-robot-page) .dashboard-content,
+    body:has(.order-robot-page) .content-wrapper,
+    body:has(.order-robot-page) .container,
+    body:has(.order-robot-page) .container-fluid {
+        width: 100% !important;
+        max-width: none !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    body:has(.order-robot-page) .arolana-following-ad,
+    body:has(.order-robot-page) .arolana-floating-ad-shell,
+    body:has(.order-robot-page) .arolana-ad-placeholder,
+    .arolana-following-ad,
+    .arolana-floating-ad-shell,
+    .arolana-ad-placeholder {
+        display: none !important;
+    }
+
+    .order-robot-page {
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        padding: 1rem 1.25rem 2rem;
+        color: var(--arolana-text);
+    }
+
+    .order-robot-shell {
+        width: 100%;
+        max-width: 100%;
+        margin: 0 auto;
+    }
+
+    .order-robot-header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .order-robot-eyebrow {
+        color: var(--arolana-orange);
+        font-size: .68rem;
+        font-weight: 950;
+        letter-spacing: .18em;
+        text-transform: uppercase;
+    }
+
+    .order-robot-title {
+        margin: .18rem 0 0;
+        color: var(--arolana-navy);
+        font-size: clamp(1.7rem, 2.5vw, 2.45rem);
+        line-height: 1.02;
+        font-weight: 950;
+        letter-spacing: -.03em;
+    }
+
+    .order-robot-subtitle {
+        margin-top: .35rem;
+        max-width: 52rem;
+        color: var(--arolana-muted);
+        font-size: .88rem;
+        line-height: 1.5;
+        font-weight: 700;
+    }
+
+    .order-robot-actions {
+        display: flex;
+        align-items: center;
+        gap: .6rem;
+        flex-wrap: wrap;
+    }
+
+    .order-robot-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .45rem;
+        min-height: 2.55rem;
+        padding: .7rem 1rem;
+        border-radius: .9rem;
+        border: 1px solid transparent;
+        font-size: .78rem;
+        font-weight: 950;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: .18s ease;
+        cursor: pointer;
+    }
+
+    .order-robot-btn:hover {
+        transform: translateY(-1px);
+        text-decoration: none;
+    }
+
+    .order-robot-btn-primary {
+        background: linear-gradient(135deg, var(--arolana-blue), #064b99);
+        color: #fff;
+        box-shadow: 0 12px 26px rgba(0, 102, 204, .18);
+    }
+
+    .order-robot-btn-dark {
+        background: var(--arolana-navy);
+        color: #fff;
+        box-shadow: 0 12px 26px rgba(7, 26, 68, .16);
+    }
+
+    .order-robot-btn-orange {
+        background: linear-gradient(135deg, var(--arolana-orange), #E85F00);
+        color: #fff;
+        box-shadow: 0 12px 26px rgba(255, 122, 0, .18);
+    }
+
+    .order-robot-btn-light {
+        background: #fff;
+        color: var(--arolana-navy);
+        border-color: var(--arolana-border);
+        box-shadow: 0 8px 22px rgba(15, 23, 42, .05);
+    }
+
+    .order-robot-filter-wrap {
+        margin-bottom: 1rem;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .order-robot-filter-wrap::-webkit-scrollbar {
+        display: none;
+    }
+
+    .order-robot-filters {
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+        min-width: max-content;
+        padding-bottom: .15rem;
+    }
+
+    .order-robot-filter {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 2.25rem;
+        padding: .55rem .85rem;
+        border-radius: 999px;
+        border: 1px solid var(--arolana-border);
+        background: #fff;
+        color: var(--arolana-navy);
+        font-size: .72rem;
+        font-weight: 950;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .order-robot-filter.active {
+        background: var(--arolana-blue);
+        color: #fff;
+        border-color: var(--arolana-blue);
+        box-shadow: 0 10px 24px rgba(0, 102, 204, .18);
+    }
+
+    .order-robot-alert {
+        margin-bottom: 1rem;
+        border-radius: 1.05rem;
+        border: 1px solid #FCD34D;
+        background: #FFFBEB;
+        color: #92400E;
+        padding: .9rem;
+    }
+
+    .order-robot-alert-inner {
+        display: flex;
+        align-items: flex-start;
+        gap: .75rem;
+    }
+
+    .order-robot-alert-icon {
+        width: 2.45rem;
+        height: 2.45rem;
+        flex: 0 0 auto;
+        border-radius: .85rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--arolana-yellow);
+        color: #fff;
+    }
+
+    .order-robot-alert-title {
+        color: #78350F;
+        font-size: .9rem;
+        font-weight: 950;
+        line-height: 1.3;
+    }
+
+    .order-robot-alert-text {
+        margin-top: .18rem;
+        color: #92400E;
+        font-size: .76rem;
+        line-height: 1.45;
+        font-weight: 750;
+    }
+
+    .order-robot-list {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .order-task-card {
+        overflow: hidden;
+        border-radius: 1.15rem;
+        background: #fff;
+        border: 1px solid var(--arolana-border);
+        box-shadow: 0 14px 34px rgba(15, 23, 42, .06);
+    }
+
+    .order-task-card-inner {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+        gap: 1rem;
+        padding: 1rem;
+    }
+
+    .order-task-main {
+        min-width: 0;
+    }
+
+    .order-task-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .75rem;
+        flex-wrap: wrap;
+        padding-bottom: .8rem;
+        border-bottom: 1px solid var(--arolana-border);
+    }
+
+    .order-task-number {
+        color: var(--arolana-navy);
+        font-size: 1.05rem;
+        font-weight: 950;
+        line-height: 1.15;
+        overflow-wrap: anywhere;
+    }
+
+    .order-task-pills {
+        display: flex;
+        align-items: center;
+        gap: .45rem;
+        flex-wrap: wrap;
+    }
+
+    .order-status-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .32rem;
+        min-height: 1.55rem;
+        padding: .32rem .6rem;
+        border-radius: 999px;
+        font-size: .64rem;
+        font-weight: 950;
+        white-space: nowrap;
+        line-height: 1.1;
+    }
+
+    .status-green { background: #DCFCE7; color: #15803D; }
+    .status-yellow { background: #FEF3C7; color: #B45309; }
+    .status-orange { background: #FFEDD5; color: #C2410C; }
+    .status-red { background: #FEE2E2; color: #B91C1C; }
+    .status-blue { background: #DBEAFE; color: #1D4ED8; }
+    .status-gray { background: #F1F5F9; color: #475569; }
+
+    .order-task-info-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: .65rem;
+        margin-top: .85rem;
+    }
+
+    .order-task-info-box {
+        min-width: 0;
+        border-radius: .9rem;
+        border: 1px solid var(--arolana-border);
+        background: #F8FBFF;
+        padding: .75rem;
+    }
+
+    .order-task-info-label {
+        color: var(--arolana-muted);
+        font-size: .58rem;
+        font-weight: 950;
+        letter-spacing: .05em;
+        text-transform: uppercase;
+    }
+
+    .order-task-info-value {
+        margin-top: .22rem;
+        color: var(--arolana-navy);
+        font-size: .76rem;
+        line-height: 1.35;
+        font-weight: 850;
+        overflow-wrap: anywhere;
+    }
+
+    .order-task-delivery-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: .75rem;
+        margin-top: .85rem;
+    }
+
+    .order-address-box {
+        border-radius: .95rem;
+        padding: .85rem;
+        border: 1px solid var(--arolana-border);
+        min-width: 0;
+    }
+
+    .order-address-box.pickup {
+        background: #EFF6FF;
+        color: #1E3A8A;
+    }
+
+    .order-address-box.dropoff {
+        background: #F0FDF4;
+        color: #166534;
+    }
+
+    .order-address-title {
+        color: var(--arolana-navy);
+        font-size: .72rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+    }
+
+    .order-address-text {
+        margin-top: .35rem;
+        font-size: .76rem;
+        line-height: 1.45;
+        font-weight: 750;
+        overflow-wrap: anywhere;
+    }
+
+    .order-items-box {
+        margin-top: .85rem;
+        border-radius: .95rem;
+        background: #F8FBFF;
+        border: 1px solid var(--arolana-border);
+        padding: .85rem;
+    }
+
+    .order-items-title {
+        color: var(--arolana-navy);
+        font-size: .78rem;
+        font-weight: 950;
+    }
+
+    .order-items-list {
+        margin: .45rem 0 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: .35rem;
+    }
+
+    .order-items-list li {
+        color: var(--arolana-muted);
+        font-size: .76rem;
+        line-height: 1.4;
+        font-weight: 750;
+        overflow-wrap: anywhere;
+    }
+
+    .order-task-note {
+        margin-top: .85rem;
+        border-radius: .9rem;
+        background: #EFF6FF;
+        color: #1D4ED8;
+        padding: .75rem;
+        font-size: .76rem;
+        line-height: 1.45;
+        font-weight: 800;
+    }
+
+    .order-task-actions {
+        min-width: 0;
+    }
+
+    .order-action-panel {
+        border-radius: 1rem;
+        border: 1px solid var(--arolana-border);
+        background: #F8FBFF;
+        padding: .85rem;
+        position: sticky;
+        top: 1rem;
+    }
+
+    .order-action-help {
+        margin-bottom: .75rem;
+        border-radius: .85rem;
+        background: #EFF6FF;
+        color: #1D4ED8;
+        padding: .72rem;
+        font-size: .72rem;
+        line-height: 1.45;
+        font-weight: 850;
+    }
+
+    .order-action-form {
+        margin-bottom: .7rem;
+    }
+
+    .order-action-form:last-child {
+        margin-bottom: 0;
+    }
+
+    .order-action-input,
+    .order-action-textarea {
+        width: 100%;
+        border-radius: .82rem;
+        border: 1px solid var(--arolana-border);
+        background: #fff;
+        color: var(--arolana-navy);
+        font-size: .76rem;
+        font-weight: 750;
+        outline: none;
+        padding: .7rem .8rem;
+        margin-bottom: .5rem;
+    }
+
+    .order-action-input:focus,
+    .order-action-textarea:focus {
+        border-color: var(--arolana-blue);
+        box-shadow: 0 0 0 3px rgba(0, 102, 204, .12);
+    }
+
+    .order-action-button {
+        width: 100%;
+        min-height: 2.55rem;
+        border: 0;
+        border-radius: .85rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .45rem;
+        font-size: .76rem;
+        font-weight: 950;
+        cursor: pointer;
+        transition: .18s ease;
+    }
+
+    .order-action-button:hover {
+        transform: translateY(-1px);
+    }
+
+    .button-blue {
+        background: var(--arolana-blue);
+        color: #fff;
+    }
+
+    .button-green {
+        background: var(--arolana-green);
+        color: #fff;
+    }
+
+    .button-red {
+        background: #FEE2E2;
+        color: #B91C1C;
+    }
+
+    .order-no-action {
+        border-radius: .95rem;
+        background: #F8FBFF;
+        border: 1px solid var(--arolana-border);
+        padding: .9rem;
+        color: var(--arolana-muted);
+        font-size: .76rem;
+        line-height: 1.45;
+        font-weight: 750;
+    }
+
+    .order-no-action strong {
+        display: block;
+        color: var(--arolana-navy);
+        font-size: .84rem;
+        font-weight: 950;
+        margin-bottom: .2rem;
+    }
+
+    .order-empty-state {
+        border-radius: 1.15rem;
+        border: 1px dashed #CBD5E1;
+        background: #fff;
+        padding: 3rem 1rem;
+        text-align: center;
+        box-shadow: 0 14px 34px rgba(15, 23, 42, .04);
+    }
+
+    .order-empty-icon {
+        width: 4.5rem;
+        height: 4.5rem;
+        margin: 0 auto 1rem;
+        border-radius: 1.2rem;
+        background: #F8FBFF;
+        color: #94A3B8;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        border: 1px solid var(--arolana-border);
+    }
+
+    .order-empty-title {
+        color: var(--arolana-navy);
+        font-size: 1.1rem;
+        font-weight: 950;
+        margin-bottom: .35rem;
+    }
+
+    .order-empty-text {
+        color: var(--arolana-muted);
+        font-size: .82rem;
+        font-weight: 750;
+        margin: 0;
+    }
+
+    .order-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: .5rem;
+        margin-top: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .order-pagination a,
+    .order-pagination span {
+        min-width: 2.25rem;
+        min-height: 2.25rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: .45rem .75rem;
+        border-radius: .75rem;
+        border: 1px solid var(--arolana-border);
+        background: #fff;
+        color: var(--arolana-navy);
+        font-size: .72rem;
+        font-weight: 950;
+        text-decoration: none;
+    }
+
+    .order-pagination span.current {
+        background: var(--arolana-blue);
+        color: #fff;
+        border-color: var(--arolana-blue);
+    }
+
+    @media (max-width: 1180px) {
+        .order-task-card-inner {
+            grid-template-columns: 1fr;
+        }
+
+        .order-action-panel {
+            position: static;
+        }
+
+        .order-task-info-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 768px) {
+        .order-robot-page {
+            padding: .7rem .55rem 5rem !important;
+        }
+
+        .order-robot-header {
+            align-items: stretch;
+            flex-direction: column;
+            gap: .75rem;
+            margin-bottom: .8rem;
+        }
+
+        .order-robot-title {
+            font-size: 1.45rem;
+        }
+
+        .order-robot-subtitle {
+            font-size: .74rem;
+            line-height: 1.45;
+        }
+
+        .order-robot-actions {
+            display: grid;
+            grid-template-columns: 1fr;
+            width: 100%;
+        }
+
+        .order-robot-btn {
+            width: 100%;
+            min-height: 2.45rem;
+            font-size: .72rem;
+            border-radius: .82rem;
+        }
+
+        .order-robot-filter {
+            min-height: 2.05rem;
+            padding: .48rem .7rem;
+            font-size: .64rem;
+        }
+
+        .order-robot-alert {
+            padding: .75rem;
+            border-radius: .95rem;
+        }
+
+        .order-robot-alert-icon {
+            width: 2.15rem;
+            height: 2.15rem;
+            border-radius: .75rem;
+        }
+
+        .order-robot-alert-title {
+            font-size: .78rem;
+        }
+
+        .order-robot-alert-text {
+            font-size: .68rem;
+        }
+
+        .order-robot-list {
+            gap: .75rem;
+        }
+
+        .order-task-card {
+            border-radius: 1rem;
+        }
+
+        .order-task-card-inner {
+            padding: .75rem;
+            gap: .75rem;
+        }
+
+        .order-task-top {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: .55rem;
+            padding-bottom: .7rem;
+        }
+
+        .order-task-number {
+            font-size: .92rem;
+        }
+
+        .order-task-pills {
+            gap: .35rem;
+        }
+
+        .order-status-pill {
+            font-size: .56rem;
+            min-height: 1.4rem;
+            padding: .25rem .5rem;
+        }
+
+        .order-task-info-grid {
+            grid-template-columns: 1fr;
+            gap: .5rem;
+            margin-top: .7rem;
+        }
+
+        .order-task-info-box {
+            padding: .62rem;
+            border-radius: .78rem;
+        }
+
+        .order-task-info-label {
+            font-size: .54rem;
+        }
+
+        .order-task-info-value {
+            font-size: .68rem;
+        }
+
+        .order-task-delivery-grid {
+            grid-template-columns: 1fr;
+            gap: .55rem;
+            margin-top: .7rem;
+        }
+
+        .order-address-box,
+        .order-items-box {
+            padding: .68rem;
+            border-radius: .82rem;
+        }
+
+        .order-address-title,
+        .order-items-title {
+            font-size: .66rem;
+        }
+
+        .order-address-text,
+        .order-items-list li,
+        .order-task-note {
+            font-size: .68rem;
+        }
+
+        .order-action-panel {
+            padding: .7rem;
+            border-radius: .9rem;
+        }
+
+        .order-action-help {
+            font-size: .66rem;
+            padding: .65rem;
+            border-radius: .78rem;
+        }
+
+        .order-action-input,
+        .order-action-textarea {
+            font-size: .68rem;
+            padding: .65rem .72rem;
+            border-radius: .76rem;
+        }
+
+        .order-action-button {
+            min-height: 2.4rem;
+            font-size: .68rem;
+            border-radius: .78rem;
+        }
+
+        .order-no-action {
+            font-size: .68rem;
+        }
+
+        .order-empty-state {
+            padding: 2rem .75rem;
+            border-radius: 1rem;
+        }
+
+        .order-pagination {
+            gap: .4rem;
+        }
+
+        .order-pagination a,
+        .order-pagination span {
+            min-width: 2rem;
+            min-height: 2rem;
+            font-size: .66rem;
+            border-radius: .68rem;
+        }
+    }
+
+    @media (max-width: 420px) {
+        .order-robot-page {
+            padding-left: .45rem !important;
+            padding-right: .45rem !important;
+        }
+
+        .order-task-card-inner {
+            padding: .65rem;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block dashboard_content %}
-<div class="max-w-6xl">
-    <div class="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-            <p class="text-sm font-black uppercase tracking-[0.16em] text-blue-600">Arolana Order Robot</p>
-            <h1 class="mt-2 text-3xl font-black text-gray-950">Vendor Fulfillment Tasks</h1>
-            <p class="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
-                Confirm paid orders, mark packages ready for pickup, or escalate stock issues to Arolana admin.
-            </p>
-        </div>
-        <a href="{% url 'dashboard:vendor_pickup_location' %}" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-gray-950 px-5 py-2.5 text-sm font-black text-white hover:bg-gray-800">
-            <i class="fas fa-map-location-dot"></i>
-            Pickup Location
-        </a>
-    </div>
+<div class="order-robot-page">
+    <div class="order-robot-shell">
 
-    <div class="mb-6 flex gap-2 overflow-x-auto pb-1">
-        <a href="{% url 'dashboard:vendor_order_robot_tasks' %}" class="whitespace-nowrap rounded-full px-4 py-2 text-sm font-black {% if not current_status %}bg-blue-600 text-white{% else %}bg-white text-gray-700 ring-1 ring-gray-200{% endif %}">
-            All
-        </a>
-        {% for value, label in status_choices %}
-        <a href="{% url 'dashboard:vendor_order_robot_tasks' %}?status={{ value }}" class="whitespace-nowrap rounded-full px-4 py-2 text-sm font-black {% if current_status == value %}bg-blue-600 text-white{% else %}bg-white text-gray-700 ring-1 ring-gray-200{% endif %}">
-            {{ label }}
-        </a>
-        {% endfor %}
-    </div>
-
-    {% if pending_count %}
-    <div class="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
-        <div class="flex items-center gap-3">
-            <span class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-amber-500 text-white">
-                <i class="fas fa-bell"></i>
-            </span>
+        <div class="order-robot-header">
             <div>
-                <h2 class="font-black">{{ pending_count }} order{{ pending_count|pluralize }} waiting for your confirmation</h2>
-                <p class="text-sm">Respond quickly so Arolana can assign delivery and keep the customer updated.</p>
+                <p class="order-robot-eyebrow">Arolana Order Robot</p>
+                <h1 class="order-robot-title">Vendor Fulfillment Tasks</h1>
+                <p class="order-robot-subtitle">
+                    Confirm paid orders, mark packages ready for pickup, or escalate stock issues to Arolana admin.
+                </p>
+            </div>
+
+            <div class="order-robot-actions">
+                <a href="{% url 'dashboard:vendor_pickup_location' %}" class="order-robot-btn order-robot-btn-dark">
+                    <i class="fas fa-map-location-dot"></i>
+                    Pickup Location
+                </a>
             </div>
         </div>
-    </div>
-    {% endif %}
 
-    <div class="grid gap-4">
-        {% for task in tasks %}
-        <article class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-            <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                <div class="min-w-0">
-                    <div class="flex flex-wrap items-center gap-2">
-                        <h2 class="text-xl font-black text-gray-950">{{ task.process.order.order_number }}</h2>
-                        <span class="rounded-full px-3 py-1 text-xs font-black
-                            {% if task.status == 'pending' %}bg-amber-100 text-amber-800
-                            {% elif task.status == 'confirmed' %}bg-blue-100 text-blue-800
-                            {% elif task.status == 'ready_for_pickup' %}bg-green-100 text-green-800
-                            {% elif task.status == 'rejected' %}bg-red-100 text-red-800
-                            {% else %}bg-gray-100 text-gray-700{% endif %}">
-                            {{ task.get_status_display }}
-                        </span>
-                        <span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-600">
-                            Robot: {{ task.process.get_current_status_display }}
-                        </span>
-                    </div>
+        <div class="order-robot-filter-wrap">
+            <div class="order-robot-filters">
+                <a href="{% url 'dashboard:vendor_order_robot_tasks' %}" class="order-robot-filter {% if not current_status %}active{% endif %}">
+                    All
+                </a>
 
-                    <dl class="mt-4 grid gap-3 text-sm text-gray-600 md:grid-cols-2 xl:grid-cols-4">
-                        <div>
-                            <dt class="font-black text-gray-900">Customer</dt>
-                            <dd>{{ task.process.order.user.get_full_name|default:task.process.order.user.email }}</dd>
-                        </div>
-                        <div>
-                            <dt class="font-black text-gray-900">Customer Phone</dt>
-                            <dd>
-                                {% if task.process.live_delivery and task.process.live_delivery.dropoff_phone %}
-                                    {{ task.process.live_delivery.dropoff_phone }}
-                                {% else %}
-                                    Phone pending
-                                {% endif %}
-                            </dd>
-                        </div>
-                        <div>
-                            <dt class="font-black text-gray-900">Order Total</dt>
-                            <dd>{{ task.process.order.total }}</dd>
-                        </div>
-                        <div>
-                            <dt class="font-black text-gray-900">Delivery</dt>
-                            <dd>
-                                {% if task.process.live_delivery %}
-                                    {{ task.process.live_delivery.tracking_code }} - {{ task.process.live_delivery.get_status_display }}
-                                {% elif task.process.legacy_delivery %}
-                                    {{ task.process.legacy_delivery.tracking_code }} - {{ task.process.legacy_delivery.get_tracking_status_display }}
-                                {% else %}
-                                    Waiting for delivery setup
-                                {% endif %}
-                            </dd>
-                        </div>
-                    </dl>
+                {% for value, label in status_choices %}
+                <a href="{% url 'dashboard:vendor_order_robot_tasks' %}?status={{ value }}" class="order-robot-filter {% if current_status == value %}active{% endif %}">
+                    {{ label }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
 
-                    {% if task.process.live_delivery %}
-                    <div class="mt-4 grid gap-3 text-sm md:grid-cols-2">
-                        <div class="rounded-xl bg-blue-50 p-4 text-blue-950">
-                            <dt class="font-black text-gray-900">Pickup Address</dt>
-                            <dd class="mt-1">{{ task.process.live_delivery.pickup_address|linebreaksbr }}</dd>
-                        </div>
-                        <div class="rounded-xl bg-green-50 p-4 text-green-950">
-                            <dt class="font-black text-gray-900">Customer Drop-off</dt>
-                            <dd class="mt-1">{{ task.process.live_delivery.dropoff_address|linebreaksbr }}</dd>
-                        </div>
-                    </div>
-                    {% endif %}
+        {% if pending_count %}
+        <div class="order-robot-alert">
+            <div class="order-robot-alert-inner">
+                <span class="order-robot-alert-icon">
+                    <i class="fas fa-bell"></i>
+                </span>
 
-                    <div class="mt-4 rounded-xl bg-gray-50 p-4">
-                        <h3 class="text-sm font-black text-gray-950">Items</h3>
-                        <ul class="mt-2 grid gap-1 text-sm text-gray-700">
-                            {% for item in task.process.order.items.all %}
-                                {% if item.product.vendor_id == request.user.id or item.variant.product.vendor_id == request.user.id %}
-                                <li>{{ item.quantity }} x {{ item.item_name }}</li>
-                                {% endif %}
-                            {% endfor %}
-                        </ul>
-                    </div>
-
-                    {% if task.note %}
-                    <p class="mt-3 rounded-xl bg-blue-50 p-3 text-sm font-semibold text-blue-900">{{ task.note }}</p>
-                    {% endif %}
-                </div>
-
-                <div class="w-full shrink-0 lg:w-80">
-                    {% if task.status == 'pending' or task.status == 'confirmed' %}
-                    <div class="mb-3 rounded-2xl border border-blue-100 bg-blue-50 p-3 text-xs font-bold leading-5 text-blue-900">
-                        Confirm stock first. Riders only see this delivery after you mark it ready for pickup.
-                    </div>
-                    <form method="post" action="{% url 'dashboard:vendor_order_robot_task_action' task.id 'confirm' %}" class="mb-3">
-                        {% csrf_token %}
-                        <textarea name="note" rows="2" placeholder="Optional note to Arolana admin" class="mb-2 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"></textarea>
-                        <button type="submit" class="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-black text-white hover:bg-blue-700">
-                            <i class="fas fa-check"></i>
-                            Confirm Stock
-                        </button>
-                    </form>
-                    <form method="post" action="{% url 'dashboard:vendor_order_robot_task_action' task.id 'ready' %}" class="mb-3">
-                        {% csrf_token %}
-                        <button type="submit" class="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-2 text-sm font-black text-white hover:bg-green-700">
-                            <i class="fas fa-box-open"></i>
-                            Mark Ready & Release Rider
-                        </button>
-                    </form>
-                    <form method="post" action="{% url 'dashboard:vendor_order_robot_task_action' task.id 'reject' %}">
-                        {% csrf_token %}
-                        <input name="note" placeholder="Reason required: stock issue, damaged item..." class="mb-2 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-red-500 focus:outline-none" required>
-                        <button type="submit" class="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-red-50 px-4 py-2 text-sm font-black text-red-700 hover:bg-red-100">
-                            <i class="fas fa-triangle-exclamation"></i>
-                            Escalate Issue
-                        </button>
-                    </form>
-                    {% else %}
-                    <div class="rounded-2xl bg-gray-50 p-4 text-sm text-gray-600">
-                        <p class="font-black text-gray-950">No action needed right now</p>
-                        <p class="mt-1">This task is already {{ task.get_status_display|lower }}.</p>
-                    </div>
-                    {% endif %}
+                <div>
+                    <h2 class="order-robot-alert-title">
+                        {{ pending_count }} order{{ pending_count|pluralize }} waiting for your confirmation
+                    </h2>
+                    <p class="order-robot-alert-text">
+                        Respond quickly so Arolana can assign delivery and keep the customer updated.
+                    </p>
                 </div>
             </div>
-        </article>
-        {% empty %}
-        <div class="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center">
-            <i class="fas fa-robot text-4xl text-gray-300"></i>
-            <h2 class="mt-4 text-xl font-black text-gray-950">No robot tasks yet</h2>
-            <p class="mt-2 text-sm text-gray-600">Paid orders that need your confirmation will appear here automatically.</p>
         </div>
-        {% endfor %}
-    </div>
+        {% endif %}
 
-    {% if tasks.has_other_pages %}
-    <div class="mt-8 flex justify-center gap-2">
-        {% if tasks.has_previous %}
-        <a href="?page={{ tasks.previous_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}" class="rounded-full bg-white px-4 py-2 text-sm font-black text-gray-700 ring-1 ring-gray-200">Previous</a>
+        <div class="order-robot-list">
+            {% for task in tasks %}
+            <article class="order-task-card">
+                <div class="order-task-card-inner">
+                    <div class="order-task-main">
+                        <div class="order-task-top">
+                            <h2 class="order-task-number">{{ task.process.order.order_number }}</h2>
+
+                            <div class="order-task-pills">
+                                <span class="order-status-pill
+                                    {% if task.status == 'pending' %}status-yellow
+                                    {% elif task.status == 'confirmed' %}status-blue
+                                    {% elif task.status == 'ready_for_pickup' %}status-green
+                                    {% elif task.status == 'rejected' %}status-red
+                                    {% else %}status-gray{% endif %}">
+                                    {{ task.get_status_display }}
+                                </span>
+
+                                <span class="order-status-pill status-gray">
+                                    Robot: {{ task.process.get_current_status_display }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="order-task-info-grid">
+                            <div class="order-task-info-box">
+                                <div class="order-task-info-label">Customer</div>
+                                <div class="order-task-info-value">
+                                    {{ task.process.order.user.get_full_name|default:task.process.order.user.email }}
+                                </div>
+                            </div>
+
+                            <div class="order-task-info-box">
+                                <div class="order-task-info-label">Customer Phone</div>
+                                <div class="order-task-info-value">
+                                    {% if task.process.live_delivery and task.process.live_delivery.dropoff_phone %}
+                                        {{ task.process.live_delivery.dropoff_phone }}
+                                    {% else %}
+                                        Phone pending
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="order-task-info-box">
+                                <div class="order-task-info-label">Order Total</div>
+                                <div class="order-task-info-value">
+                                    ₦{{ task.process.order.total }}
+                                </div>
+                            </div>
+
+                            <div class="order-task-info-box">
+                                <div class="order-task-info-label">Delivery</div>
+                                <div class="order-task-info-value">
+                                    {% if task.process.live_delivery %}
+                                        {{ task.process.live_delivery.tracking_code }} - {{ task.process.live_delivery.get_status_display }}
+                                    {% elif task.process.legacy_delivery %}
+                                        {{ task.process.legacy_delivery.tracking_code }} - {{ task.process.legacy_delivery.get_tracking_status_display }}
+                                    {% else %}
+                                        Waiting for setup
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if task.process.live_delivery %}
+                        <div class="order-task-delivery-grid">
+                            <div class="order-address-box pickup">
+                                <div class="order-address-title">Pickup Address</div>
+                                <div class="order-address-text">
+                                    {{ task.process.live_delivery.pickup_address|linebreaksbr }}
+                                </div>
+                            </div>
+
+                            <div class="order-address-box dropoff">
+                                <div class="order-address-title">Customer Drop-off</div>
+                                <div class="order-address-text">
+                                    {{ task.process.live_delivery.dropoff_address|linebreaksbr }}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <div class="order-items-box">
+                            <h3 class="order-items-title">Items</h3>
+
+                            <ul class="order-items-list">
+                                {% for item in task.process.order.items.all %}
+                                    {% if item.product.vendor_id == request.user.id or item.variant.product.vendor_id == request.user.id %}
+                                    <li>{{ item.quantity }} × {{ item.item_name }}</li>
+                                    {% endif %}
+                                {% endfor %}
+                            </ul>
+                        </div>
+
+                        {% if task.note %}
+                        <p class="order-task-note">{{ task.note }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="order-task-actions">
+                        <div class="order-action-panel">
+                            {% if task.status == 'pending' or task.status == 'confirmed' %}
+                            <div class="order-action-help">
+                                Confirm stock first. Riders only see this delivery after you mark it ready for pickup.
+                            </div>
+
+                            <form method="post" action="{% url 'dashboard:vendor_order_robot_task_action' task.id 'confirm' %}" class="order-action-form">
+                                {% csrf_token %}
+                                <textarea name="note" rows="2" placeholder="Optional note to Arolana admin" class="order-action-textarea"></textarea>
+
+                                <button type="submit" class="order-action-button button-blue">
+                                    <i class="fas fa-check"></i>
+                                    Confirm Stock
+                                </button>
+                            </form>
+
+                            <form method="post" action="{% url 'dashboard:vendor_order_robot_task_action' task.id 'ready' %}" class="order-action-form">
+                                {% csrf_token %}
+                                <button type="submit" class="order-action-button button-green">
+                                    <i class="fas fa-box-open"></i>
+                                    Mark Ready & Release Rider
+                                </button>
+                            </form>
+
+                            <form method="post" action="{% url 'dashboard:vendor_order_robot_task_action' task.id 'reject' %}" class="order-action-form">
+                                {% csrf_token %}
+                                <input name="note" placeholder="Reason required: stock issue, damaged item..." class="order-action-input" required>
+
+                                <button type="submit" class="order-action-button button-red">
+                                    <i class="fas fa-triangle-exclamation"></i>
+                                    Escalate Issue
+                                </button>
+                            </form>
+                            {% else %}
+                            <div class="order-no-action">
+                                <strong>No action needed right now</strong>
+                                This task is already {{ task.get_status_display|lower }}.
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </article>
+            {% empty %}
+            <div class="order-empty-state">
+                <div class="order-empty-icon">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <h2 class="order-empty-title">No robot tasks yet</h2>
+                <p class="order-empty-text">
+                    Paid orders that need your confirmation will appear here automatically.
+                </p>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if tasks.has_other_pages %}
+        <div class="order-pagination">
+            {% if tasks.has_previous %}
+            <a href="?page={{ tasks.previous_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}">
+                Previous
+            </a>
+            {% endif %}
+
+            <span class="current">{{ tasks.number }} / {{ tasks.paginator.num_pages }}</span>
+
+            {% if tasks.has_next %}
+            <a href="?page={{ tasks.next_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}">
+                Next
+            </a>
+            {% endif %}
+        </div>
         {% endif %}
-        <span class="rounded-full bg-blue-600 px-4 py-2 text-sm font-black text-white">{{ tasks.number }} / {{ tasks.paginator.num_pages }}</span>
-        {% if tasks.has_next %}
-        <a href="?page={{ tasks.next_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}" class="rounded-full bg-white px-4 py-2 text-sm font-black text-gray-700 ring-1 ring-gray-200">Next</a>
-        {% endif %}
+
     </div>
-    {% endif %}
 </div>
 {% endblock %}
