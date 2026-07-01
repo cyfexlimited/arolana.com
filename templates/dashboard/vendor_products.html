@@ -13,13 +13,11 @@
         --arolana-navy: #071A44;
         --arolana-blue: #0066CC;
         --arolana-orange: #FF7A00;
-        --arolana-cyan: #38BDF8;
         --arolana-soft: #F4F8FF;
-        --arolana-border: #DCE7F5;
+        --arolana-border: #E3ECF8;
         --arolana-text: #0B1E46;
-        --arolana-muted: #5F708A;
+        --arolana-muted: #65758B;
         --arolana-bg: #F4F7FB;
-        --arolana-white: #FFFFFF;
         --arolana-green: #16A34A;
         --arolana-red: #DC2626;
         --arolana-yellow: #F59E0B;
@@ -30,16 +28,11 @@
         width: 100%;
         min-height: 100%;
         overflow-x: hidden;
-    }
-
-    body {
         background: var(--arolana-bg) !important;
     }
 
     * {
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-        text-rendering: optimizeLegibility;
+        box-sizing: border-box;
     }
 
     body:has(.vendor-products-page) main,
@@ -65,300 +58,246 @@
 
     .vendor-products-page {
         width: 100%;
-        max-width: none !important;
-        margin: 0 !important;
-        padding: 1.1rem 1.3rem 2rem !important;
+        max-width: none;
+        margin: 0;
+        padding: 1rem 1.25rem 2rem;
         color: var(--arolana-text);
     }
 
     .vendor-products-shell {
         width: 100%;
         max-width: 100%;
-        margin: 0;
+        margin: 0 auto;
     }
 
-    .products-topbar {
+    .vendor-products-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 1rem;
-        margin-bottom: .9rem;
+        margin-bottom: 1rem;
     }
 
-    .products-eyebrow {
+    .vendor-products-eyebrow {
         color: var(--arolana-orange);
-        font-size: .64rem;
-        font-weight: 800;
+        font-size: .68rem;
+        font-weight: 950;
         letter-spacing: .18em;
         text-transform: uppercase;
     }
 
-    .products-title {
-        margin: .15rem 0 0;
+    .vendor-products-title {
+        margin: .18rem 0 0;
         color: var(--arolana-navy);
-        font-size: clamp(1.5rem, 2vw, 2.05rem);
+        font-size: clamp(1.7rem, 2.5vw, 2.4rem);
         line-height: 1.02;
-        font-weight: 900;
-        letter-spacing: -.02em;
+        font-weight: 950;
+        letter-spacing: -.03em;
     }
 
-    .products-subtitle {
+    .vendor-products-subtitle {
         margin-top: .35rem;
         color: var(--arolana-muted);
-        font-size: .85rem;
-        font-weight: 600;
+        font-size: .88rem;
+        line-height: 1.45;
+        font-weight: 700;
     }
 
-    .products-action-row {
+    .vendor-products-actions {
         display: flex;
         align-items: center;
-        gap: .55rem;
+        gap: .6rem;
         flex-wrap: wrap;
     }
 
-    .products-btn {
+    .vendor-products-btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
         gap: .45rem;
-        min-height: 2.35rem;
-        padding: .58rem .86rem;
-        border-radius: .85rem;
-        font-size: .74rem;
-        font-weight: 800;
-        text-decoration: none;
-        transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+        min-height: 2.55rem;
+        padding: .7rem 1rem;
+        border-radius: .9rem;
         border: 1px solid transparent;
+        font-size: .78rem;
+        font-weight: 950;
+        text-decoration: none;
         white-space: nowrap;
+        transition: .18s ease;
         cursor: pointer;
     }
 
-    .products-btn:hover {
+    .vendor-products-btn:hover {
         transform: translateY(-1px);
         text-decoration: none;
     }
 
-    .products-btn-primary {
-        background: linear-gradient(135deg, var(--arolana-blue), #0B56A8);
+    .vendor-products-btn-primary {
+        background: linear-gradient(135deg, var(--arolana-blue), #064b99);
         color: #fff;
-        box-shadow: 0 8px 20px rgba(0, 102, 204, .16);
+        box-shadow: 0 12px 26px rgba(0, 102, 204, .18);
     }
 
-    .products-btn-orange {
-        background: linear-gradient(135deg, var(--arolana-orange), #E96900);
-        color: #fff;
-        box-shadow: 0 8px 20px rgba(255, 122, 0, .16);
-    }
-
-    .products-btn-light {
+    .vendor-products-btn-light {
         background: #fff;
         color: var(--arolana-navy);
         border-color: var(--arolana-border);
-        box-shadow: 0 6px 14px rgba(15, 23, 42, .04);
+        box-shadow: 0 8px 22px rgba(15, 23, 42, .05);
     }
 
-    .products-hero {
-        position: relative;
+    .vendor-products-card {
         overflow: hidden;
-        border-radius: 1.2rem;
-        background: linear-gradient(135deg, #04245F, #0B3E7C);
-        box-shadow: 0 16px 34px rgba(7, 26, 68, .10);
-        border: 1px solid rgba(255,255,255,.12);
-        margin-bottom: .85rem;
-    }
-
-    .products-hero::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background:
-            radial-gradient(circle at 15% 18%, rgba(56,189,248,.16), transparent 28%),
-            radial-gradient(circle at 84% 20%, rgba(255,122,0,.14), transparent 26%),
-            linear-gradient(135deg, rgba(7,26,68,.94), rgba(7,26,68,.82));
-    }
-
-    .products-hero-inner {
-        position: relative;
-        z-index: 2;
-        min-height: 150px;
-        display: grid;
-        grid-template-columns: minmax(0, 1.2fr) minmax(260px, .8fr);
-        gap: 1rem;
-        align-items: end;
-        padding: 1rem 1.15rem;
-    }
-
-    .products-hero-title {
-        color: #fff;
-        font-size: clamp(1.7rem, 2.5vw, 2.55rem);
-        line-height: 1.04;
-        font-weight: 900;
-        letter-spacing: -.03em;
-        max-width: 720px;
-    }
-
-    .products-hero-text {
-        margin-top: .5rem;
-        color: rgba(255,255,255,.82);
-        font-size: .82rem;
-        line-height: 1.5;
-        font-weight: 600;
-        max-width: 680px;
-    }
-
-    .products-summary-card {
-        border-radius: 1rem;
-        background: #FFFFFF;
-        padding: .9rem;
-        box-shadow: 0 10px 24px rgba(0,0,0,.10);
-        border: 1px solid rgba(7, 26, 68, .06);
-    }
-
-    .summary-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: .6rem;
-    }
-
-    .summary-item {
-        border-radius: .8rem;
-        background: #F8FBFF;
+        border-radius: 1.15rem;
+        background: #fff;
         border: 1px solid var(--arolana-border);
-        padding: .65rem;
+        box-shadow: 0 14px 34px rgba(15, 23, 42, .06);
     }
 
-    .summary-label {
-        color: var(--arolana-muted);
-        font-size: .62rem;
-        font-weight: 700;
+    .vendor-products-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .85rem;
+        padding: 1rem;
+        border-bottom: 1px solid var(--arolana-border);
+        background: linear-gradient(180deg, #fff, #F8FBFF);
     }
 
-    .summary-value {
-        margin-top: .12rem;
+    .vendor-products-card-title {
+        margin: 0;
         color: var(--arolana-navy);
         font-size: 1.05rem;
-        font-weight: 900;
-        line-height: 1;
+        font-weight: 950;
+        line-height: 1.15;
     }
 
-    .products-panel {
-        border-radius: 1rem;
-        background: #FFFFFF;
+    .vendor-products-card-subtitle {
+        margin-top: .18rem;
+        color: var(--arolana-muted);
+        font-size: .74rem;
+        font-weight: 750;
+        line-height: 1.35;
+    }
+
+    .vendor-products-toolbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        gap: .75rem;
+        padding: 1rem;
+        border-bottom: 1px solid var(--arolana-border);
+        background: #fff;
+    }
+
+    .vendor-products-search {
+        display: flex;
+        align-items: center;
+        gap: .6rem;
+        min-height: 2.75rem;
         border: 1px solid var(--arolana-border);
-        box-shadow: 0 8px 22px rgba(15,23,42,.045);
-        overflow: hidden;
+        background: #F8FBFF;
+        border-radius: .95rem;
+        padding: 0 .85rem;
         min-width: 0;
     }
 
-    .products-panel-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: .8rem;
-        padding: .78rem .9rem;
-        border-bottom: 1px solid var(--arolana-border);
-        background: #FBFDFF;
-    }
-
-    .products-panel-title {
-        margin: 0;
-        color: var(--arolana-navy);
-        font-size: .95rem;
-        font-weight: 850;
-    }
-
-    .products-panel-subtitle {
-        margin-top: .12rem;
+    .vendor-products-search i {
         color: var(--arolana-muted);
-        font-size: .67rem;
-        font-weight: 600;
+        flex: 0 0 auto;
     }
 
-    .products-filter-bar {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: .75rem;
-        flex-wrap: wrap;
-        padding: .8rem .9rem;
-        border-bottom: 1px solid var(--arolana-border);
-        background: #FFFFFF;
-    }
-
-    .products-search {
-        flex: 1 1 280px;
-        display: flex;
-        align-items: center;
-        gap: .5rem;
-        min-height: 2.45rem;
-        border-radius: .9rem;
-        border: 1px solid var(--arolana-border);
-        background: #F8FBFF;
-        padding: 0 .8rem;
-        color: var(--arolana-muted);
-    }
-
-    .products-search input {
+    .vendor-products-search input {
         width: 100%;
         border: 0;
         outline: 0;
         background: transparent;
         color: var(--arolana-navy);
-        font-size: .78rem;
-        font-weight: 700;
-    }
-
-    .products-search input::placeholder {
-        color: #94A3B8;
-    }
-
-    .products-table-wrap {
-        overflow-x: auto;
-    }
-
-    .products-table {
-        width: 100%;
-        min-width: 980px;
-        border-collapse: collapse;
-    }
-
-    .products-table th {
-        padding: .68rem;
-        text-align: left;
-        color: var(--arolana-muted);
-        font-size: .64rem;
-        font-weight: 850;
-        background: #F8FBFF;
-        border-bottom: 1px solid var(--arolana-border);
-        text-transform: uppercase;
-        letter-spacing: .04em;
-        white-space: nowrap;
-    }
-
-    .products-table td {
-        padding: .7rem;
-        border-bottom: 1px solid var(--arolana-border);
-        color: var(--arolana-navy);
-        font-size: .75rem;
-        font-weight: 650;
-        vertical-align: middle;
-    }
-
-    .products-table tbody tr:hover {
-        background: #F8FBFF;
-    }
-
-    .product-cell {
-        display: flex;
-        align-items: center;
-        gap: .68rem;
+        font-size: .82rem;
+        font-weight: 800;
         min-width: 0;
     }
 
-    .product-thumb {
-        width: 3.25rem;
-        height: 3.25rem;
-        border-radius: .78rem;
+    .vendor-products-search input::placeholder {
+        color: #94A3B8;
+    }
+
+    .vendor-products-chip-row {
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+        flex-wrap: wrap;
+    }
+
+    .vendor-products-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        min-height: 2rem;
+        padding: .4rem .7rem;
+        border-radius: 999px;
+        font-size: .7rem;
+        font-weight: 950;
+        white-space: nowrap;
+    }
+
+    .chip-blue {
+        background: #DBEAFE;
+        color: #1D4ED8;
+    }
+
+    .chip-green {
+        background: #DCFCE7;
+        color: #15803D;
+    }
+
+    .chip-orange {
+        background: #FFEDD5;
+        color: #C2410C;
+    }
+
+    .vendor-products-table-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .vendor-products-table {
+        width: 100%;
+        min-width: 880px;
+        border-collapse: collapse;
+    }
+
+    .vendor-products-table th {
+        padding: .78rem .85rem;
+        text-align: left;
+        color: var(--arolana-muted);
+        font-size: .68rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .03em;
+        background: #F8FBFF;
+        border-bottom: 1px solid var(--arolana-border);
+        white-space: nowrap;
+    }
+
+    .vendor-products-table td {
+        padding: .85rem;
+        border-bottom: 1px solid var(--arolana-border);
+        color: var(--arolana-navy);
+        font-size: .78rem;
+        font-weight: 750;
+        vertical-align: middle;
+    }
+
+    .vendor-product-main {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+        min-width: 0;
+    }
+
+    .vendor-product-image {
+        width: 3.4rem;
+        height: 3.4rem;
+        border-radius: .85rem;
         overflow: hidden;
         background: #fff;
         border: 1px solid var(--arolana-border);
@@ -368,73 +307,76 @@
         justify-content: center;
     }
 
-    .product-thumb img {
+    .vendor-product-image img {
         width: 100%;
         height: 100%;
         object-fit: contain;
-        padding: .18rem;
+        padding: .2rem;
     }
 
-    .product-name {
+    .vendor-product-name {
         color: var(--arolana-navy);
-        font-size: .79rem;
-        font-weight: 850;
+        font-size: .84rem;
+        font-weight: 950;
         line-height: 1.25;
-        max-width: 390px;
+        max-width: 420px;
         overflow: hidden;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
+        word-break: break-word;
     }
 
-    .product-meta {
-        margin-top: .12rem;
+    .vendor-product-meta {
+        margin-top: .16rem;
         color: var(--arolana-muted);
-        font-size: .64rem;
-        font-weight: 600;
+        font-size: .68rem;
+        font-weight: 750;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
     }
 
-    .price-main {
+    .vendor-product-price {
         color: var(--arolana-blue);
-        font-size: .82rem;
-        font-weight: 900;
+        font-size: .9rem;
+        font-weight: 950;
         white-space: nowrap;
     }
 
-    .price-compare {
+    .vendor-product-compare {
         display: block;
         margin-top: .12rem;
         color: #94A3B8;
-        font-size: .63rem;
-        font-weight: 700;
+        font-size: .68rem;
+        font-weight: 800;
         text-decoration: line-through;
+    }
+
+    .vendor-product-stock {
+        font-weight: 950;
         white-space: nowrap;
     }
 
-    .stock-text {
-        font-size: .74rem;
-        font-weight: 850;
-        white-space: nowrap;
-    }
-
-    .stock-green {
+    .stock-good {
         color: var(--arolana-green);
     }
 
-    .stock-red {
+    .stock-bad {
         color: var(--arolana-red);
     }
 
-    .status-pill {
+    .vendor-status-pill {
         display: inline-flex;
         align-items: center;
-        gap: .3rem;
-        min-height: 1.45rem;
-        padding: .24rem .5rem;
+        justify-content: center;
+        gap: .32rem;
+        min-height: 1.55rem;
+        padding: .32rem .6rem;
         border-radius: 999px;
-        font-size: .62rem;
-        font-weight: 850;
+        font-size: .64rem;
+        font-weight: 950;
         white-space: nowrap;
+        line-height: 1.1;
     }
 
     .status-green { background: #DCFCE7; color: #15803D; }
@@ -444,236 +386,371 @@
     .status-blue { background: #DBEAFE; color: #1D4ED8; }
     .status-gray { background: #F1F5F9; color: #475569; }
 
-    .approval-note {
-        margin-top: .28rem;
-        max-width: 240px;
-        color: var(--arolana-red);
-        font-size: .62rem;
-        font-weight: 650;
-        line-height: 1.3;
+    .vendor-approval-note {
+        margin-top: .25rem;
+        max-width: 220px;
+        color: #EA580C;
+        font-size: .66rem;
+        font-weight: 750;
+        line-height: 1.35;
     }
 
-    .approval-note.orange {
-        color: #C2410C;
-    }
-
-    .product-actions {
+    .vendor-product-actions {
         display: flex;
-        align-items: center;
-        gap: .42rem;
-    }
-
-    .icon-btn {
-        width: 2rem;
-        height: 2rem;
-        border-radius: .72rem;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        text-decoration: none;
-        border: 1px solid var(--arolana-border);
-        background: #FFFFFF;
-        color: var(--arolana-blue);
-        transition: transform .16s ease, background .16s ease, color .16s ease;
-    }
-
-    .icon-btn:hover {
-        transform: translateY(-1px);
-        background: #ECF6FF;
-        color: var(--arolana-blue);
-        text-decoration: none;
-    }
-
-    .icon-btn.green {
-        color: var(--arolana-green);
-    }
-
-    .icon-btn.green:hover {
-        background: #F0FDF4;
-        color: var(--arolana-green);
-    }
-
-    .pagination-wrap {
-        display: flex;
-        justify-content: center;
         align-items: center;
         gap: .45rem;
-        padding: 1rem;
-        border-top: 1px solid var(--arolana-border);
-        background: #FBFDFF;
     }
 
-    .page-link {
-        min-width: 2.2rem;
-        min-height: 2.1rem;
-        padding: .45rem .7rem;
-        border-radius: .7rem;
+    .vendor-icon-btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        background: #FFFFFF;
+        width: 2.15rem;
+        height: 2.15rem;
+        border-radius: .75rem;
         border: 1px solid var(--arolana-border);
-        color: var(--arolana-navy);
-        font-size: .72rem;
-        font-weight: 800;
+        background: #F8FBFF;
+        color: var(--arolana-blue);
         text-decoration: none;
+        transition: .18s ease;
     }
 
-    .page-link.active,
-    .page-link:hover {
+    .vendor-icon-btn:hover {
         background: var(--arolana-blue);
         color: #fff;
         text-decoration: none;
     }
 
-    .products-empty {
+    .vendor-icon-btn.green {
+        color: var(--arolana-green);
+    }
+
+    .vendor-icon-btn.green:hover {
+        background: var(--arolana-green);
+        color: #fff;
+    }
+
+    .vendor-products-mobile-list {
+        display: none;
+    }
+
+    .vendor-mobile-product-card {
+        border-bottom: 1px solid var(--arolana-border);
+        padding: .85rem;
+    }
+
+    .vendor-mobile-product-card:last-child {
+        border-bottom: 0;
+    }
+
+    .vendor-mobile-product-top {
+        display: flex;
+        align-items: flex-start;
+        gap: .7rem;
+        min-width: 0;
+    }
+
+    .vendor-mobile-product-content {
+        min-width: 0;
+        flex: 1 1 auto;
+    }
+
+    .vendor-mobile-product-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: .55rem;
+        margin-top: .7rem;
+    }
+
+    .vendor-mobile-info-box {
+        border: 1px solid var(--arolana-border);
+        background: #F8FBFF;
+        border-radius: .85rem;
+        padding: .65rem;
+        min-width: 0;
+    }
+
+    .vendor-mobile-info-label {
+        color: var(--arolana-muted);
+        font-size: .58rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+    }
+
+    .vendor-mobile-info-value {
+        margin-top: .2rem;
+        color: var(--arolana-navy);
+        font-size: .76rem;
+        font-weight: 950;
+        line-height: 1.2;
+        overflow-wrap: anywhere;
+    }
+
+    .vendor-mobile-product-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .65rem;
+        margin-top: .7rem;
+        flex-wrap: wrap;
+    }
+
+    .vendor-mobile-actions {
+        display: flex;
+        align-items: center;
+        gap: .45rem;
+    }
+
+    .vendor-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: .5rem;
+        padding: 1rem;
+        border-top: 1px solid var(--arolana-border);
+        flex-wrap: wrap;
+    }
+
+    .vendor-pagination a,
+    .vendor-pagination span {
+        min-width: 2.25rem;
+        min-height: 2.25rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: .45rem .75rem;
+        border-radius: .75rem;
+        border: 1px solid var(--arolana-border);
+        background: #fff;
+        color: var(--arolana-navy);
+        font-size: .72rem;
+        font-weight: 950;
+        text-decoration: none;
+    }
+
+    .vendor-pagination span.current {
+        background: var(--arolana-blue);
+        color: #fff;
+        border-color: var(--arolana-blue);
+    }
+
+    .vendor-empty-state {
         padding: 3rem 1rem;
         text-align: center;
     }
 
-    .products-empty-icon {
+    .vendor-empty-icon {
         width: 4.5rem;
         height: 4.5rem;
         margin: 0 auto 1rem;
-        border-radius: 1.3rem;
-        background: #ECF6FF;
-        color: var(--arolana-blue);
+        border-radius: 1.2rem;
+        background: #F8FBFF;
+        color: #94A3B8;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 2rem;
-    }
-
-    .products-empty h2 {
-        color: var(--arolana-navy);
-        font-size: 1.25rem;
-        font-weight: 900;
-        margin: 0;
-    }
-
-    .products-empty p {
-        color: var(--arolana-muted);
-        font-size: .84rem;
-        font-weight: 600;
-        margin: .45rem 0 1rem;
-    }
-
-    .mobile-product-grid {
-        display: none;
-    }
-
-    .mobile-product-card {
         border: 1px solid var(--arolana-border);
-        border-radius: 1rem;
-        background: #fff;
-        padding: .8rem;
-        box-shadow: 0 8px 18px rgba(15,23,42,.04);
     }
 
-    .mobile-product-top {
-        display: flex;
-        align-items: flex-start;
-        gap: .75rem;
-    }
-
-    .mobile-product-info {
-        min-width: 0;
-        flex: 1;
-    }
-
-    .mobile-product-name {
+    .vendor-empty-title {
         color: var(--arolana-navy);
-        font-size: .86rem;
-        line-height: 1.25;
-        font-weight: 900;
+        font-size: 1.1rem;
+        font-weight: 950;
+        margin-bottom: .35rem;
     }
 
-    .mobile-product-meta {
-        margin-top: .2rem;
+    .vendor-empty-text {
         color: var(--arolana-muted);
-        font-size: .68rem;
-        font-weight: 650;
-    }
-
-    .mobile-product-bottom {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: .55rem;
-        margin-top: .75rem;
-    }
-
-    .mobile-mini-box {
-        border-radius: .8rem;
-        background: #F8FBFF;
-        border: 1px solid var(--arolana-border);
-        padding: .55rem;
-    }
-
-    .mobile-mini-label {
-        color: var(--arolana-muted);
-        font-size: .61rem;
+        font-size: .82rem;
         font-weight: 750;
-        text-transform: uppercase;
-        letter-spacing: .03em;
-    }
-
-    .mobile-mini-value {
-        margin-top: .12rem;
-        color: var(--arolana-navy);
-        font-size: .74rem;
-        font-weight: 850;
-    }
-
-    @media (max-width: 1280px) {
-        .products-hero-inner {
-            grid-template-columns: 1fr;
-        }
+        margin-bottom: 1rem;
     }
 
     @media (max-width: 768px) {
         .vendor-products-page {
-            padding: .85rem .8rem 1.5rem !important;
+            padding: .7rem .55rem 5rem !important;
         }
 
-        .products-topbar {
+        .vendor-products-header {
+            flex-direction: column;
+            align-items: stretch;
+            gap: .7rem;
+            margin-bottom: .75rem;
+        }
+
+        .vendor-products-title {
+            font-size: 1.45rem;
+        }
+
+        .vendor-products-subtitle {
+            font-size: .74rem;
+            line-height: 1.4;
+        }
+
+        .vendor-products-actions {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr;
+        }
+
+        .vendor-products-btn {
+            width: 100%;
+            min-height: 2.5rem;
+            font-size: .72rem;
+            border-radius: .82rem;
+        }
+
+        .vendor-products-card {
+            border-radius: 1rem;
+        }
+
+        .vendor-products-card-header {
+            padding: .75rem;
+            flex-direction: column;
+            align-items: stretch;
+            gap: .65rem;
+        }
+
+        .vendor-products-card-title {
+            font-size: .98rem;
+        }
+
+        .vendor-products-card-subtitle {
+            font-size: .66rem;
+        }
+
+        .vendor-products-toolbar {
+            grid-template-columns: 1fr;
+            padding: .75rem;
+            gap: .65rem;
+        }
+
+        .vendor-products-search {
+            min-height: 2.55rem;
+            border-radius: .82rem;
+            padding: 0 .72rem;
+        }
+
+        .vendor-products-search input {
+            font-size: .72rem;
+        }
+
+        .vendor-products-chip-row {
+            gap: .42rem;
+        }
+
+        .vendor-products-chip {
+            min-height: 1.72rem;
+            padding: .32rem .55rem;
+            font-size: .58rem;
+        }
+
+        .vendor-products-table-wrap {
+            display: none;
+        }
+
+        .vendor-products-mobile-list {
+            display: block;
+        }
+
+        .vendor-mobile-product-card {
+            padding: .75rem;
+        }
+
+        .vendor-product-image {
+            width: 3.15rem;
+            height: 3.15rem;
+            border-radius: .78rem;
+        }
+
+        .vendor-product-name {
+            font-size: .8rem;
+            -webkit-line-clamp: 2;
+        }
+
+        .vendor-product-meta {
+            font-size: .62rem;
+        }
+
+        .vendor-mobile-product-grid {
+            grid-template-columns: 1fr 1fr;
+            gap: .5rem;
+            margin-top: .65rem;
+        }
+
+        .vendor-mobile-info-box {
+            padding: .58rem;
+            border-radius: .78rem;
+        }
+
+        .vendor-mobile-info-label {
+            font-size: .54rem;
+        }
+
+        .vendor-mobile-info-value {
+            font-size: .7rem;
+        }
+
+        .vendor-status-pill {
+            font-size: .56rem;
+            min-height: 1.4rem;
+            padding: .25rem .5rem;
+        }
+
+        .vendor-mobile-product-footer {
+            margin-top: .65rem;
+        }
+
+        .vendor-icon-btn {
+            width: 2rem;
+            height: 2rem;
+            border-radius: .68rem;
+            font-size: .78rem;
+        }
+
+        .vendor-pagination {
+            padding: .75rem;
+            gap: .4rem;
+        }
+
+        .vendor-pagination a,
+        .vendor-pagination span {
+            min-width: 2rem;
+            min-height: 2rem;
+            font-size: .66rem;
+            border-radius: .68rem;
+        }
+
+        .vendor-empty-state {
+            padding: 2rem .75rem;
+        }
+    }
+
+    @media (max-width: 420px) {
+        .vendor-products-page {
+            padding-left: .45rem !important;
+            padding-right: .45rem !important;
+        }
+
+        .vendor-mobile-product-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .vendor-mobile-product-footer {
             align-items: stretch;
             flex-direction: column;
         }
 
-        .products-action-row {
+        .vendor-mobile-actions {
+            width: 100%;
             display: grid;
             grid-template-columns: 1fr 1fr;
         }
 
-        .products-hero-title {
-            font-size: 1.9rem;
-        }
-
-        .products-table-wrap {
-            display: none;
-        }
-
-        .mobile-product-grid {
-            display: grid;
-            gap: .85rem;
-            padding: .85rem;
-        }
-
-        .products-filter-bar {
-            align-items: stretch;
-            flex-direction: column;
-        }
-
-        .summary-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-    }
-
-    @media (max-width: 430px) {
-        .products-action-row,
-        .summary-grid,
-        .mobile-product-bottom {
-            grid-template-columns: 1fr;
+        .vendor-icon-btn {
+            width: 100%;
         }
     }
 </style>
@@ -683,108 +760,63 @@
 <div class="vendor-products-page">
     <div class="vendor-products-shell">
 
-        <div class="products-topbar">
+        <div class="vendor-products-header">
             <div>
-                <div class="products-eyebrow">Arolana Vendor OS</div>
-                <h1 class="products-title">Product Command Center</h1>
-                <p class="products-subtitle">
-                    Manage listings, prices, stock, approval status, and product quality from one clean dashboard.
+                <div class="vendor-products-eyebrow">Arolana Vendor OS</div>
+                <h1 class="vendor-products-title">My Products</h1>
+                <p class="vendor-products-subtitle">
+                    View, manage, edit, and track products uploaded under your vendor account.
                 </p>
             </div>
 
-            <div class="products-action-row">
-                <a href="/dashboard/vendor/" class="products-btn products-btn-light">
-                    <i class="fas fa-gauge-high"></i>
-                    Dashboard
-                </a>
-                <a href="{% url 'dashboard:vendor_add_product' %}" class="products-btn products-btn-primary">
-                    <i class="fas fa-plus"></i>
-                    Add Product
-                </a>
-                <a href="{% url 'dashboard:vendor_orders' %}" class="products-btn products-btn-orange">
-                    <i class="fas fa-bolt"></i>
-                    Orders
-                </a>
-            </div>
-        </div>
-
-        <section class="products-hero">
-            <div class="products-hero-inner">
-                <div>
-                    <div class="products-eyebrow" style="color:#9DEBFF;">Marketplace Inventory</div>
-                    <h2 class="products-hero-title">Keep your products sharp, approved, and ready to sell.</h2>
-                    <p class="products-hero-text">
-                        Arolana product ranking depends on clean images, strong titles, complete specifications,
-                        fair pricing, stock accuracy, and approval quality. Keep every listing marketplace-ready.
-                    </p>
-                </div>
-
-                <div class="products-summary-card">
-                    <div class="summary-grid">
-                        <div class="summary-item">
-                            <div class="summary-label">Total Products</div>
-                            <div class="summary-value">{{ products.paginator.count|default:products|length|default:0 }}</div>
-                        </div>
-
-                        <div class="summary-item">
-                            <div class="summary-label">Current Page</div>
-                            <div class="summary-value">{{ products.number|default:"1" }}</div>
-                        </div>
-
-                        <div class="summary-item">
-                            <div class="summary-label">Active Listings</div>
-                            <div class="summary-value">Live</div>
-                        </div>
-
-                        <div class="summary-item">
-                            <div class="summary-label">Review System</div>
-                            <div class="summary-value">On</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section class="products-panel">
-            <div class="products-panel-header">
-                <div>
-                    <h2 class="products-panel-title">My Products</h2>
-                    <p class="products-panel-subtitle">
-                        View and manage all products uploaded under your vendor account.
-                    </p>
-                </div>
-
-                <a href="{% url 'dashboard:vendor_add_product' %}" class="products-btn products-btn-primary">
+            <div class="vendor-products-actions">
+                <a href="{% url 'dashboard:vendor_add_product' %}" class="vendor-products-btn vendor-products-btn-primary">
                     <i class="fas fa-plus"></i>
                     Add New Product
                 </a>
             </div>
+        </div>
 
-            <div class="products-filter-bar">
-                <div class="products-search">
-                    <i class="fas fa-search"></i>
-                    <input type="search" id="productSearchInput" placeholder="Search products on this page...">
+        <div class="vendor-products-card">
+            <div class="vendor-products-card-header">
+                <div>
+                    <h2 class="vendor-products-card-title">Product Inventory</h2>
+                    <p class="vendor-products-card-subtitle">
+                        Manage prices, stock, approvals, and image quality from one place.
+                    </p>
                 </div>
 
-                <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
-                    <span class="status-pill status-blue">
+                <a href="{% url 'dashboard:vendor_add_product' %}" class="vendor-products-btn vendor-products-btn-light">
+                    <i class="fas fa-upload"></i>
+                    Upload Product
+                </a>
+            </div>
+
+            <div class="vendor-products-toolbar">
+                <div class="vendor-products-search">
+                    <i class="fas fa-search"></i>
+                    <input type="search" id="vendorProductSearch" placeholder="Search products on this page..." autocomplete="off">
+                </div>
+
+                <div class="vendor-products-chip-row">
+                    <span class="vendor-products-chip chip-blue">
                         <i class="fas fa-box"></i>
                         Inventory
                     </span>
-                    <span class="status-pill status-green">
+                    <span class="vendor-products-chip chip-green">
                         <i class="fas fa-check-circle"></i>
-                        Approval Tracking
+                        Approval
                     </span>
-                    <span class="status-pill status-orange">
+                    <span class="vendor-products-chip chip-orange">
                         <i class="fas fa-camera"></i>
-                        Image Quality
+                        Images
                     </span>
                 </div>
             </div>
 
             {% if products %}
-            <div class="products-table-wrap">
-                <table class="products-table" id="productsTable">
+            <div class="vendor-products-table-wrap">
+                <table class="vendor-products-table" id="vendorProductsTable">
                     <thead>
                         <tr>
                             <th>Product</th>
@@ -798,106 +830,89 @@
 
                     <tbody>
                         {% for product in products %}
-                        <tr data-product-row data-product-name="{{ product.name|lower }}">
+                        <tr class="vendor-product-row" data-product-search="{{ product.name|lower }} {{ product.category.name|default:''|lower }} {{ product.manufacturer_sku|default:''|lower }}">
                             <td>
-                                <div class="product-cell">
-                                    <div class="product-thumb">
+                                <div class="vendor-product-main">
+                                    <div class="vendor-product-image">
                                         {% if product.main_image %}
-                                            <img
-                                                src="{{ product.main_image|optimized_image_url:'product_card' }}"
-                                                alt="{{ product.name }}"
-                                                loading="lazy"
-                                                decoding="async"
-                                                width="72"
-                                                height="72"
-                                            >
+                                            {% with product_img=product.main_image|optimized_image_url:'product_thumb' %}
+                                                <img
+                                                    src="{{ product_img }}"
+                                                    data-original-src="{{ product.main_image.url }}"
+                                                    alt="{{ product.name }}"
+                                                    loading="lazy"
+                                                    decoding="async"
+                                                    width="56"
+                                                    height="56"
+                                                    onerror="this.onerror=null; this.src=this.dataset.originalSrc;"
+                                                >
+                                            {% endwith %}
                                         {% else %}
                                             <i class="fas fa-image" style="color:#94A3B8;"></i>
                                         {% endif %}
                                     </div>
 
                                     <div style="min-width:0;">
-                                        <div class="product-name">{{ product.name }}</div>
-                                        <div class="product-meta">{{ product.category.name|default:"No Category" }}</div>
+                                        <div class="vendor-product-name">{{ product.name }}</div>
+                                        <div class="vendor-product-meta">{{ product.category.name|default:"No Category" }}</div>
                                         {% if product.manufacturer_sku %}
-                                            <div class="product-meta">Manufacturer SKU: {{ product.manufacturer_sku }}</div>
+                                            <div class="vendor-product-meta">SKU: {{ product.manufacturer_sku }}</div>
                                         {% endif %}
                                     </div>
                                 </div>
                             </td>
 
                             <td>
-                                <span class="price-main">₦{{ product.price|floatformat:2|intcomma }}</span>
+                                <span class="vendor-product-price">₦{{ product.price|floatformat:2|intcomma }}</span>
                                 {% if product.compare_price %}
-                                    <span class="price-compare">₦{{ product.compare_price|floatformat:2|intcomma }}</span>
+                                    <span class="vendor-product-compare">₦{{ product.compare_price|floatformat:2|intcomma }}</span>
                                 {% endif %}
                             </td>
 
                             <td>
-                                <span class="stock-text {% if product.stock_quantity > 0 %}stock-green{% else %}stock-red{% endif %}">
+                                <span class="vendor-product-stock {% if product.stock_quantity > 0 %}stock-good{% else %}stock-bad{% endif %}">
                                     {{ product.stock_quantity|default:0 }} units
                                 </span>
                             </td>
 
                             <td>
                                 {% if product.is_active and product.approval_status == 'approved' %}
-                                    <span class="status-pill status-green">
-                                        <i class="fas fa-check-circle"></i>
-                                        Active
-                                    </span>
+                                    <span class="vendor-status-pill status-green">Active</span>
                                 {% else %}
-                                    <span class="status-pill status-red">
-                                        <i class="fas fa-circle-xmark"></i>
-                                        Inactive
-                                    </span>
+                                    <span class="vendor-status-pill status-red">Inactive</span>
                                 {% endif %}
                             </td>
 
                             <td>
                                 {% if product.approval_status == 'approved' %}
-                                    <span class="status-pill status-green">
-                                        <i class="fas fa-check-circle"></i>
-                                        Approved
-                                    </span>
+                                    <span class="vendor-status-pill status-green">Approved</span>
                                 {% elif product.approval_status == 'pending' %}
-                                    <span class="status-pill status-yellow">
-                                        <i class="fas fa-clock"></i>
-                                        Pending Review
-                                    </span>
+                                    <span class="vendor-status-pill status-yellow">Pending Review</span>
                                 {% elif product.approval_status == 'rejected' %}
-                                    <span class="status-pill status-red">
-                                        <i class="fas fa-circle-xmark"></i>
-                                        Rejected
-                                    </span>
+                                    <span class="vendor-status-pill status-red">Rejected</span>
                                     {% if product.approval_notes %}
-                                        <div class="approval-note">{{ product.approval_notes|truncatechars:70 }}</div>
+                                        <div class="vendor-approval-note">{{ product.approval_notes|truncatechars:60 }}</div>
                                     {% endif %}
                                 {% elif product.approval_status == 'requires_changes' %}
-                                    <span class="status-pill status-orange">
-                                        <i class="fas fa-pen-to-square"></i>
-                                        Changes Required
-                                    </span>
+                                    <span class="vendor-status-pill status-orange">Changes Required</span>
                                     {% if product.approval_notes %}
-                                        <div class="approval-note orange">{{ product.approval_notes|truncatechars:70 }}</div>
+                                        <div class="vendor-approval-note">{{ product.approval_notes|truncatechars:60 }}</div>
                                     {% endif %}
                                 {% else %}
-                                    <span class="status-pill status-gray">
-                                        <i class="fas fa-file"></i>
-                                        Draft
-                                    </span>
+                                    <span class="vendor-status-pill status-gray">Draft</span>
                                 {% endif %}
                             </td>
 
                             <td>
-                                <div class="product-actions">
-                                    <a href="{% url 'dashboard:vendor_product_detail' product.id %}" class="icon-btn" title="Edit Product">
+                                <div class="vendor-product-actions">
+                                    <a href="{% url 'dashboard:vendor_product_detail' product.id %}" class="vendor-icon-btn" title="Edit Product">
                                         <i class="fas fa-edit"></i>
                                     </a>
 
-                                    {% if product.approval_status == 'rejected' or product.approval_status == 'requires_changes' %}
+                                    {% if product.approval_status in 'rejected,requires_changes' %}
                                     <a
                                         href="{% url 'dashboard:vendor_resubmit_product' product.id %}"
-                                        class="icon-btn green"
+                                        class="vendor-icon-btn green"
                                         title="Resubmit for Approval"
                                         onclick="return confirm('Resubmit this product for admin approval?')"
                                     >
@@ -912,152 +927,161 @@
                 </table>
             </div>
 
-            <div class="mobile-product-grid" id="mobileProductsGrid">
+            <div class="vendor-products-mobile-list" id="vendorProductsMobileList">
                 {% for product in products %}
-                <article class="mobile-product-card" data-product-row data-product-name="{{ product.name|lower }}">
-                    <div class="mobile-product-top">
-                        <div class="product-thumb">
+                <article class="vendor-mobile-product-card vendor-product-row" data-product-search="{{ product.name|lower }} {{ product.category.name|default:''|lower }} {{ product.manufacturer_sku|default:''|lower }}">
+                    <div class="vendor-mobile-product-top">
+                        <div class="vendor-product-image">
                             {% if product.main_image %}
-                                <img
-                                    src="{{ product.main_image|optimized_image_url:'product_card' }}"
-                                    alt="{{ product.name }}"
-                                    loading="lazy"
-                                    decoding="async"
-                                    width="72"
-                                    height="72"
-                                >
+                                {% with product_img=product.main_image|optimized_image_url:'product_thumb' %}
+                                    <img
+                                        src="{{ product_img }}"
+                                        data-original-src="{{ product.main_image.url }}"
+                                        alt="{{ product.name }}"
+                                        loading="lazy"
+                                        decoding="async"
+                                        width="56"
+                                        height="56"
+                                        onerror="this.onerror=null; this.src=this.dataset.originalSrc;"
+                                    >
+                                {% endwith %}
                             {% else %}
                                 <i class="fas fa-image" style="color:#94A3B8;"></i>
                             {% endif %}
                         </div>
 
-                        <div class="mobile-product-info">
-                            <div class="mobile-product-name">{{ product.name }}</div>
-                            <div class="mobile-product-meta">{{ product.category.name|default:"No Category" }}</div>
+                        <div class="vendor-mobile-product-content">
+                            <div class="vendor-product-name">{{ product.name }}</div>
+                            <div class="vendor-product-meta">{{ product.category.name|default:"No Category" }}</div>
                             {% if product.manufacturer_sku %}
-                                <div class="mobile-product-meta">SKU: {{ product.manufacturer_sku }}</div>
+                                <div class="vendor-product-meta">SKU: {{ product.manufacturer_sku }}</div>
                             {% endif %}
                         </div>
                     </div>
 
-                    <div class="mobile-product-bottom">
-                        <div class="mobile-mini-box">
-                            <div class="mobile-mini-label">Price</div>
-                            <div class="mobile-mini-value">₦{{ product.price|floatformat:2|intcomma }}</div>
+                    <div class="vendor-mobile-product-grid">
+                        <div class="vendor-mobile-info-box">
+                            <div class="vendor-mobile-info-label">Price</div>
+                            <div class="vendor-mobile-info-value">₦{{ product.price|floatformat:2|intcomma }}</div>
+                            {% if product.compare_price %}
+                                <div class="vendor-product-compare">₦{{ product.compare_price|floatformat:2|intcomma }}</div>
+                            {% endif %}
                         </div>
 
-                        <div class="mobile-mini-box">
-                            <div class="mobile-mini-label">Stock</div>
-                            <div class="mobile-mini-value {% if product.stock_quantity > 0 %}stock-green{% else %}stock-red{% endif %}">
+                        <div class="vendor-mobile-info-box">
+                            <div class="vendor-mobile-info-label">Stock</div>
+                            <div class="vendor-mobile-info-value {% if product.stock_quantity > 0 %}stock-good{% else %}stock-bad{% endif %}">
                                 {{ product.stock_quantity|default:0 }} units
                             </div>
                         </div>
 
-                        <div class="mobile-mini-box">
-                            <div class="mobile-mini-label">Status</div>
-                            <div class="mobile-mini-value">
+                        <div class="vendor-mobile-info-box">
+                            <div class="vendor-mobile-info-label">Status</div>
+                            <div class="vendor-mobile-info-value">
                                 {% if product.is_active and product.approval_status == 'approved' %}
-                                    <span class="status-pill status-green">Active</span>
+                                    <span class="vendor-status-pill status-green">Active</span>
                                 {% else %}
-                                    <span class="status-pill status-red">Inactive</span>
+                                    <span class="vendor-status-pill status-red">Inactive</span>
                                 {% endif %}
                             </div>
                         </div>
 
-                        <div class="mobile-mini-box">
-                            <div class="mobile-mini-label">Approval</div>
-                            <div class="mobile-mini-value">
+                        <div class="vendor-mobile-info-box">
+                            <div class="vendor-mobile-info-label">Approval</div>
+                            <div class="vendor-mobile-info-value">
                                 {% if product.approval_status == 'approved' %}
-                                    <span class="status-pill status-green">Approved</span>
+                                    <span class="vendor-status-pill status-green">Approved</span>
                                 {% elif product.approval_status == 'pending' %}
-                                    <span class="status-pill status-yellow">Pending</span>
+                                    <span class="vendor-status-pill status-yellow">Pending</span>
                                 {% elif product.approval_status == 'rejected' %}
-                                    <span class="status-pill status-red">Rejected</span>
+                                    <span class="vendor-status-pill status-red">Rejected</span>
                                 {% elif product.approval_status == 'requires_changes' %}
-                                    <span class="status-pill status-orange">Changes</span>
+                                    <span class="vendor-status-pill status-orange">Changes</span>
                                 {% else %}
-                                    <span class="status-pill status-gray">Draft</span>
+                                    <span class="vendor-status-pill status-gray">Draft</span>
                                 {% endif %}
                             </div>
                         </div>
                     </div>
 
-                    <div class="product-actions" style="margin-top:.75rem;">
-                        <a href="{% url 'dashboard:vendor_product_detail' product.id %}" class="products-btn products-btn-light">
-                            <i class="fas fa-edit"></i>
-                            Edit Product
-                        </a>
+                    {% if product.approval_notes %}
+                    <div class="vendor-approval-note" style="max-width:none;margin-top:.6rem;">
+                        {{ product.approval_notes|truncatechars:90 }}
+                    </div>
+                    {% endif %}
 
-                        {% if product.approval_status == 'rejected' or product.approval_status == 'requires_changes' %}
-                        <a
-                            href="{% url 'dashboard:vendor_resubmit_product' product.id %}"
-                            class="products-btn products-btn-primary"
-                            onclick="return confirm('Resubmit this product for admin approval?')"
-                        >
-                            <i class="fas fa-paper-plane"></i>
-                            Resubmit
-                        </a>
-                        {% endif %}
+                    <div class="vendor-mobile-product-footer">
+                        <div class="vendor-product-meta">
+                            Last updated listing controls
+                        </div>
+
+                        <div class="vendor-mobile-actions">
+                            <a href="{% url 'dashboard:vendor_product_detail' product.id %}" class="vendor-icon-btn" title="Edit Product">
+                                <i class="fas fa-edit"></i>
+                            </a>
+
+                            {% if product.approval_status in 'rejected,requires_changes' %}
+                            <a
+                                href="{% url 'dashboard:vendor_resubmit_product' product.id %}"
+                                class="vendor-icon-btn green"
+                                title="Resubmit for Approval"
+                                onclick="return confirm('Resubmit this product for admin approval?')"
+                            >
+                                <i class="fas fa-paper-plane"></i>
+                            </a>
+                            {% endif %}
+                        </div>
                     </div>
                 </article>
                 {% endfor %}
             </div>
 
             {% if products.has_other_pages %}
-            <div class="pagination-wrap">
+            <div class="vendor-pagination">
                 {% if products.has_previous %}
-                    <a href="?page={{ products.previous_page_number }}" class="page-link">
-                        <i class="fas fa-chevron-left"></i>
-                        Previous
-                    </a>
+                    <a href="?page={{ products.previous_page_number }}">Previous</a>
                 {% endif %}
 
-                <span class="page-link active">{{ products.number }}</span>
+                <span class="current">{{ products.number }}</span>
 
                 {% if products.has_next %}
-                    <a href="?page={{ products.next_page_number }}" class="page-link">
-                        Next
-                        <i class="fas fa-chevron-right"></i>
-                    </a>
+                    <a href="?page={{ products.next_page_number }}">Next</a>
                 {% endif %}
             </div>
             {% endif %}
 
             {% else %}
-            <div class="products-empty">
-                <div class="products-empty-icon">
+            <div class="vendor-empty-state">
+                <div class="vendor-empty-icon">
                     <i class="fas fa-box-open"></i>
                 </div>
-
-                <h2>No products yet</h2>
-                <p>You have not added any products. Start with one clean product listing and build from there.</p>
-
-                <a href="{% url 'dashboard:vendor_add_product' %}" class="products-btn products-btn-primary">
+                <div class="vendor-empty-title">No products yet</div>
+                <p class="vendor-empty-text">You have not added any products to your Arolana vendor account.</p>
+                <a href="{% url 'dashboard:vendor_add_product' %}" class="vendor-products-btn vendor-products-btn-primary">
                     <i class="fas fa-plus"></i>
                     Add Your First Product
                 </a>
             </div>
             {% endif %}
-        </section>
-
+        </div>
     </div>
 </div>
 
 <script>
 (function () {
-    const input = document.getElementById('productSearchInput');
-    const rows = document.querySelectorAll('[data-product-row]');
+    const searchInput = document.getElementById('vendorProductSearch');
+    const productRows = document.querySelectorAll('.vendor-product-row');
 
-    if (!input || !rows.length) {
+    if (!searchInput || !productRows.length) {
         return;
     }
 
-    input.addEventListener('input', function () {
-        const query = input.value.trim().toLowerCase();
+    searchInput.addEventListener('input', function () {
+        const query = this.value.trim().toLowerCase();
 
-        rows.forEach(function (row) {
-            const name = row.getAttribute('data-product-name') || '';
-            row.style.display = name.includes(query) ? '' : 'none';
+        productRows.forEach(function (row) {
+            const text = row.getAttribute('data-product-search') || '';
+            row.style.display = text.includes(query) ? '' : 'none';
         });
     });
 })();
