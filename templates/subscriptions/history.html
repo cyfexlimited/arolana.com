@@ -1,5 +1,5 @@
 {% extends 'base/base.html' %}
-{% load static humanize %}
+{% load static %}
 
 {% block title %}Subscription Payment History | Arolana{% endblock %}
 
@@ -117,12 +117,6 @@
         background: rgba(255,255,255,.14);
         color: #fff;
         border-color: rgba(255,255,255,.25);
-    }
-
-    .history-btn-blue {
-        background: linear-gradient(135deg, var(--arolana-blue), #064B99);
-        color: #fff;
-        box-shadow: 0 12px 26px rgba(0,102,204,.18);
     }
 
     .history-top-grid {
@@ -703,9 +697,10 @@
                     <i class="fas fa-crown"></i>
                     View Plans
                 </a>
-                <a href="{% url 'dashboard:vendor_dashboard' %}" class="history-btn history-btn-light">
-                    <i class="fas fa-store"></i>
-                    Vendor Dashboard
+
+                <a href="{% url 'subscriptions:plans' %}" class="history-btn history-btn-light">
+                    <i class="fas fa-arrow-left"></i>
+                    Back to Plans
                 </a>
             </div>
         </div>
@@ -727,7 +722,9 @@
                     <div class="current-plan-grid">
                         <div class="current-plan-box">
                             <span class="current-plan-label">Status</span>
-                            <span class="current-plan-value green">Active</span>
+                            <span class="current-plan-value green">
+                                {% if current_subscription.is_active %}Active{% else %}Ended{% endif %}
+                            </span>
                         </div>
 
                         <div class="current-plan-box">
@@ -755,6 +752,7 @@
             <p class="upgrade-text">
                 Choose a higher plan to unlock more products, images, RFQ, analytics, ads, visibility, and vendor growth features.
             </p>
+
             <a href="{% url 'subscriptions:plans' %}" class="history-btn history-btn-orange" style="margin-top:1rem;">
                 <i class="fas fa-arrow-up-right-dots"></i>
                 View Plans
@@ -804,7 +802,7 @@
                                 </td>
 
                                 <td>
-                                    <div class="invoice-amount">{{ invoice.currency }} {{ invoice.amount|floatformat:2|intcomma }}</div>
+                                    <div class="invoice-amount">{{ invoice.currency }} {{ invoice.amount|floatformat:2 }}</div>
                                 </td>
 
                                 <td>
@@ -859,7 +857,7 @@
                         <div class="mobile-invoice-grid">
                             <div class="mobile-invoice-box">
                                 <div class="mobile-invoice-label">Amount</div>
-                                <div class="mobile-invoice-value">{{ invoice.currency }} {{ invoice.amount|floatformat:2|intcomma }}</div>
+                                <div class="mobile-invoice-value">{{ invoice.currency }} {{ invoice.amount|floatformat:2 }}</div>
                             </div>
 
                             <div class="mobile-invoice-box">
@@ -897,7 +895,9 @@
                     <div class="history-empty-icon">
                         <i class="fas fa-receipt"></i>
                     </div>
+
                     <div class="history-empty-title">No subscription payments yet</div>
+
                     <p class="history-empty-text">
                         When you activate Free Vendor or pay for a plan on web or staff mobile, the invoice will appear here.
                     </p>
