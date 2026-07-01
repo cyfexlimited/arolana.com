@@ -1514,6 +1514,7 @@
         <nav class="vendor-command-nav">
             <a href="#overview" class="active">Overview</a>
             <a href="#orders">Orders</a>
+            <a href="#quotes">Quotes</a>
             <a href="#products">Products</a>
             <a href="#store-setup">Store Setup</a>
             <a href="#subscription">Subscription</a>
@@ -1717,7 +1718,59 @@
                             {% endif %}
                         </div>
                     </section>
-                </main>
+                
+                    <section id="quotes" class="vendor-panel" style="margin-bottom:.9rem;">
+                        <div class="vendor-panel-header">
+                            <div>
+                                <h2 class="vendor-panel-title">Quote Requests</h2>
+                                <p class="vendor-panel-subtitle">Customer quote enquiries sent through your vendor store.</p>
+                            </div>
+                            <a href="{% url 'dashboard:vendor_quote_requests' %}" class="vendor-btn vendor-btn-light">View All</a>
+                        </div>
+
+                        <div class="vendor-panel-body">
+                            <div class="vendor-list">
+                                {% for quote in recent_quote_requests|slice:":5" %}
+                                <div class="vendor-list-item">
+                                    <div style="min-width:0;flex:1 1 auto;">
+                                        <div class="vendor-list-title">
+                                            {{ quote.subject|default:"Quote request" }}
+                                        </div>
+                                        <div class="vendor-list-meta">
+                                            {{ quote.name }} · {{ quote.created_at|timesince }} ago
+                                        </div>
+                                        <div class="vendor-list-meta">
+                                            {{ quote.message|truncatewords:16 }}
+                                        </div>
+                                        {% if quote.phone or quote.email %}
+                                        <div class="vendor-list-meta">
+                                            {% if quote.phone %}{{ quote.phone }}{% endif %}
+                                            {% if quote.phone and quote.email %} · {% endif %}
+                                            {% if quote.email %}{{ quote.email }}{% endif %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+
+                                    <span class="vendor-status-pill
+                                        {% if quote.status == 'new' %}status-yellow
+                                        {% elif quote.status == 'admin_review' %}status-orange
+                                        {% elif quote.status == 'sent_to_vendor' %}status-blue
+                                        {% elif quote.status == 'vendor_replied' %}status-green
+                                        {% elif quote.status == 'closed' %}status-gray
+                                        {% elif quote.status == 'spam' %}status-red
+                                        {% else %}status-gray{% endif %}">
+                                        {{ quote.get_status_display }}
+                                    </span>
+                                </div>
+                                {% empty %}
+                                <div class="vendor-empty">
+                                    No quote requests yet.
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </section>
+</main>
 
                 <aside>
                     <section class="vendor-panel" style="margin-bottom:.9rem;">
@@ -1751,6 +1804,14 @@
                                     <div>
                                         <strong>Order Robot</strong>
                                         <span>{{ robot_pending_count|default:0 }} pending</span>
+                                    </div>
+                                </a>
+
+                                <a href="{% url 'dashboard:vendor_quote_requests' %}" class="vendor-quick-card">
+                                    <i class="fas fa-file-signature"></i>
+                                    <div>
+                                        <strong>Quote Requests</strong>
+                                        <span>{{ quote_request_count|default:0 }} active requests</span>
                                     </div>
                                 </a>
 

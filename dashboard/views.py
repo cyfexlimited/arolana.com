@@ -17,7 +17,7 @@ from decimal import Decimal, InvalidOperation
 import json
 import random
 import string
-
+from core.models import VendorQuoteRequest
 from products.models import Product, Category, ProductReview, Wishlist, RecentlyViewed, ProductVariant, ProductVariantImage, ProductQuestion, Accessory, AccessoryProduct, ProductImage, ProductVideo, Brand
 from vendors.models import VendorProfile
 from accounts.models import User
@@ -313,13 +313,13 @@ def admin_dashboard_index(request):
 
 @login_required
 def vendor_dashboard(request):
-    """Advanced vendor dashboard with product management"""
-    
+    """Advanced vendor dashboard with product management, quote requests, orders, analytics, store settings, and trust controls."""
+
     if not hasattr(request.user, 'vendor_profile') and request.user.user_type != 'vendor':
         return render(request, 'dashboard/access_denied.html', {
             'message': 'You are not registered as a vendor. Please become a vendor first.'
         })
-    
+
     try:
         vendor_profile = request.user.vendor_profile
     except VendorProfile.DoesNotExist:
@@ -329,6 +329,7 @@ def vendor_dashboard(request):
 
     if request.method == 'POST':
         action = request.POST.get('dashboard_action')
+
         if action == 'profile_settings':
             editable = [
                 'store_name', 'company_name', 'vendor_type', 'country', 'address_line_1', 'city', 'state', 'description',
@@ -339,36 +340,49 @@ def vendor_dashboard(request):
                 'featured_categories', 'featured_products_note', 'business_hours',
                 'return_policy', 'warranty_note', 'delivery_note', 'business_phone', 'whatsapp_number',
             ]
+
             for field in editable:
                 if field in request.POST:
                     value = request.POST.get(field, '').strip()
+
                     if field == 'vendor_type' and value not in dict(VendorProfile.VENDOR_TYPE_CHOICES):
                         continue
+
                     if field == 'preferred_language' and value not in ['english', 'french', 'arabic', 'chinese', 'spanish']:
                         continue
+
                     if field == 'preferred_currency':
                         value = value.upper()
                         if value not in ['NGN', 'USD', 'GBP', 'EUR', 'CNY', 'CAD']:
                             continue
+
                     if field == 'storefront_accent_color':
                         if not (value.startswith('#') and len(value) in (4, 7)):
                             value = vendor_profile.storefront_accent
+
                     setattr(vendor_profile, field, value)
+
             if request.FILES.get('store_logo'):
                 vendor_profile.store_logo = request.FILES['store_logo']
+
             if request.FILES.get('store_banner'):
                 vendor_profile.store_banner = request.FILES['store_banner']
+
             vendor_profile.save()
             messages.success(request, 'Vendor profile and preferences updated.')
             return redirect('dashboard:vendor_home')
+
         if action == 'change_password':
             current = request.POST.get('current_password', '')
             new_password = request.POST.get('new_password', '')
             confirm_password = request.POST.get('confirm_password', '')
+
             if not request.user.check_password(current):
                 messages.error(request, 'Current password is incorrect.')
+
             elif not new_password or new_password != confirm_password:
                 messages.error(request, 'New password and confirmation do not match.')
+
             else:
                 try:
                     validate_password(new_password, request.user)
@@ -378,7 +392,9 @@ def vendor_dashboard(request):
                     request.user.set_password(new_password)
                     request.user.save(update_fields=['password'])
                     update_session_auth_hash(request, request.user)
+
                     email_sent = send_vendor_password_changed_email(request.user)
+
                     Notification.send(
                         user=request.user,
                         notification_type='security',
@@ -388,6 +404,7 @@ def vendor_dashboard(request):
                         metadata={'event': 'vendor_password_changed'},
                         priority=3,
                     )
+
                     if email_sent:
                         messages.success(
                             request,
@@ -398,44 +415,71 @@ def vendor_dashboard(request):
                             request,
                             'Password/PIN changed successfully. Your security notification was saved, but the email provider could not confirm delivery.',
                         )
+
                     return redirect('dashboard:vendor_home')
-    
-    all_products = Product.objects.filter(vendor=request.user).select_related('category', 'brand').prefetch_related('variants', 'images')
+
+    all_products = (
+        Product.objects
+        .filter(vendor=request.user)
+        .select_related('category', 'brand')
+        .prefetch_related('variants', 'images')
+    )
+
     products = all_products.filter(is_active=True, approval_status='approved')
-    vendor_order_filter = Q(items__product__vendor=request.user) | Q(items__variant__product__vendor=request.user)
-    vendor_item_filter = Q(product__vendor=request.user) | Q(variant__product__vendor=request.user)
+
+    vendor_order_filter = (
+        Q(items__product__vendor=request.user)
+        | Q(items__variant__product__vendor=request.user)
+    )
+
+    vendor_item_filter = (
+        Q(product__vendor=request.user)
+        | Q(variant__product__vendor=request.user)
+    )
+
     order_items = OrderItem.objects.filter(vendor_item_filter)
-    orders = Order.objects.filter(vendor_order_filter).distinct().order_by('-created_at')
-    
+
+    orders = (
+        Order.objects
+        .filter(vendor_order_filter)
+        .distinct()
+        .order_by('-created_at')
+    )
+
     total_orders = orders.count()
-    total_sales = order_items.filter(order__status='delivered').aggregate(total=Sum('subtotal'))['total'] or 0
-    
+
+    total_sales = (
+        order_items
+        .filter(order__status='delivered')
+        .aggregate(total=Sum('subtotal'))['total']
+        or 0
+    )
+
     reviews = ProductReview.objects.filter(product__vendor=request.user, is_active=True)
     avg_rating = reviews.aggregate(avg=Avg('rating'))['avg'] or 0
     low_stock = products.filter(stock_quantity__lte=5)
-    
-    top_products = products.annotate(
-        total_sold=Sum('orderitem__quantity')
-    ).order_by('-total_sold')[:5]
-    
+
+    top_products = (
+        products
+        .annotate(total_sold=Sum('orderitem__quantity'))
+        .order_by('-total_sold')[:5]
+    )
+
     categories = vendor_selectable_categories()
     brands = Brand.objects.filter(is_active=True)
     recent_orders = orders[:10]
     recent_reviews = reviews.order_by('-created_at')[:5]
-    
-    # ========== APPROVAL COUNTS ==========
+
     pending_count = all_products.filter(approval_status='pending').count()
     approved_count = all_products.filter(approval_status='approved').count()
     rejected_count = all_products.filter(approval_status='rejected').count()
     changes_required_count = all_products.filter(approval_status='requires_changes').count()
-    
-    # Get notifications for this vendor
+
     vendor_notifications_qs = VendorNotification.objects.filter(vendor=request.user)
     notification_count = vendor_notifications_qs.count()
     unread_notification_count = vendor_notifications_qs.filter(is_read=False).count()
     notifications_list = vendor_notifications_qs.order_by('-created_at')[:10]
-    
-    # Convert notifications to the format expected by template
+
     notifications = []
     for notif in notifications_list:
         notifications.append({
@@ -444,15 +488,16 @@ def vendor_dashboard(request):
             'message': notif.message,
             'notification_type': notif.notification_type,
             'action_url': notif.action_url,
-            'created_at': notif.created_at
+            'created_at': notif.created_at,
         })
-    
-    # Get unread message count
+
     unread_messages_count = _vendor_unread_admin_count(request.user)
+
     pickup_report_count = (
         DeliveryRequest.objects
         .filter(
-            Q(order__items__product__vendor=request.user) | Q(order__items__variant__product__vendor=request.user),
+            Q(order__items__product__vendor=request.user)
+            | Q(order__items__variant__product__vendor=request.user),
             status__in=[
                 DeliveryRequest.STATUS_PICKED_UP,
                 DeliveryRequest.STATUS_IN_TRANSIT,
@@ -463,34 +508,67 @@ def vendor_dashboard(request):
         .distinct()
         .count()
     )
+
     robot_tasks = (
         OrderRobotVendorTask.objects
         .filter(vendor=request.user)
         .select_related('process__order', 'process__live_delivery')
         .order_by('-created_at')[:5]
     )
-    
-    # Monthly sales data for chart
+
     monthly_sales = []
     today = timezone.now().date()
+
     for i in range(6):
         month_start = today.replace(day=1) - timedelta(days=30 * i)
-        month_sales = order_items.filter(
-            order__status='delivered',
-            order__created_at__month=month_start.month
-        ).aggregate(total=Sum('subtotal'))['total'] or 0
+        month_sales = (
+            order_items
+            .filter(
+                order__status='delivered',
+                order__created_at__month=month_start.month,
+            )
+            .aggregate(total=Sum('subtotal'))['total']
+            or 0
+        )
+
         monthly_sales.append({
             'month': month_start.strftime('%b'),
-            'sales': float(month_sales)
+            'sales': float(month_sales),
         })
+
     monthly_sales.reverse()
-    
+
+    recent_quote_requests = (
+        VendorQuoteRequest.objects
+        .filter(vendor=vendor_profile)
+        .order_by('-created_at')[:5]
+    )
+
+    quote_request_count = (
+        VendorQuoteRequest.objects
+        .filter(
+            vendor=vendor_profile,
+            status__in=['new', 'admin_review', 'sent_to_vendor'],
+        )
+        .count()
+    )
+
+    quote_status_counts = {
+        'all': VendorQuoteRequest.objects.filter(vendor=vendor_profile).count(),
+        'new': VendorQuoteRequest.objects.filter(vendor=vendor_profile, status='new').count(),
+        'admin_review': VendorQuoteRequest.objects.filter(vendor=vendor_profile, status='admin_review').count(),
+        'sent_to_vendor': VendorQuoteRequest.objects.filter(vendor=vendor_profile, status='sent_to_vendor').count(),
+        'vendor_replied': VendorQuoteRequest.objects.filter(vendor=vendor_profile, status='vendor_replied').count(),
+        'closed': VendorQuoteRequest.objects.filter(vendor=vendor_profile, status='closed').count(),
+    }
+
     subscription_context = _vendor_subscription_context(request.user)
     performance_context = _vendor_performance_context(request.user, vendor_profile)
     chat_context = _vendor_customer_chat_stats(request.user)
 
     context = {
         'vendor_profile': vendor_profile,
+
         'total_products': products.count(),
         'current_product_count': all_products.exclude(approval_status='rejected').count(),
         'total_orders': total_orders,
@@ -498,30 +576,120 @@ def vendor_dashboard(request):
         'low_stock': low_stock,
         'low_stock_count': low_stock.count(),
         'top_products': top_products,
+
         'avg_rating': round(avg_rating, 1),
         'total_reviews': reviews.count(),
+
         'recent_orders': recent_orders,
         'recent_reviews': recent_reviews,
+
         'categories': categories,
         'brands': brands,
+
         'pending_count': pending_count,
         'approved_count': approved_count,
         'rejected_count': rejected_count,
         'changes_required_count': changes_required_count,
+
         'notifications': notifications,
         'notification_count': notification_count,
         'unread_notification_count': unread_notification_count,
         'unread_count': unread_messages_count,
+
         'pickup_report_count': pickup_report_count,
+
         'monthly_sales': monthly_sales,
+
         'robot_tasks': robot_tasks,
-        'robot_pending_count': OrderRobotVendorTask.objects.filter(vendor=request.user, status=OrderRobotVendorTask.STATUS_PENDING).count(),
+        'robot_pending_count': OrderRobotVendorTask.objects.filter(
+            vendor=request.user,
+            status=OrderRobotVendorTask.STATUS_PENDING,
+        ).count(),
+
+        'recent_quote_requests': recent_quote_requests,
+        'quote_request_count': quote_request_count,
+        'quote_status_counts': quote_status_counts,
     }
+
     context.update(subscription_context)
     context.update(performance_context)
     context.update(chat_context)
+
     return render(request, 'dashboard/vendor_dashboard.html', context)
 
+@login_required
+def vendor_quote_requests(request):
+    """
+    Vendor quote requests page.
+
+    Vendors only see quote requests assigned to their own vendor profile.
+    Arolana admin still sees all quote requests from Django admin.
+    """
+    if not hasattr(request.user, 'vendor_profile') and request.user.user_type != 'vendor':
+        return render(request, 'dashboard/access_denied.html', {
+            'message': 'You are not registered as a vendor. Please become a vendor first.'
+        })
+
+    try:
+        vendor_profile = request.user.vendor_profile
+    except VendorProfile.DoesNotExist:
+        return render(request, 'dashboard/access_denied.html', {
+            'message': 'Your vendor profile is not set up. Please contact support.'
+        })
+
+    status_filter = request.GET.get('status', '').strip()
+
+    quote_requests_qs = (
+        VendorQuoteRequest.objects
+        .filter(vendor=vendor_profile)
+        .order_by('-created_at')
+    )
+
+    valid_statuses = {
+        'new',
+        'admin_review',
+        'sent_to_vendor',
+        'vendor_replied',
+        'closed',
+        'spam',
+    }
+
+    if status_filter in valid_statuses:
+        quote_requests_qs = quote_requests_qs.filter(status=status_filter)
+    else:
+        status_filter = ''
+
+    status_counts = {
+        'all': VendorQuoteRequest.objects.filter(vendor=vendor_profile).count(),
+        'new': VendorQuoteRequest.objects.filter(vendor=vendor_profile, status='new').count(),
+        'admin_review': VendorQuoteRequest.objects.filter(vendor=vendor_profile, status='admin_review').count(),
+        'sent_to_vendor': VendorQuoteRequest.objects.filter(vendor=vendor_profile, status='sent_to_vendor').count(),
+        'vendor_replied': VendorQuoteRequest.objects.filter(vendor=vendor_profile, status='vendor_replied').count(),
+        'closed': VendorQuoteRequest.objects.filter(vendor=vendor_profile, status='closed').count(),
+        'spam': VendorQuoteRequest.objects.filter(vendor=vendor_profile, status='spam').count(),
+    }
+
+    quote_requests = get_paginated_items(
+        quote_requests_qs,
+        request.GET.get('page', 1),
+        20,
+    )
+
+    unread_messages_count = _vendor_unread_admin_count(request.user)
+
+    context = {
+        'vendor_profile': vendor_profile,
+        'quote_requests': quote_requests,
+        'page_obj': quote_requests,
+        'status_filter': status_filter,
+        'status_counts': status_counts,
+        'unread_count': unread_messages_count,
+    }
+
+    context.update(_vendor_subscription_context(request.user))
+    context.update(_vendor_customer_chat_stats(request.user))
+
+    return render(request, 'dashboard/vendor_quote_requests.html', context)
 
 @login_required
 def vendor_pickup_location(request):

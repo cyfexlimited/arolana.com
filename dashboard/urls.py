@@ -24,7 +24,7 @@ urlpatterns = [
     path("admin/messages/", views.admin_messages, name="admin_messages"),
     path("admin/messages/<int:vendor_id>/", views.admin_message_conversation, name="admin_message_conversation"),
     path("admin/broadcast/", views.admin_send_broadcast, name="admin_broadcast"),
-
+    path("vendor/quote-requests/", views.vendor_quote_requests, name="vendor_quote_requests"),
     # API endpoints for admin panel
     path("api/dashboard/", views.api_dashboard, name="api_dashboard"),
     path("api/products/", views.api_products, name="api_products"),
