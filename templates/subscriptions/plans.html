@@ -26,7 +26,7 @@
 
     .arolana-subscription-page {
         width: 100%;
-        max-width: 1320px;
+        max-width: 1420px;
         margin: 0 auto;
         padding: 1.25rem;
         color: var(--arolana-text);
@@ -44,7 +44,7 @@
     .subscription-hero-top {
         position: relative;
         overflow: hidden;
-        min-height: 300px;
+        min-height: 420px;
         background:
             radial-gradient(circle at 12% 18%, rgba(56,189,248,.24), transparent 28%),
             radial-gradient(circle at 88% 16%, rgba(255,122,0,.28), transparent 24%),
@@ -52,8 +52,8 @@
         color: #fff;
         padding: 1.5rem;
         display: grid;
-        grid-template-columns: minmax(0, .95fr) minmax(360px, 1.05fr);
-        gap: 1.25rem;
+        grid-template-columns: minmax(320px, .9fr) minmax(620px, 1.2fr);
+        gap: 1.5rem;
         align-items: center;
     }
 
@@ -73,7 +73,7 @@
     .subscription-title {
         margin: .4rem 0 0;
         color: #fff;
-        font-size: clamp(2rem, 4vw, 4rem);
+        font-size: clamp(2rem, 4vw, 4.1rem);
         line-height: .98;
         font-weight: 950;
         letter-spacing: -.04em;
@@ -82,9 +82,9 @@
     .subscription-subtitle {
         margin-top: .8rem;
         max-width: 46rem;
-        color: rgba(255,255,255,.86);
-        font-size: .98rem;
-        line-height: 1.6;
+        color: rgba(255,255,255,.88);
+        font-size: 1rem;
+        line-height: 1.65;
         font-weight: 750;
     }
 
@@ -109,23 +109,63 @@
         font-weight: 950;
     }
 
+    .subscription-hero-visual-wrap {
+        display: grid;
+        gap: .85rem;
+        align-self: stretch;
+    }
+
     .subscription-hero-visual {
         position: relative;
         z-index: 2;
         border-radius: 1.25rem;
         overflow: hidden;
-        border: 1px solid rgba(255,255,255,.25);
+        border: 1px solid rgba(255,255,255,.28);
         background: #fff;
         box-shadow: 0 20px 45px rgba(0,0,0,.18);
+        padding: .6rem;
+    }
+
+    .subscription-hero-visual-buttonbar {
+        display: flex;
+        justify-content: flex-end;
+        gap: .65rem;
+        flex-wrap: wrap;
+    }
+
+    .subscription-image-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .45rem;
+        min-height: 2.4rem;
+        padding: .6rem .95rem;
+        border-radius: .85rem;
+        background: rgba(255,255,255,.14);
+        border: 1px solid rgba(255,255,255,.24);
+        color: #fff;
+        font-size: .74rem;
+        font-weight: 900;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .subscription-image-btn:hover {
+        text-decoration: none;
+        background: rgba(255,255,255,.2);
+        color: #fff;
     }
 
     .subscription-hero-visual img {
         display: block;
         width: 100%;
         height: auto;
-        max-height: 340px;
+        max-height: none;
         object-fit: contain;
         background: #fff;
+        border-radius: .85rem;
+        cursor: zoom-in;
+        image-rendering: auto;
     }
 
     .subscription-benefit-grid {
@@ -477,23 +517,71 @@
         box-shadow: 0 12px 30px rgba(15,23,42,.055);
     }
 
+    .subscription-image-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(2, 6, 23, .82);
+        z-index: 9999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 1.2rem;
+    }
+
+    .subscription-image-modal.active {
+        display: flex;
+    }
+
+    .subscription-image-modal-content {
+        position: relative;
+        width: min(96vw, 1600px);
+        max-height: 92vh;
+        background: #fff;
+        border-radius: 1rem;
+        overflow: hidden;
+        box-shadow: 0 30px 80px rgba(0,0,0,.35);
+        padding: .75rem;
+    }
+
+    .subscription-image-modal-close {
+        position: absolute;
+        top: .7rem;
+        right: .7rem;
+        width: 2.4rem;
+        height: 2.4rem;
+        border: none;
+        border-radius: 999px;
+        background: rgba(7,26,68,.92);
+        color: #fff;
+        font-size: 1rem;
+        cursor: pointer;
+        z-index: 2;
+    }
+
+    .subscription-image-modal img {
+        width: 100%;
+        height: auto;
+        max-height: calc(92vh - 1.5rem);
+        object-fit: contain;
+        display: block;
+        border-radius: .75rem;
+        background: #fff;
+    }
+
     @media (max-width: 1180px) {
         .subscription-benefit-grid {
             grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .subscription-hero-top {
+            grid-template-columns: 1fr;
+            min-height: 0;
         }
     }
 
     @media (max-width: 1100px) {
         .plans-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
-        .subscription-hero-top {
-            grid-template-columns: 1fr;
-        }
-
-        .subscription-hero-visual img {
-            max-height: 260px;
         }
     }
 
@@ -507,7 +595,6 @@
         }
 
         .subscription-hero-top {
-            min-height: 0;
             padding: 1rem;
             gap: 1rem;
         }
@@ -533,10 +620,7 @@
 
         .subscription-hero-visual {
             border-radius: .95rem;
-        }
-
-        .subscription-hero-visual img {
-            max-height: 180px;
+            padding: .45rem;
         }
 
         .subscription-benefit-grid {
@@ -645,6 +729,11 @@
             padding: .8rem;
             font-size: .68rem;
         }
+
+        .subscription-image-modal-content {
+            width: 100%;
+            padding: .5rem;
+        }
     }
 </style>
 
@@ -683,14 +772,33 @@
                 </div>
             </div>
 
-            <div class="subscription-hero-visual">
-                <img
-                    src="{% static 'images/arolana-vendor-subscription-benefits-2026.png' %}"
-                    alt="Arolana vendor subscription plans showing Free, Basic, Plus, Pro, Special and Enterprise benefits"
-                    loading="lazy"
-                    decoding="async"
-                    onerror="this.style.display='none';"
-                >
+            <div class="subscription-hero-visual-wrap">
+                <div class="subscription-hero-visual-buttonbar">
+                    <button type="button" class="subscription-image-btn" id="openSubscriptionImage">
+                        <i class="fas fa-expand"></i>
+                        Open full image
+                    </button>
+                    <a
+                        href="{% static 'images/arolana-vendor-subscription-benefits-2026.png' %}"
+                        target="_blank"
+                        rel="noopener"
+                        class="subscription-image-btn"
+                    >
+                        <i class="fas fa-up-right-from-square"></i>
+                        Open in new tab
+                    </a>
+                </div>
+
+                <div class="subscription-hero-visual">
+                    <img
+                        id="subscriptionHeroImage"
+                        src="{% static 'images/arolana-vendor-subscription-benefits-2026.png' %}"
+                        alt="Arolana vendor subscription plans showing Free, Basic, Plus, Pro, Special and Enterprise benefits"
+                        loading="eager"
+                        decoding="async"
+                        onerror="this.style.display='none';"
+                    >
+                </div>
             </div>
         </div>
 
@@ -930,7 +1038,6 @@
                     {% else %}
                         <form method="post" action="{% url 'subscriptions:subscribe' plan.id %}" class="plan-payment-form">
                             {% csrf_token %}
-
                             <select name="payment_gateway" class="plan-gateway-select">
                                 {% for gateway in payment_gateways %}
                                 <option value="{{ gateway.gateway }}" {% if not gateway.available %}disabled{% endif %}>
@@ -958,4 +1065,57 @@
         brands, manufacturers, and high-volume vendors.
     </div>
 </div>
+
+<div class="subscription-image-modal" id="subscriptionImageModal" aria-hidden="true">
+    <div class="subscription-image-modal-content">
+        <button type="button" class="subscription-image-modal-close" id="closeSubscriptionImageModal" aria-label="Close image preview">
+            <i class="fas fa-times"></i>
+        </button>
+        <img
+            src="{% static 'images/arolana-vendor-subscription-benefits-2026.png' %}"
+            alt="Arolana vendor subscription plan comparison full image"
+        >
+    </div>
+</div>
+
+<script>
+    (function () {
+        const openBtn = document.getElementById('openSubscriptionImage');
+        const image = document.getElementById('subscriptionHeroImage');
+        const modal = document.getElementById('subscriptionImageModal');
+        const closeBtn = document.getElementById('closeSubscriptionImageModal');
+
+        function openModal() {
+            if (!modal) return;
+            modal.classList.add('active');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            if (!modal) return;
+            modal.classList.remove('active');
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = '';
+        }
+
+        if (openBtn) openBtn.addEventListener('click', openModal);
+        if (image) image.addEventListener('click', openModal);
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+
+        if (modal) {
+            modal.addEventListener('click', function (event) {
+                if (event.target === modal) {
+                    closeModal();
+                }
+            });
+        }
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') {
+                closeModal();
+            }
+        });
+    })();
+</script>
 {% endblock %}
