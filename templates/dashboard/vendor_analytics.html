@@ -1,135 +1,959 @@
 {% extends 'dashboard/base_dashboard.html' %}
 {% load static %}
+{% load optimized_images %}
 
 {% block title %}Analytics - Vendor Dashboard{% endblock %}
 
+{% block dashboard_side_ad %}{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<style>
+    :root {
+        --arolana-navy: #071A44;
+        --arolana-blue: #0066CC;
+        --arolana-orange: #FF7A00;
+        --arolana-cyan: #38BDF8;
+        --arolana-soft: #F4F8FF;
+        --arolana-border: #E3ECF8;
+        --arolana-text: #0B1E46;
+        --arolana-muted: #65758B;
+        --arolana-bg: #F4F7FB;
+    }
+
+    html,
+    body {
+        width: 100%;
+        min-height: 100%;
+        overflow-x: hidden;
+    }
+
+    body {
+        background: var(--arolana-bg) !important;
+    }
+
+    body:has(.vendor-analytics-page) main,
+    body:has(.vendor-analytics-page) .main-content,
+    body:has(.vendor-analytics-page) .dashboard-content,
+    body:has(.vendor-analytics-page) .content-wrapper,
+    body:has(.vendor-analytics-page) .container,
+    body:has(.vendor-analytics-page) .container-fluid {
+        width: 100% !important;
+        max-width: none !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    body:has(.vendor-analytics-page) .arolana-following-ad,
+    body:has(.vendor-analytics-page) .arolana-floating-ad-shell,
+    body:has(.vendor-analytics-page) .arolana-ad-placeholder,
+    .arolana-following-ad,
+    .arolana-floating-ad-shell,
+    .arolana-ad-placeholder {
+        display: none !important;
+    }
+
+    .vendor-analytics-page {
+        width: 100%;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 1.25rem 1.5rem 2rem !important;
+        color: var(--arolana-text);
+    }
+
+    .analytics-shell {
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+    }
+
+    .analytics-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .analytics-eyebrow {
+        color: var(--arolana-orange);
+        font-size: .72rem;
+        font-weight: 950;
+        letter-spacing: .18em;
+        text-transform: uppercase;
+    }
+
+    .analytics-title {
+        margin: .15rem 0 0;
+        color: var(--arolana-navy);
+        font-size: clamp(1.7rem, 2.5vw, 2.55rem);
+        line-height: 1;
+        font-weight: 950;
+    }
+
+    .analytics-subtitle {
+        margin-top: .45rem;
+        color: var(--arolana-muted);
+        font-size: .95rem;
+        font-weight: 700;
+    }
+
+    .analytics-action-row {
+        display: flex;
+        align-items: center;
+        gap: .65rem;
+        flex-wrap: wrap;
+    }
+
+    .analytics-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .5rem;
+        min-height: 2.65rem;
+        padding: .7rem 1rem;
+        border-radius: .95rem;
+        font-size: .84rem;
+        font-weight: 950;
+        text-decoration: none;
+        transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+        border: 1px solid transparent;
+        white-space: nowrap;
+        cursor: pointer;
+    }
+
+    .analytics-btn:hover {
+        transform: translateY(-1px);
+        text-decoration: none;
+    }
+
+    .analytics-btn-primary {
+        background: linear-gradient(135deg, var(--arolana-blue), #064b99);
+        color: #fff;
+        box-shadow: 0 12px 26px rgba(0, 102, 204, .20);
+    }
+
+    .analytics-btn-orange {
+        background: linear-gradient(135deg, var(--arolana-orange), #E85F00);
+        color: #fff;
+        box-shadow: 0 12px 26px rgba(255, 122, 0, .20);
+    }
+
+    .analytics-btn-light {
+        background: #fff;
+        color: var(--arolana-navy);
+        border-color: var(--arolana-border);
+        box-shadow: 0 8px 22px rgba(15, 23, 42, .05);
+    }
+
+    .analytics-hero {
+        position: relative;
+        overflow: hidden;
+        min-height: 220px;
+        border-radius: 1.45rem;
+        background: linear-gradient(135deg, var(--arolana-navy), #0B3E7C);
+        box-shadow: 0 20px 48px rgba(7, 26, 68, .14);
+        border: 1px solid rgba(255,255,255,.2);
+        margin-bottom: 1rem;
+    }
+
+    .analytics-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 15% 18%, rgba(56,189,248,.26), transparent 28%),
+            radial-gradient(circle at 84% 20%, rgba(255,122,0,.24), transparent 26%),
+            linear-gradient(135deg, rgba(7,26,68,.96), rgba(7,26,68,.82));
+    }
+
+    .analytics-hero-inner {
+        position: relative;
+        z-index: 2;
+        min-height: 220px;
+        display: grid;
+        grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr);
+        gap: 1rem;
+        align-items: end;
+        padding: 1.35rem;
+    }
+
+    .analytics-hero-title {
+        color: #fff;
+        font-size: clamp(2rem, 4vw, 4rem);
+        line-height: .95;
+        font-weight: 950;
+        max-width: 850px;
+    }
+
+    .analytics-hero-text {
+        margin-top: .75rem;
+        color: rgba(255,255,255,.76);
+        font-size: .95rem;
+        line-height: 1.65;
+        font-weight: 750;
+        max-width: 760px;
+    }
+
+    .analytics-score-card {
+        border-radius: 1.2rem;
+        background: rgba(255,255,255,.96);
+        padding: 1rem;
+        box-shadow: 0 18px 38px rgba(0,0,0,.16);
+    }
+
+    .analytics-score-head {
+        display: flex;
+        justify-content: space-between;
+        gap: .75rem;
+        align-items: center;
+    }
+
+    .analytics-score-label {
+        color: var(--arolana-muted);
+        font-size: .76rem;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+    }
+
+    .analytics-score-value {
+        margin-top: .35rem;
+        color: var(--arolana-navy);
+        font-size: 3rem;
+        font-weight: 950;
+        line-height: 1;
+    }
+
+    .analytics-score-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        border-radius: 999px;
+        background: #ECF6FF;
+        color: var(--arolana-blue);
+        padding: .45rem .7rem;
+        font-size: .72rem;
+        font-weight: 950;
+        white-space: nowrap;
+    }
+
+    .analytics-score-track {
+        margin-top: .9rem;
+        height: .65rem;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #E7EEF8;
+    }
+
+    .analytics-score-fill {
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--arolana-orange), var(--arolana-blue));
+    }
+
+    .analytics-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(8, minmax(0, 1fr));
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .analytics-kpi-card {
+        position: relative;
+        overflow: hidden;
+        border-radius: 1.05rem;
+        background: #fff;
+        padding: .95rem;
+        min-height: 112px;
+        border: 1px solid var(--arolana-border);
+        box-shadow: 0 12px 28px rgba(15, 23, 42, .05);
+    }
+
+    .analytics-kpi-card::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--arolana-blue), var(--arolana-orange));
+    }
+
+    .analytics-kpi-icon {
+        width: 2.35rem;
+        height: 2.35rem;
+        border-radius: .9rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #ECF6FF;
+        color: var(--arolana-blue);
+        margin-bottom: .58rem;
+    }
+
+    .analytics-kpi-label {
+        color: var(--arolana-muted);
+        font-size: .72rem;
+        font-weight: 900;
+    }
+
+    .analytics-kpi-value {
+        margin-top: .1rem;
+        color: var(--arolana-navy);
+        font-size: 1.55rem;
+        font-weight: 950;
+        line-height: 1;
+    }
+
+    .analytics-kpi-sub {
+        margin-top: .4rem;
+        color: var(--arolana-muted);
+        font-size: .70rem;
+        font-weight: 750;
+    }
+
+    .analytics-layout-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.35fr) minmax(340px, .65fr);
+        gap: 1rem;
+        align-items: start;
+        margin-bottom: 1rem;
+    }
+
+    .analytics-panel {
+        border-radius: 1.15rem;
+        background: #fff;
+        border: 1px solid var(--arolana-border);
+        box-shadow: 0 12px 30px rgba(15,23,42,.055);
+        overflow: hidden;
+        min-width: 0;
+    }
+
+    .analytics-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .85rem;
+        padding: .9rem 1rem;
+        border-bottom: 1px solid var(--arolana-border);
+        background: linear-gradient(180deg, #fff, #f8fbff);
+    }
+
+    .analytics-panel-title {
+        margin: 0;
+        color: var(--arolana-navy);
+        font-size: 1rem;
+        font-weight: 950;
+    }
+
+    .analytics-panel-subtitle {
+        margin-top: .15rem;
+        color: var(--arolana-muted);
+        font-size: .74rem;
+        font-weight: 700;
+    }
+
+    .analytics-panel-body {
+        padding: .9rem;
+    }
+
+    .analytics-chart-box {
+        min-height: 340px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .analytics-chart-box canvas {
+        max-width: 100%;
+    }
+
+    .operation-list {
+        display: grid;
+        gap: .9rem;
+    }
+
+    .operation-item {
+        border-radius: 1rem;
+        border: 1px solid var(--arolana-border);
+        background: #F8FBFF;
+        padding: .9rem;
+    }
+
+    .operation-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: .5rem;
+        color: var(--arolana-navy);
+        font-size: .82rem;
+        font-weight: 950;
+    }
+
+    .operation-row span {
+        color: var(--arolana-muted);
+    }
+
+    .operation-track {
+        height: .55rem;
+        border-radius: 999px;
+        overflow: hidden;
+        background: #E7EEF8;
+    }
+
+    .operation-fill {
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--arolana-blue), var(--arolana-orange));
+    }
+
+    .operation-mini-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: .7rem;
+        margin-top: .9rem;
+    }
+
+    .operation-mini-card {
+        border-radius: 1rem;
+        background: #fff;
+        border: 1px solid var(--arolana-border);
+        padding: .85rem;
+    }
+
+    .operation-mini-label {
+        color: var(--arolana-muted);
+        font-size: .72rem;
+        font-weight: 900;
+    }
+
+    .operation-mini-value {
+        margin-top: .2rem;
+        color: var(--arolana-navy);
+        font-size: 1.35rem;
+        font-weight: 950;
+    }
+
+    .analytics-bottom-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 1rem;
+    }
+
+    .analytics-table-wrap {
+        overflow-x: auto;
+    }
+
+    .analytics-table {
+        width: 100%;
+        min-width: 880px;
+        border-collapse: collapse;
+    }
+
+    .analytics-table th {
+        padding: .8rem;
+        text-align: left;
+        color: var(--arolana-muted);
+        font-size: .72rem;
+        font-weight: 950;
+        background: #F8FBFF;
+        border-bottom: 1px solid var(--arolana-border);
+        text-transform: uppercase;
+        letter-spacing: .04em;
+    }
+
+    .analytics-table td {
+        padding: .85rem;
+        border-bottom: 1px solid var(--arolana-border);
+        color: var(--arolana-navy);
+        font-size: .82rem;
+        font-weight: 750;
+        vertical-align: middle;
+    }
+
+    .analytics-product-cell {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+        min-width: 0;
+    }
+
+    .analytics-product-thumb {
+        width: 3.2rem;
+        height: 3.2rem;
+        border-radius: .85rem;
+        overflow: hidden;
+        background: #fff;
+        border: 1px solid var(--arolana-border);
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .analytics-product-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        padding: .22rem;
+    }
+
+    .analytics-product-name {
+        color: var(--arolana-navy);
+        font-size: .86rem;
+        font-weight: 950;
+        line-height: 1.25;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+    }
+
+    .analytics-product-meta {
+        margin-top: .15rem;
+        color: var(--arolana-muted);
+        font-size: .72rem;
+        font-weight: 750;
+    }
+
+    .analytics-status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        min-height: 1.55rem;
+        padding: .27rem .55rem;
+        border-radius: 999px;
+        font-size: .66rem;
+        font-weight: 950;
+        white-space: nowrap;
+    }
+
+    .status-green { background: #DCFCE7; color: #15803D; }
+    .status-yellow { background: #FEF3C7; color: #B45309; }
+    .status-orange { background: #FFEDD5; color: #C2410C; }
+    .status-red { background: #FEE2E2; color: #B91C1C; }
+    .status-blue { background: #DBEAFE; color: #1D4ED8; }
+    .status-gray { background: #F1F5F9; color: #475569; }
+
+    .analytics-empty {
+        padding: 2rem 1rem;
+        text-align: center;
+        color: var(--arolana-muted);
+        font-weight: 800;
+    }
+
+    @media (max-width: 1500px) {
+        .analytics-kpi-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 1280px) {
+        .analytics-layout-grid,
+        .analytics-hero-inner {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .vendor-analytics-page {
+            padding: .85rem .8rem 1.5rem !important;
+        }
+
+        .analytics-topbar {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .analytics-action-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .analytics-kpi-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .operation-mini-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 430px) {
+        .analytics-kpi-grid,
+        .analytics-action-row {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block dashboard_content %}
-<div class="space-y-6">
-    <div class="bg-white rounded-xl shadow-lg p-6">
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
+<div class="vendor-analytics-page">
+    <div class="analytics-shell">
+
+        <div class="analytics-topbar">
             <div>
-                <h1 class="text-2xl font-bold">Vendor Analytics</h1>
-                <p class="text-sm text-gray-500">Sales, fulfillment, reviews, and product performance.</p>
+                <div class="analytics-eyebrow">Arolana Vendor OS</div>
+                <h1 class="analytics-title">Analytics Center</h1>
+                <p class="analytics-subtitle">
+                    Sales, fulfillment, reviews, product views, and business health in one clean dashboard.
+                </p>
             </div>
-            <span class="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700">
-                <i class="fas fa-chart-line"></i> {{ vendor_score_label }} score
-            </span>
+
+            <div class="analytics-action-row">
+                <a href="{% url 'dashboard:vendor_dashboard' %}" class="analytics-btn analytics-btn-light">
+                    <i class="fas fa-gauge-high"></i>
+                    Dashboard
+                </a>
+                <a href="{% url 'dashboard:vendor_products' %}" class="analytics-btn analytics-btn-primary">
+                    <i class="fas fa-boxes-stacked"></i>
+                    Products
+                </a>
+                <a href="{% url 'dashboard:vendor_orders' %}" class="analytics-btn analytics-btn-orange">
+                    <i class="fas fa-bolt"></i>
+                    Orders
+                </a>
+            </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-            <div class="rounded-xl bg-blue-50 p-4">
-                <p class="text-sm text-gray-600">Vendor Score</p>
-                <p class="text-3xl font-bold text-blue-800">{{ vendor_score|floatformat:1 }}</p>
-            </div>
-            <div class="rounded-xl bg-green-50 p-4">
-                <p class="text-sm text-gray-600">Revenue</p>
-                <p class="text-3xl font-bold text-green-700">${{ total_revenue|floatformat:2 }}</p>
-            </div>
-            <div class="rounded-xl bg-purple-50 p-4">
-                <p class="text-sm text-gray-600">Orders</p>
-                <p class="text-3xl font-bold text-purple-700">{{ total_orders }}</p>
-            </div>
-            <div class="rounded-xl bg-amber-50 p-4">
-                <p class="text-sm text-gray-600">Average Rating</p>
-                <p class="text-3xl font-bold text-amber-700">{{ avg_rating|floatformat:1 }}</p>
-            </div>
-            <div class="rounded-xl bg-gray-50 p-4">
-                <p class="text-sm text-gray-600">Products</p>
-                <p class="text-2xl font-bold">{{ total_products }}</p>
-            </div>
-            <div class="rounded-xl bg-gray-50 p-4">
-                <p class="text-sm text-gray-600">Units Sold</p>
-                <p class="text-2xl font-bold">{{ total_units_sold }}</p>
-            </div>
-            <div class="rounded-xl bg-gray-50 p-4">
-                <p class="text-sm text-gray-600">Product Views</p>
-                <p class="text-2xl font-bold">{{ total_views }}</p>
-            </div>
-            <div class="rounded-xl bg-gray-50 p-4">
-                <p class="text-sm text-gray-600">Avg Order Value</p>
-                <p class="text-2xl font-bold">${{ average_order_value|floatformat:2 }}</p>
-            </div>
-        </div>
-    </div>
+        <section class="analytics-hero">
+            <div class="analytics-hero-inner">
+                <div>
+                    <div class="analytics-eyebrow" style="color:#9DEBFF;">Performance Intelligence</div>
+                    <h2 class="analytics-hero-title">Know what is moving your store forward.</h2>
+                    <p class="analytics-hero-text">
+                        Track your revenue, approval health, product performance, customer trust, and fulfillment strength.
+                        Use this page to know what to improve before customers and Arolana ranking systems judge your store.
+                    </p>
+                </div>
 
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div class="xl:col-span-2 bg-white rounded-xl shadow-lg p-6">
-            <h2 class="text-xl font-semibold mb-4">Last 30 Days Sales</h2>
-            <canvas id="salesChart" height="120"></canvas>
-        </div>
-        <div class="bg-white rounded-xl shadow-lg p-6">
-            <h2 class="text-xl font-semibold mb-4">Operations</h2>
-            <div class="space-y-4">
-                <div>
-                    <div class="flex justify-between text-sm mb-1"><span>Fulfillment</span><strong>{{ fulfillment_rate|floatformat:1 }}%</strong></div>
-                    <div class="h-2 bg-gray-100 rounded-full"><div class="h-2 bg-green-600 rounded-full" style="width: {{ fulfillment_rate|floatformat:0 }}%"></div></div>
-                </div>
-                <div>
-                    <div class="flex justify-between text-sm mb-1"><span>Inventory health</span><strong>{{ product_health|floatformat:1 }}%</strong></div>
-                    <div class="h-2 bg-gray-100 rounded-full"><div class="h-2 bg-blue-600 rounded-full" style="width: {{ product_health|floatformat:0 }}%"></div></div>
-                </div>
-                <div>
-                    <div class="flex justify-between text-sm mb-1"><span>Approval rate</span><strong>{{ approval_rate|floatformat:1 }}%</strong></div>
-                    <div class="h-2 bg-gray-100 rounded-full"><div class="h-2 bg-purple-600 rounded-full" style="width: {{ approval_rate|floatformat:0 }}%"></div></div>
-                </div>
-                <div class="grid grid-cols-2 gap-3 pt-2 text-sm">
-                    <div class="rounded-lg bg-green-50 p-3">Delivered <strong class="block">{{ delivered_count }}</strong></div>
-                    <div class="rounded-lg bg-blue-50 p-3">Shipped <strong class="block">{{ shipped_count }}</strong></div>
-                    <div class="rounded-lg bg-red-50 p-3">Cancelled <strong class="block">{{ cancelled_count }}</strong></div>
-                    <div class="rounded-lg bg-amber-50 p-3">Refunded <strong class="block">{{ refunded_count }}</strong></div>
+                <div class="analytics-score-card">
+                    <div class="analytics-score-head">
+                        <div>
+                            <div class="analytics-score-label">Vendor Score</div>
+                            <div class="analytics-score-value">{{ vendor_score|default:0|floatformat:1 }}</div>
+                        </div>
+                        <span class="analytics-score-badge">
+                            <i class="fas fa-chart-line"></i>
+                            {{ vendor_score_label|default:"Needs Attention" }}
+                        </span>
+                    </div>
+
+                    <div class="analytics-score-track">
+                        <div class="analytics-score-fill" style="width: {{ vendor_score|default:0|floatformat:0 }}%"></div>
+                    </div>
+
+                    <p style="margin:.75rem 0 0;color:var(--arolana-muted);font-size:.76rem;font-weight:750;line-height:1.5;">
+                        Your vendor score improves with approved products, strong fulfillment, healthy inventory, good reviews,
+                        KYC trust, and subscription activity.
+                    </p>
                 </div>
             </div>
-        </div>
-    </div>
+        </section>
 
-    <div class="bg-white rounded-xl shadow-lg p-6">
-        <h2 class="text-xl font-semibold mb-4">Top Products</h2>
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-4 py-3 text-left">Product</th>
-                        <th class="px-4 py-3 text-left">Views</th>
-                        <th class="px-4 py-3 text-left">Units Sold</th>
-                        <th class="px-4 py-3 text-left">Stock</th>
-                        <th class="px-4 py-3 text-left">Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for product in top_products %}
-                    <tr class="border-t">
-                        <td class="px-4 py-3 font-semibold">{{ product.name }}</td>
-                        <td class="px-4 py-3">{{ product.views_count }}</td>
-                        <td class="px-4 py-3">{{ product.total_sold|default:0 }}</td>
-                        <td class="px-4 py-3">{{ product.stock_quantity }}</td>
-                        <td class="px-4 py-3">{{ product.approval_status|title }}</td>
-                    </tr>
-                    {% empty %}
-                    <tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">No product activity yet.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="analytics-kpi-grid">
+            <div class="analytics-kpi-card">
+                <div class="analytics-kpi-icon"><i class="fas fa-shield-alt"></i></div>
+                <div class="analytics-kpi-label">Vendor Score</div>
+                <div class="analytics-kpi-value">{{ vendor_score|default:0|floatformat:1 }}</div>
+                <div class="analytics-kpi-sub">{{ vendor_score_label|default:"Needs Attention" }}</div>
+            </div>
+
+            <div class="analytics-kpi-card">
+                <div class="analytics-kpi-icon"><i class="fas fa-naira-sign"></i></div>
+                <div class="analytics-kpi-label">Revenue</div>
+                <div class="analytics-kpi-value">₦{{ total_revenue|default:0|floatformat:2 }}</div>
+                <div class="analytics-kpi-sub">Total completed revenue</div>
+            </div>
+
+            <div class="analytics-kpi-card">
+                <div class="analytics-kpi-icon"><i class="fas fa-shopping-bag"></i></div>
+                <div class="analytics-kpi-label">Orders</div>
+                <div class="analytics-kpi-value">{{ total_orders|default:0 }}</div>
+                <div class="analytics-kpi-sub">All-time orders</div>
+            </div>
+
+            <div class="analytics-kpi-card">
+                <div class="analytics-kpi-icon"><i class="fas fa-star"></i></div>
+                <div class="analytics-kpi-label">Average Rating</div>
+                <div class="analytics-kpi-value">{{ avg_rating|default:0|floatformat:1 }}</div>
+                <div class="analytics-kpi-sub">Customer trust signal</div>
+            </div>
+
+            <div class="analytics-kpi-card">
+                <div class="analytics-kpi-icon"><i class="fas fa-box"></i></div>
+                <div class="analytics-kpi-label">Products</div>
+                <div class="analytics-kpi-value">{{ total_products|default:0 }}</div>
+                <div class="analytics-kpi-sub">Listings created</div>
+            </div>
+
+            <div class="analytics-kpi-card">
+                <div class="analytics-kpi-icon"><i class="fas fa-cubes"></i></div>
+                <div class="analytics-kpi-label">Units Sold</div>
+                <div class="analytics-kpi-value">{{ total_units_sold|default:0 }}</div>
+                <div class="analytics-kpi-sub">Total product movement</div>
+            </div>
+
+            <div class="analytics-kpi-card">
+                <div class="analytics-kpi-icon"><i class="fas fa-eye"></i></div>
+                <div class="analytics-kpi-label">Product Views</div>
+                <div class="analytics-kpi-value">{{ total_views|default:0 }}</div>
+                <div class="analytics-kpi-sub">Customer interest</div>
+            </div>
+
+            <div class="analytics-kpi-card">
+                <div class="analytics-kpi-icon"><i class="fas fa-receipt"></i></div>
+                <div class="analytics-kpi-label">Avg Order Value</div>
+                <div class="analytics-kpi-value">₦{{ average_order_value|default:0|floatformat:2 }}</div>
+                <div class="analytics-kpi-sub">Average basket size</div>
+            </div>
         </div>
+
+        <div class="analytics-layout-grid">
+            <section class="analytics-panel">
+                <div class="analytics-panel-header">
+                    <div>
+                        <h2 class="analytics-panel-title">Last 30 Days Sales</h2>
+                        <p class="analytics-panel-subtitle">Daily revenue movement and recent sales trend.</p>
+                    </div>
+                    <span class="analytics-status-pill status-blue">
+                        <i class="fas fa-calendar-days"></i>
+                        30 days
+                    </span>
+                </div>
+
+                <div class="analytics-panel-body">
+                    <div class="analytics-chart-box">
+                        <canvas id="salesChart" height="120"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <section class="analytics-panel">
+                <div class="analytics-panel-header">
+                    <div>
+                        <h2 class="analytics-panel-title">Operations Health</h2>
+                        <p class="analytics-panel-subtitle">Fulfillment, inventory, and approval performance.</p>
+                    </div>
+                </div>
+
+                <div class="analytics-panel-body">
+                    <div class="operation-list">
+                        <div class="operation-item">
+                            <div class="operation-row">
+                                <span>Fulfillment</span>
+                                <strong>{{ fulfillment_rate|default:0|floatformat:1 }}%</strong>
+                            </div>
+                            <div class="operation-track">
+                                <div class="operation-fill" style="width: {{ fulfillment_rate|default:0|floatformat:0 }}%"></div>
+                            </div>
+                        </div>
+
+                        <div class="operation-item">
+                            <div class="operation-row">
+                                <span>Inventory Health</span>
+                                <strong>{{ product_health|default:0|floatformat:1 }}%</strong>
+                            </div>
+                            <div class="operation-track">
+                                <div class="operation-fill" style="width: {{ product_health|default:0|floatformat:0 }}%"></div>
+                            </div>
+                        </div>
+
+                        <div class="operation-item">
+                            <div class="operation-row">
+                                <span>Approval Rate</span>
+                                <strong>{{ approval_rate|default:0|floatformat:1 }}%</strong>
+                            </div>
+                            <div class="operation-track">
+                                <div class="operation-fill" style="width: {{ approval_rate|default:0|floatformat:0 }}%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="operation-mini-grid">
+                        <div class="operation-mini-card">
+                            <div class="operation-mini-label">Delivered</div>
+                            <div class="operation-mini-value" style="color:#15803D;">{{ delivered_count|default:0 }}</div>
+                        </div>
+
+                        <div class="operation-mini-card">
+                            <div class="operation-mini-label">Shipped</div>
+                            <div class="operation-mini-value" style="color:#1D4ED8;">{{ shipped_count|default:0 }}</div>
+                        </div>
+
+                        <div class="operation-mini-card">
+                            <div class="operation-mini-label">Cancelled</div>
+                            <div class="operation-mini-value" style="color:#B91C1C;">{{ cancelled_count|default:0 }}</div>
+                        </div>
+
+                        <div class="operation-mini-card">
+                            <div class="operation-mini-label">Refunded</div>
+                            <div class="operation-mini-value" style="color:#B45309;">{{ refunded_count|default:0 }}</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div class="analytics-bottom-grid">
+            <section class="analytics-panel">
+                <div class="analytics-panel-header">
+                    <div>
+                        <h2 class="analytics-panel-title">Top Products</h2>
+                        <p class="analytics-panel-subtitle">Your strongest product activity by views, sales, stock, and approval status.</p>
+                    </div>
+                    <a href="{% url 'dashboard:vendor_products' %}" class="analytics-btn analytics-btn-light">
+                        View Products
+                    </a>
+                </div>
+
+                <div class="analytics-panel-body" style="padding:0;">
+                    <div class="analytics-table-wrap">
+                        <table class="analytics-table">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Views</th>
+                                    <th>Units Sold</th>
+                                    <th>Stock</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in top_products %}
+                                <tr>
+                                    <td>
+                                        <div class="analytics-product-cell">
+                                            <div class="analytics-product-thumb">
+                                                {% if product.main_image %}
+                                                    {% with product_img=product.main_image|optimized_image_url:'product_card' %}
+                                                        <img
+                                                            src="{{ product_img }}"
+                                                            data-original-src="{{ product.main_image.url }}"
+                                                            alt="{{ product.name }}"
+                                                            loading="lazy"
+                                                            decoding="async"
+                                                            onerror="this.onerror=null; this.src=this.dataset.originalSrc;"
+                                                        >
+                                                    {% endwith %}
+                                                {% else %}
+                                                    <i class="fas fa-box" style="color:#94a3b8;"></i>
+                                                {% endif %}
+                                            </div>
+                                            <div style="min-width:0;">
+                                                <div class="analytics-product-name">{{ product.name }}</div>
+                                                <div class="analytics-product-meta">Product performance snapshot</div>
+                                            </div>
+                                        </div>
+                                    </td>
+
+                                    <td>{{ product.views_count|default:0 }}</td>
+                                    <td>{{ product.total_sold|default:0 }}</td>
+                                    <td>{{ product.stock_quantity|default:0 }}</td>
+                                    <td>
+                                        {% if product.approval_status == 'approved' %}
+                                            <span class="analytics-status-pill status-green">
+                                                <i class="fas fa-check-circle"></i>
+                                                Approved
+                                            </span>
+                                        {% elif product.approval_status == 'pending' %}
+                                            <span class="analytics-status-pill status-yellow">
+                                                <i class="fas fa-clock"></i>
+                                                Pending
+                                            </span>
+                                        {% elif product.approval_status == 'requires_changes' %}
+                                            <span class="analytics-status-pill status-orange">
+                                                <i class="fas fa-pen-to-square"></i>
+                                                Changes Required
+                                            </span>
+                                        {% elif product.approval_status == 'rejected' %}
+                                            <span class="analytics-status-pill status-red">
+                                                <i class="fas fa-circle-xmark"></i>
+                                                Rejected
+                                            </span>
+                                        {% else %}
+                                            <span class="analytics-status-pill status-gray">
+                                                {{ product.approval_status|default:"Unknown"|title }}
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5">
+                                        <div class="analytics-empty">
+                                            No product activity yet. Add products and get them approved to start seeing analytics.
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </div>
+
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-const ctx = document.getElementById('salesChart').getContext('2d');
-new Chart(ctx, {
-    type: 'line',
-    data: {
-        labels: [{% for data in sales_data %}'{{ data.date }}',{% endfor %}],
-        datasets: [{
-            label: 'Sales ($)',
-            data: [{% for data in sales_data %}{{ data.sales }},{% endfor %}],
-            borderColor: '#2563eb',
-            backgroundColor: 'rgba(37, 99, 235, 0.1)',
-            tension: 0.35,
-            fill: true
-        }]
-    },
-    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom' } } }
-});
+(function () {
+    const salesCanvas = document.getElementById('salesChart');
+
+    if (salesCanvas) {
+        new Chart(salesCanvas.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: [{% for data in sales_data %}'{{ data.date }}',{% empty %}'No Data',{% endfor %}],
+                datasets: [{
+                    label: 'Sales',
+                    data: [{% for data in sales_data %}{{ data.sales }},{% empty %}0,{% endfor %}],
+                    borderColor: '#0066CC',
+                    backgroundColor: 'rgba(0, 102, 204, 0.10)',
+                    pointBackgroundColor: '#FF7A00',
+                    pointBorderColor: '#FF7A00',
+                    pointRadius: 4,
+                    tension: 0.42,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            boxWidth: 8,
+                            font: {
+                                weight: 'bold'
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            font: { weight: 'bold' },
+                            maxRotation: 0,
+                            autoSkip: true,
+                            maxTicksLimit: 8
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(148, 163, 184, .18)' },
+                        ticks: { font: { weight: 'bold' } }
+                    }
+                }
+            }
+        });
+    }
+})();
 </script>
 {% endblock %}
