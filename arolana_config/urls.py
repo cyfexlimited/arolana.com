@@ -199,12 +199,13 @@ urlpatterns = [
     path("manufacturer/register/", manufacturer_register_redirect, name="manufacturer_register_redirect"),
     path("manufacturers/register/", manufacturer_register_redirect, name="manufacturers_register_redirect"),
 
-    # Products API
+    # Dedicated APIs must stay before the broad products include. Products has
+    # a final <slug>/ route which would otherwise consume /api/quotes/.
     path("api/installers/", include(("installers.api_urls", "installers_api"), namespace="installers_api")),
     path("api/provider/", include((provider_urlpatterns, "provider_api"), namespace="provider_api")),
-    path("api/", include("products.urls", namespace="products_api")),
     path("api/smartchat/", include(("smartchat.api_urls", "smartchat_api"), namespace="smartchat_api")),
     path("api/quotes/", include(("core.api_urls", "quotes_api"), namespace="quotes_api")),
+    path("api/", include("products.urls", namespace="products_api")),
     path("", include("core.urls")),
 
     # Health check for Railway

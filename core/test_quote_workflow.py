@@ -131,6 +131,13 @@ class QuoteWorkflowTests(TestCase):
         )
         self.assertEqual(response.status_code, 404)
 
+    def test_quote_api_route_is_not_consumed_by_product_slug(self):
+        self.client.force_login(self.customer)
+        response = self.client.get("/api/quotes/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/json")
+        self.assertTrue(response.json()["success"])
+
     def test_customer_detail_enforces_ownership(self):
         other_customer = User.objects.create_user(
             username="other-customer",
