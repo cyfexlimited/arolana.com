@@ -596,3 +596,27 @@ def home(request):
     }
 
     return render(request, "base/home.html", context)
+
+def terms_and_conditions(request):
+    return render(request, "pages/terms.html", {"show_side_ads": False})
+
+
+def privacy_policy(request):
+    return render(request, "pages/privacy.html", {"show_side_ads": False})
+
+
+def return_policy(request):
+    return render(request, "pages/returns.html", {"show_side_ads": False})
+
+
+def shipping_policy(request):
+    return render(request, "support/shipping.html", {"show_side_ads": False})
+
+
+def help_center(request):
+    return render(request, "pages/help_center.html", {"show_side_ads": False})
+
+
+def contact_page(request):
+    return render(request, "pages/contact.html", {"show_side_ads": False})
+    
