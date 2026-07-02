@@ -1,0 +1,35 @@
+{% extends "base/base.html" %}
+
+{% block content %}
+<main style="min-height:70vh;background:#F6F9FC;padding:2rem 1rem 5rem;color:#071A44;">
+  <div style="max-width:860px;margin:auto;">
+    <a href="/" style="color:#0066CC;font-weight:800;text-decoration:none;">← Continue shopping</a>
+    <section style="margin-top:1rem;background:white;border:1px solid #E3ECF8;border-radius:1.5rem;padding:clamp(1.1rem,3vw,2rem);box-shadow:0 18px 45px rgba(7,26,68,.07);">
+      <div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap;">
+        <div>
+          <div style="color:#FF7A00;font-size:.72rem;font-weight:950;letter-spacing:.15em;text-transform:uppercase;">Arolana quote #{{ quote.id }}</div>
+          <h1 style="margin:.4rem 0;font-size:clamp(1.7rem,4vw,2.7rem);font-weight:950;">{{ quote.subject }}</h1>
+          <p style="color:#64748B;">{{ quote.vendor.store_name }}{% if quote.product_name %} · {{ quote.product_name }}{% endif %}</p>
+        </div>
+        <span style="border-radius:999px;background:#EAF3FF;color:#0066CC;padding:.55rem .8rem;font-size:.75rem;font-weight:900;">{{ quote.get_status_display }}</span>
+      </div>
+      <div style="margin-top:1.3rem;padding:1rem;border-radius:1rem;background:#F8FBFF;border-left:4px solid #FF7A00;white-space:pre-wrap;">{{ quote.message }}</div>
+      <h2 style="margin:1.6rem 0 .8rem;font-size:1.25rem;font-weight:950;">Updates</h2>
+      <div style="display:grid;gap:.75rem;">
+        {% for item in quote_messages %}
+          <article style="padding:1rem;border:1px solid #E3ECF8;border-radius:1rem;background:{% if item.sender_role == 'vendor' %}#F0FDF4{% else %}#EFF6FF{% endif %};">
+            <div style="font-size:.72rem;font-weight:900;text-transform:uppercase;color:#0066CC;">{{ item.get_sender_role_display }} · {{ item.created_at|date:"M d, Y · H:i" }}</div>
+            <p style="margin:.45rem 0 0;white-space:pre-wrap;">{{ item.message }}</p>
+          </article>
+        {% empty %}
+          <div style="padding:1.2rem;border:1px dashed #CBD9EA;border-radius:1rem;color:#64748B;">Your request is being reviewed. Updates from the vendor or Arolana will appear here.</div>
+        {% endfor %}
+      </div>
+      <div style="margin-top:1.5rem;padding:1rem;border-radius:1rem;background:#071A44;color:white;">
+        <strong>Need help?</strong>
+        <p style="margin:.35rem 0 0;color:#D7E7FF;">Arolana support can step in if a vendor response is delayed.</p>
+      </div>
+    </section>
+  </div>
+</main>
+{% endblock %}

@@ -5,9 +5,10 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.files.storage import default_storage
-from django.core.mail import EmailMultiAlternatives, mail_admins
+from django.core.mail import EmailMultiAlternatives, mail_admins, send_mail
 from django.db.models import F, Q, Sum
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -18,9 +19,8 @@ from accounts.models import User
 from orders.models import Order
 from products.models import Product
 from vendors.models import VendorProfile
-from notifications.models import Notification
-
 from .models import VendorQuoteRequest
+from .quote_services import notify_new_quote
 
 logger = logging.getLogger(__name__)
 
@@ -295,39 +295,14 @@ def request_vendor_quote(request):
         if email_result.get("vendor_email_sent"):
             quote.status = "sent_to_vendor"
             quote.sent_to_vendor_at = timezone.now()
+            quote.last_vendor_notified_at = quote.sent_to_vendor_at
+            quote.vendor_response_due_at = quote.sent_to_vendor_at + timedelta(hours=6)
         quote.email_notification_status = email_result
-        quote.save(update_fields=["status", "sent_to_vendor_at", "email_notification_status", "updated_at"])
-
-        Notification.send(
-            user=vendor.user,
-            notification_type="vendor",
-            title="New quote request from your Arolana store",
-            message=f"{name} requested a quote for {product_name or vendor.store_name}.",
-            link="/dashboard/vendor/quote-requests/",
-            metadata={"quote_request_id": quote.id},
-            priority=3,
-        )
-        for admin_user in User.objects.filter(is_active=True).filter(
-            Q(is_staff=True) | Q(is_superuser=True)
-        ).distinct()[:20]:
-            Notification.send(
-                user=admin_user,
-                notification_type="vendor",
-                title="New Arolana quote request",
-                message=f"{name} requested a quote from {vendor.store_name}.",
-                link=f"/admin/core/vendorquoterequest/{quote.id}/change/",
-                metadata={"quote_request_id": quote.id},
-                priority=3,
-            )
-        if quote.customer_id:
-            Notification.send(
-                user=quote.customer,
-                notification_type="success",
-                title="We received your quote request",
-                message=f"Arolana and {vendor.store_name} have received your request.",
-                link="/account/",
-                metadata={"quote_request_id": quote.id},
-            )
+        quote.save(update_fields=[
+            "status", "sent_to_vendor_at", "last_vendor_notified_at",
+            "vendor_response_due_at", "email_notification_status", "updated_at",
+        ])
+        notify_new_quote(quote)
 
         messages.success(
             request,
@@ -350,6 +325,23 @@ def request_vendor_quote(request):
             },
         },
     )
+
+
+@login_required
+def customer_quote_request_detail(request, quote_id):
+    quote = get_object_or_404(
+        VendorQuoteRequest.objects.select_related("vendor", "vendor__user"),
+        id=quote_id,
+        customer=request.user,
+    )
+    thread = quote.messages.filter(
+        is_internal=False,
+        is_customer_visible=True,
+    ).select_related("sender")
+    return render(request, "core/customer_quote_detail.html", {
+        "quote": quote,
+        "quote_messages": thread,
+    })
 
 
 def get_client_ip(request):
@@ -493,6 +485,7 @@ Arolana Marketplace
     result = {
         "admin_email_sent": False,
         "vendor_email_sent": False,
+        "customer_email_sent": False,
         "vendor_email": vendor_email,
         "admin_email": admin_email,
     }
@@ -543,6 +536,27 @@ Arolana Marketplace
             quote.id,
             quote.vendor_id,
         )
+
+    if quote.email:
+        try:
+            customer_message = (
+                f"Hello {quote.name},\n\n"
+                f"We received your Arolana quote request: {quote.subject}.\n"
+                f"Store: {quote.vendor.store_name}\n"
+                f"Product: {product_label}\n\n"
+                "Arolana and the vendor will update you shortly. "
+                "You will not need to repeat your request."
+            )
+            send_mail(
+                subject="Your Arolana quote request was received",
+                message=customer_message,
+                from_email=from_email,
+                recipient_list=[quote.email],
+                fail_silently=False,
+            )
+            result["customer_email_sent"] = True
+        except Exception:
+            logger.exception("Failed to send quote confirmation to customer for quote %s", quote.id)
 
     return result
 

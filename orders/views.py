@@ -784,20 +784,48 @@ def mobile_register_push_token_api(request):
 
 
 
-def _mobile_notification_context(phone_number):
+def _mobile_notification_context(phone_number, api_token=""):
     clean_phone = "".join(ch for ch in str(phone_number or "") if ch.isdigit())
     username = f"mobile_{clean_phone}"
 
     User = get_user_model()
     user_ids = []
+    linked_customer = None
 
-    mobile_user = User.objects.filter(username=username).first()
-    if mobile_user:
-        user_ids.append(mobile_user.id)
+    if api_token:
+        try:
+            from mobile_customers.models import MobileCustomer
+            linked_customer = MobileCustomer.objects.select_related("user").filter(
+                api_token=api_token,
+                is_active=True,
+            ).first()
+            if linked_customer and linked_customer.user_id not in user_ids:
+                user_ids.append(linked_customer.user_id)
+        except Exception:
+            logger.exception("Could not resolve mobile notification account token")
+    if not linked_customer:
+        mobile_user = User.objects.filter(username=username).first()
+        if mobile_user:
+            user_ids.append(mobile_user.id)
+
+    if linked_customer:
+        linked_phone = str(linked_customer.phone_number or "")
+        linked_clean_phone = "".join(ch for ch in linked_phone if ch.isdigit())
+        order_filter = (
+            Q(user_id=linked_customer.user_id)
+            | Q(customer_phone=linked_phone)
+            | Q(customer_phone=linked_clean_phone)
+        )
+    else:
+        order_filter = (
+            Q(user__username=username)
+            | Q(customer_phone=phone_number)
+            | Q(customer_phone=clean_phone)
+        )
 
     matching_orders = (
         Order.objects
-        .filter(Q(user__username=username) | Q(customer_phone=phone_number) | Q(customer_phone=clean_phone))
+        .filter(order_filter)
         .select_related("user")
         .prefetch_related("delivery_requests")
         .order_by("-created_at")[:80]
@@ -819,13 +847,13 @@ def _mobile_notification_context(phone_number):
     return clean_phone, user_ids, order_numbers, tracking_codes
 
 
-def _mobile_notification_queryset(phone_number):
+def _mobile_notification_queryset(phone_number, api_token=""):
     try:
         from notifications.models import Notification
     except Exception:
         return None
 
-    clean_phone, user_ids, order_numbers, tracking_codes = _mobile_notification_context(phone_number)
+    clean_phone, user_ids, order_numbers, tracking_codes = _mobile_notification_context(phone_number, api_token)
 
     if not clean_phone:
         return Notification.objects.none()
@@ -851,6 +879,7 @@ def _mobile_notification_queryset(phone_number):
 @require_GET
 def mobile_notifications_api(request):
     phone_number = str(request.GET.get("phone") or "").strip()
+    api_token = str(request.GET.get("api_token") or "").strip()
     clean_phone = "".join(ch for ch in phone_number if ch.isdigit())
 
     if not clean_phone:
@@ -863,8 +892,6 @@ def mobile_notifications_api(request):
             status=400,
         )
 
-    username = f"mobile_{clean_phone}"
-
     try:
         from notifications.models import Notification
     except Exception:
@@ -876,51 +903,10 @@ def mobile_notifications_api(request):
             }
         )
 
-    user_ids = []
-
-    User = get_user_model()
-    mobile_user = User.objects.filter(username=username).first()
-
-    if mobile_user:
-        user_ids.append(mobile_user.id)
-
-    matching_orders = (
-        Order.objects
-        .filter(Q(user__username=username) | Q(customer_phone=phone_number) | Q(customer_phone=clean_phone))
-        .select_related("user")
-        .order_by("-created_at")[:50]
-    )
-
-    order_numbers = []
-    tracking_codes = []
-
-    for order in matching_orders:
-        if order.user_id and order.user_id not in user_ids:
-            user_ids.append(order.user_id)
-
-        order_numbers.append(order.order_number)
-
-        delivery = order.delivery_requests.order_by("-created_at").first()
-        if delivery:
-            tracking_codes.append(delivery.tracking_code)
-
-    notifications_query = Notification.objects.none()
-
-    if user_ids:
-        notifications_query = Notification.objects.filter(user_id__in=user_ids)
-
-    metadata_query = Q()
-
-    for order_number in order_numbers:
-        metadata_query |= Q(metadata__order_number=order_number)
-
-    for tracking_code in tracking_codes:
-        metadata_query |= Q(metadata__tracking_code=tracking_code)
-
-    if metadata_query:
-        notifications_query = notifications_query | Notification.objects.filter(metadata_query)
-
-    notifications_query = notifications_query.distinct().order_by("-created_at")[:50]
+    notifications_query = _mobile_notification_queryset(
+        phone_number,
+        api_token,
+    ).order_by("-created_at")[:50]
 
     notifications = []
 
@@ -963,6 +949,9 @@ def mobile_notifications_mark_read_api(request):
         )
 
     phone_number = str(payload.get("phone") or payload.get("phone_number") or "").strip()
+    api_token = str(payload.get("api_token") or "").strip()
+    notification_id = payload.get("notification_id")
+    mark_as_read = payload.get("is_read", True) not in (False, "false", "0", 0)
     clean_phone = "".join(ch for ch in phone_number if ch.isdigit())
 
     if not clean_phone:
@@ -970,8 +959,6 @@ def mobile_notifications_mark_read_api(request):
             {"success": False, "message": "Phone number is required."},
             status=400,
         )
-
-    username = f"mobile_{clean_phone}"
 
     try:
         from notifications.models import Notification
@@ -984,51 +971,9 @@ def mobile_notifications_mark_read_api(request):
             }
         )
 
-    User = get_user_model()
-    user_ids = []
-
-    mobile_user = User.objects.filter(username=username).first()
-    if mobile_user:
-        user_ids.append(mobile_user.id)
-
-    matching_orders = (
-        Order.objects
-        .filter(Q(user__username=username) | Q(customer_phone=phone_number) | Q(customer_phone=clean_phone))
-        .select_related("user")
-        .prefetch_related("delivery_requests")
-        .order_by("-created_at")[:50]
-    )
-
-    order_numbers = []
-    tracking_codes = []
-
-    for order in matching_orders:
-        if order.user_id and order.user_id not in user_ids:
-            user_ids.append(order.user_id)
-
-        order_numbers.append(order.order_number)
-
-        delivery = order.delivery_requests.order_by("-created_at").first()
-        if delivery:
-            tracking_codes.append(delivery.tracking_code)
-
-    notifications_query = Notification.objects.none()
-
-    if user_ids:
-        notifications_query = Notification.objects.filter(user_id__in=user_ids)
-
-    metadata_query = Q()
-
-    for order_number in order_numbers:
-        metadata_query |= Q(metadata__order_number=order_number)
-
-    for tracking_code in tracking_codes:
-        metadata_query |= Q(metadata__tracking_code=tracking_code)
-
-    if metadata_query:
-        notifications_query = notifications_query | Notification.objects.filter(metadata_query)
-
-    notifications_query = notifications_query.distinct()
+    notifications_query = _mobile_notification_queryset(phone_number, api_token)
+    if notification_id:
+        notifications_query = notifications_query.filter(id=notification_id)
 
     updated = 0
 
@@ -1036,7 +981,10 @@ def mobile_notifications_mark_read_api(request):
     sample = notifications_query.first()
     if sample:
         if hasattr(sample, "is_read"):
-            updated = notifications_query.filter(is_read=False).update(is_read=True)
+            updated = notifications_query.update(
+                is_read=mark_as_read,
+                read_at=timezone.now() if mark_as_read else None,
+            )
         elif hasattr(sample, "read"):
             updated = notifications_query.filter(read=False).update(read=True)
         else:
@@ -1063,6 +1011,7 @@ def mobile_notifications_delete_api(request):
         )
 
     phone_number = str(payload.get("phone") or payload.get("phone_number") or "").strip()
+    api_token = str(payload.get("api_token") or "").strip()
     clean_phone = "".join(ch for ch in phone_number if ch.isdigit())
     notification_id = payload.get("notification_id")
 
@@ -1089,7 +1038,7 @@ def mobile_notifications_delete_api(request):
             }
         )
 
-    notifications_query = _mobile_notification_queryset(phone_number).filter(id=notification_id)
+    notifications_query = _mobile_notification_queryset(phone_number, api_token).filter(id=notification_id)
     deleted_count, _ = notifications_query.delete()
 
     return JsonResponse(

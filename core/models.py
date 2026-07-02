@@ -189,6 +189,12 @@ class ProtectedImageAsset(models.Model):
         return f"{self.content_type} #{self.object_id} {self.field_name}"
 
 class VendorQuoteRequest(models.Model):
+    ESCALATION_CHOICES = (
+        ("none", "None"),
+        ("delayed", "Vendor Delayed"),
+        ("admin_followup", "Admin Follow-up"),
+        ("admin_resolved", "Admin Resolved"),
+    )
     STATUS_CHOICES = (
         ("new", "New"),
         ("admin_review", "Admin Review"),
@@ -231,10 +237,15 @@ class VendorQuoteRequest(models.Model):
         db_index=True,
     )
 
-    admin_notes = models.TextField(blank=True)
-    vendor_response = models.TextField(blank=True)
-    admin_customer_response = models.TextField(blank=True)
-    internal_resolution_notes = models.TextField(blank=True)
+    admin_notes = models.TextField(blank=True, verbose_name="Internal admin notes")
+    admin_vendor_message = models.TextField(
+        blank=True,
+        verbose_name="Message to vendor",
+        help_text="Send a new message to the vendor. This field is cleared after delivery.",
+    )
+    vendor_response = models.TextField(blank=True, verbose_name="Latest vendor response")
+    admin_customer_response = models.TextField(blank=True, verbose_name="Message to customer")
+    internal_resolution_notes = models.TextField(blank=True, verbose_name="Internal resolution notes")
     sent_to_vendor_at = models.DateTimeField(null=True, blank=True)
     vendor_responded_at = models.DateTimeField(null=True, blank=True)
     admin_last_followed_up_at = models.DateTimeField(null=True, blank=True)
@@ -249,6 +260,16 @@ class VendorQuoteRequest(models.Model):
         blank=True,
         related_name="assigned_vendor_quote_requests",
     )
+    escalation_status = models.CharField(
+        max_length=24,
+        choices=ESCALATION_CHOICES,
+        default="none",
+        db_index=True,
+    )
+    vendor_response_due_at = models.DateTimeField(null=True, blank=True)
+    last_vendor_notified_at = models.DateTimeField(null=True, blank=True)
+    last_customer_notified_at = models.DateTimeField(null=True, blank=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
 
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     user_agent = models.TextField(blank=True)
@@ -271,8 +292,21 @@ class VendorQuoteRequest(models.Model):
 
 
 class VendorQuoteMessage(models.Model):
-    quote_request = models.ForeignKey(VendorQuoteRequest, on_delete=models.CASCADE, related_name="quote_messages")
-    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="sent_vendor_quote_messages")
+    SENDER_ROLES = (
+        ("admin", "Admin"),
+        ("vendor", "Vendor"),
+        ("customer", "Customer"),
+        ("system", "System"),
+    )
+
+    quote_request = models.ForeignKey(VendorQuoteRequest, on_delete=models.CASCADE, related_name="messages")
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sent_vendor_quote_messages",
+    )
     recipient = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -281,9 +315,13 @@ class VendorQuoteMessage(models.Model):
         related_name="received_vendor_quote_messages",
     )
     message = models.TextField()
+    sender_role = models.CharField(max_length=16, choices=SENDER_ROLES, default="system", db_index=True)
+    is_internal = models.BooleanField(default=False)
+    is_customer_visible = models.BooleanField(default=False)
     is_admin_message = models.BooleanField(default=False)
     is_vendor_message = models.BooleanField(default=False)
     is_read = models.BooleanField(default=False, db_index=True)
+    read_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

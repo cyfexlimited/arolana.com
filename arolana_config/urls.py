@@ -204,6 +204,8 @@ urlpatterns = [
     path("api/provider/", include((provider_urlpatterns, "provider_api"), namespace="provider_api")),
     path("api/", include("products.urls", namespace="products_api")),
     path("api/smartchat/", include(("smartchat.api_urls", "smartchat_api"), namespace="smartchat_api")),
+    path("api/quotes/", include(("core.api_urls", "quotes_api"), namespace="quotes_api")),
+    path("", include("core.urls")),
 
     # Health check for Railway
     path("health/", health_check, name="health"),
@@ -383,7 +385,6 @@ urlpatterns = [
         products_views.debug_colors,
         name="debug_colors",
     ),
-    path("debug/", include("core.urls")),
     path("careers/", careers_page, name="careers"),
     path("help/", help_center, name="help_center"),
     path("faq/", faq_page, name="faq_page"),

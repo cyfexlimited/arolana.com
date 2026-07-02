@@ -19,6 +19,10 @@ from .models import (
     VendorQuoteMessage,
     VendorQuoteRequest,
 )
+from .quote_services import (
+    send_admin_customer_message,
+    send_admin_vendor_message,
+)
 from products.models import Product
 from orders.models import Order
 from vendors.models import VendorProfile
@@ -287,8 +291,9 @@ class ProtectedImageAssetAdmin(admin.ModelAdmin):
 class VendorQuoteMessageInline(admin.TabularInline):
     model = VendorQuoteMessage
     extra = 0
-    fields = ("sender", "recipient", "message", "is_admin_message", "is_vendor_message", "is_read", "created_at")
-    readonly_fields = ("created_at",)
+    fields = ("sender_role", "sender", "message", "is_internal", "is_customer_visible", "created_at", "read_at")
+    readonly_fields = fields
+    can_delete = False
 
 
 @admin.register(VendorQuoteRequest)
@@ -302,6 +307,7 @@ class VendorQuoteRequestAdmin(admin.ModelAdmin):
         "status",
         "escalation_level",
         "is_admin_intervention_required",
+        "escalation_status",
         "subject",
         "created_at",
     )
@@ -309,6 +315,7 @@ class VendorQuoteRequestAdmin(admin.ModelAdmin):
         "status",
         "escalation_level",
         "is_admin_intervention_required",
+        "escalation_status",
         "created_at",
         "vendor",
     )
@@ -338,6 +345,7 @@ class VendorQuoteRequestAdmin(admin.ModelAdmin):
         "created_at",
         "updated_at",
         "email_notification_status",
+        "vendor_response",
     )
     fieldsets = (
         ("Quote Request", {
@@ -362,6 +370,7 @@ class VendorQuoteRequestAdmin(admin.ModelAdmin):
         ("Admin / Vendor Response", {
             "fields": (
                 "admin_notes",
+                "admin_vendor_message",
                 "admin_customer_response",
                 "internal_resolution_notes",
                 "vendor_response",
@@ -376,6 +385,11 @@ class VendorQuoteRequestAdmin(admin.ModelAdmin):
                 "customer_last_notified_at",
                 "escalation_level",
                 "is_admin_intervention_required",
+                "escalation_status",
+                "vendor_response_due_at",
+                "last_vendor_notified_at",
+                "last_customer_notified_at",
+                "closed_at",
                 "email_notification_status",
             ),
         }),
@@ -390,11 +404,24 @@ class VendorQuoteRequestAdmin(admin.ModelAdmin):
         }),
     )
     inlines = (VendorQuoteMessageInline,)
-    actions = ("send_to_vendor", "mark_admin_review", "mark_customer_updated", "mark_closed", "mark_spam", "escalate")
+    actions = (
+        "send_to_vendor",
+        "mark_admin_review",
+        "mark_customer_updated",
+        "mark_admin_resolved",
+        "mark_closed",
+        "mark_spam",
+        "escalate",
+    )
 
     @admin.action(description="Send selected requests to vendor")
     def send_to_vendor(self, request, queryset):
-        queryset.update(status="sent_to_vendor", sent_to_vendor_at=now())
+        for quote in queryset:
+            send_admin_vendor_message(
+                quote,
+                request.user,
+                quote.admin_vendor_message or "Arolana admin is following up on this quote request. Please review and respond.",
+            )
 
     @admin.action(description="Mark selected requests admin review")
     def mark_admin_review(self, request, queryset):
@@ -402,11 +429,21 @@ class VendorQuoteRequestAdmin(admin.ModelAdmin):
 
     @admin.action(description="Mark selected requests customer updated")
     def mark_customer_updated(self, request, queryset):
-        queryset.update(status="customer_updated", customer_last_notified_at=now())
+        for quote in queryset.exclude(admin_customer_response=""):
+            send_admin_customer_message(quote, request.user, quote.admin_customer_response)
+
+    @admin.action(description="Mark selected requests admin resolved")
+    def mark_admin_resolved(self, request, queryset):
+        queryset.update(
+            status="customer_updated",
+            escalation_status="admin_resolved",
+            is_admin_intervention_required=False,
+            assigned_admin=request.user,
+        )
 
     @admin.action(description="Mark selected requests closed")
     def mark_closed(self, request, queryset):
-        queryset.update(status="closed")
+        queryset.update(status="closed", closed_at=now())
 
     @admin.action(description="Mark selected requests spam")
     def mark_spam(self, request, queryset):
@@ -414,13 +451,42 @@ class VendorQuoteRequestAdmin(admin.ModelAdmin):
 
     @admin.action(description="Escalate for admin intervention")
     def escalate(self, request, queryset):
-        queryset.update(
-            status="admin_follow_up",
-            escalation_level=2,
-            is_admin_intervention_required=True,
-            assigned_admin=request.user,
-            admin_last_followed_up_at=now(),
+        for quote in queryset:
+            quote.status = "admin_follow_up"
+            quote.escalation_status = "admin_followup"
+            quote.escalation_level = 2
+            quote.is_admin_intervention_required = True
+            quote.assigned_admin = request.user
+            quote.admin_last_followed_up_at = now()
+            quote.save(update_fields=[
+                "status", "escalation_status", "escalation_level",
+                "is_admin_intervention_required", "assigned_admin",
+                "admin_last_followed_up_at", "updated_at",
+            ])
+            send_admin_vendor_message(
+                quote,
+                request.user,
+                "Your response to this quote is delayed. Arolana is following up to protect the customer experience.",
+            )
+
+    def save_model(self, request, obj, form, change):
+        previous = None
+        if change and obj.pk:
+            previous = VendorQuoteRequest.objects.filter(pk=obj.pk).first()
+        vendor_message = (obj.admin_vendor_message or "").strip()
+        customer_message_changed = bool(
+            obj.admin_customer_response
+            and (not previous or obj.admin_customer_response != previous.admin_customer_response)
         )
+        super().save_model(request, obj, form, change)
+        if vendor_message and (not previous or vendor_message != previous.admin_vendor_message):
+            send_admin_vendor_message(obj, request.user, vendor_message)
+            obj.admin_vendor_message = ""
+            obj.save(update_fields=["admin_vendor_message", "updated_at"])
+            self.message_user(request, "Message sent to vendor.")
+        if customer_message_changed:
+            send_admin_customer_message(obj, request.user, obj.admin_customer_response)
+            self.message_user(request, "Customer-facing update sent.")
     date_hierarchy = "created_at"
 # =========================
 # ADMIN APPEARANCE FORM

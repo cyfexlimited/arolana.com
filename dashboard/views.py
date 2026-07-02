@@ -24,6 +24,11 @@ import string
 
 from products.models import Product, Category, ProductReview, Wishlist, RecentlyViewed, ProductVariant, ProductVariantImage, ProductQuestion, Accessory, AccessoryProduct, ProductImage, ProductVideo, Brand
 from core.models import VendorQuoteMessage, VendorQuoteRequest
+from core.quote_services import (
+    quote_access_for_vendor,
+    send_vendor_message,
+    serialize_quote_message,
+)
 from vendors.models import VendorProfile
 from accounts.models import User
 from orders.models import Order, OrderItem
@@ -625,20 +630,7 @@ def vendor_dashboard(request):
     return render(request, 'dashboard/vendor_dashboard.html', context)
 
 def _vendor_quote_access(user):
-    limits = user_subscription_limits(user)
-    limit = int(limits.get("max_quote_responses_per_month", 0))
-    month_start = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    used = VendorQuoteRequest.objects.filter(
-        vendor__user=user,
-        vendor_responded_at__gte=month_start,
-    ).count()
-    return {
-        "limit": limit,
-        "used": used,
-        "remaining": -1 if limit < 0 else max(limit - used, 0),
-        "allowed": limit < 0 or used < limit,
-        "chat_enabled": bool(limits.get("quote_chat_enabled")),
-    }
+    return quote_access_for_vendor(user)
 
 
 def _refresh_vendor_quote_escalation(quote):
@@ -647,12 +639,14 @@ def _refresh_vendor_quote_escalation(quote):
     age = timezone.now() - quote.sent_to_vendor_at
     if age >= timedelta(hours=24):
         quote.status = "admin_follow_up"
+        quote.escalation_status = "admin_followup"
         quote.escalation_level = max(quote.escalation_level, 2)
         quote.is_admin_intervention_required = True
-        quote.save(update_fields=["status", "escalation_level", "is_admin_intervention_required", "updated_at"])
+        quote.save(update_fields=["status", "escalation_status", "escalation_level", "is_admin_intervention_required", "updated_at"])
     elif age >= timedelta(hours=6) and quote.escalation_level < 1:
+        quote.escalation_status = "delayed"
         quote.escalation_level = 1
-        quote.save(update_fields=["escalation_level", "updated_at"])
+        quote.save(update_fields=["escalation_status", "escalation_level", "updated_at"])
 
 
 @login_required
@@ -695,6 +689,7 @@ def vendor_quote_requests(request):
     quote_requests_qs = (
         VendorQuoteRequest.objects
         .filter(vendor=vendor_profile)
+        .prefetch_related("messages__sender")
         .order_by("-created_at")
     )
 
@@ -791,63 +786,14 @@ def vendor_quote_response(request, quote_id):
         return redirect("dashboard:vendor_quote_requests")
 
     access = _vendor_quote_access(request.user)
-    if not access["allowed"] and not quote.vendor_responded_at:
+    if not access["allowed"]:
         text = "Your current plan has reached its quote response limit. Upgrade to continue responding to customer quote requests."
         if wants_json:
             return JsonResponse({"success": False, "reason": "subscription_limit", "message": text}, status=403)
         messages.warning(request, text)
         return redirect("dashboard:vendor_quote_requests")
 
-    now = timezone.now()
-    quote.vendor_response = vendor_response
-    quote.status = "vendor_replied"
-    quote.vendor_responded_at = now
-    quote.escalation_level = 0
-    quote.is_admin_intervention_required = False
-    quote.save(update_fields=[
-        "vendor_response", "status", "vendor_responded_at",
-        "escalation_level", "is_admin_intervention_required", "updated_at",
-    ])
-
-    admin_link = f"/admin/core/vendorquoterequest/{quote.id}/change/"
-    for admin_user in User.objects.filter(Q(is_staff=True) | Q(is_superuser=True), is_active=True).distinct()[:20]:
-        Notification.send(
-            user=admin_user,
-            notification_type="vendor",
-            title=f"{vendor_profile.store_name} responded to quote request #{quote.id}",
-            message=vendor_response[:240],
-            link=admin_link,
-            metadata={"quote_request_id": quote.id},
-            priority=3,
-        )
-    if quote.customer_id:
-        Notification.send(
-            user=quote.customer,
-            notification_type="vendor",
-            title="Vendor has responded to your quote request",
-            message=f"{vendor_profile.store_name}: {vendor_response[:220]}",
-            link="/account/",
-            metadata={"quote_request_id": quote.id},
-            priority=3,
-        )
-    email_ok = False
-    if quote.email:
-        try:
-            send_mail(
-                "Vendor response to your Arolana quote request",
-                f"Quote request #{quote.id}\n\n{vendor_profile.store_name} responded:\n{vendor_response}",
-                getattr(settings, "DEFAULT_FROM_EMAIL", None),
-                [quote.email],
-            )
-            email_ok = True
-            quote.customer_last_notified_at = now
-        except Exception:
-            logger.exception("Customer quote response email failed for quote %s", quote.id)
-    quote.email_notification_status = {
-        **(quote.email_notification_status or {}),
-        "vendor_response_customer": email_ok,
-    }
-    quote.save(update_fields=["email_notification_status", "customer_last_notified_at", "updated_at"])
+    note = send_vendor_message(quote, request.user, vendor_response, customer_visible=True)
 
     if wants_json:
         return JsonResponse({
@@ -856,7 +802,8 @@ def vendor_quote_response(request, quote_id):
             "status": quote.status,
             "status_label": quote.get_status_display(),
             "vendor_response": quote.vendor_response,
-            "updated_at": now.isoformat(),
+            "quote_message": serialize_quote_message(note),
+            "updated_at": quote.updated_at.isoformat(),
         })
     messages.success(request, "Response sent successfully.")
     return redirect("dashboard:vendor_quote_requests")
@@ -866,7 +813,7 @@ def vendor_quote_response(request, quote_id):
 @require_http_methods(["GET"])
 def vendor_quote_messages(request, quote_id):
     quote = get_object_or_404(VendorQuoteRequest, id=quote_id, vendor__user=request.user)
-    quote.quote_messages.filter(recipient=request.user, is_read=False).update(is_read=True)
+    quote.messages.filter(recipient=request.user, is_read=False).update(is_read=True, read_at=timezone.now())
     return JsonResponse({"success": True, "messages": [
         {
             "id": note.id,
@@ -875,7 +822,7 @@ def vendor_quote_messages(request, quote_id):
             "is_admin_message": note.is_admin_message,
             "created_at": note.created_at.isoformat(),
         }
-        for note in quote.quote_messages.select_related("sender")
+        for note in quote.messages.filter(is_internal=False).select_related("sender")
     ]})
 
 
@@ -896,7 +843,9 @@ def vendor_quote_send_message(request, quote_id):
         sender=request.user,
         recipient=recipient,
         message=text,
+        sender_role="vendor",
         is_vendor_message=True,
+        is_customer_visible=False,
     )
     if recipient:
         Notification.send(

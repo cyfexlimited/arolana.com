@@ -491,11 +491,15 @@
                                 {{ quote.get_status_display }}
                             </span>
 
-                            {% if quote.vendor_response %}
-                                <div class="quote-meta" data-saved-response style="margin-top:.55rem;">
-                                    <strong>Response:</strong> {{ quote.vendor_response|truncatewords:16 }}
-                                </div>
-                            {% endif %}
+                            <div data-message-thread style="display:grid;gap:.35rem;margin-top:.55rem;">
+                              {% for item in quote.messages.all %}
+                                {% if not item.is_internal %}
+                                  <div class="quote-meta" style="border-radius:.65rem;padding:.5rem;background:{% if item.sender_role == 'admin' %}#FFF7ED{% else %}#F0FDF4{% endif %};">
+                                    <strong>{{ item.get_sender_role_display }}:</strong> {{ item.message|truncatewords:18 }}
+                                  </div>
+                                {% endif %}
+                              {% endfor %}
+                            </div>
 
                             <form method="post" data-quote-response-form
                                 action="{% url 'dashboard:vendor_quote_response' quote.id %}"
@@ -503,12 +507,12 @@
                                 {% csrf_token %}
                                 <textarea name="vendor_response"
                                         rows="3"
-                                        placeholder="Write vendor response..."
-                                        style="width:100%;min-width:220px;border:1px solid #E3ECF8;border-radius:.75rem;padding:.65rem;font-size:.75rem;" {% if not quote_access.allowed and not quote.vendor_responded_at %}disabled{% endif %}>{{ quote.vendor_response }}</textarea>
+                                        placeholder="Write a new response..."
+                                        style="width:100%;min-width:220px;border:1px solid #E3ECF8;border-radius:.75rem;padding:.65rem;font-size:.75rem;" {% if not quote_access.allowed and not quote.vendor_responded_at %}disabled{% endif %}></textarea>
 
                                 <button type="submit"
                                         style="margin-top:.45rem;display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:.75rem;background:#0066CC;color:white;padding:.5rem .75rem;font-size:.72rem;font-weight:950;" {% if not quote_access.allowed and not quote.vendor_responded_at %}disabled{% endif %}>
-                                    Save Response
+                                    Send Response
                                 </button>
                             </form>
                         </td>
@@ -552,11 +556,15 @@
                 </div>
                 {% endif %}
 
-                {% if quote.vendor_response %}
-                <div class="quote-meta" data-saved-response style="margin-top:.65rem;border-radius:.75rem;background:#F0FDF4;padding:.65rem;color:#15803D;">
-                    <strong>Response:</strong> {{ quote.vendor_response }}
+                <div data-message-thread style="display:grid;gap:.45rem;margin-top:.65rem;">
+                  {% for item in quote.messages.all %}
+                    {% if not item.is_internal %}
+                    <div class="quote-meta" style="border-radius:.75rem;padding:.65rem;background:{% if item.sender_role == 'admin' %}#FFF7ED{% else %}#F0FDF4{% endif %};">
+                      <strong>{{ item.get_sender_role_display }}:</strong> {{ item.message }}
+                    </div>
+                    {% endif %}
+                  {% endfor %}
                 </div>
-                {% endif %}
 
                 <form method="post" data-quote-response-form
                     action="{% url 'dashboard:vendor_quote_response' quote.id %}"
@@ -564,12 +572,12 @@
                     {% csrf_token %}
                     <textarea name="vendor_response"
                             rows="3"
-                            placeholder="Write vendor response..."
-                            style="width:100%;border:1px solid #E3ECF8;border-radius:.75rem;padding:.65rem;font-size:.72rem;" {% if not quote_access.allowed and not quote.vendor_responded_at %}disabled{% endif %}>{{ quote.vendor_response }}</textarea>
+                            placeholder="Write a new response..."
+                            style="width:100%;border:1px solid #E3ECF8;border-radius:.75rem;padding:.65rem;font-size:.72rem;" {% if not quote_access.allowed and not quote.vendor_responded_at %}disabled{% endif %}></textarea>
 
                     <button type="submit"
                             style="margin-top:.45rem;width:100%;border:0;border-radius:.75rem;background:#0066CC;color:white;padding:.65rem .75rem;font-size:.72rem;font-weight:950;" {% if not quote_access.allowed and not quote.vendor_responded_at %}disabled{% endif %}>
-                        Save Response
+                        Send Response
                     </button>
                 </form>
             </article>
@@ -627,15 +635,14 @@
                 const badge = container.querySelector('[data-status]');
                 badge.textContent = data.status_label;
                 badge.className = `quote-status status-${data.status}`;
-                let saved = container.querySelector('[data-saved-response]');
-                if (!saved) {
-                    saved = document.createElement('div');
-                    saved.setAttribute('data-saved-response', '');
-                    saved.className = 'quote-meta';
-                    saved.style.cssText = 'margin-top:.55rem;border-radius:.75rem;background:#F0FDF4;padding:.65rem;color:#15803D;';
-                    form.before(saved);
-                }
-                saved.innerHTML = `<strong>Response:</strong> ${data.vendor_response.replace(/[&<>"']/g, value => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',\"'\":'&#039;'}[value]))}`;
+                const safeText = data.vendor_response.replace(/[&<>"']/g, value => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',\"'\":'&#039;'}[value]));
+                const thread = container.querySelector('[data-message-thread]');
+                const saved = document.createElement('div');
+                saved.className = 'quote-meta';
+                saved.style.cssText = 'border-radius:.65rem;padding:.5rem;background:#F0FDF4;';
+                saved.innerHTML = `<strong>Vendor:</strong> ${safeText}`;
+                thread.appendChild(saved);
+                form.querySelector('textarea').value = '';
                 showQuoteToast(data.message, 'success');
             } catch (error) {
                 showQuoteToast(error.message || 'Response could not be saved.', 'error');
