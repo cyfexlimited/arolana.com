@@ -282,26 +282,10 @@ urlpatterns = [
     *CKEDITOR_URLS,
 
     # Support Pages
-    # Legal / Support Pages
-    path(
-        "terms-and-conditions/",
-        core_views.terms_and_conditions,
-        name="terms_and_conditions",
-    ),
-    path(
-        "privacy-policy/",
-        core_views.privacy_policy,
-        name="privacy_policy",
-    ),
-    path(
-        "return-policy/",
-        core_views.return_policy,
-        name="return_policy",
-    ),
     path(
         "shipping/",
-        core_views.shipping_policy,
-        name="shipping_policy",
+        TemplateView.as_view(template_name="support/shipping.html"),
+        name="shipping",
     ),
     path(
         "youtube-embed-test/",
@@ -309,11 +293,11 @@ urlpatterns = [
         name="youtube_embed_test",
     ),
     path("support/", contact_page, name="support"),
-    path("contact/", core_views.contact_page, name="contact"),
+    path("contact/", contact_page, name="contact"),
     path("about/", page_by_slug, {"slug": "about"}, name="about"),
     path("privacy/", page_by_slug, {"slug": "privacy"}, name="privacy"),
     path("terms/", page_by_slug, {"slug": "terms"}, name="terms"),
-    path("returns/", core_views.return_policy, name="returns"),
+    path("returns/", page_by_slug, {"slug": "returns"}, name="returns"),
     path("faq/", faq_page, name="faq"),
     re_path(r"^returns/.*$", returns_redirect, name="returns_catchall"),
 
@@ -401,7 +385,7 @@ urlpatterns = [
     ),
     path("debug/", include("core.urls")),
     path("careers/", careers_page, name="careers"),
-    path("help/", core_views.help_center, name="help_center"),
+    path("help/", help_center, name="help_center"),
     path("faq/", faq_page, name="faq_page"),
     path("article/<slug:slug>/", article_detail, name="article_detail"),
     path("currency/diagnose/", currency_views.diagnose_currency, name="diagnose_currency"),

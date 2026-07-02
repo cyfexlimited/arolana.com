@@ -13,7 +13,7 @@ from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_safe
-from types import SimpleNamespace
+
 from accounts.models import User
 from orders.models import Order
 from products.models import Product
@@ -596,96 +596,3 @@ def home(request):
     }
 
     return render(request, "base/home.html", context)
-
-def build_static_page_context(title, subtitle, slug, meta_description=""):
-    page = SimpleNamespace(
-        title=title,
-        subtitle=subtitle,
-        slug=slug,
-        content="",
-        meta_title=f"{title} | Arolana",
-        meta_description=meta_description or subtitle,
-    )
-
-    return {
-        "page": page,
-        "page_title": title,
-        "page_subtitle": subtitle,
-        "meta_title": f"{title} | Arolana",
-        "meta_description": meta_description or subtitle,
-        "show_side_ads": False,
-    }
-
-
-def terms_and_conditions(request):
-    return render(
-        request,
-        "pages/terms.html",
-        build_static_page_context(
-            title="Terms and Conditions",
-            subtitle="Rules for using Arolana marketplace, vendor services, orders, payments, delivery, quote requests, subscriptions, and support.",
-            slug="terms-and-conditions",
-            meta_description="Arolana marketplace terms covering customers, vendors, service providers, orders, payments, delivery, quote requests, subscriptions, and support.",
-        ),
-    )
-
-
-def privacy_policy(request):
-    return render(
-        request,
-        "pages/privacy.html",
-        build_static_page_context(
-            title="Privacy Policy",
-            subtitle="How Arolana collects, uses, protects, and manages customer, vendor, and service provider information.",
-            slug="privacy-policy",
-        ),
-    )
-
-
-def return_policy(request):
-    return render(
-        request,
-        "pages/returns.html",
-        build_static_page_context(
-            title="Return Policy",
-            subtitle="Arolana return, refund, exchange, inspection, and warranty guidance for marketplace orders.",
-            slug="return-policy",
-        ),
-    )
-
-
-def shipping_policy(request):
-    return render(
-        request,
-        "support/shipping.html",
-        build_static_page_context(
-            title="Shipping and Delivery",
-            subtitle="Delivery timelines, pickup, logistics, shipping fees, and fulfillment guidance for Arolana orders.",
-            slug="shipping",
-        ),
-    )
-
-
-def help_center(request):
-    return render(
-        request,
-        "pages/help_center.html",
-        build_static_page_context(
-            title="Help Center",
-            subtitle="Get help with orders, vendors, delivery, payments, quotes, returns, and Arolana support.",
-            slug="help",
-        ),
-    )
-
-
-def contact_page(request):
-    return render(
-        request,
-        "pages/contact.html",
-        build_static_page_context(
-            title="Contact Arolana",
-            subtitle="Contact Arolana support for customer, vendor, service provider, quote, order, or marketplace assistance.",
-            slug="contact",
-        ),
-    )
-    
