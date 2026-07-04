@@ -1041,13 +1041,17 @@
         .mega-category-dropdown {
             width: min(72rem, calc(100vw - 32px));
             padding: 1.25rem;
+            max-height: calc(100vh - 180px);
+            overflow-x: hidden;
+            overflow-y: auto;
+            overscroll-behavior: contain;
         }
 
         .mega-category-layout {
             display: grid;
             grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
             gap: 1rem;
-            align-items: stretch;
+            align-items: start;
         }
 
         .mega-category-hero {
@@ -1159,14 +1163,14 @@
 
         .mega-category-card-grid {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 0.75rem;
             min-width: 0;
         }
 
-        @media (min-width: 1280px) {
+        @media (min-width: 1440px) {
             .mega-category-card-grid {
-                grid-template-columns: repeat(3, minmax(0, 1fr));
+                grid-template-columns: repeat(4, minmax(0, 1fr));
             }
         }
 
@@ -1290,6 +1294,14 @@
             color: #64748b;
             font-size: 0.76rem;
             font-weight: 700;
+            position: sticky;
+            bottom: -1.25rem;
+            z-index: 5;
+            margin-left: -1.25rem;
+            margin-right: -1.25rem;
+            padding: 0.9rem 1.25rem 1.1rem;
+            background: rgba(255, 255, 255, 0.98);
+            box-shadow: 0 -8px 20px rgba(15, 23, 42, 0.05);
         }
 
         .mega-category-footer a {
@@ -2893,8 +2905,8 @@
                     <li class="mega-menu-container {% if forloop.counter >= 8 %}mega-align-right{% elif forloop.counter >= 5 %}mega-align-center{% endif %}">
                         <a href="{% url 'products:category' category.slug %}" class="flex items-center gap-2 px-4 py-4 hover:text-brand transition font-medium group">
                             {% if category.image %}
-                                {% optimized_image_url category.image 'nav_icon' as category_image_url %}
-                                <img src="{{ category_image_url }}" data-fallback-src="{{ category.image.url }}" alt="{{ category.name }}" class="w-5 h-5 rounded-full object-cover group-hover:scale-110 transition" width="20" height="20" decoding="async" onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}">
+                                {% safe_background_image_url category.image 'nav_icon' as category_image_url %}
+                                <img src="{{ category_image_url }}" alt="{{ category.name }}" class="w-5 h-5 rounded-full object-cover group-hover:scale-110 transition" width="20" height="20" decoding="async">
                             {% elif category.icon %}
                                 <i class="fas fa-{{ category.icon }} group-hover:scale-125 transition"></i>
                             {% else %}
@@ -2909,11 +2921,11 @@
                                 <a href="{% url 'products:category' category.slug %}" class="mega-category-hero">
                                     <div class="mega-category-hero-media">
                                         {% if category.background_image %}
-                                            {% optimized_image_url category.background_image 'category_card' as category_hero_url %}
-                                            <img data-src="{{ category_hero_url }}" data-fallback-src="{{ category.background_image.url }}" alt="{{ category.name }}" loading="lazy" decoding="async" width="560" height="420">
+                                            {% safe_background_image_url category.background_image 'category_card' as category_hero_url %}
+                                            <img data-src="{{ category_hero_url }}" alt="{{ category.name }}" loading="lazy" decoding="async" width="560" height="420">
                                         {% elif category.image %}
-                                            {% optimized_image_url category.image 'category_card' as category_hero_url %}
-                                            <img data-src="{{ category_hero_url }}" data-fallback-src="{{ category.image.url }}" alt="{{ category.name }}" loading="lazy" decoding="async" width="560" height="420">
+                                            {% safe_background_image_url category.image 'category_card' as category_hero_url %}
+                                            <img data-src="{{ category_hero_url }}" alt="{{ category.name }}" loading="lazy" decoding="async" width="560" height="420">
                                         {% else %}
                                             <div class="mega-category-hero-fallback">
                                                 {% if category.icon %}
@@ -2935,16 +2947,16 @@
 
                                 <!-- Child Category Cards -->
                                 <div class="mega-category-card-grid">
-                                    {% for child in category.children.all|slice:":8" %}
+                                    {% for child in category.children.all %}
                                     <div class="mega-category-card">
                                         <a href="{% url 'products:category' child.slug %}" class="mega-category-card-head">
                                             <span class="mega-category-card-image">
                                                 {% if child.image %}
-                                                    {% optimized_image_url child.image 'category_card' as child_image_url %}
-                                                    <img data-src="{{ child_image_url }}" data-fallback-src="{{ child.image.url }}" alt="{{ child.name }}" loading="lazy" decoding="async" width="160" height="120">
+                                                    {% safe_background_image_url child.image 'category_card' as child_image_url %}
+                                                    <img data-src="{{ child_image_url }}" alt="{{ child.name }}" loading="lazy" decoding="async" width="160" height="120">
                                                 {% elif child.background_image %}
-                                                    {% optimized_image_url child.background_image 'category_card' as child_image_url %}
-                                                    <img data-src="{{ child_image_url }}" data-fallback-src="{{ child.background_image.url }}" alt="{{ child.name }}" loading="lazy" decoding="async" width="160" height="120">
+                                                    {% safe_background_image_url child.background_image 'category_card' as child_image_url %}
+                                                    <img data-src="{{ child_image_url }}" alt="{{ child.name }}" loading="lazy" decoding="async" width="160" height="120">
                                                 {% elif child.icon %}
                                                     <span class="mega-category-icon-fallback"><i class="fas fa-{{ child.icon }}"></i></span>
                                                 {% else %}
@@ -2960,7 +2972,7 @@
 
                                         {% if child.active_child_count %}
                                         <div class="mega-grandchild-list">
-                                            {% for grandchild in child.children.all|slice:":4" %}
+                                            {% for grandchild in child.children.all %}
                                             <a href="{% url 'products:category' grandchild.slug %}">
                                                 {{ grandchild.name }}
                                             </a>
@@ -3292,7 +3304,7 @@
                         <span class="mobile-menu-left">
                             <span class="mobile-menu-icon">
                                 {% if category.image %}
-                                    {% optimized_image_url category.image 'nav_icon' as category_image_url %}
+                                    {% safe_background_image_url category.image 'nav_icon' as category_image_url %}
                                     <img src="{{ category_image_url }}" alt="{{ category.name }}">
                                 {% elif category.icon %}
                                     <i class="fas fa-{{ category.icon }}"></i>
@@ -3316,7 +3328,7 @@
                             <i class="fas fa-arrow-right text-xs"></i>
                         </a>
 
-                        {% for child in category.children.all|slice:":10" %}
+                        {% for child in category.children.all %}
                         {% if child.active_child_count %}
                         <div x-data="{ childOpen: false }">
                             <button type="button" @click="childOpen = !childOpen" class="mobile-sub-parent">
@@ -3327,7 +3339,7 @@
                                 <a href="{% url 'products:category' child.slug %}" @click="mobileMenuOpen = false" class="mobile-grandchild-chip">
                                     All {{ child.name }}
                                 </a>
-                                {% for grandchild in child.children.all|slice:":6" %}
+                                {% for grandchild in child.children.all %}
                                 <a href="{% url 'products:category' grandchild.slug %}" @click="mobileMenuOpen = false" class="mobile-grandchild-chip">
                                     {{ grandchild.name }}
                                 </a>
@@ -3347,7 +3359,7 @@
                         <span class="mobile-menu-left">
                             <span class="mobile-menu-icon">
                                 {% if category.image %}
-                                    {% optimized_image_url category.image 'nav_icon' as category_image_url %}
+                                    {% safe_background_image_url category.image 'nav_icon' as category_image_url %}
                                     <img src="{{ category_image_url }}" alt="{{ category.name }}">
                                 {% elif category.icon %}
                                     <i class="fas fa-{{ category.icon }}"></i>

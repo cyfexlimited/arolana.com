@@ -1739,6 +1739,17 @@ def product_detail(request, slug):
     return render(request, 'products/detail.html', context)
 
 
+def _category_hero_image(category):
+    """Return the nearest configured category hero without hardcoded media."""
+    current = category
+    while current:
+        image = current.background_image or current.image
+        if image:
+            return image
+        current = current.parent
+    return None
+
+
 def category_view(request, slug):
     """Display category view with all subcategories and dynamic background - APPROVED ONLY"""
     category = get_object_or_404(
@@ -1806,6 +1817,8 @@ def category_view(request, slug):
     while current:
         breadcrumbs.insert(0, current)
         current = current.parent
+
+    category_hero_image = _category_hero_image(category)
     
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         html = render_to_string(
@@ -1845,6 +1858,7 @@ def category_view(request, slug):
         'current_sort': sort_param,
         'user_currency': user_currency,
         'breadcrumbs': breadcrumbs,
+        'category_hero_image': category_hero_image,
         'category_article_links': category_article_links,
         'category_article_links_overview': category_article_links_overview,
         'category_article_links_cards': category_article_links_cards,
@@ -2682,7 +2696,7 @@ def _mobile_category_payload(request, category, include_children=True):
     if include_children:
         children = [
             _mobile_category_payload(request, child, include_children=False)
-            for child in category.children.filter(is_active=True).order_by("name")
+            for child in category.children.filter(is_active=True).order_by("order", "name")
         ]
         children = [child for child in children if child]
 
@@ -2695,6 +2709,16 @@ def _mobile_category_payload(request, category, include_children=True):
     subcategory_count = category.children.filter(is_active=True).count()
     category_image = getattr(category, "image", None)
     category_background = getattr(category, "background_image", None)
+    hero_image = _category_hero_image(category)
+
+    fallback_image_url = request.build_absolute_uri(
+        f"{settings.STATIC_URL.rstrip('/')}/products/images/category-default.svg"
+    )
+    hero_image_url = (
+        _mobile_file_url(request, hero_image, preset="category_banner")
+        if hero_image
+        else fallback_image_url
+    )
 
     return {
         "id": category.id,
@@ -2705,14 +2729,15 @@ def _mobile_category_payload(request, category, include_children=True):
         )[:180],
         "image": _mobile_file_url(request, category_image, preset="category_card"),
         "thumbnail_url": _mobile_file_url(request, category_image, preset="category_card"),
-        "background_image": _mobile_file_url(request, category_background, preset="category_banner"),
-        "image_url": _mobile_file_url(request, category_background or category_image, preset="category_banner"),
+        "background_image": hero_image_url,
+        "image_url": hero_image_url,
+        "hero_image_url": hero_image_url,
         "category_image_url": _mobile_file_url(request, category_image, preset="category_card"),
-        "category_banner_url": _mobile_file_url(request, category_background, preset="category_banner"),
+        "category_banner_url": hero_image_url,
         "category_icon": getattr(category, "icon", "") or "",
         "category_icon_url": "",
-        "fallback_image_url": "",
-        "original_url": _mobile_original_file_url(request, category_background or category_image),
+        "fallback_image_url": fallback_image_url,
+        "original_url": _mobile_original_file_url(request, hero_image),
         "url": request.build_absolute_uri(reverse("products:category", args=[category.slug])),
         "hero_title": translated_field(category, "hero_title", request=request, default="") or "",
         "hero_subtitle": translated_field(category, "hero_subtitle", request=request, default="") or "",

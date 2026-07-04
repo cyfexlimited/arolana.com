@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 700" role="img" aria-labelledby="title description">
+  <title id="title">Arolana category</title>
+  <desc id="description">Arolana branded category background</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#071a44"/>
+      <stop offset="0.58" stop-color="#0066cc"/>
+      <stop offset="1" stop-color="#08a8d8"/>
+    </linearGradient>
+    <radialGradient id="glow">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".3"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1600" height="700" fill="url(#background)"/>
+  <circle cx="1250" cy="80" r="520" fill="url(#glow)"/>
+  <circle cx="1480" cy="620" r="360" fill="#ff7a00" opacity=".18"/>
+  <path d="M980 170h360a60 60 0 0 1 60 60v240a60 60 0 0 1-60 60H980a60 60 0 0 1-60-60V230a60 60 0 0 1 60-60Z" fill="#fff" opacity=".1"/>
+  <path d="M1010 250h280M1010 330h220M1010 410h250" fill="none" stroke="#fff" stroke-linecap="round" stroke-width="28" opacity=".34"/>
+  <path d="M230 510 470 110l240 400h-98L470 275 328 510Z" fill="#ff7a00" opacity=".9"/>
+  <path d="M360 510 530 230l175 280h-98l-77-126-72 126Z" fill="#fff" opacity=".94"/>
+</svg>

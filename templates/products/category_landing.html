@@ -775,6 +775,7 @@
 {% endblock %}
 
 {% block content %}
+{% static 'products/images/category-default.svg' as category_default_image_url %}
 <div class="category-future-page">
     <div class="category-future-container">
         <nav class="category-breadcrumb">
@@ -792,14 +793,17 @@
 
         <section class="category-hero-future"
                  style="{% if category.hero_background_color %}--category-hero-bg: {{ category.hero_background_color }};{% endif %}{% if category.hero_text_color %}--category-hero-text: {{ category.hero_text_color }};{% endif %}{% if category.hero_accent_color %}--category-hero-accent: {{ category.hero_accent_color }};{% endif %}{% if category.hero_button_background_color %}--category-hero-cta-bg: {{ category.hero_button_background_color }};{% endif %}{% if category.hero_button_text_color %}--category-hero-cta-text: {{ category.hero_button_text_color }};{% endif %}--category-hero-brightness: {{ category.hero_image_brightness|default:62 }}%;--category-hero-height-desktop: {{ category.hero_height_desktop|default:520 }}px;--category-hero-height-tablet: {{ category.hero_height_tablet|default:440 }}px;--category-hero-height-mobile: {{ category.hero_height_mobile|default:360 }}px;">
-            {% if category.background_image %}
-                {% optimized_image_url category.background_image 'category_banner' as category_hero_image_url %}
-                <img src="{{ category_hero_image_url }}" alt="{{ category.name }}" class="category-hero-bg">
-            {% elif category.image %}
-                {% optimized_image_url category.image 'category_banner' as category_hero_image_url %}
-                <img src="{{ category_hero_image_url }}" alt="{{ category.name }}" class="category-hero-bg">
+            {% if category_hero_image %}
+                {% safe_background_image_url category_hero_image 'category_banner' as category_hero_image_url %}
+                <img src="{{ category_hero_image_url }}"
+                     data-fallback-src="{{ category_default_image_url }}"
+                     alt="{{ category.name }}"
+                     class="category-hero-bg"
+                     fetchpriority="high"
+                     decoding="async"
+                     onerror="if(this.dataset.fallbackSrc && this.src !== this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}">
             {% else %}
-                <img src="https://images.unsplash.com/photo-1498049794561-7780e7231661?w=1920&h=900&fit=crop" alt="{{ category.name }}" class="category-hero-bg">
+                <img src="{{ category_default_image_url }}" alt="{{ category.name }}" class="category-hero-bg" fetchpriority="high" decoding="async">
             {% endif %}
 
             <div class="category-hero-content">
@@ -835,7 +839,7 @@
                 </div>
                 {% if category.show_hero_side_image and category.image %}
                 <div class="category-side-image" aria-hidden="true">
-                    {% optimized_image_url category.image 'category_card' as category_side_image_url %}
+                    {% safe_background_image_url category.image 'category_card' as category_side_image_url %}
                     <img src="{{ category_side_image_url }}" alt="">
                 </div>
                 {% endif %}
@@ -880,10 +884,10 @@
                 <a href="{% url 'products:category' subcat.slug %}" class="subcategory-future-card">
                     <div class="subcategory-future-image">
                         {% if subcat.image %}
-                            {% optimized_image_url subcat.image 'category_card' as subcat_image_url %}
+                            {% safe_background_image_url subcat.image 'category_card' as subcat_image_url %}
                             <img src="{{ subcat_image_url }}" alt="{{ subcat.name }}" loading="lazy">
                         {% elif subcat.background_image %}
-                            {% optimized_image_url subcat.background_image 'category_card' as subcat_image_url %}
+                            {% safe_background_image_url subcat.background_image 'category_card' as subcat_image_url %}
                             <img src="{{ subcat_image_url }}" alt="{{ subcat.name }}" loading="lazy">
                         {% else %}
                             <i class="fas fa-{{ subcat.icon|default:'folder-open' }}"></i>

@@ -85,7 +85,6 @@ def _main_categories():
         .annotate(active_child_count=Count("children", filter=Q(children__is_active=True)))
         .prefetch_related(Prefetch("children", queryset=child_queryset))
         .order_by("order", "name")
-        [:10]
     )
 
 
