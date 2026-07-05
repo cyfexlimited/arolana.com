@@ -307,12 +307,6 @@ class Migration(migrations.Migration):
             name='slug',
             field=models.SlugField(blank=True, max_length=240),
         ),
-        migrations.RunPython(backfill_existing_projects, migrations.RunPython.noop),
-        migrations.AlterField(
-            model_name='serviceportfolio',
-            name='slug',
-            field=models.SlugField(blank=True, max_length=240, unique=True),
-        ),
         migrations.AddField(
             model_name='serviceportfolio',
             name='solution',
@@ -357,6 +351,12 @@ class Migration(migrations.Migration):
             model_name='serviceportfolio',
             name='views_count',
             field=models.PositiveIntegerField(default=0),
+        ),
+        migrations.RunPython(backfill_existing_projects, migrations.RunPython.noop),
+        migrations.AlterField(
+            model_name='serviceportfolio',
+            name='slug',
+            field=models.SlugField(blank=True, max_length=240, unique=True),
         ),
         migrations.AddField(
             model_name='servicequoterequest',
