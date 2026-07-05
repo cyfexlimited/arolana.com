@@ -1,14 +1,22 @@
 from datetime import timedelta
 from decimal import Decimal
+import uuid
+from urllib.parse import parse_qs, urlparse
 
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models
-from django.db.models import Avg
+from django.db.models import Avg, Prefetch
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.functional import cached_property
 from django.utils.text import slugify
 
+from core.image_protection import (
+    ProtectedImageUploadPath,
+    protect_uploaded_image,
+    record_protected_image,
+)
 from core.models import BaseModel
 
 
@@ -364,6 +372,18 @@ class ServiceMarketplaceHomepageSection(BaseModel):
     background_color = models.CharField(max_length=20, default="#071A44")
     accent_color = models.CharField(max_length=20, default="#FF7A00")
     display_order = models.PositiveIntegerField(default=60)
+    projects_enabled = models.BooleanField(
+        default=True,
+        help_text="Show approved professional projects on the marketplace homepage.",
+    )
+    projects_eyebrow = models.CharField(max_length=100, default="Real Arolana professional work", blank=True)
+    projects_title = models.CharField(max_length=180, default="Projects & Proof Network")
+    projects_subtitle = models.CharField(
+        max_length=500,
+        default="Explore verified installations, repairs, equipment deployments, and customer outcomes.",
+    )
+    projects_button_text = models.CharField(max_length=80, default="Explore Completed Projects")
+    projects_limit = models.PositiveSmallIntegerField(default=8)
 
     class Meta:
         verbose_name = "Service Marketplace Homepage Section"
@@ -511,29 +531,426 @@ class ProviderSubscriptionPlan(BaseModel):
             ProviderSubscriptionPlan.objects.exclude(pk=self.pk).update(is_default=False)
 
 
+class PublicProjectQuerySet(models.QuerySet):
+    def public(self):
+        return self.filter(
+            approval_status=ServicePortfolio.STATUS_APPROVED,
+            is_active=True,
+            provider__is_active=True,
+            provider__verification_status__in=[
+                ServiceProviderProfile.STATUS_APPROVED,
+                ServiceProviderProfile.STATUS_VERIFIED,
+            ],
+        )
+
+    def optimized(self):
+        return self.select_related(
+            "provider",
+            "provider__user",
+            "service_category",
+        ).prefetch_related(
+            Prefetch(
+                "media_items",
+                queryset=ServiceProjectMedia.objects.filter(
+                    approval_status=ServiceProjectMedia.STATUS_APPROVED,
+                    is_active=True,
+                ).order_by("-is_featured", "display_order", "id"),
+                to_attr="_public_media_items",
+            ),
+            "project_products__product",
+            "project_products__product__vendor",
+        )
+
+
 class ServicePortfolio(models.Model):
+    """Canonical Arolana completed-project record.
+
+    The original portfolio fields remain intact for backwards compatibility.
+    New web and mobile project experiences use the richer fields below.
+    """
+    STATUS_DRAFT = "draft"
+    STATUS_PENDING = "pending"
+    STATUS_APPROVED = "approved"
+    STATUS_REQUIRES_CHANGES = "requires_changes"
+    STATUS_REJECTED = "rejected"
+    STATUS_SUSPENDED = "suspended"
+    APPROVAL_STATUS_CHOICES = [
+        (STATUS_DRAFT, "Draft"),
+        (STATUS_PENDING, "Pending review"),
+        (STATUS_APPROVED, "Approved"),
+        (STATUS_REQUIRES_CHANGES, "Requires changes"),
+        (STATUS_REJECTED, "Rejected"),
+        (STATUS_SUSPENDED, "Suspended"),
+    ]
+    PROJECT_TYPE_CHOICES = [
+        ("installation", "Installation"),
+        ("repair", "Repair"),
+        ("maintenance", "Maintenance"),
+        ("consulting", "Consulting"),
+        ("deployment", "Deployment"),
+        ("training", "Training"),
+        ("before_after", "Before and after"),
+        ("other", "Other"),
+    ]
+    CUSTOMER_TYPE_CHOICES = [
+        ("private", "Private customer"),
+        ("business", "Business"),
+        ("government", "Government"),
+        ("education", "Education"),
+        ("religious", "Religious organization"),
+        ("nonprofit", "Nonprofit"),
+        ("other", "Other"),
+    ]
+    VIDEO_SOURCE_CHOICES = [
+        ("none", "No video"),
+        ("youtube", "YouTube"),
+        ("external", "External video"),
+        ("upload", "Arolana upload"),
+    ]
+
     provider = models.ForeignKey(
         ServiceProviderProfile,
         on_delete=models.CASCADE,
         related_name="portfolio_items",
     )
-    title = models.CharField(max_length=180)
-    description = models.TextField(blank=True)
-    image = models.ImageField(
-        upload_to="installers/portfolio/%Y/%m/",
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="created_service_projects",
         blank=True,
         null=True,
     )
+    title = models.CharField(max_length=180)
+    slug = models.SlugField(max_length=240, unique=True, blank=True)
+    short_summary = models.CharField(max_length=500, blank=True)
+    description = models.TextField(blank=True)
+    image = models.ImageField(
+        upload_to=ProtectedImageUploadPath("installers/portfolio"),
+        blank=True,
+        null=True,
+    )
+    project_type = models.CharField(
+        max_length=30,
+        choices=PROJECT_TYPE_CHOICES,
+        default="installation",
+        db_index=True,
+    )
+    service_category = models.ForeignKey(
+        ServiceCategory,
+        on_delete=models.PROTECT,
+        related_name="projects",
+        blank=True,
+        null=True,
+    )
+    country = models.CharField(max_length=100, blank=True)
+    state = models.CharField(max_length=100, blank=True, db_index=True)
+    city = models.CharField(max_length=100, blank=True, db_index=True)
+    location_display = models.CharField(max_length=220, blank=True)
     video_url = models.URLField(blank=True)
+    video_source = models.CharField(max_length=20, choices=VIDEO_SOURCE_CHOICES, default="none")
+    local_video = models.FileField(upload_to="installers/projects/videos/%Y/%m/", blank=True, null=True)
+    video_thumbnail = models.ImageField(
+        upload_to=ProtectedImageUploadPath("installers/projects/video-thumbnails"),
+        blank=True,
+        null=True,
+    )
+    video_duration = models.PositiveIntegerField(default=0, help_text="Duration in seconds.")
     project_location = models.CharField(max_length=180, blank=True)
     completed_at = models.DateField(blank=True, null=True)
+    project_duration_text = models.CharField(max_length=120, blank=True)
+    customer_type = models.CharField(max_length=30, choices=CUSTOMER_TYPE_CHOICES, blank=True)
+    customer_name_display = models.CharField(max_length=180, blank=True)
+    customer_name_private = models.CharField(max_length=180, blank=True)
+    customer_consent_to_publish = models.BooleanField(default=False)
+    project_value_min = models.DecimalField(max_digits=14, decimal_places=2, blank=True, null=True)
+    project_value_max = models.DecimalField(max_digits=14, decimal_places=2, blank=True, null=True)
+    project_value_currency = models.CharField(max_length=8, default="NGN")
+    show_project_value = models.BooleanField(default=False)
+    challenge = models.TextField(blank=True)
+    solution = models.TextField(blank=True)
+    implementation_process = models.TextField(blank=True)
+    project_result = models.TextField(blank=True)
+    customer_outcome = models.TextField(blank=True)
+    technologies_used = models.JSONField(default=list, blank=True)
+    services_performed = models.JSONField(default=list, blank=True)
+    approval_status = models.CharField(
+        max_length=24,
+        choices=APPROVAL_STATUS_CHOICES,
+        default=STATUS_DRAFT,
+        db_index=True,
+    )
+    moderation_notes = models.TextField(blank=True)
+    is_verified_project = models.BooleanField(default=False, db_index=True)
+    is_featured = models.BooleanField(default=False, db_index=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    views_count = models.PositiveIntegerField(default=0)
+    video_views_count = models.PositiveIntegerField(default=0)
+    product_click_count = models.PositiveIntegerField(default=0)
+    provider_click_count = models.PositiveIntegerField(default=0)
+    quote_requests_count = models.PositiveIntegerField(default=0)
+    shares_count = models.PositiveIntegerField(default=0)
+    saves_count = models.PositiveIntegerField(default=0)
+    published_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = PublicProjectQuerySet.as_manager()
 
     class Meta:
-        ordering = ["-completed_at", "-created_at"]
+        ordering = ["-is_featured", "-published_at", "-completed_at", "-created_at"]
+        indexes = [
+            models.Index(fields=["approval_status", "is_active", "-published_at"]),
+            models.Index(fields=["service_category", "approval_status", "-completed_at"]),
+            models.Index(fields=["country", "state", "city"]),
+            models.Index(fields=["provider", "approval_status", "-created_at"]),
+        ]
 
     def __str__(self):
         return f"{self.provider}: {self.title}"
+
+    def save(self, *args, **kwargs):
+        protect_uploaded_image(self, "image", block_cross_vendor_duplicates=True)
+        protect_uploaded_image(self, "video_thumbnail", block_cross_vendor_duplicates=True)
+        if not self.created_by_id and self.provider_id:
+            self.created_by_id = self.provider.user_id
+        if not self.country and self.provider_id:
+            self.country = self.provider.country
+        if not self.state and self.provider_id:
+            self.state = self.provider.state
+        if not self.city and self.provider_id:
+            self.city = self.provider.city
+        if not self.location_display:
+            self.location_display = self.project_location or ", ".join(
+                value for value in [self.city, self.state, self.country] if value
+            )
+        if not self.project_location:
+            self.project_location = self.location_display
+        if not self.video_source or self.video_source == "none":
+            if self.local_video:
+                self.video_source = "upload"
+            elif "youtu" in (self.video_url or "").lower():
+                self.video_source = "youtube"
+            elif self.video_url:
+                self.video_source = "external"
+        if not self.slug:
+            stem = slugify(
+                " ".join(
+                    value for value in [self.title, self.city, self.provider.business_name]
+                    if value
+                )
+            )[:205] or "arolana-project"
+            self.slug = f"{stem}-{uuid.uuid4().hex[:8]}"
+        if self.approval_status == self.STATUS_APPROVED and not self.published_at:
+            self.published_at = timezone.now()
+        super().save(*args, **kwargs)
+        record_protected_image(self, "image")
+        record_protected_image(self, "video_thumbnail")
+
+    def get_absolute_url(self):
+        return reverse("projects:detail", kwargs={"slug": self.slug})
+
+    @cached_property
+    def featured_media(self):
+        prefetched = getattr(self, "_public_media_items", None)
+        if prefetched is not None:
+            return prefetched[0] if prefetched else None
+        return self.media_items.filter(approval_status=ServiceProjectMedia.STATUS_APPROVED).order_by(
+            "-is_featured", "display_order", "id"
+        ).first()
+
+    @cached_property
+    def public_media(self):
+        prefetched = getattr(self, "_public_media_items", None)
+        if prefetched is not None:
+            return prefetched
+        return self.media_items.filter(
+            approval_status=ServiceProjectMedia.STATUS_APPROVED,
+            is_active=True,
+        ).order_by("display_order", "id")
+
+    @property
+    def has_video(self):
+        return bool(self.local_video or self.video_url or self.media_items.filter(media_type="video").exists())
+
+    @property
+    def video_embed_url(self):
+        value = (self.video_url or "").strip()
+        if not value:
+            return ""
+        if self.video_source != self.VIDEO_SOURCE_YOUTUBE:
+            return value
+        try:
+            parsed = urlparse(value if "://" in value else f"https://youtu.be/{value}")
+            host = parsed.netloc.lower().replace("www.", "")
+            video_id = ""
+            if host == "youtu.be":
+                video_id = parsed.path.strip("/").split("/")[0]
+            elif "youtube.com" in host:
+                if parsed.path.startswith(("/embed/", "/shorts/")):
+                    video_id = parsed.path.strip("/").split("/")[1]
+                else:
+                    video_id = parse_qs(parsed.query).get("v", [""])[0]
+            if video_id:
+                return f"https://www.youtube-nocookie.com/embed/{video_id}?playsinline=1&rel=0&modestbranding=1"
+        except (IndexError, ValueError):
+            pass
+        return ""
+
+    @property
+    def completion_percent(self):
+        checks = [
+            self.title,
+            self.short_summary,
+            self.description or self.challenge,
+            self.service_category_id,
+            self.location_display,
+            self.completed_at,
+            self.image or self.media_items.exists(),
+            self.project_result or self.customer_outcome,
+        ]
+        return round(sum(bool(value) for value in checks) / len(checks) * 100)
+
+    @property
+    def vendor(self):
+        return self.provider.user if self.provider_id else None
+
+
+class ServiceProjectMedia(BaseModel):
+    STATUS_PENDING = "pending"
+    STATUS_APPROVED = "approved"
+    STATUS_REJECTED = "rejected"
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pending review"),
+        (STATUS_APPROVED, "Approved"),
+        (STATUS_REJECTED, "Rejected"),
+    ]
+    MEDIA_TYPES = [
+        ("image", "Image"),
+        ("video", "Video"),
+        ("before_image", "Before image"),
+        ("after_image", "After image"),
+        ("progress_image", "Progress image"),
+        ("document", "Document"),
+    ]
+    project = models.ForeignKey(ServicePortfolio, on_delete=models.CASCADE, related_name="media_items")
+    media_type = models.CharField(max_length=24, choices=MEDIA_TYPES, default="image", db_index=True)
+    image = models.ImageField(
+        upload_to=ProtectedImageUploadPath("installers/projects/gallery"),
+        blank=True,
+        null=True,
+    )
+    video = models.FileField(upload_to="installers/projects/videos/%Y/%m/", blank=True, null=True)
+    external_video_url = models.URLField(blank=True)
+    thumbnail = models.ImageField(
+        upload_to=ProtectedImageUploadPath("installers/projects/thumbnails"),
+        blank=True,
+        null=True,
+    )
+    caption = models.CharField(max_length=300, blank=True)
+    alt_text = models.CharField(max_length=220, blank=True)
+    display_order = models.PositiveIntegerField(default=0)
+    is_featured = models.BooleanField(default=False)
+    approval_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+
+    class Meta:
+        ordering = ["display_order", "id"]
+        indexes = [
+            models.Index(fields=["project", "approval_status", "display_order"]),
+            models.Index(fields=["media_type", "approval_status"]),
+        ]
+
+    def __str__(self):
+        return f"{self.project.title} - {self.get_media_type_display()}"
+
+    @property
+    def vendor(self):
+        return self.project.provider.user if self.project_id else None
+
+    def save(self, *args, **kwargs):
+        protect_uploaded_image(self, "image", block_cross_vendor_duplicates=True)
+        protect_uploaded_image(self, "thumbnail", block_cross_vendor_duplicates=True)
+        super().save(*args, **kwargs)
+        record_protected_image(self, "image")
+        record_protected_image(self, "thumbnail")
+
+
+class ServiceProjectProduct(models.Model):
+    project = models.ForeignKey(ServicePortfolio, on_delete=models.CASCADE, related_name="project_products")
+    product = models.ForeignKey("products.Product", on_delete=models.CASCADE, related_name="service_projects")
+    usage_note = models.CharField(max_length=500, blank=True)
+    quantity_used = models.PositiveIntegerField(default=1)
+    is_primary_product = models.BooleanField(default=False)
+    display_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["display_order", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["project", "product"], name="unique_project_product")
+        ]
+
+    def __str__(self):
+        return f"{self.project.title} / {self.product}"
+
+
+class ServiceProjectModerationLog(models.Model):
+    project = models.ForeignKey(ServicePortfolio, on_delete=models.CASCADE, related_name="moderation_history")
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True)
+    old_status = models.CharField(max_length=24, blank=True)
+    new_status = models.CharField(max_length=24)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
+class SavedServiceProject(models.Model):
+    project = models.ForeignKey(ServicePortfolio, on_delete=models.CASCADE, related_name="saved_by")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="saved_service_projects")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["project", "user"], name="unique_saved_service_project")
+        ]
+
+
+class ServiceProjectReport(models.Model):
+    project = models.ForeignKey(ServicePortfolio, on_delete=models.CASCADE, related_name="reports")
+    reporter = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True)
+    reason = models.CharField(max_length=120)
+    details = models.TextField(blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=[("new", "New"), ("reviewed", "Reviewed"), ("dismissed", "Dismissed")],
+        default="new",
+        db_index=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class ServiceProjectEvent(models.Model):
+    EVENT_TYPES = [
+        ("view", "View"),
+        ("video_view", "Video view"),
+        ("product_click", "Product click"),
+        ("provider_click", "Provider click"),
+        ("share", "Share"),
+        ("save", "Save"),
+        ("quote_request", "Quote request"),
+    ]
+    project = models.ForeignKey(ServicePortfolio, on_delete=models.CASCADE, related_name="events")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True)
+    event_type = models.CharField(max_length=30, choices=EVENT_TYPES, db_index=True)
+    session_key = models.CharField(max_length=80, blank=True)
+    source = models.CharField(max_length=80, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["project", "event_type", "-created_at"]),
+        ]
 
 
 class ServiceQuoteRequest(BaseModel):
@@ -583,6 +1000,13 @@ class ServiceQuoteRequest(BaseModel):
         "products.Product",
         on_delete=models.SET_NULL,
         related_name="service_quote_requests",
+        blank=True,
+        null=True,
+    )
+    source_project = models.ForeignKey(
+        ServicePortfolio,
+        on_delete=models.SET_NULL,
+        related_name="quote_requests",
         blank=True,
         null=True,
     )

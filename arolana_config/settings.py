@@ -444,9 +444,21 @@ MEDIA_PROXY_PUBLIC_PREFIXES = tuple(csv_config(
     'MEDIA_PROXY_PUBLIC_PREFIXES',
     default=(
         'settings,categories,vendors,hero_banners,products,ads,optimized,'
-        'manufacturers,homepage,videos,brands,advertisements,promo,avatars'
+        'manufacturers,homepage,videos,brands,advertisements,promo,avatars,installers'
     ),
 ))
+
+PROJECT_NETWORK_ENABLED = config("PROJECT_NETWORK_ENABLED", default=True, cast=bool)
+LOCAL_PROJECT_VIDEO_UPLOADS_ENABLED = config(
+    "LOCAL_PROJECT_VIDEO_UPLOADS_ENABLED",
+    default=False,
+    cast=bool,
+)
+PROJECT_PUBLICATION_REQUIRES_APPROVAL = config(
+    "PROJECT_PUBLICATION_REQUIRES_APPROVAL",
+    default=True,
+    cast=bool,
+)
 
 if AWS_STORAGE_BUCKET_NAME and AWS_S3_ENDPOINT_URL:
     if MEDIA_PROXY_ENABLED:

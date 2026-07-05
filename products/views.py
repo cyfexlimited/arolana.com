@@ -1675,12 +1675,20 @@ def product_detail(request, slug):
     location_label = getattr(product, "location_label", "") or ""
     try:
         from installers.services import suggested_categories_for_product, suggested_providers_for_product
+        from installers.models import ServicePortfolio
 
         related_service_categories = suggested_categories_for_product(product)
         suggested_service_providers = list(suggested_providers_for_product(product))
+        real_projects_using_product = (
+            ServicePortfolio.objects.public()
+            .optimized()
+            .filter(project_products__product=product)
+            .distinct()[:6]
+        )
     except Exception:
         related_service_categories = []
         suggested_service_providers = []
+        real_projects_using_product = []
 
     context = {
         'product': product,
@@ -1734,6 +1742,7 @@ def product_detail(request, slug):
         'service_available': bool(related_service_categories),
         'related_service_categories': related_service_categories,
         'suggested_service_providers': suggested_service_providers,
+        'real_projects_using_product': real_projects_using_product,
     }
 
     return render(request, 'products/detail.html', context)
@@ -3803,6 +3812,9 @@ def _mobile_product_payload(request, product):
 
 @require_GET
 def mobile_home_api(request):
+    from installers.models import ServiceMarketplaceHomepageSection, ServicePortfolio
+    from installers.serializers import ServicePortfolioSerializer
+
     product_queryset = Product.objects.filter(
         is_active=True,
         approval_status="approved",
@@ -4064,6 +4076,22 @@ def mobile_home_api(request):
         item for item in products
         if parse_price_safe(item.get("compare_price")) > parse_price_safe(item.get("price"))
     ][:12]
+    project_home_section = ServiceMarketplaceHomepageSection.objects.filter(
+        is_active=True,
+        projects_enabled=True,
+    ).first()
+    mobile_projects = []
+    if project_home_section:
+        project_queryset = (
+            ServicePortfolio.objects.public()
+            .optimized()
+            .order_by("-is_featured", "-published_at")[: max(1, min(project_home_section.projects_limit, 16))]
+        )
+        mobile_projects = ServicePortfolioSerializer(
+            project_queryset,
+            many=True,
+            context={"request": request},
+        ).data
 
     return JsonResponse({
         "hero_banners": hero_banner_payloads,
@@ -4106,6 +4134,15 @@ def mobile_home_api(request):
         "moq_products": moq_products,
         "request_quote_products": moq_products or factory_direct,
         "price_drop_products": price_drop_products,
+        "projects_section": {
+            "enabled": bool(project_home_section),
+            "eyebrow": project_home_section.projects_eyebrow if project_home_section else "",
+            "title": project_home_section.projects_title if project_home_section else "",
+            "subtitle": project_home_section.projects_subtitle if project_home_section else "",
+            "button_text": project_home_section.projects_button_text if project_home_section else "",
+            "projects": mobile_projects,
+        },
+        "featured_projects": mobile_projects,
     })
 
 

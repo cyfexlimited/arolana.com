@@ -11,10 +11,15 @@ from .models import (
     ServiceCategory,
     ServiceMarketplaceHomepageSection,
     ServicePortfolio,
+    ServiceProjectMedia,
+    ServiceProjectModerationLog,
+    ServiceProjectProduct,
+    ServiceProjectReport,
     ServiceProviderProfile,
     ServiceQuoteRequest,
     ServiceReview,
 )
+from .project_services import moderate_project
 from .services import (
     approve_profile_change_request,
     approve_provider,
@@ -208,6 +213,19 @@ class ServiceMarketplaceHomepageSectionAdmin(admin.ModelAdmin):
     list_editable = ("display_order", "is_active")
     fieldsets = (
         ("Content", {"fields": ("eyebrow", "title", "subtitle", "customer_button_text", "provider_button_text")}),
+        (
+            "Projects & Proof Network",
+            {
+                "fields": (
+                    "projects_enabled",
+                    "projects_eyebrow",
+                    "projects_title",
+                    "projects_subtitle",
+                    "projects_button_text",
+                    "projects_limit",
+                )
+            },
+        ),
         ("Design", {"fields": ("background_image", "background_color", "accent_color")}),
         ("Visibility", {"fields": ("display_order", "is_active")}),
     )
@@ -266,16 +284,116 @@ class ProviderSubscriptionPlanAdmin(admin.ModelAdmin):
 
 @admin.register(ServicePortfolio)
 class ServicePortfolioAdmin(admin.ModelAdmin):
-    list_display = ("portfolio_preview", "title", "provider", "project_location", "completed_at", "created_at")
-    list_filter = ("completed_at", "created_at")
-    search_fields = ("title", "provider__business_name", "project_location")
-    autocomplete_fields = ("provider",)
+    list_display = (
+        "portfolio_preview", "title", "provider", "service_category", "location",
+        "approval_status", "media_count", "has_video", "views_count",
+        "quote_requests_count", "is_verified_project", "is_featured", "created_at",
+    )
+    list_filter = (
+        "approval_status", "project_type", "service_category", "country", "state", "city",
+        "is_verified_project", "is_featured", "is_active", "completed_at", "created_at",
+    )
+    search_fields = ("title", "short_summary", "provider__business_name", "location_display", "city", "state")
+    autocomplete_fields = ("provider", "created_by", "service_category")
+    readonly_fields = (
+        "slug", "views_count", "video_views_count", "product_click_count",
+        "provider_click_count", "quote_requests_count", "shares_count", "saves_count",
+        "published_at", "created_at", "updated_at",
+    )
+    actions = ("approve_projects", "request_project_changes", "reject_projects", "feature_projects", "verify_projects")
+    inlines = ()
+    fieldsets = (
+        ("Basic Information", {"fields": ("provider", "created_by", "title", "slug", "short_summary", "description", "project_type", "service_category")}),
+        ("Location & Completion", {"fields": ("country", "state", "city", "location_display", "completed_at", "project_duration_text")}),
+        ("Project Story", {"fields": ("challenge", "solution", "implementation_process", "project_result", "customer_outcome", "technologies_used", "services_performed")}),
+        ("Customer & Value Privacy", {"fields": ("customer_type", "customer_name_display", "customer_name_private", "customer_consent_to_publish", "project_value_min", "project_value_max", "project_value_currency", "show_project_value")}),
+        ("Primary Media", {"fields": ("image", "video_source", "video_url", "local_video", "video_thumbnail", "video_duration")}),
+        ("Moderation", {"fields": ("approval_status", "moderation_notes", "is_verified_project", "is_featured", "is_active", "published_at")}),
+        ("Analytics", {"fields": ("views_count", "video_views_count", "product_click_count", "provider_click_count", "quote_requests_count", "shares_count", "saves_count")}),
+        ("Timestamps", {"fields": ("created_at", "updated_at")}),
+    )
 
     @admin.display(description="Image")
     def portfolio_preview(self, obj):
         if not obj.image:
             return "No image"
         return format_html('<img src="{}" style="width:80px;height:54px;object-fit:cover;border-radius:10px">', get_optimized_image_url(obj.image, "category_card"))
+
+    @admin.display(description="Location")
+    def location(self, obj):
+        return obj.location_display
+
+    @admin.display(description="Media")
+    def media_count(self, obj):
+        return obj.media_items.count()
+
+    @admin.display(boolean=True, description="Video")
+    def has_video(self, obj):
+        return obj.has_video
+
+    @admin.action(description="Approve selected projects")
+    def approve_projects(self, request, queryset):
+        for project in queryset:
+            moderate_project(project, ServicePortfolio.STATUS_APPROVED, request.user)
+
+    @admin.action(description="Request changes for selected projects")
+    def request_project_changes(self, request, queryset):
+        for project in queryset:
+            moderate_project(project, ServicePortfolio.STATUS_REQUIRES_CHANGES, request.user, project.moderation_notes)
+
+    @admin.action(description="Reject selected projects")
+    def reject_projects(self, request, queryset):
+        for project in queryset:
+            moderate_project(project, ServicePortfolio.STATUS_REJECTED, request.user, project.moderation_notes)
+
+    @admin.action(description="Feature selected projects")
+    def feature_projects(self, request, queryset):
+        queryset.update(is_featured=True)
+
+    @admin.action(description="Mark selected as verified projects")
+    def verify_projects(self, request, queryset):
+        queryset.update(is_verified_project=True)
+
+
+class ServiceProjectMediaInline(admin.StackedInline):
+    model = ServiceProjectMedia
+    extra = 0
+
+
+class ServiceProjectProductInline(admin.TabularInline):
+    model = ServiceProjectProduct
+    extra = 0
+    autocomplete_fields = ("product",)
+
+
+class ServiceProjectModerationLogInline(admin.TabularInline):
+    model = ServiceProjectModerationLog
+    extra = 0
+    readonly_fields = ("actor", "old_status", "new_status", "notes", "created_at")
+    can_delete = False
+
+
+ServicePortfolioAdmin.inlines = (
+    ServiceProjectMediaInline,
+    ServiceProjectProductInline,
+    ServiceProjectModerationLogInline,
+)
+
+
+@admin.register(ServiceProjectMedia)
+class ServiceProjectMediaAdmin(admin.ModelAdmin):
+    list_display = ("project", "media_type", "approval_status", "is_featured", "display_order", "created_at")
+    list_filter = ("media_type", "approval_status", "is_featured", "created_at")
+    search_fields = ("project__title", "project__provider__business_name", "caption", "alt_text")
+    autocomplete_fields = ("project",)
+
+
+@admin.register(ServiceProjectReport)
+class ServiceProjectReportAdmin(admin.ModelAdmin):
+    list_display = ("project", "reason", "reporter", "status", "created_at")
+    list_filter = ("status", "reason", "created_at")
+    search_fields = ("project__title", "details", "reporter__email")
+    autocomplete_fields = ("project", "reporter")
 
 
 @admin.register(ServiceQuoteRequest)

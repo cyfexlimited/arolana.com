@@ -9,6 +9,7 @@ from pages.models import Page
 from blog.models import BlogPost, BlogCategory
 from landing_pages.models import LandingPage
 from manufacturers.models import Manufacturer
+from installers.models import ServicePortfolio
 
 from arolana_seo.utils import merchant_metadata, product_image_alt, product_images
 
@@ -83,6 +84,7 @@ def robots_txt(request):
         "Allow: /blog/",
         "Allow: /landing/",
         "Allow: /manufacturers/",
+        "Allow: /projects/",
         "Allow: /pages/",
         "Allow: /media/",
         "Disallow: /admin/",
@@ -122,6 +124,7 @@ def main_sitemap_xml(request):
         "/landing/sitemap.xml",
         "/manufacturers/sitemap.xml",
         "/pages/sitemap.xml",
+        "/projects/sitemap.xml",
     ]
 
     rows = [
@@ -247,6 +250,11 @@ def vendor_sitemap_xml(request):
         .order_by("-updated_at")[:50000]
     )
     return _urlset_response(vendors, "weekly", "0.75")
+
+
+def project_sitemap_xml(request):
+    projects = ServicePortfolio.objects.public().order_by("-published_at", "-updated_at")[:50000]
+    return _urlset_response(projects, "weekly", "0.80")
 
 
 def blog_sitemap_xml(request):

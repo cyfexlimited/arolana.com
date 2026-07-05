@@ -203,6 +203,7 @@ urlpatterns = [
     # a final <slug>/ route which would otherwise consume /api/quotes/.
     path("api/installers/", include(("installers.api_urls", "installers_api"), namespace="installers_api")),
     path("api/provider/", include((provider_urlpatterns, "provider_api"), namespace="provider_api")),
+    path("api/projects/", include(("installers.project_api_urls", "projects_api"), namespace="projects_api")),
     path("api/smartchat/", include(("smartchat.api_urls", "smartchat_api"), namespace="smartchat_api")),
     path("api/quotes/", include(("core.api_urls", "quotes_api"), namespace="quotes_api")),
     path("api/", include("products.urls", namespace="products_api")),
@@ -243,6 +244,7 @@ urlpatterns = [
     path("newsletter/", include("newsletter.urls")),
     path("vendors/", include("vendors.urls")),
     path("installers/", include(("installers.urls", "installers"), namespace="installers")),
+    path("projects/", include(("installers.project_web_urls", "projects"), namespace="projects")),
     path("products/", include("products.urls")),
     path("orders/", include("orders.urls")),
     path("deliveries/", include("deliveries.urls")),

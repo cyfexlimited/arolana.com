@@ -4176,6 +4176,23 @@
 
     <!-- 6-Column Rich Product Grids -->
 
+    {% if real_projects_using_product %}
+    <section class="mt-12 arolana-deferred-content">
+        <div class="section-header">
+            <div>
+                <p class="text-xs font-black uppercase tracking-widest text-orange-500">Real installation proof</p>
+                <h2 class="text-2xl font-black text-[#071A44]">Projects using this product</h2>
+            </div>
+            <a href="{% url 'projects:directory' %}?product={{ product.id }}" class="text-blue-600 text-sm font-black hover:underline">View all projects →</a>
+        </div>
+        <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {% for project in real_projects_using_product %}
+                {% include "installers/partials/project_card.html" %}
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
     <!-- Frequently Bought Together -->
     {% if frequently_bought_together %}
     <div class="mt-12 arolana-deferred-content">

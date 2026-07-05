@@ -1,4 +1,5 @@
-from django.urls import path
+from django.urls import include, path
+from installers.project_api_urls import staff_project_urlpatterns
 
 from installers import api_views as installer_api_views
 
@@ -159,4 +160,9 @@ urlpatterns = [
     path("api/staff/rider/deliveries/<int:delivery_id>/proof/", views.rider_delivery_proof_api, name="rider_delivery_proof_api"),
     path("api/staff/rider/deliveries/<int:delivery_id>/delivered/", views.rider_delivery_proof_api, name="rider_delivery_delivered_api"),
     path("api/staff/rider/deliveries/<int:order_id>/<slug:status>/", views.update_delivery_status_path_api, name="rider_delivery_status_alias"),
+] + [
+    path(
+        "api/staff/",
+        include((staff_project_urlpatterns, "staff_projects_api"), namespace="staff_projects_api"),
+    ),
 ]

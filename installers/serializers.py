@@ -9,6 +9,8 @@ from .models import (
     ProviderService,
     ServiceCategory,
     ServicePortfolio,
+    ServiceProjectMedia,
+    ServiceProjectProduct,
     ServiceProviderProfile,
     ServiceQuoteRequest,
     ServiceReview,
@@ -75,13 +77,245 @@ class ProviderServiceSerializer(serializers.ModelSerializer):
 
 class ServicePortfolioSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
+    hero_image_url = serializers.SerializerMethodField()
+    video_url = serializers.SerializerMethodField()
+    provider = serializers.SerializerMethodField()
+    service_category = ServiceCategorySerializer(read_only=True)
+    media = serializers.SerializerMethodField()
+    products_used = serializers.SerializerMethodField()
+    approval_status_label = serializers.CharField(source="get_approval_status_display", read_only=True)
+    project_type_label = serializers.CharField(source="get_project_type_display", read_only=True)
+    saved = serializers.SerializerMethodField()
+    absolute_url = serializers.SerializerMethodField()
+    customer_name_display = serializers.SerializerMethodField()
 
     class Meta:
         model = ServicePortfolio
-        fields = ["id", "title", "description", "image", "video_url", "project_location", "completed_at"]
+        fields = [
+            "id", "slug", "title", "short_summary", "description", "image", "hero_image_url",
+            "project_type", "project_type_label", "service_category", "country", "state", "city",
+            "location_display", "project_location", "completed_at", "project_duration_text",
+            "customer_type", "customer_name_display", "show_project_value", "project_value_min",
+            "project_value_max", "project_value_currency", "video_source", "video_url",
+            "video_duration", "challenge", "solution", "implementation_process", "project_result",
+            "customer_outcome", "technologies_used", "services_performed", "approval_status",
+            "approval_status_label", "moderation_notes", "is_verified_project", "is_featured",
+            "views_count", "video_views_count", "product_click_count", "provider_click_count",
+            "quote_requests_count", "shares_count", "saves_count", "completion_percent",
+            "published_at", "created_at", "updated_at", "provider", "media", "products_used",
+            "saved", "absolute_url",
+        ]
+        read_only_fields = [
+            "slug", "approval_status", "moderation_notes", "is_verified_project", "is_featured",
+            "views_count", "video_views_count", "product_click_count", "provider_click_count",
+            "quote_requests_count", "shares_count", "saves_count", "published_at",
+        ]
 
     def get_image(self, obj):
-        return absolute_optimized_url(self.context.get("request"), obj.image, "category_card")
+        media = obj.featured_media
+        source = obj.image or getattr(media, "image", None) or getattr(media, "thumbnail", None)
+        return absolute_optimized_url(self.context.get("request"), source, "project_card")
+
+    def get_hero_image_url(self, obj):
+        media = obj.featured_media
+        source = obj.image or getattr(media, "image", None) or getattr(media, "thumbnail", None)
+        return absolute_optimized_url(self.context.get("request"), source, "project_hero")
+
+    def get_video_url(self, obj):
+        request = self.context.get("request")
+        if obj.local_video:
+            try:
+                value = obj.local_video.url
+                return request.build_absolute_uri(value) if request and not value.startswith(("http://", "https://")) else value
+            except Exception:
+                pass
+        return obj.video_url or ""
+
+    def get_provider(self, obj):
+        provider = obj.provider
+        return {
+            "id": provider.id,
+            "name": provider.business_name,
+            "slug": provider.slug,
+            "verified": provider.is_verified,
+            "provider_type": provider.get_provider_type_display(),
+            "rating": provider.average_rating,
+            "completed_projects": provider.portfolio_items.filter(
+                approval_status=ServicePortfolio.STATUS_APPROVED,
+                is_active=True,
+            ).count(),
+            "location": provider.location_label,
+            "logo_url": absolute_optimized_url(self.context.get("request"), provider.business_logo or provider.profile_image, "logo"),
+        }
+
+    def get_media(self, obj):
+        return ServiceProjectMediaSerializer(
+            obj.public_media if obj.approval_status == ServicePortfolio.STATUS_APPROVED else obj.media_items.all(),
+            many=True,
+            context=self.context,
+        ).data
+
+    def get_products_used(self, obj):
+        return ServiceProjectProductSerializer(
+            obj.project_products.select_related("product", "product__vendor"),
+            many=True,
+            context=self.context,
+        ).data
+
+    def get_saved(self, obj):
+        request = self.context.get("request")
+        return bool(
+            request
+            and request.user.is_authenticated
+            and obj.saved_by.filter(user=request.user).exists()
+        )
+
+    def get_absolute_url(self, obj):
+        request = self.context.get("request")
+        url = obj.get_absolute_url()
+        return request.build_absolute_uri(url) if request else url
+
+    def get_customer_name_display(self, obj):
+        return obj.customer_name_display if obj.customer_consent_to_publish else ""
+
+
+class ServiceProjectMediaSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+    thumbnail_url = serializers.SerializerMethodField()
+    video_url = serializers.SerializerMethodField()
+    media_type_label = serializers.CharField(source="get_media_type_display", read_only=True)
+
+    class Meta:
+        model = ServiceProjectMedia
+        fields = [
+            "id", "media_type", "media_type_label", "image_url", "thumbnail_url",
+            "video_url", "external_video_url", "caption", "alt_text", "display_order",
+            "is_featured", "approval_status", "created_at",
+        ]
+
+    def get_image_url(self, obj):
+        return absolute_optimized_url(self.context.get("request"), obj.image, "project_gallery")
+
+    def get_thumbnail_url(self, obj):
+        return absolute_optimized_url(
+            self.context.get("request"),
+            obj.thumbnail or obj.image,
+            "project_thumb",
+        )
+
+    def get_video_url(self, obj):
+        request = self.context.get("request")
+        if obj.video:
+            try:
+                url = obj.video.url
+                return request.build_absolute_uri(url) if request and not url.startswith(("http://", "https://")) else url
+            except Exception:
+                return ""
+        return obj.external_video_url or ""
+
+
+class ServiceProjectProductSerializer(serializers.ModelSerializer):
+    product = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ServiceProjectProduct
+        fields = ["id", "product", "usage_note", "quantity_used", "is_primary_product", "display_order"]
+
+    def get_product(self, obj):
+        product = obj.product
+        request = self.context.get("request")
+        image = getattr(product, "main_image", None)
+        url = product.get_absolute_url()
+        vendor = getattr(product, "vendor", None)
+        return {
+            "id": product.id,
+            "name": product.name,
+            "slug": product.slug,
+            "price": product.price,
+            "stock": getattr(product, "stock_quantity", 0),
+            "image_url": absolute_optimized_url(request, image, "product_card"),
+            "url": request.build_absolute_uri(url) if request else url,
+            "vendor_name": (
+                getattr(getattr(vendor, "vendor_profile", None), "business_name", "")
+                or getattr(vendor, "get_full_name", lambda: "")()
+                or getattr(vendor, "username", "")
+            ),
+        }
+
+
+class ServiceProjectWriteSerializer(serializers.ModelSerializer):
+    product_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        required=False,
+        write_only=True,
+    )
+
+    class Meta:
+        model = ServicePortfolio
+        fields = [
+            "title", "short_summary", "description", "project_type", "service_category",
+            "country", "state", "city", "location_display", "completed_at",
+            "project_duration_text", "customer_type", "customer_name_display",
+            "customer_name_private", "customer_consent_to_publish", "project_value_min",
+            "project_value_max", "project_value_currency", "show_project_value",
+            "image", "video_source", "video_url", "local_video", "video_thumbnail",
+            "video_duration", "challenge", "solution", "implementation_process",
+            "project_result", "customer_outcome", "technologies_used",
+            "services_performed", "product_ids",
+        ]
+
+    def validate(self, attrs):
+        title = (attrs.get("title") or getattr(self.instance, "title", "") or "").strip()
+        if len(title) < 8:
+            raise serializers.ValidationError({"title": "Use a descriptive project title of at least 8 characters."})
+        category = attrs.get("service_category") or getattr(self.instance, "service_category", None)
+        if category and not category.is_active:
+            raise serializers.ValidationError({"service_category": "Choose an active service category."})
+        return attrs
+
+    def _sync_products(self, project, product_ids):
+        if product_ids is None:
+            return
+        from products.models import Product
+
+        products = Product.objects.filter(
+            pk__in=product_ids,
+            is_active=True,
+            approval_status="approved",
+        )
+        project.project_products.exclude(product_id__in=products.values("id")).delete()
+        existing = set(project.project_products.values_list("product_id", flat=True))
+        ServiceProjectProduct.objects.bulk_create([
+            ServiceProjectProduct(project=project, product=product, display_order=index)
+            for index, product in enumerate(products)
+            if product.id not in existing
+        ])
+
+    def create(self, validated_data):
+        product_ids = validated_data.pop("product_ids", None)
+        project = super().create(validated_data)
+        self._sync_products(project, product_ids)
+        return project
+
+    def update(self, instance, validated_data):
+        product_ids = validated_data.pop("product_ids", None)
+        project = super().update(instance, validated_data)
+        self._sync_products(project, product_ids)
+        return project
+
+
+class ServiceProjectMediaWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ServiceProjectMedia
+        fields = [
+            "media_type", "image", "video", "external_video_url", "thumbnail",
+            "caption", "alt_text", "display_order", "is_featured",
+        ]
+
+    def validate(self, attrs):
+        if not any(attrs.get(field) for field in ("image", "video", "external_video_url")):
+            raise serializers.ValidationError("Upload an image/video or add a supported video URL.")
+        return attrs
 
 
 class ServiceReviewSerializer(serializers.ModelSerializer):

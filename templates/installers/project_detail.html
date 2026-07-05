@@ -1,0 +1,81 @@
+{% extends "base/base.html" %}
+{% load optimized_images media_optimization currency_filters %}
+{% block title %}{{ seo_title }}{% endblock %}
+{% block meta_description %}<meta name="description" content="{{ seo_description }}">{% endblock %}
+{% block social_meta %}
+<meta property="og:type" content="article">
+<meta property="og:title" content="{{ project.title }}">
+<meta property="og:description" content="{{ project.short_summary|default:seo_description }}">
+<meta property="og:url" content="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
+<meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+{% block social_image %}
+{% if project.image %}{% seo_media_url project.image 'project_hero' as project_social_image %}{% elif project.featured_media.image %}{% seo_media_url project.featured_media.image 'project_hero' as project_social_image %}{% endif %}
+{% if project_social_image %}<meta property="og:image" content="{{ project_social_image }}"><meta name="twitter:image" content="{{ project_social_image }}">{% endif %}
+{% endblock %}
+{% block structured_data %}
+{% if project.image %}{% seo_media_url project.image 'project_hero' as project_schema_image %}{% elif project.featured_media.image %}{% seo_media_url project.featured_media.image 'project_hero' as project_schema_image %}{% endif %}
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"CreativeWork","name":"{{ project.title|escapejs }}","description":"{{ project.short_summary|default:seo_description|escapejs }}","url":"{{ request.scheme }}://{{ request.get_host }}{{ request.path }}"{% if project_schema_image %},"image":"{{ project_schema_image|escapejs }}"{% endif %},"datePublished":"{{ project.published_at|date:'c' }}","dateModified":"{{ project.updated_at|date:'c' }}","creator":{"@type":"Organization","name":"{{ project.provider.business_name|escapejs }}","url":"{{ request.scheme }}://{{ request.get_host }}{{ project.provider.get_absolute_url }}"}}}
+</script>
+{% endblock %}
+{% block content %}
+<main class="bg-[#F6F9FC] pb-20 text-[#071A44]">
+  <div class="mx-auto max-w-7xl px-4 py-8">
+    <nav class="mb-5 text-sm font-bold text-slate-500"><a href="{% url 'projects:directory' %}" class="text-[#0066CC]">Projects</a> / {{ project.service_category.name }} / {{ project.title }}</nav>
+    <section class="overflow-hidden rounded-[2rem] bg-[#071A44] text-white shadow-2xl">
+      <div class="relative min-h-[420px]">
+        {% if project.image %}<img src="{{ project.image|optimized_image_url:'project_hero' }}" alt="{{ project.title }}" class="absolute inset-0 h-full w-full object-cover" decoding="async">{% elif project.featured_media.image %}<img src="{{ project.featured_media.image|optimized_image_url:'project_hero' }}" alt="{{ project.title }}" class="absolute inset-0 h-full w-full object-cover" decoding="async">{% endif %}
+        <div class="absolute inset-0 bg-gradient-to-r from-[#071A44]/95 via-[#071A44]/70 to-[#071A44]/15"></div>
+        <div class="relative z-10 flex min-h-[420px] max-w-3xl flex-col justify-end p-7 md:p-12">
+          <div class="flex flex-wrap gap-2">{% if project.is_verified_project %}<span class="rounded-full bg-emerald-500 px-3 py-1 text-xs font-black">Verified project</span>{% endif %}{% if project.has_video %}<span class="rounded-full bg-[#FF7A00] px-3 py-1 text-xs font-black"><i class="fas fa-play mr-1"></i>Installation video</span>{% endif %}</div>
+          <p class="mt-5 text-sm font-black uppercase tracking-widest text-orange-300">{{ project.service_category.name }}</p>
+          <h1 class="mt-2 text-4xl font-black leading-tight md:text-6xl">{{ project.title }}</h1>
+          <p class="mt-4 max-w-2xl text-lg text-white/80">{{ project.short_summary }}</p>
+          <div class="mt-5 flex flex-wrap gap-4 text-sm font-bold text-white/80"><span><i class="fas fa-location-dot mr-1 text-orange-300"></i>{{ project.location_display }}</span><span><i class="fas fa-calendar-check mr-1 text-cyan-300"></i>{{ project.completed_at|date:"F Y" }}</span><span><i class="fas fa-eye mr-1"></i>{{ project.views_count }} views</span></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="mt-8 grid gap-8 lg:grid-cols-[1fr_340px]">
+      <div class="space-y-8">
+        {% if project.video_url or project.local_video %}
+        <section class="overflow-hidden rounded-[2rem] bg-black shadow-lg">
+          {% if project.video_source == "youtube" and project.video_embed_url %}<div class="aspect-video"><iframe src="{{ project.video_embed_url }}" title="{{ project.title }}" class="h-full w-full" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>{% elif project.local_video %}<video controls playsinline poster="{% if project.video_thumbnail %}{{ project.video_thumbnail|optimized_image_url:'project_hero' }}{% endif %}" class="aspect-video w-full"><source src="{{ project.local_video.url }}"></video>{% else %}<a href="{{ project.video_url }}" target="_blank" rel="noopener" class="grid aspect-video place-items-center text-center text-white"><span><i class="fas fa-circle-play text-6xl text-[#FF7A00]"></i><strong class="mt-3 block">Watch project video</strong></span></a>{% endif %}
+        </section>
+        {% endif %}
+        {% if media_items %}
+        <section class="rounded-[2rem] bg-white p-6 shadow-sm">
+          <p class="text-xs font-black uppercase tracking-widest text-[#FF7A00]">Project gallery</p><h2 class="mt-1 text-3xl font-black">See the work from every angle</h2>
+          <div class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{% for media in media_items %}{% if media.image %}<a href="{{ media.image.url }}" class="group relative overflow-hidden rounded-2xl bg-slate-100" target="_blank"><img src="{{ media.image|optimized_image_url:'project_gallery' }}" alt="{{ media.alt_text|default:project.title }}" class="aspect-[4/3] h-full w-full object-cover transition group-hover:scale-105" loading="lazy"><span class="absolute bottom-3 left-3 rounded-full bg-[#071A44]/80 px-3 py-1 text-xs font-black text-white">{{ media.get_media_type_display }}</span></a>{% endif %}{% endfor %}</div>
+        </section>
+        {% endif %}
+        <section class="rounded-[2rem] bg-white p-7 shadow-sm">
+          <p class="text-xs font-black uppercase tracking-widest text-[#0066CC]">Project overview</p>
+          <div class="prose mt-4 max-w-none text-slate-700">{{ project.description|linebreaks }}</div>
+          <div class="mt-7 grid gap-5 md:grid-cols-2">
+            {% if project.challenge %}<article class="rounded-2xl bg-slate-50 p-5"><h3 class="font-black">The challenge</h3><p class="mt-2 whitespace-pre-line text-sm text-slate-600">{{ project.challenge }}</p></article>{% endif %}
+            {% if project.solution %}<article class="rounded-2xl bg-blue-50 p-5"><h3 class="font-black">The solution</h3><p class="mt-2 whitespace-pre-line text-sm text-slate-600">{{ project.solution }}</p></article>{% endif %}
+            {% if project.implementation_process %}<article class="rounded-2xl bg-orange-50 p-5"><h3 class="font-black">Implementation</h3><p class="mt-2 whitespace-pre-line text-sm text-slate-600">{{ project.implementation_process }}</p></article>{% endif %}
+            {% if project.project_result or project.customer_outcome %}<article class="rounded-2xl bg-emerald-50 p-5"><h3 class="font-black">Result and outcome</h3><p class="mt-2 whitespace-pre-line text-sm text-slate-600">{{ project.project_result }} {{ project.customer_outcome }}</p></article>{% endif %}
+          </div>
+        </section>
+        {% if products_used %}
+        <section><p class="text-xs font-black uppercase tracking-widest text-[#FF7A00]">Equipment and materials</p><h2 class="mt-1 text-3xl font-black">Products used in this project</h2><div class="mt-5 grid gap-4 sm:grid-cols-2">{% for link in products_used %}<article class="flex gap-4 rounded-2xl bg-white p-4 shadow-sm">{% if link.product.main_image %}<img src="{{ link.product.main_image|optimized_image_url:'product_card' }}" alt="{{ link.product.name }}" class="h-28 w-28 rounded-xl object-contain">{% endif %}<div class="min-w-0"><a href="{{ link.product.get_absolute_url }}" class="font-black">{{ link.product.name }}</a><p class="mt-1 text-sm text-slate-500">{{ link.usage_note }}</p><p class="mt-2 font-black text-[#0066CC]">{{ link.product.price|currency:request }}</p><div class="mt-2 flex gap-2"><a href="{{ link.product.get_absolute_url }}" class="rounded-lg bg-slate-100 px-3 py-2 text-xs font-black">View product</a><a href="{{ link.product.get_absolute_url }}" class="rounded-lg bg-[#FF7A00] px-3 py-2 text-xs font-black text-white">Buy / quote</a></div></div></article>{% endfor %}</div></section>
+        {% endif %}
+        {% if related_projects %}<section><h2 class="text-3xl font-black">Related projects</h2><div class="mt-5 grid gap-5 md:grid-cols-2">{% for project in related_projects %}{% include "installers/partials/project_card.html" %}{% endfor %}</div></section>{% endif %}
+      </div>
+      <aside class="space-y-5">
+        <section class="sticky top-24 rounded-[2rem] bg-white p-6 shadow-lg">
+          <p class="text-xs font-black uppercase tracking-widest text-[#FF7A00]">Completed by</p>
+          <div class="mt-4 flex items-center gap-3">{% if project.provider.business_logo %}<img src="{{ project.provider.business_logo|optimized_image_url:'logo' }}" alt="{{ project.provider.business_name }}" class="h-16 w-16 rounded-2xl object-contain">{% endif %}<div><h2 class="font-black">{{ project.provider.business_name }}</h2><p class="text-sm font-bold text-emerald-600">{% if project.provider.is_verified %}Verified provider{% else %}Approved provider{% endif %}</p></div></div>
+          <div class="mt-5 grid grid-cols-2 gap-3 text-center"><div class="rounded-xl bg-slate-50 p-3"><strong class="block text-xl">{{ project.provider.average_rating|floatformat:1 }}</strong><span class="text-xs text-slate-500">Rating</span></div><div class="rounded-xl bg-slate-50 p-3"><strong class="block text-xl">{{ project.provider.total_completed_jobs }}</strong><span class="text-xs text-slate-500">Completed jobs</span></div></div>
+          <a href="{% url 'installers:request_quote' %}?project={{ project.id }}" class="mt-5 block rounded-2xl bg-[#FF7A00] px-5 py-4 text-center font-black text-white">Request a similar project</a>
+          <a href="{{ project.provider.get_absolute_url }}" class="mt-3 block rounded-2xl bg-[#0066CC] px-5 py-3 text-center font-black text-white">View provider profile</a>
+          <form method="post" action="{% url 'projects:save' project.slug %}" class="mt-3">{% csrf_token %}<button class="w-full rounded-2xl border border-slate-200 px-5 py-3 font-black">{% if is_saved %}<i class="fas fa-bookmark mr-1 text-[#FF7A00]"></i>Saved{% else %}<i class="far fa-bookmark mr-1"></i>Save project{% endif %}</button></form>
+        </section>
+      </aside>
+    </div>
+  </div>
+</main>
+{% endblock %}

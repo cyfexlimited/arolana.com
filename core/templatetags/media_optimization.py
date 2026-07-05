@@ -32,6 +32,7 @@ PUBLIC_MEDIA_PREFIXES = {
     "blog",
     "landing_pages",
     "uploads",
+    "installers",
 }
 
 

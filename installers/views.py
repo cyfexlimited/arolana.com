@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -12,10 +12,23 @@ from .forms import (
     ProviderRegistrationForm,
     ProviderServiceForm,
     ServicePortfolioForm,
+    ServiceProjectMediaForm,
     ServiceQuoteRequestForm,
     ServiceReviewForm,
 )
-from .models import ProviderSubscriptionPlan, ServiceCategory, ServiceProviderProfile, ServiceQuoteRequest
+from .models import (
+    ProviderSubscriptionPlan,
+    SavedServiceProject,
+    ServiceCategory,
+    ServicePortfolio,
+    ServiceProviderProfile,
+    ServiceQuoteRequest,
+)
+from .project_services import (
+    ProjectEntitlementService,
+    notify_project_submitted,
+    record_project_event,
+)
 from .services import filter_public_providers, notify_staff_service_quote, submit_provider_profile
 
 
@@ -40,11 +53,13 @@ def directory(request):
 def category_detail(request, slug):
     category = get_object_or_404(ServiceCategory, slug=slug, is_active=True)
     providers = filter_public_providers({**request.GET.dict(), "category": category.slug})
+    projects = ServicePortfolio.objects.public().optimized().filter(service_category=category)[:8]
     page = Paginator(providers, 18).get_page(request.GET.get("page"))
     return render(request, "installers/category_detail.html", {
         "category": category,
         "page_obj": page,
         "providers": page.object_list,
+        "projects": projects,
         "seo_title": f"Verified {category.name} in Nigeria | Arolana",
         "seo_description": category.description or f"Find trusted and verified {category.name.lower()} on Arolana.",
     })
@@ -54,13 +69,21 @@ def provider_detail(request, slug):
     provider = get_object_or_404(
         ServiceProviderProfile.objects.public()
         .select_related("user")
-        .prefetch_related("services__category", "portfolio_items", "reviews__customer"),
+        .prefetch_related(
+            "services__category",
+            "portfolio_items__media_items",
+            "portfolio_items__service_category",
+            "reviews__customer",
+        ),
         slug=slug,
     )
     return render(request, "installers/provider_detail.html", {
         "provider": provider,
         "services": provider.services.filter(is_active=True).select_related("category"),
-        "portfolio_items": provider.portfolio_items.all(),
+        "portfolio_items": provider.portfolio_items.filter(
+            approval_status=ServicePortfolio.STATUS_APPROVED,
+            is_active=True,
+        ),
         "reviews": provider.reviews.filter(is_approved=True).select_related("customer")[:20],
         "review_form": ServiceReviewForm(),
         "seo_title": f"{provider.business_name} - Verified {provider.get_provider_type_display()} | Arolana",
@@ -142,6 +165,7 @@ def provider_dashboard(request):
         "provider": provider,
         "services": provider.services.select_related("category"),
         "portfolio_items": provider.portfolio_items.all(),
+        "project_entitlements": ProjectEntitlementService(provider).payload(),
         "quote_requests": quote_requests[:30],
         "active_jobs": active_jobs[:8],
         "pending_jobs": pending_jobs[:8],
@@ -176,14 +200,225 @@ def add_provider_service(request):
 @login_required
 def add_portfolio(request):
     provider = get_object_or_404(ServiceProviderProfile, user=request.user)
+    entitlement = ProjectEntitlementService(provider).can_create_project()
+    if not entitlement.allowed:
+        messages.error(request, entitlement.message)
+        return redirect("installers:provider_projects")
     form = ServicePortfolioForm(request.POST or None, request.FILES or None)
     if request.method == "POST" and form.is_valid():
         portfolio = form.save(commit=False)
         portfolio.provider = provider
+        portfolio.created_by = request.user
+        portfolio.approval_status = ServicePortfolio.STATUS_DRAFT
         portfolio.save()
+        form.instance = portfolio
+        form.save()
         messages.success(request, "Portfolio project added.")
-        return redirect("installers:provider_dashboard")
-    return render(request, "installers/simple_form.html", {"form": form, "title": "Add portfolio project"})
+        return redirect("installers:provider_project_edit", project_id=portfolio.id)
+    return render(request, "installers/project_form.html", {
+        "form": form,
+        "title": "Add completed project",
+        "provider": provider,
+        "entitlements": ProjectEntitlementService(provider).payload(),
+    })
+
+
+def projects_directory(request):
+    projects = ServicePortfolio.objects.public().optimized()
+    query = (request.GET.get("q") or "").strip()
+    if query:
+        projects = projects.filter(
+            Q(title__icontains=query)
+            | Q(short_summary__icontains=query)
+            | Q(provider__business_name__icontains=query)
+            | Q(service_category__name__icontains=query)
+            | Q(city__icontains=query)
+            | Q(state__icontains=query)
+            | Q(project_products__product__name__icontains=query)
+        ).distinct()
+    filters = {
+        "service_category__slug": request.GET.get("category"),
+        "country__iexact": request.GET.get("country"),
+        "state__iexact": request.GET.get("state"),
+        "city__iexact": request.GET.get("city"),
+        "project_type": request.GET.get("project_type"),
+        "project_products__product_id": request.GET.get("product"),
+    }
+    for key, value in filters.items():
+        if value:
+            projects = projects.filter(**{key: value})
+    ordering = {
+        "popular": "-views_count",
+        "watched": "-video_views_count",
+        "requested": "-quote_requests_count",
+        "latest": "-published_at",
+    }.get(request.GET.get("sort"), "-is_featured")
+    projects = projects.order_by(ordering, "-published_at")
+    page = Paginator(projects, 18).get_page(request.GET.get("page"))
+    categories = ServiceCategory.objects.filter(
+        is_active=True,
+        projects__approval_status=ServicePortfolio.STATUS_APPROVED,
+        projects__is_active=True,
+    ).annotate(project_count=Count("projects", distinct=True)).distinct()
+    return render(request, "installers/projects_directory.html", {
+        "projects": page.object_list,
+        "page_obj": page,
+        "categories": categories,
+        "featured_projects": ServicePortfolio.objects.public().optimized().filter(is_featured=True)[:6],
+        "project_types": ServicePortfolio.PROJECT_TYPE_CHOICES,
+        "seo_title": "Real Installations & Completed Projects | Arolana",
+        "seo_description": "Watch verified installations, completed technical projects, and real professional work on Arolana.",
+    })
+
+
+def project_detail(request, slug):
+    project = get_object_or_404(ServicePortfolio.objects.public().optimized(), slug=slug)
+    record_project_event(project, "view", request=request, source="web")
+    project.refresh_from_db()
+    related = ServicePortfolio.objects.public().optimized().filter(
+        service_category=project.service_category,
+    ).exclude(pk=project.pk)[:6]
+    similar_providers = ServiceProviderProfile.objects.public().filter(
+        services__category=project.service_category,
+    ).exclude(pk=project.provider_id).distinct()[:4]
+    return render(request, "installers/project_detail.html", {
+        "project": project,
+        "media_items": project.public_media,
+        "products_used": project.project_products.select_related("product", "product__vendor"),
+        "related_projects": related,
+        "similar_providers": similar_providers,
+        "is_saved": (
+            request.user.is_authenticated
+            and SavedServiceProject.objects.filter(project=project, user=request.user).exists()
+        ),
+        "seo_title": f"{project.title} | Arolana Projects",
+        "seo_description": project.short_summary or project.description[:160],
+    })
+
+
+@login_required
+def save_project(request, slug):
+    project = get_object_or_404(ServicePortfolio.objects.public(), slug=slug)
+    saved, created = SavedServiceProject.objects.get_or_create(project=project, user=request.user)
+    if not created:
+        saved.delete()
+        if project.saves_count:
+            ServicePortfolio.objects.filter(pk=project.pk).update(saves_count=project.saves_count - 1)
+        messages.info(request, "Project removed from saved items.")
+    else:
+        record_project_event(project, "save", request=request, source="web")
+        messages.success(request, "Project saved.")
+    return redirect(project.get_absolute_url())
+
+
+@login_required
+def provider_projects(request):
+    provider = get_object_or_404(ServiceProviderProfile, user=request.user)
+    projects = provider.portfolio_items.select_related("service_category").prefetch_related("media_items")
+    totals = projects.aggregate(
+        views=Sum("views_count"),
+        video_views=Sum("video_views_count"),
+        leads=Sum("quote_requests_count"),
+    )
+    return render(request, "installers/provider_projects.html", {
+        "provider": provider,
+        "projects": projects,
+        "entitlements": ProjectEntitlementService(provider).payload(),
+        "totals": totals,
+        "status_counts": {
+            value: projects.filter(approval_status=value).count()
+            for value, _label in ServicePortfolio.APPROVAL_STATUS_CHOICES
+        },
+    })
+
+
+@login_required
+def provider_project_edit(request, project_id):
+    provider = get_object_or_404(ServiceProviderProfile, user=request.user)
+    project = get_object_or_404(provider.portfolio_items, pk=project_id)
+    form = ServicePortfolioForm(request.POST or None, request.FILES or None, instance=project)
+    if request.method == "POST" and form.is_valid():
+        project = form.save(commit=False)
+        if project.approval_status == ServicePortfolio.STATUS_APPROVED:
+            project.approval_status = ServicePortfolio.STATUS_PENDING
+        project.save()
+        form.save()
+        action = request.POST.get("action")
+        if action == "submit":
+            publish_permission = ProjectEntitlementService(provider).can_publish_project()
+            if not publish_permission.allowed:
+                messages.error(request, publish_permission.message)
+            elif project.completion_percent < 60:
+                messages.error(request, "Complete the category, location, story, outcome, and media before submission.")
+            else:
+                project.approval_status = ServicePortfolio.STATUS_PENDING
+                project.moderation_notes = ""
+                project.save(update_fields=["approval_status", "moderation_notes", "updated_at"])
+                notify_project_submitted(project)
+                messages.success(request, "Project submitted for Arolana review.")
+        else:
+            messages.success(request, "Project draft saved.")
+        return redirect("installers:provider_project_edit", project_id=project.id)
+    return render(request, "installers/project_form.html", {
+        "form": form,
+        "project": project,
+        "provider": provider,
+        "title": f"Edit {project.title}",
+        "entitlements": ProjectEntitlementService(provider).payload(),
+    })
+
+
+@login_required
+def provider_project_media(request, project_id):
+    provider = get_object_or_404(ServiceProviderProfile, user=request.user)
+    project = get_object_or_404(provider.portfolio_items, pk=project_id)
+    media_permission = ProjectEntitlementService(provider).can_add_project_media(project)
+    form = ServiceProjectMediaForm(request.POST or None, request.FILES or None)
+    if request.method == "POST":
+        if not media_permission.allowed:
+            messages.error(request, media_permission.message)
+        elif form.is_valid():
+            media = form.save(commit=False)
+            media.project = project
+            try:
+                media.save()
+            except Exception as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, "Media uploaded for Arolana review.")
+                return redirect("installers:provider_project_media", project_id=project.id)
+    return render(request, "installers/project_media.html", {
+        "provider": provider,
+        "project": project,
+        "media_items": project.media_items.all(),
+        "form": form,
+        "media_permission": media_permission.as_dict(),
+        "entitlements": ProjectEntitlementService(provider).payload(),
+    })
+
+
+@login_required
+def provider_project_analytics(request, project_id):
+    provider = get_object_or_404(ServiceProviderProfile, user=request.user)
+    project = get_object_or_404(provider.portfolio_items, pk=project_id)
+    enabled = ProjectEntitlementService(provider).payload()["analytics_enabled"]
+    return render(request, "installers/project_analytics.html", {
+        "provider": provider,
+        "project": project,
+        "analytics_enabled": enabled,
+        "conversion_rate": round(project.quote_requests_count / max(project.views_count, 1) * 100, 2),
+    })
+
+
+@login_required
+def provider_project_leads(request):
+    provider = get_object_or_404(ServiceProviderProfile, user=request.user)
+    leads = provider.quote_requests.filter(source_project__isnull=False).select_related("source_project")
+    return render(request, "installers/project_leads.html", {
+        "provider": provider,
+        "leads": leads,
+        "entitlements": ProjectEntitlementService(provider).payload(),
+    })
 
 
 def request_quote(request):
@@ -191,6 +426,7 @@ def request_quote(request):
     provider_id = request.GET.get("provider")
     category_id = request.GET.get("category")
     product_id = request.GET.get("product")
+    project_id = request.GET.get("project")
     if provider_id:
         initial["provider"] = ServiceProviderProfile.objects.public().filter(pk=provider_id).first()
     if category_id:
@@ -200,6 +436,20 @@ def request_quote(request):
         initial["product"] = product
         if product:
             initial["service_needed"] = f"Service support for {product.name}"
+    if project_id:
+        project = ServicePortfolio.objects.public().filter(pk=project_id).select_related(
+            "provider", "service_category"
+        ).first()
+        if project:
+            initial.update({
+                "source_project": project,
+                "provider": project.provider,
+                "category": project.service_category,
+                "state": project.state,
+                "city": project.city,
+                "service_needed": f"Similar project: {project.title}",
+                "message": f"I would like a quote for a project similar to “{project.title}”.",
+            })
     if request.user.is_authenticated:
         initial.update({
             "name": request.user.get_full_name(),
@@ -212,6 +462,8 @@ def request_quote(request):
         if request.user.is_authenticated:
             quote.customer = request.user
         quote.save()
+        if quote.source_project:
+            record_project_event(quote.source_project, "quote_request", request=request, source="web")
         notify_staff_service_quote(quote)
         if quote.provider:
             Notification.send(

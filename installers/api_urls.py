@@ -1,6 +1,7 @@
 from django.urls import path
 
 from . import api_views
+from .project_api_urls import provider_project_urlpatterns
 
 app_name = "installers_api"
 
@@ -40,4 +41,4 @@ provider_urlpatterns = [
     path("settings/", api_views.ProviderSettingsAPIView.as_view(), name="provider_settings"),
     path("change-password/", api_views.ProviderChangePasswordAPIView.as_view(), name="provider_change_password"),
     path("deactivate-request/", api_views.ProviderDeactivateRequestAPIView.as_view(), name="provider_deactivate_request"),
-]
+] + provider_project_urlpatterns

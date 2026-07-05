@@ -1,0 +1,28 @@
+{% if section and projects %}
+<section class="arolana-project-proof-home" aria-labelledby="homepage-projects-title">
+  <div class="arolana-project-proof-home__heading">
+    <div>
+      {% if section.projects_eyebrow %}<p>{{ section.projects_eyebrow }}</p>{% endif %}
+      <h2 id="homepage-projects-title">{{ section.projects_title }}</h2>
+      <span>{{ section.projects_subtitle }}</span>
+    </div>
+    <a href="{% url 'projects:directory' %}">{{ section.projects_button_text }} <span aria-hidden="true">→</span></a>
+  </div>
+  <div class="arolana-project-proof-home__grid">
+    {% for project in projects %}
+      {% include "installers/partials/project_card.html" with project=project %}
+    {% endfor %}
+  </div>
+</section>
+<style>
+  .arolana-project-proof-home{max-width:1400px;margin:0 auto 3rem;padding:1.5rem;border:1px solid rgba(0,102,204,.12);border-radius:28px;background:linear-gradient(145deg,rgba(255,255,255,.94),rgba(238,246,255,.9));box-shadow:0 22px 55px rgba(7,26,68,.08)}
+  .arolana-project-proof-home__heading{display:flex;align-items:flex-end;justify-content:space-between;gap:1.25rem;margin-bottom:1.25rem}
+  .arolana-project-proof-home__heading p{margin:0 0 .35rem;color:#ff7a00;font-size:.76rem;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+  .arolana-project-proof-home__heading h2{margin:0;color:#071a44;font-size:clamp(1.7rem,3vw,2.55rem);line-height:1.05}
+  .arolana-project-proof-home__heading span{display:block;margin-top:.55rem;color:#52627a}
+  .arolana-project-proof-home__heading>a{flex:0 0 auto;padding:.82rem 1rem;border-radius:14px;background:#0066cc;color:#fff;font-weight:800;text-decoration:none}
+  .arolana-project-proof-home__grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem}
+  @media(max-width:1050px){.arolana-project-proof-home__grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:650px){.arolana-project-proof-home{padding:1rem;border-radius:22px}.arolana-project-proof-home__heading{align-items:flex-start;flex-direction:column}.arolana-project-proof-home__heading>a{width:100%;text-align:center}.arolana-project-proof-home__grid{grid-template-columns:1fr}}
+</style>
+{% endif %}

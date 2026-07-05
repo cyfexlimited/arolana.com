@@ -84,6 +84,9 @@ VERSIONED_PRESETS = frozenset({
     "product_gallery",
     "product_detail",
     "vendor_banner",
+    "project_card",
+    "project_hero",
+    "project_gallery",
 })
 
 PRESETS = {
@@ -122,6 +125,11 @@ PRESETS = {
     "blog_card": {"max_size": (900, 600), "quality": 82},
     "blog_detail": {"max_size": (1600, 1000), "quality": 84},
     "video_thumb": {"max_size": (720, 405), "quality": 82},
+    "project_thumb": {"max_size": (700, 500), "quality": 86},
+    "project_card": {"max_size": (1200, 800), "quality": 90},
+    "project_hero": {"max_size": (2200, 1400), "quality": 92},
+    "project_gallery": {"max_size": (1800, 1400), "quality": 92},
+    "provider_portfolio": {"max_size": (1400, 1000), "quality": 90},
 }
 
 _LOCAL_URL_CACHE = {}

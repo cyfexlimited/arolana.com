@@ -1,0 +1,30 @@
+{% load optimized_images %}
+<article class="group overflow-hidden rounded-[1.6rem] border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
+  <a href="{{ project.get_absolute_url }}" class="relative block aspect-[16/10] overflow-hidden bg-slate-100">
+    {% if project.image %}
+      <img src="{{ project.image|optimized_image_url:'project_card' }}" alt="{{ project.title }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" decoding="async">
+    {% elif project.featured_media.image %}
+      <img src="{{ project.featured_media.image|optimized_image_url:'project_card' }}" alt="{{ project.featured_media.alt_text|default:project.title }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" decoding="async">
+    {% else %}
+      <div class="grid h-full place-items-center bg-gradient-to-br from-[#071A44] to-[#0066CC] text-4xl text-white"><i class="fas fa-screwdriver-wrench"></i></div>
+    {% endif %}
+    <div class="absolute inset-0 bg-gradient-to-t from-[#071A44]/75 via-transparent to-transparent"></div>
+    <div class="absolute left-3 top-3 flex gap-2">
+      {% if project.is_verified_project %}<span class="rounded-full bg-emerald-500 px-3 py-1 text-xs font-black text-white"><i class="fas fa-shield-check mr-1"></i>Verified project</span>{% endif %}
+      {% if project.has_video %}<span class="rounded-full bg-[#FF7A00] px-3 py-1 text-xs font-black text-white"><i class="fas fa-play mr-1"></i>Watch</span>{% endif %}
+    </div>
+    <p class="absolute bottom-3 left-4 right-4 text-sm font-black text-white"><i class="fas fa-location-dot mr-1 text-orange-300"></i>{{ project.location_display }}</p>
+  </a>
+  <div class="p-5">
+    <p class="text-xs font-black uppercase tracking-widest text-[#FF7A00]">{{ project.service_category.name|default:project.get_project_type_display }}</p>
+    <a href="{{ project.get_absolute_url }}"><h3 class="mt-2 line-clamp-2 text-xl font-black leading-tight text-[#071A44]">{{ project.title }}</h3></a>
+    <p class="mt-2 line-clamp-2 text-sm text-slate-600">{{ project.short_summary|default:project.description }}</p>
+    <div class="mt-4 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
+      <a href="{{ project.provider.get_absolute_url }}" class="min-w-0">
+        <p class="truncate text-sm font-black text-[#071A44]">{{ project.provider.business_name }}</p>
+        <p class="text-xs font-bold text-slate-500">{% if project.provider.is_verified %}<span class="text-emerald-600">Verified</span> · {% endif %}{{ project.views_count }} views</p>
+      </a>
+      <a href="{% url 'installers:request_quote' %}?project={{ project.id }}" class="shrink-0 rounded-xl bg-[#0066CC] px-4 py-2 text-xs font-black text-white">Request similar</a>
+    </div>
+  </div>
+</article>

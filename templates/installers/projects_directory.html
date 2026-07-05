@@ -1,0 +1,44 @@
+{% extends "base/base.html" %}
+{% load optimized_images %}
+{% block title %}{{ seo_title }}{% endblock %}
+{% block meta_description %}<meta name="description" content="{{ seo_description }}">{% endblock %}
+{% block content %}
+<main class="min-h-screen bg-[#F6F9FC] pb-20">
+  <section class="relative overflow-hidden bg-[#071A44] px-4 py-16 text-white">
+    <div class="absolute inset-0 bg-[radial-gradient(circle_at_85%_20%,rgba(0,102,204,.6),transparent_38%),radial-gradient(circle_at_10%_90%,rgba(255,122,0,.28),transparent_30%)]"></div>
+    <div class="relative mx-auto max-w-7xl">
+      <p class="text-sm font-black uppercase tracking-[.22em] text-orange-300">Arolana Projects & Proof Network</p>
+      <h1 class="mt-4 max-w-4xl text-4xl font-black leading-tight md:text-6xl">See real installations. Choose professionals with proof.</h1>
+      <p class="mt-5 max-w-3xl text-lg text-white/75">Discover completed projects, installation videos, products used, and verified professionals across every Arolana service category.</p>
+      <form class="mt-8 grid max-w-5xl gap-3 rounded-3xl bg-white/10 p-3 backdrop-blur md:grid-cols-[2fr_1fr_1fr_auto]">
+        <input name="q" value="{{ request.GET.q }}" placeholder="Project, product, provider, or location" class="rounded-2xl border-0 bg-white px-4 py-3 font-bold text-[#071A44]">
+        <select name="category" class="rounded-2xl border-0 bg-white px-4 py-3 font-bold text-[#071A44]"><option value="">All services</option>{% for category in categories %}<option value="{{ category.slug }}" {% if request.GET.category == category.slug %}selected{% endif %}>{{ category.name }}</option>{% endfor %}</select>
+        <input name="city" value="{{ request.GET.city }}" placeholder="City" class="rounded-2xl border-0 bg-white px-4 py-3 font-bold text-[#071A44]">
+        <button class="rounded-2xl bg-[#FF7A00] px-6 py-3 font-black text-white">Explore projects</button>
+      </form>
+    </div>
+  </section>
+  <div class="mx-auto max-w-7xl px-4 py-10">
+    {% if featured_projects %}
+      <section>
+        <p class="text-xs font-black uppercase tracking-widest text-[#FF7A00]">Featured proof</p>
+        <h2 class="mt-1 text-3xl font-black text-[#071A44]">Projects worth watching</h2>
+        <div class="mt-6 grid gap-6 md:grid-cols-2 xl:grid-cols-3">{% for project in featured_projects %}{% include "installers/partials/project_card.html" %}{% endfor %}</div>
+      </section>
+    {% endif %}
+    <section class="{% if featured_projects %}mt-14{% endif %}">
+      <div class="flex flex-wrap items-end justify-between gap-4">
+        <div><p class="text-xs font-black uppercase tracking-widest text-[#0066CC]">Real professional work</p><h2 class="mt-1 text-3xl font-black text-[#071A44]">Latest installations and projects</h2></div>
+        <div class="flex flex-wrap gap-2">
+          <a href="?sort=latest" class="rounded-full bg-white px-4 py-2 text-sm font-black text-[#071A44] shadow-sm">Latest</a>
+          <a href="?sort=popular" class="rounded-full bg-white px-4 py-2 text-sm font-black text-[#071A44] shadow-sm">Most viewed</a>
+          <a href="?sort=watched" class="rounded-full bg-white px-4 py-2 text-sm font-black text-[#071A44] shadow-sm">Most watched</a>
+          <a href="?sort=requested" class="rounded-full bg-white px-4 py-2 text-sm font-black text-[#071A44] shadow-sm">Most requested</a>
+        </div>
+      </div>
+      <div class="mt-6 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">{% for project in projects %}{% include "installers/partials/project_card.html" %}{% empty %}<div class="col-span-full rounded-3xl bg-white p-12 text-center"><i class="fas fa-photo-film text-4xl text-[#0066CC]"></i><h3 class="mt-4 text-2xl font-black text-[#071A44]">No projects match these filters</h3><p class="mt-2 text-slate-500">Try another service, product, or location.</p></div>{% endfor %}</div>
+      {% if page_obj.has_other_pages %}<nav class="mt-10 flex justify-center gap-3">{% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}" class="rounded-xl bg-white px-5 py-3 font-black text-[#0066CC]">Previous</a>{% endif %}<span class="rounded-xl bg-[#071A44] px-5 py-3 font-black text-white">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}" class="rounded-xl bg-white px-5 py-3 font-black text-[#0066CC]">Next</a>{% endif %}</nav>{% endif %}
+    </section>
+  </div>
+</main>
+{% endblock %}
