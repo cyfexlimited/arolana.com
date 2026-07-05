@@ -711,3 +711,157 @@ class SmartChatProductIntelligenceTests(TestCase):
             conversation.takeover_requests.get().status,
             HumanTakeoverRequest.STATUS_CANCELLED,
         )
+
+    def test_contextual_guard_typo_continues_vendor_onboarding(self):
+        conversation = SmartChatConversation.objects.create(user=self.customer)
+        self.ask(conversation, "how do i become a vendor")
+
+        reply = self.ask(conversation, "can you guard me?")
+
+        conversation.refresh_from_db()
+        self.assertEqual(reply.metadata["intent"], "vendor_onboarding_guidance")
+        self.assertEqual(reply.metadata["topic_relation"], "continue")
+        self.assertIn("guide you through it step by step", reply.message.lower())
+        self.assertEqual(
+            reply.metadata["text_resolution"]["normalized"].lower(),
+            "can you guide me?",
+        )
+        workflow = conversation.context["state"]["workflow"]
+        self.assertEqual(workflow["type"], "vendor_onboarding")
+        self.assertEqual(workflow["current_step"], 1)
+        self.assertEqual(reply.metadata["cards"], [])
+        self.assertEqual(
+            reply.metadata["actions"][0]["url"],
+            reverse("vendor_register_redirect"),
+        )
+
+    def test_explicit_step_by_step_guidance_starts_vendor_workflow(self):
+        conversation = SmartChatConversation.objects.create(user=self.customer)
+        self.ask(conversation, "how do i become a vendor")
+
+        reply = self.ask(conversation, "can you guide me step by step?")
+
+        self.assertIn("1. Sign in", reply.message)
+        self.assertIn("12. Manage orders", reply.message)
+        conversation.refresh_from_db()
+        self.assertEqual(
+            conversation.context["state"]["workflow"]["status"],
+            "in_progress",
+        )
+
+    def test_what_next_advances_current_vendor_workflow_step(self):
+        conversation = SmartChatConversation.objects.create(user=self.customer)
+        self.ask(conversation, "how do i become a vendor")
+        self.ask(conversation, "can you guide me?")
+
+        reply = self.ask(conversation, "what next?")
+
+        conversation.refresh_from_db()
+        self.assertIn("Step 2", reply.message)
+        self.assertEqual(
+            conversation.context["state"]["workflow"]["current_step"],
+            2,
+        )
+
+    def test_completed_kyc_updates_workflow_and_moves_to_submission(self):
+        conversation = SmartChatConversation.objects.create(user=self.customer)
+        self.ask(conversation, "how do i become a vendor")
+
+        reply = self.ask(conversation, "i have completed kyc")
+
+        conversation.refresh_from_db()
+        workflow = conversation.context["state"]["workflow"]
+        self.assertIn(5, workflow["completed_steps"])
+        self.assertEqual(workflow["current_step"], 6)
+        self.assertIn("submit your vendor application", reply.message.lower())
+
+    def test_guard_my_account_is_not_corrected_to_guide(self):
+        conversation = SmartChatConversation.objects.create(user=self.customer)
+        self.ask(conversation, "how do i become a vendor")
+
+        reply = self.ask(conversation, "can you guard my account?")
+
+        self.assertEqual(reply.metadata["intent"], "account_security")
+        self.assertIn("secure your arolana account", reply.message.lower())
+        self.assertFalse(
+            reply.metadata.get("text_resolution", {}).get("applied", False),
+        )
+
+    def test_common_contextual_typos_feed_existing_product_engine(self):
+        conversation = SmartChatConversation.objects.create(
+            user=self.customer,
+            product=self.product,
+        )
+
+        price = self.ask(conversation, "how mush?")
+        alternative = self.ask(conversation, "show me anoda one")
+
+        self.assertIn("currently listed at", price.message)
+        self.assertEqual(
+            price.metadata["text_resolution"]["normalized"].lower(),
+            "how much?",
+        )
+        self.assertEqual(
+            alternative.metadata["text_resolution"]["normalized"].lower(),
+            "show me another one",
+        )
+
+    def test_safe_typo_dictionary_handles_vendor_conference_and_room_phrases(self):
+        from .text_normalizer import resolve_contextual_text
+
+        conversation = SmartChatConversation.objects.create(user=self.customer)
+        sale_reply = self.ask(conversation, "how do i sale on arolana")
+        conference = resolve_contextual_text(
+            conversation,
+            "i need conferening device",
+        )
+        room = resolve_contextual_text(conversation, "for small rom")
+
+        self.assertEqual(sale_reply.metadata["intent"], "vendor_registration")
+        self.assertEqual(
+            sale_reply.metadata["text_resolution"]["normalized"].lower(),
+            "how do i sell on arolana",
+        )
+        self.assertEqual(
+            conference["normalized"].lower(),
+            "i need conferencing device",
+        )
+        self.assertEqual(room["normalized"].lower(), "for a small room")
+
+    def test_web_and_mobile_api_share_contextual_typo_and_workflow_engine(self):
+        web_conversation = SmartChatConversation.objects.create(user=self.customer)
+        mobile_conversation = SmartChatConversation.objects.create(
+            user=self.customer,
+            channel="mobile",
+        )
+        for conversation in (web_conversation, mobile_conversation):
+            self.ask(conversation, "how do i become a vendor")
+        self.client.force_login(self.customer)
+
+        web_response = self.client.post(
+            reverse("smartchat:api_message"),
+            data=json.dumps({
+                "conversation_id": web_conversation.id,
+                "message": "can you guard me?",
+            }),
+            content_type="application/json",
+        )
+        mobile_response = self.client.post(
+            reverse("smartchat_api:message"),
+            data=json.dumps({
+                "conversation_id": mobile_conversation.id,
+                "message": "can you guard me?",
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(web_response.status_code, 200)
+        self.assertEqual(mobile_response.status_code, 200)
+        web_ai = web_response.json()["messages"][-1]
+        mobile_ai = mobile_response.json()["reply"]
+        for payload in (web_ai, mobile_ai):
+            self.assertEqual(
+                payload["metadata"]["intent"],
+                "vendor_onboarding_guidance",
+            )
+            self.assertIn("guide you through it", payload["message"].lower())

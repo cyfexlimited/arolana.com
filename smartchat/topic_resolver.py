@@ -6,6 +6,7 @@ from django.urls import reverse
 from products.models import Category
 
 from .context_state import normalized_state, persist_state
+from .workflow_engine import initialize_vendor_workflow, vendor_guidance
 
 
 CONTINUE = "continue"
@@ -97,6 +98,27 @@ def _matches(text, patterns):
 
 def resolve_topic(conversation, message):
     text = _text(message)
+    state = normalized_state(conversation)
+    workflow = state.get("workflow") or {}
+    active_vendor_context = (
+        state.get("last_topic") in {
+            "vendor_registration", "vendor_onboarding_guidance",
+            "vendor_subscription_overview",
+        }
+        or conversation.current_intent in {
+            "vendor_registration", "vendor_onboarding_guidance",
+            "vendor_subscription_overview",
+        }
+        or workflow.get("type") == "vendor_onboarding"
+    )
+    if re.search(r"\bguard (?:my|the) account\b", text):
+        return {
+            "relation": SWITCH_TOPIC,
+            "intent": "account_security",
+            "topic": "account_security",
+            "confidence": 0.98,
+            "reason": "explicit_account_security",
+        }
     for intent, relation, patterns in EXPLICIT_INTENTS:
         if _matches(text, patterns):
             return {
@@ -106,7 +128,36 @@ def resolve_topic(conversation, message):
                 "confidence": 0.99,
                 "reason": "explicit_intent",
             }
-    state = normalized_state(conversation)
+    if active_vendor_context and re.search(
+        r"\b(?:can|will|could|would)?\s*(?:you )?guide me(?: step by step)?\b",
+        text,
+    ):
+        return {
+            "relation": CONTINUE,
+            "intent": "vendor_onboarding_guidance",
+            "topic": "vendor_onboarding_guidance",
+            "confidence": 0.98,
+            "reason": "active_vendor_workflow_guidance",
+        }
+    if active_vendor_context and re.search(r"\bwhat(?:'s| is)? next\b|\bnext step\b", text):
+        return {
+            "relation": CONTINUE,
+            "intent": "vendor_onboarding_next",
+            "topic": "vendor_onboarding_guidance",
+            "confidence": 0.98,
+            "reason": "workflow_next_step",
+        }
+    if active_vendor_context and re.search(
+        r"\b(?:i have|i've|we have|we've)?\s*(?:completed|finished|done)(?: my| the)? kyc\b",
+        text,
+    ):
+        return {
+            "relation": CONTINUE,
+            "intent": "vendor_onboarding_kyc_complete",
+            "topic": "vendor_onboarding_guidance",
+            "confidence": 0.99,
+            "reason": "workflow_step_completion",
+        }
     if (
         (
             state.get("last_topic") in {"vendor_registration", "vendor_subscription_overview"}
@@ -203,6 +254,11 @@ def apply_topic_resolution(conversation, resolution):
         state["intent"] = resolution["intent"]
         state["last_topic"] = resolution["topic"]
         persist_state(conversation, state)
+    elif relation == CONTINUE and resolution.get("intent"):
+        state["previous_intent"] = state.get("intent", "")
+        state["intent"] = resolution["intent"]
+        state["last_topic"] = resolution["topic"]
+        persist_state(conversation, state)
     elif relation == RETURN_TO_PREVIOUS_TOPIC and stack:
         previous = stack.pop()
         for key, value in previous.items():
@@ -278,15 +334,39 @@ def explicit_route_reply(resolution, conversation=None):
         )
         actions = [{"label": "Browse products", "url": reverse("products:list")}]
     elif intent == "vendor_registration":
+        initialize_vendor_workflow(conversation)
         reply = (
             "To sell on Arolana, sign in with your existing Arolana account, open the vendor "
             "registration, complete your business profile and KYC, then choose the plan that "
             "fits your catalogue. Your vendor profile stays linked to the same account."
         )
         actions = [
-            {"label": "Become a vendor", "url": "/vendors/register/"},
+            {
+                "type": "open_url",
+                "label": "Become a vendor",
+                "url": reverse("vendor_register_redirect"),
+                "primary": True,
+            },
             {"label": "View vendor plans", "url": reverse("subscriptions:plans")},
         ]
+    elif intent in {
+        "vendor_onboarding_guidance",
+        "vendor_onboarding_next",
+        "vendor_onboarding_kyc_complete",
+    }:
+        mode = {
+            "vendor_onboarding_guidance": "guide",
+            "vendor_onboarding_next": "next",
+            "vendor_onboarding_kyc_complete": "kyc_complete",
+        }[intent]
+        reply, workflow, actions = vendor_guidance(conversation, mode=mode)
+    elif intent == "account_security":
+        reply = (
+            "I can help you secure your Arolana account. Never share your password, PIN, or "
+            "verification code. If you noticed suspicious access, change your password and "
+            "contact Arolana support so the account can be reviewed."
+        )
+        actions = []
     elif intent == "vendor_subscription_overview":
         reply = (
             "Arolana vendor plans control catalogue capacity and premium selling tools. "

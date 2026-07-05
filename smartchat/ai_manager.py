@@ -44,6 +44,7 @@ from .topic_resolver import (
     explicit_route_reply,
     resolve_topic,
 )
+from .text_normalizer import resolve_contextual_text
 
 
 PII_PATTERNS = [
@@ -325,7 +326,25 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
             "source_type": "disabled", "source_label": "AI disabled", "confidence": 0,
         }
 
-    topic_resolution = resolve_topic(conversation, user_message)
+    text_resolution = resolve_contextual_text(conversation, user_message)
+    resolved_message = text_resolution["normalized"]
+    context = dict(conversation.context or {})
+    context["last_text_resolution"] = text_resolution
+    conversation.context = context
+    conversation.save(update_fields=["context", "updated_at"])
+    if text_resolution.get("clarification"):
+        return text_resolution["clarification"], {
+            "source_type": "contextual_clarification",
+            "source_label": "Typo clarification",
+            "confidence": 0.55,
+            "intent": conversation.current_intent or "clarification",
+            "route": "clarification",
+            "cards": [],
+            "actions": [],
+            "text_resolution": text_resolution,
+        }
+
+    topic_resolution = resolve_topic(conversation, resolved_message)
     state = apply_topic_resolution(conversation, topic_resolution)
     explicit_result = explicit_route_reply(topic_resolution, conversation)
     if explicit_result:
@@ -340,8 +359,8 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
         )
         return reply, source
 
-    state = prepare_context(conversation, user_message)
-    followup_type = resolve_followup(user_message, state)
+    state = prepare_context(conversation, resolved_message)
+    followup_type = resolve_followup(resolved_message, state)
     if followup_type == PRICE_REQUEST:
         result = current_price_reply(state)
         if result:
@@ -428,7 +447,7 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
 
     intent, routed_reply, routed_source, needs_handoff = route_chat_response(
         conversation,
-        user_message,
+        resolved_message,
     )
     if routed_source.get("source_object_id"):
         conversation.product_id = routed_source["source_object_id"]
@@ -448,7 +467,10 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
             request_human_takeover(conversation, actor_user, user_message)
         return routed_reply, source
 
-    item, confidence, source_type = search_approved_knowledge(user_message, conversation.audience)
+    item, confidence, source_type = search_approved_knowledge(
+        resolved_message,
+        conversation.audience,
+    )
     if item and confidence >= settings_obj.minimum_confidence:
         answer_type = getattr(item, "answer_type", "customer_answer")
         if answer_type in {"catalog_lookup_rule", "recommendation_rule"}:
@@ -495,7 +517,7 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
     ] if settings_obj.memory_enabled else []
     reply, context = ai_operations_reply(
         conversation,
-        user_message,
+        resolved_message,
         audience=conversation.audience,
         actor_user=actor_user,
         customer_memory=private_memory,
@@ -537,7 +559,19 @@ def create_managed_ai_message(conversation, user_message, actor_user=None):
     settings_obj = AISettings.load()
     previous_intent = conversation.current_intent
     remember_explicit_preference(conversation, user_message.message)
+    initial_text_resolution = resolve_contextual_text(
+        conversation,
+        user_message.message,
+    )
     reply, source = generate_managed_reply(conversation, user_message.message, actor_user)
+    text_resolution = (
+        (conversation.context or {}).get("last_text_resolution")
+        or initial_text_resolution
+    )
+    if not text_resolution.get("applied") and initial_text_resolution.get("applied"):
+        text_resolution = initial_text_resolution
+    if text_resolution.get("applied") or text_resolution.get("clarification"):
+        source = {**source, "text_resolution": text_resolution}
     reply, source = validate_customer_reply(reply, source)
     latest_ai = conversation.messages.filter(
         sender_type=SmartChatMessage.SENDER_AI,

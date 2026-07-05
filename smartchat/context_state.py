@@ -40,6 +40,7 @@ DEFAULT_STATE = {
         "previous_recommendation_ids": [],
     },
     "topic_stack": [],
+    "workflow": {},
     "support": {
         "status": "ai",
         "requires_handoff": False,
