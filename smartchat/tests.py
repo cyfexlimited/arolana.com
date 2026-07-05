@@ -623,6 +623,10 @@ class SmartChatProductIntelligenceTests(TestCase):
         self.assertIn("vendor registration", reply.message.lower())
         self.assertIsNone(conversation.product_id)
         self.assertEqual(
+            conversation.context["state"]["last_topic"],
+            "vendor_registration",
+        )
+        self.assertEqual(
             conversation.context["state"]["topic_stack"][-1]["current_product_id"],
             self.product.id,
         )

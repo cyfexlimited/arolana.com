@@ -694,6 +694,11 @@ def update_conversation_context(conversation, intent, reply, metadata=None):
         "industrial", "service", "vendor", "technology",
     }:
         marketplace_category = marketplace_style
+    topic_label = (
+        (metadata or {}).get("route")
+        if (metadata or {}).get("source_type") == "platform_database"
+        else marketplace_category
+    ) or marketplace_category
     context.update({
         "current_product_id": getattr(product, "id", None),
         "current_product_name": getattr(product, "name", ""),
@@ -703,7 +708,7 @@ def update_conversation_context(conversation, intent, reply, metadata=None):
         "current_category": getattr(getattr(product, "category", None), "name", ""),
         "marketplace_category": marketplace_category,
         "last_intent": intent,
-        "last_topic": marketplace_category,
+        "last_topic": topic_label,
         "last_bot_response_summary": re.sub(r"\s+", " ", reply or "")[:500],
         "customer_name": conversation.customer_display,
         "support_status": conversation.status,
@@ -743,7 +748,7 @@ def update_conversation_context(conversation, intent, reply, metadata=None):
     state = normalized_state(conversation)
     state["previous_intent"] = state.get("intent") or context.get("last_intent", "")
     state["intent"] = intent
-    state["last_topic"] = marketplace_category
+    state["last_topic"] = topic_label
     state["active_subject"] = (
         getattr(product, "name", "")
         or state.get("active_subject")
