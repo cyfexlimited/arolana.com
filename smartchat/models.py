@@ -451,9 +451,23 @@ class AIMessage(SmartChatMessage):
 
 class AIKnowledgeBase(models.Model):
     AUDIENCE_CHOICES = [("all", "All")] + SmartChatConversation.AUDIENCE_CHOICES
+    ANSWER_TYPE_CHOICES = [
+        ("customer_answer", "Customer answer"),
+        ("internal_rule", "Internal rule"),
+        ("policy_rule", "Policy rule"),
+        ("catalog_lookup_rule", "Catalog lookup rule"),
+        ("recommendation_rule", "Recommendation rule"),
+        ("escalation_rule", "Escalation rule"),
+    ]
 
     question = models.CharField(max_length=500)
     answer = models.TextField()
+    answer_type = models.CharField(
+        max_length=40,
+        choices=ANSWER_TYPE_CHOICES,
+        default="customer_answer",
+        db_index=True,
+    )
     category = models.CharField(max_length=120, blank=True, db_index=True)
     keywords = models.TextField(blank=True, help_text="Comma-separated search terms.")
     audience = models.CharField(max_length=30, choices=AUDIENCE_CHOICES, default="all", db_index=True)
@@ -484,8 +498,44 @@ class AIKnowledgeBase(models.Model):
 
 
 class AILearnedKnowledge(models.Model):
+    KNOWLEDGE_TYPE_CHOICES = [
+        ("standalone_question", "Standalone question"),
+        ("follow_up_context", "Follow-up context"),
+        ("recommendation_request", "Recommendation request"),
+        ("recommendation_decision", "Recommendation decision"),
+        ("product_availability", "Product availability"),
+        ("category_availability", "Category availability"),
+        ("brand_availability", "Brand availability"),
+        ("product_comparison", "Product comparison"),
+        ("product_specification", "Product specification"),
+        ("stock_question", "Stock question"),
+        ("price_question", "Price question"),
+        ("warranty_question", "Warranty question"),
+        ("order_support", "Order support"),
+        ("return_support", "Return support"),
+        ("vendor_question", "Vendor question"),
+        ("service_request", "Service request"),
+        ("human_handoff", "Human handoff"),
+        ("unclear", "Unclear"),
+    ]
     normalized_question = models.CharField(max_length=500, unique=True)
     proposed_answer = models.TextField()
+    answer_type = models.CharField(
+        max_length=40,
+        choices=AIKnowledgeBase.ANSWER_TYPE_CHOICES,
+        default="customer_answer",
+        db_index=True,
+    )
+    knowledge_type = models.CharField(
+        max_length=50,
+        choices=KNOWLEDGE_TYPE_CHOICES,
+        default="standalone_question",
+        db_index=True,
+    )
+    context_type = models.CharField(max_length=80, blank=True, db_index=True)
+    context_value = models.CharField(max_length=240, blank=True)
+    requires_previous_context = models.BooleanField(default=False, db_index=True)
+    requires_live_catalog = models.BooleanField(default=False, db_index=True)
     category = models.CharField(max_length=120, blank=True, db_index=True)
     keywords = models.TextField(blank=True)
     occurrence_count = models.PositiveIntegerField(default=1)
@@ -601,6 +651,12 @@ class AIFeedback(models.Model):
 class AITrainingData(models.Model):
     question = models.CharField(max_length=500)
     answer = models.TextField()
+    answer_type = models.CharField(
+        max_length=40,
+        choices=AIKnowledgeBase.ANSWER_TYPE_CHOICES,
+        default="customer_answer",
+        db_index=True,
+    )
     category = models.CharField(max_length=120, blank=True, db_index=True)
     keywords = models.TextField(blank=True)
     audience = models.CharField(

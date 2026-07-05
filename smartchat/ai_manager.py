@@ -24,6 +24,20 @@ from .brain import (
     route_chat_response,
     update_conversation_context,
 )
+from .context_state import persist_state, prepare_context
+from .followup_resolver import (
+    ALTERNATIVE_REQUEST,
+    BETTER_REQUEST,
+    CHEAPER_REQUEST,
+    INSTALLATION_REQUEST,
+    PRICE_REQUEST,
+    RECOMMENDATION_DECISION,
+    REQUIREMENT_UPDATE,
+    VENDOR_LOCATION,
+    resolve_followup,
+)
+from .recommendation_engine import current_price_reply, recommend
+from .response_validator import advance_reply, is_duplicate_reply
 
 
 PII_PATTERNS = [
@@ -153,17 +167,63 @@ def remember_explicit_preference(conversation, message):
 def record_learning_candidate(conversation, user_message, answer, source_message=None):
     settings_obj = AISettings.load()
     normalized = normalize_question(user_message)
+    state = (conversation.context or {}).get("state") or {}
+    followup_type = resolve_followup(user_message, state)
+    if not followup_type and re.fullmatch(
+        r"\s*(?:\d{2,3}\s*(?:inch|inches|in)|(?:small|medium|large)\s+room|"
+        r"\d{1,3}\s*(?:people|participants)|(?:full\s*hd|1080p|4k|short\s+throw))[\s.!?]*",
+        str(user_message or ""),
+        re.I,
+    ):
+        followup_type = REQUIREMENT_UPDATE
     if (
         not settings_obj.learning_enabled
         or len(normalized) < 8
         or _contains_pii(user_message)
-        or _contains_pii(answer)
+        or (_contains_pii(answer) and not followup_type)
     ):
         return None
+    type_map = {
+        REQUIREMENT_UPDATE: "follow_up_context",
+        RECOMMENDATION_DECISION: "recommendation_decision",
+        ALTERNATIVE_REQUEST: "recommendation_request",
+        CHEAPER_REQUEST: "recommendation_request",
+        BETTER_REQUEST: "recommendation_request",
+        PRICE_REQUEST: "price_question",
+        INSTALLATION_REQUEST: "service_request",
+        VENDOR_LOCATION: "vendor_question",
+    }
+    knowledge_type = type_map.get(followup_type, "standalone_question")
+    requirements = state.get("requirements") or {}
+    context_type = ""
+    context_value = ""
+    if knowledge_type == "follow_up_context":
+        for key, value in requirements.items():
+            if value not in (None, ""):
+                context_type, context_value = key, str(value)
+    proposed_answer = (
+        f"Context signal: {context_type}={context_value}"
+        if knowledge_type == "follow_up_context"
+        else answer
+    )
     learned, created = AILearnedKnowledge.objects.get_or_create(
         normalized_question=normalized,
         defaults={
-            "proposed_answer": answer,
+            "proposed_answer": proposed_answer,
+            "answer_type": (
+                "internal_rule"
+                if knowledge_type == "follow_up_context"
+                else "catalog_lookup_rule"
+                if knowledge_type in {"price_question", "recommendation_request", "recommendation_decision"}
+                else "customer_answer"
+            ),
+            "knowledge_type": knowledge_type,
+            "context_type": context_type,
+            "context_value": context_value,
+            "requires_previous_context": bool(followup_type),
+            "requires_live_catalog": knowledge_type in {
+                "price_question", "recommendation_request", "recommendation_decision",
+            },
             "privacy_safe": True,
             "source_conversation": conversation,
             "source_message": source_message,
@@ -172,7 +232,7 @@ def record_learning_candidate(conversation, user_message, answer, source_message
     if not created:
         learned.occurrence_count = F("occurrence_count") + 1
         if not learned.approved:
-            learned.proposed_answer = answer
+            learned.proposed_answer = proposed_answer
         learned.source_conversation = conversation
         learned.source_message = source_message
         learned.save(
@@ -259,6 +319,92 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
             "source_type": "disabled", "source_label": "AI disabled", "confidence": 0,
         }
 
+    state = prepare_context(conversation, user_message)
+    followup_type = resolve_followup(user_message, state)
+    if followup_type == PRICE_REQUEST:
+        result = current_price_reply(state)
+        if result:
+            reply, source, product = result
+            conversation.product = product
+            conversation.save(update_fields=["product", "updated_at"])
+            state["intent"] = "price_question"
+            state["current_product_id"] = product.id
+            state["current_product_name"] = product.name
+            persist_state(conversation, state)
+            return reply, {"intent": "price_question", **source}
+    if followup_type in {
+        RECOMMENDATION_DECISION, ALTERNATIVE_REQUEST, CHEAPER_REQUEST, BETTER_REQUEST,
+    }:
+        result = recommend(state, mode=followup_type)
+        if result:
+            reply, source, state, product = result
+            state["intent"] = "product_recommendation"
+            conversation.product = product
+            conversation.save(update_fields=["product", "updated_at"])
+            persist_state(conversation, state)
+            return reply, {"intent": "product_recommendation", **source}
+    if followup_type == REQUIREMENT_UPDATE:
+        requirements = state.get("requirements", {})
+        should_recommend = bool(
+            requirements.get("screen_size_inches")
+            or requirements.get("participant_count")
+            or requirements.get("budget_max")
+        )
+        if should_recommend:
+            result = recommend(state, mode="requirements_update")
+            if result:
+                reply, source, state, product = result
+                state["intent"] = "product_recommendation"
+                conversation.product = product
+                conversation.save(update_fields=["product", "updated_at"])
+                persist_state(conversation, state)
+                return reply, {"intent": "product_recommendation", **source}
+        state["intent"] = "product_recommendation"
+        persist_state(conversation, state)
+        subject = state.get("active_subject") or "that product"
+        return (
+            f"Got it. I’ve kept {subject} and your room requirement. "
+            "What screen size, participant count, or budget should I use to narrow the live options?"
+        ), {
+            "source_type": "conversation_context",
+            "source_label": "Requirement follow-up",
+            "confidence": 0.86,
+            "intent": "product_recommendation",
+        }
+    if followup_type == INSTALLATION_REQUEST:
+        state["intent"] = "service_inquiry"
+        persist_state(conversation, state)
+        return (
+            "Yes. Arolana can connect this product request to approved installers or service "
+            "providers. Tell me the installation location and preferred date, or ask me to connect support."
+        ), {
+            "source_type": "service_marketplace_route",
+            "source_label": "Installation service",
+            "confidence": 0.86,
+            "intent": "service_inquiry",
+        }
+    if followup_type == VENDOR_LOCATION and conversation.product_id:
+        profile = getattr(conversation.product.vendor, "vendor_profile", None)
+        location = ", ".join(
+            value for value in (
+                getattr(profile, "city", ""),
+                getattr(profile, "state", ""),
+                getattr(profile, "country", ""),
+            ) if value
+        )
+        reply = (
+            f"{conversation.product.name} is sold by {profile.store_name}. "
+            f"The listed vendor location is {location}."
+            if profile and location
+            else "The vendor location is not listed clearly yet. Let me connect you with Arolana support."
+        )
+        return reply, {
+            "source_type": "vendor_database",
+            "source_label": getattr(profile, "store_name", "Vendor"),
+            "confidence": 0.94 if location else 0.3,
+            "intent": "vendor_inquiry",
+        }
+
     intent, routed_reply, routed_source, needs_handoff = route_chat_response(
         conversation,
         user_message,
@@ -282,6 +428,20 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
         return routed_reply, source
 
     item, confidence, source_type = search_approved_knowledge(user_message, conversation.audience)
+    if item and confidence >= settings_obj.minimum_confidence:
+        answer_type = getattr(item, "answer_type", "customer_answer")
+        if answer_type in {"catalog_lookup_rule", "recommendation_rule"}:
+            result = recommend(state, mode="recommendation_decision")
+            if result:
+                reply, source, state, product = result
+                conversation.product = product
+                conversation.save(update_fields=["product", "updated_at"])
+                persist_state(conversation, state)
+                return reply, {"intent": "product_recommendation", **source}
+        if answer_type in {"internal_rule", "escalation_rule"}:
+            if answer_type == "escalation_rule":
+                request_human_takeover(conversation, actor_user, user_message)
+            item = None
     if item and confidence >= settings_obj.minimum_confidence:
         if source_type == "knowledge_base":
             AIKnowledgeBase.objects.filter(pk=item.pk).update(
@@ -356,6 +516,25 @@ def create_managed_ai_message(conversation, user_message, actor_user=None):
     previous_intent = conversation.current_intent
     remember_explicit_preference(conversation, user_message.message)
     reply, source = generate_managed_reply(conversation, user_message.message, actor_user)
+    latest_ai = conversation.messages.filter(
+        sender_type=SmartChatMessage.SENDER_AI,
+        is_private_note=False,
+    ).order_by("-id").first()
+    same_source = not source.get("source_object_id") or (
+        latest_ai and latest_ai.source_object_id == source.get("source_object_id")
+    )
+    if (
+        not source.get("recommendation_mode")
+        and same_source
+        and is_duplicate_reply(conversation, reply)
+    ):
+        reply = advance_reply((conversation.context or {}).get("state") or {})
+        source = {
+            **source,
+            "source_type": "duplicate_response_prevention",
+            "source_label": "Conversation state",
+            "confidence": max(float(source.get("confidence") or 0), 0.75),
+        }
     ai_message = SmartChatMessage.objects.create(
         conversation=conversation,
         sender_type=SmartChatMessage.SENDER_AI,
@@ -368,6 +547,22 @@ def create_managed_ai_message(conversation, user_message, actor_user=None):
     )
     intent = source.get("intent") or conversation.current_intent or "general_conversation"
     marketplace_category = source.get("marketplace_category", "general_marketplace")
+    style = source.get("marketplace_style")
+    route_label = str(source.get("marketplace_category") or "").lower()
+    canonical_route_labels = {
+        "property": {"property", "properties", "real estate"},
+        "vehicle": {"vehicle", "vehicles", "cars"},
+        "food": {"food", "foods"},
+        "home_kitchen": {"home kitchen", "home & kitchen"},
+        "art": {"art", "arts"},
+        "fashion": {"fashion"},
+        "industrial": {"industrial", "industrial goods"},
+        "service": {"service", "services"},
+        "vendor": {"vendor", "vendors"},
+        "technology": {"technology", "electronics"},
+    }
+    if style in canonical_route_labels and route_label in canonical_route_labels[style]:
+        marketplace_category = style
     used_memory = bool(
         conversation.product_id
         or (conversation.context or {}).get("last_topic")

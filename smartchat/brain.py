@@ -104,6 +104,10 @@ def _contains(text, phrases):
     return any(phrase in text for phrase in phrases)
 
 
+def _route_term_present(text, term):
+    return bool(re.search(rf"(?<![a-z0-9]){re.escape(term)}(?![a-z0-9])", text))
+
+
 def _tokenize(value):
     return {
         token
@@ -115,7 +119,7 @@ def _tokenize(value):
 def _strong_category_signal(message):
     text = _text(message)
     matches = {
-        route: [term for term in terms if term in text]
+        route: [term for term in terms if _route_term_present(text, term)]
         for route, terms in STRONG_CATEGORY_SIGNALS.items()
     }
     matches = {route: terms for route, terms in matches.items() if terms}
@@ -227,10 +231,17 @@ def _knowledge_category_match(message):
 
 def _marketplace_style(value):
     text = _text(value)
-    if _contains(text, STRONG_CATEGORY_SIGNALS["video_conferencing"]):
+    # Broad words such as "meeting room" can appear in projector, furniture, and
+    # office-equipment descriptions. Only lock the catalog route here when the
+    # category data itself carries an unambiguous conferencing signal.
+    if any(_route_term_present(text, term) for term in (
+        "video conferencing", "conference equipment", "conference camera",
+        "conference microphone", "conferencing system", "zoom room", "teams room",
+        "logitech group", "logitech rally",
+    )):
         return "video_conferencing"
     for route, terms in MARKETPLACE_ROUTES.items():
-        if any(term in text for term in terms):
+        if any(_route_term_present(text, term) for term in terms):
             return route
     return "general_marketplace"
 
@@ -298,7 +309,7 @@ def detect_marketplace_category(message, conversation=None):
 
     text = _text(message)
     matches = {
-        route: [term for term in terms if term in text]
+        route: [term for term in terms if _route_term_present(text, term)]
         for route, terms in MARKETPLACE_ROUTES.items()
     }
     matches = {route: terms for route, terms in matches.items() if terms}
@@ -321,7 +332,7 @@ def detect_marketplace_category(message, conversation=None):
     product = getattr(conversation, "product", None)
     category_text = _text(getattr(getattr(product, "category", None), "name", ""))
     for route, terms in MARKETPLACE_ROUTES.items():
-        matched = [term for term in terms if term in category_text]
+        matched = [term for term in terms if _route_term_present(category_text, term)]
         if matched:
             return {
                 "marketplace_category": getattr(product.category, "name", route),
@@ -645,6 +656,8 @@ def route_chat_response(conversation, message):
 
 
 def update_conversation_context(conversation, intent, reply, metadata=None):
+    from .context_state import normalized_state
+
     context = dict(conversation.context or {})
     product = getattr(conversation, "product", None)
     recent_user_message = (
@@ -675,6 +688,12 @@ def update_conversation_context(conversation, intent, reply, metadata=None):
         "marketplace_category",
         context.get("marketplace_category", "general_marketplace"),
     )
+    marketplace_style = (metadata or {}).get("marketplace_style", "")
+    if marketplace_style in {
+        "property", "vehicle", "food", "home_kitchen", "art", "fashion",
+        "industrial", "service", "vendor", "technology",
+    }:
+        marketplace_category = marketplace_style
     context.update({
         "current_product_id": getattr(product, "id", None),
         "current_product_name": getattr(product, "name", ""),
@@ -689,7 +708,6 @@ def update_conversation_context(conversation, intent, reply, metadata=None):
         "customer_name": conversation.customer_display,
         "support_status": conversation.status,
     })
-    marketplace_style = (metadata or {}).get("marketplace_style", "")
     category_confidence = Decimal(str((metadata or {}).get("category_confidence") or 0))
     if marketplace_style and category_confidence >= Decimal("0.90"):
         context["current_category_locked"] = marketplace_style
@@ -722,6 +740,32 @@ def update_conversation_context(conversation, intent, reply, metadata=None):
         and metadata.get("source_object_id")
     ):
         context["current_product_id"] = metadata["source_object_id"]
+    state = normalized_state(conversation)
+    state["previous_intent"] = state.get("intent") or context.get("last_intent", "")
+    state["intent"] = intent
+    state["last_topic"] = marketplace_category
+    state["active_subject"] = (
+        getattr(product, "name", "")
+        or state.get("active_subject")
+        or " ".join(
+            value for value in (state.get("brand"), state.get("product_type")) if value
+        )
+    )
+    state["current_product_id"] = context.get("current_product_id")
+    state["current_product_name"] = context.get("current_product_name", "")
+    state["brand"] = context.get("current_brand", "") or state.get("brand", "")
+    state["category"] = context.get("current_category", "") or state.get("category", "")
+    product_ids = list((metadata or {}).get("product_ids") or [])
+    if product_ids:
+        state["recommendation"]["candidate_product_ids"] = product_ids
+    if (metadata or {}).get("source_object_id"):
+        state["recommendation"]["current_recommendation_id"] = metadata["source_object_id"]
+    state["support"]["status"] = conversation.status
+    state["support"]["requires_handoff"] = conversation.status in {
+        conversation.STATUS_ADMIN_REQUESTED,
+        conversation.STATUS_ADMIN_ACTIVE,
+    }
+    context["state"] = state
     conversation.current_intent = intent
     conversation.context = context
     conversation.save(update_fields=["current_intent", "context", "updated_at"])

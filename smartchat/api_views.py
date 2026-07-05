@@ -1,12 +1,20 @@
 import json
+from decimal import Decimal
 
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
+from products.models import Product
 
-from .ai_manager import create_managed_ai_message, request_human_takeover
+from .ai_manager import (
+    create_managed_ai_message,
+    normalize_question,
+    request_human_takeover,
+)
 from .models import (
     AIFeedback,
+    AILearnedKnowledge,
+    AIUnansweredQuestion,
     HumanTakeoverRequest,
     SmartChatConversation,
     SmartChatMessage,
@@ -87,6 +95,8 @@ def _conversation_payload(conversation, include_messages=True):
         "created_at": conversation.created_at.isoformat(),
         "updated_at": conversation.updated_at.isoformat(),
         "last_message_at": conversation.last_message_at.isoformat(),
+        "current_intent": conversation.current_intent,
+        "context": {"state": (conversation.context or {}).get("state", {})},
     }
     if include_messages:
         payload["messages"] = [
@@ -116,6 +126,11 @@ def start(request):
             return _error("Conversation not found.", 404)
     if not conversation:
         mobile_customer = identity.get("mobile_customer")
+        product = Product.objects.filter(
+            pk=data.get("product_id"),
+            is_active=True,
+            approval_status="approved",
+        ).first() if data.get("product_id") else None
         conversation = SmartChatConversation.objects.create(
             user=identity.get("user"),
             session_key=identity.get("session_key", ""),
@@ -140,6 +155,10 @@ def start(request):
             )[:40],
             title=str(data.get("title") or "Arolana Smart Chat")[:220],
             page_url=str(data.get("page_url") or "")[:700],
+            product=product,
+            context={
+                "preferred_language": str(data.get("preferred_language") or "en")[:20],
+            },
             selected_variants={
                 "mobile_customer_id": mobile_customer.id,
             } if mobile_customer else {},
@@ -199,6 +218,15 @@ def message(request):
     conversation = _owned_conversation(identity, data.get("conversation_id"))
     if not conversation:
         return _error("Conversation not found.", 404)
+    if data.get("product_id"):
+        product = Product.objects.filter(
+            pk=data["product_id"],
+            is_active=True,
+            approval_status="approved",
+        ).first()
+        if product and product.pk != conversation.product_id:
+            conversation.product = product
+            conversation.save(update_fields=["product", "updated_at"])
     user_message = SmartChatMessage.objects.create(
         conversation=conversation,
         sender_type=SmartChatMessage.SENDER_USER,
@@ -254,6 +282,39 @@ def feedback(request):
         helpful=data.get("helpful") if isinstance(data.get("helpful"), bool) else None,
         comment=str(data.get("comment") or "")[:2000],
     )
+    if target_message and target_message.source_type == "learned_knowledge":
+        learned = AILearnedKnowledge.objects.filter(
+            pk=target_message.source_object_id,
+        ).first()
+        if learned:
+            delta = 0.03 if rating >= 4 or item.helpful is True else -0.08
+            learned.confidence = max(
+                Decimal("0"),
+                min(Decimal("1"), learned.confidence + Decimal(str(delta))),
+            )
+            learned.save(update_fields=["confidence", "updated_at"])
+    if target_message and (rating <= 2 or item.helpful is False):
+        question_message = conversation.messages.filter(
+            sender_type=SmartChatMessage.SENDER_USER,
+            id__lt=target_message.id,
+        ).order_by("-id").first()
+        if question_message:
+            AIUnansweredQuestion.objects.get_or_create(
+                conversation=conversation,
+                message=question_message,
+                normalized_question=normalize_question(question_message.message),
+                is_resolved=False,
+                defaults={
+                    "question": question_message.message,
+                    "detected_intent": conversation.current_intent,
+                    "marketplace_category": (conversation.context or {}).get(
+                        "marketplace_category", "",
+                    ),
+                    "confidence": target_message.confidence or 0,
+                    "reason": "negative_customer_feedback",
+                    "context_snapshot": conversation.context or {},
+                },
+            )
     return JsonResponse({"success": True, "feedback_id": item.id})
 
 

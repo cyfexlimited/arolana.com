@@ -638,8 +638,8 @@ class AIMessageAdmin(admin.ModelAdmin):
 
 @admin.register(AIKnowledgeBase)
 class AIKnowledgeBaseAdmin(admin.ModelAdmin):
-    list_display = ["question", "category", "audience", "approved", "is_active", "priority", "usage_count"]
-    list_filter = ["approved", "is_active", "audience", "category"]
+    list_display = ["question", "answer_type", "category", "audience", "approved", "is_active", "priority", "usage_count"]
+    list_filter = ["answer_type", "approved", "is_active", "audience", "category"]
     search_fields = ["question", "answer", "keywords"]
     list_editable = ["approved", "is_active", "priority"]
     change_list_template = "admin/smartchat/knowledge_change_list.html"
@@ -746,10 +746,20 @@ class AIKnowledgeBaseAdmin(admin.ModelAdmin):
 
 @admin.register(AILearnedKnowledge)
 class AILearnedKnowledgeAdmin(admin.ModelAdmin):
-    list_display = ["normalized_question", "occurrence_count", "confidence", "privacy_safe", "approved", "rejected", "is_active"]
-    list_filter = ["approved", "rejected", "privacy_safe", "is_active"]
+    list_display = [
+        "normalized_question", "knowledge_type", "answer_type", "occurrence_count",
+        "confidence", "requires_previous_context", "requires_live_catalog",
+        "privacy_safe", "approved", "rejected", "is_active",
+    ]
+    list_filter = [
+        "knowledge_type", "answer_type", "requires_previous_context",
+        "requires_live_catalog", "approved", "rejected", "privacy_safe", "is_active",
+    ]
     search_fields = ["normalized_question", "proposed_answer", "keywords"]
-    actions = ["approve_learning", "reject_learning"]
+    actions = [
+        "approve_learning", "reject_learning", "mark_context_only",
+        "recalculate_confidence", "deactivate_learning",
+    ]
 
     @admin.action(description="Approve learned knowledge")
     def approve_learning(self, request, queryset):
@@ -763,6 +773,28 @@ class AILearnedKnowledgeAdmin(admin.ModelAdmin):
         queryset.update(
             approved=False, rejected=True, is_active=False, reviewed_by=request.user,
         )
+
+    @admin.action(description="Mark selected as context-only follow-ups")
+    def mark_context_only(self, request, queryset):
+        queryset.update(
+            knowledge_type="follow_up_context",
+            answer_type="internal_rule",
+            requires_previous_context=True,
+            approved=False,
+        )
+
+    @admin.action(description="Recalculate confidence from occurrences and approval")
+    def recalculate_confidence(self, request, queryset):
+        for item in queryset:
+            base = min(0.30 + (item.occurrence_count * 0.05), 0.75)
+            if item.approved and item.privacy_safe:
+                base = max(base, 0.85)
+            item.confidence = base
+            item.save(update_fields=["confidence", "updated_at"])
+
+    @admin.action(description="Deactivate selected learned knowledge")
+    def deactivate_learning(self, request, queryset):
+        queryset.update(is_active=False)
 
 
 @admin.register(AICustomerMemory)
@@ -783,8 +815,8 @@ class AIFeedbackAdmin(admin.ModelAdmin):
 
 @admin.register(AITrainingData)
 class AITrainingDataAdmin(admin.ModelAdmin):
-    list_display = ["question", "category", "audience", "approved", "is_active", "priority"]
-    list_filter = ["approved", "is_active", "audience", "category"]
+    list_display = ["question", "answer_type", "category", "audience", "approved", "is_active", "priority"]
+    list_filter = ["answer_type", "approved", "is_active", "audience", "category"]
     search_fields = ["question", "answer", "keywords"]
     list_editable = ["approved", "is_active", "priority"]
 

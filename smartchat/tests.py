@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
@@ -9,8 +10,10 @@ from products.models import Brand, Category, Product, ProductQuestion, ProductRe
 from .ai_manager import create_managed_ai_message
 from .models import (
     AICategoryRouterLog,
+    AICustomerMemory,
     AIIntentLog,
     AIKnowledgeBase,
+    AILearnedKnowledge,
     HumanTakeoverRequest,
     SmartChatConversation,
     SmartChatMessage,
@@ -20,6 +23,7 @@ from .models import (
 User = get_user_model()
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class SmartChatAdminNotificationTests(TestCase):
     def setUp(self):
         self.staff_user = User.objects.create_user(
@@ -98,7 +102,7 @@ class SmartChatAdminNotificationTests(TestCase):
         self.assertFalse(Notification.objects.filter(user=other_staff).exists())
 
 
-@override_settings(OPENAI_API_KEY="")
+@override_settings(OPENAI_API_KEY="", SECURE_SSL_REDIRECT=False)
 class SmartChatProductIntelligenceTests(TestCase):
     def setUp(self):
         self.vendor = User.objects.create_user(
@@ -378,3 +382,228 @@ class SmartChatProductIntelligenceTests(TestCase):
         self.assertIn("Intent: quotation_request", conversation.ai_summary)
         self.assertIn(self.product.name, conversation.ai_summary)
         self.assertIn("Ikeja", conversation.ai_summary)
+
+    def test_generic_projector_context_recommendation_price_and_alternatives(self):
+        projector_category = Category.objects.create(
+            name="Projectors",
+            slug="projectors",
+            description="Projectors for meeting rooms, schools, churches and home cinema.",
+        )
+        optoma = Brand.objects.create(
+            name="Optoma",
+            slug="optoma",
+            description="Projection and display equipment.",
+        )
+        first = Product.objects.create(
+            vendor=self.vendor,
+            category=projector_category,
+            brand=optoma,
+            sku="OPT-W318ST",
+            name="Optoma W318ST Short Throw Projector",
+            slug="optoma-w318st-short-throw-projector",
+            description="A bright short throw projector for small meeting rooms.",
+            specifications="4000 lumens. WXGA resolution. Short throw projection.",
+            price="650000.00",
+            stock_quantity=5,
+            rating_avg="4.90",
+            rating_count=10,
+            approval_status="approved",
+        )
+        second = Product.objects.create(
+            vendor=self.vendor,
+            category=projector_category,
+            brand=optoma,
+            sku="OPT-EH412",
+            name="Optoma EH412 Full HD Projector",
+            slug="optoma-eh412-full-hd-projector",
+            description="A Full HD projector for offices, classrooms and churches.",
+            specifications="4500 lumens. Native Full HD 1080p resolution.",
+            price="690500.00",
+            stock_quantity=8,
+            rating_avg="4.70",
+            rating_count=6,
+            approval_status="approved",
+        )
+        cheaper = Product.objects.create(
+            vendor=self.vendor,
+            category=projector_category,
+            brand=optoma,
+            sku="OPT-S336",
+            name="Optoma S336 Projector",
+            slug="optoma-s336-projector",
+            description="An affordable projector for small rooms.",
+            specifications="4000 lumens. SVGA resolution.",
+            price="410000.00",
+            stock_quantity=4,
+            rating_avg="4.00",
+            rating_count=2,
+            approval_status="approved",
+        )
+        conversation = SmartChatConversation.objects.create(user=self.customer)
+
+        greeting = self.ask(conversation, "Hello")
+        self.assertIn("I’m here", greeting.message)
+
+        availability = self.ask(conversation, "Do you have Optoma projectors?")
+        self.assertEqual(availability.source_type, "product_database")
+        self.assertTrue(availability.metadata["product_cards"])
+
+        room = self.ask(conversation, "For a small room")
+        self.assertIn("screen size", room.message.lower())
+
+        screen = self.ask(conversation, "120 inch")
+        self.assertIn("120-inch", screen.message)
+
+        choice = self.ask(conversation, "Make a choice for me")
+        conversation.refresh_from_db()
+        self.assertIn(conversation.product_id, {first.id, second.id, cheaper.id})
+        self.assertIn("Optoma", choice.message)
+        self.assertEqual(
+            conversation.context["state"]["requirements"]["screen_size_inches"],
+            120.0,
+        )
+        self.assertIn("small_room", conversation.context["state"]["requirements"]["room_type"])
+
+        price = self.ask(conversation, "How much?")
+        self.assertIn("currently listed at", price.message)
+        self.assertNotIn("which product", price.message.lower())
+
+        current_id = conversation.product_id
+        alternative = self.ask(conversation, "Show me another one.")
+        conversation.refresh_from_db()
+        self.assertNotEqual(conversation.product_id, current_id)
+        self.assertIn("Another suitable option", alternative.message)
+
+        # Start from the most expensive option so a cheaper live alternative is guaranteed.
+        conversation.product = second
+        conversation.context["state"]["current_product_id"] = second.id
+        conversation.context["state"]["recommendation"]["current_recommendation_id"] = second.id
+        conversation.context["state"]["recommendation"]["previous_recommendation_ids"] = [first.id]
+        conversation.save(update_fields=["product", "context", "updated_at"])
+        cheaper_reply = self.ask(conversation, "Cheaper one.")
+        conversation.refresh_from_db()
+        self.assertLess(conversation.product.price, Decimal("690500.00"))
+        self.assertIn("cheaper suitable option", cheaper_reply.message.lower())
+
+    def test_participant_followup_uses_existing_brand_and_category(self):
+        conference_category = Category.objects.create(
+            name="Conference Equipment",
+            slug="conference-equipment",
+            description="Video conferencing cameras, speakerphones and room systems.",
+        )
+        conference = Product.objects.create(
+            vendor=self.vendor,
+            category=conference_category,
+            brand=self.brand,
+            sku="LOGI-RALLY-12",
+            name="Logitech Rally Conference System",
+            slug="logitech-rally-conference-system",
+            description="A conference system for medium meeting rooms.",
+            specifications="Designed for 12 people with Zoom and Teams support.",
+            price="1200000.00",
+            stock_quantity=3,
+            approval_status="approved",
+        )
+        conversation = SmartChatConversation.objects.create(user=self.customer)
+
+        self.ask(conversation, "Do you have Logitech conference equipment?")
+        recommendation = self.ask(conversation, "For 12 people.")
+
+        conversation.refresh_from_db()
+        self.assertEqual(conversation.product_id, conference.id)
+        self.assertEqual(
+            conversation.context["state"]["requirements"]["participant_count"],
+            12,
+        )
+        self.assertIn("12 people", recommendation.message)
+
+    def test_internal_knowledge_is_never_returned_verbatim(self):
+        AIKnowledgeBase.objects.create(
+            question="How should follow up context work?",
+            answer="Keep the existing conversation context and do not restart the conversation.",
+            answer_type="internal_rule",
+            keywords="follow up context",
+            approved=True,
+            priority=100,
+        )
+        conversation = SmartChatConversation.objects.create(user=self.customer)
+
+        reply = self.ask(conversation, "How should follow up context work?")
+
+        self.assertNotIn("do not restart the conversation", reply.message.lower())
+
+    def test_learning_marks_short_context_as_context_only(self):
+        from .models import AISettings
+
+        settings_obj = AISettings.load()
+        settings_obj.learning_enabled = True
+        settings_obj.save(update_fields=["learning_enabled", "updated_at"])
+        conversation = SmartChatConversation.objects.create(
+            user=self.customer,
+            context={
+                "state": {
+                    "active_subject": "projector",
+                    "requirements": {"room_type": "small_room"},
+                },
+            },
+        )
+
+        self.ask(conversation, "120 inch")
+
+        learned = AILearnedKnowledge.objects.get(normalized_question="120 inch")
+        self.assertEqual(learned.knowledge_type, "follow_up_context")
+        self.assertTrue(learned.requires_previous_context)
+
+    def test_customer_memory_is_never_shared_between_users(self):
+        other = User.objects.create_user(
+            username="other-shopper",
+            email="other-shopper@example.com",
+            password="password123",
+        )
+        conversation = SmartChatConversation.objects.create(user=self.customer)
+        other_conversation = SmartChatConversation.objects.create(user=other)
+        AICustomerMemory.objects.create(
+            user=self.customer,
+            memory_key="shopping_preference",
+            memory_value="quiet office equipment",
+            source_conversation=conversation,
+        )
+
+        from .ai_manager import customer_memories_for
+
+        self.assertEqual(customer_memories_for(conversation).count(), 1)
+        self.assertEqual(customer_memories_for(other_conversation).count(), 0)
+
+    def test_shared_mobile_api_reuses_conversation_and_returns_state(self):
+        self.client.force_login(self.customer)
+        started = self.client.post(
+            reverse("smartchat_api:start"),
+            data=json.dumps({
+                "device_id": "ios-investor-demo",
+                "product_id": self.product.id,
+                "preferred_language": "en",
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(started.status_code, 200)
+        conversation_id = started.json()["conversation_id"]
+
+        sent = self.client.post(
+            reverse("smartchat_api:message"),
+            data=json.dumps({
+                "conversation_id": conversation_id,
+                "message": "How much?",
+                "device_id": "ios-investor-demo",
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(sent.status_code, 200)
+        payload = sent.json()
+        self.assertEqual(payload["conversation_id"], conversation_id)
+        self.assertEqual(payload["conversation"]["current_intent"], "price_question")
+        self.assertEqual(
+            payload["conversation"]["context"]["state"]["current_product_id"],
+            self.product.id,
+        )
+        self.assertIn("currently listed at", payload["messages"][-1]["message"])
