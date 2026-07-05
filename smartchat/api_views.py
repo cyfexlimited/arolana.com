@@ -1,6 +1,7 @@
 import json
 from decimal import Decimal
 
+from django.db import transaction
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
@@ -19,6 +20,7 @@ from .models import (
     SmartChatConversation,
     SmartChatMessage,
 )
+from .conversation_lifecycle import reopen_closed_conversation
 from .views import (
     _message_payload,
     _mobile_customer_from_payload,
@@ -215,42 +217,56 @@ def message(request):
     text = str(data.get("message") or data.get("text") or "").strip()
     if not text:
         return _error("Message is required.")
-    conversation = _owned_conversation(identity, data.get("conversation_id"))
-    if not conversation:
-        return _error("Conversation not found.", 404)
-    if data.get("product_id"):
-        product = Product.objects.filter(
-            pk=data["product_id"],
-            is_active=True,
-            approval_status="approved",
+    with transaction.atomic():
+        conversation = _owned_conversations(identity).select_for_update().filter(
+            pk=data.get("conversation_id"),
         ).first()
-        if product and product.pk != conversation.product_id:
-            conversation.product = product
-            conversation.save(update_fields=["product", "updated_at"])
-    user_message = SmartChatMessage.objects.create(
-        conversation=conversation,
-        sender_type=SmartChatMessage.SENDER_USER,
-        user=identity.get("user"),
-        message=text,
-        is_read_by_admin=False,
-        metadata={"source": conversation.channel, "device_id": identity.get("device_id", "")},
-    )
-    messages = [user_message]
-    if conversation.status in {
-        SmartChatConversation.STATUS_ADMIN_REQUESTED,
-        SmartChatConversation.STATUS_ADMIN_ACTIVE,
-    }:
-        _notify_staff_customer_message(conversation, user_message)
-    else:
-        messages.append(create_managed_ai_message(conversation, user_message, identity.get("user")))
+        if not conversation:
+            return _error("Conversation not found.", 404)
+        reopened = reopen_closed_conversation(conversation)
+        if data.get("product_id"):
+            product = Product.objects.filter(
+                pk=data["product_id"],
+                is_active=True,
+                approval_status="approved",
+            ).first()
+            if product and product.pk != conversation.product_id:
+                conversation.product = product
+                conversation.save(update_fields=["product", "updated_at"])
+        user_message = SmartChatMessage.objects.create(
+            conversation=conversation,
+            sender_type=SmartChatMessage.SENDER_USER,
+            user=identity.get("user"),
+            message=text,
+            is_read_by_admin=False,
+            metadata={"source": conversation.channel, "device_id": identity.get("device_id", "")},
+        )
+        messages = [user_message]
+        if conversation.status in {
+            SmartChatConversation.STATUS_ADMIN_REQUESTED,
+            SmartChatConversation.STATUS_ADMIN_ACTIVE,
+        }:
+            _notify_staff_customer_message(conversation, user_message)
+        else:
+            messages.append(create_managed_ai_message(conversation, user_message, identity.get("user")))
     conversation.refresh_from_db()
     conversation_payload = _conversation_payload(conversation)
+    latest_reply = _message_payload(messages[-1])
+    metadata = latest_reply.get("metadata") or {}
     return JsonResponse({
         "success": True,
         "conversation_id": conversation.id,
         "status": conversation.status,
         "conversation": conversation_payload,
         "messages": conversation_payload["messages"],
+        "reply": latest_reply,
+        "intent": metadata.get("intent") or conversation.current_intent,
+        "topic": metadata.get("marketplace_category") or "",
+        "route": metadata.get("route") or metadata.get("source_type") or "",
+        "cards": metadata.get("product_cards") or metadata.get("cards") or [],
+        "actions": metadata.get("actions") or [],
+        "conversation_status": conversation.status,
+        "reopened": reopened,
     })
 
 

@@ -39,6 +39,7 @@ DEFAULT_STATE = {
         "current_recommendation_id": None,
         "previous_recommendation_ids": [],
     },
+    "topic_stack": [],
     "support": {
         "status": "ai",
         "requires_handoff": False,

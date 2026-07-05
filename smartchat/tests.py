@@ -607,3 +607,103 @@ class SmartChatProductIntelligenceTests(TestCase):
             self.product.id,
         )
         self.assertIn("currently listed at", payload["messages"][-1]["message"])
+
+    def test_explicit_vendor_topic_clears_product_cards_and_preserves_topic_stack(self):
+        conversation = SmartChatConversation.objects.create(
+            user=self.customer,
+            product=self.product,
+        )
+
+        reply = self.ask(conversation, "How do I sell on Arolana?")
+
+        conversation.refresh_from_db()
+        self.assertEqual(reply.metadata["intent"], "vendor_registration")
+        self.assertNotIn("product_cards", reply.metadata)
+        self.assertEqual(reply.metadata["cards"], [])
+        self.assertIn("vendor registration", reply.message.lower())
+        self.assertIsNone(conversation.product_id)
+        self.assertEqual(
+            conversation.context["state"]["topic_stack"][-1]["current_product_id"],
+            self.product.id,
+        )
+
+    def test_platform_information_never_leaks_internal_instructions(self):
+        AIKnowledgeBase.objects.create(
+            question="What is Arolana all about?",
+            answer=(
+                "Describe what you need naturally and keep the existing conversation "
+                "context, transcript, detected intent, and escalation reason."
+            ),
+            answer_type="customer_answer",
+            approved=True,
+            priority=100,
+        )
+        conversation = SmartChatConversation.objects.create(
+            user=self.customer,
+            product=self.product,
+        )
+
+        reply = self.ask(conversation, "What is Arolana all about?")
+
+        self.assertIn("multi-category marketplace", reply.message.lower())
+        self.assertNotIn("detected intent", reply.message.lower())
+        self.assertEqual(reply.metadata["cards"], [])
+        self.assertTrue(reply.metadata["actions"])
+
+    def test_vendor_plan_followup_stays_on_vendor_topic_without_product_cards(self):
+        conversation = SmartChatConversation.objects.create(
+            user=self.customer,
+            product=self.product,
+        )
+        self.ask(conversation, "How do I sell on Arolana?")
+
+        reply = self.ask(conversation, "Which plan should I choose?")
+
+        self.assertEqual(reply.metadata["intent"], "vendor_subscription_overview")
+        self.assertEqual(reply.metadata["cards"], [])
+        self.assertNotIn("product_cards", reply.metadata)
+        self.assertIn("plans", reply.message.lower())
+
+    def test_return_to_previous_product_restores_context(self):
+        conversation = SmartChatConversation.objects.create(
+            user=self.customer,
+            product=self.product,
+        )
+        self.ask(conversation, "How do I sell on Arolana?")
+
+        reply = self.ask(conversation, "Go back to the product")
+
+        conversation.refresh_from_db()
+        self.assertEqual(conversation.product_id, self.product.id)
+        self.assertIn(self.product.name, reply.message)
+
+    def test_closed_mobile_api_conversation_reopens_for_ai(self):
+        conversation = SmartChatConversation.objects.create(
+            user=self.customer,
+            product=self.product,
+            status=SmartChatConversation.STATUS_CLOSED,
+        )
+        HumanTakeoverRequest.objects.create(
+            conversation=conversation,
+            requested_by=self.customer,
+        )
+        self.client.force_login(self.customer)
+
+        response = self.client.post(
+            reverse("smartchat_api:message"),
+            data=json.dumps({
+                "conversation_id": conversation.id,
+                "message": "What is Arolana all about?",
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["reopened"])
+        self.assertEqual(payload["conversation_status"], SmartChatConversation.STATUS_AI)
+        self.assertEqual(payload["cards"], [])
+        self.assertEqual(
+            conversation.takeover_requests.get().status,
+            HumanTakeoverRequest.STATUS_CANCELLED,
+        )

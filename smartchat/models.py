@@ -455,6 +455,7 @@ class AIKnowledgeBase(models.Model):
         ("customer_answer", "Customer answer"),
         ("internal_rule", "Internal rule"),
         ("policy_rule", "Policy rule"),
+        ("routing_rule", "Routing rule"),
         ("catalog_lookup_rule", "Catalog lookup rule"),
         ("recommendation_rule", "Recommendation rule"),
         ("escalation_rule", "Escalation rule"),

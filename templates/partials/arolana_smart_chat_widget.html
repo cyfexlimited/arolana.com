@@ -830,6 +830,16 @@
         }).join("")}</div>`;
     }
 
+    function renderResponseActions(message) {
+        const actions = message?.metadata?.actions;
+        if (!Array.isArray(actions) || !actions.length) return "";
+        return `<div class="arolana-chat-product-actions mt-3">${actions.slice(0, 4).map(function (action) {
+            const url = String(action.url || "");
+            if (!url.startsWith("/") && !url.startsWith("https://")) return "";
+            return `<a class="arolana-chat-product-action ${action.primary ? "is-primary" : ""}" href="${escapeHtml(url)}">${escapeHtml(action.label || "Open")}</a>`;
+        }).join("")}</div>`;
+    }
+
 	    function scrollMessages() {
 	        const box = getEl("arolana-smartchat-messages");
 	        if (box) box.scrollTop = box.scrollHeight;
@@ -976,12 +986,14 @@
                </a>`
             : "";
         const productCards = renderProductCards(message);
+        const responseActions = renderResponseActions(message);
 
         bubble.innerHTML =
             `<div class="text-[11px] font-bold opacity-70 mb-1">${escapeHtml(senderName)}</div>` +
             `${text ? `<div class="arolana-chat-message-text">${text}</div>` : ""}` +
             attachment +
-            productCards;
+            productCards +
+            responseActions;
 
         box.appendChild(bubble);
         scrollMessages();

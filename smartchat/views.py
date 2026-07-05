@@ -26,6 +26,7 @@ from .models import (
     SmartChatMessage,
     SmartChatSupportTicket,
 )
+from .conversation_lifecycle import reopen_closed_conversation
 from .ai_manager import create_managed_ai_message, request_human_takeover
 from .services import ai_operations_reply, openai_reply, should_handoff, make_conversation_title, create_system_message, create_support_ticket
 
@@ -405,6 +406,7 @@ def api_message(request):
         product = Product.objects.filter(id=product_id).select_related("category", "brand", "vendor").first()
 
     conversation = _get_or_create_conversation(request, data, product=product)
+    reopen_closed_conversation(conversation)
     preferred_language = get_request_language(request)
     conversation.context = {
         **(conversation.context or {}),
@@ -1100,16 +1102,7 @@ def mobile_smartchat_send_api(request):
     if not message_text:
         return _mobile_json_error("Message is required.", status=400)
 
-    if conversation.status == SmartChatConversation.STATUS_CLOSED:
-        conversation.status = SmartChatConversation.STATUS_ADMIN_REQUESTED
-        conversation.admin_requested_at = timezone.now()
-        conversation.save(
-            update_fields=[
-                "status",
-                "admin_requested_at",
-                "updated_at",
-            ]
-        )
+    reopen_closed_conversation(conversation)
 
     user_message = SmartChatMessage.objects.create(
         conversation=conversation,
@@ -1169,10 +1162,7 @@ def mobile_smartchat_upload_image_api(request):
 
     message_text = _mobile_clean_text(request.POST.get("message")) or "Customer uploaded an image from the Arolana mobile app."
 
-    if conversation.status == SmartChatConversation.STATUS_CLOSED:
-        conversation.status = SmartChatConversation.STATUS_ADMIN_REQUESTED
-        conversation.admin_requested_at = timezone.now()
-        conversation.save(update_fields=["status", "admin_requested_at", "updated_at"])
+    reopen_closed_conversation(conversation)
 
     if conversation.status == SmartChatConversation.STATUS_AI:
         conversation.mark_admin_requested()

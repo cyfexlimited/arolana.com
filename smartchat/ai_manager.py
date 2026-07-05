@@ -37,7 +37,13 @@ from .followup_resolver import (
     resolve_followup,
 )
 from .recommendation_engine import current_price_reply, recommend
-from .response_validator import advance_reply, is_duplicate_reply
+from .response_validator import advance_reply, is_duplicate_reply, validate_customer_reply
+from .topic_resolver import (
+    SUPPORT_OVERRIDE,
+    apply_topic_resolution,
+    explicit_route_reply,
+    resolve_topic,
+)
 
 
 PII_PATTERNS = [
@@ -319,6 +325,21 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
             "source_type": "disabled", "source_label": "AI disabled", "confidence": 0,
         }
 
+    topic_resolution = resolve_topic(conversation, user_message)
+    state = apply_topic_resolution(conversation, topic_resolution)
+    explicit_result = explicit_route_reply(topic_resolution, conversation)
+    if explicit_result:
+        reply, source = explicit_result
+        if topic_resolution["relation"] == SUPPORT_OVERRIDE:
+            request_human_takeover(conversation, actor_user, user_message)
+        update_conversation_context(
+            conversation,
+            source["intent"],
+            reply,
+            source,
+        )
+        return reply, source
+
     state = prepare_context(conversation, user_message)
     followup_type = resolve_followup(user_message, state)
     if followup_type == PRICE_REQUEST:
@@ -438,7 +459,7 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
                 conversation.save(update_fields=["product", "updated_at"])
                 persist_state(conversation, state)
                 return reply, {"intent": "product_recommendation", **source}
-        if answer_type in {"internal_rule", "escalation_rule"}:
+        if answer_type in {"internal_rule", "routing_rule", "escalation_rule"}:
             if answer_type == "escalation_rule":
                 request_human_takeover(conversation, actor_user, user_message)
             item = None
@@ -459,6 +480,7 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
             "source_object_id": item.pk,
             "confidence": float(confidence),
             "intent": intent,
+            "answer_type": answer_type,
             "marketplace_category": routed_source.get(
                 "marketplace_category",
                 "general_marketplace",
@@ -516,6 +538,7 @@ def create_managed_ai_message(conversation, user_message, actor_user=None):
     previous_intent = conversation.current_intent
     remember_explicit_preference(conversation, user_message.message)
     reply, source = generate_managed_reply(conversation, user_message.message, actor_user)
+    reply, source = validate_customer_reply(reply, source)
     latest_ai = conversation.messages.filter(
         sender_type=SmartChatMessage.SENDER_AI,
         is_private_note=False,
