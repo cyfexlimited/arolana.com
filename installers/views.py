@@ -108,10 +108,7 @@ def provider_detail(request, slug):
     return render(request, "installers/provider_detail.html", {
         "provider": provider,
         "services": provider.services.filter(is_active=True).select_related("category"),
-        "portfolio_items": provider.portfolio_items.filter(
-            approval_status=ServicePortfolio.STATUS_APPROVED,
-            is_active=True,
-        ),
+        "portfolio_items": ServicePortfolio.objects.public().optimized().filter(provider=provider),
         "reviews": provider.reviews.filter(is_approved=True).select_related("customer")[:20],
         "review_form": ServiceReviewForm(),
         "seo_title": f"{provider.business_name} - Verified {provider.get_provider_type_display()} | Arolana",

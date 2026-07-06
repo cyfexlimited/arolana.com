@@ -379,9 +379,13 @@ class ProviderPortfolioAPIView(APIView):
         provider, error = provider_from_request(request)
         if error:
             return error
+        queryset = provider.portfolio_items.filter(
+            approval_status=ServicePortfolio.STATUS_APPROVED,
+            is_active=True,
+        ).optimized()
         return Response({
             "portfolio": ServicePortfolioSerializer(
-                provider.portfolio_items.all(),
+                queryset,
                 many=True,
                 context={"request": request},
             ).data,

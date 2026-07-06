@@ -80,6 +80,8 @@ class ProviderServiceSerializer(serializers.ModelSerializer):
 
 class ServicePortfolioSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField()
+    thumbnail_url = serializers.SerializerMethodField()
     hero_image_url = serializers.SerializerMethodField()
     video_url = serializers.SerializerMethodField()
     provider = serializers.SerializerMethodField()
@@ -95,7 +97,8 @@ class ServicePortfolioSerializer(serializers.ModelSerializer):
     class Meta:
         model = ServicePortfolio
         fields = [
-            "id", "slug", "title", "short_summary", "description", "image", "hero_image_url",
+            "id", "slug", "title", "short_summary", "description", "image", "image_url",
+            "thumbnail_url", "hero_image_url",
             "project_type", "project_type_label", "service_category", "country", "state", "city",
             "location_display", "project_location", "completed_at", "project_duration_text",
             "customer_type", "customer_name_display", "show_project_value", "project_value_min",
@@ -114,26 +117,37 @@ class ServicePortfolioSerializer(serializers.ModelSerializer):
             "quote_requests_count", "shares_count", "saves_count", "published_at",
         ]
 
-    def get_image(self, obj):
+    def _display_source(self, obj):
         media = obj.featured_media
-        source = (
+        return (
             obj.image
             or getattr(media, "image", None)
             or obj.video_thumbnail
             or getattr(media, "thumbnail", None)
             or obj.provider.business_banner
         )
+
+    def get_image(self, obj):
+        source = self._display_source(obj)
         return absolute_optimized_url(self.context.get("request"), source, "project_card")
 
-    def get_hero_image_url(self, obj):
+    def get_image_url(self, obj):
+        source = self._display_source(obj)
+        return absolute_optimized_url(self.context.get("request"), source, "project_card")
+
+    def get_thumbnail_url(self, obj):
         media = obj.featured_media
         source = (
-            obj.image
+            getattr(media, "thumbnail", None)
             or getattr(media, "image", None)
+            or obj.image
             or obj.video_thumbnail
-            or getattr(media, "thumbnail", None)
             or obj.provider.business_banner
         )
+        return absolute_optimized_url(self.context.get("request"), source, "project_thumb")
+
+    def get_hero_image_url(self, obj):
+        source = self._display_source(obj)
         return absolute_optimized_url(self.context.get("request"), source, "project_hero")
 
     def get_video_url(self, obj):
