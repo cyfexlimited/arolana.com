@@ -1,16 +1,9 @@
-{% load optimized_images %}
+{% load installers_tags %}
 <article class="group overflow-hidden rounded-[1.6rem] border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl">
   <a href="{{ project.get_absolute_url }}" class="relative block aspect-[16/10] overflow-hidden bg-slate-100">
-    {% if project.image %}
-      <img src="{{ project.image|optimized_image_url:'project_card' }}" alt="{{ project.title }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" decoding="async">
-    {% elif project.featured_media.image %}
-      <img src="{{ project.featured_media.image|optimized_image_url:'project_card' }}" alt="{{ project.featured_media.alt_text|default:project.title }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" decoding="async">
-    {% elif project.video_thumbnail %}
-      <img src="{{ project.video_thumbnail|optimized_image_url:'project_card' }}" alt="{{ project.title }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" decoding="async">
-    {% elif project.featured_media.thumbnail %}
-      <img src="{{ project.featured_media.thumbnail|optimized_image_url:'project_card' }}" alt="{{ project.title }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" decoding="async">
-    {% elif project.provider.business_banner %}
-      <img src="{{ project.provider.business_banner|optimized_image_url:'provider_banner' }}" alt="{{ project.provider.business_name }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" decoding="async">
+    {% project_card_image_url project as project_image_url %}
+    {% if project_image_url %}
+      <img src="{{ project_image_url }}" alt="{{ project.title }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" decoding="async">
     {% else %}
       <div class="grid h-full place-items-center bg-gradient-to-br from-[#071A44] to-[#0066CC] text-4xl text-white"><i class="fas fa-screwdriver-wrench"></i></div>
     {% endif %}
