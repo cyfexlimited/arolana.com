@@ -1,0 +1,9 @@
+{% extends "installers/workspace/base.html" %}
+{% block workspace_content %}
+<header class="provider-page-head"><div><h1>KYC & Verification</h1><p>Submit clear, current documents. Arolana keeps these private and uses them only for verification.</p></div><span class="provider-button soft">{{ provider.get_kyc_status_display }}</span></header>
+{% if provider.kyc_note %}<div class="provider-message">{{ provider.kyc_note }}</div>{% endif %}
+<div class="provider-grid" style="grid-template-columns:minmax(0,1fr) minmax(300px,.7fr)">
+  <section class="provider-card"><h2 style="font-size:22px;font-weight:950">Submit documents</h2><form method="post" enctype="multipart/form-data" class="provider-form" style="margin-top:16px">{% csrf_token %}<p><label>Government ID</label><input type="file" name="government_id"></p><p><label>CAC / business certificate</label><input type="file" name="cac_certificate"></p><p><label>Address proof</label><input type="file" name="address_proof"></p><p><label>Verification selfie</label><input type="file" name="selfie"></p><button class="provider-button orange">Submit for review</button></form></section>
+  <aside class="provider-card"><h2 style="font-size:22px;font-weight:950">Submitted documents</h2>{% for document in documents %}<div style="padding:12px 0;border-bottom:1px solid #edf2f7"><strong>{{ document.get_document_type_display }}</strong><br><small style="color:#64748b">{{ document.created_at }}</small></div>{% empty %}<p style="color:#64748b;margin-top:12px">No active KYC documents yet.</p>{% endfor %}</aside>
+</div>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends "installers/workspace/base.html" %}
+{% block workspace_content %}
+<header class="provider-page-head"><div><h1>Project Analytics</h1><p>Understand how customers discover and engage with your professional proof.</p></div></header>
+<section class="provider-grid provider-stats">
+  <div class="provider-stat"><small>Project views</small><strong>{{ totals.views|default:0 }}</strong></div>
+  <div class="provider-stat"><small>Video views</small><strong>{{ totals.video_views|default:0 }}</strong></div>
+  <div class="provider-stat"><small>Product clicks</small><strong>{{ totals.product_clicks|default:0 }}</strong></div>
+  <div class="provider-stat"><small>Provider clicks</small><strong>{{ totals.provider_clicks|default:0 }}</strong></div>
+  <div class="provider-stat"><small>Leads</small><strong>{{ totals.leads|default:0 }}</strong></div>
+  <div class="provider-stat"><small>Shares</small><strong>{{ totals.shares|default:0 }}</strong></div>
+  <div class="provider-stat"><small>Saves</small><strong>{{ totals.saves|default:0 }}</strong></div>
+</section>
+<section class="provider-card" style="margin-top:18px"><h2 style="font-size:22px;font-weight:950">Top projects</h2>{% for project in projects %}<div style="display:grid;grid-template-columns:minmax(0,1fr) repeat(3,90px);gap:10px;padding:13px 0;border-bottom:1px solid #edf2f7"><strong>{{ project.title }}</strong><span>{{ project.views_count }} views</span><span>{{ project.video_views_count }} plays</span><span>{{ project.quote_requests_count }} leads</span></div>{% empty %}<p style="margin-top:12px;color:#64748b">Project analytics will appear after you publish work.</p>{% endfor %}</section>
+{% endblock %}

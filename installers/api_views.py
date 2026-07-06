@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models import Count
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, permissions, status
@@ -33,6 +34,7 @@ from .serializers import (
     ServiceQuoteRequestSerializer,
     ServiceReviewCreateSerializer,
 )
+from .project_services import ProjectEntitlementService
 from .services import (
     assign_service_request,
     filter_public_providers,
@@ -455,8 +457,37 @@ class ProviderServiceDetailAPIView(APIView):
         service = provider.services.filter(pk=service_id).first()
         if not service:
             return Response({"detail": "Service offering not found."}, status=status.HTTP_404_NOT_FOUND)
-        service.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        service.is_active = False
+        service.save(update_fields=["is_active", "updated_at"])
+        return Response({
+            "message": "Service deactivated. Historical requests remain intact.",
+            "service": ProviderServiceSerializer(service, context={"request": request}).data,
+        })
+
+    def patch(self, request, service_id):
+        provider, error = provider_from_request(request)
+        if error:
+            return error
+        service = provider.services.filter(pk=service_id).first()
+        if not service:
+            return Response({"detail": "Service offering not found."}, status=status.HTTP_404_NOT_FOUND)
+        category_id = request.data.get("category")
+        if category_id:
+            category = ServiceCategory.objects.filter(pk=category_id, is_active=True).first()
+            if not category:
+                return Response({"detail": "Choose an active service category."}, status=status.HTTP_400_BAD_REQUEST)
+            service.category = category
+        for field in ("service_name", "description", "starting_price", "is_active"):
+            if field in request.data:
+                value = request.data[field]
+                setattr(service, field, value if field != "starting_price" else (value or None))
+        if not service.service_name.strip():
+            return Response({"detail": "Service name is required."}, status=status.HTTP_400_BAD_REQUEST)
+        service.save()
+        return Response({
+            "message": "Service offering updated.",
+            "service": ProviderServiceSerializer(service, context={"request": request}).data,
+        })
 
 
 class ProviderKYCAPIView(APIView):
@@ -519,6 +550,14 @@ class ProviderDashboardAPIView(APIView):
                 "subscription_status": provider.subscription_status,
             },
             "cards": {
+                "active_services": provider.services.filter(is_active=True).count(),
+                "projects": provider.portfolio_items.count(),
+                "approved_projects": provider.approved_project_count,
+                "project_media": provider.portfolio_items.aggregate(total=Count("media_items"))["total"] or 0,
+                "project_views": provider.project_views_count,
+                "video_views": provider.project_video_views_count,
+                "project_leads": provider.project_leads_count,
+                "reviews": provider.total_reviews,
                 "assigned_jobs": quotes.filter(status="assigned").count(),
                 "accepted_jobs": quotes.filter(status="accepted").count(),
                 "in_progress_jobs": quotes.filter(status="in_progress").count(),
@@ -526,6 +565,12 @@ class ProviderDashboardAPIView(APIView):
                 "unread_notifications": notifications.filter(is_read=False).count(),
                 "profile_completion": provider.profile_completion_percent,
             },
+            "profile_completion": {
+                "percent": provider.profile_completion_percent,
+                "steps": provider.profile_completion_items,
+                "missing_steps": provider.profile_missing_steps,
+            },
+            "entitlements": ProjectEntitlementService(provider).payload(),
             "recent_jobs": ProviderQuoteRequestSerializer(
                 active_jobs,
                 many=True,
@@ -732,6 +777,7 @@ class ProviderSettingsAPIView(APIView):
             "availability_status": provider.availability_status,
             "availability_note": provider.availability_note,
             "business_hours": provider.business_hours,
+            "business_hours_data": provider.business_hours_data,
             "support_phone": provider.support_phone,
             "support_email": provider.support_email,
             "support_whatsapp": provider.support_whatsapp,
@@ -753,7 +799,11 @@ class ProviderSettingsAPIView(APIView):
         provider, error = provider_from_request(request)
         if error:
             return error
-        allowed = {"preferred_language", "notification_preferences", "availability_status", "availability_note", "business_hours", "support_phone", "support_email", "support_whatsapp"}
+        allowed = {
+            "preferred_language", "notification_preferences", "availability_status",
+            "availability_note", "business_hours", "business_hours_data",
+            "support_phone", "support_email", "support_whatsapp", "bank_details",
+        }
         for key in allowed:
             if key in request.data:
                 setattr(provider, key, request.data[key])

@@ -1,0 +1,5 @@
+{% extends "installers/workspace/base.html" %}
+{% block workspace_content %}
+<header class="provider-page-head"><div><h1>Notifications</h1><p>Approval, KYC, project, lead, quote, job, and subscription updates in one place.</p></div><form method="post">{% csrf_token %}<button class="provider-button soft">Mark all read</button></form></header>
+<section class="provider-grid">{% for note in notifications %}<article class="provider-card" style="{% if not note.is_read %}border-left:5px solid #ff7a00{% endif %}"><div style="display:flex;justify-content:space-between;gap:10px"><strong>{{ note.title }}</strong><small style="color:#64748b">{{ note.created_at }}</small></div><p style="color:#475569;margin-top:8px">{{ note.message }}</p>{% if note.link %}<a href="{{ note.link }}" style="display:inline-block;margin-top:10px;color:#0066cc;font-weight:900">Open update →</a>{% endif %}</article>{% empty %}<div class="provider-card">No provider notifications yet.</div>{% endfor %}</section>
+{% endblock %}

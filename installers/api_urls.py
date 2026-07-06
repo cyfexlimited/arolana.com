@@ -39,6 +39,8 @@ provider_urlpatterns = [
     path("notifications/", api_views.ProviderNotificationsAPIView.as_view(), name="provider_notifications"),
     path("notifications/<int:notification_id>/read/", api_views.ProviderNotificationReadAPIView.as_view(), name="provider_notification_read"),
     path("settings/", api_views.ProviderSettingsAPIView.as_view(), name="provider_settings"),
+    path("availability/", api_views.ProviderSettingsAPIView.as_view(), name="provider_availability"),
+    path("notification-preferences/", api_views.ProviderSettingsAPIView.as_view(), name="provider_notification_preferences"),
     path("change-password/", api_views.ProviderChangePasswordAPIView.as_view(), name="provider_change_password"),
     path("deactivate-request/", api_views.ProviderDeactivateRequestAPIView.as_view(), name="provider_deactivate_request"),
 ] + provider_project_urlpatterns

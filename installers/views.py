@@ -9,8 +9,11 @@ from notifications.models import Notification
 from products.models import Product
 
 from .forms import (
+    ProviderAvailabilityForm,
     ProviderRegistrationForm,
     ProviderServiceForm,
+    ProviderWorkspaceProfileForm,
+    ProviderWorkspaceSettingsForm,
     ServicePortfolioForm,
     ServiceProjectMediaForm,
     ServiceQuoteRequestForm,
@@ -18,6 +21,8 @@ from .forms import (
 )
 from .models import (
     ProviderSubscriptionPlan,
+    ProviderKYCDocument,
+    ProviderProfileChangeRequest,
     SavedServiceProject,
     ServiceCategory,
     ServicePortfolio,
@@ -29,7 +34,30 @@ from .project_services import (
     notify_project_submitted,
     record_project_event,
 )
-from .services import filter_public_providers, notify_staff_service_quote, submit_provider_profile
+from .services import (
+    filter_public_providers,
+    notify_staff_service_quote,
+    submit_provider_kyc,
+    submit_provider_profile,
+    update_provider_profile,
+)
+
+
+def _provider_workspace(request):
+    return get_object_or_404(
+        ServiceProviderProfile.objects.select_related("user"),
+        user=request.user,
+    )
+
+
+def _workspace_context(provider, active):
+    return {
+        "provider": provider,
+        "workspace_active": active,
+        "profile_steps": provider.profile_completion_items,
+        "profile_missing_steps": provider.profile_missing_steps,
+        "project_entitlements": ProjectEntitlementService(provider).payload(),
+    }
 
 
 def directory(request):
@@ -182,6 +210,219 @@ def provider_dashboard(request):
         "availability_choices": ServiceProviderProfile._meta.get_field("availability_status").choices,
         "quote_status_choices": ServiceQuoteRequest.STATUS_CHOICES,
     })
+
+
+@login_required
+def workspace_dashboard(request):
+    """Canonical provider operations dashboard at /dashboard/provider/."""
+    provider = _provider_workspace(request)
+    if not provider.approval_allows_dashboard:
+        return redirect("installers:provider_dashboard")
+    quotes = provider.quote_requests.all()
+    projects = provider.portfolio_items.all()
+    notifications = Notification.objects.filter(user=request.user, is_archived=False)
+    context = _workspace_context(provider, "dashboard")
+    context.update({
+        "cards": {
+            "services": provider.services.filter(is_active=True).count(),
+            "projects": projects.count(),
+            "approved_projects": provider.approved_project_count,
+            "project_media": projects.aggregate(total=Count("media_items"))["total"] or 0,
+            "views": provider.project_views_count,
+            "video_views": provider.project_video_views_count,
+            "leads": provider.project_leads_count,
+            "quotes": quotes.count(),
+            "active_jobs": quotes.filter(status__in=["assigned", "accepted", "on_the_way", "in_progress"]).count(),
+            "completed_jobs": quotes.filter(status__in=["completed", "closed"]).count(),
+            "reviews": provider.total_reviews,
+            "unread_notifications": notifications.filter(is_read=False).count(),
+        },
+        "recent_projects": projects.select_related("service_category").order_by("-updated_at")[:4],
+        "recent_jobs": quotes.select_related("category", "product").order_by("-updated_at")[:5],
+        "recent_notifications": notifications.order_by("-created_at")[:5],
+    })
+    return render(request, "installers/workspace/dashboard.html", context)
+
+
+@login_required
+def workspace_profile(request):
+    provider = _provider_workspace(request)
+    form = ProviderWorkspaceProfileForm(request.POST or None, instance=provider)
+    if request.method == "POST" and request.POST.get("action") == "profile" and form.is_valid():
+        try:
+            provider, change = update_provider_profile(
+                provider,
+                form.cleaned_data,
+                user=request.user,
+            )
+        except Exception as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(
+                request,
+                "Sensitive changes were submitted for approval." if change else "Profile updated.",
+            )
+            return redirect("provider_workspace:profile")
+
+    if request.method == "POST" and request.POST.get("action") == "media":
+        field_name = request.POST.get("field_name")
+        upload = request.FILES.get("file")
+        allowed_fields = {"profile_image", "business_logo", "business_banner"}
+        if field_name not in allowed_fields or not upload:
+            messages.error(request, "Choose a valid provider image.")
+        elif provider.approval_allows_dashboard:
+            if provider.sensitive_update_locked:
+                messages.error(
+                    request,
+                    f"Sensitive profile changes are locked until {provider.sensitive_update_available_at:%Y-%m-%d}.",
+                )
+            elif provider.profile_change_requests.filter(status=ProviderProfileChangeRequest.STATUS_PENDING).exists():
+                messages.error(request, "A profile change is already awaiting Arolana approval.")
+            else:
+                ProviderProfileChangeRequest.objects.create(
+                    provider=provider,
+                    requested_by=request.user,
+                    old_values={field_name: getattr(getattr(provider, field_name), "name", "")},
+                    proposed_values={field_name: upload.name},
+                    sensitive_fields=[field_name],
+                    proposed_file=upload,
+                    proposed_file_field=field_name,
+                )
+                messages.success(request, "Provider image submitted for Arolana approval.")
+                return redirect("provider_workspace:profile")
+        else:
+            setattr(provider, field_name, upload)
+            provider.save(update_fields=[field_name, "updated_at"])
+            messages.success(request, "Provider image saved.")
+            return redirect("provider_workspace:profile")
+
+    context = _workspace_context(provider, "profile")
+    context.update({
+        "form": form,
+        "pending_changes": provider.profile_change_requests.filter(
+            status=ProviderProfileChangeRequest.STATUS_PENDING
+        ),
+    })
+    return render(request, "installers/workspace/profile.html", context)
+
+
+@login_required
+def workspace_services(request, service_id=None):
+    provider = _provider_workspace(request)
+    service = get_object_or_404(provider.services, pk=service_id) if service_id else None
+    form = ProviderServiceForm(request.POST or None, instance=service)
+    if request.method == "POST":
+        action = request.POST.get("action", "save")
+        if action == "delete" and service:
+            service.is_active = False
+            service.save(update_fields=["is_active", "updated_at"])
+            messages.success(request, "Service deactivated. Historical requests remain intact.")
+            return redirect("provider_workspace:services")
+        if form.is_valid():
+            offering = form.save(commit=False)
+            offering.provider = provider
+            offering.save()
+            messages.success(request, "Service offering saved.")
+            return redirect("provider_workspace:services")
+    context = _workspace_context(provider, "services")
+    context.update({
+        "services": provider.services.select_related("category"),
+        "form": form,
+        "editing_service": service,
+    })
+    return render(request, "installers/workspace/services.html", context)
+
+
+@login_required
+def workspace_availability(request):
+    provider = _provider_workspace(request)
+    form = ProviderAvailabilityForm(request.POST or None, instance=provider)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Coverage and availability updated.")
+        return redirect("provider_workspace:availability")
+    context = _workspace_context(provider, "availability")
+    context["form"] = form
+    return render(request, "installers/workspace/form_page.html", {
+        **context,
+        "page_title": "Coverage & Availability",
+        "page_subtitle": "Control where and when customers can request your services.",
+        "submit_label": "Save availability",
+    })
+
+
+@login_required
+def workspace_kyc(request):
+    provider = _provider_workspace(request)
+    if request.method == "POST":
+        created = 0
+        for document_type, _label in ProviderKYCDocument.DOCUMENT_TYPES:
+            upload = request.FILES.get(document_type)
+            if upload:
+                ProviderKYCDocument.objects.create(
+                    provider=provider,
+                    document_type=document_type,
+                    file=upload,
+                )
+                created += 1
+        if created:
+            submit_provider_kyc(provider)
+            messages.success(request, "KYC documents submitted for Arolana review.")
+            return redirect("provider_workspace:kyc")
+        messages.error(request, "Choose at least one KYC document.")
+    context = _workspace_context(provider, "kyc")
+    context["documents"] = provider.kyc_documents.filter(is_active=True)
+    return render(request, "installers/workspace/kyc.html", context)
+
+
+@login_required
+def workspace_settings(request):
+    provider = _provider_workspace(request)
+    form = ProviderWorkspaceSettingsForm(request.POST or None, instance=provider)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Provider settings saved.")
+        return redirect("provider_workspace:settings")
+    context = _workspace_context(provider, "settings")
+    context["form"] = form
+    return render(request, "installers/workspace/form_page.html", {
+        **context,
+        "page_title": "Provider Settings",
+        "page_subtitle": "Manage support contacts, payout details, language, and notifications.",
+        "submit_label": "Save settings",
+    })
+
+
+@login_required
+def workspace_analytics(request):
+    provider = _provider_workspace(request)
+    projects = provider.portfolio_items.all()
+    context = _workspace_context(provider, "analytics")
+    context.update({
+        "totals": projects.aggregate(
+            views=Sum("views_count"),
+            video_views=Sum("video_views_count"),
+            product_clicks=Sum("product_click_count"),
+            provider_clicks=Sum("provider_click_count"),
+            leads=Sum("quote_requests_count"),
+            shares=Sum("shares_count"),
+            saves=Sum("saves_count"),
+        ),
+        "projects": projects.order_by("-views_count")[:12],
+    })
+    return render(request, "installers/workspace/analytics.html", context)
+
+
+@login_required
+def workspace_notifications(request):
+    provider = _provider_workspace(request)
+    notifications = Notification.objects.filter(user=request.user, is_archived=False).order_by("-created_at")
+    if request.method == "POST":
+        notifications.filter(is_read=False).update(is_read=True)
+        return redirect("provider_workspace:notifications")
+    context = _workspace_context(provider, "notifications")
+    context["notifications"] = notifications[:100]
+    return render(request, "installers/workspace/notifications.html", context)
 
 
 @login_required

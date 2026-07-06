@@ -357,6 +357,27 @@ class ProviderProjectMediaAPIView(ProviderProjectDetailAPIView):
 
 
 class ProviderProjectMediaDeleteAPIView(ProviderProjectDetailAPIView):
+    def patch(self, request, project_id, media_id):
+        _provider, project, error = self._project(request, project_id)
+        if error:
+            return error
+        media = get_object_or_404(project.media_items, pk=media_id)
+        serializer = ServiceProjectMediaWriteSerializer(
+            media,
+            data=request.data,
+            partial=True,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        media = serializer.save()
+        if media.approval_status == ServiceProjectMedia.STATUS_APPROVED:
+            media.approval_status = ServiceProjectMedia.STATUS_PENDING
+            media.save(update_fields=["approval_status", "updated_at"])
+        return Response({
+            "message": "Project media updated for review.",
+            "media": ServiceProjectMediaSerializer(media, context={"request": request}).data,
+        })
+
     def delete(self, request, project_id, media_id):
         _provider, project, error = self._project(request, project_id)
         if error:

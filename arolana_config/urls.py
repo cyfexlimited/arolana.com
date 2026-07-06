@@ -206,6 +206,10 @@ urlpatterns = [
     path("api/projects/", include(("installers.project_api_urls", "projects_api"), namespace="projects_api")),
     path("api/smartchat/", include(("smartchat.api_urls", "smartchat_api"), namespace="smartchat_api")),
     path("api/quotes/", include(("core.api_urls", "quotes_api"), namespace="quotes_api")),
+    path(
+        "dashboard/provider/",
+        include(("installers.workspace_urls", "provider_workspace"), namespace="provider_workspace"),
+    ),
     path("api/", include("products.urls", namespace="products_api")),
     path("", include("core.urls")),
 

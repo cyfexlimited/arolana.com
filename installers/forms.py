@@ -41,6 +41,89 @@ class ProviderRegistrationForm(StyledModelForm):
         }
 
 
+class ProviderWorkspaceProfileForm(StyledModelForm):
+    """Provider-owned profile editor that feeds the existing approval service."""
+
+    class Meta:
+        model = ServiceProviderProfile
+        fields = [
+            "business_name", "contact_person", "provider_type", "phone_number",
+            "whatsapp_number", "email", "website", "country", "state", "city",
+            "address", "service_coverage", "description", "years_of_experience",
+            "support_phone", "support_email", "support_whatsapp",
+        ]
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 6}),
+            "address": forms.Textarea(attrs={"rows": 3}),
+            "service_coverage": forms.Textarea(attrs={"rows": 3}),
+        }
+
+
+class ProviderAvailabilityForm(StyledModelForm):
+    class Meta:
+        model = ServiceProviderProfile
+        fields = [
+            "availability_status", "availability_note", "business_hours",
+            "business_hours_data",
+        ]
+        widgets = {
+            "business_hours": forms.Textarea(attrs={"rows": 3}),
+            "business_hours_data": forms.Textarea(
+                attrs={
+                    "rows": 8,
+                    "placeholder": '{"monday": {"enabled": true, "open": "09:00", "close": "17:00"}}',
+                }
+            ),
+        }
+
+
+class ProviderWorkspaceSettingsForm(StyledModelForm):
+    notify_in_app = forms.BooleanField(required=False, initial=True)
+    notify_email = forms.BooleanField(required=False, initial=True)
+    notify_push = forms.BooleanField(required=False, initial=True)
+    notify_new_jobs = forms.BooleanField(required=False, initial=True)
+    notify_quotes = forms.BooleanField(required=False, initial=True)
+    notify_reviews = forms.BooleanField(required=False, initial=True)
+    bank_name = forms.CharField(required=False)
+    account_name = forms.CharField(required=False)
+    account_number = forms.CharField(required=False)
+
+    class Meta:
+        model = ServiceProviderProfile
+        fields = [
+            "preferred_language", "support_phone", "support_email",
+            "support_whatsapp",
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.instance or not self.instance.pk:
+            return
+        preferences = self.instance.notification_preferences or {}
+        for key in (
+            "in_app", "email", "push", "new_jobs", "quotes", "reviews",
+        ):
+            self.fields[f"notify_{key}"].initial = preferences.get(key, True)
+        bank = self.instance.bank_details or {}
+        for key in ("bank_name", "account_name", "account_number"):
+            self.fields[key].initial = bank.get(key, "")
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.notification_preferences = {
+            key: bool(self.cleaned_data.get(f"notify_{key}"))
+            for key in ("in_app", "email", "push", "new_jobs", "quotes", "reviews")
+        }
+        instance.bank_details = {
+            key: (self.cleaned_data.get(key) or "").strip()
+            for key in ("bank_name", "account_name", "account_number")
+            if (self.cleaned_data.get(key) or "").strip()
+        }
+        if commit:
+            instance.save()
+        return instance
+
+
 class ProviderServiceForm(StyledModelForm):
     class Meta:
         model = ProviderService

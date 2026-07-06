@@ -1,0 +1,5 @@
+{% extends "installers/workspace/base.html" %}
+{% block workspace_content %}
+<header class="provider-page-head"><div><h1>{{ page_title }}</h1><p>{{ page_subtitle }}</p></div></header>
+<section class="provider-card"><form method="post" class="provider-form">{% csrf_token %}{{ form.as_p }}<button class="provider-button orange">{{ submit_label }}</button></form></section>
+{% endblock %}

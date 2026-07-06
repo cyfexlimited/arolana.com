@@ -1,0 +1,32 @@
+{% extends "installers/workspace/base.html" %}
+{% block workspace_content %}
+<header class="provider-page-head">
+  <div><p class="font-black uppercase tracking-widest text-[#FF7A00]">Provider workspace</p><h1>Welcome back, {{ provider.contact_person|default:provider.business_name }}</h1><p>Manage your professional identity, services, proof of work, leads, and compliance.</p></div>
+  <a class="provider-button orange" href="{% url 'installers:provider_project_add' %}">Add completed project</a>
+</header>
+<section class="provider-grid provider-stats">
+  <div class="provider-stat"><small>Active services</small><strong>{{ cards.services }}</strong></div>
+  <div class="provider-stat"><small>Projects</small><strong>{{ cards.projects }}</strong></div>
+  <div class="provider-stat"><small>Project views</small><strong>{{ cards.views }}</strong></div>
+  <div class="provider-stat"><small>Project leads</small><strong>{{ cards.leads }}</strong></div>
+  <div class="provider-stat"><small>Quotes</small><strong>{{ cards.quotes }}</strong></div>
+  <div class="provider-stat"><small>Active jobs</small><strong>{{ cards.active_jobs }}</strong></div>
+  <div class="provider-stat"><small>Reviews</small><strong>{{ cards.reviews }}</strong></div>
+  <div class="provider-stat"><small>Unread notices</small><strong>{{ cards.unread_notifications }}</strong></div>
+</section>
+<section class="provider-card" style="margin-top:18px">
+  <div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><div><h2 style="font-size:22px;font-weight:950">Profile strength</h2><p style="color:#64748b">Complete your public trust profile to improve customer confidence.</p></div><strong style="font-size:28px;color:#0066cc">{{ provider.profile_completion_percent }}%</strong></div>
+  <div class="provider-progress" style="margin-top:14px"><span style="width:{{ provider.profile_completion_percent }}%"></span></div>
+  <div class="provider-grid" style="grid-template-columns:repeat(auto-fit,minmax(210px,1fr));margin-top:16px">
+    {% for step in profile_steps %}
+      <div style="display:flex;gap:10px;align-items:center;color:{% if step.complete %}#15803d{% else %}#64748b{% endif %};font-weight:800">
+        <i class="fas {% if step.complete %}fa-circle-check{% else %}fa-circle{% endif %}"></i>{{ step.label }}
+      </div>
+    {% endfor %}
+  </div>
+</section>
+<div class="provider-grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr));margin-top:18px">
+  <section class="provider-card"><h2 style="font-size:22px;font-weight:950">Recent projects</h2>{% for project in recent_projects %}<a href="{% url 'installers:provider_project_edit' project.id %}" style="display:block;padding:13px 0;border-bottom:1px solid #edf2f7"><strong>{{ project.title }}</strong><br><small style="color:#64748b">{{ project.get_approval_status_display }} · {{ project.completion_percent }}% complete</small></a>{% empty %}<p style="color:#64748b;margin-top:12px">No projects yet. Add your best completed work.</p>{% endfor %}</section>
+  <section class="provider-card"><h2 style="font-size:22px;font-weight:950">Recent jobs & requests</h2>{% for job in recent_jobs %}<div style="padding:13px 0;border-bottom:1px solid #edf2f7"><strong>{{ job.service_needed }}</strong><br><small style="color:#64748b">{{ job.get_status_display }} · {{ job.city }}, {{ job.state }}</small></div>{% empty %}<p style="color:#64748b;margin-top:12px">New requests will appear here.</p>{% endfor %}</section>
+</div>
+{% endblock %}

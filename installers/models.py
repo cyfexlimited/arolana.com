@@ -133,17 +133,17 @@ class ServiceProviderProfile(BaseModel):
         null=True,
     )
     business_logo = models.ImageField(
-        upload_to="installers/providers/logos/%Y/%m/",
+        upload_to=ProtectedImageUploadPath("installers/providers/logos"),
         blank=True,
         null=True,
     )
     business_banner = models.ImageField(
-        upload_to="installers/providers/banners/%Y/%m/",
+        upload_to=ProtectedImageUploadPath("installers/providers/banners"),
         blank=True,
         null=True,
     )
     profile_image = models.ImageField(
-        upload_to="installers/providers/%Y/%m/",
+        upload_to=ProtectedImageUploadPath("installers/providers/profiles"),
         blank=True,
         null=True,
     )
@@ -192,7 +192,14 @@ class ServiceProviderProfile(BaseModel):
     allow_limited_jobs_without_kyc = models.BooleanField(default=False)
     availability_status = models.CharField(
         max_length=20,
-        choices=[("offline", "Offline"), ("online", "Online"), ("busy", "Busy"), ("away", "Away")],
+        choices=[
+            ("offline", "Offline"),
+            ("online", "Online"),
+            ("busy", "Busy"),
+            ("unavailable", "Unavailable"),
+            ("vacation", "Vacation"),
+            ("away", "Away"),
+        ],
         default="offline",
     )
     preferred_language = models.CharField(max_length=20, choices=LANGUAGE_CHOICES, default="english")
@@ -201,6 +208,11 @@ class ServiceProviderProfile(BaseModel):
     support_email = models.EmailField(blank=True)
     support_whatsapp = models.CharField(max_length=30, blank=True)
     business_hours = models.CharField(max_length=220, blank=True)
+    business_hours_data = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Structured opening hours keyed by weekday.",
+    )
     availability_note = models.CharField(max_length=300, blank=True)
     bank_details = models.JSONField(default=dict, blank=True)
     last_sensitive_update_approved_at = models.DateTimeField(blank=True, null=True)
@@ -229,6 +241,9 @@ class ServiceProviderProfile(BaseModel):
         return self.business_name
 
     def save(self, *args, **kwargs):
+        protect_uploaded_image(self, "business_logo", block_cross_vendor_duplicates=True)
+        protect_uploaded_image(self, "business_banner", block_cross_vendor_duplicates=True)
+        protect_uploaded_image(self, "profile_image", block_cross_vendor_duplicates=True)
         if not self.slug:
             base = slugify(self.business_name) or f"provider-{self.user_id or 'new'}"
             slug = base
@@ -244,6 +259,9 @@ class ServiceProviderProfile(BaseModel):
         if self.verification_status in [self.STATUS_SUBMITTED, self.STATUS_PENDING] and not self.review_due_at:
             self.review_due_at = timezone.now() + timedelta(hours=72)
         super().save(*args, **kwargs)
+        record_protected_image(self, "business_logo")
+        record_protected_image(self, "business_banner")
+        record_protected_image(self, "profile_image")
 
     def get_absolute_url(self):
         return reverse("installers:provider_detail", kwargs={"slug": self.slug})
@@ -279,25 +297,65 @@ class ServiceProviderProfile(BaseModel):
 
     @property
     def profile_completion_percent(self):
-        fields = [
-            self.business_name,
-            self.contact_person,
-            self.phone_number,
-            self.email,
-            self.country,
-            self.state,
-            self.city,
-            self.address,
-            self.service_coverage,
-            self.description,
-            self.profile_image,
-            self.business_logo,
-            self.business_banner,
-            self.government_id_upload,
-            self.cac_certificate_upload or self.cac_number,
+        completed_weight = sum(
+            item["weight"] for item in self.profile_completion_items if item["complete"]
+        )
+        total_weight = sum(item["weight"] for item in self.profile_completion_items)
+        return round((completed_weight / total_weight) * 100) if total_weight else 0
+
+    @property
+    def profile_completion_items(self):
+        has_kyc_documents = bool(
+            self.kyc_status in {self.KYC_PENDING, self.KYC_APPROVED}
+            or self.government_id_upload
+            or self.cac_certificate_upload
+        )
+        return [
+            {"key": "identity", "label": "Business identity", "weight": 10, "complete": bool(self.business_name and self.contact_person and self.provider_type), "url": "profile"},
+            {"key": "description", "label": "Business description", "weight": 8, "complete": bool(self.description and self.years_of_experience), "url": "profile"},
+            {"key": "profile_image", "label": "Profile image", "weight": 6, "complete": bool(self.profile_image), "url": "profile"},
+            {"key": "business_logo", "label": "Business logo", "weight": 6, "complete": bool(self.business_logo), "url": "profile"},
+            {"key": "business_banner", "label": "Business banner", "weight": 7, "complete": bool(self.business_banner), "url": "profile"},
+            {"key": "contact", "label": "Contact information", "weight": 10, "complete": bool(self.phone_number and self.email), "url": "profile"},
+            {"key": "location", "label": "Address and location", "weight": 10, "complete": bool(self.address and self.city and self.state and self.country), "url": "profile"},
+            {"key": "coverage", "label": "Service coverage", "weight": 7, "complete": bool(self.service_coverage), "url": "coverage"},
+            {"key": "services", "label": "At least one active service", "weight": 10, "complete": self.pk is not None and self.services.filter(is_active=True).exists(), "url": "services"},
+            {"key": "project", "label": "At least one project", "weight": 8, "complete": self.pk is not None and self.portfolio_items.exists(), "url": "projects"},
+            {"key": "kyc", "label": "KYC documents", "weight": 8, "complete": has_kyc_documents, "url": "kyc"},
+            {"key": "bank", "label": "Payout details", "weight": 5, "complete": bool(self.bank_details), "url": "settings"},
+            {"key": "hours", "label": "Business hours", "weight": 5, "complete": bool(self.business_hours_data or self.business_hours), "url": "availability"},
         ]
-        complete = sum(1 for value in fields if value)
-        return round((complete / len(fields)) * 100)
+
+    @property
+    def profile_missing_steps(self):
+        return [item for item in self.profile_completion_items if not item["complete"]]
+
+    @property
+    def approved_project_count(self):
+        if not self.pk:
+            return 0
+        return self.portfolio_items.filter(
+            approval_status=ServicePortfolio.STATUS_APPROVED,
+            is_active=True,
+        ).count()
+
+    @property
+    def project_views_count(self):
+        if not self.pk:
+            return 0
+        return self.portfolio_items.aggregate(total=models.Sum("views_count"))["total"] or 0
+
+    @property
+    def project_video_views_count(self):
+        if not self.pk:
+            return 0
+        return self.portfolio_items.aggregate(total=models.Sum("video_views_count"))["total"] or 0
+
+    @property
+    def project_leads_count(self):
+        if not self.pk:
+            return 0
+        return self.quote_requests.exclude(source_project__isnull=True).count()
 
     @property
     def sensitive_update_locked(self):

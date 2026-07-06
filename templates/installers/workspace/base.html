@@ -1,0 +1,59 @@
+{% extends "base/base.html" %}
+{% load optimized_images %}
+{% block title %}Provider Operations Hub | Arolana{% endblock %}
+{% block content %}
+<style>
+  .provider-workspace{min-height:72vh;background:#f6f9fc;color:#071a44;padding:24px 16px 56px}
+  .provider-shell{max-width:1440px;margin:auto;display:grid;grid-template-columns:260px minmax(0,1fr);gap:22px}
+  .provider-nav{position:sticky;top:18px;align-self:start;border-radius:26px;background:#071a44;padding:18px;box-shadow:0 20px 50px rgba(7,26,68,.16)}
+  .provider-brand{display:flex;gap:12px;align-items:center;padding:6px 5px 18px;color:white}
+  .provider-brand img{width:48px;height:48px;border-radius:15px;object-fit:cover;background:white}
+  .provider-brand strong{display:block;font-size:15px}.provider-brand small{color:#9cc8ff}
+  .provider-nav a{display:flex;align-items:center;gap:11px;color:#cbd8ec;padding:10px 12px;border-radius:13px;font-weight:800;font-size:13px;margin:2px 0}
+  .provider-nav a:hover,.provider-nav a.active{background:#0066cc;color:white}
+  .provider-nav .nav-orange{margin-top:10px;background:#ff7a00;color:white}
+  .provider-main{min-width:0}.provider-page-head{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:18px}
+  .provider-page-head h1{font-size:clamp(28px,4vw,44px);font-weight:950;line-height:1}.provider-page-head p{color:#64748b;margin-top:7px}
+  .provider-card{border:1px solid #e1eaf5;border-radius:24px;background:white;padding:22px;box-shadow:0 12px 35px rgba(7,26,68,.06)}
+  .provider-grid{display:grid;gap:16px}.provider-stats{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .provider-stat{border:1px solid #e5edf7;border-radius:20px;background:white;padding:18px}.provider-stat small{color:#64748b;font-weight:900;text-transform:uppercase}.provider-stat strong{display:block;font-size:30px;margin-top:7px}
+  .provider-button{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:14px;background:#0066cc;color:white;padding:11px 16px;font-weight:900;cursor:pointer}
+  .provider-button.orange{background:#ff7a00}.provider-button.soft{background:#edf6ff;color:#0066cc}.provider-button.danger{background:#fee2e2;color:#b91c1c}
+  .provider-progress{height:10px;border-radius:999px;background:#e5edf7;overflow:hidden}.provider-progress span{display:block;height:100%;background:linear-gradient(90deg,#0066cc,#22c3ee)}
+  .provider-form p{margin-bottom:16px}.provider-form label{display:block;font-size:12px;font-weight:950;text-transform:uppercase;color:#475569;margin-bottom:7px}
+  .provider-form input,.provider-form select,.provider-form textarea{width:100%;border:1px solid #d7e3f1;border-radius:14px;padding:12px 14px;background:white}
+  .provider-message{padding:12px 15px;border-radius:14px;background:#eff6ff;color:#075cb7;font-weight:800;margin-bottom:12px}
+  @media(max-width:1050px){.provider-shell{grid-template-columns:1fr}.provider-nav{position:static;display:flex;overflow-x:auto;gap:4px}.provider-brand{min-width:220px;padding-bottom:6px}.provider-nav a{white-space:nowrap}.provider-stats{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:600px){.provider-workspace{padding:14px 10px 44px}.provider-page-head{align-items:start;flex-direction:column}.provider-stats{grid-template-columns:1fr 1fr}.provider-card{padding:16px}}
+</style>
+<main class="provider-workspace">
+  <div class="provider-shell">
+    <nav class="provider-nav" aria-label="Provider workspace">
+      <div class="provider-brand">
+        {% if provider.business_logo %}
+          <img src="{{ provider.business_logo|optimized_image_url:'provider_logo' }}" alt="{{ provider.business_name }}">
+        {% elif provider.profile_image %}
+          <img src="{{ provider.profile_image|optimized_image_url:'provider_profile' }}" alt="{{ provider.business_name }}">
+        {% endif %}
+        <span><strong>{{ provider.business_name }}</strong><small>Arolana Operations Hub</small></span>
+      </div>
+      <a href="{% url 'provider_workspace:dashboard' %}" class="{% if workspace_active == 'dashboard' %}active{% endif %}"><i class="fas fa-grid-2"></i> Dashboard</a>
+      <a href="{% url 'provider_workspace:profile' %}" class="{% if workspace_active == 'profile' %}active{% endif %}"><i class="fas fa-id-card"></i> Profile</a>
+      <a href="{% url 'provider_workspace:services' %}" class="{% if workspace_active == 'services' %}active{% endif %}"><i class="fas fa-screwdriver-wrench"></i> Services</a>
+      <a href="{% url 'provider_workspace:projects' %}"><i class="fas fa-briefcase"></i> Projects & Media</a>
+      <a href="{% url 'provider_workspace:project_leads' %}"><i class="fas fa-user-magnifying-glass"></i> Project Leads</a>
+      <a href="{% url 'provider_workspace:quote_requests' %}"><i class="fas fa-clipboard-list"></i> Jobs & Quotes</a>
+      <a href="{% url 'provider_workspace:coverage' %}" class="{% if workspace_active == 'availability' %}active{% endif %}"><i class="fas fa-location-dot"></i> Coverage & Availability</a>
+      <a href="{% url 'provider_workspace:kyc' %}" class="{% if workspace_active == 'kyc' %}active{% endif %}"><i class="fas fa-shield-check"></i> KYC</a>
+      <a href="{% url 'provider_workspace:analytics' %}" class="{% if workspace_active == 'analytics' %}active{% endif %}"><i class="fas fa-chart-line"></i> Analytics</a>
+      <a href="{% url 'provider_workspace:notifications' %}" class="{% if workspace_active == 'notifications' %}active{% endif %}"><i class="fas fa-bell"></i> Notifications</a>
+      <a href="{% url 'provider_workspace:settings' %}" class="{% if workspace_active == 'settings' %}active{% endif %}"><i class="fas fa-gear"></i> Settings</a>
+      <a href="{{ provider.get_absolute_url }}" class="nav-orange"><i class="fas fa-eye"></i> View public profile</a>
+    </nav>
+    <section class="provider-main">
+      {% for message in messages %}<div class="provider-message">{{ message }}</div>{% endfor %}
+      {% block workspace_content %}{% endblock %}
+    </section>
+  </div>
+</main>
+{% endblock %}

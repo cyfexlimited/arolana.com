@@ -130,6 +130,9 @@ PRESETS = {
     "project_hero": {"max_size": (2200, 1400), "quality": 92},
     "project_gallery": {"max_size": (1800, 1400), "quality": 92},
     "provider_portfolio": {"max_size": (1400, 1000), "quality": 90},
+    "provider_profile": {"max_size": (900, 900), "quality": 90},
+    "provider_logo": {"max_size": (900, 900), "quality": 90},
+    "provider_banner": {"max_size": (2400, 1200), "quality": 92},
 }
 
 _LOCAL_URL_CACHE = {}

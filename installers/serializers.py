@@ -66,7 +66,10 @@ class ProviderServiceSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProviderService
-        fields = ["id", "category", "service_name", "description", "starting_price"]
+        fields = [
+            "id", "category", "service_name", "description", "starting_price",
+            "is_active", "created_at", "updated_at",
+        ]
 
     def get_service_name(self, obj):
         return translated_field(obj, "service_name", request=self.context.get("request"))
@@ -113,12 +116,24 @@ class ServicePortfolioSerializer(serializers.ModelSerializer):
 
     def get_image(self, obj):
         media = obj.featured_media
-        source = obj.image or getattr(media, "image", None) or getattr(media, "thumbnail", None)
+        source = (
+            obj.image
+            or getattr(media, "image", None)
+            or obj.video_thumbnail
+            or getattr(media, "thumbnail", None)
+            or obj.provider.business_banner
+        )
         return absolute_optimized_url(self.context.get("request"), source, "project_card")
 
     def get_hero_image_url(self, obj):
         media = obj.featured_media
-        source = obj.image or getattr(media, "image", None) or getattr(media, "thumbnail", None)
+        source = (
+            obj.image
+            or getattr(media, "image", None)
+            or obj.video_thumbnail
+            or getattr(media, "thumbnail", None)
+            or obj.provider.business_banner
+        )
         return absolute_optimized_url(self.context.get("request"), source, "project_hero")
 
     def get_video_url(self, obj):
@@ -313,7 +328,7 @@ class ServiceProjectMediaWriteSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
-        if not any(attrs.get(field) for field in ("image", "video", "external_video_url")):
+        if not self.instance and not any(attrs.get(field) for field in ("image", "video", "external_video_url")):
             raise serializers.ValidationError("Upload an image/video or add a supported video URL.")
         return attrs
 
@@ -350,14 +365,16 @@ class ServiceProviderListSerializer(serializers.ModelSerializer):
     sensitive_update_locked = serializers.BooleanField(read_only=True)
     sensitive_update_available_at = serializers.DateTimeField(read_only=True)
     description = serializers.SerializerMethodField()
+    approved_project_count = serializers.IntegerField(read_only=True)
+    rating_label = serializers.SerializerMethodField()
 
     class Meta:
         model = ServiceProviderProfile
         fields = [
             "id", "business_name", "slug", "provider_type", "provider_type_label",
             "profile_image", "business_logo", "business_banner", "location", "service_coverage", "description",
-            "years_of_experience", "average_rating", "total_reviews",
-            "total_completed_jobs", "verified", "phone_number", "whatsapp_number",
+            "years_of_experience", "average_rating", "total_reviews", "rating_label",
+            "total_completed_jobs", "approved_project_count", "verified", "phone_number", "whatsapp_number",
             "whatsapp_url", "services", "verification_status", "kyc_status",
             "subscription_plan", "subscription_status", "profile_completion_percent",
             "availability_status", "is_active", "approval_allows_dashboard",
@@ -366,20 +383,23 @@ class ServiceProviderListSerializer(serializers.ModelSerializer):
         ]
 
     def get_profile_image(self, obj):
-        return absolute_optimized_url(self.context.get("request"), obj.profile_image, "avatar")
+        return absolute_optimized_url(self.context.get("request"), obj.profile_image, "provider_profile")
 
     def get_description(self, obj):
         return translated_field(obj, "description", request=self.context.get("request"))
 
     def get_business_logo(self, obj):
-        return absolute_optimized_url(self.context.get("request"), obj.business_logo, "avatar")
+        return absolute_optimized_url(self.context.get("request"), obj.business_logo, "provider_logo")
 
     def get_business_banner(self, obj):
-        return absolute_optimized_url(self.context.get("request"), obj.business_banner, "hero")
+        return absolute_optimized_url(self.context.get("request"), obj.business_banner, "provider_banner")
+
+    def get_rating_label(self, obj):
+        return f"{obj.average_rating} ({obj.total_reviews} reviews)" if obj.total_reviews else "No reviews yet"
 
 
 class ServiceProviderDetailSerializer(ServiceProviderListSerializer):
-    portfolio = ServicePortfolioSerializer(source="portfolio_items", many=True, read_only=True)
+    portfolio = serializers.SerializerMethodField()
     reviews = serializers.SerializerMethodField()
 
     class Meta(ServiceProviderListSerializer.Meta):
@@ -390,12 +410,21 @@ class ServiceProviderDetailSerializer(ServiceProviderListSerializer):
             "rejected_at", "changes_requested_at", "kyc_note", "kyc_expires_at",
             "subscription_expires_at",
             "preferred_language", "notification_preferences", "business_hours",
+            "business_hours_data",
             "availability_note", "support_phone", "support_email", "support_whatsapp",
+            "profile_missing_steps",
         ]
 
     def get_reviews(self, obj):
         queryset = obj.reviews.filter(is_approved=True).select_related("customer")
         return ServiceReviewSerializer(queryset, many=True, context=self.context).data
+
+    def get_portfolio(self, obj):
+        queryset = obj.portfolio_items.filter(
+            approval_status=ServicePortfolio.STATUS_APPROVED,
+            is_active=True,
+        ).optimized()
+        return ServicePortfolioSerializer(queryset, many=True, context=self.context).data
 
 
 class ProviderRegistrationSerializer(serializers.ModelSerializer):
@@ -406,6 +435,8 @@ class ProviderRegistrationSerializer(serializers.ModelSerializer):
             "whatsapp_number", "email", "website", "country", "state", "city",
             "address", "service_coverage", "description", "years_of_experience", "cac_number",
             "preferred_language", "support_phone", "support_email", "support_whatsapp",
+            "business_hours", "business_hours_data", "availability_status",
+            "availability_note", "notification_preferences",
         ]
 
 

@@ -1,13 +1,21 @@
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
-from .models import ServiceProviderProfile, ServiceReview
+from .models import (
+    ProviderProfileChangeRequest,
+    ProviderService,
+    ServiceCategory,
+    ServicePortfolio,
+    ServiceProviderProfile,
+    ServiceReview,
+)
 
 
 User = get_user_model()
 
 
+@override_settings(SECURE_SSL_REDIRECT=False)
 class InstallerMarketplaceTests(TestCase):
     def setUp(self):
         self.approved_user = User.objects.create_user(
@@ -85,3 +93,112 @@ class InstallerMarketplaceTests(TestCase):
         self.approved.refresh_from_db()
         self.assertEqual(self.approved.total_reviews, 1)
         self.assertEqual(float(self.approved.average_rating), 5.0)
+
+
+@override_settings(SECURE_SSL_REDIRECT=False)
+class ProviderWorkspaceTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="workspace-provider",
+            email="workspace@example.com",
+            password="pass12345",
+        )
+        self.provider = ServiceProviderProfile.objects.create(
+            user=self.user,
+            business_name="Workspace Engineering",
+            contact_person="Workspace Lead",
+            provider_type="av_engineer",
+            phone_number="+2348000000011",
+            email="workspace@example.com",
+            country="Nigeria",
+            state="Lagos",
+            city="Ikeja",
+            address="11 Workspace Road",
+            service_coverage="Lagos and Ogun",
+            description="Professional audio visual engineering and installation.",
+            years_of_experience=7,
+            verification_status=ServiceProviderProfile.STATUS_APPROVED,
+            subscription_status="active",
+        )
+        self.category = ServiceCategory.objects.create(name="AV Installation")
+        self.client.force_login(self.user)
+
+    def test_provider_workspace_pages_use_same_provider_profile(self):
+        for name in (
+            "provider_workspace:dashboard",
+            "provider_workspace:profile",
+            "provider_workspace:services",
+            "provider_workspace:coverage",
+            "provider_workspace:kyc",
+            "provider_workspace:analytics",
+            "provider_workspace:notifications",
+            "provider_workspace:settings",
+        ):
+            response = self.client.get(reverse(name))
+            self.assertEqual(response.status_code, 200, name)
+            self.assertContains(response, self.provider.business_name)
+
+    def test_completion_tracks_services_projects_kyc_and_hours(self):
+        initial = self.provider.profile_completion_percent
+        ProviderService.objects.create(
+            provider=self.provider,
+            category=self.category,
+            service_name="Meeting room installation",
+        )
+        ServicePortfolio.objects.create(
+            provider=self.provider,
+            title="Completed Boardroom Installation",
+        )
+        self.provider.business_hours_data = {
+            "monday": {"enabled": True, "open": "09:00", "close": "17:00"}
+        }
+        self.provider.kyc_status = ServiceProviderProfile.KYC_PENDING
+        self.provider.save(update_fields=["business_hours_data", "kyc_status", "updated_at"])
+        self.assertGreater(self.provider.profile_completion_percent, initial)
+        missing_keys = {item["key"] for item in self.provider.profile_missing_steps}
+        self.assertNotIn("services", missing_keys)
+        self.assertNotIn("project", missing_keys)
+        self.assertNotIn("kyc", missing_keys)
+        self.assertNotIn("hours", missing_keys)
+
+    def test_service_delete_deactivates_and_preserves_record(self):
+        service = ProviderService.objects.create(
+            provider=self.provider,
+            category=self.category,
+            service_name="Projector setup",
+        )
+        response = self.client.delete(
+            reverse("provider_api:provider_service_detail", args=[service.id])
+        )
+        self.assertEqual(response.status_code, 200)
+        service.refresh_from_db()
+        self.assertFalse(service.is_active)
+
+    def test_approved_sensitive_profile_update_creates_change_request(self):
+        response = self.client.patch(
+            reverse("provider_api:provider_profile"),
+            {"business_name": "Updated Workspace Engineering"},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.provider.refresh_from_db()
+        self.assertEqual(self.provider.business_name, "Workspace Engineering")
+        self.assertTrue(
+            ProviderProfileChangeRequest.objects.filter(
+                provider=self.provider,
+                status=ProviderProfileChangeRequest.STATUS_PENDING,
+            ).exists()
+        )
+
+    def test_dashboard_api_exposes_workspace_stats_and_entitlements(self):
+        ProviderService.objects.create(
+            provider=self.provider,
+            category=self.category,
+            service_name="Display installation",
+        )
+        response = self.client.get(reverse("provider_api:provider_dashboard"))
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["cards"]["active_services"], 1)
+        self.assertIn("missing_steps", payload["profile_completion"])
+        self.assertIn("max_project_media", payload["entitlements"])

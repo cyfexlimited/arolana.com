@@ -1,0 +1,12 @@
+{% extends "installers/workspace/base.html" %}
+{% block workspace_content %}
+<header class="provider-page-head"><div><h1>Services</h1><p>Define exactly what customers can hire you to install, repair, maintain, or consult on.</p></div></header>
+<div class="provider-grid" style="grid-template-columns:minmax(0,1.25fr) minmax(300px,.75fr)">
+  <section class="provider-grid">
+    {% for service in services %}
+      <article class="provider-card"><div style="display:flex;justify-content:space-between;gap:14px"><div><small style="color:#ff7a00;font-weight:950">{{ service.category.name }}</small><h2 style="font-size:20px;font-weight:950">{{ service.service_name }}</h2><p style="color:#64748b;margin-top:7px">{{ service.description|default:"No description yet." }}</p>{% if service.starting_price %}<strong style="display:block;margin-top:10px;color:#0066cc">From ₦{{ service.starting_price }}</strong>{% endif %}</div><span style="font-weight:900;color:{% if service.is_active %}#15803d{% else %}#94a3b8{% endif %}">{% if service.is_active %}Active{% else %}Inactive{% endif %}</span></div><div style="display:flex;gap:8px;margin-top:14px"><a class="provider-button soft" href="{% url 'provider_workspace:service_edit' service.id %}">Edit</a><form method="post" action="{% url 'provider_workspace:service_edit' service.id %}">{% csrf_token %}<input type="hidden" name="action" value="delete"><button class="provider-button danger">Deactivate</button></form></div></article>
+    {% empty %}<div class="provider-card"><p>No services yet. Add your first professional offering.</p></div>{% endfor %}
+  </section>
+  <aside class="provider-card" style="align-self:start;position:sticky;top:18px"><h2 style="font-size:22px;font-weight:950">{% if editing_service %}Edit service{% else %}Add a service{% endif %}</h2><form method="post" class="provider-form" style="margin-top:14px">{% csrf_token %}{{ form.as_p }}<button class="provider-button orange">Save service</button></form></aside>
+</div>
+{% endblock %}

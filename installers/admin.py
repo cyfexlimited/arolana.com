@@ -168,7 +168,7 @@ class ServiceProviderProfileAdmin(admin.ModelAdmin):
         ("Approval Timeline", {"fields": ("verification_status", "verification_note", "admin_note", "rejection_reason", "changes_requested_note", "submitted_at", "review_started_at", "approved_at", "rejected_at", "changes_requested_at", "review_due_at", "reviewed_by", "is_verified", "is_active")}),
         ("KYC", {"fields": ("kyc_status", "kyc_note", "kyc_reviewed_at", "kyc_expires_at", "cac_number", "government_id_upload", "cac_certificate_upload", "allow_limited_jobs_without_kyc")}),
         ("Subscription & Access", {"fields": ("subscription_plan", "subscription_status", "subscription_expires_at", "availability_status")}),
-        ("Settings & Support", {"fields": ("preferred_language", "notification_preferences", "support_phone", "support_email", "support_whatsapp", "business_hours", "availability_note", "bank_details")}),
+        ("Settings & Support", {"fields": ("preferred_language", "notification_preferences", "support_phone", "support_email", "support_whatsapp", "business_hours", "business_hours_data", "availability_note", "bank_details")}),
         ("Sensitive Update Control", {"fields": ("last_sensitive_update_approved_at", "sensitive_update_cooldown_unlocked_until", "sensitive_update_available_at")}),
         ("Performance", {"fields": ("average_rating", "total_reviews", "total_completed_jobs")}),
         ("Timestamps", {"fields": ("created_at", "updated_at")}),
@@ -179,7 +179,7 @@ class ServiceProviderProfileAdmin(admin.ModelAdmin):
         image = getattr(obj, "profile_image", None) or getattr(obj, "business_logo", None)
         if not obj or not image:
             return "No image"
-        url = get_optimized_image_url(image, "avatar")
+        url = get_optimized_image_url(image, "provider_profile")
         return format_html('<img src="{}" style="width:56px;height:56px;object-fit:cover;border-radius:14px">', url)
 
     @admin.display(description="Location")
