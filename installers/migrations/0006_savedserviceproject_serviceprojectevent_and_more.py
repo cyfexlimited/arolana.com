@@ -305,7 +305,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='serviceportfolio',
             name='slug',
-            field=models.SlugField(blank=True, max_length=240),
+            field=models.CharField(blank=True, max_length=240),
         ),
         migrations.AddField(
             model_name='serviceportfolio',
