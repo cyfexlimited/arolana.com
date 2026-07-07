@@ -41,6 +41,30 @@ def projects_homepage_section(context):
     }
 
 
+@register.inclusion_tag("installers/partials/homepage_professional_services_projects.html", takes_context=True)
+def professional_services_projects_homepage_section(context):
+    try:
+        section = ServiceMarketplaceHomepageSection.objects.filter(is_active=True).first()
+        if section and section.projects_enabled:
+            projects = (
+                ServicePortfolio.objects.public()
+                .optimized()
+                .select_related("provider", "service_category")
+                .order_by("-is_featured", "-published_at")[: max(1, min(section.projects_limit, 16))]
+            )
+        else:
+            projects = ServicePortfolio.objects.none()
+    except (OperationalError, DatabaseError):
+        section = None
+        projects = ServicePortfolio.objects.none()
+
+    return {
+        "section": section,
+        "projects": projects,
+        "request": context.get("request"),
+    }
+
+
 @register.simple_tag
 def project_card_image_url(project):
     """
