@@ -870,7 +870,7 @@ def add_to_cart(request, slug):
                 return JsonResponse({'success': False, 'message': message}, status=400)
             messages.error(request, message)
             return redirect('products:detail', slug=product.slug)
-    else:
+    elif not vendor_offer:
         # Check product stock
         available = product.get_available_stock()
         if available < quantity:
@@ -1544,6 +1544,22 @@ def product_detail(request, slug):
     # ====== Variants ======
     all_variants = list(getattr(product, 'active_variants', []))
 
+    # ====== Approved Vendor Offers ======
+    # Product-family/vendor-offer data is only customer-visible once approved.
+    # This keeps pending or suspended marketplace offers out of the public page.
+    approved_vendor_offers = list(
+        product.vendor_offers.filter(
+            is_active=True,
+            approval_status=VendorProductOffer.STATUS_APPROVED,
+        )
+        .select_related('vendor', 'variant')
+        .order_by('-is_preferred', '-is_featured', 'price', '-created_at')
+    )
+    default_vendor_offer = next(
+        (offer for offer in approved_vendor_offers if offer.is_available),
+        approved_vendor_offers[0] if approved_vendor_offers else None,
+    )
+
     variants_by_type = {}
     variant_options = {}
 
@@ -1794,6 +1810,9 @@ def product_detail(request, slug):
         'variants_by_type': variants_by_type,
         'variant_options': variant_options,
         'variant_groups': variant_groups,
+        'approved_vendor_offers': approved_vendor_offers,
+        'default_vendor_offer': default_vendor_offer,
+        'has_vendor_offers': bool(approved_vendor_offers),
 
         # JSON for frontend gallery + variant switching
         'variant_data_json': json.dumps(variant_data),
