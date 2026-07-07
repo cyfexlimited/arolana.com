@@ -208,19 +208,19 @@
                     <div class="grid gap-4 lg:grid-cols-3">
                         <label class="rider-upload grid gap-3">
                             <span class="text-sm font-black text-gray-800">ID document <span class="text-red-500">*</span></span>
-                            <input type="file" name="id_document" accept="image/*,.pdf" {% if not rider.id_document %}required{% endif %}>
+                            <input type="file" name="id_document" accept="image/jpeg,image/png,image/webp,image/avif,.pdf" {% if not rider.id_document %}required{% endif %}>
                             {% if rider.id_document %}<span class="text-xs font-black text-green-700">Already uploaded</span>{% else %}<span class="text-xs text-gray-500">National ID, passport, or voter card.</span>{% endif %}
                         </label>
 
                         <label class="rider-upload grid gap-3">
                             <span class="text-sm font-black text-gray-800">Driver license <span class="text-red-500">*</span></span>
-                            <input type="file" name="driver_license" accept="image/*,.pdf" {% if not rider.driver_license %}required{% endif %}>
+                            <input type="file" name="driver_license" accept="image/jpeg,image/png,image/webp,image/avif,.pdf" {% if not rider.driver_license %}required{% endif %}>
                             {% if rider.driver_license %}<span class="text-xs font-black text-green-700">Already uploaded</span>{% else %}<span class="text-xs text-gray-500">Upload a clear license image or PDF.</span>{% endif %}
                         </label>
 
                         <label class="rider-upload grid gap-3">
                             <span class="text-sm font-black text-gray-800">Vehicle document <span class="text-red-500">*</span></span>
-                            <input type="file" name="vehicle_document" accept="image/*,.pdf" {% if not rider.vehicle_document %}required{% endif %}>
+                            <input type="file" name="vehicle_document" accept="image/jpeg,image/png,image/webp,image/avif,.pdf" {% if not rider.vehicle_document %}required{% endif %}>
                             {% if rider.vehicle_document %}<span class="text-xs font-black text-green-700">Already uploaded</span>{% else %}<span class="text-xs text-gray-500">Bike, car, van, or dispatch document.</span>{% endif %}
                         </label>
                     </div>
@@ -228,12 +228,12 @@
                     <div class="grid gap-4 md:grid-cols-2">
                         <label class="rider-upload grid gap-3">
                             <span class="text-sm font-black text-gray-800">Profile picture</span>
-                            <input type="file" name="profile_photo" accept="image/*">
+                            <input type="file" name="profile_photo" accept="image/jpeg,image/png,image/webp,image/avif">
                             <span class="text-xs text-gray-500">Clear face photo for rider identity and admin review.</span>
                         </label>
                         <label class="rider-upload grid gap-3">
                             <span class="text-sm font-black text-gray-800">Dashboard picture</span>
-                            <input type="file" name="dashboard_image" accept="image/*">
+                            <input type="file" name="dashboard_image" accept="image/jpeg,image/png,image/webp,image/avif">
                             <span class="text-xs text-gray-500">Optional banner image shown on rider dashboard.</span>
                         </label>
                     </div>

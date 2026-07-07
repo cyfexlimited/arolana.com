@@ -16,13 +16,19 @@ from django.utils.deconstruct import deconstructible
 from core.models import ProtectedImageAsset
 
 try:
-    from PIL import Image, ImageOps
+    from PIL import Image, ImageOps, UnidentifiedImageError, features
 except Exception:
     Image = None
     ImageOps = None
+    UnidentifiedImageError = Exception
+    features = None
 
 
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff", ".avif")
+SUPPORTED_IMAGE_FORMAT_MESSAGE = (
+    "This image format could not be processed. Please upload JPG, PNG, WebP, "
+    "or a supported AVIF image."
+)
 EXACT_CROSS_VENDOR_MESSAGE = (
     "This image is already used by another vendor on Arolana. Upload a different "
     "image or contact Arolana support if you have permission to use it."
@@ -109,22 +115,54 @@ def _sha256_bytes(data):
     return hashlib.sha256(data).hexdigest()
 
 
+def pillow_supports_avif():
+    if features is None:
+        return False
+    for checker, value in (
+        ("check_module", "avif"),
+        ("check", "avif"),
+    ):
+        try:
+            if bool(getattr(features, checker)(value)):
+                return True
+        except Exception:
+            continue
+    return False
+
+
 def _webp_bytes_and_metadata(data):
     if Image is None or ImageOps is None:
         raise ValidationError("Image protection requires Pillow to process uploads.")
 
-    with Image.open(BytesIO(data)) as img:
-        if getattr(img, "is_animated", False) or getattr(img, "n_frames", 1) > 1:
-            raise ValidationError("Animated images are not supported for protected product uploads.")
+    try:
+        probe_stream = BytesIO(data)
+        with Image.open(probe_stream) as probe:
+            image_format = (probe.format or "").upper()
+            if image_format == "AVIF" and not pillow_supports_avif():
+                raise ValidationError(
+                    "AVIF images are not supported by this Arolana image processor yet. "
+                    "Please upload JPG, PNG, or WebP."
+                )
+            probe.verify()
 
-        img = ImageOps.exif_transpose(img)
-        width, height = img.size
-        perceptual_hash = average_hash(img)
-        has_alpha = img.mode in ("RGBA", "LA") or "transparency" in img.info
-        img = img.convert("RGBA" if has_alpha else "RGB")
+        with Image.open(BytesIO(data)) as img:
+            img.load()
+            if getattr(img, "is_animated", False) or getattr(img, "n_frames", 1) > 1:
+                raise ValidationError("Animated images are not supported for protected product uploads.")
 
-        output = BytesIO()
-        img.save(output, format="WEBP", quality=88, method=6, optimize=True)
+            img = ImageOps.exif_transpose(img)
+            width, height = img.size
+            perceptual_hash = average_hash(img)
+            has_alpha = img.mode in ("RGBA", "LA") or "transparency" in img.info
+            if img.mode not in ("RGB", "RGBA"):
+                img = img.convert("RGBA" if has_alpha else "RGB")
+
+            output = BytesIO()
+            img.save(output, format="WEBP", quality=88, method=6, optimize=True)
+    except ValidationError:
+        raise
+    except (UnidentifiedImageError, OSError, ValueError) as exc:
+        raise ValidationError(SUPPORTED_IMAGE_FORMAT_MESSAGE) from exc
 
     return output.getvalue(), width, height, perceptual_hash
 

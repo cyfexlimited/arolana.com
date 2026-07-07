@@ -20,7 +20,7 @@
             
             <form method="POST" action="{% url 'admin:avatar_upload' original.id %}" enctype="multipart/form-data" style="margin-top: 15px;">
                 {% csrf_token %}
-                <input type="file" name="avatar" accept="image/*" required>
+                <input type="file" name="avatar" accept="image/jpeg,image/png,image/webp,image/avif" required>
                 <button type="submit" class="button" style="margin-top: 10px;">Upload Avatar</button>
             </form>
         </div>

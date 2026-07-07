@@ -2,6 +2,36 @@ from django.core.exceptions import ValidationError
 from django.core.files.images import get_image_dimensions
 import os
 
+try:
+    from PIL import Image, UnidentifiedImageError, features
+except Exception:
+    Image = None
+    UnidentifiedImageError = Exception
+    features = None
+
+
+IMAGE_VALIDATION_MESSAGE = (
+    "This image format could not be processed. Please upload JPG, PNG, WebP, "
+    "or a supported AVIF image."
+)
+VALID_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".avif", ".bmp"]
+
+
+def _pillow_supports_avif():
+    if features is None:
+        return False
+    for checker, value in (
+        ("check_module", "avif"),
+        ("check", "avif"),
+    ):
+        try:
+            if bool(getattr(features, checker)(value)):
+                return True
+        except Exception:
+            continue
+    return False
+
+
 def validate_file_size(value, max_size_mb=5):
     """Validate file size"""
     filesize = value.size
@@ -12,9 +42,8 @@ def validate_file_size(value, max_size_mb=5):
 def validate_image_extension(value):
     """Validate image file extension"""
     ext = os.path.splitext(value.name)[1].lower()
-    valid_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp']
-    if ext not in valid_extensions:
-        raise ValidationError(f'Unsupported file extension. Allowed: {", ".join(valid_extensions)}')
+    if ext not in VALID_IMAGE_EXTENSIONS:
+        raise ValidationError(f'Unsupported file extension. Allowed: {", ".join(VALID_IMAGE_EXTENSIONS)}')
 
 def validate_image_dimensions(value, max_width=2000, max_height=2000, min_width=100, min_height=100):
     """Validate image dimensions using PIL"""
@@ -40,29 +69,29 @@ def validate_image_dimensions(value, max_width=2000, max_height=2000, min_width=
         raise ValidationError(f'Invalid image file: {str(e)}')
 
 def validate_image_content_simple(value):
-    """Simple content validation by checking file signature (magic bytes)"""
-    # Read first few bytes to check file signature
-    value.seek(0)
-    header = value.read(12)
-    value.seek(0)
-    
-    # Common image file signatures (magic bytes)
-    magic_bytes = {
-        b'\xff\xd8\xff': 'JPEG',
-        b'\x89PNG\r\n\x1a\n': 'PNG',
-        b'GIF87a': 'GIF',
-        b'GIF89a': 'GIF',
-        b'RIFF': 'WEBP',
-    }
-    
-    is_valid = False
-    for magic, fmt in magic_bytes.items():
-        if header.startswith(magic):
-            is_valid = True
-            break
-    
-    if not is_valid:
-        raise ValidationError('Invalid image file. Please upload a valid image (JPEG, PNG, GIF, or WEBP).')
+    """Validate actual image bytes with Pillow instead of trusting the filename."""
+    if Image is None:
+        raise ValidationError("Image validation requires Pillow.")
+
+    try:
+        value.seek(0)
+        with Image.open(value) as image:
+            image_format = (image.format or "").upper()
+            if image_format == "AVIF" and not _pillow_supports_avif():
+                raise ValidationError(
+                    "AVIF images are not supported by this Arolana image processor yet. "
+                    "Please upload JPG, PNG, or WebP."
+                )
+            image.verify()
+    except ValidationError:
+        raise
+    except (UnidentifiedImageError, OSError, ValueError) as exc:
+        raise ValidationError(IMAGE_VALIDATION_MESSAGE) from exc
+    finally:
+        try:
+            value.seek(0)
+        except Exception:
+            pass
 
 # Combined validator for images
 def validate_image(value):

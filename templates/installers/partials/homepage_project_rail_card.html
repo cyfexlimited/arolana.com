@@ -1,0 +1,29 @@
+{% load installers_tags %}
+<article class="arolana-project-rail-card">
+  <a href="{{ project.get_absolute_url }}" class="arolana-project-rail-card__media" aria-label="View {{ project.title }}">
+    {% project_card_image_url project as project_image_url %}
+    {% if project_image_url %}
+      <img src="{{ project_image_url }}" alt="{{ project.title }}" loading="lazy" decoding="async">
+    {% else %}
+      <span class="arolana-project-rail-card__fallback" aria-hidden="true"><i class="fas fa-screwdriver-wrench"></i></span>
+    {% endif %}
+    {% if project.has_video %}
+      <span class="arolana-project-rail-card__video"><i class="fas fa-play"></i> Video</span>
+    {% endif %}
+  </a>
+  <div class="arolana-project-rail-card__body">
+    <p class="arolana-project-rail-card__category">{{ project.service_category.name|default:project.get_project_type_display }}</p>
+    <a href="{{ project.get_absolute_url }}" class="arolana-project-rail-card__title">{{ project.title }}</a>
+    <div class="arolana-project-rail-card__meta">
+      {% if project.location_display %}
+        <span><i class="fas fa-location-dot"></i> {{ project.location_display }}</span>
+      {% endif %}
+      <a href="{{ project.provider.get_absolute_url }}">
+        {% if project.provider.is_verified %}<i class="fas fa-shield-check"></i>{% endif %}
+        {{ project.provider.business_name }}
+      </a>
+      <span><i class="fas fa-eye"></i> {{ project.views_count }} views</span>
+    </div>
+    <a href="{% url 'installers:request_quote' %}?project={{ project.id }}" class="arolana-project-rail-card__cta">Request Similar</a>
+  </div>
+</article>

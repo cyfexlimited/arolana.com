@@ -1,9 +1,8 @@
 {% load optimized_images %}
-{% load installers_tags %}
 {% if section %}
 <section class="homepage-section arolana-services-projects" aria-labelledby="professional-services-projects-title" style="--service-accent: {{ section.accent_color }}; --service-bg: {{ section.background_color }};">
   <div class="arolana-services-projects__shell">
-    <div class="arolana-services-projects__intro">
+    <div class="arolana-services-projects__header">
       {% if section.background_image %}
         <img
           src="{{ section.background_image|optimized_image_url:'category_banner' }}"
@@ -13,57 +12,46 @@
           decoding="async"
         >
       {% endif %}
-      <div class="arolana-services-projects__wash"></div>
       <div class="arolana-services-projects__copy">
         <p class="arolana-services-projects__eyebrow">Verified Professional Services</p>
         <h2 id="professional-services-projects-title">Professional Services &amp; Real Projects</h2>
         <p>Find verified professionals, explore real completed work, and request a similar project with confidence.</p>
-        <div class="arolana-services-projects__actions" aria-label="Professional services actions">
-          <a href="{% url 'installers:directory' %}" class="arolana-services-projects__button arolana-services-projects__button--primary">Find Professionals</a>
-          <a href="{% url 'projects:directory' %}" class="arolana-services-projects__button arolana-services-projects__button--secondary">Explore Completed Projects</a>
-          <a href="{% url 'installers:register' %}" class="arolana-services-projects__provider-link">Join as a Service Provider</a>
-        </div>
       </div>
-      <div class="arolana-services-projects__visual" aria-hidden="true">
-        <div>
-          <span>Verified pros</span>
-          <strong>Install • Repair • Setup</strong>
-        </div>
-        <div>
-          <span>Real proof</span>
-          <strong>Completed work</strong>
-        </div>
+      <div class="arolana-services-projects__actions" aria-label="Professional services actions">
+        <a href="{% url 'installers:directory' %}" class="arolana-services-projects__button arolana-services-projects__button--primary">Find Professionals</a>
+        <a href="{% url 'projects:directory' %}" class="arolana-services-projects__button arolana-services-projects__button--secondary">Explore Completed Projects</a>
+        <a href="{% url 'installers:register' %}" class="arolana-services-projects__provider-link">Join as a Service Provider</a>
       </div>
     </div>
 
     <div class="arolana-services-projects__projects" aria-label="Featured approved projects">
       {% if projects %}
-        {% for project in projects %}
-          {% include "installers/partials/project_card.html" with project=project %}
-        {% endfor %}
-        {% if projects|length < 3 %}
-          <a href="{% url 'projects:directory' %}" class="arolana-services-projects__discovery-card">
-            <span>More real projects are coming</span>
-            <strong>Explore completed work</strong>
-            <em>View project network →</em>
-          </a>
-          <a href="{% url 'installers:directory' %}" class="arolana-services-projects__discovery-card arolana-services-projects__discovery-card--light">
-            <span>Need a professional?</span>
-            <strong>Find verified providers</strong>
-            <em>Browse experts →</em>
-          </a>
-        {% endif %}
+        <button class="arolana-services-projects__rail-arrow arolana-services-projects__rail-arrow--prev" type="button" aria-label="Previous projects" data-project-rail-prev>
+          <i class="fas fa-chevron-left"></i>
+        </button>
+        <div class="arolana-services-projects__rail" data-project-rail tabindex="0">
+          {% for project in projects %}
+            <div class="arolana-services-projects__slide">
+              {% include "installers/partials/homepage_project_rail_card.html" with project=project %}
+            </div>
+          {% endfor %}
+          {% if projects|length == 1 %}
+            <a href="{% url 'projects:directory' %}" class="arolana-services-projects__slide arolana-services-projects__discovery-card">
+              <span>More real projects are coming</span>
+              <strong>Explore completed work from verified Arolana professionals.</strong>
+              <em>View project network →</em>
+            </a>
+          {% endif %}
+        </div>
+        <button class="arolana-services-projects__rail-arrow arolana-services-projects__rail-arrow--next" type="button" aria-label="Next projects" data-project-rail-next>
+          <i class="fas fa-chevron-right"></i>
+        </button>
       {% else %}
-        <a href="{% url 'projects:directory' %}" class="arolana-services-projects__discovery-card">
-          <span>Real project proof</span>
-          <strong>Completed projects will appear here as providers publish approved work.</strong>
-          <em>Explore completed projects →</em>
-        </a>
-        <a href="{% url 'installers:directory' %}" class="arolana-services-projects__discovery-card arolana-services-projects__discovery-card--light">
-          <span>Verified marketplace</span>
-          <strong>Find professionals for installation, repair, setup, and maintenance.</strong>
-          <em>Find professionals →</em>
-        </a>
+        <div class="arolana-services-projects__empty">
+          <strong>Real project proof is coming here.</strong>
+          <span>Until then, find verified professionals or request a quote for installation, repair, setup, and maintenance.</span>
+          <a href="{% url 'installers:directory' %}">Find verified professionals</a>
+        </div>
       {% endif %}
     </div>
 
@@ -79,63 +67,54 @@
 <style>
   .arolana-services-projects {
     max-width: 1500px;
-    margin: 2rem auto;
+    margin: 1.8rem auto;
     padding: 0 1rem;
   }
 
   .arolana-services-projects__shell {
     overflow: hidden;
-    border: 1px solid rgba(0, 102, 204, 0.13);
-    border-radius: 32px;
-    background: linear-gradient(145deg, rgba(255,255,255,.96), rgba(238,246,255,.9));
-    box-shadow: 0 28px 70px rgba(7, 26, 68, 0.10);
+    border: 1px solid rgba(0, 102, 204, 0.12);
+    border-radius: 28px;
+    background: linear-gradient(145deg, rgba(255,255,255,.97), rgba(238,246,255,.9));
+    box-shadow: 0 22px 56px rgba(7, 26, 68, 0.09);
   }
 
-  .arolana-services-projects__intro {
+  .arolana-services-projects__header {
     position: relative;
     display: grid;
-    grid-template-columns: minmax(0, 1.1fr) minmax(280px, .9fr);
-    align-items: center;
-    gap: 1.5rem;
+    grid-template-columns: minmax(0, 1.15fr) auto;
+    gap: 1.25rem;
+    align-items: end;
     overflow: hidden;
-    min-height: auto;
-    padding: 32px 40px;
+    padding: 28px 32px;
     color: #fff;
     background:
-      radial-gradient(circle at top right, rgba(0, 102, 204, .62), transparent 42%),
-      linear-gradient(135deg, var(--service-bg, #071A44), #08265f 52%, #0066CC);
-  }
-
-  .arolana-services-projects__bg,
-  .arolana-services-projects__wash {
-    position: absolute;
-    inset: 0;
+      linear-gradient(120deg, rgba(7,26,68,.96), rgba(0,102,204,.82)),
+      var(--service-bg, #071A44);
   }
 
   .arolana-services-projects__bg {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
-    opacity: .26;
-    filter: saturate(1.06) contrast(1.02);
+    opacity: .18;
+    filter: saturate(1.04);
   }
 
-  .arolana-services-projects__wash {
-    background: linear-gradient(90deg, rgba(7,26,68,.95), rgba(7,26,68,.72), rgba(0,102,204,.38));
-  }
-
-  .arolana-services-projects__copy {
+  .arolana-services-projects__copy,
+  .arolana-services-projects__actions {
     position: relative;
     z-index: 1;
-    max-width: 720px;
   }
 
   .arolana-services-projects__eyebrow {
-    margin: 0 0 .65rem;
+    margin: 0 0 .55rem;
     color: var(--service-accent, #FF7A00);
-    font-size: .78rem;
+    font-size: .76rem;
     font-weight: 950;
-    letter-spacing: .22em;
+    letter-spacing: .2em;
     text-transform: uppercase;
   }
 
@@ -149,178 +128,294 @@
 
   .arolana-services-projects__copy p:not(.arolana-services-projects__eyebrow) {
     max-width: 680px;
-    margin: .85rem 0 0;
-    color: rgba(255,255,255,.8);
+    margin: .72rem 0 0;
+    color: rgba(255,255,255,.82);
     font-size: 16px;
     font-weight: 700;
-    line-height: 1.6;
+    line-height: 1.55;
   }
 
   .arolana-services-projects__actions {
     display: flex;
     flex-wrap: wrap;
+    justify-content: flex-end;
     align-items: center;
-    gap: .7rem;
-    margin-top: 1.2rem;
+    gap: .65rem;
+    max-width: 520px;
   }
 
   .arolana-services-projects__button,
   .arolana-services-projects__provider-link,
-  .arolana-services-projects__quote a {
+  .arolana-services-projects__quote a,
+  .arolana-project-rail-card__cta {
     text-decoration: none;
   }
 
   .arolana-services-projects__button {
     display: inline-flex;
+    min-height: 44px;
     align-items: center;
     justify-content: center;
-    min-height: 46px;
     border-radius: 14px;
-    padding: .72rem 1rem;
+    padding: .68rem .95rem;
     font-weight: 950;
+    white-space: nowrap;
   }
 
   .arolana-services-projects__button--primary {
     background: var(--service-accent, #FF7A00);
     color: #fff;
-    box-shadow: 0 14px 30px rgba(255, 122, 0, .28);
+    box-shadow: 0 12px 26px rgba(255, 122, 0, .24);
   }
 
   .arolana-services-projects__button--secondary {
-    border: 1px solid rgba(255,255,255,.32);
+    border: 1px solid rgba(255,255,255,.28);
     background: rgba(255,255,255,.12);
     color: #fff;
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(10px);
   }
 
   .arolana-services-projects__provider-link {
     color: #fff;
     font-weight: 900;
-    opacity: .88;
-  }
-
-  .arolana-services-projects__visual {
-    position: relative;
-    z-index: 1;
-    display: grid;
-    gap: .8rem;
-    justify-self: end;
-    width: min(100%, 380px);
-  }
-
-  .arolana-services-projects__visual div {
-    border: 1px solid rgba(255,255,255,.18);
-    border-radius: 20px;
-    padding: 1rem;
-    background: rgba(255,255,255,.12);
-    backdrop-filter: blur(14px);
-  }
-
-  .arolana-services-projects__visual span {
-    display: block;
-    color: var(--service-accent, #FF7A00);
-    font-size: .72rem;
-    font-weight: 950;
-    letter-spacing: .14em;
-    text-transform: uppercase;
-  }
-
-  .arolana-services-projects__visual strong {
-    display: block;
-    margin-top: .35rem;
-    color: #fff;
-    font-size: clamp(1.1rem, 1.8vw, 1.65rem);
-    line-height: 1.15;
+    opacity: .9;
+    white-space: nowrap;
   }
 
   .arolana-services-projects__projects {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 320px));
-    justify-content: start;
-    gap: 1rem;
+    position: relative;
     padding: 1rem;
   }
 
-  .arolana-services-projects__projects > article,
-  .arolana-services-projects__discovery-card {
-    width: 100%;
-    max-width: 320px;
-  }
-
-  .arolana-services-projects__projects > article {
-    border-radius: 22px;
-  }
-
-  .arolana-services-projects__projects > article > a:first-child {
-    aspect-ratio: 16 / 10;
-  }
-
-  .arolana-services-projects__projects > article > div {
-    padding: 1rem;
-  }
-
-  .arolana-services-projects__projects > article h3 {
-    font-size: 1.05rem;
-  }
-
-  .arolana-services-projects__discovery-card {
+  .arolana-services-projects__rail {
     display: flex;
-    min-height: 100%;
-    flex-direction: column;
-    justify-content: center;
-    border: 1px solid rgba(0,102,204,.14);
+    gap: 1rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-behavior: smooth;
+    scroll-padding: 2px;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+
+  .arolana-services-projects__rail::-webkit-scrollbar {
+    display: none;
+  }
+
+  .arolana-services-projects__slide {
+    flex: 0 0 calc((100% - 3rem) / 4);
+    min-width: 0;
+    max-width: 320px;
+    scroll-snap-align: start;
+  }
+
+  .arolana-services-projects__rail-arrow {
+    position: absolute;
+    top: 50%;
+    z-index: 2;
+    display: grid;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border: 0;
+    border-radius: 999px;
+    background: #fff;
+    color: #0066CC;
+    box-shadow: 0 14px 28px rgba(7, 26, 68, .16);
+    cursor: pointer;
+    transform: translateY(-50%);
+  }
+
+  .arolana-services-projects__rail-arrow[disabled] {
+    cursor: default;
+    opacity: .38;
+  }
+
+  .arolana-services-projects__rail-arrow--prev {
+    left: .45rem;
+  }
+
+  .arolana-services-projects__rail-arrow--next {
+    right: .45rem;
+  }
+
+  .arolana-project-rail-card {
+    height: 100%;
+    overflow: hidden;
+    border: 1px solid rgba(0,102,204,.12);
     border-radius: 22px;
-    padding: 1.15rem;
+    background: #fff;
+    box-shadow: 0 12px 30px rgba(7, 26, 68, .08);
+  }
+
+  .arolana-project-rail-card__media {
+    position: relative;
+    display: block;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+    background: #EAF2FC;
+  }
+
+  .arolana-project-rail-card__media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform .35s ease;
+  }
+
+  .arolana-project-rail-card:hover .arolana-project-rail-card__media img {
+    transform: scale(1.035);
+  }
+
+  .arolana-project-rail-card__fallback {
+    display: grid;
+    height: 100%;
+    place-items: center;
     background: linear-gradient(135deg, #071A44, #0066CC);
     color: #fff;
-    text-decoration: none;
-    box-shadow: 0 12px 28px rgba(7, 26, 68, .1);
+    font-size: 2rem;
   }
 
-  .arolana-services-projects__discovery-card--light {
-    background: linear-gradient(135deg, #fff, #eef6ff);
-    color: #071A44;
-  }
-
-  .arolana-services-projects__discovery-card span {
-    color: var(--service-accent, #FF7A00);
+  .arolana-project-rail-card__video {
+    position: absolute;
+    top: .75rem;
+    right: .75rem;
+    border-radius: 999px;
+    padding: .4rem .62rem;
+    background: #FF7A00;
+    color: #fff;
     font-size: .75rem;
+    font-weight: 950;
+  }
+
+  .arolana-project-rail-card__body {
+    padding: .95rem;
+  }
+
+  .arolana-project-rail-card__category {
+    margin: 0;
+    color: #FF7A00;
+    font-size: .72rem;
     font-weight: 950;
     letter-spacing: .12em;
     text-transform: uppercase;
   }
 
-  .arolana-services-projects__discovery-card strong {
-    margin-top: .55rem;
-    font-size: 1.25rem;
+  .arolana-project-rail-card__title {
+    display: -webkit-box;
+    min-height: 2.55em;
+    margin-top: .42rem;
+    overflow: hidden;
+    color: #071A44;
+    font-size: 1.08rem;
     font-weight: 950;
-    line-height: 1.15;
+    line-height: 1.25;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    text-decoration: none;
   }
 
-  .arolana-services-projects__discovery-card em {
+  .arolana-project-rail-card__meta {
+    display: grid;
+    gap: .25rem;
+    margin-top: .65rem;
+    color: #64748B;
+    font-size: .8rem;
+    font-weight: 800;
+  }
+
+  .arolana-project-rail-card__meta a,
+  .arolana-project-rail-card__meta span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .arolana-project-rail-card__meta a {
+    color: #0066CC;
+    text-decoration: none;
+  }
+
+  .arolana-project-rail-card__cta {
+    display: flex;
+    min-height: 40px;
+    align-items: center;
+    justify-content: center;
     margin-top: .8rem;
+    border-radius: 13px;
+    background: #0066CC;
+    color: #fff;
+    font-size: .84rem;
+    font-weight: 950;
+  }
+
+  .arolana-services-projects__discovery-card,
+  .arolana-services-projects__empty {
+    display: flex;
+    min-height: 260px;
+    flex-direction: column;
+    justify-content: center;
+    border: 1px solid rgba(0,102,204,.12);
+    border-radius: 22px;
+    padding: 1rem;
+    background: linear-gradient(135deg, #071A44, #0066CC);
+    color: #fff;
+    text-decoration: none;
+    box-shadow: 0 12px 28px rgba(7, 26, 68, .08);
+  }
+
+  .arolana-services-projects__empty {
+    min-height: 170px;
+    background: linear-gradient(135deg, #fff, #eef6ff);
+    color: #071A44;
+  }
+
+  .arolana-services-projects__discovery-card span,
+  .arolana-services-projects__empty span {
+    margin-top: .45rem;
+    color: rgba(255,255,255,.78);
+    font-weight: 800;
+    line-height: 1.45;
+  }
+
+  .arolana-services-projects__empty span {
+    color: #64748B;
+  }
+
+  .arolana-services-projects__discovery-card strong,
+  .arolana-services-projects__empty strong {
+    font-size: 1.2rem;
+    font-weight: 950;
+    line-height: 1.2;
+  }
+
+  .arolana-services-projects__discovery-card em,
+  .arolana-services-projects__empty a {
+    margin-top: .8rem;
+    color: #FF7A00;
     font-style: normal;
-    font-weight: 900;
-    opacity: .86;
+    font-weight: 950;
+    text-decoration: none;
   }
 
   .arolana-services-projects__quote {
     display: flex;
+    min-height: 78px;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    min-height: 80px;
     margin: 0 1rem 1rem;
-    border-radius: 20px;
-    padding: 18px 22px;
+    border-radius: 18px;
+    padding: 16px 20px;
     background: #071A44;
     color: #fff;
   }
 
   .arolana-services-projects__quote p {
-    margin: 0 0 .25rem;
+    margin: 0 0 .18rem;
     color: var(--service-accent, #FF7A00);
-    font-size: .82rem;
+    font-size: .78rem;
     font-weight: 950;
     letter-spacing: .12em;
     text-transform: uppercase;
@@ -328,57 +423,57 @@
 
   .arolana-services-projects__quote strong {
     display: block;
-    color: rgba(255,255,255,.86);
-    font-size: clamp(1rem, 2vw, 1.35rem);
+    color: rgba(255,255,255,.84);
+    font-size: 1rem;
     line-height: 1.35;
   }
 
   .arolana-services-projects__quote a {
     flex: 0 0 auto;
     border-radius: 14px;
-    padding: .82rem 1.1rem;
+    padding: .78rem 1rem;
     background: #fff;
     color: #0066CC;
     font-weight: 950;
   }
 
-  @media (max-width: 1179px) {
-    .arolana-services-projects__intro {
-      grid-template-columns: minmax(0, 1fr) minmax(240px, .7fr);
+  @media (max-width: 1180px) {
+    .arolana-services-projects__slide {
+      flex-basis: calc((100% - 2rem) / 3);
+    }
+  }
+
+  @media (max-width: 900px) {
+    .arolana-services-projects__header {
+      grid-template-columns: 1fr;
+      align-items: start;
     }
 
-    .arolana-services-projects__projects {
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    .arolana-services-projects__actions {
+      justify-content: flex-start;
+      max-width: none;
+    }
+
+    .arolana-services-projects__slide {
+      flex-basis: calc((100% - 1rem) / 2);
     }
   }
 
   @media (max-width: 680px) {
     .arolana-services-projects {
-      margin: 1.6rem auto;
+      margin: 1.4rem auto;
     }
 
     .arolana-services-projects__shell {
       border-radius: 24px;
     }
 
-    .arolana-services-projects__intro {
-      display: block;
-      min-height: auto;
-      padding: 1.4rem 1.1rem;
+    .arolana-services-projects__header {
+      padding: 1.25rem;
     }
 
     .arolana-services-projects__copy h2 {
       font-size: clamp(30px, 10vw, 38px);
-    }
-
-    .arolana-services-projects__visual {
-      display: none;
-    }
-
-    .arolana-services-projects__actions,
-    .arolana-services-projects__quote {
-      align-items: stretch;
-      flex-direction: column;
     }
 
     .arolana-services-projects__button,
@@ -388,23 +483,48 @@
     }
 
     .arolana-services-projects__provider-link {
+      width: 100%;
       text-align: center;
     }
 
-    .arolana-services-projects__projects {
-      grid-template-columns: 1fr;
-      padding: 1rem;
-    }
-
-    .arolana-services-projects__projects > article,
-    .arolana-services-projects__discovery-card {
+    .arolana-services-projects__slide {
+      flex-basis: 88%;
       max-width: none;
     }
 
+    .arolana-services-projects__rail-arrow {
+      display: none;
+    }
+
     .arolana-services-projects__quote {
+      align-items: stretch;
+      flex-direction: column;
       margin: 0 1rem 1rem;
       padding: 1rem;
     }
   }
 </style>
+<script>
+  (function () {
+    document.querySelectorAll("[data-project-rail]").forEach(function (rail) {
+      var section = rail.closest(".arolana-services-projects__projects");
+      if (!section) return;
+      var prev = section.querySelector("[data-project-rail-prev]");
+      var next = section.querySelector("[data-project-rail-next]");
+      var update = function () {
+        var maxScroll = rail.scrollWidth - rail.clientWidth - 4;
+        if (prev) prev.disabled = rail.scrollLeft <= 4;
+        if (next) next.disabled = rail.scrollLeft >= maxScroll;
+      };
+      var move = function (direction) {
+        rail.scrollBy({ left: direction * Math.max(260, rail.clientWidth * 0.86), behavior: "smooth" });
+      };
+      if (prev) prev.addEventListener("click", function () { move(-1); });
+      if (next) next.addEventListener("click", function () { move(1); });
+      rail.addEventListener("scroll", update, { passive: true });
+      window.addEventListener("resize", update, { passive: true });
+      update();
+    });
+  })();
+</script>
 {% endif %}

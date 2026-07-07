@@ -49,8 +49,7 @@ def professional_services_projects_homepage_section(context):
             projects = (
                 ServicePortfolio.objects.public()
                 .optimized()
-                .select_related("provider", "service_category")
-                .order_by("-is_featured", "-published_at")[: max(1, min(section.projects_limit, 16))]
+                .order_by("-is_featured", "-published_at")[: max(1, min(getattr(section, "projects_limit", 10) or 10, 10))]
             )
         else:
             projects = ServicePortfolio.objects.none()

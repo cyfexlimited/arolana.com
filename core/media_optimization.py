@@ -28,6 +28,7 @@ IMAGE_EXTENSIONS = (
     ".bmp",
     ".tif",
     ".tiff",
+    ".avif",
 )
 
 SKIP_EXTENSIONS = (
