@@ -31,7 +31,8 @@ from .models import (
     ProductVariant, ProductQuestion, Accessory, AccessoryProduct,
     ProductImage, ProductVideo, ProductVariantImage, Brand, ProductListingBanner,
     ProductArticleLink, CategoryArticleLink, ProductWholesaleTier, ProductDetailSection,
-    ProductDetailFieldConfig, ProductVariantTypeConfig, ManufacturerWarranty
+    ProductDetailFieldConfig, ProductVariantTypeConfig, ManufacturerWarranty,
+    VendorProductOffer,
 )
 from accounts.models import User
 from currency.templatetags.currency_filters import currency as format_currency
@@ -423,11 +424,12 @@ class GuestCartItems:
 
 
 class GuestCartItem:
-    def __init__(self, item_id, product=None, variant=None, accessory=None, quantity=1, price_at_add=Decimal('0.00')):
+    def __init__(self, item_id, product=None, variant=None, accessory=None, vendor_offer=None, quantity=1, price_at_add=Decimal('0.00')):
         self.id = item_id
         self.product = product
         self.variant = variant
         self.accessory = accessory
+        self.vendor_offer = vendor_offer
         self.quantity = quantity
         self.price_at_add = price_at_add
 
@@ -437,6 +439,8 @@ class GuestCartItem:
 
     @property
     def item_name(self):
+        if self.vendor_offer:
+            return self.vendor_offer.display_name
         if self.product:
             return self.product.name
         if self.variant:
@@ -619,9 +623,11 @@ def _recently_viewed_for_cart(request, cart, limit=12):
     return [products_by_id[item] for item in recent_ids if item in products_by_id]
 
 
-def _guest_cart_key(product=None, variant=None, accessory=None):
+def _guest_cart_key(product=None, variant=None, accessory=None, vendor_offer=None):
     if accessory:
         return f"accessory:{accessory.id}"
+    if vendor_offer:
+        return f"offer:{vendor_offer.id}"
     variant_id = variant.id if variant else ''
     return f"product:{product.id}:variant:{variant_id}"
 
@@ -635,10 +641,13 @@ def _build_guest_cart(request):
     product_ids = set()
     variant_ids = set()
     accessory_ids = set()
+    offer_ids = set()
 
     for line in cart_data.values():
         if line.get('accessory_id'):
             accessory_ids.add(line.get('accessory_id'))
+        elif line.get('vendor_offer_id'):
+            offer_ids.add(line.get('vendor_offer_id'))
         elif line.get('product_id'):
             product_ids.add(line.get('product_id'))
             if line.get('variant_id'):
@@ -661,6 +670,16 @@ def _build_guest_cart(request):
         str(accessory.id): accessory
         for accessory in Accessory.objects.filter(id__in=accessory_ids, is_active=True)
     }
+    offers = {
+        str(offer.id): offer
+        for offer in VendorProductOffer.objects.select_related('product', 'variant', 'vendor').filter(
+            id__in=offer_ids,
+            is_active=True,
+            approval_status=VendorProductOffer.STATUS_APPROVED,
+            product__is_active=True,
+            product__approval_status='approved',
+        )
+    }
 
     items = []
     valid_cart_data = {}
@@ -680,6 +699,23 @@ def _build_guest_cart(request):
                 price = accessory.price
             items.append(GuestCartItem(key, accessory=accessory, quantity=quantity, price_at_add=price))
             valid_cart_data[key] = {**line, 'quantity': quantity, 'price_at_add': str(price)}
+            continue
+
+        if line.get('vendor_offer_id'):
+            offer = offers.get(str(line.get('vendor_offer_id')))
+            if not offer:
+                continue
+            if not price:
+                price = offer.final_price
+            items.append(GuestCartItem(key, product=offer.product, variant=offer.variant, vendor_offer=offer, quantity=quantity, price_at_add=price))
+            valid_cart_data[key] = {
+                **line,
+                'product_id': offer.product_id,
+                'variant_id': offer.variant_id or '',
+                'vendor_offer_id': offer.id,
+                'quantity': quantity,
+                'price_at_add': str(price),
+            }
             continue
 
         product = products.get(str(line.get('product_id')))
@@ -722,6 +758,29 @@ def _merge_guest_cart_into_user_cart(request):
                 cart_item.save(update_fields=['quantity'])
             continue
 
+        if item.vendor_offer:
+            stock = item.vendor_offer.available_stock
+            quantity = min(item.quantity, max(stock, 0))
+            if quantity <= 0:
+                continue
+            cart_item, created = CartItem.objects.get_or_create(
+                cart=cart,
+                vendor_offer=item.vendor_offer,
+                defaults={
+                    'product': item.vendor_offer.product,
+                    'variant': item.vendor_offer.variant,
+                    'quantity': quantity,
+                    'price_at_add': item.vendor_offer.final_price,
+                }
+            )
+            if not created:
+                cart_item.quantity = min(cart_item.quantity + quantity, stock, 999)
+                cart_item.price_at_add = item.vendor_offer.final_price
+                cart_item.product = item.vendor_offer.product
+                cart_item.variant = item.vendor_offer.variant
+                cart_item.save(update_fields=['quantity', 'price_at_add', 'product', 'variant'])
+            continue
+
         stock = item.variant.stock_quantity if item.variant else item.product.get_available_stock()
         quantity = min(item.quantity, max(stock, 0))
         if quantity <= 0:
@@ -757,13 +816,39 @@ def add_to_cart(request, slug):
     # Get parameters
     quantity = _safe_quantity(request.POST.get('quantity', request.GET.get('quantity', 1)))
     variant_id = request.POST.get('variant_id') or request.GET.get('variant_id')
+    vendor_offer_id = request.POST.get('vendor_offer_id') or request.POST.get('offer_id') or request.GET.get('vendor_offer_id') or request.GET.get('offer_id')
     accessory_ids = request.POST.getlist('accessories') or request.GET.getlist('accessories')
     
     # ====== Handle Product ======
     price = product.price
     variant = None
+    vendor_offer = None
+
+    if vendor_offer_id:
+        try:
+            vendor_offer = VendorProductOffer.objects.select_related('product', 'variant', 'vendor').get(
+                id=vendor_offer_id,
+                product=product,
+                is_active=True,
+                approval_status=VendorProductOffer.STATUS_APPROVED,
+            )
+            variant = vendor_offer.variant
+            price = vendor_offer.final_price
+            available = vendor_offer.available_stock
+            if available < quantity:
+                message = f"Only {available} items available from this vendor!"
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'message': message}, status=400)
+                messages.error(request, message)
+                return redirect('products:detail', slug=product.slug)
+        except VendorProductOffer.DoesNotExist:
+            message = 'Selected vendor offer is no longer available.'
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'message': message}, status=400)
+            messages.error(request, message)
+            return redirect('products:detail', slug=product.slug)
     
-    if variant_id:
+    if variant_id and not vendor_offer:
         try:
             variant = ProductVariant.objects.get(
                 id=variant_id,
@@ -799,11 +884,18 @@ def add_to_cart(request, slug):
         cart, created = Cart.objects.get_or_create(user=request.user, is_active=True)
 
         # Get or create cart item
+        lookup = {'cart': cart}
+        if vendor_offer:
+            lookup['vendor_offer'] = vendor_offer
+        else:
+            lookup['product'] = product
+            lookup['variant'] = variant
+
         cart_item, created = CartItem.objects.get_or_create(
-            cart=cart,
-            product=product,
-            variant=variant,
+            **lookup,
             defaults={
+                'product': product,
+                'variant': variant,
                 'quantity': quantity,
                 'price_at_add': price
             }
@@ -811,7 +903,7 @@ def add_to_cart(request, slug):
 
         if not created:
             # Check if new total exceeds stock
-            stock = variant.stock_quantity if variant else product.get_available_stock()
+            stock = vendor_offer.available_stock if vendor_offer else (variant.stock_quantity if variant else product.get_available_stock())
             if cart_item.quantity + quantity > stock:
                 message = f"Cannot add more than {stock} items!"
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -820,7 +912,10 @@ def add_to_cart(request, slug):
                 return redirect('products:detail', slug=product.slug)
 
             cart_item.quantity += quantity
-            cart_item.save(update_fields=['quantity'])
+            cart_item.price_at_add = price
+            cart_item.product = product
+            cart_item.variant = variant
+            cart_item.save(update_fields=['quantity', 'price_at_add', 'product', 'variant'])
             message = f'Updated {product.name} quantity in cart!'
         else:
             message = f'Added {product.name} to cart!'
@@ -850,9 +945,9 @@ def add_to_cart(request, slug):
         cart_count = getattr(cart, 'total_items', 0)
     else:
         cart_data = _guest_cart_data(request)
-        key = _guest_cart_key(product=product, variant=variant)
+        key = _guest_cart_key(product=product, variant=variant, vendor_offer=vendor_offer)
         current_quantity = int(cart_data.get(key, {}).get('quantity') or 0)
-        stock = variant.stock_quantity if variant else product.get_available_stock()
+        stock = vendor_offer.available_stock if vendor_offer else (variant.stock_quantity if variant else product.get_available_stock())
 
         if current_quantity + quantity > stock:
             message = f"Cannot add more than {stock} items!"
@@ -864,6 +959,7 @@ def add_to_cart(request, slug):
         cart_data[key] = {
             'product_id': product.id,
             'variant_id': variant.id if variant else '',
+            'vendor_offer_id': vendor_offer.id if vendor_offer else '',
             'quantity': current_quantity + quantity,
             'price_at_add': str(price),
         }
@@ -882,7 +978,7 @@ def add_to_cart(request, slug):
         cart_data = _save_guest_cart(request, cart_data)
         cart_count = _guest_cart_count(cart_data)
 
-    vendor_profile = getattr(getattr(product, 'vendor', None), 'vendor_profile', None)
+    vendor_profile = vendor_offer.vendor if vendor_offer else getattr(getattr(product, 'vendor', None), 'vendor_profile', None)
     if vendor_profile:
         _create_vendor_lead(
             request,
@@ -3740,6 +3836,13 @@ def _mobile_product_payload(request, product):
     image_url = _mobile_file_url(request, primary_image, preset="product_detail")
     original_url = _mobile_original_file_url(request, primary_image)
 
+    approved_offers = _mobile_product_approved_offers(product)
+    default_offer = _mobile_default_vendor_offer(approved_offers)
+    default_offer_payload = _mobile_vendor_offer_payload(request, default_offer) if default_offer else None
+    if default_offer:
+        price = default_offer.final_price
+        regular_price = default_offer.price
+
     return {
         "id": product.id,
         "name": translated_field(
@@ -3779,7 +3882,8 @@ def _mobile_product_payload(request, product):
         "sku": getattr(product, "sku", "") or "",
         "arolana_sku": getattr(product, "sku", "") or "",
         "stock_quantity": getattr(product, "stock_quantity", 0) or 0,
-        "in_stock": bool(getattr(product, "stock_quantity", 0) or getattr(product, "is_in_stock", False)),
+        "available_stock": default_offer.available_stock if default_offer else (getattr(product, "stock_quantity", 0) or 0),
+        "in_stock": bool(default_offer.is_available if default_offer else (getattr(product, "stock_quantity", 0) or getattr(product, "is_in_stock", False))),
         "is_featured": bool(getattr(product, "is_featured", False)),
         "is_new": bool(getattr(product, "is_new", False)),
         "is_bestseller": bool(getattr(product, "is_bestseller", False)),
@@ -3807,6 +3911,150 @@ def _mobile_product_payload(request, product):
         "badges": badges,
         "wholesale_available": bool(wholesale_price or bulk_price),
         "rfq_available": bool(vendor_profile),
+        "vendor_offer_id": default_offer.id if default_offer else None,
+        "default_vendor_offer": default_offer_payload,
+        "vendor_offers": [
+            _mobile_vendor_offer_payload(request, offer)
+            for offer in approved_offers[:6]
+        ],
+    }
+
+
+def _mobile_product_approved_offers(product):
+    prefetched = getattr(product, "approved_mobile_vendor_offers", None)
+    if prefetched is not None:
+        return list(prefetched)
+    try:
+        return list(
+            product.vendor_offers.filter(
+                is_active=True,
+                approval_status=VendorProductOffer.STATUS_APPROVED,
+            )
+            .select_related("vendor", "variant")
+            .order_by("-is_preferred", "-is_featured", "sale_price", "price", "-created_at")[:12]
+        )
+    except Exception:
+        return []
+
+
+def _mobile_default_vendor_offer(offers):
+    if not offers:
+        return None
+    available = [offer for offer in offers if offer.is_available]
+    return (available or offers)[0]
+
+
+def _mobile_vendor_offer_payload(request, offer):
+    if not offer:
+        return None
+    vendor = getattr(offer, "vendor", None)
+    variant = getattr(offer, "variant", None)
+    return {
+        "id": offer.id,
+        "vendor_offer_id": offer.id,
+        "product_id": offer.product_id,
+        "variant_id": offer.variant_id,
+        "variant_name": getattr(variant, "display_name", "") if variant else "",
+        "seller_sku": offer.seller_sku,
+        "price": str(offer.final_price),
+        "base_price": str(offer.price),
+        "sale_price": str(offer.sale_price or ""),
+        "currency": offer.currency,
+        "stock_quantity": offer.stock_quantity,
+        "available_stock": offer.available_stock,
+        "in_stock": offer.is_available,
+        "condition": offer.get_condition_display(),
+        "condition_value": offer.condition,
+        "vendor_id": offer.vendor_id,
+        "vendor_name": offer.vendor_display_name,
+        "vendor_verified": bool(getattr(vendor, "is_verified", False)) if vendor else False,
+        "vendor_package": getattr(vendor, "active_plan_name", "") if vendor else "",
+        "seller_warranty": offer.seller_warranty,
+        "return_policy": offer.return_policy,
+        "delivery_note": offer.delivery_note,
+        "lead_time_days": offer.lead_time_days,
+        "fulfilment_method": offer.fulfilment_method,
+        "fulfilment_label": offer.get_fulfilment_method_display(),
+        "is_featured": offer.is_featured,
+        "is_preferred": offer.is_preferred,
+        "add_to_cart_payload": {
+            "product_id": offer.product_id,
+            "variant_id": offer.variant_id,
+            "vendor_offer_id": offer.id,
+        },
+    }
+
+
+def _mobile_variant_payload(request, variant, product=None):
+    product = product or getattr(variant, "product", None)
+    variant_image = _mobile_file_url(request, getattr(variant, "image", None), preset="product_gallery")
+    hover_image = _mobile_file_url(request, getattr(variant, "hover_image", None), preset="product_gallery")
+    variant_images = []
+    if variant_image:
+        variant_images.append(variant_image)
+    for gallery_image in variant.images.filter(is_active=True):
+        gallery_url = _mobile_file_url(request, getattr(gallery_image, "image", None), preset="product_gallery")
+        if gallery_url and gallery_url not in variant_images:
+            variant_images.append(gallery_url)
+    offers = list(
+        variant.vendor_offers.filter(
+            is_active=True,
+            approval_status=VendorProductOffer.STATUS_APPROVED,
+        )
+        .select_related("vendor")
+        .order_by("-is_preferred", "-is_featured", "sale_price", "price", "-created_at")[:8]
+    )
+    return {
+        "id": variant.id,
+        "slug": getattr(variant, "slug", "") or "",
+        "name": getattr(variant, "name", "") or "",
+        "display_name": getattr(variant, "display_name", "") or str(variant),
+        "value": getattr(variant, "value", "") or "",
+        "variant_type": getattr(variant, "variant_type", "") or "",
+        "variant_mode": getattr(variant, "variant_mode", ProductVariant.VARIANT_MODE_SIMPLE),
+        "selector_type": getattr(variant, "selector_type", ProductVariant.SELECTOR_TEXT),
+        "sku": getattr(variant, "sku", "") or "",
+        "model_number": getattr(variant, "model_number", "") or "",
+        "manufacturer_sku": getattr(variant, "manufacturer_sku", "") or "",
+        "gtin": getattr(variant, "gtin", "") or "",
+        "upc": getattr(variant, "upc", "") or "",
+        "ean": getattr(variant, "ean", "") or "",
+        "barcode": getattr(variant, "barcode", "") or "",
+        "final_price": str(getattr(variant, "final_price", getattr(product, "price", ""))),
+        "price_adjustment": str(getattr(variant, "price_adjustment", "0")),
+        "stock_quantity": getattr(variant, "stock_quantity", 0) or 0,
+        "color_code": getattr(variant, "color_code", "") or "",
+        "short_description": getattr(variant, "short_description", "") or "",
+        "description": getattr(variant, "description", "") or "",
+        "specifications": getattr(variant, "specifications", "") or "",
+        "key_features": getattr(variant, "key_features", []) or [],
+        "compatibility_notes": getattr(variant, "compatibility_notes", "") or "",
+        "included_accessories": getattr(variant, "included_accessories", "") or "",
+        "recommended_use": getattr(variant, "recommended_use", "") or "",
+        "warranty_years": getattr(variant, "warranty_years", 0) or 0,
+        "warranty_description": getattr(variant, "warranty_description", "") or "",
+        "extended_warranty_available": bool(getattr(variant, "extended_warranty_available", False)),
+        "is_default": bool(getattr(variant, "is_default", False)),
+        "display_order": getattr(variant, "display_order", 0) or 0,
+        "image": variant_image,
+        "image_url": variant_image,
+        "hover_image_url": hover_image,
+        "thumbnail_url": variant_image,
+        "original_url": _mobile_original_file_url(request, getattr(variant, "image", None)),
+        "images": variant_images,
+        "structured_specs": [
+            {
+                "group": spec.group,
+                "name": spec.name,
+                "value": spec.value,
+                "unit": spec.unit,
+                "is_highlight": spec.is_highlight,
+                "display_order": spec.display_order,
+            }
+            for spec in variant.structured_specs.filter(is_active=True).order_by("display_order", "group", "name")
+        ],
+        "vendor_offers": [_mobile_vendor_offer_payload(request, offer) for offer in offers],
+        "default_vendor_offer": _mobile_vendor_offer_payload(request, _mobile_default_vendor_offer(offers)) if offers else None,
     }
 
 
@@ -4491,6 +4739,9 @@ def mobile_product_detail_api(request, slug):
             "images",
             "variants",
             "variants__images",
+            "variants__structured_specs",
+            "variants__vendor_offers",
+            "vendor_offers",
             "reviews__user",
             "questions__user",
             "additional_videos",
@@ -4542,32 +4793,10 @@ def mobile_product_detail_api(request, slug):
                 "is_main": bool(getattr(image, "is_main", False)),
             })
 
-    variants = []
-    for variant in product.variants.filter(is_active=True):
-        variant_images = []
-        variant_image = safe_url(getattr(variant, "image", None), "product_gallery")
-        if variant_image:
-            variant_images.append(variant_image)
-        for gallery_image in variant.images.all():
-            gallery_url = safe_url(getattr(gallery_image, "image", None), "product_gallery")
-            if gallery_url and gallery_url not in variant_images:
-                variant_images.append(gallery_url)
-        variants.append({
-            "id": variant.id,
-            "name": getattr(variant, "name", ""),
-            "value": getattr(variant, "value", ""),
-            "variant_type": getattr(variant, "variant_type", ""),
-            "sku": getattr(variant, "sku", ""),
-            "final_price": str(getattr(variant, "final_price", product.price)),
-            "price_adjustment": str(getattr(variant, "price_adjustment", "0")),
-            "stock_quantity": getattr(variant, "stock_quantity", 0),
-            "color_code": getattr(variant, "color_code", ""),
-            "image": variant_image,
-            "image_url": variant_image,
-            "thumbnail_url": safe_url(getattr(variant, "image", None), "product_gallery"),
-            "original_url": _mobile_original_file_url(request, getattr(variant, "image", None)),
-            "images": variant_images,
-        })
+    variants = [
+        _mobile_variant_payload(request, variant, product=product)
+        for variant in product.variants.filter(is_active=True).order_by("display_order", "variant_type", "name", "value")
+    ]
 
     category = getattr(product, "category", None)
     brand = getattr(product, "brand", None)
@@ -4835,6 +5064,10 @@ def mobile_product_detail_api(request, slug):
         except Exception:
             chat_url = ""
 
+    approved_offers = _mobile_product_approved_offers(product)
+    default_offer = _mobile_default_vendor_offer(approved_offers)
+    default_offer_payload = _mobile_vendor_offer_payload(request, default_offer) if default_offer else None
+
     try:
         from installers.serializers import ServiceCategorySerializer, ServiceProviderListSerializer
         from installers.services import suggested_categories_for_product, suggested_providers_for_product
@@ -4867,6 +5100,7 @@ def mobile_product_detail_api(request, slug):
         "condition_value": condition_value,
         "product_condition": condition_value,
         "price": str(product.price),
+        "offer_price": str(default_offer.final_price) if default_offer else str(product.price),
         "compare_price": str(getattr(product, "compare_price", "") or ""),
         "wholesale_price": str(getattr(product, "wholesale_price", "") or ""),
         "bulk_price": str(getattr(product, "bulk_price", "") or ""),
@@ -4906,6 +5140,13 @@ def mobile_product_detail_api(request, slug):
         "location": location_label,
         "location_label": location_label,
         "stock_quantity": getattr(product, "stock_quantity", 0),
+        "available_stock": default_offer.available_stock if default_offer else getattr(product, "stock_quantity", 0),
+        "vendor_offer_id": default_offer.id if default_offer else None,
+        "default_vendor_offer": default_offer_payload,
+        "vendor_offers": [
+            _mobile_vendor_offer_payload(request, offer)
+            for offer in approved_offers
+        ],
         "rating_avg": str(getattr(product, "rating_avg", "0") or "0"),
         "rating_count": getattr(product, "rating_count", 0),
         "manual_pdf": safe_url(getattr(product, "manual_pdf", None)),

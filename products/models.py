@@ -1277,6 +1277,19 @@ class ProductVariant(BaseModel):
         ('capacity', 'Capacity'),
         ('other', 'Other'),
     ]
+    VARIANT_MODE_SIMPLE = 'simple'
+    VARIANT_MODE_FULL = 'full'
+    VARIANT_MODE_CHOICES = [
+        (VARIANT_MODE_SIMPLE, 'Simple selector variant'),
+        (VARIANT_MODE_FULL, 'Full sellable catalog variant'),
+    ]
+    SELECTOR_TYPE_CHOICES = [
+        ('text', 'Text Button'),
+        ('color', 'Color Swatch'),
+        ('image', 'Image Swatch'),
+        ('dropdown', 'Dropdown'),
+        ('card', 'Configuration Card'),
+    ]
 
     product = models.ForeignKey(
         Product,
@@ -1291,6 +1304,35 @@ class ProductVariant(BaseModel):
     name = models.CharField(max_length=100, help_text="Variant name (Size, Color, etc.)")
     value = models.CharField(max_length=100, help_text="Variant value (Large, Red, etc.)")
     sku = models.CharField(max_length=50, unique=True, blank=True)
+    slug = models.SlugField(
+        max_length=255,
+        blank=True,
+        db_index=True,
+        help_text="Variant URL/selector slug. Auto-generated when blank.",
+    )
+    variant_mode = models.CharField(
+        max_length=20,
+        choices=VARIANT_MODE_CHOICES,
+        default=VARIANT_MODE_SIMPLE,
+        db_index=True,
+        help_text="Simple variants inherit product content. Full variants can override content, media, warranty, SEO, and specifications.",
+    )
+    selector_type = models.CharField(max_length=20, choices=SELECTOR_TYPE_CHOICES, default='text')
+    display_order = models.PositiveIntegerField(default=0, db_index=True)
+    is_default = models.BooleanField(default=False, db_index=True)
+    model_number = models.CharField(max_length=120, blank=True, db_index=True)
+    manufacturer_sku = models.CharField(max_length=120, blank=True, db_index=True)
+    gtin = models.CharField(max_length=64, blank=True, db_index=True)
+    upc = models.CharField(max_length=64, blank=True, db_index=True)
+    ean = models.CharField(max_length=64, blank=True, db_index=True)
+    barcode = models.CharField(max_length=128, blank=True, db_index=True)
+    short_description = models.TextField(blank=True)
+    description = models.TextField(blank=True)
+    specifications = models.TextField(blank=True)
+    key_features = models.JSONField(default=list, blank=True)
+    compatibility_notes = models.TextField(blank=True)
+    included_accessories = models.TextField(blank=True)
+    recommended_use = models.TextField(blank=True)
     price_adjustment = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -1306,6 +1348,35 @@ class ProductVariant(BaseModel):
         null=True,
         blank=True
     )
+    hover_image = models.ImageField(
+        upload_to=ProtectedImageUploadPath('products/variants/hover'),
+        null=True,
+        blank=True,
+    )
+    manual_pdf = models.FileField(upload_to='products/variants/manuals/%Y/%m/', null=True, blank=True)
+    video_type = models.CharField(max_length=20, choices=Product.VIDEO_TYPE_CHOICES, default='youtube', blank=True)
+    video_url = models.URLField(blank=True)
+    local_video = models.FileField(upload_to='products/variants/videos/%Y/%m/', null=True, blank=True)
+    video_thumbnail = models.ImageField(
+        upload_to=ProtectedImageUploadPath('products/variants/video_thumbs'),
+        null=True,
+        blank=True,
+    )
+    video_title = models.CharField(max_length=200, blank=True)
+    weight = models.DecimalField(max_digits=10, decimal_places=3, null=True, blank=True, validators=[MinValueValidator(Decimal('0.001'))])
+    weight_unit = models.CharField(max_length=10, choices=[('kg', 'Kilograms'), ('lbs', 'Pounds'), ('g', 'Grams'), ('oz', 'Ounces')], default='kg')
+    dimensions_length = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(Decimal('0.01'))])
+    dimensions_width = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(Decimal('0.01'))])
+    dimensions_height = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(Decimal('0.01'))])
+    dimension_unit = models.CharField(max_length=10, choices=[('cm', 'Centimeters'), ('in', 'Inches'), ('mm', 'Millimeters')], default='cm')
+    warranty_years = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(0)])
+    warranty_description = models.TextField(blank=True)
+    extended_warranty_available = models.BooleanField(default=False)
+    meta_title = models.CharField(max_length=200, blank=True)
+    meta_description = models.TextField(blank=True, max_length=160)
+    meta_keywords = models.CharField(max_length=200, blank=True)
+    canonical_override = models.URLField(blank=True)
+    is_indexable = models.BooleanField(default=True)
     color_code = models.CharField(
         max_length=20,
         blank=True,
@@ -1314,20 +1385,30 @@ class ProductVariant(BaseModel):
     is_active = models.BooleanField(default=True, db_index=True)
 
     class Meta:
-        ordering = ['variant_type', 'name', 'value']
+        ordering = ['display_order', 'variant_type', 'name', 'value']
         unique_together = ['product', 'name', 'value']
         verbose_name = 'Product Variant'
         verbose_name_plural = 'Product Variants'
         indexes = [
             models.Index(fields=['product', 'is_active']),
+            models.Index(fields=['product', 'variant_mode', 'is_active']),
+            models.Index(fields=['product', 'slug']),
         ]
 
     def save(self, *args, **kwargs):
         protect_uploaded_image(self, "image")
+        protect_uploaded_image(self, "hover_image")
+        protect_uploaded_image(self, "video_thumbnail")
         if not self.sku:
             self.sku = self._generate_variant_sku()
+        if not self.slug:
+            self.slug = self._generate_variant_slug()
+        if self.is_default:
+            ProductVariant.objects.filter(product=self.product, is_default=True).exclude(pk=self.pk).update(is_default=False)
         super().save(*args, **kwargs)
         record_protected_image(self, "image")
+        record_protected_image(self, "hover_image")
+        record_protected_image(self, "video_thumbnail")
 
     def _generate_variant_sku(self):
         """Generate unique SKU for variant"""
@@ -1344,6 +1425,20 @@ class ProductVariant(BaseModel):
 
         return sku
 
+    def _generate_variant_slug(self):
+        base = slugify(f"{self.name}-{self.value}") or slugify(self.sku) or "variant"
+        base = base[:240].strip("-") or "variant"
+        queryset = ProductVariant.objects.filter(product=self.product)
+        if self.pk:
+            queryset = queryset.exclude(pk=self.pk)
+        candidate = base
+        counter = 2
+        while queryset.filter(slug=candidate).exists():
+            suffix = f"-{counter}"
+            candidate = f"{base[: max(1, 255 - len(suffix))]}{suffix}".strip("-")
+            counter += 1
+        return candidate
+
     def __str__(self):
         return f"{self.product.name} - {self.name}: {self.value}"
 
@@ -1358,6 +1453,28 @@ class ProductVariant(BaseModel):
         return self.is_active and self.stock_quantity > 0
 
 
+class ProductVariantSpecification(BaseModel):
+    """Structured specifications that can override or extend product-level specs."""
+
+    variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE, related_name='structured_specs')
+    group = models.CharField(max_length=120, blank=True, help_text="Example: Display, Audio, Connectivity.")
+    name = models.CharField(max_length=160)
+    value = models.TextField()
+    unit = models.CharField(max_length=40, blank=True)
+    display_order = models.PositiveIntegerField(default=0)
+    is_highlight = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['display_order', 'group', 'name']
+        indexes = [
+            models.Index(fields=['variant', 'display_order']),
+            models.Index(fields=['variant', 'is_highlight']),
+        ]
+
+    def __str__(self):
+        return f"{self.variant} - {self.name}: {self.value}"
+
+
 # =========================
 # 🔥 VARIANT IMAGE MODEL
 # =========================
@@ -1369,24 +1486,214 @@ class ProductVariantImage(BaseModel):
         related_name='images'
     )
     image = models.ImageField(upload_to=ProtectedImageUploadPath('products/variants/gallery'))
+    IMAGE_TYPE_CHOICES = [
+        ('gallery', 'Gallery'),
+        ('swatch', 'Selector Swatch'),
+        ('packaging', 'Packaging'),
+        ('lifestyle', 'Lifestyle'),
+        ('diagram', 'Diagram / Spec'),
+        ('certificate', 'Certificate'),
+        ('other', 'Other'),
+    ]
+    image_type = models.CharField(max_length=30, choices=IMAGE_TYPE_CHOICES, default='gallery')
+    title = models.CharField(max_length=160, blank=True)
     alt_text = models.CharField(max_length=200, blank=True)
     order = models.IntegerField(default=0)
+    sort_order = models.PositiveIntegerField(default=0)
     is_main = models.BooleanField(default=False)
+    is_primary = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True, db_index=True)
 
     class Meta:
-        ordering = ['order']
+        ordering = ['sort_order', 'order']
         verbose_name = 'Variant Image'
         verbose_name_plural = 'Variant Images'
+        indexes = [
+            models.Index(fields=['variant', 'is_active', 'sort_order']),
+            models.Index(fields=['variant', 'image_type']),
+        ]
 
     def save(self, *args, **kwargs):
         protect_uploaded_image(self, "image")
+        if self.is_primary:
+            self.is_main = True
         if self.is_main:
+            self.is_primary = True
             ProductVariantImage.objects.filter(
                 variant=self.variant,
                 is_main=True
             ).exclude(pk=self.pk).update(is_main=False)
+            ProductVariantImage.objects.filter(
+                variant=self.variant,
+                is_primary=True
+            ).exclude(pk=self.pk).update(is_primary=False)
         super().save(*args, **kwargs)
         record_protected_image(self, "image")
+
+
+class VendorProductOffer(BaseModel):
+    """Vendor-owned sellable offer for a shared catalog product/variant."""
+
+    STATUS_DRAFT = 'draft'
+    STATUS_PENDING = 'pending'
+    STATUS_APPROVED = 'approved'
+    STATUS_REJECTED = 'rejected'
+    STATUS_SUSPENDED = 'suspended'
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, 'Draft'),
+        (STATUS_PENDING, 'Pending Review'),
+        (STATUS_APPROVED, 'Approved / Live'),
+        (STATUS_REJECTED, 'Rejected'),
+        (STATUS_SUSPENDED, 'Suspended'),
+    ]
+
+    FULFILMENT_CHOICES = [
+        ('vendor', 'Vendor Fulfilled'),
+        ('arolana', 'Arolana Fulfilled'),
+        ('dropship', 'Dropship'),
+        ('pickup', 'Pickup Only'),
+    ]
+
+    vendor = models.ForeignKey('vendors.VendorProfile', on_delete=models.CASCADE, related_name='product_offers')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='vendor_offers')
+    variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE, null=True, blank=True, related_name='vendor_offers')
+    seller_sku = models.CharField(max_length=120, blank=True, db_index=True)
+    price = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
+    sale_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(Decimal('0.01'))])
+    currency = models.CharField(max_length=10, default='NGN')
+    stock_quantity = models.PositiveIntegerField(default=0)
+    reserved_quantity = models.PositiveIntegerField(default=0)
+    condition = models.CharField(max_length=20, choices=Product.PRODUCT_CONDITION_CHOICES, default=Product.CONDITION_BRAND_NEW)
+    seller_warranty = models.TextField(blank=True)
+    return_policy = models.TextField(blank=True)
+    delivery_note = models.TextField(blank=True)
+    lead_time_days = models.PositiveIntegerField(null=True, blank=True)
+    fulfilment_method = models.CharField(max_length=20, choices=FULFILMENT_CHOICES, default='vendor')
+    approval_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    approval_notes = models.TextField(blank=True)
+    is_featured = models.BooleanField(default=False, db_index=True)
+    is_preferred = models.BooleanField(default=False, db_index=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+
+    class Meta:
+        ordering = ['-is_preferred', '-is_featured', 'price', '-created_at']
+        indexes = [
+            models.Index(fields=['vendor', 'is_active', 'approval_status']),
+            models.Index(fields=['product', 'is_active', 'approval_status']),
+            models.Index(fields=['variant', 'is_active', 'approval_status']),
+            models.Index(fields=['condition']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['vendor', 'product', 'variant', 'seller_sku'],
+                name='unique_vendor_offer_sku_per_catalog_item',
+            ),
+        ]
+
+    def clean(self):
+        if self.variant_id and self.product_id and self.variant.product_id != self.product_id:
+            raise ValidationError({"variant": "Selected variant does not belong to this product."})
+        if self.sale_price and self.sale_price >= self.price:
+            raise ValidationError({"sale_price": "Sale price must be lower than normal price."})
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        if not self.seller_sku:
+            base = self.variant.sku if self.variant_id else self.product.sku
+            self.seller_sku = f"{base}-{self.vendor_id}".strip("-")
+        super().save(*args, **kwargs)
+
+    @property
+    def final_price(self):
+        return self.sale_price or self.price
+
+    @property
+    def available_stock(self):
+        return max(int(self.stock_quantity or 0) - int(self.reserved_quantity or 0), 0)
+
+    @property
+    def is_available(self):
+        return self.is_active and self.approval_status == self.STATUS_APPROVED and self.available_stock > 0
+
+    @property
+    def display_name(self):
+        if self.variant_id:
+            return f"{self.product.name} - {self.variant.value}"
+        return self.product.name
+
+    @property
+    def vendor_display_name(self):
+        return self.vendor.display_name if self.vendor_id else "Arolana Vendor"
+
+    def __str__(self):
+        return f"{self.vendor_display_name} offer: {self.display_name}"
+
+
+class ProductCatalogRequest(BaseModel):
+    REQUEST_NEW_PRODUCT = 'new_product'
+    REQUEST_NEW_VARIANT = 'new_variant'
+    REQUEST_CHOICES = [
+        (REQUEST_NEW_PRODUCT, 'New catalog product'),
+        (REQUEST_NEW_VARIANT, 'Missing product variant'),
+    ]
+
+    STATUS_PENDING = 'pending'
+    STATUS_APPROVED = 'approved'
+    STATUS_REJECTED = 'rejected'
+    STATUS_NEEDS_INFO = 'needs_info'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending review'),
+        (STATUS_APPROVED, 'Approved'),
+        (STATUS_REJECTED, 'Rejected'),
+        (STATUS_NEEDS_INFO, 'Needs more information'),
+    ]
+
+    vendor = models.ForeignKey('vendors.VendorProfile', on_delete=models.CASCADE, related_name='catalog_requests')
+    requested_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='product_catalog_requests')
+    request_type = models.CharField(max_length=24, choices=REQUEST_CHOICES, db_index=True)
+    product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True, related_name='catalog_requests')
+    resulting_product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_catalog_requests')
+    resulting_variant = models.ForeignKey(ProductVariant, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_catalog_requests')
+
+    title = models.CharField(max_length=255)
+    brand_name = models.CharField(max_length=120, blank=True)
+    model_number = models.CharField(max_length=120, blank=True)
+    manufacturer_sku = models.CharField(max_length=120, blank=True)
+    gtin = models.CharField(max_length=64, blank=True)
+    upc = models.CharField(max_length=64, blank=True)
+    ean = models.CharField(max_length=64, blank=True)
+    barcode = models.CharField(max_length=128, blank=True)
+    requested_attributes = models.JSONField(default=dict, blank=True)
+    description = models.TextField(blank=True)
+    vendor_note = models.TextField(blank=True)
+
+    status = models.CharField(max_length=24, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    admin_notes = models.TextField(blank=True)
+    reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reviewed_product_catalog_requests')
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['vendor', 'status', '-created_at']),
+            models.Index(fields=['request_type', 'status']),
+            models.Index(fields=['product', 'status']),
+        ]
+
+    def clean(self):
+        if self.request_type == self.REQUEST_NEW_VARIANT and not self.product_id:
+            raise ValidationError({'product': 'Choose the existing catalog product that needs this new variant.'})
+
+    def mark_reviewed(self, status, user=None, notes=''):
+        self.status = status
+        self.reviewed_by = user
+        self.reviewed_at = now()
+        if notes:
+            self.admin_notes = notes
+        self.save(update_fields=['status', 'reviewed_by', 'reviewed_at', 'admin_notes', 'updated_at'])
+
+    def __str__(self):
+        return f"{self.get_request_type_display()} - {self.title}"
 
 
 class ProductDetailSection(BaseModel):

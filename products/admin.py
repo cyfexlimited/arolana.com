@@ -7,7 +7,8 @@ from django.db.models import Count, F, Q
 
 from .models import (
     Category, Brand, Product, ProductImage, ProductVariant, 
-    ProductVariantImage, ProductReview, RecentlyViewed, 
+    ProductVariantImage, ProductVariantSpecification, VendorProductOffer, ProductCatalogRequest,
+    ProductReview, RecentlyViewed, 
     Wishlist, ProductVideo, ReviewVideo, ProductQnA,
     Accessory, AccessoryProduct, ManufacturerWarranty, ShippingInfo, ProductListingBanner,
     ProductArticleLink, CategoryArticleLink, ProductWholesaleTier, ProductDetailSection,
@@ -199,12 +200,17 @@ class ProductVariantInline(admin.TabularInline):
     model = ProductVariant
     extra = 1
     fields = [
+        'variant_mode',
         'variant_type',
         'name',
         'value',
+        'model_number',
         'price_adjustment',
         'stock_quantity',
         'image',
+        'selector_type',
+        'display_order',
+        'is_default',
         'color_code',
         'is_active',
     ]
@@ -220,7 +226,7 @@ class ProductVariantInline(admin.TabularInline):
 class ProductVariantImageInline(admin.TabularInline):
     model = ProductVariantImage
     extra = 5
-    fields = ['image', 'alt_text', 'is_main', 'order', 'image_preview']
+    fields = ['image', 'image_type', 'title', 'alt_text', 'is_primary', 'sort_order', 'is_active', 'image_preview']
     readonly_fields = ['image_preview']
 
     def image_preview(self, obj):
@@ -231,6 +237,32 @@ class ProductVariantImageInline(admin.TabularInline):
             )
         return mark_safe('<span style="color: #9ca3af;">No Image</span>')
     image_preview.short_description = 'Preview'
+
+
+class ProductVariantSpecificationInline(admin.TabularInline):
+    model = ProductVariantSpecification
+    extra = 1
+    fields = ['group', 'name', 'value', 'unit', 'display_order', 'is_highlight', 'is_active']
+
+
+class VendorProductOfferInline(admin.TabularInline):
+    model = VendorProductOffer
+    extra = 0
+    fields = [
+        'vendor',
+        'variant',
+        'seller_sku',
+        'price',
+        'sale_price',
+        'stock_quantity',
+        'condition',
+        'approval_status',
+        'is_featured',
+        'is_preferred',
+        'is_active',
+    ]
+    autocomplete_fields = ['vendor', 'variant']
+    show_change_link = True
 
 
 @admin.register(ProductDetailSection)
@@ -335,7 +367,7 @@ class ProductAdmin(admin.ModelAdmin):
     search_fields = ['sku', 'manufacturer_sku', 'name', 'description']
     prepopulated_fields = {'slug': ['name']}
     readonly_fields = ['views_count', 'sales_count', 'rating_avg', 'rating_count', 'created_at', 'updated_at', 'sku', 'submitted_for_review_at', 'approved_at']
-    inlines = [ProductImageInline, ProductVariantInline, ProductWholesaleTierInline, ProductVideoInline, ProductArticleLinkInline, AccessoryInline, ManufacturerWarrantyInline, ShippingInfoInline]
+    inlines = [ProductImageInline, ProductVariantInline, VendorProductOfferInline, ProductWholesaleTierInline, ProductVideoInline, ProductArticleLinkInline, AccessoryInline, ManufacturerWarrantyInline, ShippingInfoInline]
     autocomplete_fields = ['vendor', 'category', 'brand']
     list_select_related = ['category', 'brand', 'vendor']
     list_per_page = 30
@@ -808,9 +840,11 @@ class ProductImageAdmin(admin.ModelAdmin):
 class ProductVariantAdmin(admin.ModelAdmin):
     list_display = [
         'product_name',
+        'variant_mode',
         'variant_type',
         'value',
         'sku',
+        'model_number',
         'final_price_display',
         'price_adjustment',
         'stock_quantity',
@@ -819,30 +853,42 @@ class ProductVariantAdmin(admin.ModelAdmin):
         'variant_images_count',
         'is_active',
     ]
-    list_filter = [VariantStockStatusFilter, 'variant_type', 'is_active', 'created_at']
-    search_fields = ['sku', 'value', 'name', 'product__name']
+    list_filter = [VariantStockStatusFilter, 'variant_mode', 'variant_type', 'selector_type', 'is_default', 'is_active', 'created_at']
+    search_fields = ['sku', 'value', 'name', 'model_number', 'manufacturer_sku', 'gtin', 'upc', 'ean', 'barcode', 'product__name']
     list_editable = ['price_adjustment', 'stock_quantity', 'is_active']
     readonly_fields = ['sku', 'created_at', 'updated_at']
     list_select_related = ['product']
     autocomplete_fields = ['product']
-    inlines = [ProductVariantImageInline]
+    inlines = [ProductVariantSpecificationInline, ProductVariantImageInline, VendorProductOfferInline]
     actions = ['activate_variants', 'deactivate_variants', 'mark_variants_out_of_stock']
     list_per_page = 30
     save_on_top = True
 
     fieldsets = (
         ('Product & Type', {
-            'fields': ('product', 'variant_type')
+            'fields': ('product', 'variant_mode', 'variant_type', 'selector_type', 'display_order', 'is_default')
         }),
         ('Variant Details', {
-            'fields': ('name', 'value', 'sku')
+            'fields': ('name', 'value', 'sku', 'slug', 'model_number', 'manufacturer_sku', 'gtin', 'upc', 'ean', 'barcode')
+        }),
+        ('Full Variant Content Overrides', {
+            'fields': ('short_description', 'description', 'specifications', 'key_features', 'compatibility_notes', 'included_accessories', 'recommended_use'),
+            'classes': ('collapse',),
         }),
         ('Pricing & Stock', {
             'fields': ('price_adjustment', 'stock_quantity', 'is_active')
         }),
         ('Main Variant Image / Color', {
-            'fields': ('image', 'color_code'),
+            'fields': ('image', 'hover_image', 'color_code', 'manual_pdf', 'video_type', 'video_url', 'local_video', 'video_thumbnail', 'video_title'),
             'description': 'This is only the main variant image. Add the full variant gallery below under Variant Images.',
+        }),
+        ('Physical & Warranty Overrides', {
+            'fields': ('weight', 'weight_unit', 'dimensions_length', 'dimensions_width', 'dimensions_height', 'dimension_unit', 'warranty_years', 'warranty_description', 'extended_warranty_available'),
+            'classes': ('collapse',),
+        }),
+        ('SEO Overrides', {
+            'fields': ('meta_title', 'meta_description', 'meta_keywords', 'canonical_override', 'is_indexable'),
+            'classes': ('collapse',),
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),
@@ -916,10 +962,10 @@ class ProductVariantAdmin(admin.ModelAdmin):
 
 @admin.register(ProductVariantImage)
 class ProductVariantImageAdmin(admin.ModelAdmin):
-    list_display = ['variant_display', 'is_main', 'order', 'image_preview']
-    list_filter = ['is_main', 'created_at']
-    list_editable = ['order', 'is_main']
-    search_fields = ['variant__product__name', 'variant__value', 'alt_text']
+    list_display = ['variant_display', 'image_type', 'title', 'is_primary', 'sort_order', 'is_active', 'image_preview']
+    list_filter = ['image_type', 'is_primary', 'is_active', 'created_at']
+    list_editable = ['sort_order', 'is_primary', 'is_active']
+    search_fields = ['variant__product__name', 'variant__value', 'title', 'alt_text']
     autocomplete_fields = ['variant']
     list_select_related = ['variant', 'variant__product']
     list_per_page = 50
@@ -936,6 +982,102 @@ class ProductVariantImageAdmin(admin.ModelAdmin):
             )
         return mark_safe('<span style="color: #9ca3af;">No Image</span>')
     image_preview.short_description = 'Preview'
+
+
+@admin.register(ProductVariantSpecification)
+class ProductVariantSpecificationAdmin(admin.ModelAdmin):
+    list_display = ['variant_display', 'group', 'name', 'value_preview', 'unit', 'display_order', 'is_highlight', 'is_active']
+    list_filter = ['group', 'is_highlight', 'is_active']
+    list_editable = ['display_order', 'is_highlight', 'is_active']
+    search_fields = ['variant__product__name', 'variant__value', 'group', 'name', 'value']
+    autocomplete_fields = ['variant']
+    list_select_related = ['variant', 'variant__product']
+
+    def variant_display(self, obj):
+        return f"{obj.variant.product.name} - {obj.variant.value}"
+    variant_display.short_description = 'Variant'
+
+    def value_preview(self, obj):
+        value = str(obj.value or '')
+        return value[:80] + ('...' if len(value) > 80 else '')
+    value_preview.short_description = 'Value'
+
+
+@admin.register(VendorProductOffer)
+class VendorProductOfferAdmin(admin.ModelAdmin):
+    list_display = ['display_name', 'vendor', 'price', 'sale_price', 'stock_quantity', 'available_stock', 'condition', 'approval_status', 'is_featured', 'is_preferred', 'is_active']
+    list_filter = ['approval_status', 'condition', 'fulfilment_method', 'is_featured', 'is_preferred', 'is_active', 'created_at']
+    list_editable = ['price', 'sale_price', 'stock_quantity', 'approval_status', 'is_featured', 'is_preferred', 'is_active']
+    search_fields = ['product__name', 'variant__value', 'variant__sku', 'seller_sku', 'vendor__store_name', 'vendor__company_name']
+    autocomplete_fields = ['vendor', 'product', 'variant']
+    list_select_related = ['vendor', 'product', 'variant']
+    readonly_fields = ['created_at', 'updated_at']
+    fieldsets = (
+        ('Catalog Item', {
+            'fields': ('vendor', 'product', 'variant', 'seller_sku')
+        }),
+        ('Offer Commercials', {
+            'fields': ('price', 'sale_price', 'currency', 'stock_quantity', 'reserved_quantity', 'condition', 'fulfilment_method')
+        }),
+        ('Seller Terms', {
+            'fields': ('seller_warranty', 'return_policy', 'delivery_note', 'lead_time_days')
+        }),
+        ('Status & Visibility', {
+            'fields': ('approval_status', 'approval_notes', 'is_featured', 'is_preferred', 'is_active')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(ProductCatalogRequest)
+class ProductCatalogRequestAdmin(admin.ModelAdmin):
+    list_display = ['title', 'request_type', 'vendor', 'product', 'status', 'brand_name', 'model_number', 'created_at']
+    list_filter = ['request_type', 'status', 'created_at']
+    search_fields = [
+        'title',
+        'brand_name',
+        'model_number',
+        'manufacturer_sku',
+        'gtin',
+        'upc',
+        'ean',
+        'barcode',
+        'vendor__business_name',
+        'vendor__store_name',
+        'product__name',
+    ]
+    autocomplete_fields = ['vendor', 'requested_by', 'product', 'resulting_product', 'resulting_variant', 'reviewed_by']
+    readonly_fields = ['created_at', 'updated_at', 'reviewed_at']
+    fieldsets = (
+        ('Request', {
+            'fields': ('vendor', 'requested_by', 'request_type', 'status', 'product')
+        }),
+        ('Requested Catalog Data', {
+            'fields': (
+                'title',
+                'brand_name',
+                'model_number',
+                'manufacturer_sku',
+                'gtin',
+                'upc',
+                'ean',
+                'barcode',
+                'requested_attributes',
+                'description',
+                'vendor_note',
+            )
+        }),
+        ('Review Outcome', {
+            'fields': ('resulting_product', 'resulting_variant', 'admin_notes', 'reviewed_by', 'reviewed_at')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
 
 
 # =================================

@@ -777,6 +777,208 @@
             </div>
         </div>
 
+        {% if vendor_offers %}
+        <div class="vendor-products-card" style="margin-bottom:1rem;">
+            <div class="vendor-products-card-header">
+                <div>
+                    <h2 class="vendor-products-card-title">Catalog Offers</h2>
+                    <p class="vendor-products-card-subtitle">
+                        These are sellable offers you created on existing Arolana catalog products and variants.
+                    </p>
+                </div>
+                <span class="vendor-products-chip chip-blue">
+                    <i class="fas fa-tags"></i>
+                    {{ vendor_offers|length }} offer{{ vendor_offers|length|pluralize }}
+                </span>
+            </div>
+
+            <div class="vendor-products-table-wrap">
+                <table class="vendor-products-table">
+                    <thead>
+                        <tr>
+                            <th>Catalog item</th>
+                            <th>Your price</th>
+                            <th>Stock</th>
+                            <th>Condition</th>
+                            <th>Approval</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for offer in vendor_offers %}
+                        <tr>
+                            <td>
+                                <div class="vendor-product-main">
+                                    <div class="vendor-product-image">
+                                        {% if offer.variant and offer.variant.image %}
+                                            {% with offer_img=offer.variant.image|optimized_image_url:'product_thumb' %}
+                                                <img src="{{ offer_img }}" data-original-src="{{ offer.variant.image.url }}" alt="{{ offer.display_name }}" loading="lazy" decoding="async" width="56" height="56" onerror="this.onerror=null; this.src=this.dataset.originalSrc;">
+                                            {% endwith %}
+                                        {% elif offer.product.main_image %}
+                                            {% with offer_img=offer.product.main_image|optimized_image_url:'product_thumb' %}
+                                                <img src="{{ offer_img }}" data-original-src="{{ offer.product.main_image.url }}" alt="{{ offer.display_name }}" loading="lazy" decoding="async" width="56" height="56" onerror="this.onerror=null; this.src=this.dataset.originalSrc;">
+                                            {% endwith %}
+                                        {% else %}
+                                            <i class="fas fa-image" style="color:#94A3B8;"></i>
+                                        {% endif %}
+                                    </div>
+                                    <div style="min-width:0;">
+                                        <div class="vendor-product-name">{{ offer.display_name }}</div>
+                                        <div class="vendor-product-meta">
+                                            {{ offer.product.category.name|default:"No Category" }}
+                                            {% if offer.seller_sku %} · Seller SKU: {{ offer.seller_sku }}{% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="vendor-product-price">₦{{ offer.final_price|floatformat:2|intcomma }}</span>
+                                {% if offer.sale_price %}
+                                    <span class="vendor-product-compare">₦{{ offer.price|floatformat:2|intcomma }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="vendor-product-stock {% if offer.available_stock > 0 %}stock-good{% else %}stock-bad{% endif %}">
+                                    {{ offer.available_stock|default:0 }} units
+                                </span>
+                            </td>
+                            <td>{{ offer.get_condition_display }}</td>
+                            <td>
+                                {% if offer.approval_status == 'approved' %}
+                                    <span class="vendor-status-pill status-green">Approved</span>
+                                {% elif offer.approval_status == 'pending' %}
+                                    <span class="vendor-status-pill status-yellow">Pending Review</span>
+                                {% elif offer.approval_status == 'rejected' %}
+                                    <span class="vendor-status-pill status-red">Rejected</span>
+                                {% elif offer.approval_status == 'suspended' %}
+                                    <span class="vendor-status-pill status-red">Suspended</span>
+                                {% else %}
+                                    <span class="vendor-status-pill status-gray">Draft</span>
+                                {% endif %}
+                                {% if offer.approval_notes %}
+                                    <div class="vendor-approval-note">{{ offer.approval_notes|truncatechars:70 }}</div>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="vendor-products-mobile-list">
+                {% for offer in vendor_offers %}
+                <article class="vendor-mobile-product-card">
+                    <div class="vendor-mobile-product-top">
+                        <div class="vendor-product-image">
+                            {% if offer.variant and offer.variant.image %}
+                                {% with offer_img=offer.variant.image|optimized_image_url:'product_thumb' %}
+                                    <img src="{{ offer_img }}" data-original-src="{{ offer.variant.image.url }}" alt="{{ offer.display_name }}" loading="lazy" decoding="async" width="56" height="56" onerror="this.onerror=null; this.src=this.dataset.originalSrc;">
+                                {% endwith %}
+                            {% elif offer.product.main_image %}
+                                {% with offer_img=offer.product.main_image|optimized_image_url:'product_thumb' %}
+                                    <img src="{{ offer_img }}" data-original-src="{{ offer.product.main_image.url }}" alt="{{ offer.display_name }}" loading="lazy" decoding="async" width="56" height="56" onerror="this.onerror=null; this.src=this.dataset.originalSrc;">
+                                {% endwith %}
+                            {% else %}
+                                <i class="fas fa-image" style="color:#94A3B8;"></i>
+                            {% endif %}
+                        </div>
+                        <div class="vendor-mobile-product-content">
+                            <div class="vendor-product-name">{{ offer.display_name }}</div>
+                            <div class="vendor-product-meta">{{ offer.product.category.name|default:"No Category" }}</div>
+                        </div>
+                    </div>
+                    <div class="vendor-mobile-product-grid">
+                        <div class="vendor-mobile-info-box">
+                            <div class="vendor-mobile-info-label">Your price</div>
+                            <div class="vendor-mobile-info-value">₦{{ offer.final_price|floatformat:2|intcomma }}</div>
+                        </div>
+                        <div class="vendor-mobile-info-box">
+                            <div class="vendor-mobile-info-label">Stock</div>
+                            <div class="vendor-mobile-info-value">{{ offer.available_stock|default:0 }} units</div>
+                        </div>
+                        <div class="vendor-mobile-info-box">
+                            <div class="vendor-mobile-info-label">Condition</div>
+                            <div class="vendor-mobile-info-value">{{ offer.get_condition_display }}</div>
+                        </div>
+                        <div class="vendor-mobile-info-box">
+                            <div class="vendor-mobile-info-label">Approval</div>
+                            <div class="vendor-mobile-info-value">{{ offer.get_approval_status_display }}</div>
+                        </div>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if catalog_requests %}
+        <div class="vendor-products-card" style="margin-bottom:1rem;">
+            <div class="vendor-products-card-header">
+                <div>
+                    <h2 class="vendor-products-card-title">Catalog Requests</h2>
+                    <p class="vendor-products-card-subtitle">
+                        Track product and missing-variant requests submitted for Arolana catalog review.
+                    </p>
+                </div>
+                <span class="vendor-products-chip chip-orange">
+                    <i class="fas fa-clipboard-list"></i>
+                    {{ catalog_requests|length }} request{{ catalog_requests|length|pluralize }}
+                </span>
+            </div>
+            <div class="vendor-products-table-wrap">
+                <table class="vendor-products-table">
+                    <thead>
+                        <tr>
+                            <th>Request</th>
+                            <th>Catalog item</th>
+                            <th>Identifier</th>
+                            <th>Status</th>
+                            <th>Submitted</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for request_item in catalog_requests %}
+                        <tr>
+                            <td>
+                                <div class="vendor-product-name">{{ request_item.title }}</div>
+                                <div class="vendor-product-meta">{{ request_item.get_request_type_display }}</div>
+                            </td>
+                            <td>
+                                {% if request_item.product %}
+                                    {{ request_item.product.name }}
+                                {% elif request_item.resulting_product %}
+                                    {{ request_item.resulting_product.name }}
+                                {% else %}
+                                    New catalog item
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if request_item.model_number %}Model: {{ request_item.model_number }}{% endif %}
+                                {% if request_item.manufacturer_sku %}<div>MPN: {{ request_item.manufacturer_sku }}</div>{% endif %}
+                                {% if not request_item.model_number and not request_item.manufacturer_sku %}-{% endif %}
+                            </td>
+                            <td>
+                                {% if request_item.status == 'approved' %}
+                                    <span class="vendor-status-pill status-green">Approved</span>
+                                {% elif request_item.status == 'rejected' %}
+                                    <span class="vendor-status-pill status-red">Rejected</span>
+                                {% elif request_item.status == 'needs_info' %}
+                                    <span class="vendor-status-pill status-yellow">Needs Info</span>
+                                {% else %}
+                                    <span class="vendor-status-pill status-yellow">Pending Review</span>
+                                {% endif %}
+                                {% if request_item.admin_notes %}
+                                    <div class="vendor-approval-note">{{ request_item.admin_notes|truncatechars:90 }}</div>
+                                {% endif %}
+                            </td>
+                            <td>{{ request_item.created_at|date:"M d, Y" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
         <div class="vendor-products-card">
             <div class="vendor-products-card-header">
                 <div>

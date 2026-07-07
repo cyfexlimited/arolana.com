@@ -39,6 +39,24 @@
         border-radius: 8px;
         margin-bottom: 10px;
     }
+    .mode-card {
+        border: 1px solid #dbeafe;
+        border-radius: 16px;
+        padding: 16px;
+        cursor: pointer;
+        transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+    }
+    .mode-card.active {
+        border-color: #0066CC;
+        box-shadow: 0 12px 30px rgba(0, 102, 204, .14);
+        transform: translateY(-1px);
+    }
+    .catalog-result {
+        border: 1px solid #e5edf7;
+        border-radius: 14px;
+        padding: 12px;
+        background: #fff;
+    }
 </style>
 {% endblock %}
 
@@ -80,9 +98,148 @@
 
 	    <form method="POST" enctype="multipart/form-data" class="space-y-6" id="productForm">
         {% csrf_token %}
+        <input type="hidden" name="product_mode" id="productMode" value="new_product">
+
+        <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+            <h2 class="text-xl font-semibold mb-3">Choose how you want to sell</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <button type="button" class="mode-card active text-left bg-white" data-mode="new_product">
+                    <div class="font-bold text-gray-900">Create New Product</div>
+                    <p class="text-sm text-gray-600 mt-1">Submit a new catalog product for Arolana review.</p>
+                </button>
+                <button type="button" class="mode-card text-left bg-white" data-mode="existing_offer">
+                    <div class="font-bold text-gray-900">Sell Existing Product</div>
+                    <p class="text-sm text-gray-600 mt-1">Search Arolana catalog and create only your vendor offer.</p>
+                </button>
+                <button type="button" class="mode-card text-left bg-white" data-mode="missing_variant">
+                    <div class="font-bold text-gray-900">Add Missing Variant</div>
+                    <p class="text-sm text-gray-600 mt-1">Request a new variant under an existing catalog family.</p>
+                </button>
+            </div>
+        </div>
+
+        <div id="existingOfferPanel" hidden class="rounded-2xl border border-blue-100 bg-white p-4">
+            <h2 class="text-xl font-semibold mb-2">Sell an existing Arolana catalog item</h2>
+            <p class="text-sm text-gray-600 mb-4">Search by product name, brand, model, SKU, barcode, GTIN, UPC, or EAN. This creates a vendor offer without duplicating catalog content.</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Catalog search</label>
+                    <input type="search" id="catalogSearch" placeholder="Search product, brand, model, MPN, GTIN..."
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <div id="catalogResults" class="mt-3 space-y-2"></div>
+                </div>
+                <div class="rounded-xl bg-blue-50 p-3 text-sm text-blue-950">
+                    <div class="font-bold mb-1">Your listing usage</div>
+                    <p>{{ current_product_count }} / {% if subscription_limits.max_products == -1 %}Unlimited{% else %}{{ subscription_limits.max_products }}{% endif %} listings used.</p>
+                    {% if offer_access.message %}
+                    <p class="mt-2 text-orange-700 font-semibold">{{ offer_access.message }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            <input type="hidden" name="existing_product_id" id="existingProductId">
+            <input type="hidden" name="existing_variant_id" id="existingVariantId">
+            <div id="selectedCatalogLabel" class="mt-3 text-sm font-bold text-green-700"></div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Your Price *</label>
+                    <input type="number" name="offer_price" step="0.01" data-offer-field
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Sale Price</label>
+                    <input type="number" name="offer_sale_price" step="0.01" data-offer-field
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Stock *</label>
+                    <input type="number" name="offer_stock_quantity" value="0" data-offer-field
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Condition *</label>
+                    <select name="offer_condition" data-offer-field class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        {% for value,label in condition_choices %}
+                        <option value="{{ value }}" {% if value == "brand_new" %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Seller SKU</label>
+                    <input type="text" name="seller_sku" data-offer-field class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+            </div>
+        </div>
+
+        <div id="missingVariantPanel" hidden class="rounded-2xl border border-orange-100 bg-white p-4">
+            <h2 class="text-xl font-semibold mb-2">Request a missing variant</h2>
+            <p class="text-sm text-gray-600 mb-4">Choose the existing product family, then tell Arolana the exact model, color, capacity, bundle, barcode, or other variant that should be added to the shared catalog.</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Existing product family *</label>
+                    <input type="search" id="variantCatalogSearch" placeholder="Search existing product family..."
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500">
+                    <div id="variantCatalogResults" class="mt-3 space-y-2"></div>
+                    <div id="selectedVariantCatalogLabel" class="mt-3 text-sm font-bold text-green-700"></div>
+                </div>
+                <div class="rounded-xl bg-orange-50 p-3 text-sm text-orange-950">
+                    <div class="font-bold mb-1">Arolana review</div>
+                    <p>Your request stays pending until staff confirms the variant is accurate and safe for customers.</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Variant name / model *</label>
+                    <input type="text" name="variant_title" data-variant-request-field class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="Example: 512GB Blue, Rally Plus Kit, UK Plug">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Variant type</label>
+                    <input type="text" name="variant_type_request" data-variant-request-field class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="Color, storage, bundle, plug type...">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Variant value</label>
+                    <input type="text" name="variant_value_request" data-variant-request-field class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="Blue, 512GB, UK Plug...">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Model number</label>
+                    <input type="text" name="variant_model_number" data-variant-request-field class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Manufacturer SKU / MPN</label>
+                    <input type="text" name="variant_manufacturer_sku" data-variant-request-field class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">GTIN / Barcode</label>
+                    <input type="text" name="variant_gtin" data-variant-request-field class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">UPC</label>
+                    <input type="text" name="variant_upc" data-variant-request-field class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">EAN</label>
+                    <input type="text" name="variant_ean" data-variant-request-field class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Other barcode</label>
+                    <input type="text" name="variant_barcode" data-variant-request-field class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Color code</label>
+                    <input type="text" name="variant_color_code_request" data-variant-request-field class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="#0066CC">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Variant description</label>
+                    <textarea name="variant_description" rows="3" data-variant-request-field class="w-full px-4 py-2 border border-gray-300 rounded-lg"></textarea>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Note to Arolana staff</label>
+                    <textarea name="variant_vendor_note" rows="3" data-variant-request-field class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="Tell us where you got the variant details, official link, supplier note, etc."></textarea>
+                </div>
+            </div>
+        </div>
 
         <!-- Basic Information -->
-        <div class="border-b border-gray-200 pb-4">
+        <div class="border-b border-gray-200 pb-4 new-product-section">
             <h2 class="text-xl font-semibold mb-4">Basic Information</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -168,7 +325,7 @@
         </div>
 
 	        <!-- Product Images -->
-	        <div class="border-b border-gray-200 pb-4">
+	        <div class="border-b border-gray-200 pb-4 new-product-section">
 	            <h2 class="text-xl font-semibold mb-4">Product Images</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -193,7 +350,7 @@
         </div>
 
         <!-- Product Video -->
-        <div class="border-b border-gray-200 pb-4">
+        <div class="border-b border-gray-200 pb-4 new-product-section">
             <h2 class="text-xl font-semibold mb-4">Product Video</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -219,7 +376,7 @@
         </div>
 
         <!-- Product Variants with Images -->
-        <div class="border-b border-gray-200 pb-4">
+        <div class="border-b border-gray-200 pb-4 new-product-section">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-semibold">Product Variants (Optional)</h2>
 		                <button type="button" onclick="addVariantRow()" {% if subscription_limits.max_variants_per_product == 0 %}disabled{% endif %} class="bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed">
@@ -237,7 +394,7 @@
         </div>
 
         <!-- Description -->
-        <div class="border-b border-gray-200 pb-4">
+        <div class="border-b border-gray-200 pb-4 new-product-section">
             <h2 class="text-xl font-semibold mb-4">Description & SEO</h2>
             <div class="space-y-4">
                 <div>
@@ -365,5 +522,260 @@ document.getElementById('videoType').addEventListener('change', function() {
 	    `;
 	    container.appendChild(row);
 	}
+
+    // Product mode: new catalog product vs sell an existing Arolana catalog item.
+    (function () {
+        const modeCards = document.querySelectorAll('.mode-card');
+        const modeInput = document.getElementById('productMode');
+        const existingPanel = document.getElementById('existingOfferPanel');
+        const missingVariantPanel = document.getElementById('missingVariantPanel');
+        const newSections = document.querySelectorAll('.new-product-section');
+        const offerFields = document.querySelectorAll('[data-offer-field]');
+        const variantRequestFields = document.querySelectorAll('[data-variant-request-field]');
+        const catalogSearchInput = document.getElementById('catalogSearch');
+        const catalogResults = document.getElementById('catalogResults');
+        const variantCatalogSearchInput = document.getElementById('variantCatalogSearch');
+        const variantCatalogResults = document.getElementById('variantCatalogResults');
+        const selectedProductInput = document.getElementById('existingProductId');
+        const selectedVariantInput = document.getElementById('existingVariantId');
+        const form = document.querySelector('form[method="post"]');
+
+        if (!modeInput || !existingPanel) {
+            return;
+        }
+
+        const newProductControls = [];
+        newSections.forEach((section) => {
+            section.querySelectorAll('input, select, textarea').forEach((control) => {
+                control.dataset.originalRequired = control.required ? '1' : '0';
+                newProductControls.push(control);
+            });
+        });
+        offerFields.forEach((control) => {
+            control.dataset.originalRequired = control.required ? '1' : '0';
+            control.disabled = true;
+        });
+        variantRequestFields.forEach((control) => {
+            control.dataset.originalRequired = control.required ? '1' : '0';
+            control.disabled = true;
+        });
+
+        function setMode(mode) {
+            modeInput.value = mode;
+            modeCards.forEach((card) => {
+                card.classList.toggle('active', card.dataset.mode === mode);
+            });
+
+            const isExistingOffer = mode === 'existing_offer';
+            const isMissingVariant = mode === 'missing_variant';
+            existingPanel.hidden = !isExistingOffer;
+            if (missingVariantPanel) {
+                missingVariantPanel.hidden = !isMissingVariant;
+            }
+
+            newSections.forEach((section) => {
+                section.style.display = (isExistingOffer || isMissingVariant) ? 'none' : '';
+            });
+
+            newProductControls.forEach((control) => {
+                control.disabled = isExistingOffer || isMissingVariant;
+                control.required = !isExistingOffer && !isMissingVariant && control.dataset.originalRequired === '1';
+            });
+
+            offerFields.forEach((control) => {
+                control.disabled = !isExistingOffer;
+            });
+            variantRequestFields.forEach((control) => {
+                control.disabled = !isMissingVariant;
+                control.required = isMissingVariant && control.dataset.originalRequired === '1';
+            });
+
+            const offerPrice = document.querySelector('input[name="offer_price"]');
+            const offerStock = document.querySelector('input[name="offer_stock_quantity"]');
+            if (offerPrice) offerPrice.required = isExistingOffer;
+            if (offerStock) offerStock.required = isExistingOffer;
+            const variantTitle = document.querySelector('input[name="variant_title"]');
+            if (variantTitle) variantTitle.required = isMissingVariant;
+        }
+
+        function escapeHtml(value) {
+            return String(value || '').replace(/[&<>"']/g, function (char) {
+                return {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#039;'
+                }[char];
+            });
+        }
+
+        function selectCatalogItem(productId, variantId, label, resultsNode, labelNodeId) {
+            selectedProductInput.value = productId || '';
+            selectedVariantInput.value = variantId || '';
+            const activeResults = resultsNode || catalogResults;
+            activeResults.querySelectorAll('.catalog-result').forEach((node) => {
+                node.classList.remove('border-green-400', 'bg-green-50');
+            });
+            const selectedButton = activeResults.querySelector(`[data-product-id="${productId}"][data-variant-id="${variantId || ''}"]`);
+            if (selectedButton) {
+                const card = selectedButton.closest('.catalog-result');
+                if (card) {
+                    card.classList.add('border-green-400', 'bg-green-50');
+                }
+            }
+            const selectedLabel = document.getElementById(labelNodeId || 'selectedCatalogLabel');
+            if (selectedLabel) {
+                selectedLabel.textContent = label ? `Selected: ${label}` : '';
+            }
+        }
+
+        function renderCatalogResults(items, resultsNode, options) {
+            const target = resultsNode || catalogResults;
+            const config = Object.assign({
+                emptyMessage: 'No matching catalog products found. Use Create New Product if this item is missing from Arolana.',
+                allowVariants: true,
+                productButtonLabel: 'Sell product',
+                variantButtonPrefix: 'Sell'
+            }, options || {});
+            if (!target) return;
+
+            if (!items.length) {
+                target.innerHTML = `<div class="rounded-xl border border-dashed border-gray-300 p-4 text-sm font-semibold text-gray-500">${escapeHtml(config.emptyMessage)}</div>`;
+                return;
+            }
+
+            target.innerHTML = items.map((item) => {
+                const variants = item.variants || [];
+                const variantButtons = config.allowVariants && variants.length
+                    ? variants.map((variant) => `
+                        <button type="button"
+                                class="mt-2 mr-2 rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-bold text-blue-700 hover:bg-blue-50"
+                                data-product-id="${item.id}"
+                                data-variant-id="${variant.id}">
+                            ${escapeHtml(config.variantButtonPrefix)} ${escapeHtml(variant.label || variant.name || variant.value || 'variant')}
+                        </button>
+                    `).join('')
+                    : (config.allowVariants
+                        ? '<span class="mt-2 inline-flex rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-500">No variants</span>'
+                        : '<span class="mt-2 inline-flex rounded-full bg-orange-50 px-3 py-1 text-xs font-bold text-orange-700">Request a missing variant for this product</span>');
+
+                return `
+                    <article class="catalog-result rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                        <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                            <div>
+                                <div class="text-sm font-black text-gray-900">${escapeHtml(item.name)}</div>
+                                <div class="mt-1 text-xs font-semibold text-gray-500">
+                                    ${escapeHtml(item.brand || 'No brand')} · ${escapeHtml(item.category || 'No category')}
+                                    ${item.sku ? ' · SKU: ' + escapeHtml(item.sku) : ''}
+                                    ${item.manufacturer_sku ? ' · MPN: ' + escapeHtml(item.manufacturer_sku) : ''}
+                                </div>
+                            </div>
+                            <button type="button"
+                                    class="rounded-lg bg-blue-600 px-3 py-2 text-xs font-black text-white hover:bg-blue-700"
+                                    data-product-id="${item.id}"
+                                    data-variant-id="">
+                                ${escapeHtml(config.productButtonLabel)}
+                            </button>
+                        </div>
+                        <div class="mt-3">
+                            ${variantButtons}
+                        </div>
+                    </article>
+                `;
+            }).join('');
+        }
+
+        let searchTimer = null;
+        function runCatalogSearch(inputNode, resultsNode, options) {
+            const query = (inputNode && inputNode.value || '').trim();
+            selectedProductInput.value = '';
+            selectedVariantInput.value = '';
+            if (query.length < 2) {
+                resultsNode.innerHTML = '<div class="rounded-xl border border-dashed border-gray-300 p-4 text-sm font-semibold text-gray-500">Type at least 2 characters to search the Arolana catalog.</div>';
+                return;
+            }
+
+            resultsNode.innerHTML = '<div class="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm font-bold text-blue-800">Searching catalog...</div>';
+            fetch(`{% url 'dashboard:vendor_catalog_search' %}?q=${encodeURIComponent(query)}`, {
+                headers: {'X-Requested-With': 'XMLHttpRequest'}
+            })
+                .then((response) => response.json())
+                .then((payload) => renderCatalogResults(payload.results || [], resultsNode, options))
+                .catch(() => {
+                    resultsNode.innerHTML = '<div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">Catalog search could not load. Please try again.</div>';
+                });
+        }
+
+        modeCards.forEach((card) => {
+            card.addEventListener('click', () => setMode(card.dataset.mode || 'new_product'));
+        });
+
+        if (catalogSearchInput) {
+            catalogSearchInput.addEventListener('input', () => {
+                clearTimeout(searchTimer);
+                searchTimer = setTimeout(() => runCatalogSearch(catalogSearchInput, catalogResults, {
+                    emptyMessage: 'No matching catalog products found. Use Create New Product if this item is missing from Arolana.',
+                    allowVariants: true,
+                    productButtonLabel: 'Sell product',
+                    variantButtonPrefix: 'Sell'
+                }), 300);
+            });
+        }
+        if (variantCatalogSearchInput && variantCatalogResults) {
+            variantCatalogSearchInput.addEventListener('input', () => {
+                clearTimeout(searchTimer);
+                searchTimer = setTimeout(() => runCatalogSearch(variantCatalogSearchInput, variantCatalogResults, {
+                    emptyMessage: 'No matching product found. Create a new product instead if Arolana does not have this item yet.',
+                    allowVariants: false,
+                    productButtonLabel: 'Select product'
+                }), 300);
+            });
+        }
+
+        if (catalogResults) {
+            catalogResults.addEventListener('click', (event) => {
+                const button = event.target.closest('[data-product-id]');
+                if (!button) return;
+                const productId = button.dataset.productId;
+                const variantId = button.dataset.variantId || '';
+                const label = button.textContent.trim();
+                selectCatalogItem(productId, variantId, label, catalogResults, 'selectedCatalogLabel');
+            });
+        }
+        if (variantCatalogResults) {
+            variantCatalogResults.addEventListener('click', (event) => {
+                const button = event.target.closest('[data-product-id]');
+                if (!button) return;
+                const productId = button.dataset.productId;
+                const label = button.textContent.trim();
+                selectCatalogItem(productId, '', label, variantCatalogResults, 'selectedVariantCatalogLabel');
+            });
+        }
+
+        if (form) {
+            form.addEventListener('submit', (event) => {
+                if (modeInput.value === 'existing_offer' && !selectedProductInput.value) {
+                    event.preventDefault();
+                    alert('Please select the catalog product or variant you want to sell.');
+                    return;
+                }
+                if (modeInput.value === 'missing_variant') {
+                    const variantTitle = document.querySelector('input[name="variant_title"]');
+                    if (!selectedProductInput.value) {
+                        event.preventDefault();
+                        alert('Please select the existing product that needs this missing variant.');
+                        return;
+                    }
+                    if (variantTitle && !variantTitle.value.trim()) {
+                        event.preventDefault();
+                        alert('Please enter the missing variant title.');
+                    }
+                }
+            });
+        }
+
+        setMode(modeInput.value || 'new_product');
+    })();
 </script>
 {% endblock %}

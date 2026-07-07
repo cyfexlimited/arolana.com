@@ -22,7 +22,7 @@ import logging
 import random
 import string
 
-from products.models import Product, Category, ProductReview, Wishlist, RecentlyViewed, ProductVariant, ProductVariantImage, ProductQuestion, Accessory, AccessoryProduct, ProductImage, ProductVideo, Brand
+from products.models import Product, Category, ProductReview, Wishlist, RecentlyViewed, ProductVariant, ProductVariantImage, ProductQuestion, Accessory, AccessoryProduct, ProductImage, ProductVideo, Brand, VendorProductOffer, ProductCatalogRequest
 from core.models import VendorQuoteMessage, VendorQuoteRequest
 from core.quote_services import (
     quote_access_for_vendor,
@@ -35,6 +35,7 @@ from orders.models import Order, OrderItem
 from deliveries.models import DeliveryRequest
 from .models import AdminActivityLog, SystemAlert, VendorAdminMessage, VendorNotification
 from subscriptions.models import SubscriptionPlan, VendorSubscription, subscription_label, user_has_paid_subscription, user_subscription_limits, user_subscription_tier
+from subscriptions.entitlements import can_create_vendor_offer, vendor_listing_usage
 from arolana_payments.models import PaymentTransaction
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
@@ -976,6 +977,22 @@ def dashboard_home(request):
 def vendor_products(request):
     """Vendor product management with filtering"""
     products = Product.objects.filter(vendor=request.user).select_related('category', 'brand').order_by('-created_at')
+    vendor_profile = getattr(request.user, 'vendor_profile', None)
+    vendor_offers = VendorProductOffer.objects.none()
+    catalog_requests = ProductCatalogRequest.objects.none()
+    if vendor_profile:
+        vendor_offers = (
+            VendorProductOffer.objects
+            .filter(vendor=vendor_profile)
+            .select_related('product', 'product__category', 'product__brand', 'variant')
+            .order_by('-created_at')
+        )
+        catalog_requests = (
+            ProductCatalogRequest.objects
+            .filter(vendor=vendor_profile)
+            .select_related('product', 'resulting_product', 'resulting_variant')
+            .order_by('-created_at')[:20]
+        )
     
     category_slug = request.GET.get('category')
     if category_slug:
@@ -1036,6 +1053,8 @@ def vendor_products(request):
         'approved_count': approved_count,
         'rejected_count': rejected_count,
         'changes_required_count': changes_required_count,
+        'vendor_offers': vendor_offers,
+        'catalog_requests': catalog_requests,
         'unread_count': _vendor_unread_admin_count(request.user),
         **_vendor_subscription_context(request.user),
         **_vendor_customer_chat_stats(request.user),
@@ -1055,15 +1074,113 @@ def vendor_add_product(request):
         return kyc_redirect
 
     subscription_limits = user_subscription_limits(request.user)
-    current_product_count = Product.objects.filter(vendor=request.user).exclude(
-        approval_status__in=['rejected', 'draft']
-    ).count()
+    current_product_count = vendor_listing_usage(request.user)
     current_featured_count = Product.objects.filter(vendor=request.user, is_featured=True).exclude(approval_status='rejected').count()
     
     if request.method == 'POST':
         try:
+            product_mode = request.POST.get('product_mode', 'new_product')
             max_products = subscription_limits['max_products']
             product_limit_reached = max_products != -1 and current_product_count >= max_products
+
+            if product_mode == 'existing_offer':
+                offer_access = can_create_vendor_offer(request.user)
+                if not offer_access["allowed"]:
+                    messages.error(request, offer_access["message"])
+                    return redirect('dashboard:vendor_add_product')
+
+                product_id = request.POST.get('existing_product_id')
+                variant_id = request.POST.get('existing_variant_id') or None
+                offer_price = Decimal(str(request.POST.get('offer_price') or '0'))
+                offer_sale_price_raw = request.POST.get('offer_sale_price')
+                offer_sale_price = Decimal(str(offer_sale_price_raw)) if offer_sale_price_raw else None
+                offer_stock = int(request.POST.get('offer_stock_quantity') or 0)
+                offer_condition = request.POST.get('offer_condition') or Product.CONDITION_BRAND_NEW
+                seller_sku = request.POST.get('seller_sku', '').strip()
+
+                if offer_price <= 0:
+                    messages.error(request, 'Valid offer price is required.')
+                    return redirect('dashboard:vendor_add_product')
+                if offer_condition not in dict(Product.PRODUCT_CONDITION_CHOICES):
+                    offer_condition = Product.CONDITION_BRAND_NEW
+
+                catalog_product = get_object_or_404(
+                    Product,
+                    pk=product_id,
+                    approval_status='approved',
+                    is_active=True,
+                )
+                catalog_variant = None
+                if variant_id:
+                    catalog_variant = get_object_or_404(
+                        ProductVariant,
+                        pk=variant_id,
+                        product=catalog_product,
+                        is_active=True,
+                    )
+
+                offer = VendorProductOffer.objects.create(
+                    vendor=request.user.vendor_profile,
+                    product=catalog_product,
+                    variant=catalog_variant,
+                    seller_sku=seller_sku,
+                    price=offer_price,
+                    sale_price=offer_sale_price,
+                    stock_quantity=offer_stock,
+                    condition=offer_condition,
+                    seller_warranty=request.POST.get('seller_warranty', '').strip(),
+                    return_policy=request.POST.get('return_policy', '').strip(),
+                    delivery_note=request.POST.get('delivery_note', '').strip(),
+                    approval_status=VendorProductOffer.STATUS_PENDING,
+                    is_active=False,
+                )
+                messages.success(
+                    request,
+                    f'Offer for "{offer.display_name}" was saved and submitted for Arolana review.',
+                )
+                return redirect('dashboard:vendor_products')
+
+            if product_mode == 'missing_variant':
+                product_id = request.POST.get('existing_product_id')
+                catalog_product = get_object_or_404(
+                    Product,
+                    pk=product_id,
+                    approval_status='approved',
+                    is_active=True,
+                )
+                variant_title = request.POST.get('variant_title', '').strip()
+                if not variant_title:
+                    messages.error(request, 'Tell Arolana the missing variant name or model.')
+                    return redirect('dashboard:vendor_add_product')
+
+                request_payload = {
+                    'variant_type': request.POST.get('variant_type_request', '').strip(),
+                    'variant_value': request.POST.get('variant_value_request', '').strip(),
+                    'color_code': request.POST.get('variant_color_code_request', '').strip(),
+                }
+                catalog_request = ProductCatalogRequest.objects.create(
+                    vendor=request.user.vendor_profile,
+                    requested_by=request.user,
+                    request_type=ProductCatalogRequest.REQUEST_NEW_VARIANT,
+                    product=catalog_product,
+                    title=variant_title,
+                    brand_name=getattr(catalog_product.brand, 'name', '') if getattr(catalog_product, 'brand', None) else '',
+                    model_number=request.POST.get('variant_model_number', '').strip(),
+                    manufacturer_sku=request.POST.get('variant_manufacturer_sku', '').strip(),
+                    gtin=request.POST.get('variant_gtin', '').strip(),
+                    upc=request.POST.get('variant_upc', '').strip(),
+                    ean=request.POST.get('variant_ean', '').strip(),
+                    barcode=request.POST.get('variant_barcode', '').strip(),
+                    description=request.POST.get('variant_description', '').strip(),
+                    vendor_note=request.POST.get('variant_vendor_note', '').strip(),
+                    requested_attributes={key: value for key, value in request_payload.items() if value},
+                    status=ProductCatalogRequest.STATUS_PENDING,
+                )
+                messages.success(
+                    request,
+                    f'Missing variant request "{catalog_request.title}" was submitted for Arolana catalog review.',
+                )
+                return redirect('dashboard:vendor_products')
 
             # Get form data
             name = request.POST.get('name', '').strip()
@@ -1265,6 +1382,7 @@ def vendor_add_product(request):
         'subscription_limits': subscription_limits,
         'current_product_count': current_product_count,
         'current_featured_count': current_featured_count,
+        'offer_access': can_create_vendor_offer(request.user),
         'product_limit_reached': (
             subscription_limits['max_products'] != -1
             and current_product_count >= subscription_limits['max_products']
@@ -1274,6 +1392,62 @@ def vendor_add_product(request):
         'unread_count': _vendor_unread_admin_count(request.user),
     }
     return render(request, 'dashboard/vendor_add_product.html', context)
+
+
+@login_required
+def vendor_catalog_search(request):
+    """Search approved catalog products and variants for the vendor sell-existing flow."""
+    if not hasattr(request.user, 'vendor_profile') and request.user.user_type != 'vendor':
+        return JsonResponse({'success': False, 'message': 'Vendor account required.'}, status=403)
+
+    query = (request.GET.get('q') or '').strip()
+    if len(query) < 2:
+        return JsonResponse({'success': True, 'results': []})
+
+    products = (
+        Product.objects
+        .filter(is_active=True, approval_status='approved')
+        .filter(
+            Q(name__icontains=query)
+            | Q(sku__icontains=query)
+            | Q(manufacturer_sku__icontains=query)
+            | Q(brand__name__icontains=query)
+            | Q(variants__sku__icontains=query)
+            | Q(variants__model_number__icontains=query)
+            | Q(variants__manufacturer_sku__icontains=query)
+            | Q(variants__gtin__icontains=query)
+            | Q(variants__upc__icontains=query)
+            | Q(variants__ean__icontains=query)
+            | Q(variants__barcode__icontains=query)
+        )
+        .select_related('brand', 'category')
+        .prefetch_related('variants')
+        .distinct()[:20]
+    )
+    results = []
+    for product in products:
+        variants = [
+            {
+                'id': variant.id,
+                'name': variant.name,
+                'value': variant.value,
+                'sku': variant.sku,
+                'model_number': variant.model_number,
+                'variant_mode': variant.variant_mode,
+                'is_default': variant.is_default,
+            }
+            for variant in product.variants.filter(is_active=True).order_by('display_order', 'variant_type', 'name', 'value')[:50]
+        ]
+        results.append({
+            'id': product.id,
+            'name': product.name,
+            'sku': product.sku,
+            'manufacturer_sku': product.manufacturer_sku,
+            'brand': product.brand.name if product.brand_id else '',
+            'category': product.category.name if product.category_id else '',
+            'variants': variants,
+        })
+    return JsonResponse({'success': True, 'results': results})
 
 @login_required
 def vendor_product_detail(request, product_id):

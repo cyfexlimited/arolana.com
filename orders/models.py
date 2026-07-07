@@ -1,7 +1,7 @@
 from django.db import models
 from core.models import BaseModel
 from accounts.models import User
-from products.models import Product, ProductVariant, Accessory
+from products.models import Product, ProductVariant, Accessory, VendorProductOffer
 from decimal import Decimal
 from django.utils import timezone
 import uuid
@@ -29,13 +29,18 @@ class CartItem(BaseModel):
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name='items')
     product = models.ForeignKey(Product, on_delete=models.CASCADE, null=True, blank=True)
     variant = models.ForeignKey(ProductVariant, on_delete=models.SET_NULL, null=True, blank=True)
+    vendor_offer = models.ForeignKey(VendorProductOffer, on_delete=models.SET_NULL, null=True, blank=True)
     accessory = models.ForeignKey(Accessory, on_delete=models.SET_NULL, null=True, blank=True)
     quantity = models.IntegerField(default=1)
     price_at_add = models.DecimalField(max_digits=10, decimal_places=2)
     
     def save(self, *args, **kwargs):
         if not self.price_at_add:
-            if self.product:
+            if self.vendor_offer:
+                self.product = self.vendor_offer.product
+                self.variant = self.vendor_offer.variant
+                self.price_at_add = self.vendor_offer.final_price
+            elif self.product:
                 self.price_at_add = self.product.price
             elif self.variant:
                 self.price_at_add = self.variant.product.price + self.variant.price_adjustment
@@ -49,6 +54,8 @@ class CartItem(BaseModel):
     
     @property
     def item_name(self):
+        if self.vendor_offer:
+            return self.vendor_offer.display_name
         if self.product:
             return self.product.name
         elif self.variant:
@@ -308,17 +315,40 @@ class OrderItem(BaseModel):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
     product = models.ForeignKey(Product, on_delete=models.CASCADE, null=True, blank=True)
     variant = models.ForeignKey(ProductVariant, on_delete=models.SET_NULL, null=True, blank=True)
+    vendor_offer = models.ForeignKey(VendorProductOffer, on_delete=models.SET_NULL, null=True, blank=True)
     accessory = models.ForeignKey(Accessory, on_delete=models.SET_NULL, null=True, blank=True)
+    vendor_id_snapshot = models.PositiveIntegerField(null=True, blank=True)
+    vendor_name_snapshot = models.CharField(max_length=220, blank=True)
+    product_name_snapshot = models.CharField(max_length=260, blank=True)
+    variant_name_snapshot = models.CharField(max_length=220, blank=True)
+    seller_sku_snapshot = models.CharField(max_length=120, blank=True)
     quantity = models.IntegerField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
     
     def save(self, *args, **kwargs):
+        if self.vendor_offer_id:
+            self.product = self.vendor_offer.product
+            self.variant = self.vendor_offer.variant
+            if not self.vendor_id_snapshot:
+                self.vendor_id_snapshot = self.vendor_offer.vendor_id
+            if not self.vendor_name_snapshot:
+                self.vendor_name_snapshot = self.vendor_offer.vendor_display_name
+            if not self.product_name_snapshot:
+                self.product_name_snapshot = self.vendor_offer.product.name
+            if not self.variant_name_snapshot and self.vendor_offer.variant_id:
+                self.variant_name_snapshot = self.vendor_offer.variant.value
+            if not self.seller_sku_snapshot:
+                self.seller_sku_snapshot = self.vendor_offer.seller_sku
         self.subtotal = self.price * self.quantity
         super().save(*args, **kwargs)
     
     @property
     def item_name(self):
+        if self.product_name_snapshot:
+            return self.product_name_snapshot
+        if self.vendor_offer:
+            return self.vendor_offer.display_name
         if self.product:
             return self.product.name
         elif self.variant:

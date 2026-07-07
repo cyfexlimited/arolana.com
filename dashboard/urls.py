@@ -63,6 +63,7 @@ urlpatterns = [
     # Vendor products
     path("vendor/products/", views.vendor_products, name="vendor_products"),
     path("vendor/product/add/", views.vendor_add_product, name="vendor_add_product"),
+    path("vendor/product/catalog-search/", views.vendor_catalog_search, name="vendor_catalog_search"),
     path("vendor/product/<int:product_id>/", views.vendor_product_detail, name="vendor_product_detail"),
     path("vendor/product/<int:product_id>/variants/", views.vendor_product_variants, name="vendor_product_variants"),
     path("vendor/product/<int:product_id>/images/", views.vendor_product_images, name="vendor_product_images"),
