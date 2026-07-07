@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from accounts.models import User
 from subscriptions.admin import sync_vendor_subscription_profile
+from subscriptions.entitlements import can_create_vendor_offer
 from subscriptions.models import SubscriptionPlan, VendorSubscription
 from vendors.models import VendorProfile
 
@@ -69,3 +70,17 @@ class VendorSubscriptionVisibilityTests(TestCase):
         self.assertEqual(self.profile.subscription_tier, "free")
         self.assertEqual(self.profile.priority_score, 0)
         self.assertFalse(self.profile.can_show_on_homepage)
+
+    def test_vendor_offer_entitlement_uses_subscription_tier_label(self):
+        VendorSubscription.objects.create(
+            vendor=self.user,
+            plan=self.plan,
+            start_date=timezone.now(),
+            end_date=timezone.now() + timedelta(days=30),
+            is_active=True,
+        )
+
+        access = can_create_vendor_offer(self.user)
+
+        self.assertEqual(access["plan_label"], "Enterprise Vendor")
+        self.assertTrue(access["allowed"])

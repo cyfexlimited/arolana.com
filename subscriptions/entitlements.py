@@ -18,8 +18,13 @@ class VendorEntitlements:
 
 
 def get_vendor_entitlements(user):
-    from subscriptions.models import subscription_label, user_subscription_limits
+    from subscriptions.models import (
+        subscription_label,
+        user_subscription_limits,
+        user_subscription_tier,
+    )
 
+    tier = user_subscription_tier(user)
     limits = user_subscription_limits(user)
     return VendorEntitlements(
         max_products=limits.get("max_products", 1),
@@ -30,7 +35,7 @@ def get_vendor_entitlements(user):
         can_upload_pdf=bool(limits.get("can_upload_pdf")),
         can_upload_certificates=bool(limits.get("can_upload_certificates")),
         can_access_rfq=bool(limits.get("can_access_rfq")),
-        plan_label=subscription_label(user),
+        plan_label=subscription_label(tier),
     )
 
 
