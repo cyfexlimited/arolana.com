@@ -587,7 +587,7 @@ def debug_home(request):
 
 def home(request):
     """Main homepage view with all sections including video."""
-    from homepage.models import HomepageBanner, HomepageCategory, HomepageVideoSection
+    from homepage.models import HomepageVideoSection
 
     video_section = (
         HomepageVideoSection.objects
@@ -596,17 +596,8 @@ def home(request):
         .first()
     )
 
-    banners = HomepageBanner.objects.filter(is_active=True).order_by("display_order")
-    categories = HomepageCategory.objects.filter(is_active=True).order_by("display_order")
-    featured_products = Product.objects.filter(is_featured=True, is_active=True)[:8]
-    vendors = VendorProfile.objects.filter(is_verified=True, is_active=True)[:12]
-
     context = {
         "video_section": video_section,
-        "banners": banners,
-        "categories": categories,
-        "featured_products": featured_products,
-        "vendors": vendors,
     }
 
     return render(request, "base/home.html", context)
