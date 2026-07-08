@@ -92,6 +92,7 @@ urlpatterns = [
     path("api/staff/vendor/dashboard/", views.vendor_dashboard_api, name="vendor_dashboard_api"),
     path("api/staff/vendor/catalog/options/", views.vendor_catalog_options_api, name="vendor_catalog_options_api"),
     path("api/staff/vendor/products/", views.vendor_products_api, name="vendor_products_api"),
+    path("api/staff/vendor/products/create", views.vendor_product_create_api, name="vendor_product_create_api_no_slash"),
     path("api/staff/vendor/products/create/", views.vendor_product_create_api, name="vendor_product_create_api"),
     path("api/staff/vendor/products/<int:product_id>/update/", views.vendor_product_update_api, name="vendor_product_update_api"),
     path("api/staff/vendor/products/<int:product_id>/submit-review/", views.vendor_product_submit_review_api, name="vendor_product_submit_review_api"),
