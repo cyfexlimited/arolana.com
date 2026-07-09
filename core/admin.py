@@ -8,6 +8,7 @@ from django.db.models import Sum
 from datetime import timedelta
 from django.utils.timezone import now
 from django.conf import settings
+from core.models import PrivateMediaAccessLog
 
 from .models import (
     AdminAppearance,
@@ -907,3 +908,137 @@ def admin_dashboard_context(request):
         'admin_stats': get_admin_stats(),
         'debug': settings.DEBUG,
     }
+
+@admin.register(PrivateMediaAccessLog)
+class PrivateMediaAccessLogAdmin(
+    admin.ModelAdmin
+):
+    list_display = (
+        "created_at",
+        "decision",
+        "rule_key",
+        "scope",
+        "user",
+        "model_label",
+        "object_id",
+        "reason",
+        "ip_address",
+    )
+
+    list_filter = (
+        "decision",
+        "scope",
+        "rule_key",
+        "reason",
+        "request_method",
+        "created_at",
+    )
+
+    search_fields = (
+        "user__email",
+        "rule_key",
+        "scope",
+        "model_label",
+        "object_id",
+        "reason",
+        "path_hash",
+        "ip_address",
+        "request_id",
+    )
+
+    readonly_fields = (
+        "id",
+        "user",
+        "rule_key",
+        "scope",
+        "model_label",
+        "object_id",
+        "decision",
+        "reason",
+        "path_hash",
+        "ip_address",
+        "user_agent",
+        "request_method",
+        "request_id",
+        "created_at",
+    )
+
+    ordering = (
+        "-created_at",
+    )
+
+    date_hierarchy = (
+        "created_at"
+    )
+
+    list_select_related = (
+        "user",
+    )
+
+    list_per_page = 100
+
+    show_full_result_count = False
+
+    fieldsets = (
+        (
+            "Access Decision",
+            {
+                "fields": (
+                    "decision",
+                    "reason",
+                    "rule_key",
+                    "scope",
+                ),
+            },
+        ),
+        (
+            "Protected Resource",
+            {
+                "fields": (
+                    "model_label",
+                    "object_id",
+                    "path_hash",
+                ),
+            },
+        ),
+        (
+            "Requester",
+            {
+                "fields": (
+                    "user",
+                    "ip_address",
+                    "user_agent",
+                ),
+            },
+        ),
+        (
+            "Request",
+            {
+                "fields": (
+                    "request_method",
+                    "request_id",
+                    "created_at",
+                ),
+            },
+        ),
+    )
+
+    def has_add_permission(
+        self,
+        request,
+    ):
+        return False
+
+    def has_change_permission(
+        self,
+        request,
+        obj=None,
+    ):
+        return False
+
+    def has_delete_permission(
+        self,
+        request,
+        obj=None,
+    ):
+        return False

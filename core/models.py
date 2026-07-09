@@ -547,3 +547,191 @@ class HomePageAppearance(BaseModel):
     def load(cls):
         obj, _created = cls.objects.get_or_create(pk=1)
         return obj
+
+
+class PrivateMediaAccessLog(models.Model):
+    """
+    Immutable security audit trail for access to Arolana private media.
+
+    This records authorization outcomes without storing the raw private
+    storage path. The path is stored only as a SHA-256 hash.
+
+    Examples:
+    - KYC document access
+    - payment proof access
+    - private chat attachment access
+    - rider document access
+    - delivery evidence access
+    - private customer media access
+    """
+
+    DECISION_ALLOWED = "allowed"
+    DECISION_DENIED = "denied"
+
+    DECISION_CHOICES = (
+        (
+            DECISION_ALLOWED,
+            "Allowed",
+        ),
+        (
+            DECISION_DENIED,
+            "Denied",
+        ),
+    )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="private_media_access_logs",
+    )
+
+    rule_key = models.CharField(
+        max_length=120,
+        blank=True,
+        db_index=True,
+        help_text=(
+            "Private media authorization rule used for the request."
+        ),
+    )
+
+    scope = models.CharField(
+        max_length=50,
+        blank=True,
+        db_index=True,
+        help_text=(
+            "Security scope such as kyc, payment, chat, delivery, or hr."
+        ),
+    )
+
+    model_label = models.CharField(
+        max_length=150,
+        blank=True,
+        db_index=True,
+        help_text=(
+            "Django model that owns the protected media resource."
+        ),
+    )
+
+    object_id = models.CharField(
+        max_length=100,
+        blank=True,
+        db_index=True,
+        help_text=(
+            "Primary key of the database object that owns the file."
+        ),
+    )
+
+    decision = models.CharField(
+        max_length=20,
+        choices=DECISION_CHOICES,
+        db_index=True,
+    )
+
+    reason = models.CharField(
+        max_length=100,
+        blank=True,
+        db_index=True,
+        help_text=(
+            "Authorization reason such as owner_or_participant, "
+            "role_or_permission, matching_session, or not_authorized."
+        ),
+    )
+
+    path_hash = models.CharField(
+        max_length=64,
+        blank=True,
+        db_index=True,
+        help_text=(
+            "SHA-256 hash of the private storage path. "
+            "The raw sensitive path is intentionally not stored."
+        ),
+    )
+
+    ip_address = models.GenericIPAddressField(
+        null=True,
+        blank=True,
+    )
+
+    user_agent = models.CharField(
+        max_length=700,
+        blank=True,
+    )
+
+    request_method = models.CharField(
+        max_length=10,
+        blank=True,
+    )
+
+    request_id = models.CharField(
+        max_length=160,
+        blank=True,
+        db_index=True,
+        help_text=(
+            "Cloudflare, Railway, or application request identifier."
+        ),
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+    )
+
+    class Meta:
+        ordering = (
+            "-created_at",
+        )
+
+        verbose_name = (
+            "Private Media Access Log"
+        )
+
+        verbose_name_plural = (
+            "Private Media Access Logs"
+        )
+
+        indexes = [
+            models.Index(
+                fields=[
+                    "decision",
+                    "-created_at",
+                ],
+                name="pmedia_decision_time_idx",
+            ),
+            models.Index(
+                fields=[
+                    "rule_key",
+                    "-created_at",
+                ],
+                name="pmedia_rule_time_idx",
+            ),
+            models.Index(
+                fields=[
+                    "user",
+                    "-created_at",
+                ],
+                name="pmedia_user_time_idx",
+            ),
+            models.Index(
+                fields=[
+                    "model_label",
+                    "object_id",
+                ],
+                name="pmedia_resource_idx",
+            ),
+        ]
+
+    def __str__(self):
+        actor = (
+            f"user:{self.user_id}"
+            if self.user_id
+            else "anonymous"
+        )
+
+        return (
+            f"{self.decision.upper()} "
+            f"{self.rule_key or 'unknown'} "
+            f"{actor} "
+            f"{self.created_at:%Y-%m-%d %H:%M:%S}"
+        )

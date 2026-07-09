@@ -33,7 +33,9 @@ from installers.api_urls import provider_urlpatterns
 from core.private_media import authorize_private_media_request
 from products.models import Product, Category
 from vendors.models import VendorProfile
-
+from core.private_media_audit import (
+    record_private_media_access,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -489,12 +491,6 @@ def serve_public_media(request, path):
             "Media file not found"
         )
 
-    # ------------------------------------------------------------------------
-    # PRIVATE MEDIA
-    #
-    # Anonymous/non-staff callers receive a 404 rather than 403 so that the
-    # endpoint does not confirm whether a sensitive object path exists.
-    # ------------------------------------------------------------------------
     if _is_private_media_path(normalized_path):
         decision = authorize_private_media_request(
             request,
@@ -502,6 +498,12 @@ def serve_public_media(request, path):
         )
 
         if not decision.allowed:
+            record_private_media_access(
+                request=request,
+                path=normalized_path,
+                decision=decision,
+            )
+
             logger.warning(
                 (
                     "Blocked unauthorized private media request. "
@@ -514,15 +516,27 @@ def serve_public_media(request, path):
                 decision.principal_user_id,
             )
 
-            # Deliberately hide whether the private file exists.
+            # Hide existence of private resources.
             raise Http404(
                 "Media file not found"
             )
 
-        return _open_media_response(
+        # Open the file first.
+        #
+        # We only record ALLOWED after storage successfully returns a response,
+        # so a missing storage object is not incorrectly recorded as viewed.
+        response = _open_media_response(
             normalized_path,
             private=True,
         )
+
+        record_private_media_access(
+            request=request,
+            path=normalized_path,
+            decision=decision,
+        )
+
+        return response
 
     # ------------------------------------------------------------------------
     # PUBLIC MEDIA
