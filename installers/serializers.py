@@ -15,6 +15,11 @@ from .models import (
     ServiceQuoteRequest,
     ServiceReview,
 )
+from .project_services import (
+    resolve_project_card_media,
+    resolve_project_gallery_media,
+    resolve_project_hero_media,
+)
 
 
 def absolute_optimized_url(request, image, preset, verify_exists=False):
@@ -25,6 +30,14 @@ def absolute_optimized_url(request, image, preset, verify_exists=False):
         url = resolver(image, preset)
     except Exception:
         return ""
+    if not url:
+        return ""
+    if url.startswith(("http://", "https://")):
+        return url
+    return request.build_absolute_uri(url) if request else url
+
+
+def absolute_url(request, url):
     if not url:
         return ""
     if url.startswith(("http://", "https://")):
@@ -118,38 +131,21 @@ class ServicePortfolioSerializer(serializers.ModelSerializer):
             "quote_requests_count", "shares_count", "saves_count", "published_at",
         ]
 
-    def _display_source(self, obj):
-        media = obj.featured_media
-        return (
-            obj.image
-            or getattr(media, "image", None)
-            or obj.video_thumbnail
-            or getattr(media, "thumbnail", None)
-            or obj.provider.business_banner
-        )
-
     def get_image(self, obj):
-        source = self._display_source(obj)
-        return absolute_optimized_url(self.context.get("request"), source, "project_card", verify_exists=True)
+        media = resolve_project_card_media(obj)
+        return absolute_url(self.context.get("request"), media.url)
 
     def get_image_url(self, obj):
-        source = self._display_source(obj)
-        return absolute_optimized_url(self.context.get("request"), source, "project_card", verify_exists=True)
+        media = resolve_project_card_media(obj)
+        return absolute_url(self.context.get("request"), media.url)
 
     def get_thumbnail_url(self, obj):
-        media = obj.featured_media
-        source = (
-            getattr(media, "thumbnail", None)
-            or getattr(media, "image", None)
-            or obj.image
-            or obj.video_thumbnail
-            or obj.provider.business_banner
-        )
-        return absolute_optimized_url(self.context.get("request"), source, "project_thumb", verify_exists=True)
+        media = resolve_project_card_media(obj)
+        return absolute_url(self.context.get("request"), media.thumbnail_url or media.url)
 
     def get_hero_image_url(self, obj):
-        source = self._display_source(obj)
-        return absolute_optimized_url(self.context.get("request"), source, "project_hero", verify_exists=True)
+        media = resolve_project_hero_media(obj)
+        return absolute_url(self.context.get("request"), media.url)
 
     def get_video_url(self, obj):
         request = self.context.get("request")
@@ -179,8 +175,21 @@ class ServicePortfolioSerializer(serializers.ModelSerializer):
         }
 
     def get_media(self, obj):
+        if obj.approval_status == ServicePortfolio.STATUS_APPROVED:
+            request = self.context.get("request")
+            return [
+                {
+                    **item.as_dict(),
+                    "url": absolute_url(request, item.url),
+                    "image_url": absolute_url(request, item.url) if item.kind == "image" else "",
+                    "thumbnail_url": absolute_url(request, item.thumbnail_url),
+                    "original_url": absolute_url(request, item.original_url),
+                    "video_url": absolute_url(request, item.video_url),
+                }
+                for item in resolve_project_gallery_media(obj)
+            ]
         return ServiceProjectMediaSerializer(
-            obj.public_media if obj.approval_status == ServicePortfolio.STATUS_APPROVED else obj.media_items.all(),
+            obj.media_items.all(),
             many=True,
             context=self.context,
         ).data

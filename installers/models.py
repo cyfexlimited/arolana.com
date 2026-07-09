@@ -835,7 +835,7 @@ class ServicePortfolio(models.Model):
         value = (self.video_url or "").strip()
         if not value:
             return ""
-        if self.video_source != self.VIDEO_SOURCE_YOUTUBE:
+        if self.video_source != "youtube":
             return value
         try:
             parsed = urlparse(value if "://" in value else f"https://youtu.be/{value}")
@@ -886,6 +886,7 @@ class ServiceProjectMedia(BaseModel):
         ("image", "Image"),
         ("video", "Video"),
         ("before_image", "Before image"),
+        ("during_image", "During image"),
         ("after_image", "After image"),
         ("progress_image", "Progress image"),
         ("document", "Document"),

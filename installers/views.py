@@ -33,6 +33,7 @@ from .project_services import (
     ProjectEntitlementService,
     notify_project_submitted,
     record_project_event,
+    resolve_project_gallery_media,
 )
 from .services import (
     filter_public_providers,
@@ -562,6 +563,10 @@ def provider_projects(request):
         "provider": provider,
         "projects": projects,
         "entitlements": ProjectEntitlementService(provider).payload(),
+        "workspace_active": "projects",
+        "profile_steps": provider.profile_completion_items,
+        "profile_missing_steps": provider.profile_missing_steps,
+        "project_entitlements": ProjectEntitlementService(provider).payload(),
         "totals": totals,
         "status_counts": {
             value: projects.filter(approval_status=value).count()
@@ -625,13 +630,27 @@ def provider_project_media(request, project_id):
             else:
                 messages.success(request, "Media uploaded for Arolana review.")
                 return redirect("installers:provider_project_media", project_id=project.id)
+    gallery_items = resolve_project_gallery_media(project)
+    grouped_media = {
+        "before": [item for item in gallery_items if item.media_type == "before_image"],
+        "during": [item for item in gallery_items if item.media_type in {"during_image", "progress_image"}],
+        "after": [item for item in gallery_items if item.media_type == "after_image"],
+        "videos": [item for item in gallery_items if item.kind == "video"],
+        "all": gallery_items,
+    }
     return render(request, "installers/project_media.html", {
         "provider": provider,
         "project": project,
         "media_items": project.media_items.all(),
+        "resolved_media_items": gallery_items,
+        "grouped_media": grouped_media,
         "form": form,
         "media_permission": media_permission.as_dict(),
         "entitlements": ProjectEntitlementService(provider).payload(),
+        "workspace_active": "projects",
+        "profile_steps": provider.profile_completion_items,
+        "profile_missing_steps": provider.profile_missing_steps,
+        "project_entitlements": ProjectEntitlementService(provider).payload(),
     })
 
 
@@ -651,11 +670,15 @@ def provider_project_analytics(request, project_id):
 @login_required
 def provider_project_leads(request):
     provider = get_object_or_404(ServiceProviderProfile, user=request.user)
-    leads = provider.quote_requests.filter(source_project__isnull=False).select_related("source_project")
+    leads = provider.quote_requests.filter(source_project__isnull=False).select_related("source_project", "source_project__service_category")
     return render(request, "installers/project_leads.html", {
         "provider": provider,
         "leads": leads,
         "entitlements": ProjectEntitlementService(provider).payload(),
+        "workspace_active": "project_leads",
+        "profile_steps": provider.profile_completion_items,
+        "profile_missing_steps": provider.profile_missing_steps,
+        "project_entitlements": ProjectEntitlementService(provider).payload(),
     })
 
 
@@ -709,8 +732,16 @@ def request_quote(request):
                 "message",
                 "New service quote request",
                 f"{quote.name} requested {quote.service_needed} in {quote.city}, {quote.state}.",
-                link="/installers/dashboard/",
-                metadata={"service_quote_request_id": quote.id, "product_id": quote.product_id},
+                link="/dashboard/provider/projects/leads/" if quote.source_project_id else "/dashboard/provider/quote-requests/",
+                metadata={
+                    "type": "service_quote_request",
+                    "target_screen": "ProviderQuoteDetail",
+                    "role": "provider",
+                    "service_quote_request_id": quote.id,
+                    "quote_id": quote.id,
+                    "project_id": quote.source_project_id,
+                    "product_id": quote.product_id,
+                },
                 priority=3,
             )
         messages.success(request, "Your request has been sent. A verified professional or Arolana support will contact you.")

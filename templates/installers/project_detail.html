@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load optimized_images media_optimization currency_filters %}
+{% load optimized_images media_optimization currency_filters installers_tags %}
 {% block title %}{{ seo_title }}{% endblock %}
 {% block meta_description %}<meta name="description" content="{{ seo_description }}">{% endblock %}
 {% block social_meta %}
@@ -10,22 +10,24 @@
 <meta name="twitter:card" content="summary_large_image">
 {% endblock %}
 {% block social_image %}
-{% if project.image %}{% seo_media_url project.image 'project_hero' as project_social_image %}{% elif project.featured_media.image %}{% seo_media_url project.featured_media.image 'project_hero' as project_social_image %}{% elif project.video_thumbnail %}{% seo_media_url project.video_thumbnail 'project_hero' as project_social_image %}{% elif project.provider.business_banner %}{% seo_media_url project.provider.business_banner 'provider_banner' as project_social_image %}{% endif %}
+{% project_hero_image_url project as project_social_image %}
 {% if project_social_image %}<meta property="og:image" content="{{ project_social_image }}"><meta name="twitter:image" content="{{ project_social_image }}">{% endif %}
 {% endblock %}
 {% block structured_data %}
-{% if project.image %}{% seo_media_url project.image 'project_hero' as project_schema_image %}{% elif project.featured_media.image %}{% seo_media_url project.featured_media.image 'project_hero' as project_schema_image %}{% elif project.video_thumbnail %}{% seo_media_url project.video_thumbnail 'project_hero' as project_schema_image %}{% elif project.provider.business_banner %}{% seo_media_url project.provider.business_banner 'provider_banner' as project_schema_image %}{% endif %}
+{% project_hero_image_url project as project_schema_image %}
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"CreativeWork","name":"{{ project.title|escapejs }}","description":"{{ project.short_summary|default:seo_description|escapejs }}","url":"{{ request.scheme }}://{{ request.get_host }}{{ request.path }}"{% if project_schema_image %},"image":"{{ project_schema_image|escapejs }}"{% endif %},"datePublished":"{{ project.published_at|date:'c' }}","dateModified":"{{ project.updated_at|date:'c' }}","creator":{"@type":"Organization","name":"{{ project.provider.business_name|escapejs }}","url":"{{ request.scheme }}://{{ request.get_host }}{{ project.provider.get_absolute_url }}"}}}
 </script>
 {% endblock %}
 {% block content %}
 <main class="bg-[#F6F9FC] pb-20 text-[#071A44]">
+  {% project_hero_image_url project as project_hero_url %}
+  {% project_gallery_items project as project_gallery %}
   <div class="mx-auto max-w-7xl px-4 py-8">
     <nav class="mb-5 text-sm font-bold text-slate-500"><a href="{% url 'projects:directory' %}" class="text-[#0066CC]">Projects</a> / {{ project.service_category.name }} / {{ project.title }}</nav>
     <section class="overflow-hidden rounded-[2rem] bg-[#071A44] text-white shadow-2xl">
       <div class="relative min-h-[420px]">
-        {% if project.image %}<img src="{{ project.image|optimized_image_url:'project_hero' }}" alt="{{ project.title }}" class="absolute inset-0 h-full w-full object-cover" decoding="async">{% elif project.featured_media.image %}<img src="{{ project.featured_media.image|optimized_image_url:'project_hero' }}" alt="{{ project.title }}" class="absolute inset-0 h-full w-full object-cover" decoding="async">{% elif project.video_thumbnail %}<img src="{{ project.video_thumbnail|optimized_image_url:'project_hero' }}" alt="{{ project.title }}" class="absolute inset-0 h-full w-full object-cover" decoding="async">{% elif project.provider.business_banner %}<img src="{{ project.provider.business_banner|optimized_image_url:'provider_banner' }}" alt="{{ project.provider.business_name }}" class="absolute inset-0 h-full w-full object-cover" decoding="async">{% endif %}
+        {% if project_hero_url %}<img src="{{ project_hero_url }}" alt="{{ project.title }}" class="absolute inset-0 h-full w-full object-cover" decoding="async">{% endif %}
         <div class="absolute inset-0 bg-gradient-to-r from-[#071A44]/95 via-[#071A44]/70 to-[#071A44]/15"></div>
         <div class="relative z-10 flex min-h-[420px] max-w-3xl flex-col justify-end p-7 md:p-12">
           <div class="flex flex-wrap gap-2">{% if project.is_verified_project %}<span class="rounded-full bg-emerald-500 px-3 py-1 text-xs font-black">Verified project</span>{% endif %}{% if project.has_video %}<span class="rounded-full bg-[#FF7A00] px-3 py-1 text-xs font-black"><i class="fas fa-play mr-1"></i>Installation video</span>{% endif %}</div>
@@ -44,10 +46,25 @@
           {% if project.video_source == "youtube" and project.video_embed_url %}<div class="aspect-video"><iframe src="{{ project.video_embed_url }}" title="{{ project.title }}" class="h-full w-full" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>{% elif project.local_video %}<video controls playsinline poster="{% if project.video_thumbnail %}{{ project.video_thumbnail|optimized_image_url:'project_hero' }}{% endif %}" class="aspect-video w-full"><source src="{{ project.local_video.url }}"></video>{% else %}<a href="{{ project.video_url }}" target="_blank" rel="noopener" class="grid aspect-video place-items-center text-center text-white"><span><i class="fas fa-circle-play text-6xl text-[#FF7A00]"></i><strong class="mt-3 block">Watch project video</strong></span></a>{% endif %}
         </section>
         {% endif %}
-        {% if media_items %}
+        {% if project_gallery %}
         <section class="rounded-[2rem] bg-white p-6 shadow-sm">
           <p class="text-xs font-black uppercase tracking-widest text-[#FF7A00]">Project gallery</p><h2 class="mt-1 text-3xl font-black">See the work from every angle</h2>
-          <div class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{% for media in media_items %}{% if media.image %}<a href="{{ media.image.url }}" class="group relative overflow-hidden rounded-2xl bg-slate-100" target="_blank"><img src="{{ media.image|optimized_image_url:'project_gallery' }}" alt="{{ media.alt_text|default:project.title }}" class="aspect-[4/3] h-full w-full object-cover transition group-hover:scale-105" loading="lazy"><span class="absolute bottom-3 left-3 rounded-full bg-[#071A44]/80 px-3 py-1 text-xs font-black text-white">{{ media.get_media_type_display }}</span></a>{% endif %}{% endfor %}</div>
+          <div class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {% for media in project_gallery %}
+              {% if media.kind == "video" %}
+                <a href="{{ media.video_url }}" class="group relative overflow-hidden rounded-2xl bg-[#071A44]" target="_blank" rel="noopener">
+                  {% if media.thumbnail_url %}<img src="{{ media.thumbnail_url }}" alt="{{ media.alt|default:project.title }}" class="aspect-[4/3] h-full w-full object-cover opacity-80 transition group-hover:scale-105" loading="lazy">{% else %}<div class="grid aspect-[4/3] place-items-center text-white/70"><i class="fas fa-play-circle text-5xl"></i></div>{% endif %}
+                  <span class="absolute inset-0 grid place-items-center text-white"><i class="fas fa-circle-play text-5xl drop-shadow-lg"></i></span>
+                  <span class="absolute bottom-3 left-3 rounded-full bg-[#071A44]/80 px-3 py-1 text-xs font-black text-white">{{ media.label|default:"Video" }}</span>
+                </a>
+              {% else %}
+                <a href="{{ media.original_url|default:media.url }}" class="group relative overflow-hidden rounded-2xl bg-slate-100" target="_blank" rel="noopener">
+                  <img src="{{ media.url }}" alt="{{ media.alt|default:project.title }}" class="aspect-[4/3] h-full w-full object-cover transition group-hover:scale-105" loading="lazy" decoding="async">
+                  <span class="absolute bottom-3 left-3 rounded-full bg-[#071A44]/80 px-3 py-1 text-xs font-black text-white">{{ media.label|default:"Project image" }}</span>
+                </a>
+              {% endif %}
+            {% endfor %}
+          </div>
         </section>
         {% endif %}
         <section class="rounded-[2rem] bg-white p-7 shadow-sm">

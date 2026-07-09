@@ -10,15 +10,205 @@ from django.utils import timezone
 
 from notifications.models import Notification
 
+from core.media_optimization import get_verified_optimized_image_url
+
 from .models import (
     ProviderSubscriptionPlan,
     ServicePortfolio,
     ServiceProjectEvent,
+    ServiceProjectMedia,
     ServiceProjectModerationLog,
 )
 
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ResolvedProjectMedia:
+    url: str
+    kind: str = "image"
+    preset: str = ""
+    source: str = ""
+    media: object = None
+    alt: str = ""
+    caption: str = ""
+    original_url: str = ""
+    media_type: str = ""
+    label: str = ""
+    video_url: str = ""
+    thumbnail_url: str = ""
+
+    def as_dict(self):
+        return {
+            "url": self.url,
+            "kind": self.kind,
+            "preset": self.preset,
+            "source": self.source,
+            "alt": self.alt,
+            "caption": self.caption,
+            "original_url": self.original_url,
+            "media_type": self.media_type,
+            "label": self.label,
+            "video_url": self.video_url,
+            "thumbnail_url": self.thumbnail_url,
+            "id": getattr(self.media, "id", None),
+        }
+
+
+def _file_url(file_field):
+    if not file_field:
+        return ""
+    try:
+        return file_field.url
+    except Exception:
+        return ""
+
+
+def _optimized_url(file_field, preset):
+    if not file_field:
+        return ""
+    try:
+        return get_verified_optimized_image_url(file_field, preset) or _file_url(file_field)
+    except Exception:
+        logger.debug("Project media optimization fallback failed", exc_info=True)
+        return _file_url(file_field)
+
+
+def _public_media(project):
+    if not project:
+        return []
+    media = getattr(project, "public_media", [])
+    try:
+        return list(media)
+    except TypeError:
+        return list(media.all())
+
+
+def _featured_media(project):
+    if not project:
+        return None
+    return getattr(project, "featured_media", None)
+
+
+def _image_candidate_label(project, media=None):
+    if media:
+        return getattr(media, "alt_text", "") or getattr(media, "caption", "") or getattr(project, "title", "")
+    return getattr(project, "title", "") or ""
+
+
+def _project_image_candidates(project):
+    """Return project image candidates in marketplace priority order."""
+    featured = _featured_media(project)
+    provider = getattr(project, "provider", None)
+    media_items = _public_media(project)
+    first_image = next((item for item in media_items if getattr(item, "image", None)), None)
+    candidates = [
+        ("project_image", getattr(project, "image", None), None),
+        ("featured_media_image", getattr(featured, "image", None), featured),
+        ("project_video_thumbnail", getattr(project, "video_thumbnail", None), None),
+        ("featured_media_thumbnail", getattr(featured, "thumbnail", None), featured),
+        ("first_gallery_image", getattr(first_image, "image", None), first_image),
+        ("provider_banner", getattr(provider, "business_banner", None), None),
+    ]
+    seen = set()
+    for source, image, media in candidates:
+        if not image:
+            continue
+        key = getattr(image, "name", "") or id(image)
+        if key in seen:
+            continue
+        seen.add(key)
+        yield source, image, media
+
+
+def resolve_project_card_media(project):
+    for source, image, media in _project_image_candidates(project):
+        preset = "provider_banner" if source == "provider_banner" else "project_card"
+        url = _optimized_url(image, preset)
+        if url:
+            return ResolvedProjectMedia(
+                url=url,
+                kind="image",
+                preset=preset,
+                source=source,
+                media=media,
+                alt=_image_candidate_label(project, media),
+                original_url=_file_url(image),
+            )
+    return ResolvedProjectMedia(url="", kind="fallback", source="fallback")
+
+
+def resolve_project_hero_media(project):
+    for source, image, media in _project_image_candidates(project):
+        preset = "provider_banner" if source == "provider_banner" else "project_hero"
+        url = _optimized_url(image, preset)
+        if url:
+            return ResolvedProjectMedia(
+                url=url,
+                kind="image",
+                preset=preset,
+                source=source,
+                media=media,
+                alt=_image_candidate_label(project, media),
+                original_url=_file_url(image),
+            )
+    return ResolvedProjectMedia(url="", kind="fallback", source="fallback")
+
+
+def _media_video_url(media):
+    if not media:
+        return ""
+    return _file_url(getattr(media, "video", None)) or getattr(media, "external_video_url", "") or ""
+
+
+def resolve_project_gallery_media(project):
+    items = []
+    for media in _public_media(project):
+        media_type = getattr(media, "media_type", "") or "image"
+        label = ""
+        try:
+            label = media.get_media_type_display()
+        except Exception:
+            label = media_type.replace("_", " ").title()
+
+        if getattr(media, "image", None):
+            image_url = _optimized_url(media.image, "project_gallery")
+            if image_url:
+                thumb_url = _optimized_url(getattr(media, "thumbnail", None) or media.image, "project_thumb")
+                items.append(ResolvedProjectMedia(
+                    url=image_url,
+                    thumbnail_url=thumb_url or image_url,
+                    kind="image",
+                    preset="project_gallery",
+                    source="project_media",
+                    media=media,
+                    alt=getattr(media, "alt_text", "") or _image_candidate_label(project, media),
+                    caption=getattr(media, "caption", ""),
+                    original_url=_file_url(media.image),
+                    media_type=media_type,
+                    label=label,
+                ))
+                continue
+
+        video_url = _media_video_url(media)
+        if media_type == "video" and video_url:
+            thumb_source = getattr(media, "thumbnail", None) or getattr(project, "video_thumbnail", None) or getattr(project, "image", None)
+            thumb_url = _optimized_url(thumb_source, "project_thumb") if thumb_source else ""
+            items.append(ResolvedProjectMedia(
+                url=thumb_url,
+                thumbnail_url=thumb_url,
+                kind="video",
+                preset="project_thumb",
+                source="project_video_media",
+                media=media,
+                alt=getattr(media, "alt_text", "") or _image_candidate_label(project, media),
+                caption=getattr(media, "caption", ""),
+                media_type=media_type,
+                label=label,
+                video_url=video_url,
+            ))
+    return items
 
 
 DEFAULT_PROJECT_LIMITS = {
