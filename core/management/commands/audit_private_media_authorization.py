@@ -367,11 +367,12 @@ class Command(BaseCommand):
                     only_problems,
                 )
 
+                counts[STATUS_SKIP] += 1
+
                 if rule_failures:
                     counts[STATUS_FAIL] += 1
                 else:
                     counts[STATUS_PASS] += 1
-                    counts[STATUS_SKIP] += 1
 
                 continue
 
