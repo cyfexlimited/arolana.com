@@ -94,6 +94,10 @@ PUBLIC_MEDIA_PREFIXES = (
     "videos",
     "support",
 
+    # Reviews pending moderation
+    "reviews/videos",
+    "reviews/thumbs",
+
     # Public service marketplace media
     "installers/providers",
     "installers/categories",

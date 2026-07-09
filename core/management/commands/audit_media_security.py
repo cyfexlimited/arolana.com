@@ -20,6 +20,42 @@ STATUS_REVIEW = "REVIEW"
 STATUS_MIXED = "MIXED"
 STATUS_EMPTY = "EMPTY"
 
+FIELD_STATUS_OVERRIDES = {
+    # =========================================================
+    # Public marketplace branding
+    # =========================================================
+    "products.Vendor.shop_logo": STATUS_PUBLIC,
+    "products.Vendor.shop_banner": STATUS_PUBLIC,
+
+    # =========================================================
+    # Public product variant media
+    # =========================================================
+    "products.ProductVariant.image": STATUS_PUBLIC,
+    "products.ProductVariant.hover_image": STATUS_PUBLIC,
+    "products.ProductVariant.video_thumbnail": STATUS_PUBLIC,
+    "products.ProductVariantImage.image": STATUS_PUBLIC,
+
+    # =========================================================
+    # Public product video presentation media
+    # =========================================================
+    "products.ProductVideo.thumbnail": STATUS_PUBLIC,
+
+    # =========================================================
+    # Review media remains private until moderated/approved
+    # =========================================================
+    "products.ReviewVideo.thumbnail": STATUS_PRIVATE,
+
+    # =========================================================
+    # Public marketplace presentation media
+    # =========================================================
+    "products.ProductListingBanner.side_image": STATUS_PUBLIC,
+
+    # =========================================================
+    # Public service-provider portfolio media
+    # =========================================================
+    "installers.ServicePortfolio.image": STATUS_PUBLIC,
+    "installers.ServicePortfolio.video_thumbnail": STATUS_PUBLIC,
+}
 
 SENSITIVE_PATH_TERMS = {
     # Identity / KYC
@@ -350,6 +386,7 @@ class Command(BaseCommand):
 
             for field in file_fields:
                 field_name = field.name
+                field_key = f"{model_label}.{field_name}"
 
                 upload_to_value = upload_to_description(
                     field
@@ -359,11 +396,19 @@ class Command(BaseCommand):
                     field
                 )
 
-                declared_status = (
-                    classify_media_path(static_prefix)
-                    if static_prefix
-                    else STATUS_REVIEW
+                override_status = FIELD_STATUS_OVERRIDES.get(
+                    field_key
                 )
+
+                if override_status:
+                    declared_status = override_status
+
+                else:
+                    declared_status = (
+                        classify_media_path(static_prefix)
+                        if static_prefix
+                        else STATUS_REVIEW
+                    )
 
                 samples = []
 
