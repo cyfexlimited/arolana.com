@@ -67,9 +67,7 @@ logger = logging.getLogger(__name__)
 
 
 PUBLIC_MEDIA_PREFIXES = (
-    # ------------------------------------------------------------------------
-    # Core site media
-    # ------------------------------------------------------------------------
+    # Core
     "settings",
     "categories",
     "hero_banners",
@@ -77,81 +75,117 @@ PUBLIC_MEDIA_PREFIXES = (
     "brands",
     "avatars",
 
-    # ------------------------------------------------------------------------
-    # Commerce marketplace media
-    # ------------------------------------------------------------------------
+    # Products and marketplace
     "products",
+    "accessories",
     "vendors",
     "manufacturers",
 
-    # ------------------------------------------------------------------------
-    # Advertising and promotional media
-    # ------------------------------------------------------------------------
+    # Advertising
     "ads",
     "advertisements",
     "promo",
 
-    # ------------------------------------------------------------------------
     # Public content
-    # ------------------------------------------------------------------------
     "blog",
     "landing_pages",
     "uploads",
     "newsletter",
     "videos",
+    "support",
 
-    # ------------------------------------------------------------------------
-    # Public service-provider media
-    #
-    # Never replace these with the broad "installers" prefix.
-    # ------------------------------------------------------------------------
+    # Public service marketplace media
     "installers/providers",
+    "installers/categories",
+    "installers/portfolio",
     "installers/projects/gallery",
     "installers/projects/thumbnails",
     "installers/projects/videos",
     "installers/homepage",
+
+    # Wallet payment display assets
+    "crypto_wallet_qr",
 )
 
 
 PRIVATE_MEDIA_PREFIXES = (
-    # ------------------------------------------------------------------------
-    # Service provider KYC and sensitive profile-change evidence
-    # ------------------------------------------------------------------------
+    # =========================================================
+    # Provider identity / verification
+    # =========================================================
     "installers/kyc",
+    "installers/verification",
     "installers/profile-change-requests",
+    "installers/completions",
 
-    # Defensive provider-private namespaces
     "installers/providers/kyc",
     "installers/providers/private",
     "installers/providers/documents",
 
-    # ------------------------------------------------------------------------
-    # Generic sensitive roots
-    # ------------------------------------------------------------------------
+    # =========================================================
+    # Central KYC
+    # =========================================================
     "kyc",
+
+    # =========================================================
+    # Delivery rider identity and operational evidence
+    # =========================================================
+    "delivery/riders/id_documents",
+    "delivery/riders/licenses",
+    "delivery/riders/vehicle_documents",
+    "delivery/riders/photos",
+    "delivery/riders/banners",
+    "delivery/proofs",
+
+    # =========================================================
+    # Chat attachments
+    # =========================================================
+    "chat/attachments",
+    "chat/vendor_attachments",
+    "smartchat/images",
+
+    # =========================================================
+    # Payment evidence
+    # =========================================================
+    "payment_proofs",
+
+    # =========================================================
+    # Job applications
+    # =========================================================
+    "job_applications/resumes",
+
+    # =========================================================
+    # Customer account media
+    # =========================================================
+    "mobile_customers/profile_pictures",
+
+    # =========================================================
+    # Reviews pending moderation
+    #
+    # Safer to protect by default until a dedicated approved-
+    # review media delivery strategy exists.
+    # =========================================================
+    "reviews/videos",
+
+    # =========================================================
+    # Defensive generic sensitive namespaces
+    # =========================================================
     "private",
     "protected",
     "verification",
     "identity",
     "documents/private",
 
-    # ------------------------------------------------------------------------
-    # Vendor sensitive uploads
-    # ------------------------------------------------------------------------
+    # Vendor sensitive media
     "vendors/kyc",
     "vendors/private",
     "vendors/documents",
 
-    # ------------------------------------------------------------------------
-    # Manufacturer sensitive uploads
-    # ------------------------------------------------------------------------
+    # Manufacturer sensitive media
     "manufacturers/kyc",
     "manufacturers/private",
     "manufacturers/documents",
 
-    # ------------------------------------------------------------------------
-    # Account identity documents
-    # ------------------------------------------------------------------------
+    # Account sensitive media
     "accounts/kyc",
     "accounts/private",
     "accounts/documents",

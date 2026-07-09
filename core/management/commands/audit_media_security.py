@@ -372,6 +372,11 @@ class Command(BaseCommand):
                         model._default_manager
                         .exclude(
                             **{
+                                f"{field_name}__isnull": True,
+                            }
+                        )
+                        .exclude(
+                            **{
                                 field_name: "",
                             }
                         )
