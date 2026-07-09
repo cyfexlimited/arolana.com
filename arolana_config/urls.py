@@ -30,7 +30,7 @@ from core import admin_views as core_admin_views
 from accounts import views as accounts_views
 from landing_pages import views as landing_page_views
 from installers.api_urls import provider_urlpatterns
-
+from core.private_media import authorize_private_media_request
 from products.models import Product, Category
 from vendors.models import VendorProfile
 
@@ -496,21 +496,25 @@ def serve_public_media(request, path):
     # endpoint does not confirm whether a sensitive object path exists.
     # ------------------------------------------------------------------------
     if _is_private_media_path(normalized_path):
-        user = getattr(
+        decision = authorize_private_media_request(
             request,
-            "user",
-            None,
+            normalized_path,
         )
 
-        if not (
-            user
-            and user.is_authenticated
-            and user.is_staff
-        ):
+        if not decision.allowed:
             logger.warning(
-                "Blocked unauthorised request to private media namespace."
+                (
+                    "Blocked unauthorized private media request. "
+                    "reason=%s rule=%s model=%s object_id=%s user_id=%s"
+                ),
+                decision.reason,
+                decision.rule_key,
+                decision.model_label,
+                decision.object_id,
+                decision.principal_user_id,
             )
 
+            # Deliberately hide whether the private file exists.
             raise Http404(
                 "Media file not found"
             )
