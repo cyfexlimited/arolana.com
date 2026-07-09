@@ -318,20 +318,28 @@ def get_optimized_image_url(image, preset="product_card", force_generate=False):
     # S3/Tigris HEAD request for every uncached template image during normal
     # page rendering; those checks were a measurable source of slow pages.
     if not should_generate:
-        try:
-            url = _versioned_optimized_url(storage.url(optimized_name), preset)
-            _local_cache_set(cache_key, url, 3600)
-            return url
-        except Exception:
-            return original_url
+        if _storage_exists(storage, optimized_name):
+            try:
+                url = _versioned_optimized_url(
+                    storage.url(optimized_name),
+                    preset,
+                )
+                _local_cache_set(cache_key, url, 3600)
+                return url
+            except Exception:
+                return original_url
 
-    if _storage_exists(storage, optimized_name):
-        try:
-            url = _versioned_optimized_url(storage.url(optimized_name), preset)
-            _local_cache_set(cache_key, url, 3600)
-            return url
-        except Exception:
-            return original_url
+        # Remember briefly that the derivative is missing.
+        # This avoids repeatedly checking remote storage for the
+        # same missing variant during page rendering.
+        _local_cache_set(
+            cache_key,
+            _MISSING_OPTIMIZED,
+            300,
+        )
+
+        # Critical safe fallback:
+        return original_url
 
     created = create_optimized_image(
         storage=storage,
