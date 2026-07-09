@@ -1111,8 +1111,7 @@ class ServiceQuoteRequest(BaseModel):
 
     def __str__(self):
         return f"{self.name} - {self.service_needed}"
-
-
+        
 class ServiceReview(models.Model):
     provider = models.ForeignKey(
         ServiceProviderProfile,
