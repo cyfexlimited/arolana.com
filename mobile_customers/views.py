@@ -1,6 +1,5 @@
 import json
 import logging
-import secrets
 from urllib.parse import quote
 
 from django.contrib.auth import authenticate
@@ -22,6 +21,13 @@ from accounts.utils.messaging import send_registration_messages_once, sync_newsl
 from core.private_upload_validation import validate_private_profile_image_upload
 from products.models import Product
 from .models import MobileCustomer, MobileWishlistItem
+from .token_auth import (
+    authenticate_mobile_customer_token,
+    extract_bearer_token,
+    issue_mobile_customer_token,
+    revoke_all_mobile_customer_tokens,
+    revoke_mobile_customer_token,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -44,10 +50,7 @@ def _clean_text(value):
 
 
 def _bearer_token(request):
-    authorization = _clean_text(request.headers.get("Authorization"))
-    if authorization.lower().startswith("bearer "):
-        return authorization.split(" ", 1)[1].strip()
-    return ""
+    return extract_bearer_token(request)
 
 
 def _protected_private_media_url(request, field_file):
@@ -356,7 +359,7 @@ def _mask_email(email):
 
 
 @transaction.atomic
-def _mobile_customer_for_web_user(user, supplied_phone=""):
+def _mobile_customer_for_web_user(user, supplied_phone="", request=None):
     customer = MobileCustomer.objects.filter(user=user).first()
     phone_number = (
         getattr(customer, "phone_number", "")
@@ -368,7 +371,12 @@ def _mobile_customer_for_web_user(user, supplied_phone=""):
             "Add a phone number to your Arolana web account or enter it here to finish mobile login."
         )
 
-    phone_owner = MobileCustomer.objects.filter(phone_number=phone_number).exclude(user=user).first()
+    phone_owner = (
+        MobileCustomer.objects
+        .filter(phone_number=phone_number)
+        .exclude(user=user)
+        .first()
+    )
     if phone_owner:
         raise PermissionError(
             "This phone number is linked to another Arolana account. Contact Arolana support."
@@ -379,13 +387,24 @@ def _mobile_customer_for_web_user(user, supplied_phone=""):
     elif customer.phone_number != phone_number:
         customer.phone_number = phone_number
 
-    full_name = user.get_full_name() or getattr(user, "username", "") or user.email
+    full_name = (
+        user.get_full_name()
+        or getattr(user, "username", "")
+        or user.email
+    )
     customer.full_name = full_name
-    customer.email = _clean_text(getattr(user, "email", "")).lower()
-    customer.ensure_api_token()
+    customer.email = _clean_text(
+        getattr(user, "email", "")
+    ).lower()
     customer.last_login_at = timezone.now()
     customer.save()
-    return customer
+
+    raw_token, _ = issue_mobile_customer_token(
+        customer,
+        request=request,
+        device_name="Arolana mobile app",
+    )
+    return customer, raw_token
 
 
 # -------------------------------------------------------------------
@@ -399,16 +418,14 @@ def _get_or_create_mobile_customer(
     email="",
     pin="",
     api_token="",
+    request=None,
 ):
     """
-    Legacy PIN login/registration flow.
+    Legacy PIN login/registration flow with hashed-session migration.
 
-    Security rules:
-    - Existing mobile customers may authenticate with a valid token or PIN.
-    - A customer that has no PIN cannot set one through an unauthenticated
-      legacy login request.
-    - A new legacy mobile profile may never attach itself to an existing
-      Arolana web user merely by supplying that user's email or phone number.
+    Existing raw tokens are authenticated through token_auth. During the
+    compatibility window, a legacy plaintext token is lazily converted to a
+    hashed MobileCustomerAccessToken row and the plaintext column is cleared.
     """
     phone_number = _clean_phone(phone_number)
     email = _clean_text(email).lower()
@@ -423,17 +440,33 @@ def _get_or_create_mobile_customer(
     first_name, last_name = _split_name(full_name)
 
     customer = (
-        MobileCustomer.objects.filter(phone_number=phone_number)
+        MobileCustomer.objects
+        .filter(phone_number=phone_number)
         .select_related("user")
         .first()
     )
 
+    authenticated_raw_token = ""
+
     if customer:
-        if api_token and customer.api_token and secrets.compare_digest(
-            api_token,
-            customer.api_token,
-        ):
-            pass
+        token_authenticated = False
+
+        if api_token:
+            try:
+                token_authentication = authenticate_mobile_customer_token(
+                    api_token,
+                    phone_number=phone_number,
+                    request=request,
+                    allow_legacy=True,
+                )
+                token_authenticated = (
+                    token_authentication.customer.pk == customer.pk
+                )
+            except PermissionError:
+                token_authenticated = False
+
+        if token_authenticated:
+            authenticated_raw_token = api_token
         elif customer.pin_hash:
             if not pin:
                 raise PermissionError("PIN is required.")
@@ -444,6 +477,7 @@ def _get_or_create_mobile_customer(
                 "This account requires secure password and email verification login "
                 "before a mobile PIN can be created."
             )
+
     else:
         if len(pin) < 4:
             raise ValueError("Create a 4 to 6 digit PIN.")
@@ -486,18 +520,28 @@ def _get_or_create_mobile_customer(
             user.first_name = first_name
             changed = True
 
-        if hasattr(user, "last_name") and getattr(user, "last_name", "") != last_name:
+        if (
+            hasattr(user, "last_name")
+            and getattr(user, "last_name", "") != last_name
+        ):
             user.last_name = last_name
             changed = True
 
-        username_field = getattr(User, "USERNAME_FIELD", "username")
+        username_field = getattr(
+            User,
+            "USERNAME_FIELD",
+            "username",
+        )
 
         if (
             username_field == "email"
             and "email" in user_fields
             and not getattr(user, "email", "")
         ):
-            user.email = email or f"mobile_{phone_number}@arolana.local"
+            user.email = (
+                email
+                or f"mobile_{phone_number}@arolana.local"
+            )
             changed = True
 
         if user.pk is None or changed:
@@ -519,9 +563,6 @@ def _get_or_create_mobile_customer(
         customer.email = email
         updated_fields.append("email")
 
-    customer.ensure_api_token()
-    updated_fields.append("api_token")
-
     if customer.pin_hash:
         updated_fields.append("pin_hash")
 
@@ -534,16 +575,23 @@ def _get_or_create_mobile_customer(
     elif updated_fields:
         _save_model(customer, updated_fields)
 
-    return customer
+    if authenticated_raw_token:
+        raw_token = authenticated_raw_token
+    else:
+        raw_token, _ = issue_mobile_customer_token(
+            customer,
+            request=request,
+            device_name="Arolana mobile app",
+        )
 
+    return customer, raw_token
 
 def _auth_mobile_customer(request, data=None):
     """
-    Authenticate a mobile customer.
+    Authenticate through a hashed, expiring session token.
 
-    Authorization: Bearer is preferred. JSON/form body token support remains
-    temporarily for backward compatibility. GET query-string tokens are not
-    used by protected read endpoints.
+    Authorization: Bearer is preferred. Body-token fallback remains only for
+    compatibility with older mobile app builds.
     """
     data = data or {}
 
@@ -553,76 +601,51 @@ def _auth_mobile_customer(request, data=None):
         or data.get("phone")
     )
 
-    api_token = _bearer_token(request) or _clean_text(
-        data.get("api_token") or data.get("apiToken")
+    raw_token = _bearer_token(request) or _clean_text(
+        data.get("api_token")
+        or data.get("apiToken")
     )
 
-    if not api_token:
-        raise PermissionError(
-            "Login token is required. Login/register again."
-        )
-
-    customer_query = MobileCustomer.objects.filter(
-        api_token=api_token,
-        is_active=True,
+    authentication = authenticate_mobile_customer_token(
+        raw_token,
+        phone_number=phone_number,
+        request=request,
+        allow_legacy=True,
     )
 
-    if phone_number:
-        customer_query = customer_query.filter(
-            phone_number=phone_number,
-        )
+    request.mobile_customer_access_token = (
+        authentication.token
+    )
 
-    customer = customer_query.first()
-
-    if not customer:
-        raise PermissionError(
-            "Login expired or invalid. Login/register again."
-        )
-
-    return customer
+    return authentication.customer
 
 
 def _auth_mobile_customer_from_request_data(data, request=None):
     """
-    Compatibility wrapper for older internal callers.
+    Compatibility wrapper for internal callers.
 
-    New code should call _auth_mobile_customer(request, data).
+    New request handlers should call _auth_mobile_customer(request, data).
     """
-    if request is None:
-        api_token = _clean_text(
-            data.get("api_token") or data.get("apiToken")
-        )
-        phone_number = _clean_phone(
-            data.get("phone_number")
-            or data.get("phoneNumber")
-            or data.get("phone")
-        )
+    if request is not None:
+        return _auth_mobile_customer(request, data)
 
-        if not api_token:
-            raise PermissionError(
-                "Login token is required. Login/register again."
-            )
+    data = data or {}
+    phone_number = _clean_phone(
+        data.get("phone_number")
+        or data.get("phoneNumber")
+        or data.get("phone")
+    )
+    raw_token = _clean_text(
+        data.get("api_token")
+        or data.get("apiToken")
+    )
 
-        queryset = MobileCustomer.objects.filter(
-            api_token=api_token,
-            is_active=True,
-        )
-
-        if phone_number:
-            queryset = queryset.filter(
-                phone_number=phone_number,
-            )
-
-        customer = queryset.first()
-
-        if not customer:
-            raise PermissionError(
-                "Login expired or invalid. Login/register again."
-            )
-
-        return customer
-
-    return _auth_mobile_customer(request, data)
+    authentication = authenticate_mobile_customer_token(
+        raw_token,
+        phone_number=phone_number,
+        allow_legacy=True,
+    )
+    return authentication.customer
 
 
 @csrf_exempt
@@ -634,12 +657,13 @@ def mobile_customer_login_api(request):
         return _json_error("Invalid JSON payload.", status=400)
 
     try:
-        customer = _get_or_create_mobile_customer(
+        customer, raw_token = _get_or_create_mobile_customer(
             full_name=payload.get("full_name") or payload.get("fullName") or "",
             phone_number=payload.get("phone_number") or payload.get("phoneNumber") or "",
             email=payload.get("email") or "",
             pin=payload.get("pin") or "",
             api_token=payload.get("api_token") or payload.get("apiToken") or "",
+            request=request,
         )
     except PermissionError as error:
         return _json_error(error, status=403)
@@ -657,7 +681,7 @@ def mobile_customer_login_api(request):
             "success": True,
             "message": "Customer logged in/registered successfully.",
             "customer": _customer_payload(customer),
-            "api_token": customer.api_token,
+            "api_token": raw_token,
             "wishlist_items": _wishlist_payload(request, customer),
         }
     )
@@ -852,7 +876,11 @@ def mobile_customer_account_verify_otp_api(request):
         send_registration_messages_once(user, request=request)
 
     try:
-        customer = _mobile_customer_for_web_user(user, challenge.get("phone_number", ""))
+        customer, raw_token = _mobile_customer_for_web_user(
+            user,
+            challenge.get("phone_number", ""),
+            request=request,
+        )
     except PermissionError as error:
         return _json_error(error, status=403)
     except ValueError as error:
@@ -865,7 +893,7 @@ def mobile_customer_account_verify_otp_api(request):
             "otp_required": False,
             "message": "Arolana account verified successfully.",
             "customer": _customer_payload(customer),
-            "api_token": customer.api_token,
+            "api_token": raw_token,
             "wishlist_items": _wishlist_payload(request, customer),
         }
     )
@@ -908,13 +936,31 @@ def mobile_customer_account_resend_otp_api(request):
 @require_POST
 def mobile_customer_account_logout_api(request):
     payload = _json_payload(request) or {}
+
     try:
-        customer = _auth_mobile_customer(request, payload)
+        _auth_mobile_customer(request, payload)
     except Exception:
-        return JsonResponse({"success": True, "message": "Signed out."})
-    customer.api_token = secrets.token_urlsafe(32)
-    customer.save(update_fields=["api_token", "updated_at"])
-    return JsonResponse({"success": True, "message": "Signed out securely."})
+        return JsonResponse(
+            {
+                "success": True,
+                "message": "Signed out.",
+            }
+        )
+
+    revoke_mobile_customer_token(
+        getattr(
+            request,
+            "mobile_customer_access_token",
+            None,
+        )
+    )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "message": "Signed out securely.",
+        }
+    )
 
 
 @require_GET
@@ -1319,8 +1365,10 @@ def mobile_customer_change_pin_api(request):
     except Exception as error:
         return _json_error(error, status=400)
 
-    if hasattr(customer, "api_token"):
-        customer.api_token = secrets.token_urlsafe(32)
+    revoke_all_mobile_customer_tokens(customer)
+
+    if getattr(customer, "api_token", ""):
+        customer.api_token = ""
         _save_model(customer, ["api_token"])
 
     return JsonResponse(
@@ -1328,7 +1376,6 @@ def mobile_customer_change_pin_api(request):
             "success": True,
             "message": "PIN changed successfully. Please login again with your new PIN.",
             "customer": _customer_payload(customer),
-            "api_token": customer.api_token,
         }
     )
 
@@ -1348,13 +1395,15 @@ def mobile_customer_delete_api(request):
     except Exception as error:
         return _json_error(error, status=400)
 
+    revoke_all_mobile_customer_tokens(customer)
+
     if hasattr(customer, "is_active"):
         customer.is_active = False
-        if hasattr(customer, "api_token"):
-            customer.api_token = ""
-            _save_model(customer, ["is_active", "api_token"])
-        else:
-            _save_model(customer, ["is_active"])
+        customer.api_token = ""
+        _save_model(
+            customer,
+            ["is_active", "api_token"],
+        )
     else:
         customer.delete()
 

@@ -8,7 +8,10 @@ from typing import Iterator
 from django.apps import apps
 from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist, ObjectDoesNotExist
-
+from .private_media_ambiguity import (
+    PrivateMediaAmbiguityError,
+    resolve_private_media_resource_strict,
+)
 
 logger = logging.getLogger("arolana.private_media")
 
@@ -1186,14 +1189,19 @@ def authorize_private_media_request(
     path: str,
 ) -> PrivateMediaDecision:
     """
-    Resolve a private storage path to its database owner and authorize access.
+    Resolve a private storage path to exactly one physical database resource
+    and authorize access.
 
     Fail-closed behavior:
     - unsafe path -> deny;
     - private optimized derivative -> deny;
     - no matching registry rule -> deny;
     - no matching DB record -> deny;
-    - matching record but wrong user -> deny.
+    - multiple distinct physical resources for one path -> deny;
+    - matching resource but wrong user -> deny.
+
+    Proxy/model aliases of the same physical database row are collapsed by
+    the strict resolver before authorization.
     """
     normalized_path = normalize_private_media_path(
         path
@@ -1225,87 +1233,120 @@ def authorize_private_media_request(
             principal_user_id=principal_user_id,
         )
 
-    matched_resource = False
-    last_resource = None
-
-    for resource in iter_private_media_resources(
-        normalized_path
-    ):
-        matched_resource = True
-        last_resource = resource
-
-        allowed, reason = _resource_access_allowed(
-            request,
-            principal_user,
-            resource,
+    # ------------------------------------------------------------------------
+    # STRICT RESOURCE RESOLUTION
+    #
+    # Exactly one physical DB resource may own a private storage path.
+    #
+    # Proxy aliases of the same physical row are collapsed to one canonical
+    # resource by resolve_private_media_resource_strict().
+    #
+    # Multiple distinct physical database resources sharing one path fail
+    # closed before any authorization rule is evaluated.
+    # ------------------------------------------------------------------------
+    try:
+        resource = resolve_private_media_resource_strict(
+            normalized_path
         )
 
-        if allowed:
-            decision = PrivateMediaDecision(
-                allowed=True,
-                reason=reason,
-                rule_key=resource.rule.key,
-                model_label=resource.rule.model_label,
-                object_id=getattr(
-                    resource.obj,
-                    "pk",
-                    None,
-                ),
-                principal_user_id=principal_user_id,
-            )
+    except PrivateMediaAmbiguityError as exc:
+        logger.error(
+            (
+                "Private media access denied because path resolution "
+                "is ambiguous. reason=%s matches=%s user_id=%s"
+            ),
+            exc.reason,
+            len(exc.resources),
+            principal_user_id,
+        )
 
-            logger.info(
-                (
-                    "Private media access allowed "
-                    "rule=%s model=%s object_id=%s user_id=%s reason=%s"
-                ),
-                decision.rule_key,
-                decision.model_label,
-                decision.object_id,
-                decision.principal_user_id,
-                decision.reason,
-            )
-
-            return decision
-
-    if matched_resource and last_resource:
-        decision = PrivateMediaDecision(
+        return PrivateMediaDecision(
             allowed=False,
-            reason="not_authorized",
-            rule_key=last_resource.rule.key,
-            model_label=last_resource.rule.model_label,
+            reason="ambiguous_private_resource",
+            principal_user_id=principal_user_id,
+        )
+
+    # ------------------------------------------------------------------------
+    # ORPHANED / UNREGISTERED PRIVATE MEDIA
+    # ------------------------------------------------------------------------
+    if resource is None:
+        logger.warning(
+            (
+                "Private media access denied because no registered "
+                "database resource owns the requested private path. "
+                "user_id=%s"
+            ),
+            principal_user_id,
+        )
+
+        return PrivateMediaDecision(
+            allowed=False,
+            reason="unregistered_or_orphaned_private_media",
+            principal_user_id=principal_user_id,
+        )
+
+    # ------------------------------------------------------------------------
+    # AUTHORIZATION
+    # ------------------------------------------------------------------------
+    allowed, reason = _resource_access_allowed(
+        request,
+        principal_user,
+        resource,
+    )
+
+    if allowed:
+        decision = PrivateMediaDecision(
+            allowed=True,
+            reason=reason,
+            rule_key=resource.rule.key,
+            model_label=resource.rule.model_label,
             object_id=getattr(
-                last_resource.obj,
+                resource.obj,
                 "pk",
                 None,
             ),
             principal_user_id=principal_user_id,
         )
 
-        logger.warning(
+        logger.info(
             (
-                "Private media access denied "
-                "rule=%s model=%s object_id=%s user_id=%s"
+                "Private media access allowed "
+                "rule=%s model=%s object_id=%s "
+                "user_id=%s reason=%s"
             ),
             decision.rule_key,
             decision.model_label,
             decision.object_id,
             decision.principal_user_id,
+            decision.reason,
         )
 
         return decision
 
-    logger.warning(
-        (
-            "Private media access denied because no registered "
-            "database resource owns the requested private path. "
-            "user_id=%s"
-        ),
-        principal_user_id,
-    )
-
-    return PrivateMediaDecision(
+    decision = PrivateMediaDecision(
         allowed=False,
-        reason="unregistered_or_orphaned_private_media",
+        reason=reason or "not_authorized",
+        rule_key=resource.rule.key,
+        model_label=resource.rule.model_label,
+        object_id=getattr(
+            resource.obj,
+            "pk",
+            None,
+        ),
         principal_user_id=principal_user_id,
     )
+
+    logger.warning(
+        (
+            "Private media access denied "
+            "rule=%s model=%s object_id=%s "
+            "user_id=%s reason=%s"
+        ),
+        decision.rule_key,
+        decision.model_label,
+        decision.object_id,
+        decision.principal_user_id,
+        decision.reason,
+    )
+
+    return decision

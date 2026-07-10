@@ -1024,6 +1024,38 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://127\.0\.0\.1:808\d$",
 ]
 
+# ============================================================
+# MOBILE CUSTOMER TOKEN SECURITY
+# ============================================================
+
+MOBILE_CUSTOMER_TOKEN_PEPPER = config(
+    "MOBILE_CUSTOMER_TOKEN_PEPPER",
+    default=SECRET_KEY,
+)
+
+MOBILE_CUSTOMER_TOKEN_TTL_DAYS = config(
+    "MOBILE_CUSTOMER_TOKEN_TTL_DAYS",
+    default=30,
+    cast=int,
+)
+
+MOBILE_CUSTOMER_LEGACY_TOKEN_TTL_DAYS = config(
+    "MOBILE_CUSTOMER_LEGACY_TOKEN_TTL_DAYS",
+    default=30,
+    cast=int,
+)
+
+MOBILE_CUSTOMER_MAX_ACTIVE_TOKENS = config(
+    "MOBILE_CUSTOMER_MAX_ACTIVE_TOKENS",
+    default=8,
+    cast=int,
+)
+
+MOBILE_CUSTOMER_TOKEN_TOUCH_MINUTES = config(
+    "MOBILE_CUSTOMER_TOKEN_TOUCH_MINUTES",
+    default=15,
+    cast=int,
+)
 # ============ SILENCE WARNINGS ============
 warnings.filterwarnings('ignore', category=DeprecationWarning, module='allauth')
 warnings.filterwarnings('ignore', category=DeprecationWarning, module='django_ckeditor_5')

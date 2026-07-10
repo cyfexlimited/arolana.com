@@ -40,25 +40,50 @@ def _payload(request):
 
 def _identity(request, data):
     if request.user.is_authenticated:
-        return {"user": request.user, "mobile_customer": None, "device_id": ""}
-    phone = str(data.get("phone_number") or data.get("phone") or "").strip()
-    token = str(data.get("api_token") or "").strip()
-    if phone and token:
-        customer = _mobile_customer_from_payload(data)
+        return {
+            "user": request.user,
+            "mobile_customer": None,
+            "device_id": "",
+        }
+
+    from mobile_customers.token_auth import extract_bearer_token
+
+    phone = str(
+        data.get("phone_number")
+        or data.get("phone")
+        or ""
+    ).strip()
+
+    raw_token = (
+        extract_bearer_token(request)
+        or str(
+            data.get("api_token")
+            or data.get("apiToken")
+            or ""
+        ).strip()
+    )
+
+    if phone and raw_token:
+        customer = _mobile_customer_from_payload(
+            data,
+            request=request,
+        )
+
         return {
             "user": customer.user,
             "mobile_customer": customer,
             "device_id": str(data.get("device_id") or "").strip()[:160],
         }
+
     if not request.session.session_key:
         request.session.create()
+
     return {
         "user": None,
         "mobile_customer": None,
         "device_id": str(data.get("device_id") or "").strip()[:160],
         "session_key": request.session.session_key,
     }
-
 
 def _owned_conversations(identity):
     queryset = SmartChatConversation.objects.all()

@@ -353,34 +353,52 @@ def mobile_create_order_api(request):
         )
 
     mobile_customer = None
+
     if not request.user.is_authenticated:
-        authorization = str(request.headers.get("Authorization") or "")
-        bearer_token = (
-            authorization.split(" ", 1)[1].strip()
-            if authorization.lower().startswith("bearer ")
-            else ""
+        from mobile_customers.token_auth import (
+            authenticate_mobile_customer_token,
+            extract_bearer_token,
         )
-        api_token = str(
-            mobile_customer_payload.get("api_token")
+
+        raw_token = str(
+            extract_bearer_token(request)
+            or mobile_customer_payload.get("api_token")
+            or mobile_customer_payload.get("apiToken")
             or payload.get("api_token")
-            or bearer_token
+            or payload.get("apiToken")
             or ""
         ).strip()
+
         auth_phone = str(
             mobile_customer_payload.get("phone_number")
+            or mobile_customer_payload.get("phoneNumber")
             or payload.get("phone_number")
+            or payload.get("phoneNumber")
             or phone_number
             or ""
         ).strip()
-        if MobileCustomer is not None and api_token:
-            mobile_customer = MobileCustomer.objects.select_related("user").filter(
-                api_token=api_token,
-                is_active=True,
-            ).first()
-            if mobile_customer and auth_phone:
-                normalize = lambda value: "".join(ch for ch in str(value or "") if ch.isdigit())
-                if normalize(mobile_customer.phone_number) != normalize(auth_phone):
-                    mobile_customer = None
+
+        if raw_token:
+            try:
+                authentication = authenticate_mobile_customer_token(
+                    raw_token,
+                    request=request,
+                    allow_legacy=True,
+                )
+                mobile_customer = authentication.customer
+            except PermissionError:
+                mobile_customer = None
+
+        if mobile_customer and auth_phone:
+            normalize = lambda value: "".join(
+                ch
+                for ch in str(value or "")
+                if ch.isdigit()
+            )
+
+            if normalize(mobile_customer.phone_number) != normalize(auth_phone):
+                mobile_customer = None
+
         if not mobile_customer:
             return JsonResponse(
                 {
@@ -785,7 +803,7 @@ def mobile_register_push_token_api(request):
 
 
 
-def _mobile_notification_context(phone_number, api_token=""):
+def _mobile_notification_context(phone_number, api_token="", request=None):
     clean_phone = "".join(ch for ch in str(phone_number or "") if ch.isdigit())
     username = f"mobile_{clean_phone}"
 
@@ -793,21 +811,41 @@ def _mobile_notification_context(phone_number, api_token=""):
     user_ids = []
     linked_customer = None
 
-    if api_token:
-        try:
-            from mobile_customers.models import MobileCustomer
-            linked_customer = MobileCustomer.objects.select_related("user").filter(
-                api_token=api_token,
-                is_active=True,
-            ).first()
-            if linked_customer and linked_customer.user_id not in user_ids:
-                user_ids.append(linked_customer.user_id)
-        except Exception:
-            logger.exception("Could not resolve mobile notification account token")
-    if not linked_customer:
-        mobile_user = User.objects.filter(username=username).first()
-        if mobile_user:
-            user_ids.append(mobile_user.id)
+    raw_token = str(api_token or "").strip()
+
+    if request is not None:
+        from mobile_customers.token_auth import extract_bearer_token
+        raw_token = extract_bearer_token(request) or raw_token
+
+    if not raw_token:
+        return clean_phone, [], [], []
+
+    try:
+        from mobile_customers.token_auth import authenticate_mobile_customer_token
+
+        authentication = authenticate_mobile_customer_token(
+            raw_token,
+            request=request,
+            allow_legacy=True,
+        )
+        linked_customer = authentication.customer
+    except PermissionError:
+        return clean_phone, [], [], []
+    except Exception:
+        logger.exception("Could not resolve mobile notification account token")
+        return clean_phone, [], [], []
+
+    linked_clean_phone = "".join(
+        ch
+        for ch in str(linked_customer.phone_number or "")
+        if ch.isdigit()
+    )
+
+    if clean_phone and linked_clean_phone != clean_phone:
+        return clean_phone, [], [], []
+
+    if linked_customer.user_id and linked_customer.user_id not in user_ids:
+        user_ids.append(linked_customer.user_id)
 
     if linked_customer:
         linked_phone = str(linked_customer.phone_number or "")
@@ -848,13 +886,13 @@ def _mobile_notification_context(phone_number, api_token=""):
     return clean_phone, user_ids, order_numbers, tracking_codes
 
 
-def _mobile_notification_queryset(phone_number, api_token=""):
+def _mobile_notification_queryset(phone_number, api_token="", request=None):
     try:
         from notifications.models import Notification
     except Exception:
         return None
 
-    clean_phone, user_ids, order_numbers, tracking_codes = _mobile_notification_context(phone_number, api_token)
+    clean_phone, user_ids, order_numbers, tracking_codes = _mobile_notification_context(phone_number, api_token, request=request)
 
     if not clean_phone:
         return Notification.objects.none()
@@ -972,7 +1010,7 @@ def mobile_notifications_mark_read_api(request):
             }
         )
 
-    notifications_query = _mobile_notification_queryset(phone_number, api_token)
+    notifications_query = _mobile_notification_queryset(phone_number, api_token, request=request)
     if notification_id:
         notifications_query = notifications_query.filter(id=notification_id)
 
@@ -1039,7 +1077,7 @@ def mobile_notifications_delete_api(request):
             }
         )
 
-    notifications_query = _mobile_notification_queryset(phone_number, api_token).filter(id=notification_id)
+    notifications_query = _mobile_notification_queryset(phone_number, api_token, request=request).filter(id=notification_id)
     deleted_count, _ = notifications_query.delete()
 
     return JsonResponse(
@@ -1077,22 +1115,14 @@ def _mobile_order_json_error(message, status=400):
 
 
 def _mobile_order_auth_customer(payload_or_request):
-    """
-    Authenticates a mobile customer using phone + api_token from:
-    - GET query string
-    - top-level POST payload
-    - mobile_customer payload
-    - customer payload
-    """
-    try:
-        from mobile_customers.models import MobileCustomer
-    except Exception as error:
-        raise RuntimeError("mobile_customers app must be installed first.") from error
+    # Authenticate through the shared hashed-token service.
+    from mobile_customers.token_auth import (
+        authenticate_mobile_customer_token,
+        extract_bearer_token,
+    )
 
-    if hasattr(payload_or_request, "GET"):
-        payload = payload_or_request.GET
-    else:
-        payload = payload_or_request or {}
+    request = payload_or_request if hasattr(payload_or_request, "GET") else None
+    payload = request.GET if request is not None else (payload_or_request or {})
 
     mobile_customer_payload = payload.get("mobile_customer") or {}
     customer_payload = payload.get("customer") or {}
@@ -1107,31 +1137,33 @@ def _mobile_order_auth_customer(payload_or_request):
         or customer_payload.get("phoneNumber")
     )
 
-    api_token = _mobile_order_clean_text(
-        payload.get("api_token")
+    raw_token = _mobile_order_clean_text(
+        (extract_bearer_token(request) if request is not None else "")
+        or payload.get("api_token")
         or payload.get("apiToken")
         or mobile_customer_payload.get("api_token")
         or mobile_customer_payload.get("apiToken")
+        or customer_payload.get("api_token")
+        or customer_payload.get("apiToken")
     )
 
     if not phone_number:
         raise ValueError("Phone number is required.")
 
-    if not api_token:
+    if not raw_token:
         raise PermissionError("Login token is required. Login/register again.")
 
-    customer = (
-        MobileCustomer.objects
-        .select_related("user")
-        .filter(phone_number=phone_number, api_token=api_token)
-        .first()
+    authentication = authenticate_mobile_customer_token(
+        raw_token,
+        request=request,
+        allow_legacy=True,
     )
+    customer = authentication.customer
 
-    if not customer:
+    if _mobile_order_clean_phone(customer.phone_number) != phone_number:
         raise PermissionError("Invalid login token. Login/register again.")
 
     return customer
-
 
 def _mobile_order_set_field(obj, field_name, value):
     if hasattr(obj, field_name) and value not in [None, ""]:

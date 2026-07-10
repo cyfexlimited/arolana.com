@@ -2598,85 +2598,48 @@ def _mobile_json_error(
 
 def _mobile_customer_from_payload(
     payload,
+    request=None,
 ):
-    """
-    Authenticate mobile customer using MobileCustomer phone + api_token.
-    """
-
+    # Authenticate through the shared hashed-token service.
     try:
-        from mobile_customers.models import (
-            MobileCustomer,
+        from mobile_customers.token_auth import (
+            authenticate_mobile_customer_token,
+            extract_bearer_token,
         )
-
     except Exception as error:
         raise RuntimeError(
-            (
-                "mobile_customers app is required "
-                "before mobile SmartChat can work."
-            )
+            "mobile_customers app is required before mobile SmartChat can work."
         ) from error
 
-    phone_number = (
-        _mobile_clean_phone(
-            payload.get(
-                "phone_number"
-            )
-            or payload.get(
-                "phoneNumber"
-            )
-            or payload.get(
-                "phone"
-            )
-        )
+    phone_number = _mobile_clean_phone(
+        payload.get("phone_number")
+        or payload.get("phoneNumber")
+        or payload.get("phone")
     )
 
-    api_token = (
-        _mobile_clean_text(
-            payload.get(
-                "api_token"
-            )
-            or payload.get(
-                "apiToken"
-            )
-        )
+    raw_token = _mobile_clean_text(
+        (extract_bearer_token(request) if request is not None else "")
+        or payload.get("api_token")
+        or payload.get("apiToken")
     )
 
     if not phone_number:
-        raise ValueError(
-            "Phone number is required."
-        )
+        raise ValueError("Phone number is required.")
 
-    if not api_token:
-        raise PermissionError(
-            (
-                "Login token is required. "
-                "Login/register again."
-            )
-        )
+    if not raw_token:
+        raise PermissionError("Login token is required. Login/register again.")
 
-    customer = (
-        MobileCustomer.objects
-        .select_related(
-            "user"
-        )
-        .filter(
-            phone_number=phone_number,
-            api_token=api_token,
-            is_active=True,
-        )
-        .first()
+    authentication = authenticate_mobile_customer_token(
+        raw_token,
+        request=request,
+        allow_legacy=True,
     )
+    customer = authentication.customer
 
-    if not customer:
-        raise PermissionError(
-            (
-                "Invalid login token. "
-                "Login/register again."
-            )
-        )
+    if _mobile_clean_phone(customer.phone_number) != phone_number:
+        raise PermissionError("Invalid login token. Login/register again.")
 
     return customer
-
 
 def _mobile_customer_name(
     customer,
