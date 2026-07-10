@@ -349,9 +349,52 @@ class ShippingInfoInline(admin.StackedInline):
 
 
 class ReviewVideoInline(admin.TabularInline):
+    """
+    Review video evidence attached to a customer review.
+
+    New ReviewVideo records may be added through the ProductReview admin,
+    but existing uploaded video and thumbnail evidence cannot be silently
+    replaced after creation.
+    """
+
     model = ReviewVideo
     extra = 1
-    fields = ['title', 'video_file', 'thumbnail', 'is_main']
+
+    fields = [
+        "title",
+        "video_file",
+        "thumbnail",
+        "is_main",
+    ]
+
+    show_change_link = True
+
+    def get_readonly_fields(
+        self,
+        request,
+        obj=None,
+    ):
+        """
+        Inline-level protection.
+
+        Django's inline get_readonly_fields() receives the parent ProductReview
+        object rather than the individual ReviewVideo instance, so this alone
+        cannot safely freeze only existing individual inline rows.
+
+        Therefore:
+        - validation remains active for new uploads;
+        - the dedicated ReviewVideo admin below provides immutable evidence
+          protection for existing ReviewVideo records.
+
+        We intentionally return a fresh tuple.
+        """
+
+        return tuple(
+            super().get_readonly_fields(
+                request,
+                obj,
+            )
+        )
 
 
 # =================================
@@ -1120,57 +1163,255 @@ class ProductVideoAdmin(admin.ModelAdmin):
 
 @admin.register(ProductReview)
 class ProductReviewAdmin(admin.ModelAdmin):
-    list_display = ['product_name', 'user_name', 'rating_display', 'title', 'verified_purchase', 'helpful_count', 'created_at']
-    list_filter = ['rating', 'verified_purchase', 'created_at']
-    search_fields = ['product__name', 'user__username', 'title', 'review']
-    readonly_fields = ['helpful_count', 'unhelpful_count', 'created_at', 'updated_at']
-    list_select_related = ['product', 'user']
-    inlines = [ReviewVideoInline]
+    """
+    Customer review moderation.
+
+    Customer-submitted review video evidence becomes immutable after the
+    original ProductReview has been saved.
+
+    Admins may continue to moderate:
+    - verified_purchase
+    - title
+    - review text
+    - rating
+
+    But they cannot silently replace the original review video.
+    """
+
+    list_display = [
+        "product_name",
+        "user_name",
+        "rating_display",
+        "title",
+        "verified_purchase",
+        "video_status",
+        "helpful_count",
+        "created_at",
+    ]
+
+    list_filter = [
+        "rating",
+        "verified_purchase",
+        "created_at",
+    ]
+
+    search_fields = [
+        "product__name",
+        "user__username",
+        "user__email",
+        "title",
+        "review",
+    ]
+
+    readonly_fields = [
+        "helpful_count",
+        "unhelpful_count",
+        "created_at",
+        "updated_at",
+    ]
+
+    list_select_related = [
+        "product",
+        "user",
+    ]
+
+    inlines = [
+        ReviewVideoInline,
+    ]
+
     list_per_page = 25
-    
+
+    ordering = [
+        "-created_at",
+    ]
+
+    date_hierarchy = "created_at"
+
     fieldsets = (
-        ('Review Information', {
-            'fields': ('product', 'user', 'rating', 'title', 'review')
-        }),
-        ('Verification & Engagement', {
-            'fields': ('verified_purchase', 'helpful_count', 'unhelpful_count')
-        }),
-        ('Media', {
-            'fields': ('video_review',),
-            'classes': ('collapse',)
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
+        (
+            "Review Information",
+            {
+                "fields": (
+                    "product",
+                    "user",
+                    "rating",
+                    "title",
+                    "review",
+                ),
+            },
+        ),
+        (
+            "Verification & Engagement",
+            {
+                "fields": (
+                    "verified_purchase",
+                    "helpful_count",
+                    "unhelpful_count",
+                ),
+            },
+        ),
+        (
+            "Original Review Media",
+            {
+                "fields": (
+                    "video_review",
+                ),
+                "classes": (
+                    "collapse",
+                ),
+                "description": (
+                    "Customer-submitted review media is treated as original "
+                    "review evidence. After the review is saved, the original "
+                    "video cannot be replaced through Django Admin."
+                ),
+            },
+        ),
+        (
+            "Timestamps",
+            {
+                "fields": (
+                    "created_at",
+                    "updated_at",
+                ),
+                "classes": (
+                    "collapse",
+                ),
+            },
+        ),
     )
-    
-    def product_name(self, obj):
-        return obj.product.name
-    product_name.short_description = 'Product'
-    
-    def user_name(self, obj):
-        return obj.user.username
-    user_name.short_description = 'User'
-    
-    def rating_display(self, obj):
-        return format_html(
-            '<span style="color: #f59e0b; font-weight: bold;">{} ★</span>',
-            obj.rating
+
+    actions = [
+        "mark_as_verified",
+        "mark_as_unverified",
+    ]
+
+    def get_readonly_fields(
+        self,
+        request,
+        obj=None,
+    ):
+        """
+        Freeze ProductReview.video_review after initial submission.
+
+        Make a fresh list instead of modifying the ModelAdmin property returned
+        by Django.
+        """
+
+        readonly = list(
+            super().get_readonly_fields(
+                request,
+                obj,
+            )
         )
-    rating_display.short_description = 'Rating'
-    
-    actions = ['mark_as_verified', 'mark_as_unverified']
-    
-    def mark_as_verified(self, request, queryset):
-        queryset.update(verified_purchase=True)
-        self.message_user(request, f"✓ {queryset.count()} reviews marked as verified.")
-    mark_as_verified.short_description = "✓ Mark as verified purchase"
-    
-    def mark_as_unverified(self, request, queryset):
-        queryset.update(verified_purchase=False)
-        self.message_user(request, f"✗ {queryset.count()} reviews marked as unverified.")
-    mark_as_unverified.short_description = "✗ Mark as unverified purchase"
+
+        if (
+            obj is not None
+            and obj.video_review
+        ):
+            readonly.append(
+                "video_review"
+            )
+
+        return tuple(
+            readonly
+        )
+
+    @admin.display(
+        description="Product",
+        ordering="product__name",
+    )
+    def product_name(
+        self,
+        obj,
+    ):
+        return obj.product.name
+
+    @admin.display(
+        description="User",
+        ordering="user__username",
+    )
+    def user_name(
+        self,
+        obj,
+    ):
+        return (
+            obj.user.get_full_name()
+            or obj.user.username
+            or obj.user.email
+        )
+
+    @admin.display(
+        description="Rating",
+        ordering="rating",
+    )
+    def rating_display(
+        self,
+        obj,
+    ):
+        return format_html(
+            (
+                '<span style="'
+                'color:#f59e0b;'
+                'font-weight:bold;'
+                '">'
+                "{} ★"
+                "</span>"
+            ),
+            obj.rating,
+        )
+
+    @admin.display(
+        description="Video",
+        boolean=True,
+    )
+    def video_status(
+        self,
+        obj,
+    ):
+        return bool(
+            obj.video_review
+            or obj.review_videos.exists()
+        )
+
+    @admin.action(
+        description="✓ Mark as verified purchase"
+    )
+    def mark_as_verified(
+        self,
+        request,
+        queryset,
+    ):
+        updated = queryset.update(
+            verified_purchase=True
+        )
+
+        self.message_user(
+            request,
+            (
+                f"✓ {updated} review(s) "
+                "marked as verified."
+            ),
+        )
+
+    @admin.action(
+        description="✗ Mark as unverified purchase"
+    )
+    def mark_as_unverified(
+        self,
+        request,
+        queryset,
+    ):
+        updated = queryset.update(
+            verified_purchase=False
+        )
+
+        self.message_user(
+            request,
+            (
+                f"✗ {updated} review(s) "
+                "marked as unverified."
+            ),
+        )
 
 
 # =================================
@@ -1227,14 +1468,170 @@ class ProductQnAAdmin(admin.ModelAdmin):
 
 @admin.register(ReviewVideo)
 class ReviewVideoAdmin(admin.ModelAdmin):
-    list_display = ['review_display', 'title', 'is_main', 'created_at']
-    list_filter = ['is_main', 'created_at']
-    list_editable = ['is_main']
-    list_select_related = ['review', 'review__product', 'review__user']
-    
-    def review_display(self, obj):
-        return f"{obj.review.product.name} - {obj.review.user.username}"
-    review_display.short_description = 'Review'
+    """
+    Review video evidence moderation.
+
+    Existing video_file and thumbnail evidence become immutable once stored.
+    Moderators may still edit title and main-video selection.
+    """
+
+    list_display = [
+        "review_display",
+        "title",
+        "video_status",
+        "thumbnail_status",
+        "is_main",
+        "created_at",
+    ]
+
+    list_filter = [
+        "is_main",
+        "created_at",
+    ]
+
+    list_editable = [
+        "is_main",
+    ]
+
+    search_fields = [
+        "title",
+        "review__product__name",
+        "review__user__username",
+        "review__user__email",
+    ]
+
+    list_select_related = [
+        "review",
+        "review__product",
+        "review__user",
+    ]
+
+    readonly_fields = [
+        "created_at",
+        "updated_at",
+    ]
+
+    ordering = [
+        "-created_at",
+    ]
+
+    date_hierarchy = "created_at"
+
+    list_per_page = 50
+
+    fieldsets = (
+        (
+            "Review",
+            {
+                "fields": (
+                    "review",
+                    "title",
+                    "is_main",
+                ),
+            },
+        ),
+        (
+            "Original Review Media",
+            {
+                "fields": (
+                    "video_file",
+                    "thumbnail",
+                ),
+                "description": (
+                    "The original customer review video and thumbnail are "
+                    "treated as review evidence. Existing uploaded files cannot "
+                    "be replaced through Django Admin."
+                ),
+            },
+        ),
+        (
+            "Timestamps",
+            {
+                "fields": (
+                    "created_at",
+                    "updated_at",
+                ),
+                "classes": (
+                    "collapse",
+                ),
+            },
+        ),
+    )
+
+    def get_readonly_fields(
+        self,
+        request,
+        obj=None,
+    ):
+        """
+        Freeze existing customer review video media.
+
+        A new ReviewVideo can still receive validated uploads.
+        """
+
+        readonly = list(
+            super().get_readonly_fields(
+                request,
+                obj,
+            )
+        )
+
+        if obj is not None:
+            if obj.video_file:
+                readonly.append(
+                    "video_file"
+                )
+
+            if obj.thumbnail:
+                readonly.append(
+                    "thumbnail"
+                )
+
+        return tuple(
+            readonly
+        )
+
+    @admin.display(
+        description="Review"
+    )
+    def review_display(
+        self,
+        obj,
+    ):
+        customer = (
+            obj.review.user.get_full_name()
+            or obj.review.user.username
+            or obj.review.user.email
+        )
+
+        return (
+            f"{obj.review.product.name} - "
+            f"{customer}"
+        )
+
+    @admin.display(
+        description="Video",
+        boolean=True,
+    )
+    def video_status(
+        self,
+        obj,
+    ):
+        return bool(
+            obj.video_file
+        )
+
+    @admin.display(
+        description="Thumbnail",
+        boolean=True,
+    )
+    def thumbnail_status(
+        self,
+        obj,
+    ):
+        return bool(
+            obj.thumbnail
+        )
 
 
 # =================================

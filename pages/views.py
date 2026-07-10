@@ -1,10 +1,15 @@
 from django.contrib import messages
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
+from django.db import transaction
 from django.db.models import F
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.views.decorators.http import require_POST
 
 from core.content_i18n import translated_field
+
 from .models import (
     CareerCategory,
     ContactPageSettings,
@@ -18,49 +23,189 @@ from .models import (
     SupportTopic,
 )
 
+
 try:
-    from core.media_optimization import get_optimized_image_url
+    from core.media_optimization import (
+        get_optimized_image_url,
+    )
 except Exception:
     get_optimized_image_url = None
 
 
-def _localize(instance, request, *field_names):
+# =============================================================================
+# SHARED HELPERS
+# =============================================================================
+
+
+def _localize(
+    instance,
+    request,
+    *field_names,
+):
+    """
+    Replace selected model attributes with their translated values for the
+    current request language.
+    """
+
     if not instance:
         return instance
+
     for field_name in field_names:
         setattr(
             instance,
             field_name,
-            translated_field(instance, field_name, request=request),
+            translated_field(
+                instance,
+                field_name,
+                request=request,
+            ),
         )
+
     return instance
 
 
+def _validation_error_messages(exc):
+    """
+    Convert Django ValidationError into readable message strings.
+    """
+
+    if hasattr(
+        exc,
+        "message_dict",
+    ):
+        output = []
+
+        for (
+            field_name,
+            field_errors,
+        ) in exc.message_dict.items():
+            for error in field_errors:
+                label = (
+                    str(field_name)
+                    .replace(
+                        "_",
+                        " ",
+                    )
+                    .title()
+                )
+
+                output.append(
+                    f"{label}: {error}"
+                )
+
+        return output
+
+    return [
+        str(message)
+        for message in exc.messages
+    ]
+
+
+def _show_validation_errors(
+    request,
+    exc,
+):
+    """
+    Show Django validation errors using the messages framework.
+    """
+
+    for error in (
+        _validation_error_messages(
+            exc
+        )
+    ):
+        messages.error(
+            request,
+            error,
+        )
+
+
+def _reset_uploaded_file(
+    uploaded_file,
+):
+    """
+    Reset an upload stream after validators have inspected it.
+    """
+
+    if not uploaded_file:
+        return
+
+    try:
+        uploaded_file.seek(0)
+
+    except Exception:
+        pass
+
+
+# =============================================================================
+# HELP CENTER
+# =============================================================================
+
+
 def help_center(request):
-    """Public Help Center page."""
+    """
+    Public Help Center page.
+    """
 
-    topics = SupportTopic.objects.filter(is_active=True).order_by("order", "title")
+    topics = (
+        SupportTopic.objects
+        .filter(
+            is_active=True
+        )
+        .order_by(
+            "order",
+            "title",
+        )
+    )
 
-    featured_faqs = list(FAQ.objects.filter(
-        is_active=True,
-        is_featured=True,
-    ).order_by("order", "question")[:6])
+    featured_faqs = list(
+        FAQ.objects
+        .filter(
+            is_active=True,
+            is_featured=True,
+        )
+        .order_by(
+            "order",
+            "question",
+        )[:6]
+    )
 
     if not featured_faqs:
         featured_faqs = list(
-            FAQ.objects.filter(is_active=True).order_by("order", "question")[:6]
+            FAQ.objects
+            .filter(
+                is_active=True
+            )
+            .order_by(
+                "order",
+                "question",
+            )[:6]
         )
+
     featured_faqs = [
-        _localize(faq, request, "question", "answer")
-        for faq in featured_faqs
+        _localize(
+            faq,
+            request,
+            "question",
+            "answer",
+        )
+        for faq
+        in featured_faqs
     ]
 
     # Prefer an active hero that actually has an uploaded background image.
     hero = (
         HelpCenterHero.objects
-        .filter(is_active=True)
-        .exclude(background_image="")
-        .order_by("-updated_at", "-id")
+        .filter(
+            is_active=True
+        )
+        .exclude(
+            background_image=""
+        )
+        .order_by(
+            "-updated_at",
+            "-id",
+        )
         .first()
     )
 
@@ -68,262 +213,908 @@ def help_center(request):
     if not hero:
         hero = (
             HelpCenterHero.objects
-            .filter(is_active=True)
-            .order_by("-updated_at", "-id")
+            .filter(
+                is_active=True
+            )
+            .order_by(
+                "-updated_at",
+                "-id",
+            )
             .first()
         )
 
     hero_background_url = ""
 
-    if hero and hero.background_image:
+    if (
+        hero
+        and hero.background_image
+    ):
         try:
-            hero_background_url = hero.background_image.url
+            if get_optimized_image_url:
+                hero_background_url = (
+                    get_optimized_image_url(
+                        hero.background_image,
+                        "hero",
+                    )
+                )
+
+            if not hero_background_url:
+                hero_background_url = (
+                    hero.background_image.url
+                )
+
         except Exception:
             hero_background_url = ""
 
     context = {
         "topics": topics,
-        "featured_faqs": featured_faqs,
+        "featured_faqs": (
+            featured_faqs
+        ),
         "hero": hero,
-        "hero_background_url": hero_background_url,
-        "page_title": "Help Center",
+        "hero_background_url": (
+            hero_background_url
+        ),
+        "page_title": (
+            "Help Center"
+        ),
     }
 
-    return render(request, "pages/help_center.html", context)
+    return render(
+        request,
+        "pages/help_center.html",
+        context,
+    )
+
+
+# =============================================================================
+# FAQ PAGE
+# =============================================================================
 
 
 def faq_page(request):
-    """Public FAQ page grouped by category."""
+    """
+    Public FAQ page grouped by category.
+    """
 
     faqs = list(
-        FAQ.objects.filter(is_active=True).order_by("category", "order", "question")
+        FAQ.objects
+        .filter(
+            is_active=True
+        )
+        .order_by(
+            "category",
+            "order",
+            "question",
+        )
     )
-    faqs = [_localize(faq, request, "question", "answer") for faq in faqs]
+
+    faqs = [
+        _localize(
+            faq,
+            request,
+            "question",
+            "answer",
+        )
+        for faq
+        in faqs
+    ]
 
     categories = {}
+
     for faq in faqs:
-        category_display = faq.get_category_display()
-        categories.setdefault(category_display, []).append(faq)
+        category_display = (
+            faq.get_category_display()
+        )
+
+        categories.setdefault(
+            category_display,
+            [],
+        ).append(
+            faq
+        )
 
     context = {
         "categories": categories,
-        "total_faqs": len(faqs),
-        "page_title": "Frequently Asked Questions",
+        "total_faqs": len(
+            faqs
+        ),
+        "page_title": (
+            "Frequently Asked Questions"
+        ),
     }
-    return render(request, "pages/faq.html", context)
+
+    return render(
+        request,
+        "pages/faq.html",
+        context,
+    )
 
 
-def article_detail(request, slug):
-    """Support article detail page."""
+# =============================================================================
+# SUPPORT ARTICLE DETAIL
+# =============================================================================
+
+
+def article_detail(
+    request,
+    slug,
+):
+    """
+    Support article detail page.
+    """
 
     article = get_object_or_404(
-        SupportArticle.objects.select_related("category"),
+        SupportArticle.objects
+        .select_related(
+            "category"
+        ),
         slug=slug,
         is_active=True,
     )
 
-    SupportArticle.objects.filter(pk=article.pk).update(views=F("views") + 1)
-    article.refresh_from_db(fields=["views"])
-    _localize(article, request, "title", "content")
+    SupportArticle.objects.filter(
+        pk=article.pk
+    ).update(
+        views=F(
+            "views"
+        )
+        + 1
+    )
+
+    article.refresh_from_db(
+        fields=[
+            "views",
+        ]
+    )
+
+    _localize(
+        article,
+        request,
+        "title",
+        "content",
+    )
 
     related_articles = list(
-        SupportArticle.objects.filter(
+        SupportArticle.objects
+        .filter(
             category=article.category,
             is_active=True,
         )
-        .exclude(pk=article.pk)
-        .select_related("category")[:5]
+        .exclude(
+            pk=article.pk
+        )
+        .select_related(
+            "category"
+        )[:5]
     )
+
     related_articles = [
-        _localize(item, request, "title", "content")
-        for item in related_articles
+        _localize(
+            item,
+            request,
+            "title",
+            "content",
+        )
+        for item
+        in related_articles
     ]
 
     context = {
         "article": article,
-        "related_articles": related_articles,
-        "page_title": article.title,
+        "related_articles": (
+            related_articles
+        ),
+        "page_title": (
+            article.title
+        ),
     }
-    return render(request, "pages/article_detail.html", context)
+
+    return render(
+        request,
+        "pages/article_detail.html",
+        context,
+    )
 
 
-def page_detail(request, slug):
-    """Generic editable page detail."""
+# =============================================================================
+# GENERIC PAGE DETAIL
+# =============================================================================
 
-    page = get_object_or_404(Page, slug=slug, is_active=True)
-    _localize(page, request, "title", "content", "sidebar_content", "meta_description")
+
+def page_detail(
+    request,
+    slug,
+):
+    """
+    Generic editable page detail.
+    """
+
+    page = get_object_or_404(
+        Page,
+        slug=slug,
+        is_active=True,
+    )
+
+    _localize(
+        page,
+        request,
+        "title",
+        "content",
+        "sidebar_content",
+        "meta_description",
+    )
 
     context = {
         "page": page,
-        "page_title": page.title,
+        "page_title": (
+            page.title
+        ),
     }
-    return render(request, "pages/page_detail.html", context)
+
+    return render(
+        request,
+        "pages/page_detail.html",
+        context,
+    )
 
 
-def page_by_slug(request, slug):
-    """Render public editable pages by root slug."""
+# =============================================================================
+# ROOT-SLUG PAGE
+# =============================================================================
 
-    page = get_object_or_404(Page, slug=slug, is_active=True)
-    _localize(page, request, "title", "content", "sidebar_content", "meta_description")
+
+def page_by_slug(
+    request,
+    slug,
+):
+    """
+    Render public editable pages by root slug.
+    """
+
+    page = get_object_or_404(
+        Page,
+        slug=slug,
+        is_active=True,
+    )
+
+    _localize(
+        page,
+        request,
+        "title",
+        "content",
+        "sidebar_content",
+        "meta_description",
+    )
 
     context = {
         "page": page,
         "public_slug": slug,
-        "page_title": page.title,
+        "page_title": (
+            page.title
+        ),
     }
-    return render(request, "pages/page_detail.html", context)
+
+    return render(
+        request,
+        "pages/page_detail.html",
+        context,
+    )
+
+
+# =============================================================================
+# SUPPORT REDIRECT
+# =============================================================================
 
 
 def support_redirect(request):
-    """Redirect support URL to Help Center."""
+    """
+    Redirect support URL to Help Center.
+    """
 
-    return HttpResponseRedirect(reverse("pages:help_center"))
+    return HttpResponseRedirect(
+        reverse(
+            "pages:help_center"
+        )
+    )
 
 
-def article_helpful(request, article_id):
-    """Mark support article as helpful or not helpful."""
+# =============================================================================
+# ARTICLE HELPFUL FEEDBACK
+# =============================================================================
 
-    article = get_object_or_404(SupportArticle, id=article_id, is_active=True)
 
-    if request.method == "POST":
-        helpful = request.POST.get("helpful") == "true"
+@require_POST
+def article_helpful(
+    request,
+    article_id,
+):
+    """
+    Mark support article as helpful or not helpful.
 
-        if helpful:
-            SupportArticle.objects.filter(pk=article.pk).update(helpful_count=F("helpful_count") + 1)
-        else:
-            SupportArticle.objects.filter(pk=article.pk).update(not_helpful_count=F("not_helpful_count") + 1)
+    POST-only because this changes database counters.
+    """
 
-        messages.success(request, "Thank you for your feedback!")
+    article = get_object_or_404(
+        SupportArticle,
+        id=article_id,
+        is_active=True,
+    )
 
-    return redirect("pages:article_detail", slug=article.slug)
+    helpful = (
+        request.POST.get(
+            "helpful"
+        )
+        == "true"
+    )
+
+    if helpful:
+        SupportArticle.objects.filter(
+            pk=article.pk
+        ).update(
+            helpful_count=F(
+                "helpful_count"
+            )
+            + 1
+        )
+
+    else:
+        SupportArticle.objects.filter(
+            pk=article.pk
+        ).update(
+            not_helpful_count=F(
+                "not_helpful_count"
+            )
+            + 1
+        )
+
+    messages.success(
+        request,
+        (
+            "Thank you for your feedback!"
+        ),
+    )
+
+    return redirect(
+        "pages:article_detail",
+        slug=article.slug,
+    )
+
+
+# =============================================================================
+# CONTACT PAGE
+# =============================================================================
 
 
 def contact_page(request):
-    """Contact page with support guidance."""
+    """
+    Contact page with support guidance.
+    """
 
-    page = Page.objects.filter(slug="contact", is_active=True).first()
-    contact_settings = ContactPageSettings.objects.filter(is_active=True).order_by("-updated_at").first()
-    quick_actions = ContactQuickAction.objects.filter(is_active=True).order_by("order", "label")
+    page = (
+        Page.objects
+        .filter(
+            slug="contact",
+            is_active=True,
+        )
+        .first()
+    )
+
+    contact_settings = (
+        ContactPageSettings.objects
+        .filter(
+            is_active=True
+        )
+        .order_by(
+            "-updated_at"
+        )
+        .first()
+    )
+
+    quick_actions = (
+        ContactQuickAction.objects
+        .filter(
+            is_active=True
+        )
+        .order_by(
+            "order",
+            "label",
+        )
+    )
 
     if request.method == "POST":
-        name = request.POST.get("name", "").strip()
-        email = request.POST.get("email", "").strip()
-        subject = request.POST.get("subject", "").strip()
-        message = request.POST.get("message", "").strip()
+        name = (
+            request.POST.get(
+                "name",
+                "",
+            )
+            .strip()
+        )
 
-        if not all([name, email, subject, message]):
-            messages.error(request, "Please complete all required fields before sending your message.")
-            return redirect("pages:contact")
+        email = (
+            request.POST.get(
+                "email",
+                "",
+            )
+            .strip()
+            .lower()
+        )
 
-        messages.success(request, "Thank you for contacting Arolana. We will get back to you soon.")
-        return redirect("pages:contact")
+        subject = (
+            request.POST.get(
+                "subject",
+                "",
+            )
+            .strip()
+        )
+
+        message_text = (
+            request.POST.get(
+                "message",
+                "",
+            )
+            .strip()
+        )
+
+        if not all(
+            [
+                name,
+                email,
+                subject,
+                message_text,
+            ]
+        ):
+            messages.error(
+                request,
+                (
+                    "Please complete all required fields "
+                    "before sending your message."
+                ),
+            )
+
+            return redirect(
+                "pages:contact"
+            )
+
+        try:
+            validate_email(
+                email
+            )
+
+        except ValidationError:
+            messages.error(
+                request,
+                (
+                    "Please enter a valid email address."
+                ),
+            )
+
+            return redirect(
+                "pages:contact"
+            )
+
+        messages.success(
+            request,
+            (
+                "Thank you for contacting Arolana. "
+                "We will get back to you soon."
+            ),
+        )
+
+        return redirect(
+            "pages:contact"
+        )
 
     context = {
         "page": page,
-        "contact_settings": contact_settings,
-        "quick_actions": quick_actions,
-        "page_title": "Contact Arolana",
+        "contact_settings": (
+            contact_settings
+        ),
+        "quick_actions": (
+            quick_actions
+        ),
+        "page_title": (
+            "Contact Arolana"
+        ),
     }
-    return render(request, "support/contact.html", context)
+
+    return render(
+        request,
+        "support/contact.html",
+        context,
+    )
+
+
+# =============================================================================
+# CAREERS PAGE
+# =============================================================================
 
 
 def careers_page(request):
-    """Careers page powered from database."""
+    """
+    Careers page powered from database.
+    """
 
-    open_positions = JobPosition.objects.filter(is_active=True).select_related("category")
-    featured_positions = open_positions.filter(is_featured=True)[:3]
-    categories = CareerCategory.objects.filter(is_active=True).order_by("order", "name")
+    open_positions = (
+        JobPosition.objects
+        .filter(
+            is_active=True
+        )
+        .select_related(
+            "category"
+        )
+    )
+
+    featured_positions = (
+        open_positions
+        .filter(
+            is_featured=True
+        )[:3]
+    )
+
+    categories = (
+        CareerCategory.objects
+        .filter(
+            is_active=True
+        )
+        .order_by(
+            "order",
+            "name",
+        )
+    )
 
     positions_by_category = {}
+
     for category in categories:
-        positions = open_positions.filter(category=category)
+        positions = (
+            open_positions
+            .filter(
+                category=category
+            )
+        )
+
         if positions.exists():
-            positions_by_category[category.name] = positions
+            positions_by_category[
+                category.name
+            ] = positions
 
     context = {
-        "page_title": "Careers at Arolana",
-        "page": Page.objects.filter(slug="careers", is_active=True).first(),
-        "open_positions": open_positions,
-        "featured_positions": featured_positions,
-        "positions_by_category": positions_by_category,
+        "page_title": (
+            "Careers at Arolana"
+        ),
+        "page": (
+            Page.objects
+            .filter(
+                slug="careers",
+                is_active=True,
+            )
+            .first()
+        ),
+        "open_positions": (
+            open_positions
+        ),
+        "featured_positions": (
+            featured_positions
+        ),
+        "positions_by_category": (
+            positions_by_category
+        ),
         "categories": categories,
-        "total_positions": open_positions.count(),
+        "total_positions": (
+            open_positions.count()
+        ),
     }
-    return render(request, "pages/careers.html", context)
+
+    return render(
+        request,
+        "pages/careers.html",
+        context,
+    )
 
 
-def job_detail(request, slug):
-    """Individual job position details."""
+# =============================================================================
+# JOB DETAIL
+# =============================================================================
+
+
+def job_detail(
+    request,
+    slug,
+):
+    """
+    Individual job position details.
+    """
 
     position = get_object_or_404(
-        JobPosition.objects.select_related("category"),
+        JobPosition.objects
+        .select_related(
+            "category"
+        ),
         slug=slug,
         is_active=True,
     )
 
     related_positions = (
-        JobPosition.objects.filter(
+        JobPosition.objects
+        .filter(
             category=position.category,
             is_active=True,
         )
-        .exclude(pk=position.pk)
-        .select_related("category")[:3]
+        .exclude(
+            pk=position.pk
+        )
+        .select_related(
+            "category"
+        )[:3]
     )
 
     context = {
         "position": position,
-        "related_positions": related_positions,
-        "page_title": position.title,
+        "related_positions": (
+            related_positions
+        ),
+        "page_title": (
+            position.title
+        ),
     }
-    return render(request, "pages/job_detail.html", context)
+
+    return render(
+        request,
+        "pages/job_detail.html",
+        context,
+    )
 
 
-def apply_for_job(request, position_id):
-    """Handle job applications."""
+# =============================================================================
+# JOB APPLICATION
+# =============================================================================
 
-    position = get_object_or_404(JobPosition, id=position_id, is_active=True)
+
+def apply_for_job(
+    request,
+    position_id,
+):
+    """
+    Handle job applications securely.
+
+    Resume upload security flow:
+        request.FILES
+            -> JobApplication instance
+            -> full_clean()
+            -> validate_resume_upload
+            -> reset upload stream
+            -> save
+
+    The application is not stored if validation fails.
+    """
+
+    position = get_object_or_404(
+        JobPosition.objects
+        .select_related(
+            "category"
+        ),
+        id=position_id,
+        is_active=True,
+    )
+
+    # -------------------------------------------------------------------------
+    # DO NOT ACCEPT APPLICATIONS AFTER CLOSING DATE
+    # -------------------------------------------------------------------------
+
+    if not position.is_open():
+        messages.error(
+            request,
+            (
+                "Applications for this position are now closed."
+            ),
+        )
+
+        return redirect(
+            "pages:job_detail",
+            slug=position.slug,
+        )
 
     if request.method == "POST":
-        first_name = request.POST.get("first_name", "").strip()
-        last_name = request.POST.get("last_name", "").strip()
-        email = request.POST.get("email", "").strip()
+        first_name = (
+            request.POST.get(
+                "first_name",
+                "",
+            )
+            .strip()
+        )
 
-        if not all([first_name, last_name, email]):
-            messages.error(request, "Please fill in your first name, last name, and email address.")
-            return redirect("pages:job_detail", slug=position.slug)
+        last_name = (
+            request.POST.get(
+                "last_name",
+                "",
+            )
+            .strip()
+        )
 
-        application = JobApplication.objects.create(
+        email = (
+            request.POST.get(
+                "email",
+                "",
+            )
+            .strip()
+            .lower()
+        )
+
+        phone = (
+            request.POST.get(
+                "phone",
+                "",
+            )
+            .strip()
+        )
+
+        cover_letter = (
+            request.POST.get(
+                "cover_letter",
+                "",
+            )
+            .strip()
+        )
+
+        portfolio_url = (
+            request.POST.get(
+                "portfolio_url",
+                "",
+            )
+            .strip()
+        )
+
+        linkedin_url = (
+            request.POST.get(
+                "linkedin_url",
+                "",
+            )
+            .strip()
+        )
+
+        resume = (
+            request.FILES.get(
+                "resume"
+            )
+        )
+
+        # ---------------------------------------------------------------------
+        # BASIC REQUIRED FIELDS
+        # ---------------------------------------------------------------------
+
+        if not all(
+            [
+                first_name,
+                last_name,
+                email,
+            ]
+        ):
+            messages.error(
+                request,
+                (
+                    "Please fill in your first name, "
+                    "last name, and email address."
+                ),
+            )
+
+            return redirect(
+                "pages:job_detail",
+                slug=position.slug,
+            )
+
+        # ---------------------------------------------------------------------
+        # EMAIL VALIDATION
+        # ---------------------------------------------------------------------
+
+        try:
+            validate_email(
+                email
+            )
+
+        except ValidationError:
+            messages.error(
+                request,
+                (
+                    "Please enter a valid email address."
+                ),
+            )
+
+            return redirect(
+                "pages:job_detail",
+                slug=position.slug,
+            )
+
+        # ---------------------------------------------------------------------
+        # BUILD COMPLETE APPLICATION INCLUDING RESUME
+        # ---------------------------------------------------------------------
+
+        application = JobApplication(
             position=position,
             first_name=first_name,
             last_name=last_name,
             email=email,
-            phone=request.POST.get("phone", "").strip(),
-            cover_letter=request.POST.get("cover_letter", "").strip(),
-            portfolio_url=request.POST.get("portfolio_url", "").strip(),
-            linkedin_url=request.POST.get("linkedin_url", "").strip(),
+            phone=phone,
+            cover_letter=cover_letter,
+            resume=resume,
+            portfolio_url=portfolio_url,
+            linkedin_url=linkedin_url,
+            status="pending",
         )
 
-        if request.FILES.get("resume"):
-            application.resume = request.FILES["resume"]
-            application.save(update_fields=["resume", "updated_at"])
+        try:
+            # full_clean() runs the model field validators, including the
+            # validate_resume_upload validator attached to resume.
+            application.full_clean()
+
+        except ValidationError as exc:
+            _show_validation_errors(
+                request,
+                exc,
+            )
+
+            return redirect(
+                "pages:job_detail",
+                slug=position.slug,
+            )
+
+        # Validators may inspect/read the uploaded stream.
+        _reset_uploaded_file(
+            resume
+        )
+
+        try:
+            with transaction.atomic():
+                application.save()
+
+        except ValidationError as exc:
+            _show_validation_errors(
+                request,
+                exc,
+            )
+
+            return redirect(
+                "pages:job_detail",
+                slug=position.slug,
+            )
 
         messages.success(
             request,
-            f"Thank you for applying for {position.title}. We will review your application and get back to you soon.",
+            (
+                f"Thank you for applying for {position.title}. "
+                "We will review your application and get back "
+                "to you soon."
+            ),
         )
-        return redirect("pages:careers")
+
+        return redirect(
+            "pages:careers"
+        )
 
     return render(
         request,
         "pages/apply_form.html",
         {
             "position": position,
-            "page_title": f"Apply for {position.title}",
+            "page_title": (
+                f"Apply for {position.title}"
+            ),
         },
     )
 
 
-def help_center_redirect(request, invalid_path=None):
-    """Redirect invalid Help Center paths to main Help Center."""
+# =============================================================================
+# HELP CENTER FALLBACK REDIRECT
+# =============================================================================
 
-    return redirect("pages:help_center")
+
+def help_center_redirect(
+    request,
+    invalid_path=None,
+):
+    """
+    Redirect invalid Help Center paths to main Help Center.
+    """
+
+    return redirect(
+        "pages:help_center"
+    )

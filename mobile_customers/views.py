@@ -1,5 +1,7 @@
 import json
+import logging
 import secrets
+from urllib.parse import quote
 
 from django.contrib.auth import authenticate
 from django.contrib.auth import get_user_model
@@ -17,8 +19,12 @@ from accounts.utils.otp_utils import create_otp, verify_otp
 from accounts.forms import normalize_and_validate_real_email, validate_password_strength
 from accounts.models import UserProfile
 from accounts.utils.messaging import send_registration_messages_once, sync_newsletter_subscriber
+from core.private_upload_validation import validate_private_profile_image_upload
 from products.models import Product
 from .models import MobileCustomer, MobileWishlistItem
+
+
+logger = logging.getLogger(__name__)
 
 
 # -------------------------------------------------------------------
@@ -35,6 +41,30 @@ def _clean_pin(value):
 
 def _clean_text(value):
     return str(value or "").strip()
+
+
+def _bearer_token(request):
+    authorization = _clean_text(request.headers.get("Authorization"))
+    if authorization.lower().startswith("bearer "):
+        return authorization.split(" ", 1)[1].strip()
+    return ""
+
+
+def _protected_private_media_url(request, field_file):
+    """
+    Build a URL through Arolana's protected /media/ route.
+
+    Never expose the backing storage URL for private customer media.
+    """
+    if not field_file:
+        return ""
+
+    name = _clean_text(getattr(field_file, "name", ""))
+    if not name:
+        return ""
+
+    protected_path = f"/media/{quote(name.lstrip('/'), safe='/')}"
+    return request.build_absolute_uri(protected_path)
 
 
 def _json_payload(request):
@@ -223,13 +253,18 @@ def _wishlist_payload(request, customer):
 
 
 def _customer_payload(customer):
+    """
+    General customer payload.
+
+    The bearer token is intentionally excluded. Authentication responses
+    return it only in the dedicated top-level ``api_token`` field.
+    """
     return {
         "id": customer.id,
         "full_name": customer.full_name,
         "phone_number": customer.phone_number,
         "email": customer.email,
         "user_id": customer.user_id,
-        "api_token": customer.api_token,
         "preferred_language": customer.preferred_language,
         "notification_preferences": customer.notification_preferences,
     }
@@ -365,6 +400,16 @@ def _get_or_create_mobile_customer(
     pin="",
     api_token="",
 ):
+    """
+    Legacy PIN login/registration flow.
+
+    Security rules:
+    - Existing mobile customers may authenticate with a valid token or PIN.
+    - A customer that has no PIN cannot set one through an unauthenticated
+      legacy login request.
+    - A new legacy mobile profile may never attach itself to an existing
+      Arolana web user merely by supplying that user's email or phone number.
+    """
     phone_number = _clean_phone(phone_number)
     email = _clean_text(email).lower()
     full_name = _clean_text(full_name)
@@ -384,29 +429,46 @@ def _get_or_create_mobile_customer(
     )
 
     if customer:
-        if api_token and customer.api_token and api_token == customer.api_token:
+        if api_token and customer.api_token and secrets.compare_digest(
+            api_token,
+            customer.api_token,
+        ):
             pass
-        elif getattr(customer, "pin_hash", ""):
+        elif customer.pin_hash:
             if not pin:
                 raise PermissionError("PIN is required.")
             if not customer.check_pin(pin):
                 raise PermissionError("Incorrect PIN.")
         else:
-            if len(pin) < 4:
-                raise ValueError("Create a 4 to 6 digit PIN.")
-            customer.set_pin(pin)
+            raise PermissionError(
+                "This account requires secure password and email verification login "
+                "before a mobile PIN can be created."
+            )
     else:
         if len(pin) < 4:
             raise ValueError("Create a 4 to 6 digit PIN.")
 
-        user = _find_existing_user(User, phone_number=phone_number, email=email)
+        user_fields = _user_field_names(User)
 
-        if not user:
-            user = User()
-            _safe_set_username(User, user, phone_number)
+        if email and "email" in user_fields:
+            if User.objects.filter(email__iexact=email).exists():
+                raise PermissionError(
+                    "An Arolana account already exists with this email. "
+                    "Use account login and email verification instead."
+                )
 
-            if hasattr(user, "set_unusable_password"):
-                user.set_unusable_password()
+        if phone_number and "phone_number" in user_fields:
+            if User.objects.filter(phone_number=phone_number).exists():
+                raise PermissionError(
+                    "An Arolana account already exists with this phone number. "
+                    "Use account login and verification instead."
+                )
+
+        user = User()
+        _safe_set_username(User, user, phone_number)
+
+        if hasattr(user, "set_unusable_password"):
+            user.set_unusable_password()
 
         changed = False
 
@@ -416,7 +478,11 @@ def _get_or_create_mobile_customer(
         if _safe_set_user_email(User, user, email):
             changed = True
 
-        if first_name and hasattr(user, "first_name") and getattr(user, "first_name", "") != first_name:
+        if (
+            first_name
+            and hasattr(user, "first_name")
+            and getattr(user, "first_name", "") != first_name
+        ):
             user.first_name = first_name
             changed = True
 
@@ -425,30 +491,22 @@ def _get_or_create_mobile_customer(
             changed = True
 
         username_field = getattr(User, "USERNAME_FIELD", "username")
-        fields = _user_field_names(User)
 
-        if username_field == "email" and "email" in fields and not getattr(user, "email", ""):
+        if (
+            username_field == "email"
+            and "email" in user_fields
+            and not getattr(user, "email", "")
+        ):
             user.email = email or f"mobile_{phone_number}@arolana.local"
             changed = True
 
         if user.pk is None or changed:
             user.save()
 
-        existing_customer_for_user = MobileCustomer.objects.filter(user=user).first()
-
-        if existing_customer_for_user:
-            customer = existing_customer_for_user
-            if customer.phone_number != phone_number:
-                phone_taken = (
-                    MobileCustomer.objects.filter(phone_number=phone_number)
-                    .exclude(pk=customer.pk)
-                    .exists()
-                )
-                if not phone_taken:
-                    customer.phone_number = phone_number
-        else:
-            customer = MobileCustomer(user=user, phone_number=phone_number)
-
+        customer = MobileCustomer(
+            user=user,
+            phone_number=phone_number,
+        )
         customer.set_pin(pin)
 
     updated_fields = []
@@ -464,13 +522,14 @@ def _get_or_create_mobile_customer(
     customer.ensure_api_token()
     updated_fields.append("api_token")
 
-    if getattr(customer, "pin_hash", ""):
+    if customer.pin_hash:
         updated_fields.append("pin_hash")
 
     customer.last_login_at = timezone.now()
     updated_fields.append("last_login_at")
 
     if customer.pk is None:
+        customer.full_clean()
         customer.save()
     elif updated_fields:
         _save_model(customer, updated_fields)
@@ -478,24 +537,92 @@ def _get_or_create_mobile_customer(
     return customer
 
 
-def _auth_mobile_customer_from_request_data(data):
+def _auth_mobile_customer(request, data=None):
+    """
+    Authenticate a mobile customer.
+
+    Authorization: Bearer is preferred. JSON/form body token support remains
+    temporarily for backward compatibility. GET query-string tokens are not
+    used by protected read endpoints.
+    """
+    data = data or {}
+
     phone_number = _clean_phone(
-        data.get("phone_number") or data.get("phoneNumber") or data.get("phone")
+        data.get("phone_number")
+        or data.get("phoneNumber")
+        or data.get("phone")
     )
-    api_token = _clean_text(data.get("api_token") or data.get("apiToken"))
+
+    api_token = _bearer_token(request) or _clean_text(
+        data.get("api_token") or data.get("apiToken")
+    )
 
     if not api_token:
-        raise PermissionError("Login token is required. Login/register again.")
+        raise PermissionError(
+            "Login token is required. Login/register again."
+        )
 
-    customer_query = MobileCustomer.objects.filter(api_token=api_token, is_active=True)
+    customer_query = MobileCustomer.objects.filter(
+        api_token=api_token,
+        is_active=True,
+    )
+
     if phone_number:
-        customer_query = customer_query.filter(phone_number=phone_number)
+        customer_query = customer_query.filter(
+            phone_number=phone_number,
+        )
+
     customer = customer_query.first()
 
     if not customer:
-        raise PermissionError("Login expired or invalid. Login/register again.")
+        raise PermissionError(
+            "Login expired or invalid. Login/register again."
+        )
 
     return customer
+
+
+def _auth_mobile_customer_from_request_data(data, request=None):
+    """
+    Compatibility wrapper for older internal callers.
+
+    New code should call _auth_mobile_customer(request, data).
+    """
+    if request is None:
+        api_token = _clean_text(
+            data.get("api_token") or data.get("apiToken")
+        )
+        phone_number = _clean_phone(
+            data.get("phone_number")
+            or data.get("phoneNumber")
+            or data.get("phone")
+        )
+
+        if not api_token:
+            raise PermissionError(
+                "Login token is required. Login/register again."
+            )
+
+        queryset = MobileCustomer.objects.filter(
+            api_token=api_token,
+            is_active=True,
+        )
+
+        if phone_number:
+            queryset = queryset.filter(
+                phone_number=phone_number,
+            )
+
+        customer = queryset.first()
+
+        if not customer:
+            raise PermissionError(
+                "Login expired or invalid. Login/register again."
+            )
+
+        return customer
+
+    return _auth_mobile_customer(request, data)
 
 
 @csrf_exempt
@@ -518,8 +645,12 @@ def mobile_customer_login_api(request):
         return _json_error(error, status=403)
     except ValueError as error:
         return _json_error(error, status=400)
-    except Exception as error:
-        return _json_error(f"Could not login/register mobile customer: {error}", status=500)
+    except Exception:
+        logger.exception("Unexpected mobile customer login/register failure")
+        return _json_error(
+            "Could not login/register the mobile customer.",
+            status=500,
+        )
 
     return JsonResponse(
         {
@@ -661,9 +792,10 @@ def mobile_customer_account_register_api(request):
                 raise RuntimeError(
                     "Your account could not be verified because the email code was not sent."
                 )
-    except Exception as error:
+    except Exception:
+        logger.exception("Could not create mobile Arolana account")
         return _json_error(
-            f"Could not create your Arolana account. {error}",
+            "Could not create your Arolana account. Please try again.",
             status=503,
         )
 
@@ -776,11 +908,8 @@ def mobile_customer_account_resend_otp_api(request):
 @require_POST
 def mobile_customer_account_logout_api(request):
     payload = _json_payload(request) or {}
-    authorization = str(request.headers.get("Authorization") or "")
-    if authorization.lower().startswith("bearer ") and not payload.get("api_token"):
-        payload["api_token"] = authorization.split(" ", 1)[1].strip()
     try:
-        customer = _auth_mobile_customer_from_request_data(payload)
+        customer = _auth_mobile_customer(request, payload)
     except Exception:
         return JsonResponse({"success": True, "message": "Signed out."})
     customer.api_token = secrets.token_urlsafe(32)
@@ -790,12 +919,8 @@ def mobile_customer_account_logout_api(request):
 
 @require_GET
 def mobile_customer_profile_api(request):
-    auth_data = request.GET.copy()
-    authorization = str(request.headers.get("Authorization") or "")
-    if authorization.lower().startswith("bearer ") and not auth_data.get("api_token"):
-        auth_data["api_token"] = authorization.split(" ", 1)[1].strip()
     try:
-        customer = _auth_mobile_customer_from_request_data(auth_data)
+        customer = _auth_mobile_customer(request)
     except PermissionError as error:
         return _json_error(error, status=403)
     except ValueError as error:
@@ -813,11 +938,11 @@ def mobile_customer_profile_api(request):
 @csrf_exempt
 @require_http_methods(["GET", "PATCH"])
 def mobile_customer_settings_api(request):
-    payload = request.GET if request.method == "GET" else _json_payload(request)
+    payload = {} if request.method == "GET" else _json_payload(request)
     if payload is None:
         return _json_error("Invalid JSON payload.")
     try:
-        customer = _auth_mobile_customer_from_request_data(payload)
+        customer = _auth_mobile_customer(request, payload)
     except PermissionError as error:
         return _json_error(error, status=403)
     except ValueError as error:
@@ -857,17 +982,25 @@ def mobile_customer_settings_api(request):
 # -------------------------------------------------------------------
 
 def _find_product(payload):
+    if not isinstance(payload, dict):
+        return None
+
     product_id = payload.get("product_id") or payload.get("id")
     slug = _clean_text(payload.get("slug"))
 
+    queryset = Product.objects.filter(
+        is_active=True,
+        approval_status="approved",
+    )
+
     if product_id:
         try:
-            return Product.objects.filter(id=product_id).first()
-        except Exception:
-            pass
+            return queryset.filter(id=product_id).first()
+        except (TypeError, ValueError):
+            return None
 
     if slug:
-        return Product.objects.filter(slug=slug).first()
+        return queryset.filter(slug=slug).first()
 
     return None
 
@@ -875,7 +1008,7 @@ def _find_product(payload):
 @require_GET
 def mobile_wishlist_list_api(request):
     try:
-        customer = _auth_mobile_customer_from_request_data(request.GET)
+        customer = _auth_mobile_customer(request)
     except PermissionError as error:
         return _json_error(error, status=403)
     except ValueError as error:
@@ -901,7 +1034,7 @@ def mobile_wishlist_sync_api(request):
         return _json_error("Invalid JSON payload.", status=400)
 
     try:
-        customer = _auth_mobile_customer_from_request_data(payload)
+        customer = _auth_mobile_customer(request, payload)
     except PermissionError as error:
         return _json_error(error, status=403)
     except ValueError as error:
@@ -910,13 +1043,30 @@ def mobile_wishlist_sync_api(request):
     items = payload.get("items") or []
     clear_first = bool(payload.get("clear_first"))
 
-    if clear_first:
-        customer.wishlist_items.all().delete()
+    if not isinstance(items, list):
+        return _json_error("Wishlist items must be a list.", status=400)
 
-    for item in items:
-        product = _find_product(item)
-        if product:
-            MobileWishlistItem.objects.get_or_create(customer=customer, product=product)
+    if len(items) > 500:
+        return _json_error(
+            "A maximum of 500 wishlist items can be synced at once.",
+            status=400,
+        )
+
+    with transaction.atomic():
+        locked_customer = MobileCustomer.objects.select_for_update().get(
+            pk=customer.pk,
+        )
+
+        if clear_first:
+            locked_customer.wishlist_items.all().delete()
+
+        for item in items:
+            product = _find_product(item)
+            if product:
+                MobileWishlistItem.objects.get_or_create(
+                    customer=locked_customer,
+                    product=product,
+                )
 
     wishlist_items = _wishlist_payload(request, customer)
 
@@ -940,7 +1090,7 @@ def mobile_wishlist_toggle_api(request):
         return _json_error("Invalid JSON payload.", status=400)
 
     try:
-        customer = _auth_mobile_customer_from_request_data(payload)
+        customer = _auth_mobile_customer(request, payload)
     except PermissionError as error:
         return _json_error(error, status=403)
     except ValueError as error:
@@ -953,25 +1103,42 @@ def mobile_wishlist_toggle_api(request):
     if not product:
         return _json_error("Product not found.", status=404)
 
-    wishlist_item = MobileWishlistItem.objects.filter(
-        customer=customer,
-        product=product,
-    ).first()
+    if action not in {"add", "remove", "toggle"}:
+        return _json_error(
+            "Action must be add, remove, or toggle.",
+            status=400,
+        )
 
-    if action == "add":
-        MobileWishlistItem.objects.get_or_create(customer=customer, product=product)
-        wishlisted = True
-    elif action == "remove":
-        if wishlist_item:
-            wishlist_item.delete()
-        wishlisted = False
-    else:
-        if wishlist_item:
-            wishlist_item.delete()
+    with transaction.atomic():
+        locked_customer = MobileCustomer.objects.select_for_update().get(
+            pk=customer.pk,
+        )
+
+        wishlist_item = MobileWishlistItem.objects.filter(
+            customer=locked_customer,
+            product=product,
+        ).first()
+
+        if action == "add":
+            MobileWishlistItem.objects.get_or_create(
+                customer=locked_customer,
+                product=product,
+            )
+            wishlisted = True
+        elif action == "remove":
+            if wishlist_item:
+                wishlist_item.delete()
             wishlisted = False
         else:
-            MobileWishlistItem.objects.create(customer=customer, product=product)
-            wishlisted = True
+            if wishlist_item:
+                wishlist_item.delete()
+                wishlisted = False
+            else:
+                MobileWishlistItem.objects.create(
+                    customer=locked_customer,
+                    product=product,
+                )
+                wishlisted = True
 
     wishlist_items = _wishlist_payload(request, customer)
 
@@ -1017,20 +1184,21 @@ def _customer_check_pin(customer, pin):
     field_name = _pin_field_name()
 
     if not field_name:
-        return True
+        return False
 
     stored = getattr(customer, field_name, "") or ""
 
     if not stored:
-        return True
+        return False
 
     try:
-        if check_password(str(pin), stored):
-            return True
+        return check_password(str(pin), stored)
     except Exception:
-        pass
-
-    return str(pin) == str(stored)
+        logger.exception(
+            "Could not verify MobileCustomer PIN hash",
+            extra={"customer_id": getattr(customer, "pk", None)},
+        )
+        return False
 
 
 def _customer_set_pin(customer, pin):
@@ -1062,7 +1230,7 @@ def mobile_customer_update_api(request):
         return _json_error("Invalid JSON payload.", status=400)
 
     try:
-        customer = _auth_mobile_customer_from_request_data(payload)
+        customer = _auth_mobile_customer(request, payload)
     except PermissionError as error:
         return _json_error(error, status=403)
     except Exception as error:
@@ -1128,7 +1296,7 @@ def mobile_customer_change_pin_api(request):
         return _json_error("Invalid JSON payload.", status=400)
 
     try:
-        customer = _auth_mobile_customer_from_request_data(payload)
+        customer = _auth_mobile_customer(request, payload)
     except PermissionError as error:
         return _json_error(error, status=403)
     except Exception as error:
@@ -1174,7 +1342,7 @@ def mobile_customer_delete_api(request):
         return _json_error("Invalid JSON payload.", status=400)
 
     try:
-        customer = _auth_mobile_customer_from_request_data(payload)
+        customer = _auth_mobile_customer(request, payload)
     except PermissionError as error:
         return _json_error(error, status=403)
     except Exception as error:
@@ -1198,97 +1366,25 @@ def mobile_customer_delete_api(request):
     )
 
 
-def _photo_customer_payload(request, customer):
-    profile_image_url = ""
 
-    if getattr(customer, "profile_image", None):
-        try:
-            profile_image_url = request.build_absolute_uri(customer.profile_image.url)
-        except Exception:
-            profile_image_url = str(customer.profile_image)
-
-    return {
-        "id": customer.id,
-        "full_name": getattr(customer, "full_name", ""),
-        "phone_number": getattr(customer, "phone_number", ""),
-        "email": getattr(customer, "email", ""),
-        "api_token": getattr(customer, "api_token", ""),
-        "profile_image_url": profile_image_url,
-        "profile_image": profile_image_url,
-    }
-
-
-@csrf_exempt
-@require_POST
-def mobile_customer_profile_photo_api(request):
-    try:
-        customer = _settings_auth_customer(request.POST)
-    except PermissionError as error:
-        return JsonResponse({"success": False, "message": str(error)}, status=403)
-    except Exception as error:
-        return JsonResponse({"success": False, "message": str(error)}, status=400)
-
-    if not hasattr(customer, "profile_image"):
-        return JsonResponse(
-            {
-                "success": False,
-                "message": "MobileCustomer.profile_image field is missing. Add the ImageField and run migrations.",
-            },
-            status=500,
-        )
-
-    image_file = request.FILES.get("profile_photo") or request.FILES.get("profile_image") or request.FILES.get("image")
-
-    if not image_file:
-        return JsonResponse({"success": False, "message": "Profile photo is required."}, status=400)
-
-    customer.profile_image = image_file
-    customer.save(update_fields=["profile_image", "updated_at"] if hasattr(customer, "updated_at") else ["profile_image"])
-
-    return JsonResponse(
-        {
-            "success": True,
-            "message": "Profile photo uploaded successfully.",
-            "customer": _photo_customer_payload(request, customer),
-        }
+def _profile_photo_url(request, customer):
+    return _protected_private_media_url(
+        request,
+        getattr(customer, "profile_image", None),
     )
 
 
-def _profile_photo_auth_customer(request):
-    """
-    Reuses your existing settings auth helper when available.
-    Works with multipart/form-data request.POST.
-    """
-    if "_settings_auth_customer" in globals():
-        return _settings_auth_customer(request.POST)
-
-    if "_auth_mobile_customer_from_request_data" in globals():
-        return _auth_mobile_customer_from_request_data(request.POST)
-
-    raise RuntimeError("No mobile customer auth helper found in mobile_customers/views.py")
-
-
-def _profile_photo_url(request, customer):
-    if getattr(customer, "profile_image", None):
-        try:
-            return request.build_absolute_uri(customer.profile_image.url)
-        except Exception:
-            try:
-                return customer.profile_image.url
-            except Exception:
-                return str(customer.profile_image)
-    return ""
-
-
 def _profile_photo_customer_payload(request, customer):
-    image_url = _profile_photo_url(request, customer)
+    image_url = _profile_photo_url(
+        request,
+        customer,
+    )
 
     return {
         "id": customer.id,
         "full_name": getattr(customer, "full_name", ""),
         "phone_number": getattr(customer, "phone_number", ""),
         "email": getattr(customer, "email", ""),
-        "api_token": getattr(customer, "api_token", ""),
         "profile_image_url": image_url,
         "profile_image": image_url,
     }
@@ -1297,20 +1393,29 @@ def _profile_photo_customer_payload(request, customer):
 @csrf_exempt
 @require_POST
 def mobile_customer_profile_photo_api(request):
-    try:
-        customer = _profile_photo_auth_customer(request)
-    except PermissionError as error:
-        return JsonResponse({"success": False, "message": str(error)}, status=403)
-    except Exception as error:
-        return JsonResponse({"success": False, "message": str(error)}, status=400)
+    """
+    Upload or replace a private MobileCustomer profile image.
 
-    if not hasattr(customer, "profile_image"):
-        return JsonResponse(
-            {
-                "success": False,
-                "message": "MobileCustomer.profile_image field is missing. Add it to models.py and run migrations.",
-            },
-            status=500,
+    Authentication prefers Authorization: Bearer and temporarily accepts
+    an api_token form field for backward compatibility.
+    """
+    try:
+        customer = _auth_mobile_customer(
+            request,
+            request.POST,
+        )
+    except PermissionError as error:
+        return _json_error(
+            error,
+            status=403,
+        )
+    except Exception:
+        logger.exception(
+            "Unexpected mobile customer profile-photo authentication error"
+        )
+        return _json_error(
+            "Could not authenticate the mobile customer.",
+            status=400,
         )
 
     image_file = (
@@ -1321,38 +1426,90 @@ def mobile_customer_profile_photo_api(request):
     )
 
     if not image_file:
-        return JsonResponse(
-            {
-                "success": False,
-                "message": "Profile photo is required. No uploaded file was received by Django.",
-                "received_file_keys": list(request.FILES.keys()),
-                "received_post_keys": list(request.POST.keys()),
-            },
+        return _json_error(
+            "Profile photo is required.",
             status=400,
         )
 
-    # Optional simple safety check
-    if getattr(image_file, "size", 0) and image_file.size > 6 * 1024 * 1024:
-        return JsonResponse(
-            {"success": False, "message": "Profile photo is too large. Use an image under 6MB."},
+    try:
+        validate_private_profile_image_upload(
+            image_file,
+        )
+    except ValidationError as error:
+        message = " ".join(error.messages) if error.messages else str(error)
+        return _json_error(
+            message,
             status=400,
         )
+    except Exception:
+        logger.exception(
+            "Unexpected private profile image validation failure",
+            extra={"customer_id": customer.pk},
+        )
+        return _json_error(
+            "The profile image could not be validated.",
+            status=400,
+        )
+
+    old_image_name = _clean_text(
+        getattr(customer.profile_image, "name", "")
+    )
 
     customer.profile_image = image_file
-    save_fields = ["profile_image"]
 
+    save_fields = ["profile_image"]
     if hasattr(customer, "updated_at"):
         save_fields.append("updated_at")
 
-    customer.save(update_fields=save_fields)
+    try:
+        with transaction.atomic():
+            customer.save(
+                update_fields=save_fields,
+            )
+    except Exception:
+        logger.exception(
+            "Could not save mobile customer profile photo",
+            extra={"customer_id": customer.pk},
+        )
+        return _json_error(
+            "Could not save the profile photo.",
+            status=500,
+        )
 
-    image_url = _profile_photo_url(request, customer)
+    new_image_name = _clean_text(
+        getattr(customer.profile_image, "name", "")
+    )
+
+    if old_image_name and old_image_name != new_image_name:
+        storage = customer._meta.get_field("profile_image").storage
+
+        def _delete_old_profile_image():
+            try:
+                if storage.exists(old_image_name):
+                    storage.delete(old_image_name)
+            except Exception:
+                logger.exception(
+                    "Could not delete replaced mobile customer profile image",
+                    extra={"customer_id": customer.pk},
+                )
+
+        transaction.on_commit(
+            _delete_old_profile_image,
+        )
+
+    image_url = _profile_photo_url(
+        request,
+        customer,
+    )
 
     return JsonResponse(
         {
             "success": True,
             "message": "Profile photo uploaded successfully.",
             "profile_image_url": image_url,
-            "customer": _profile_photo_customer_payload(request, customer),
+            "customer": _profile_photo_customer_payload(
+                request,
+                customer,
+            ),
         }
     )

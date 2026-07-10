@@ -333,11 +333,59 @@ class VendorProfileAdmin(VendorEmailAdminMixin, admin.ModelAdmin):
 
     pickup_map_preview.short_description = 'Pickup map preview'
 
-    def mark_verified(self, request, queryset):
-        updated = queryset.update(is_verified=True)
-        self.message_user(request, f'{updated} seller profile(s) marked verified.')
+    def mark_verified(
+        self,
+        request,
+        queryset,
+    ):
+        verified_count = 0
+        skipped_count = 0
 
-    mark_verified.short_description = 'Mark selected sellers verified'
+        for vendor in queryset.select_related(
+            "user"
+        ):
+            if vendor.kyc_status not in {
+                "approved",
+                "verified",
+            }:
+                skipped_count += 1
+                continue
+
+            if not vendor.is_verified:
+                vendor.is_verified = True
+
+                vendor.save(
+                    update_fields=[
+                        "is_verified",
+                        "updated_at",
+                    ]
+                )
+
+            verified_count += 1
+
+        if verified_count:
+            self.message_user(
+                request,
+                (
+                    f"{verified_count} vendor profile(s) "
+                    "marked verified."
+                ),
+            )
+
+        if skipped_count:
+            self.message_user(
+                request,
+                (
+                    f"{skipped_count} vendor profile(s) skipped "
+                    "because KYC is not approved."
+                ),
+                level="warning",
+            )
+
+
+    mark_verified.short_description = (
+        "Mark selected KYC-approved sellers verified"
+    )
 
     def mark_unverified(self, request, queryset):
         updated = queryset.update(is_verified=False)

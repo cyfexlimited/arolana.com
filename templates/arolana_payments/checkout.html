@@ -4,604 +4,2609 @@
 {% block title %}Choose Payment Method | Arolana{% endblock %}
 
 {% block content %}
+
 {% current_currency_code as payment_currency_code %}
 {% current_currency_symbol as payment_currency_symbol %}
 {% get_exchange_rate payment_currency_code as payment_currency_rate %}
 {% base_currency_code as payment_base_currency_code %}
 {% get_exchange_rate payment_base_currency_code as payment_base_currency_rate %}
-<div class="max-w-5xl mx-auto px-4 py-10">
-    <div class="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
-        <div class="p-6 md:p-8 bg-gradient-to-r from-blue-700 to-purple-700 text-white">
-            <h1 class="text-3xl md:text-4xl font-black">Choose Payment Method</h1>
-            <p class="mt-2 text-white/85">Secure checkout for Arolana orders.</p>
-        </div>
 
-        <div class="p-6 md:p-8">
-            {% if messages %}
-                {% for message in messages %}
-                    <div class="mb-4 rounded-xl p-4 {% if message.tags == 'error' %}bg-red-50 text-red-700{% else %}bg-blue-50 text-blue-700{% endif %}">
-                        {{ message }}
-                    </div>
-                {% endfor %}
-            {% endif %}
 
-            <form id="paymentBaseForm" class="grid gap-6 mb-8">
-                <input type="hidden" name="order_id" value="{{ order_id }}">
-                <input type="hidden" name="delivery_fee" id="delivery_fee" value="0.00">
-                <div class="grid md:grid-cols-2 gap-4">
-                    <label class="grid gap-1">
-                        <span class="text-sm font-bold text-gray-700">Amount</span>
-                        <input name="amount" value="{{ amount }}" required class="border rounded-xl px-4 py-3">
-                    </label>
-                    <label class="grid gap-1">
-                        <span class="text-sm font-bold text-gray-700">Currency</span>
-                        <input name="currency" value="{{ payment_base_currency_code }}" required readonly class="border rounded-xl bg-gray-50 px-4 py-3 uppercase text-gray-600">
-                    </label>
-                    <label class="grid gap-1">
-                        <span class="text-sm font-bold text-gray-700">Name</span>
-                        <input name="name" value="{{ name }}" class="border rounded-xl px-4 py-3">
-                    </label>
-                    <label class="grid gap-1">
-                        <span class="text-sm font-bold text-gray-700">Email</span>
-                        <input type="email" name="email" value="{{ email }}" class="border rounded-xl px-4 py-3">
-                    </label>
-                    <label class="grid gap-1 md:col-span-2">
-                        <span class="text-sm font-bold text-gray-700">Phone</span>
-                        <input name="phone" value="{{ phone }}" class="border rounded-xl px-4 py-3">
-                    </label>
-                </div>
+<main class="min-h-screen bg-slate-50">
 
-                <div class="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
-                    <div class="flex items-start gap-3">
-                        <i class="fas fa-location-dot mt-1 text-blue-600"></i>
-                        <div>
-                            <strong class="block text-gray-900">Delivery cost depends on your location.</strong>
-                            <span>Choose Standard or Express delivery. Arolana calculates the fee from your address, map distance, package size, delivery speed, and rider availability.</span>
-                        </div>
-                    </div>
-                </div>
+    <div class="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10 lg:py-14">
 
-                <div>
-                    <h2 class="text-xl font-black mb-4 text-gray-900">Delivery Method</h2>
-                    <div class="grid md:grid-cols-2 gap-3">
-                        {% for option in delivery_options %}
-                        <label class="arolana-delivery-option">
-                            <input type="radio" name="delivery_service_level" value="{{ option.value }}" data-provider-type="{{ option.provider_type }}" {% if delivery_service_level == option.value or not delivery_service_level and forloop.first %}checked{% endif %}>
-                            <span class="arolana-delivery-card">
-                                <span class="arolana-delivery-icon"><i class="fas {{ option.icon }}"></i></span>
-                                <span>
-                                    <strong>{{ option.label }}</strong>
-                                    <small>{{ option.description }}</small>
-                                </span>
-                            </span>
-                        </label>
-                        {% endfor %}
-                    </div>
-                </div>
 
-                <div>
-                    <h2 class="text-xl font-black mb-4 text-gray-900">Delivery Address</h2>
-                    <div class="grid md:grid-cols-2 gap-4">
-                        <label class="grid gap-1 md:col-span-2">
-                            <span class="text-sm font-bold text-gray-700">Address</span>
-                            <input name="address" value="{{ address }}" class="border rounded-xl px-4 py-3">
-                            <input type="hidden" name="dropoff_latitude">
-                            <input type="hidden" name="dropoff_longitude">
-                            <button type="button" id="payment-use-location" class="mt-2 inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100">
-                                <i class="fas fa-location-crosshairs"></i>
-                                Use my current location for accurate delivery fee
-                            </button>
-                            <span id="payment-location-status" class="text-xs text-gray-500"></span>
-                        </label>
-                        <label class="grid gap-1">
-                            <span class="text-sm font-bold text-gray-700">City</span>
-                            <input name="city" value="{{ city }}" class="border rounded-xl px-4 py-3">
-                        </label>
-                        <label class="grid gap-1">
-                            <span class="text-sm font-bold text-gray-700">State</span>
-                            <input name="state" value="{{ state }}" class="border rounded-xl px-4 py-3">
-                        </label>
-                        <label class="grid gap-1">
-                            <span class="text-sm font-bold text-gray-700">Postal Code</span>
-                            <input name="postal_code" value="{{ postal_code }}" class="border rounded-xl px-4 py-3">
-                        </label>
-                        <label class="grid gap-1">
-                            <span class="text-sm font-bold text-gray-700">Country</span>
-                            <input name="country" value="{{ country }}" class="border rounded-xl px-4 py-3">
-                        </label>
-                    </div>
-                </div>
+        <!-- ============================================================= -->
+        <!-- CHECKOUT SHELL -->
+        <!-- ============================================================= -->
+
+        <div
+            class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl"
+        >
+
+
+            <!-- ========================================================= -->
+            <!-- HEADER -->
+            <!-- ========================================================= -->
+
+            <header
+                class="relative overflow-hidden bg-gradient-to-br from-blue-700 via-blue-800 to-slate-950 px-6 py-8 text-white sm:px-8 sm:py-10"
+            >
 
                 <div
-                    id="arolana-payment-quote"
-                    class="rounded-2xl border border-gray-200 bg-gray-50 p-4"
-                    data-delivery-quote-url="{% url 'orders:delivery_quote' %}"
-                    data-starting-amount="{{ amount|default:'0' }}"
-                    data-base-currency="{{ payment_base_currency_code }}"
-                    data-base-rate="{{ payment_base_currency_rate }}"
-                    data-display-currency="{{ payment_currency_code }}"
-                    data-display-symbol="{{ payment_currency_symbol }}"
-                    data-display-rate="{{ payment_currency_rate }}"
-                    data-pickup-name="{{ delivery_origin.pickup_name|default:''|escape }}"
-                    data-pickup-phone="{{ delivery_origin.pickup_phone|default:''|escape }}"
-                    data-pickup-address="{{ delivery_origin.pickup_address|default:''|escape }}"
-                    data-pickup-latitude="{{ delivery_origin.pickup_latitude|default:'' }}"
-                    data-pickup-longitude="{{ delivery_origin.pickup_longitude|default:'' }}"
-                    data-pickup-vendor-id="{{ delivery_origin.pickup_vendor_id|default:'' }}"
-                    data-pickup-vendor-name="{{ delivery_origin.pickup_vendor_name|default:''|escape }}"
-                    data-package-weight-kg="{{ package_weight_kg|default:'0.00' }}"
-                    data-google-maps-api-key="{{ GOOGLE_MAPS_API_KEY|default:'' }}"
-                >
-                    <div class="grid gap-3 sm:grid-cols-3">
-                        <div>
-                            <span class="block text-xs font-bold uppercase tracking-wide text-gray-500">Items</span>
-                            <strong id="payment-items-total" class="text-gray-950">{{ amount|default:'0'|currency:request }}</strong>
-                        </div>
-                        <div>
-                            <span class="block text-xs font-bold uppercase tracking-wide text-gray-500">Delivery</span>
-                            <strong id="payment-delivery-fee" class="text-blue-700">Calculating...</strong>
-                        </div>
-                        <div>
-                            <span class="block text-xs font-bold uppercase tracking-wide text-gray-500">Pay now</span>
-                            <strong id="payment-grand-total" class="text-green-700">{{ amount|default:'0'|currency:request }}</strong>
-                        </div>
-                    </div>
-                    <p id="payment-delivery-message" class="mt-3 text-xs leading-relaxed text-gray-600"></p>
-                </div>
-            </form>
+                    class="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-cyan-400/10 blur-3xl"
+                    aria-hidden="true"
+                ></div>
 
-            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {% for option in payment_options %}
-                <button type="button"
-                        onclick="submitGateway('{{ option.gateway }}')"
-                        class="payment-card {% if not option.available %}payment-card-disabled{% endif %}"
-                        {% if not option.available %}disabled title="{{ option.disabled_reason }}"{% endif %}>
-                    <i class="{{ option.icon_class }}"></i>
-                    <strong>{{ option.display_name }}</strong>
-                    <span>{% if option.available %}{{ option.description }}{% else %}{{ option.disabled_reason }}{% endif %}</span>
-                </button>
-                {% empty %}
-                <div class="rounded-2xl border border-yellow-200 bg-yellow-50 p-5 text-yellow-900 md:col-span-2 lg:col-span-3">
-                    No payment gateways are active yet. Enable one in the admin payment gateway settings.
+                <div
+                    class="absolute -bottom-24 left-1/4 h-64 w-64 rounded-full bg-orange-400/10 blur-3xl"
+                    aria-hidden="true"
+                ></div>
+
+
+                <div class="relative z-10">
+
+                    <div
+                        class="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.16em] text-blue-100 backdrop-blur"
+                    >
+                        <i
+                            class="fas fa-lock"
+                            aria-hidden="true"
+                        ></i>
+
+                        Secure Arolana Checkout
+                    </div>
+
+
+                    <h1
+                        class="max-w-3xl text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl"
+                    >
+                        Choose how you want to pay
+                    </h1>
+
+
+                    <p
+                        class="mt-3 max-w-2xl text-sm leading-6 text-blue-100 sm:text-base"
+                    >
+                        Complete your delivery details, review the calculated delivery
+                        cost, then continue through your preferred payment method.
+                    </p>
+
+
+                    <div
+                        class="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-bold text-blue-100"
+                    >
+
+                        <span class="inline-flex items-center gap-2">
+                            <i
+                                class="fas fa-shield-alt text-cyan-300"
+                                aria-hidden="true"
+                            ></i>
+
+                            Secure gateway processing
+                        </span>
+
+
+                        <span class="inline-flex items-center gap-2">
+                            <i
+                                class="fas fa-map-marker-alt text-orange-300"
+                                aria-hidden="true"
+                            ></i>
+
+                            Location-based delivery pricing
+                        </span>
+
+
+                        <span class="inline-flex items-center gap-2">
+                            <i
+                                class="fas fa-truck text-green-300"
+                                aria-hidden="true"
+                            ></i>
+
+                            Delivery tracking
+                        </span>
+
+                    </div>
+
                 </div>
-                {% endfor %}
+
+            </header>
+
+
+            <!-- ========================================================= -->
+            <!-- MAIN BODY -->
+            <!-- ========================================================= -->
+
+            <div class="p-5 sm:p-8">
+
+
+                <!-- ===================================================== -->
+                <!-- DJANGO MESSAGES -->
+                <!-- ===================================================== -->
+
+                {% if messages %}
+
+                    <div class="mb-6 grid gap-3">
+
+                        {% for message in messages %}
+
+                            <div
+                                class="rounded-2xl border p-4 text-sm font-semibold
+                                {% if message.tags == 'error' %}
+                                    border-red-200 bg-red-50 text-red-700
+                                {% elif message.tags == 'success' %}
+                                    border-green-200 bg-green-50 text-green-700
+                                {% elif message.tags == 'warning' %}
+                                    border-amber-200 bg-amber-50 text-amber-800
+                                {% else %}
+                                    border-blue-200 bg-blue-50 text-blue-700
+                                {% endif %}"
+                            >
+                                {{ message }}
+                            </div>
+
+                        {% endfor %}
+
+                    </div>
+
+                {% endif %}
+
+
+                <!-- ===================================================== -->
+                <!-- BASE CHECKOUT FORM -->
+                <!-- ===================================================== -->
+
+                <form
+                    id="paymentBaseForm"
+                    class="grid gap-8"
+                    autocomplete="on"
+                >
+
+                    {% csrf_token %}
+
+                    <input
+                        type="hidden"
+                        name="order_id"
+                        value="{{ order_id }}"
+                    >
+
+                    <input
+                        type="hidden"
+                        name="delivery_fee"
+                        id="delivery_fee"
+                        value="0.00"
+                    >
+
+
+                    <!-- ================================================= -->
+                    <!-- CUSTOMER & PAYMENT SUMMARY -->
+                    <!-- ================================================= -->
+
+                    <section>
+
+                        <div class="mb-4">
+
+                            <p
+                                class="text-xs font-black uppercase tracking-[0.18em] text-blue-600"
+                            >
+                                Checkout Details
+                            </p>
+
+                            <h2
+                                class="mt-1 text-2xl font-black text-slate-950"
+                            >
+                                Customer information
+                            </h2>
+
+                            <p
+                                class="mt-1 text-sm leading-6 text-slate-500"
+                            >
+                                Confirm the details connected to this payment.
+                            </p>
+
+                        </div>
+
+
+                        <div
+                            class="grid gap-4 rounded-3xl border border-slate-200 bg-slate-50 p-4 sm:p-6 md:grid-cols-2"
+                        >
+
+
+                            <!-- AMOUNT -->
+
+                            <label class="grid gap-2">
+
+                                <span
+                                    class="text-sm font-black text-slate-700"
+                                >
+                                    Order Amount
+                                </span>
+
+                                <div class="relative">
+
+                                    <span
+                                        class="pointer-events-none absolute inset-y-0 left-4 flex items-center text-sm font-black text-slate-400"
+                                    >
+                                        {{ payment_base_currency_code }}
+                                    </span>
+
+                                    <input
+                                        name="amount"
+                                        value="{{ amount }}"
+                                        required
+                                        readonly
+                                        inputmode="decimal"
+                                        class="w-full rounded-xl border border-slate-300 bg-white py-3 pl-16 pr-4 font-black text-slate-950 outline-none"
+                                    >
+
+                                </div>
+
+                            </label>
+
+
+                            <!-- CURRENCY -->
+
+                            <label class="grid gap-2">
+
+                                <span
+                                    class="text-sm font-black text-slate-700"
+                                >
+                                    Payment Currency
+                                </span>
+
+                                <input
+                                    name="currency"
+                                    value="{{ payment_base_currency_code }}"
+                                    required
+                                    readonly
+                                    class="w-full rounded-xl border border-slate-300 bg-slate-100 px-4 py-3 font-black uppercase text-slate-600 outline-none"
+                                >
+
+                            </label>
+
+
+                            <!-- NAME -->
+
+                            <label class="grid gap-2">
+
+                                <span
+                                    class="text-sm font-black text-slate-700"
+                                >
+                                    Full Name
+                                </span>
+
+                                <input
+                                    name="name"
+                                    value="{{ name }}"
+                                    autocomplete="name"
+                                    placeholder="Your full name"
+                                    class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                >
+
+                            </label>
+
+
+                            <!-- EMAIL -->
+
+                            <label class="grid gap-2">
+
+                                <span
+                                    class="text-sm font-black text-slate-700"
+                                >
+                                    Email Address
+                                </span>
+
+                                <input
+                                    type="email"
+                                    name="email"
+                                    value="{{ email }}"
+                                    autocomplete="email"
+                                    placeholder="you@example.com"
+                                    class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                >
+
+                            </label>
+
+
+                            <!-- PHONE -->
+
+                            <label class="grid gap-2 md:col-span-2">
+
+                                <span
+                                    class="text-sm font-black text-slate-700"
+                                >
+                                    Phone Number
+                                </span>
+
+                                <input
+                                    type="tel"
+                                    name="phone"
+                                    value="{{ phone }}"
+                                    autocomplete="tel"
+                                    placeholder="+234..."
+                                    class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                >
+
+                            </label>
+
+                        </div>
+
+                    </section>
+
+
+                    <!-- ================================================= -->
+                    <!-- DELIVERY INFORMATION NOTICE -->
+                    <!-- ================================================= -->
+
+                    <div
+                        class="rounded-2xl border border-blue-200 bg-blue-50 p-5"
+                    >
+
+                        <div class="flex items-start gap-3">
+
+                            <div
+                                class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm"
+                            >
+                                <i
+                                    class="fas fa-location-dot"
+                                    aria-hidden="true"
+                                ></i>
+                            </div>
+
+                            <div>
+
+                                <strong
+                                    class="block font-black text-slate-950"
+                                >
+                                    Delivery cost depends on your location
+                                </strong>
+
+                                <p
+                                    class="mt-1 text-sm leading-6 text-blue-900"
+                                >
+                                    Choose Standard or Express delivery. Arolana calculates
+                                    the fee using your delivery address, distance, package
+                                    weight, delivery speed, and available delivery services.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- ================================================= -->
+                    <!-- DELIVERY METHOD -->
+                    <!-- ================================================= -->
+
+                    <section>
+
+                        <div class="mb-4">
+
+                            <p
+                                class="text-xs font-black uppercase tracking-[0.18em] text-blue-600"
+                            >
+                                Delivery
+                            </p>
+
+                            <h2
+                                class="mt-1 text-2xl font-black text-slate-950"
+                            >
+                                Choose delivery speed
+                            </h2>
+
+                        </div>
+
+
+                        <div
+                            class="grid gap-3 md:grid-cols-2"
+                        >
+
+                            {% for option in delivery_options %}
+
+                                <label
+                                    class="arolana-delivery-option"
+                                >
+
+                                    <input
+                                        type="radio"
+                                        name="delivery_service_level"
+                                        value="{{ option.value }}"
+                                        data-provider-type="{{ option.provider_type }}"
+                                        {% if delivery_service_level == option.value or not delivery_service_level and forloop.first %}
+                                            checked
+                                        {% endif %}
+                                    >
+
+
+                                    <span
+                                        class="arolana-delivery-card"
+                                    >
+
+                                        <span
+                                            class="arolana-delivery-icon"
+                                        >
+                                            <i
+                                                class="fas {{ option.icon }}"
+                                                aria-hidden="true"
+                                            ></i>
+                                        </span>
+
+
+                                        <span class="min-w-0 flex-1">
+
+                                            <strong>
+                                                {{ option.label }}
+                                            </strong>
+
+                                            <small>
+                                                {{ option.description }}
+                                            </small>
+
+                                        </span>
+
+
+                                        <span
+                                            class="arolana-delivery-check"
+                                            aria-hidden="true"
+                                        >
+                                            <i class="fas fa-check"></i>
+                                        </span>
+
+                                    </span>
+
+                                </label>
+
+                            {% endfor %}
+
+                        </div>
+
+                    </section>
+
+
+                    <!-- ================================================= -->
+                    <!-- DELIVERY ADDRESS -->
+                    <!-- ================================================= -->
+
+                    <section>
+
+                        <div class="mb-4">
+
+                            <p
+                                class="text-xs font-black uppercase tracking-[0.18em] text-orange-500"
+                            >
+                                Destination
+                            </p>
+
+                            <h2
+                                class="mt-1 text-2xl font-black text-slate-950"
+                            >
+                                Delivery address
+                            </h2>
+
+                            <p
+                                class="mt-1 text-sm leading-6 text-slate-500"
+                            >
+                                Enter your destination or use your current location
+                                for more accurate delivery pricing.
+                            </p>
+
+                        </div>
+
+
+                        <div
+                            class="grid gap-4 rounded-3xl border border-slate-200 bg-white md:grid-cols-2"
+                        >
+
+
+                            <!-- ADDRESS -->
+
+                            <label
+                                class="grid gap-2 md:col-span-2"
+                            >
+
+                                <span
+                                    class="text-sm font-black text-slate-700"
+                                >
+                                    Street Address
+                                </span>
+
+                                <input
+                                    name="address"
+                                    value="{{ address }}"
+                                    autocomplete="street-address"
+                                    placeholder="Street, building, estate or landmark"
+                                    class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                >
+
+
+                                <input
+                                    type="hidden"
+                                    name="dropoff_latitude"
+                                >
+
+                                <input
+                                    type="hidden"
+                                    name="dropoff_longitude"
+                                >
+
+
+                                <button
+                                    type="button"
+                                    id="payment-use-location"
+                                    class="mt-1 inline-flex w-fit items-center gap-2 rounded-full bg-blue-50 px-4 py-2.5 text-sm font-black text-blue-700 transition hover:bg-blue-100"
+                                >
+                                    <i
+                                        class="fas fa-location-crosshairs"
+                                        aria-hidden="true"
+                                    ></i>
+
+                                    Use my current location
+                                </button>
+
+
+                                <span
+                                    id="payment-location-status"
+                                    class="min-h-[1rem] text-xs leading-5 text-slate-500"
+                                ></span>
+
+                            </label>
+
+
+                            <!-- CITY -->
+
+                            <label class="grid gap-2">
+
+                                <span
+                                    class="text-sm font-black text-slate-700"
+                                >
+                                    City
+                                </span>
+
+                                <input
+                                    name="city"
+                                    value="{{ city }}"
+                                    autocomplete="address-level2"
+                                    placeholder="City"
+                                    class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                >
+
+                            </label>
+
+
+                            <!-- STATE -->
+
+                            <label class="grid gap-2">
+
+                                <span
+                                    class="text-sm font-black text-slate-700"
+                                >
+                                    State
+                                </span>
+
+                                <input
+                                    name="state"
+                                    value="{{ state }}"
+                                    autocomplete="address-level1"
+                                    placeholder="State"
+                                    class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                >
+
+                            </label>
+
+
+                            <!-- POSTCODE -->
+
+                            <label class="grid gap-2">
+
+                                <span
+                                    class="text-sm font-black text-slate-700"
+                                >
+                                    Postal Code
+                                </span>
+
+                                <input
+                                    name="postal_code"
+                                    value="{{ postal_code }}"
+                                    autocomplete="postal-code"
+                                    placeholder="Postal code"
+                                    class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                >
+
+                            </label>
+
+
+                            <!-- COUNTRY -->
+
+                            <label class="grid gap-2">
+
+                                <span
+                                    class="text-sm font-black text-slate-700"
+                                >
+                                    Country
+                                </span>
+
+                                <input
+                                    name="country"
+                                    value="{{ country }}"
+                                    autocomplete="country-name"
+                                    placeholder="Nigeria"
+                                    class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-950 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                                >
+
+                            </label>
+
+                        </div>
+
+                    </section>
+
+
+                    <!-- ================================================= -->
+                    <!-- PAYMENT QUOTE -->
+                    <!-- ================================================= -->
+
+                    <section
+                        id="arolana-payment-quote"
+                        class="overflow-hidden rounded-3xl border border-slate-200 bg-slate-950 text-white shadow-lg"
+                        data-delivery-quote-url="{% url 'orders:delivery_quote' %}"
+                        data-starting-amount="{{ amount|default:'0' }}"
+                        data-base-currency="{{ payment_base_currency_code }}"
+                        data-base-rate="{{ payment_base_currency_rate }}"
+                        data-display-currency="{{ payment_currency_code }}"
+                        data-display-symbol="{{ payment_currency_symbol }}"
+                        data-display-rate="{{ payment_currency_rate }}"
+                        data-pickup-name="{{ delivery_origin.pickup_name|default:''|escape }}"
+                        data-pickup-phone="{{ delivery_origin.pickup_phone|default:''|escape }}"
+                        data-pickup-address="{{ delivery_origin.pickup_address|default:''|escape }}"
+                        data-pickup-latitude="{{ delivery_origin.pickup_latitude|default:'' }}"
+                        data-pickup-longitude="{{ delivery_origin.pickup_longitude|default:'' }}"
+                        data-pickup-vendor-id="{{ delivery_origin.pickup_vendor_id|default:'' }}"
+                        data-pickup-vendor-name="{{ delivery_origin.pickup_vendor_name|default:''|escape }}"
+                        data-package-weight-kg="{{ package_weight_kg|default:'0.00' }}"
+                        data-google-maps-api-key="{{ GOOGLE_MAPS_API_KEY|default:'' }}"
+                    >
+
+                        <div
+                            class="border-b border-white/10 px-5 py-4 sm:px-6"
+                        >
+
+                            <div
+                                class="flex items-center justify-between gap-4"
+                            >
+
+                                <div>
+
+                                    <p
+                                        class="text-xs font-black uppercase tracking-[0.18em] text-blue-300"
+                                    >
+                                        Payment Summary
+                                    </p>
+
+                                    <h2
+                                        class="mt-1 text-xl font-black"
+                                    >
+                                        Review your total
+                                    </h2>
+
+                                </div>
+
+
+                                <div
+                                    class="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-cyan-300"
+                                >
+                                    <i
+                                        class="fas fa-receipt"
+                                        aria-hidden="true"
+                                    ></i>
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <div
+                            class="grid gap-px bg-white/10 sm:grid-cols-3"
+                        >
+
+
+                            <div class="bg-slate-950 p-5">
+
+                                <span
+                                    class="block text-xs font-bold uppercase tracking-wide text-slate-400"
+                                >
+                                    Items
+                                </span>
+
+                                <strong
+                                    id="payment-items-total"
+                                    class="mt-2 block text-xl font-black text-white"
+                                >
+                                    {{ amount|default:'0'|currency:request }}
+                                </strong>
+
+                            </div>
+
+
+                            <div class="bg-slate-950 p-5">
+
+                                <span
+                                    class="block text-xs font-bold uppercase tracking-wide text-slate-400"
+                                >
+                                    Delivery
+                                </span>
+
+                                <strong
+                                    id="payment-delivery-fee"
+                                    class="mt-2 block text-xl font-black text-cyan-300"
+                                >
+                                    Calculating...
+                                </strong>
+
+                            </div>
+
+
+                            <div class="bg-slate-950 p-5">
+
+                                <span
+                                    class="block text-xs font-bold uppercase tracking-wide text-slate-400"
+                                >
+                                    Pay Now
+                                </span>
+
+                                <strong
+                                    id="payment-grand-total"
+                                    class="mt-2 block text-2xl font-black text-green-400"
+                                >
+                                    {{ amount|default:'0'|currency:request }}
+                                </strong>
+
+                            </div>
+
+                        </div>
+
+
+                        <div
+                            class="border-t border-white/10 px-5 py-4 sm:px-6"
+                        >
+
+                            <p
+                                id="payment-delivery-message"
+                                class="text-xs leading-5 text-slate-300"
+                            ></p>
+
+                        </div>
+
+                    </section>
+
+                </form>
+
+
+                <!-- ===================================================== -->
+                <!-- PAYMENT METHODS -->
+                <!-- ===================================================== -->
+
+                <section class="mt-10">
+
+                    <div class="mb-5">
+
+                        <p
+                            class="text-xs font-black uppercase tracking-[0.18em] text-blue-600"
+                        >
+                            Payment
+                        </p>
+
+                        <h2
+                            class="mt-1 text-2xl font-black text-slate-950"
+                        >
+                            Select a payment method
+                        </h2>
+
+                        <p
+                            class="mt-1 text-sm leading-6 text-slate-500"
+                        >
+                            Available payment methods are shown below.
+                        </p>
+
+                    </div>
+
+
+                    <div
+                        class="grid gap-4 md:grid-cols-2 lg:grid-cols-3"
+                    >
+
+                        {% for option in payment_options %}
+
+                            <button
+                                type="button"
+                                data-gateway="{{ option.gateway }}"
+                                onclick="submitGateway('{{ option.gateway }}', this)"
+                                class="payment-card {% if not option.available %}payment-card-disabled{% endif %}"
+                                {% if not option.available %}
+                                    disabled
+                                    title="{{ option.disabled_reason }}"
+                                {% endif %}
+                            >
+
+                                <span
+                                    class="payment-card-icon"
+                                >
+                                    <i
+                                        class="{{ option.icon_class }}"
+                                        aria-hidden="true"
+                                    ></i>
+                                </span>
+
+
+                                <span class="payment-card-content">
+
+                                    <strong>
+                                        {{ option.display_name }}
+                                    </strong>
+
+                                    <span>
+                                        {% if option.available %}
+                                            {{ option.description }}
+                                        {% else %}
+                                            {{ option.disabled_reason }}
+                                        {% endif %}
+                                    </span>
+
+                                </span>
+
+
+                                {% if option.available %}
+
+                                    <span
+                                        class="payment-card-arrow"
+                                        aria-hidden="true"
+                                    >
+                                        <i
+                                            class="fas fa-arrow-right"
+                                        ></i>
+                                    </span>
+
+                                {% endif %}
+
+                            </button>
+
+                        {% empty %}
+
+                            <div
+                                class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900 md:col-span-2 lg:col-span-3"
+                            >
+
+                                <div class="flex items-start gap-3">
+
+                                    <i
+                                        class="fas fa-credit-card mt-1 text-amber-600"
+                                        aria-hidden="true"
+                                    ></i>
+
+                                    <div>
+
+                                        <strong
+                                            class="block text-amber-950"
+                                        >
+                                            No payment methods are currently available
+                                        </strong>
+
+                                        <p
+                                            class="mt-1 text-sm leading-6"
+                                        >
+                                            Please contact Arolana support or try again later.
+                                        </p>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        {% endfor %}
+
+                    </div>
+
+                </section>
+
+
+                <!-- ===================================================== -->
+                <!-- SECURITY FOOTER -->
+                <!-- ===================================================== -->
+
+                <div
+                    class="mt-8 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-5 sm:grid-cols-3"
+                >
+
+                    <div
+                        class="flex items-center gap-3"
+                    >
+
+                        <i
+                            class="fas fa-lock text-blue-600"
+                            aria-hidden="true"
+                        ></i>
+
+                        <span
+                            class="text-xs font-bold leading-5 text-slate-600"
+                        >
+                            Secure payment processing
+                        </span>
+
+                    </div>
+
+
+                    <div
+                        class="flex items-center gap-3"
+                    >
+
+                        <i
+                            class="fas fa-shield-alt text-green-600"
+                            aria-hidden="true"
+                        ></i>
+
+                        <span
+                            class="text-xs font-bold leading-5 text-slate-600"
+                        >
+                            Gateway confirmation required
+                        </span>
+
+                    </div>
+
+
+                    <div
+                        class="flex items-center gap-3"
+                    >
+
+                        <i
+                            class="fas fa-truck text-orange-500"
+                            aria-hidden="true"
+                        ></i>
+
+                        <span
+                            class="text-xs font-bold leading-5 text-slate-600"
+                        >
+                            Location-aware delivery quote
+                        </span>
+
+                    </div>
+
+                </div>
+
             </div>
+
         </div>
+
     </div>
-</div>
+
+</main>
+
+
+<!-- ===================================================================== -->
+<!-- COMPONENT CSS -->
+<!-- ===================================================================== -->
 
 <style>
-.payment-card {
-    min-height: 150px;
-    border: 1px solid #e5e7eb;
-    border-radius: 1.25rem;
-    background: #fff;
-    padding: 1.25rem;
-    display: grid;
-    gap: .45rem;
-    text-align: left;
-    box-shadow: 0 18px 45px rgba(15,23,42,.06);
-    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
-}
-.payment-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 28px 70px rgba(15,23,42,.12);
-    border-color: #2563eb;
-}
-.payment-card-disabled,
-.payment-card-disabled:hover {
-    cursor: not-allowed;
-    opacity: .62;
-    transform: none;
-    box-shadow: 0 12px 30px rgba(15,23,42,.04);
-    border-color: #e5e7eb;
-}
-.payment-card i {
-    font-size: 2rem;
-}
-.payment-card strong {
-    color: #0f172a;
-    font-size: 1.05rem;
-    font-weight: 950;
-}
-.payment-card span {
-    color: #64748b;
-    font-size: .9rem;
-}
-.arolana-delivery-option {
-    cursor: pointer;
-    display: block;
-}
-.arolana-delivery-option input {
-    position: absolute;
-    opacity: 0;
-    pointer-events: none;
-}
-.arolana-delivery-card {
-    align-items: center;
-    border: 1px solid #e5e7eb;
-    border-radius: 1rem;
-    display: flex;
-    gap: .9rem;
-    min-height: 86px;
-    padding: 1rem;
-    transition: border-color .18s ease, background .18s ease, box-shadow .18s ease, transform .18s ease;
-}
-.arolana-delivery-option:hover .arolana-delivery-card {
-    border-color: #93c5fd;
-    transform: translateY(-1px);
-}
-.arolana-delivery-option input:checked + .arolana-delivery-card {
-    background: #eff6ff;
-    border-color: #2563eb;
-    box-shadow: 0 14px 34px rgba(37, 99, 235, .12);
-}
-.arolana-delivery-icon {
-    align-items: center;
-    background: #eef2ff;
-    border-radius: 999px;
-    color: #2563eb;
-    display: inline-flex;
-    flex: 0 0 auto;
-    height: 2.75rem;
-    justify-content: center;
-    width: 2.75rem;
-}
-.arolana-delivery-card strong,
-.arolana-delivery-card small {
-    display: block;
-}
-.arolana-delivery-card strong {
-    color: #0f172a;
-    font-weight: 950;
-}
-.arolana-delivery-card small {
-    color: #64748b;
-    line-height: 1.35;
-    margin-top: .15rem;
-}
+    .payment-card {
+        width: 100%;
+        min-height: 150px;
+        border: 1px solid #e2e8f0;
+        border-radius: 1.25rem;
+        background: #ffffff;
+        padding: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        text-align: left;
+        box-shadow: 0 14px 35px rgba(15, 23, 42, 0.05);
+        transition:
+            transform 0.2s ease,
+            box-shadow 0.2s ease,
+            border-color 0.2s ease,
+            background 0.2s ease;
+    }
+
+    .payment-card:hover:not(:disabled) {
+        transform: translateY(-3px);
+        box-shadow: 0 24px 55px rgba(15, 23, 42, 0.11);
+        border-color: #2563eb;
+        background: #f8fbff;
+    }
+
+    .payment-card:focus-visible {
+        outline: 4px solid rgba(59, 130, 246, 0.18);
+        outline-offset: 2px;
+    }
+
+    .payment-card-disabled,
+    .payment-card-disabled:hover {
+        cursor: not-allowed;
+        opacity: 0.55;
+        transform: none;
+        box-shadow: none;
+        background: #f8fafc;
+        border-color: #e2e8f0;
+    }
+
+    .payment-card-icon {
+        width: 3.5rem;
+        height: 3.5rem;
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 1rem;
+        background: #eff6ff;
+        color: #2563eb;
+    }
+
+    .payment-card-icon i {
+        font-size: 1.65rem;
+    }
+
+    .payment-card-content {
+        display: block;
+        min-width: 0;
+        flex: 1;
+    }
+
+    .payment-card-content strong {
+        display: block;
+        color: #0f172a;
+        font-size: 1.05rem;
+        font-weight: 950;
+    }
+
+    .payment-card-content > span {
+        display: block;
+        margin-top: 0.25rem;
+        color: #64748b;
+        font-size: 0.875rem;
+        line-height: 1.45;
+    }
+
+    .payment-card-arrow {
+        width: 2.25rem;
+        height: 2.25rem;
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        background: #f1f5f9;
+        color: #2563eb;
+        transition:
+            transform 0.2s ease,
+            background 0.2s ease;
+    }
+
+    .payment-card:hover:not(:disabled) .payment-card-arrow {
+        transform: translateX(3px);
+        background: #dbeafe;
+    }
+
+
+    /* DELIVERY */
+
+    .arolana-delivery-option {
+        display: block;
+        cursor: pointer;
+    }
+
+    .arolana-delivery-option input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .arolana-delivery-card {
+        min-height: 94px;
+        border: 1px solid #e2e8f0;
+        border-radius: 1rem;
+        padding: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.9rem;
+        background: #ffffff;
+        transition:
+            border-color 0.18s ease,
+            background 0.18s ease,
+            box-shadow 0.18s ease,
+            transform 0.18s ease;
+    }
+
+    .arolana-delivery-option:hover .arolana-delivery-card {
+        border-color: #93c5fd;
+        transform: translateY(-1px);
+    }
+
+    .arolana-delivery-option input:checked + .arolana-delivery-card {
+        background: #eff6ff;
+        border-color: #2563eb;
+        box-shadow: 0 14px 34px rgba(37, 99, 235, 0.12);
+    }
+
+    .arolana-delivery-icon {
+        width: 2.9rem;
+        height: 2.9rem;
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        background: #eef2ff;
+        color: #2563eb;
+    }
+
+    .arolana-delivery-card strong,
+    .arolana-delivery-card small {
+        display: block;
+    }
+
+    .arolana-delivery-card strong {
+        color: #0f172a;
+        font-weight: 950;
+    }
+
+    .arolana-delivery-card small {
+        margin-top: 0.15rem;
+        color: #64748b;
+        font-size: 0.82rem;
+        line-height: 1.4;
+    }
+
+    .arolana-delivery-check {
+        width: 1.8rem;
+        height: 1.8rem;
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        border: 2px solid #cbd5e1;
+        color: transparent;
+        font-size: 0.7rem;
+    }
+
+    .arolana-delivery-option input:checked
+        + .arolana-delivery-card
+        .arolana-delivery-check {
+        border-color: #2563eb;
+        background: #2563eb;
+        color: #ffffff;
+    }
+
+
+    @media (max-width: 640px) {
+        .payment-card {
+            min-height: 112px;
+            padding: 1rem;
+        }
+
+        .payment-card-icon {
+            width: 3rem;
+            height: 3rem;
+        }
+
+        .payment-card-content strong {
+            font-size: 1rem;
+        }
+
+        .payment-card-content > span {
+            font-size: 0.8rem;
+        }
+    }
 </style>
+
+
+<!-- ===================================================================== -->
+<!-- DELIVERY & PAYMENT JAVASCRIPT -->
+<!-- ===================================================================== -->
 
 <script>
 let paymentDeliveryFee = 0;
+let paymentSubmissionInProgress = false;
+
+
+/* ====================================================================== */
+/* FORM HELPERS */
+/* ====================================================================== */
+
 
 function paymentFormValue(name) {
-    return document.querySelector(`#paymentBaseForm [name="${name}"]`)?.value?.trim() || "";
+    return (
+        document.querySelector(
+            `#paymentBaseForm [name="${name}"]`
+        )?.value?.trim()
+        || ""
+    );
 }
+
 
 function paymentBaseAmount() {
-    return Number(String(paymentFormValue("amount") || "0").replace(/,/g, "")) || 0;
+    return (
+        Number(
+            String(
+                paymentFormValue("amount")
+                || "0"
+            ).replace(/,/g, "")
+        )
+        || 0
+    );
 }
+
 
 function paymentCurrency() {
-    const quoteBox = document.getElementById("arolana-payment-quote");
-    return (quoteBox?.dataset.displayCurrency || "NGN").toUpperCase();
+    const quoteBox = document.getElementById(
+        "arolana-payment-quote"
+    );
+
+    return (
+        quoteBox?.dataset.displayCurrency
+        || "NGN"
+    ).toUpperCase();
 }
 
+
 function formatPaymentMoney(value) {
-    const amount = Number(value || 0);
+    const amount = Number(
+        value
+        || 0
+    );
+
     const currency = paymentCurrency();
-    const quoteBox = document.getElementById("arolana-payment-quote");
-    const symbol = quoteBox?.dataset.displaySymbol || currency;
+
+    const quoteBox = document.getElementById(
+        "arolana-payment-quote"
+    );
+
+    const symbol = (
+        quoteBox?.dataset.displaySymbol
+        || currency
+    );
+
     try {
-        return new Intl.NumberFormat("en-NG", {
-            style: "currency",
-            currency,
-            maximumFractionDigits: 2
-        }).format(amount);
+        return new Intl.NumberFormat(
+            "en-NG",
+            {
+                style: "currency",
+                currency: currency,
+                maximumFractionDigits: 2
+            }
+        ).format(amount);
+
     } catch (error) {
-        return `${symbol}${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        return (
+            `${symbol}${amount.toLocaleString(
+                undefined,
+                {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                }
+            )}`
+        );
     }
 }
 
+
 function convertPaymentAmount(baseAmount) {
-    const quoteBox = document.getElementById("arolana-payment-quote");
-    const baseRate = Number(quoteBox?.dataset.baseRate || 1) || 1;
-    const displayRate = Number(quoteBox?.dataset.displayRate || 1) || 1;
-    return Number(baseAmount || 0) * displayRate / baseRate;
+    const quoteBox = document.getElementById(
+        "arolana-payment-quote"
+    );
+
+    const baseRate = (
+        Number(
+            quoteBox?.dataset.baseRate
+            || 1
+        )
+        || 1
+    );
+
+    const displayRate = (
+        Number(
+            quoteBox?.dataset.displayRate
+            || 1
+        )
+        || 1
+    );
+
+    return (
+        Number(
+            baseAmount
+            || 0
+        )
+        * displayRate
+        / baseRate
+    );
 }
+
 
 function setPaymentField(name, value) {
-    const field = document.querySelector(`#paymentBaseForm [name="${name}"]`);
-    if (field && value) field.value = value;
+    const field = document.querySelector(
+        `#paymentBaseForm [name="${name}"]`
+    );
+
+    if (
+        field
+        && value
+    ) {
+        field.value = value;
+    }
 }
+
+
+/* ====================================================================== */
+/* GOOGLE MAPS */
+/* ====================================================================== */
+
 
 function paymentGoogleMapsKey() {
-    return document.getElementById("arolana-payment-quote")?.dataset.googleMapsApiKey || "";
+    return (
+        document.getElementById(
+            "arolana-payment-quote"
+        )?.dataset.googleMapsApiKey
+        || ""
+    );
 }
 
-function loadArolanaGoogleMaps(key) {
-    if (!key) return Promise.resolve(false);
-    if (window.google?.maps?.Geocoder) return Promise.resolve(true);
-    if (window.__arolanaGoogleMapsPromise) return window.__arolanaGoogleMapsPromise;
 
-    window.__arolanaGoogleMapsPromise = new Promise((resolve, reject) => {
-        window.__arolanaGoogleMapsReady = () => resolve(true);
-        const script = document.createElement("script");
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=places&callback=__arolanaGoogleMapsReady`;
-        script.async = true;
-        script.defer = true;
-        script.onerror = () => reject(new Error("Google Maps could not load."));
-        document.head.appendChild(script);
-    });
+function loadArolanaGoogleMaps(key) {
+    if (!key) {
+        return Promise.resolve(false);
+    }
+
+    if (
+        window.google
+        && window.google.maps
+        && window.google.maps.Geocoder
+    ) {
+        return Promise.resolve(true);
+    }
+
+    if (
+        window.__arolanaGoogleMapsPromise
+    ) {
+        return window.__arolanaGoogleMapsPromise;
+    }
+
+    window.__arolanaGoogleMapsPromise = new Promise(
+        function (resolve, reject) {
+            window.__arolanaGoogleMapsReady = function () {
+                resolve(true);
+            };
+
+            const script = document.createElement(
+                "script"
+            );
+
+            script.src = (
+                "https://maps.googleapis.com/maps/api/js"
+                + `?key=${encodeURIComponent(key)}`
+                + "&libraries=places"
+                + "&callback=__arolanaGoogleMapsReady"
+            );
+
+            script.async = true;
+            script.defer = true;
+
+            script.onerror = function () {
+                reject(
+                    new Error(
+                        "Google Maps could not load."
+                    )
+                );
+            };
+
+            document.head.appendChild(
+                script
+            );
+        }
+    );
+
     return window.__arolanaGoogleMapsPromise;
 }
 
+
 function parseGooglePaymentAddress(result) {
-    const components = result?.address_components || [];
-    const pick = (types) => {
-        const item = components.find((component) => types.every((type) => component.types.includes(type)));
-        return item?.long_name || "";
+    const components = (
+        result?.address_components
+        || []
+    );
+
+    const pick = function (types) {
+        const item = components.find(
+            function (component) {
+                return types.every(
+                    function (type) {
+                        return component.types.includes(
+                            type
+                        );
+                    }
+                );
+            }
+        );
+
+        return (
+            item?.long_name
+            || ""
+        );
     };
-    const street = [pick(["street_number"]), pick(["route"])].filter(Boolean).join(" ");
-    const neighbourhood = pick(["neighborhood"]) || pick(["sublocality"]) || pick(["sublocality_level_1"]);
+
+    const street = [
+        pick(["street_number"]),
+        pick(["route"])
+    ]
+        .filter(Boolean)
+        .join(" ");
+
+    const neighbourhood = (
+        pick(["neighborhood"])
+        || pick(["sublocality"])
+        || pick(["sublocality_level_1"])
+    );
+
     return {
-        address: street || neighbourhood || result?.formatted_address || "",
-        city: pick(["locality"]) || pick(["administrative_area_level_2"]) || pick(["postal_town"]) || neighbourhood || "",
-        state: pick(["administrative_area_level_1"]) || "",
-        postal_code: pick(["postal_code"]) || "",
-        country: pick(["country"]) || "Nigeria"
+        address: (
+            street
+            || neighbourhood
+            || result?.formatted_address
+            || ""
+        ),
+
+        city: (
+            pick(["locality"])
+            || pick(["administrative_area_level_2"])
+            || pick(["postal_town"])
+            || neighbourhood
+            || ""
+        ),
+
+        state: (
+            pick(["administrative_area_level_1"])
+            || ""
+        ),
+
+        postal_code: (
+            pick(["postal_code"])
+            || ""
+        ),
+
+        country: (
+            pick(["country"])
+            || "Nigeria"
+        )
     };
 }
 
-async function googleReverseGeocodePayment(latitude, longitude) {
-    const key = paymentGoogleMapsKey();
-    if (!await loadArolanaGoogleMaps(key)) return null;
-    const geocoder = new google.maps.Geocoder();
-    const response = await geocoder.geocode({ location: { lat: Number(latitude), lng: Number(longitude) } });
-    if (!response.results?.length) return null;
-    return parseGooglePaymentAddress(response.results[0]);
-}
 
-async function reverseGeocodePayment(latitude, longitude) {
-    try {
-        const googleLocation = await googleReverseGeocodePayment(latitude, longitude);
-        if (googleLocation) return googleLocation;
-    } catch (error) {
-        console.warn("Google reverse geocoding failed, using fallback:", error);
+async function googleReverseGeocodePayment(
+    latitude,
+    longitude
+) {
+    const key = paymentGoogleMapsKey();
+
+    if (
+        !await loadArolanaGoogleMaps(key)
+    ) {
+        return null;
     }
 
-    const url = new URL("https://nominatim.openstreetmap.org/reverse");
-    url.searchParams.set("format", "jsonv2");
-    url.searchParams.set("lat", latitude);
-    url.searchParams.set("lon", longitude);
-    url.searchParams.set("zoom", "18");
-    url.searchParams.set("addressdetails", "1");
-    const response = await fetch(url.toString(), { headers: { "Accept": "application/json" } });
-    if (!response.ok) throw new Error("Reverse geocoding failed.");
+    const geocoder = new google.maps.Geocoder();
+
+    const response = await geocoder.geocode({
+        location: {
+            lat: Number(latitude),
+            lng: Number(longitude)
+        }
+    });
+
+    if (
+        !response.results
+        || !response.results.length
+    ) {
+        return null;
+    }
+
+    return parseGooglePaymentAddress(
+        response.results[0]
+    );
+}
+
+
+/* ====================================================================== */
+/* FALLBACK REVERSE GEOCODING */
+/* ====================================================================== */
+
+
+async function reverseGeocodePayment(
+    latitude,
+    longitude
+) {
+    try {
+        const googleLocation = (
+            await googleReverseGeocodePayment(
+                latitude,
+                longitude
+            )
+        );
+
+        if (googleLocation) {
+            return googleLocation;
+        }
+
+    } catch (error) {
+        console.warn(
+            "Google reverse geocoding failed. Using fallback.",
+            error
+        );
+    }
+
+
+    const url = new URL(
+        "https://nominatim.openstreetmap.org/reverse"
+    );
+
+    url.searchParams.set(
+        "format",
+        "jsonv2"
+    );
+
+    url.searchParams.set(
+        "lat",
+        latitude
+    );
+
+    url.searchParams.set(
+        "lon",
+        longitude
+    );
+
+    url.searchParams.set(
+        "zoom",
+        "18"
+    );
+
+    url.searchParams.set(
+        "addressdetails",
+        "1"
+    );
+
+
+    const response = await fetch(
+        url.toString(),
+        {
+            headers: {
+                "Accept": "application/json"
+            }
+        }
+    );
+
+
+    if (!response.ok) {
+        throw new Error(
+            "Reverse geocoding failed."
+        );
+    }
+
+
     const data = await response.json();
-    const address = data.address || {};
+
+    const address = (
+        data.address
+        || {}
+    );
+
+
     const roadParts = [
         address.house_number,
-        address.road || address.pedestrian || address.neighbourhood || address.suburb,
-        address.city_district || address.county
+
+        (
+            address.road
+            || address.pedestrian
+            || address.neighbourhood
+            || address.suburb
+        ),
+
+        (
+            address.city_district
+            || address.county
+        )
     ].filter(Boolean);
+
+
     return {
-        address: roadParts.join(" ") || data.display_name || "",
-        city: address.city || address.town || address.village || address.municipality || address.county || "",
-        state: address.state || "",
-        postal_code: address.postcode || "",
-        country: address.country || "Nigeria"
+        address: (
+            roadParts.join(" ")
+            || data.display_name
+            || ""
+        ),
+
+        city: (
+            address.city
+            || address.town
+            || address.village
+            || address.municipality
+            || address.county
+            || ""
+        ),
+
+        state: (
+            address.state
+            || ""
+        ),
+
+        postal_code: (
+            address.postcode
+            || ""
+        ),
+
+        country: (
+            address.country
+            || "Nigeria"
+        )
     };
 }
 
-async function geocodePaymentAddress(addressText) {
-    if (!addressText) return null;
+
+/* ====================================================================== */
+/* PICKUP ADDRESS GEOCODING */
+/* ====================================================================== */
+
+
+async function geocodePaymentAddress(
+    addressText
+) {
+    if (!addressText) {
+        return null;
+    }
+
+
     try {
         const key = paymentGoogleMapsKey();
-        if (await loadArolanaGoogleMaps(key)) {
-            const geocoder = new google.maps.Geocoder();
-            const response = await geocoder.geocode({ address: addressText });
-            const location = response.results?.[0]?.geometry?.location;
+
+        if (
+            await loadArolanaGoogleMaps(
+                key
+            )
+        ) {
+            const geocoder = (
+                new google.maps.Geocoder()
+            );
+
+            const response = await geocoder.geocode({
+                address: addressText
+            });
+
+            const location = (
+                response.results?.[0]
+                ?.geometry
+                ?.location
+            );
+
             if (location) {
                 return {
-                    latitude: Number(location.lat()).toFixed(7),
-                    longitude: Number(location.lng()).toFixed(7)
+                    latitude: Number(
+                        location.lat()
+                    ).toFixed(7),
+
+                    longitude: Number(
+                        location.lng()
+                    ).toFixed(7)
                 };
             }
         }
+
     } catch (error) {
-        console.warn("Google pickup geocoding failed, using fallback:", error);
+        console.warn(
+            "Google pickup geocoding failed. Using fallback.",
+            error
+        );
     }
 
-    const url = new URL("https://nominatim.openstreetmap.org/search");
-    url.searchParams.set("format", "jsonv2");
-    url.searchParams.set("q", addressText);
-    url.searchParams.set("limit", "1");
-    const response = await fetch(url.toString(), { headers: { "Accept": "application/json" } });
-    if (!response.ok) return null;
+
+    const url = new URL(
+        "https://nominatim.openstreetmap.org/search"
+    );
+
+    url.searchParams.set(
+        "format",
+        "jsonv2"
+    );
+
+    url.searchParams.set(
+        "q",
+        addressText
+    );
+
+    url.searchParams.set(
+        "limit",
+        "1"
+    );
+
+
+    const response = await fetch(
+        url.toString(),
+        {
+            headers: {
+                "Accept": "application/json"
+            }
+        }
+    );
+
+
+    if (!response.ok) {
+        return null;
+    }
+
+
     const data = await response.json();
-    if (!Array.isArray(data) || !data.length) return null;
+
+
+    if (
+        !Array.isArray(data)
+        || !data.length
+    ) {
+        return null;
+    }
+
+
     return {
-        latitude: Number(data[0].lat).toFixed(7),
-        longitude: Number(data[0].lon).toFixed(7)
+        latitude: Number(
+            data[0].lat
+        ).toFixed(7),
+
+        longitude: Number(
+            data[0].lon
+        ).toFixed(7)
     };
 }
 
-async function ensurePaymentPickupCoordinates(statusEl) {
-    const quoteBox = document.getElementById("arolana-payment-quote");
-    if (!quoteBox || (quoteBox.dataset.pickupLatitude && quoteBox.dataset.pickupLongitude)) return true;
-    if (!quoteBox.dataset.pickupAddress) return false;
-    if (statusEl) statusEl.textContent = "Finding vendor pickup location...";
-    const result = await geocodePaymentAddress(quoteBox.dataset.pickupAddress);
-    if (!result) return false;
-    quoteBox.dataset.pickupLatitude = result.latitude;
-    quoteBox.dataset.pickupLongitude = result.longitude;
-    return true;
-}
 
-function paymentDeliveryPayload() {
-    const quoteBox = document.getElementById("arolana-payment-quote");
-    return {
-        subtotal: paymentBaseAmount().toFixed(2),
-        delivery_service_level: document.querySelector('#paymentBaseForm [name="delivery_service_level"]:checked')?.value || "standard",
-        delivery_provider: "",
-        pickup_name: quoteBox?.dataset.pickupName || "",
-        pickup_phone: quoteBox?.dataset.pickupPhone || "",
-        pickup_address: quoteBox?.dataset.pickupAddress || "",
-        pickup_latitude: quoteBox?.dataset.pickupLatitude || "",
-        pickup_longitude: quoteBox?.dataset.pickupLongitude || "",
-        pickup_vendor_id: quoteBox?.dataset.pickupVendorId || "",
-        pickup_vendor_name: quoteBox?.dataset.pickupVendorName || "",
-        package_weight_kg: quoteBox?.dataset.packageWeightKg || "0.00",
-        dropoff_latitude: paymentFormValue("dropoff_latitude"),
-        dropoff_longitude: paymentFormValue("dropoff_longitude"),
-        address: paymentFormValue("address"),
-        city: paymentFormValue("city"),
-        state: paymentFormValue("state"),
-        postal_code: paymentFormValue("postal_code"),
-        country: paymentFormValue("country")
-    };
-}
+async function ensurePaymentPickupCoordinates(
+    statusEl
+) {
+    const quoteBox = document.getElementById(
+        "arolana-payment-quote"
+    );
 
-function updatePaymentTotals(message) {
-    const base = paymentBaseAmount();
-    document.getElementById("delivery_fee").value = paymentDeliveryFee.toFixed(2);
-    document.getElementById("payment-items-total").textContent = formatPaymentMoney(convertPaymentAmount(base));
-    document.getElementById("payment-delivery-fee").textContent = formatPaymentMoney(convertPaymentAmount(paymentDeliveryFee));
-    document.getElementById("payment-grand-total").textContent = formatPaymentMoney(convertPaymentAmount(base + paymentDeliveryFee));
-    document.getElementById("payment-delivery-message").textContent = message || "";
-}
-
-async function refreshPaymentDeliveryQuote(requireLocation = false) {
-    const quoteBox = document.getElementById("arolana-payment-quote");
-    if (!quoteBox) return true;
-
-    const payload = paymentDeliveryPayload();
-    if (requireLocation && (!payload.address || !payload.city)) {
+    if (!quoteBox) {
         return false;
     }
 
-    document.getElementById("payment-delivery-fee").textContent = "Calculating...";
-    try {
-        const params = new URLSearchParams(payload);
-        const response = await fetch(`${quoteBox.dataset.deliveryQuoteUrl}?${params.toString()}`, {
-            credentials: "same-origin",
-            headers: { "X-Requested-With": "XMLHttpRequest" }
-        });
-        const data = await response.json();
-        if (!response.ok || !data.success) throw new Error(data.error || "Delivery quote failed.");
-        paymentDeliveryFee = Number(data.fee_float || data.fee || 0);
-        const meta = data.is_distance_based && data.distance_km
-            ? ` Distance: ${data.distance_km} km${data.estimated_duration_minutes ? `, ETA: ${data.estimated_duration_minutes} min` : ""}.`
-            : "";
-        updatePaymentTotals(`${data.message || ""}${meta}`);
+    if (
+        quoteBox.dataset.pickupLatitude
+        && quoteBox.dataset.pickupLongitude
+    ) {
         return true;
+    }
+
+    if (
+        !quoteBox.dataset.pickupAddress
+    ) {
+        return false;
+    }
+
+    if (statusEl) {
+        statusEl.textContent = (
+            "Finding vendor pickup location..."
+        );
+    }
+
+    const result = await geocodePaymentAddress(
+        quoteBox.dataset.pickupAddress
+    );
+
+    if (!result) {
+        return false;
+    }
+
+    quoteBox.dataset.pickupLatitude = (
+        result.latitude
+    );
+
+    quoteBox.dataset.pickupLongitude = (
+        result.longitude
+    );
+
+    return true;
+}
+
+
+/* ====================================================================== */
+/* DELIVERY PAYLOAD */
+/* ====================================================================== */
+
+
+function paymentDeliveryPayload() {
+    const quoteBox = document.getElementById(
+        "arolana-payment-quote"
+    );
+
+    return {
+        subtotal: paymentBaseAmount().toFixed(2),
+
+        delivery_service_level: (
+            document.querySelector(
+                '#paymentBaseForm [name="delivery_service_level"]:checked'
+            )?.value
+            || "standard"
+        ),
+
+        delivery_provider: "",
+
+        pickup_name: (
+            quoteBox?.dataset.pickupName
+            || ""
+        ),
+
+        pickup_phone: (
+            quoteBox?.dataset.pickupPhone
+            || ""
+        ),
+
+        pickup_address: (
+            quoteBox?.dataset.pickupAddress
+            || ""
+        ),
+
+        pickup_latitude: (
+            quoteBox?.dataset.pickupLatitude
+            || ""
+        ),
+
+        pickup_longitude: (
+            quoteBox?.dataset.pickupLongitude
+            || ""
+        ),
+
+        pickup_vendor_id: (
+            quoteBox?.dataset.pickupVendorId
+            || ""
+        ),
+
+        pickup_vendor_name: (
+            quoteBox?.dataset.pickupVendorName
+            || ""
+        ),
+
+        package_weight_kg: (
+            quoteBox?.dataset.packageWeightKg
+            || "0.00"
+        ),
+
+        dropoff_latitude: (
+            paymentFormValue(
+                "dropoff_latitude"
+            )
+        ),
+
+        dropoff_longitude: (
+            paymentFormValue(
+                "dropoff_longitude"
+            )
+        ),
+
+        address: (
+            paymentFormValue(
+                "address"
+            )
+        ),
+
+        city: (
+            paymentFormValue(
+                "city"
+            )
+        ),
+
+        state: (
+            paymentFormValue(
+                "state"
+            )
+        ),
+
+        postal_code: (
+            paymentFormValue(
+                "postal_code"
+            )
+        ),
+
+        country: (
+            paymentFormValue(
+                "country"
+            )
+        )
+    };
+}
+
+
+/* ====================================================================== */
+/* TOTALS */
+/* ====================================================================== */
+
+
+function updatePaymentTotals(message) {
+    const base = paymentBaseAmount();
+
+    const deliveryInput = document.getElementById(
+        "delivery_fee"
+    );
+
+    if (deliveryInput) {
+        deliveryInput.value = (
+            paymentDeliveryFee.toFixed(2)
+        );
+    }
+
+
+    const itemsTotal = document.getElementById(
+        "payment-items-total"
+    );
+
+    if (itemsTotal) {
+        itemsTotal.textContent = (
+            formatPaymentMoney(
+                convertPaymentAmount(
+                    base
+                )
+            )
+        );
+    }
+
+
+    const deliveryTotal = document.getElementById(
+        "payment-delivery-fee"
+    );
+
+    if (deliveryTotal) {
+        deliveryTotal.textContent = (
+            formatPaymentMoney(
+                convertPaymentAmount(
+                    paymentDeliveryFee
+                )
+            )
+        );
+    }
+
+
+    const grandTotal = document.getElementById(
+        "payment-grand-total"
+    );
+
+    if (grandTotal) {
+        grandTotal.textContent = (
+            formatPaymentMoney(
+                convertPaymentAmount(
+                    base
+                    + paymentDeliveryFee
+                )
+            )
+        );
+    }
+
+
+    const messageElement = document.getElementById(
+        "payment-delivery-message"
+    );
+
+    if (messageElement) {
+        messageElement.textContent = (
+            message
+            || ""
+        );
+    }
+}
+
+
+/* ====================================================================== */
+/* DELIVERY QUOTE */
+/* ====================================================================== */
+
+
+async function refreshPaymentDeliveryQuote(
+    requireLocation = false
+) {
+    const quoteBox = document.getElementById(
+        "arolana-payment-quote"
+    );
+
+    if (!quoteBox) {
+        return true;
+    }
+
+
+    const payload = paymentDeliveryPayload();
+
+
+    if (
+        requireLocation
+        && (
+            !payload.address
+            || !payload.city
+        )
+    ) {
+        return false;
+    }
+
+
+    const feeElement = document.getElementById(
+        "payment-delivery-fee"
+    );
+
+    if (feeElement) {
+        feeElement.textContent = (
+            "Calculating..."
+        );
+    }
+
+
+    try {
+        const params = new URLSearchParams(
+            payload
+        );
+
+        const response = await fetch(
+            `${quoteBox.dataset.deliveryQuoteUrl}?${params.toString()}`,
+            {
+                credentials: "same-origin",
+
+                headers: {
+                    "X-Requested-With": (
+                        "XMLHttpRequest"
+                    )
+                }
+            }
+        );
+
+
+        const data = await response.json();
+
+
+        if (
+            !response.ok
+            || !data.success
+        ) {
+            throw new Error(
+                data.error
+                || "Delivery quote failed."
+            );
+        }
+
+
+        paymentDeliveryFee = Number(
+            data.fee_float
+            || data.fee
+            || 0
+        );
+
+
+        const meta = (
+            data.is_distance_based
+            && data.distance_km
+        )
+            ? (
+                ` Distance: ${data.distance_km} km`
+                + (
+                    data.estimated_duration_minutes
+                    ? `, ETA: ${data.estimated_duration_minutes} min`
+                    : ""
+                )
+                + "."
+            )
+            : "";
+
+
+        updatePaymentTotals(
+            `${data.message || ""}${meta}`
+        );
+
+        return true;
+
     } catch (error) {
         paymentDeliveryFee = 0;
-        updatePaymentTotals("We could not calculate delivery yet. Arolana will confirm the final fee before dispatch.");
+
+        updatePaymentTotals(
+            "We could not calculate delivery yet. "
+            + "Arolana will confirm the final delivery fee before dispatch."
+        );
+
         return !requireLocation;
     }
 }
 
-document.querySelectorAll(".arolana-delivery-option").forEach((option) => {
-    option.addEventListener("click", () => {
-        const radio = option.querySelector('input[type="radio"]');
-        if (radio) {
-            radio.checked = true;
+
+/* ====================================================================== */
+/* DELIVERY METHOD EVENTS */
+/* ====================================================================== */
+
+
+document.querySelectorAll(
+    ".arolana-delivery-option"
+).forEach(function (option) {
+
+    option.addEventListener(
+        "click",
+        function () {
+            const radio = option.querySelector(
+                'input[type="radio"]'
+            );
+
+            if (radio) {
+                radio.checked = true;
+            }
+
+            refreshPaymentDeliveryQuote(
+                false
+            );
         }
-        refreshPaymentDeliveryQuote(false);
-    });
+    );
 
-    option.querySelector('input[type="radio"]')?.addEventListener("change", (event) => {
-        refreshPaymentDeliveryQuote(false);
-    });
+
+    option.querySelector(
+        'input[type="radio"]'
+    )?.addEventListener(
+        "change",
+        function () {
+            refreshPaymentDeliveryQuote(
+                false
+            );
+        }
+    );
+
 });
 
-["amount", "currency", "address", "city", "state", "postal_code", "country"].forEach((name) => {
-    const field = document.querySelector(`#paymentBaseForm [name="${name}"]`);
-    if (!field) return;
-    field.addEventListener("change", () => {
-        refreshPaymentDeliveryQuote(false);
-    });
-    field.addEventListener("blur", () => refreshPaymentDeliveryQuote(false));
-});
 
-document.getElementById("payment-use-location")?.addEventListener("click", () => {
-    const statusEl = document.getElementById("payment-location-status");
-    if (!navigator.geolocation) {
-        if (statusEl) statusEl.textContent = "Your browser does not support location sharing.";
+/* ====================================================================== */
+/* ADDRESS CHANGE EVENTS */
+/* ====================================================================== */
+
+
+[
+    "address",
+    "city",
+    "state",
+    "postal_code",
+    "country"
+].forEach(function (name) {
+
+    const field = document.querySelector(
+        `#paymentBaseForm [name="${name}"]`
+    );
+
+    if (!field) {
         return;
     }
-    if (statusEl) statusEl.textContent = "Getting your location...";
-    navigator.geolocation.getCurrentPosition(async (position) => {
-        const lat = document.querySelector('#paymentBaseForm [name="dropoff_latitude"]');
-        const lon = document.querySelector('#paymentBaseForm [name="dropoff_longitude"]');
-        if (lat) lat.value = position.coords.latitude.toFixed(7);
-        if (lon) lon.value = position.coords.longitude.toFixed(7);
-        try {
-            if (statusEl) statusEl.textContent = "Filling your address from live location...";
-            const location = await reverseGeocodePayment(position.coords.latitude, position.coords.longitude);
-            setPaymentField("address", location.address);
-            setPaymentField("city", location.city);
-            setPaymentField("state", location.state);
-            setPaymentField("postal_code", location.postal_code);
-            setPaymentField("country", location.country);
-        } catch (error) {
-            if (statusEl) statusEl.textContent = "Location added. Address lookup failed, but pricing can still use your coordinates.";
+
+
+    field.addEventListener(
+        "change",
+        function () {
+            refreshPaymentDeliveryQuote(
+                false
+            );
         }
-        const hasPickup = await ensurePaymentPickupCoordinates(statusEl);
+    );
+
+
+    field.addEventListener(
+        "blur",
+        function () {
+            refreshPaymentDeliveryQuote(
+                false
+            );
+        }
+    );
+
+});
+
+
+/* ====================================================================== */
+/* CURRENT LOCATION */
+/* ====================================================================== */
+
+
+document.getElementById(
+    "payment-use-location"
+)?.addEventListener(
+    "click",
+    function () {
+
+        const statusEl = document.getElementById(
+            "payment-location-status"
+        );
+
+
+        if (!navigator.geolocation) {
+            if (statusEl) {
+                statusEl.textContent = (
+                    "Your browser does not support location sharing."
+                );
+            }
+
+            return;
+        }
+
+
         if (statusEl) {
-            statusEl.textContent = hasPickup
-                ? "Live location added. Delivery fee is calculated from vendor pickup to your location."
-                : "Live location added. Add vendor pickup coordinates/address in admin for exact vendor-to-customer pricing.";
+            statusEl.textContent = (
+                "Getting your location..."
+            );
         }
-        refreshPaymentDeliveryQuote(false);
-    }, () => {
-        if (statusEl) statusEl.textContent = "Location was not allowed. We will use address-based delivery pricing.";
-    }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
-});
 
-document.addEventListener("DOMContentLoaded", () => {
-    refreshPaymentDeliveryQuote(false);
-});
 
-async function submitGateway(gateway) {
-    const baseForm = document.getElementById("paymentBaseForm");
-    const quoted = await refreshPaymentDeliveryQuote(true);
-    if (!quoted) {
-        alert("Please enter your delivery address and city so we can calculate your delivery cost.");
+        navigator.geolocation.getCurrentPosition(
+
+            async function (position) {
+
+                const latitudeField = document.querySelector(
+                    '#paymentBaseForm [name="dropoff_latitude"]'
+                );
+
+                const longitudeField = document.querySelector(
+                    '#paymentBaseForm [name="dropoff_longitude"]'
+                );
+
+
+                if (latitudeField) {
+                    latitudeField.value = (
+                        position.coords.latitude.toFixed(7)
+                    );
+                }
+
+
+                if (longitudeField) {
+                    longitudeField.value = (
+                        position.coords.longitude.toFixed(7)
+                    );
+                }
+
+
+                try {
+                    if (statusEl) {
+                        statusEl.textContent = (
+                            "Finding your delivery address..."
+                        );
+                    }
+
+
+                    const location = await reverseGeocodePayment(
+                        position.coords.latitude,
+                        position.coords.longitude
+                    );
+
+
+                    setPaymentField(
+                        "address",
+                        location.address
+                    );
+
+                    setPaymentField(
+                        "city",
+                        location.city
+                    );
+
+                    setPaymentField(
+                        "state",
+                        location.state
+                    );
+
+                    setPaymentField(
+                        "postal_code",
+                        location.postal_code
+                    );
+
+                    setPaymentField(
+                        "country",
+                        location.country
+                    );
+
+                } catch (error) {
+                    if (statusEl) {
+                        statusEl.textContent = (
+                            "Location added. Address lookup failed, "
+                            + "but pricing can still use your coordinates."
+                        );
+                    }
+                }
+
+
+                const hasPickup = await ensurePaymentPickupCoordinates(
+                    statusEl
+                );
+
+
+                if (statusEl) {
+                    statusEl.textContent = hasPickup
+                        ? (
+                            "Live location added. Delivery pricing uses "
+                            + "the vendor pickup point and your destination."
+                        )
+                        : (
+                            "Live location added. Arolana will calculate "
+                            + "the best available delivery price."
+                        );
+                }
+
+
+                refreshPaymentDeliveryQuote(
+                    false
+                );
+            },
+
+
+            function () {
+                if (statusEl) {
+                    statusEl.textContent = (
+                        "Location permission was not granted. "
+                        + "We will use your entered delivery address."
+                    );
+                }
+            },
+
+
+            {
+                enableHighAccuracy: true,
+                timeout: 12000,
+                maximumAge: 60000
+            }
+        );
+    }
+);
+
+
+/* ====================================================================== */
+/* INITIAL QUOTE */
+/* ====================================================================== */
+
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+        refreshPaymentDeliveryQuote(
+            false
+        );
+    }
+);
+
+
+/* ====================================================================== */
+/* PAYMENT SUBMISSION */
+/* ====================================================================== */
+
+
+async function submitGateway(
+    gateway,
+    clickedButton
+) {
+    if (paymentSubmissionInProgress) {
         return;
     }
 
-    const amountField = baseForm.querySelector('[name="amount"]');
-    const originalAmount = paymentBaseAmount();
-    const form = document.createElement("form");
-    form.method = "POST";
-    form.action = `/payments/start/${gateway}/`;
 
-    const csrf = document.createElement("input");
-    csrf.type = "hidden";
-    csrf.name = "csrfmiddlewaretoken";
-    csrf.value = "{{ csrf_token }}";
-    form.appendChild(csrf);
+    const baseForm = document.getElementById(
+        "paymentBaseForm"
+    );
 
-    const submitData = new FormData(baseForm);
-    const quoteBox = document.getElementById("arolana-payment-quote");
-    submitData.set("amount", (originalAmount + paymentDeliveryFee).toFixed(2));
-    submitData.set("delivery_fee", paymentDeliveryFee.toFixed(2));
-    submitData.set("pickup_name", quoteBox?.dataset.pickupName || "");
-    submitData.set("pickup_phone", quoteBox?.dataset.pickupPhone || "");
-    submitData.set("pickup_address", quoteBox?.dataset.pickupAddress || "");
-    submitData.set("pickup_latitude", quoteBox?.dataset.pickupLatitude || "");
-    submitData.set("pickup_longitude", quoteBox?.dataset.pickupLongitude || "");
-    submitData.set("pickup_vendor_id", quoteBox?.dataset.pickupVendorId || "");
-    submitData.set("pickup_vendor_name", quoteBox?.dataset.pickupVendorName || "");
-    submitData.set("package_weight_kg", quoteBox?.dataset.packageWeightKg || "0.00");
-    submitData.set("dropoff_latitude", paymentFormValue("dropoff_latitude"));
-    submitData.set("dropoff_longitude", paymentFormValue("dropoff_longitude"));
-    if (amountField) amountField.value = originalAmount.toFixed(2);
 
-    submitData.forEach((value, key) => {
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = key;
-        input.value = value;
-        form.appendChild(input);
-    });
+    if (!baseForm) {
+        alert(
+            "Checkout form is unavailable. Please refresh the page."
+        );
 
-    document.body.appendChild(form);
-    form.submit();
+        return;
+    }
+
+
+    if (!baseForm.reportValidity()) {
+        return;
+    }
+
+
+    const quoted = await refreshPaymentDeliveryQuote(
+        true
+    );
+
+
+    if (!quoted) {
+        alert(
+            "Please enter your delivery address and city "
+            + "so Arolana can calculate the delivery cost."
+        );
+
+        return;
+    }
+
+
+    paymentSubmissionInProgress = true;
+
+
+    const originalButtonHtml = (
+        clickedButton
+        ? clickedButton.innerHTML
+        : ""
+    );
+
+
+    if (clickedButton) {
+        clickedButton.disabled = true;
+
+        clickedButton.innerHTML = `
+            <span class="payment-card-icon">
+                <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+            </span>
+
+            <span class="payment-card-content">
+                <strong>Preparing secure payment...</strong>
+                <span>Please do not close this page.</span>
+            </span>
+        `;
+    }
+
+
+    try {
+        const originalAmount = (
+            paymentBaseAmount()
+        );
+
+
+        const submitForm = document.createElement(
+            "form"
+        );
+
+        submitForm.method = "POST";
+
+        submitForm.action = (
+            `/payments/start/${encodeURIComponent(gateway)}/`
+        );
+
+
+        const submitData = new FormData(
+            baseForm
+        );
+
+
+        const quoteBox = document.getElementById(
+            "arolana-payment-quote"
+        );
+
+
+        submitData.set(
+            "amount",
+            (
+                originalAmount
+                + paymentDeliveryFee
+            ).toFixed(2)
+        );
+
+
+        submitData.set(
+            "delivery_fee",
+            paymentDeliveryFee.toFixed(2)
+        );
+
+
+        submitData.set(
+            "pickup_name",
+            quoteBox?.dataset.pickupName
+            || ""
+        );
+
+
+        submitData.set(
+            "pickup_phone",
+            quoteBox?.dataset.pickupPhone
+            || ""
+        );
+
+
+        submitData.set(
+            "pickup_address",
+            quoteBox?.dataset.pickupAddress
+            || ""
+        );
+
+
+        submitData.set(
+            "pickup_latitude",
+            quoteBox?.dataset.pickupLatitude
+            || ""
+        );
+
+
+        submitData.set(
+            "pickup_longitude",
+            quoteBox?.dataset.pickupLongitude
+            || ""
+        );
+
+
+        submitData.set(
+            "pickup_vendor_id",
+            quoteBox?.dataset.pickupVendorId
+            || ""
+        );
+
+
+        submitData.set(
+            "pickup_vendor_name",
+            quoteBox?.dataset.pickupVendorName
+            || ""
+        );
+
+
+        submitData.set(
+            "package_weight_kg",
+            quoteBox?.dataset.packageWeightKg
+            || "0.00"
+        );
+
+
+        submitData.set(
+            "dropoff_latitude",
+            paymentFormValue(
+                "dropoff_latitude"
+            )
+        );
+
+
+        submitData.set(
+            "dropoff_longitude",
+            paymentFormValue(
+                "dropoff_longitude"
+            )
+        );
+
+
+        submitData.forEach(
+            function (value, key) {
+                const input = document.createElement(
+                    "input"
+                );
+
+                input.type = "hidden";
+                input.name = key;
+                input.value = String(value);
+
+                submitForm.appendChild(
+                    input
+                );
+            }
+        );
+
+
+        document.body.appendChild(
+            submitForm
+        );
+
+
+        submitForm.submit();
+
+
+    } catch (error) {
+        console.error(
+            "Payment submission failed:",
+            error
+        );
+
+
+        paymentSubmissionInProgress = false;
+
+
+        if (clickedButton) {
+            clickedButton.disabled = false;
+
+            clickedButton.innerHTML = (
+                originalButtonHtml
+            );
+        }
+
+
+        alert(
+            "Payment could not be started. Please try again."
+        );
+    }
 }
 </script>
+
 {% endblock %}

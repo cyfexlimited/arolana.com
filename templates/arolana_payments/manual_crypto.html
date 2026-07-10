@@ -3,66 +3,760 @@
 {% block title %}Manual Crypto Payment | Arolana{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto px-4 py-10">
-    <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-6 md:p-8">
-        <h1 class="text-3xl font-black text-gray-900">Manual Crypto Transfer</h1>
-        <p class="text-gray-600 mt-2">
-            Send exactly <strong>{{ payment.amount }} {{ payment.currency }}</strong>, then submit your proof below.
-        </p>
+<main class="min-h-screen bg-slate-50">
 
-        <div class="grid md:grid-cols-2 gap-4 my-6">
-            {% for wallet in wallets %}
-            <label class="border rounded-2xl p-4 cursor-pointer hover:border-blue-500 transition">
-                <input type="radio" name="wallet_preview" value="{{ wallet.id }}" class="mr-2">
-                <strong>{{ wallet.currency }} - {{ wallet.network }}</strong>
-                <p class="text-sm text-gray-500 break-all mt-2">{{ wallet.address }}</p>
-                {% if wallet.qr_code %}
-                    <img src="{{ wallet.qr_code.url }}" class="w-32 h-32 object-contain mt-3" alt="{{ wallet.network }} QR">
-                {% endif %}
-            </label>
-            {% empty %}
-            <div class="md:col-span-2 bg-yellow-50 text-yellow-800 rounded-xl p-4">
-                No active crypto wallet has been added yet. Add one from Django Admin.
+    <div class="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:py-12">
+
+        <!-- ============================================================= -->
+        <!-- PAGE HEADER -->
+        <!-- ============================================================= -->
+
+        <div class="mb-6">
+            <div class="flex items-center gap-3">
+
+                <div
+                    class="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg"
+                >
+                    <i
+                        class="fab fa-bitcoin text-xl"
+                        aria-hidden="true"
+                    ></i>
+                </div>
+
+                <div>
+                    <p
+                        class="text-xs font-black uppercase tracking-[0.2em] text-blue-600"
+                    >
+                        Secure Payment
+                    </p>
+
+                    <h1
+                        class="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl"
+                    >
+                        Manual Crypto Transfer
+                    </h1>
+                </div>
+
             </div>
-            {% endfor %}
+
+            <p class="mt-4 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
+                Choose one of Arolana's official wallet addresses, send the exact payment
+                amount, then submit your wallet address, transaction hash, and payment proof
+                for verification.
+            </p>
         </div>
 
-        <form method="POST" enctype="multipart/form-data" class="grid gap-4">
-            {% csrf_token %}
 
-            <label class="grid gap-1">
-                <span class="text-sm font-bold text-gray-700">Wallet Used</span>
-                <select name="wallet_id" required class="border rounded-xl px-4 py-3">
+        <!-- ============================================================= -->
+        <!-- PAYMENT SUMMARY -->
+        <!-- ============================================================= -->
+
+        <div
+            class="mb-6 overflow-hidden rounded-3xl border border-blue-200 bg-gradient-to-br from-blue-700 to-blue-950 text-white shadow-xl"
+        >
+
+            <div class="grid gap-5 p-6 sm:grid-cols-3 sm:p-8">
+
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-wider text-blue-200">
+                        Amount to Send
+                    </p>
+
+                    <p class="mt-2 text-3xl font-black">
+                        {{ payment.amount }}
+                    </p>
+
+                    <p class="mt-1 font-bold text-blue-100">
+                        {{ payment.currency }}
+                    </p>
+                </div>
+
+
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-wider text-blue-200">
+                        Payment Reference
+                    </p>
+
+                    <p class="mt-2 break-all font-black">
+                        {{ payment.reference }}
+                    </p>
+                </div>
+
+
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-wider text-blue-200">
+                        Current Status
+                    </p>
+
+                    <div class="mt-2">
+                        <span
+                            class="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-sm font-black"
+                        >
+                            <i
+                                class="fas fa-clock"
+                                aria-hidden="true"
+                            ></i>
+
+                            {{ payment.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ============================================================= -->
+        <!-- IMPORTANT NOTICE -->
+        <!-- ============================================================= -->
+
+        <div
+            class="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-5"
+        >
+            <div class="flex items-start gap-3">
+
+                <div
+                    class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700"
+                >
+                    <i
+                        class="fas fa-exclamation-triangle"
+                        aria-hidden="true"
+                    ></i>
+                </div>
+
+                <div>
+                    <h2 class="font-black text-amber-950">
+                        Send only through the correct network
+                    </h2>
+
+                    <p class="mt-1 text-sm leading-6 text-amber-900">
+                        Make sure the wallet network you send from matches the selected
+                        Arolana wallet network. Sending through the wrong blockchain network
+                        may cause permanent loss of funds.
+                    </p>
+                </div>
+
+            </div>
+        </div>
+
+
+        <div class="grid gap-6 lg:grid-cols-[1fr_1.05fr]">
+
+            <!-- ========================================================= -->
+            <!-- WALLET SELECTION -->
+            <!-- ========================================================= -->
+
+            <section
+                class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+            >
+
+                <div class="mb-5">
+                    <p
+                        class="text-xs font-black uppercase tracking-[0.18em] text-blue-600"
+                    >
+                        Step 1
+                    </p>
+
+                    <h2 class="mt-1 text-2xl font-black text-slate-950">
+                        Choose a wallet
+                    </h2>
+
+                    <p class="mt-2 text-sm leading-6 text-slate-600">
+                        Select the same wallet in the payment form before submitting your proof.
+                    </p>
+                </div>
+
+
+                <div class="grid gap-4">
+
                     {% for wallet in wallets %}
-                    <option value="{{ wallet.id }}">{{ wallet.currency }} - {{ wallet.network }} - {{ wallet.address }}</option>
+
+                        <button
+                            type="button"
+                            class="wallet-card w-full rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-blue-400 hover:bg-blue-50"
+                            data-wallet-id="{{ wallet.id }}"
+                        >
+
+                            <div class="flex items-start justify-between gap-4">
+
+                                <div class="min-w-0">
+
+                                    <div class="flex flex-wrap items-center gap-2">
+
+                                        <span
+                                            class="rounded-full bg-blue-100 px-3 py-1 text-xs font-black text-blue-700"
+                                        >
+                                            {{ wallet.currency }}
+                                        </span>
+
+                                        <span class="font-black text-slate-950">
+                                            {{ wallet.network }}
+                                        </span>
+
+                                    </div>
+
+
+                                    <p
+                                        class="mt-3 break-all rounded-xl bg-slate-50 p-3 font-mono text-xs leading-5 text-slate-700"
+                                    >
+                                        {{ wallet.address }}
+                                    </p>
+
+
+                                    <div class="mt-3 flex flex-wrap items-center gap-2">
+
+                                        <button
+                                            type="button"
+                                            class="copy-wallet-btn inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-800 transition hover:bg-slate-100"
+                                            data-wallet-address="{{ wallet.address }}"
+                                        >
+                                            <i
+                                                class="fas fa-copy"
+                                                aria-hidden="true"
+                                            ></i>
+
+                                            Copy Address
+                                        </button>
+
+
+                                        <span
+                                            class="wallet-selected-badge hidden rounded-xl bg-green-100 px-3 py-2 text-xs font-black text-green-700"
+                                        >
+                                            <i
+                                                class="fas fa-check-circle mr-1"
+                                                aria-hidden="true"
+                                            ></i>
+
+                                            Selected
+                                        </span>
+
+                                    </div>
+
+                                </div>
+
+
+                                {% if wallet.qr_code %}
+
+                                    <div
+                                        class="shrink-0 rounded-2xl border border-slate-200 bg-white p-2"
+                                    >
+                                        <img
+                                            src="{{ wallet.qr_code.url }}"
+                                            class="h-24 w-24 object-contain sm:h-28 sm:w-28"
+                                            alt="{{ wallet.currency }} {{ wallet.network }} payment QR code"
+                                            loading="lazy"
+                                        >
+                                    </div>
+
+                                {% endif %}
+
+                            </div>
+
+                        </button>
+
+                    {% empty %}
+
+                        <div
+                            class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900"
+                        >
+                            <div class="flex items-start gap-3">
+
+                                <i
+                                    class="fas fa-wallet mt-1 text-amber-600"
+                                    aria-hidden="true"
+                                ></i>
+
+                                <div>
+                                    <strong class="block text-amber-950">
+                                        No crypto wallet is currently available
+                                    </strong>
+
+                                    <p class="mt-1 text-sm leading-6">
+                                        Please choose another payment method or contact Arolana support.
+                                    </p>
+                                </div>
+
+                            </div>
+                        </div>
+
                     {% endfor %}
-                </select>
-            </label>
 
-            <label class="grid gap-1">
-                <span class="text-sm font-bold text-gray-700">Your Sending Wallet Address</span>
-                <input name="sender_wallet" class="border rounded-xl px-4 py-3" placeholder="Wallet address you paid from">
-            </label>
+                </div>
 
-            <label class="grid gap-1">
-                <span class="text-sm font-bold text-gray-700">Transaction Hash / TXID</span>
-                <input name="tx_hash" required class="border rounded-xl px-4 py-3" placeholder="Paste transaction hash">
-            </label>
+            </section>
 
-            <label class="grid gap-1">
-                <span class="text-sm font-bold text-gray-700">Upload Proof</span>
-                <input type="file" name="proof" class="border rounded-xl px-4 py-3">
-            </label>
 
-            <label class="grid gap-1">
-                <span class="text-sm font-bold text-gray-700">Note</span>
-                <textarea name="note" class="border rounded-xl px-4 py-3" rows="4"></textarea>
-            </label>
+            <!-- ========================================================= -->
+            <!-- PAYMENT PROOF FORM -->
+            <!-- ========================================================= -->
 
-            <button class="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl px-6 py-3 font-black">
-                Submit Payment Proof
-            </button>
-        </form>
+            <section
+                class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+            >
+
+                <div class="mb-5">
+                    <p
+                        class="text-xs font-black uppercase tracking-[0.18em] text-orange-500"
+                    >
+                        Step 2
+                    </p>
+
+                    <h2 class="mt-1 text-2xl font-black text-slate-950">
+                        Submit payment details
+                    </h2>
+
+                    <p class="mt-2 text-sm leading-6 text-slate-600">
+                        After sending the crypto transfer, submit the blockchain transaction
+                        information below.
+                    </p>
+                </div>
+
+
+                <form
+                    method="post"
+                    enctype="multipart/form-data"
+                    class="grid gap-5"
+                    id="manual-crypto-form"
+                >
+                    {% csrf_token %}
+
+
+                    <!-- WALLET USED -->
+
+                    <label class="grid gap-2">
+
+                        <span class="text-sm font-black text-slate-800">
+                            Arolana Wallet Used
+                            <span class="text-red-500">*</span>
+                        </span>
+
+                        <select
+                            name="wallet_id"
+                            id="wallet-id-select"
+                            required
+                            class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                        >
+
+                            <option value="">
+                                Select the wallet you paid
+                            </option>
+
+                            {% for wallet in wallets %}
+
+                                <option
+                                    value="{{ wallet.id }}"
+                                >
+                                    {{ wallet.currency }} - {{ wallet.network }}
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                        <span class="text-xs text-slate-500">
+                            This must match the Arolana wallet address you sent funds to.
+                        </span>
+
+                    </label>
+
+
+                    <!-- SENDER WALLET -->
+
+                    <label class="grid gap-2">
+
+                        <span class="text-sm font-black text-slate-800">
+                            Your Sending Wallet Address
+                            <span class="text-red-500">*</span>
+                        </span>
+
+                        <input
+                            type="text"
+                            name="sender_wallet"
+                            required
+                            autocomplete="off"
+                            spellcheck="false"
+                            placeholder="Wallet address you sent payment from"
+                            class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                        >
+
+                    </label>
+
+
+                    <!-- TX HASH -->
+
+                    <label class="grid gap-2">
+
+                        <span class="text-sm font-black text-slate-800">
+                            Transaction Hash / TXID
+                            <span class="text-red-500">*</span>
+                        </span>
+
+                        <input
+                            type="text"
+                            name="tx_hash"
+                            required
+                            autocomplete="off"
+                            spellcheck="false"
+                            placeholder="Paste the blockchain transaction hash"
+                            class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 font-mono text-sm text-slate-900 outline-none transition placeholder:font-sans placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                        >
+
+                        <span class="text-xs text-slate-500">
+                            You can copy the TXID from your crypto wallet transaction history.
+                        </span>
+
+                    </label>
+
+
+                    <!-- PAYMENT PROOF -->
+
+                    <div class="grid gap-2">
+
+                        <span class="text-sm font-black text-slate-800">
+                            Upload Payment Proof
+                        </span>
+
+                        <label
+                            for="payment-proof-input"
+                            class="group cursor-pointer rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-5 text-center transition hover:border-blue-400 hover:bg-blue-50"
+                        >
+
+                            <div
+                                class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm"
+                            >
+                                <i
+                                    class="fas fa-cloud-upload-alt text-xl"
+                                    aria-hidden="true"
+                                ></i>
+                            </div>
+
+                            <p class="mt-3 font-black text-slate-950">
+                                Choose payment proof
+                            </p>
+
+                            <p class="mt-1 text-xs leading-5 text-slate-500">
+                                Upload PDF, JPG, JPEG, PNG, or WebP according to the allowed payment-proof policy.
+                            </p>
+
+                            <p
+                                id="proof-file-name"
+                                class="mt-3 hidden break-all rounded-xl bg-white px-3 py-2 text-xs font-bold text-blue-700"
+                            ></p>
+
+                        </label>
+
+
+                        <input
+                            id="payment-proof-input"
+                            type="file"
+                            name="proof"
+                            accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
+                            class="hidden"
+                        >
+
+                    </div>
+
+
+                    <!-- NOTE -->
+
+                    <label class="grid gap-2">
+
+                        <span class="text-sm font-black text-slate-800">
+                            Additional Note
+                            <span class="font-normal text-slate-400">
+                                Optional
+                            </span>
+                        </span>
+
+                        <textarea
+                            name="note"
+                            rows="4"
+                            maxlength="2000"
+                            placeholder="Add any useful payment information for the Arolana payment review team."
+                            class="w-full resize-y rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                        ></textarea>
+
+                    </label>
+
+
+                    <!-- CONFIRMATION NOTICE -->
+
+                    <div
+                        class="rounded-2xl border border-blue-100 bg-blue-50 p-4"
+                    >
+                        <div class="flex items-start gap-3">
+
+                            <i
+                                class="fas fa-shield-alt mt-1 text-blue-600"
+                                aria-hidden="true"
+                            ></i>
+
+                            <p class="text-xs leading-5 text-blue-900">
+                                Your payment will remain under review until Arolana confirms
+                                the blockchain transaction and verifies the payment information.
+                            </p>
+
+                        </div>
+                    </div>
+
+
+                    <!-- SUBMIT -->
+
+                    <button
+                        type="submit"
+                        class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-800 px-6 py-4 font-black text-white shadow-lg transition hover:from-blue-700 hover:to-blue-950 disabled:cursor-not-allowed disabled:opacity-60"
+                        id="submit-payment-proof"
+                        {% if not wallets %}disabled{% endif %}
+                    >
+
+                        <i
+                            class="fas fa-shield-check"
+                            aria-hidden="true"
+                        ></i>
+
+                        Submit Payment Proof
+
+                    </button>
+
+                </form>
+
+            </section>
+
+        </div>
+
+
+        <!-- ============================================================= -->
+        <!-- HOW REVIEW WORKS -->
+        <!-- ============================================================= -->
+
+        <section
+            class="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
+        >
+
+            <div class="mb-5">
+                <p
+                    class="text-xs font-black uppercase tracking-[0.18em] text-blue-600"
+                >
+                    What happens next?
+                </p>
+
+                <h2 class="mt-1 text-xl font-black text-slate-950">
+                    Payment Verification Process
+                </h2>
+            </div>
+
+
+            <div class="grid gap-4 sm:grid-cols-3">
+
+                <div class="rounded-2xl bg-slate-50 p-4">
+                    <div
+                        class="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 font-black text-blue-700"
+                    >
+                        1
+                    </div>
+
+                    <h3 class="mt-3 font-black text-slate-950">
+                        Submit your proof
+                    </h3>
+
+                    <p class="mt-1 text-sm leading-6 text-slate-600">
+                        Provide your sender wallet, TXID, and optional transaction proof.
+                    </p>
+                </div>
+
+
+                <div class="rounded-2xl bg-slate-50 p-4">
+                    <div
+                        class="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-100 font-black text-orange-700"
+                    >
+                        2
+                    </div>
+
+                    <h3 class="mt-3 font-black text-slate-950">
+                        Arolana verifies
+                    </h3>
+
+                    <p class="mt-1 text-sm leading-6 text-slate-600">
+                        The payment team verifies the transaction details and blockchain record.
+                    </p>
+                </div>
+
+
+                <div class="rounded-2xl bg-slate-50 p-4">
+                    <div
+                        class="flex h-10 w-10 items-center justify-center rounded-xl bg-green-100 font-black text-green-700"
+                    >
+                        3
+                    </div>
+
+                    <h3 class="mt-3 font-black text-slate-950">
+                        Payment confirmed
+                    </h3>
+
+                    <p class="mt-1 text-sm leading-6 text-slate-600">
+                        Once confirmed, your payment status and related order processing are updated.
+                    </p>
+                </div>
+
+            </div>
+
+        </section>
+
     </div>
-</div>
+
+</main>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const walletCards = document.querySelectorAll(".wallet-card");
+    const walletSelect = document.getElementById("wallet-id-select");
+
+    walletCards.forEach(function (card) {
+        card.addEventListener("click", function (event) {
+            if (event.target.closest(".copy-wallet-btn")) {
+                return;
+            }
+
+            const walletId = card.dataset.walletId;
+
+            if (walletSelect) {
+                walletSelect.value = walletId;
+            }
+
+            walletCards.forEach(function (otherCard) {
+                otherCard.classList.remove(
+                    "border-blue-500",
+                    "bg-blue-50",
+                    "ring-4",
+                    "ring-blue-100"
+                );
+
+                const badge = otherCard.querySelector(
+                    ".wallet-selected-badge"
+                );
+
+                if (badge) {
+                    badge.classList.add("hidden");
+                }
+            });
+
+            card.classList.add(
+                "border-blue-500",
+                "bg-blue-50",
+                "ring-4",
+                "ring-blue-100"
+            );
+
+            const selectedBadge = card.querySelector(
+                ".wallet-selected-badge"
+            );
+
+            if (selectedBadge) {
+                selectedBadge.classList.remove("hidden");
+            }
+        });
+    });
+
+
+    const copyButtons = document.querySelectorAll(
+        ".copy-wallet-btn"
+    );
+
+    copyButtons.forEach(function (button) {
+        button.addEventListener("click", async function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            const address = button.dataset.walletAddress;
+
+            try {
+                await navigator.clipboard.writeText(address);
+
+                const originalText = button.innerHTML;
+
+                button.innerHTML = `
+                    <i class="fas fa-check" aria-hidden="true"></i>
+                    Copied
+                `;
+
+                setTimeout(function () {
+                    button.innerHTML = originalText;
+                }, 1800);
+
+            } catch (error) {
+                window.prompt(
+                    "Copy this wallet address:",
+                    address
+                );
+            }
+        });
+    });
+
+
+    const proofInput = document.getElementById(
+        "payment-proof-input"
+    );
+
+    const proofFileName = document.getElementById(
+        "proof-file-name"
+    );
+
+    if (
+        proofInput
+        && proofFileName
+    ) {
+        proofInput.addEventListener(
+            "change",
+            function () {
+                const file = proofInput.files[0];
+
+                if (file) {
+                    proofFileName.textContent = (
+                        file.name
+                    );
+
+                    proofFileName.classList.remove(
+                        "hidden"
+                    );
+
+                } else {
+                    proofFileName.textContent = "";
+
+                    proofFileName.classList.add(
+                        "hidden"
+                    );
+                }
+            }
+        );
+    }
+
+
+    const form = document.getElementById(
+        "manual-crypto-form"
+    );
+
+    const submitButton = document.getElementById(
+        "submit-payment-proof"
+    );
+
+    if (
+        form
+        && submitButton
+    ) {
+        form.addEventListener(
+            "submit",
+            function () {
+                submitButton.disabled = true;
+
+                submitButton.innerHTML = `
+                    <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+                    Submitting for Review...
+                `;
+            }
+        );
+    }
+});
+</script>
 {% endblock %}

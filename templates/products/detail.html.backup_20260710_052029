@@ -3155,21 +3155,13 @@
                             {% endif %}
                         </div>
 	                        {% if product.manual_pdf %}
-                                {% seo_media_url product.manual_pdf as product_manual_url %}
-
-                                {% if product_manual_url %}
-                                <div class="mt-3">
-                                    <a
-                                        href="{{ product_manual_url }}"
-                                        download
-                                        class="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-bold text-blue-700 shadow-sm ring-1 ring-blue-100 transition hover:bg-blue-50"
-                                    >
-                                        <i class="fas fa-file-pdf"></i>
-                                        Download manual / brochure
-                                    </a>
-                                </div>
-                                {% endif %}
-                            {% endif %}
+                        <div class="mt-3">
+                            <a href="{{ product.manual_pdf.url }}" download class="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-bold text-blue-700 shadow-sm ring-1 ring-blue-100 transition hover:bg-blue-50">
+                                <i class="fas fa-file-pdf"></i>
+                                Download manual / brochure
+                            </a>
+                        </div>
+                        {% endif %}
                 </div>
 
                 {# Optional Shipping + Delivery Info from existing ShippingInfo inline/admin. Shows only fields that have values. #}
@@ -3905,166 +3897,104 @@
             </div>
 
             <!-- Specifications Tab -->
-<div x-show="tab=='specs'" x-transition.duration.300ms>
-    <div class="mb-4">
-        <h3 class="text-2xl font-black text-gray-950">
-            {{ product.name }}
-        </h3>
-    </div>
+            <div x-show="tab=='specs'" x-transition.duration.300ms>
+                <div class="mb-4">
+                    <h3 class="text-2xl font-black text-gray-950">{{ product.name }}</h3>
+                </div>
 
-    {% if product.specifications %}
-    <div class="apd-specs-xlsx-wrap">
-        <div class="apd-specs-xlsx-content">
-            {{ product.specifications|safe }}
-        </div>
-    </div>
-    {% endif %}
+                {% if product.specifications %}
+                <div class="apd-specs-xlsx-wrap">
+                    <div class="apd-specs-xlsx-content">
+                        {{ product.specifications|safe }}
+                    </div>
+                </div>
+                {% endif %}
 
-    <div class="mt-6 grid gap-4 md:grid-cols-2">
+                <div class="mt-6 grid md:grid-cols-2 gap-4">
+                    <div class="apd-specs-fallback-card">
+                        <div class="bg-gradient-to-r from-blue-50 to-orange-50 px-4 py-3">
+                            <h4 class="font-black text-gray-950">
+                                <i class="fas fa-circle-info text-blue-600 mr-2"></i>
+                                General Info
+                            </h4>
+                        </div>
+                        <table>
+                            <tbody>
+                                <tr>
+                                    <td>Brand</td>
+                                    <td>
+                                          {% if product.brand %}
+                                              {{ product.brand.name|default:product.brand }}
+                                          {% else %}
+                                              Arolana
+                                          {% endif %}
+                                      </td>
+                                </tr>
+                                <tr>
+                                    <td>Model / SKU</td>
+                                    <td>{{ product.sku }}</td>
+                                </tr>
+                                {% if product.manufacturer_sku %}
+                                <tr>
+                                    <td>Manufacturer SKU</td>
+                                    <td>{{ product.manufacturer_sku }}</td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <td>Condition</td>
+                                    <td>{{ product.get_condition_display }}</td>
+                                </tr>
+                                {% if product.manual_pdf %}
+                                <tr>
+                                    <td>Manual / Brochure</td>
+                                    <td>
+                                        <a href="{{ product.manual_pdf.url }}" download class="text-blue-600 font-black hover:underline">
+                                            Download PDF
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% if product.warranty_years %}
+                                <tr>
+                                    <td>Warranty</td>
+                                    <td>{{ product.warranty_years }} Years</td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
 
-        <!-- General Information -->
-        <div class="apd-specs-fallback-card">
-            <div class="bg-gradient-to-r from-blue-50 to-orange-50 px-4 py-3">
-                <h4 class="font-black text-gray-950">
-                    <i class="fas fa-circle-info mr-2 text-blue-600"></i>
-                    General Info
-                </h4>
-            </div>
-
-            <table>
-                <tbody>
-                    <tr>
-                        <td>Brand</td>
-                        <td>
-                            {% if product.brand %}
-                                {{ product.brand.name|default:product.brand }}
-                            {% else %}
-                                Arolana
+                    {% if product.weight or product.weight_unit or product.dimensions_length or product.dimensions_width or product.dimensions_height or product.dimension_unit %}
+                    <div class="apd-package-spec-card">
+                        <h4 class="apd-package-spec-title">
+                            <i class="fas fa-box-open"></i>
+                            Package Specifications
+                        </h4>
+                        <div class="apd-package-spec-grid">
+                            {% if product.weight %}
+                            <div class="apd-package-spec-item">
+                                <span class="apd-package-spec-label">Weight</span>
+                                <span class="apd-package-spec-value">{{ product.weight }}{% if product.weight_unit %} {{ product.weight_unit }}{% endif %}</span>
+                            </div>
                             {% endif %}
-                        </td>
-                    </tr>
-
-                    <tr>
-                        <td>Model / SKU</td>
-                        <td>{{ product.sku }}</td>
-                    </tr>
-
-                    {% if product.manufacturer_sku %}
-                    <tr>
-                        <td>Manufacturer SKU</td>
-                        <td>{{ product.manufacturer_sku }}</td>
-                    </tr>
+                            {% if product.dimensions_length or product.dimensions_width or product.dimensions_height %}
+                            <div class="apd-package-spec-item">
+                                <span class="apd-package-spec-label">Dimensions (L×W×H)</span>
+                                <span class="apd-package-spec-value">
+                                    {% if product.dimensions_length %}{{ product.dimensions_length }}{% else %}-{% endif %}
+                                    ×
+                                    {% if product.dimensions_width %}{{ product.dimensions_width }}{% else %}-{% endif %}
+                                    ×
+                                    {% if product.dimensions_height %}{{ product.dimensions_height }}{% else %}-{% endif %}
+                                    {% if product.dimension_unit %} {{ product.dimension_unit }}{% endif %}
+                                </span>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
                     {% endif %}
-
-                    <tr>
-                        <td>Condition</td>
-                        <td>{{ product.get_condition_display }}</td>
-                    </tr>
-
-                    {% if product.manual_pdf %}
-                        {% seo_media_url product.manual_pdf as product_manual_url %}
-
-                        {% if product_manual_url %}
-                        <tr>
-                            <td>Manual / Brochure</td>
-                            <td>
-                                <a
-                                    href="{{ product_manual_url }}"
-                                    download
-                                    class="font-black text-blue-600 hover:underline"
-                                >
-                                    <i class="fas fa-file-pdf mr-1"></i>
-                                    Download PDF
-                                </a>
-                            </td>
-                        </tr>
-                        {% endif %}
-                    {% endif %}
-
-                    {% if product.warranty_years %}
-                    <tr>
-                        <td>Warranty</td>
-                        <td>
-                            {{ product.warranty_years }}
-                            year{{ product.warranty_years|pluralize }}
-                        </td>
-                    </tr>
-                    {% endif %}
-                </tbody>
-            </table>
-        </div>
-
-
-        <!-- Package & Physical Details -->
-        {% if product.weight or product.dimensions_length or product.dimensions_width or product.dimensions_height %}
-        <div class="apd-package-spec-card">
-
-            <h4 class="apd-package-spec-title">
-                <i class="fas fa-box"></i>
-                Package & Physical Details
-            </h4>
-
-            <div class="apd-package-spec-grid">
-
-                {% if product.weight %}
-                <div class="apd-package-spec-item">
-                    <span class="apd-package-spec-label">
-                        Product Weight
-                    </span>
-
-                    <span class="apd-package-spec-value">
-                        {{ product.weight }}
-
-                        {% if product.weight_unit %}
-                            {{ product.weight_unit }}
-                        {% endif %}
-                    </span>
                 </div>
-                {% endif %}
-
-
-                {% if product.dimensions_length or product.dimensions_width or product.dimensions_height %}
-                <div class="apd-package-spec-item">
-                    <span class="apd-package-spec-label">
-                        Dimensions (L×W×H)
-                    </span>
-
-                    <span class="apd-package-spec-value">
-                        {% if product.dimensions_length %}
-                            {{ product.dimensions_length }}
-                        {% else %}
-                            —
-                        {% endif %}
-
-                        ×
-
-                        {% if product.dimensions_width %}
-                            {{ product.dimensions_width }}
-                        {% else %}
-                            —
-                        {% endif %}
-
-                        ×
-
-                        {% if product.dimensions_height %}
-                            {{ product.dimensions_height }}
-                        {% else %}
-                            —
-                        {% endif %}
-
-                        {% if product.dimension_unit %}
-                            {{ product.dimension_unit }}
-                        {% endif %}
-                    </span>
-                </div>
-                {% endif %}
-
             </div>
-        </div>
-        {% endif %}
-
-    </div>
-</div>
 
             <!-- Reviews Tab -->
             <div x-show="tab=='reviews'" x-transition.duration.300ms>
@@ -4367,10 +4297,8 @@
                         </div>
                     </div>
 
-                     {% endif %}
+                    {% endif %}
                 </div>
-            </div>
-            <!-- End Reviews Tab -->
 
             <!-- Q&A Tab -->
             <div x-show="tab=='qa'" x-transition.duration.300ms>
@@ -4411,26 +4339,11 @@
                     <div class="video-immersive rounded-xl overflow-hidden">
                         <div class="product-video-frame">
                             {% if product.video_type == 'local' and product.local_video %}
-
-                                {% seo_media_url product.local_video as product_local_video_url %}
-
-                                {% if product_local_video_url %}
-                                <video
-                                    id="product-video-main"
-                                    controls
-                                    preload="metadata"
-                                    {% if product.video_thumbnail %}
-                                        poster="{{ product.video_thumbnail|optimized_image_url:'product_thumb' }}"
-                                    {% endif %}
-                                >
-                                    <source
-                                        src="{{ product_local_video_url }}"
-                                        type="video/mp4"
-                                    >
-
+                                <video id="product-video-main" controls preload="metadata"
+                                       {% if product.video_thumbnail %}poster="{{ product.video_thumbnail|optimized_image_url:'product_thumb' }}"{% endif %}>
+                                    <source src="{{ product.local_video.url }}" type="video/mp4">
                                     Your browser does not support the video tag.
                                 </video>
-                                {% endif %}
                             {% else %}
                                 <iframe src="{{ product.get_video_embed_url }}"
                                         title="{{ product.video_title|default:product.name }}"
@@ -4451,25 +4364,11 @@
                     <div class="video-immersive rounded-xl overflow-hidden">
                         <div class="product-video-frame">
                             {% if video.is_local_video %}
-
-                                {% seo_media_url video.local_video as video_local_url %}
-
-                                {% if video_local_url %}
-                                <video
-                                    controls
-                                    preload="metadata"
-                                    {% if video.thumbnail %}
-                                        poster="{{ video.thumbnail|optimized_image_url:'product_thumb' }}"
-                                    {% endif %}
-                                >
-                                    <source
-                                        src="{{ video_local_url }}"
-                                        type="video/mp4"
-                                    >
-
+                                <video controls preload="metadata"
+                                       {% if video.thumbnail %}poster="{{ video.thumbnail|optimized_image_url:'product_thumb' }}"{% endif %}>
+                                    <source src="{{ video.local_video.url }}" type="video/mp4">
                                     Your browser does not support the video tag.
                                 </video>
-                                {% endif %}
                             {% else %}
                                 <iframe src="{{ video.get_embed_url }}"
                                         title="{{ video.title|default:product.name }}"
@@ -5067,8 +4966,22 @@
     </div>
 </div>
 
-{{ variant_data|default:variant_data_json|json_script:"variant-data-json" }}
-{{ gallery_images_data|default:gallery_images_json|json_script:"gallery-data-json" }}
+<script id="variant-data-json" type="application/json">{{ variant_data_json|safe }}</script>
+<script id="gallery-data-json" type="application/json">{{ gallery_images_json|safe }}</script>
+
+<script id="gallery-images-server-json" type="application/json">
+[
+{% for image in gallery_images %}
+    {
+        "src": "{{ image.src|escapejs }}",
+        "thumb": "{{ image.thumb|default:image.src|escapejs }}",
+        "original": "{{ image.original|default:image.src|escapejs }}",
+        "alt": "{{ image.alt|default:product.name|escapejs }}"
+    }{% if not forloop.last %},{% endif %}
+{% endfor %}
+]
+</script>
+
 
 <script>
 (function () {
@@ -5095,77 +5008,12 @@
             const el = getEl(elementId);
             const value = el ? el.textContent.trim() : '';
             if (!value) return fallback;
-
-            const parsed = JSON.parse(value);
-
-            if (parsed === '' || parsed === null || typeof parsed === 'undefined') {
-                return fallback;
-            }
-
-            /*
-                Backward-compatible json_script support:
-                - Preferred: view passes Python dict/list, json_script parses directly.
-                - Existing view: view passes a JSON string, json_script safely encodes it as a string,
-                  so we parse the string one more time here.
-            */
-            if (
-                typeof parsed === 'string' &&
-                parsed.trim() &&
-                ['{', '['].includes(parsed.trim().charAt(0))
-            ) {
-                return JSON.parse(parsed);
-            }
-
-            return parsed;
+            return JSON.parse(value);
         } catch (error) {
             console.warn(`Arolana: ${elementId} JSON could not be parsed.`, error);
             return fallback;
         }
     }
-    function showToast(message, type) {
-    /*
-        Use the global Arolana toast system when available.
-    */
-    if (
-        window.ArolanaToast &&
-        typeof window.ArolanaToast.show === 'function'
-    ) {
-        window.ArolanaToast.show(message, type);
-        return;
-    }
-
-    const toast = document.createElement('div');
-
-    const success = type === 'success';
-
-    toast.className = [
-        'fixed',
-        'bottom-20',
-        'right-4',
-        'max-w-sm',
-        'rounded-xl',
-        'px-5',
-        'py-3',
-        'font-bold',
-        'text-white',
-        'shadow-2xl',
-        'transition',
-        success
-            ? 'bg-emerald-600'
-            : 'bg-red-600'
-    ].join(' ');
-
-    toast.style.zIndex = '2147483640';
-    toast.textContent = String(
-        message || 'Something went wrong.'
-    );
-
-    document.body.appendChild(toast);
-
-    window.setTimeout(function () {
-        toast.remove();
-    }, 3500);
-}
 
     function openProductArticleModal(url, title, options) {
         const modal = getEl('product-article-modal');
@@ -5263,96 +5111,6 @@
                 }
 
                 if (!contentRoot) throw new Error('Article content could not be found.');
-                
-                const sanitizeImportedArticleContent = function (root) {
-                    if (!root) return;
-
-                    /*
-                        Remove active content and document-level elements
-                        that should never be imported into the product reader.
-                    */
-                    root.querySelectorAll([
-                        'script',
-                        'noscript',
-                        'object',
-                        'embed',
-                        'base',
-                        'meta[http-equiv]',
-                        'link[rel="import"]'
-                    ].join(',')).forEach(function (node) {
-                        node.remove();
-                    });
-
-                    root.querySelectorAll('*').forEach(function (node) {
-                        /*
-                            Remove inline JavaScript handlers:
-                            onclick, onerror, onload, onmouseover, etc.
-                        */
-                        Array.from(node.attributes || []).forEach(function (attribute) {
-                            const name = String(
-                                attribute.name || ''
-                            ).toLowerCase();
-
-                            const value = String(
-                                attribute.value || ''
-                            )
-                                .replace(/\s+/g, '')
-                                .toLowerCase();
-
-                            if (name.startsWith('on')) {
-                                node.removeAttribute(attribute.name);
-                                return;
-                            }
-
-                            if (
-                                [
-                                    'href',
-                                    'src',
-                                    'xlink:href',
-                                    'formaction'
-                                ].includes(name)
-                            ) {
-                                if (
-                                    value.startsWith('javascript:') ||
-                                    value.startsWith('vbscript:') ||
-                                    value.startsWith('data:text/html')
-                                ) {
-                                    node.removeAttribute(attribute.name);
-                                }
-                            }
-                        });
-
-                        /*
-                            Allow only approved video iframe providers
-                            inside the same-page article reader.
-                        */
-                        if (node.tagName === 'IFRAME') {
-                            const src = node.getAttribute('src') || '';
-
-                            try {
-                                const iframeUrl = new URL(
-                                    src,
-                                    window.location.origin
-                                );
-
-                                const allowedHosts = new Set([
-                                    'www.youtube.com',
-                                    'youtube.com',
-                                    'www.youtube-nocookie.com',
-                                    'youtube-nocookie.com',
-                                    'player.vimeo.com'
-                                ]);
-
-                                if (!allowedHosts.has(iframeUrl.hostname)) {
-                                    node.remove();
-                                }
-
-                            } catch (error) {
-                                node.remove();
-                            }
-                        }
-                    });
-                };
 
                 const removeImportedNoise = function (root) {
                     if (!root) return;
@@ -5493,7 +5251,6 @@
                 };
 
                 removeImportedNoise(contentRoot);
-                sanitizeImportedArticleContent(contentRoot);
 
                 contentRoot.querySelectorAll('[id]').forEach(function (node) {
                     node.removeAttribute('id');
@@ -5533,42 +5290,14 @@
                 body.scrollTop = 0;
             })
             .catch(function (error) {
-                body.innerHTML = '';
-
-                const errorBox = document.createElement('div');
-                errorBox.className = 'apd-article-side-error';
-
-                const title = document.createElement('p');
-                title.textContent =
-                    'This article could not load fully inside the same-page reader.';
-
-                const detail = document.createElement('p');
-                detail.className = 'mt-2 text-xs text-slate-500';
-                detail.textContent =
-                    error && error.message
-                        ? error.message
-                        : 'Unknown loading error';
-
-                const link = document.createElement('a');
-                link.href = url;
-                link.target = '_blank';
-                link.rel = 'noopener noreferrer';
-                link.className =
-                    'mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-black text-white hover:bg-blue-700';
-
-                const linkText = document.createTextNode('Open article page ');
-
-                const icon = document.createElement('i');
-                icon.className = 'fas fa-arrow-right text-xs';
-
-                link.appendChild(linkText);
-                link.appendChild(icon);
-
-                errorBox.appendChild(title);
-                errorBox.appendChild(detail);
-                errorBox.appendChild(link);
-
-                body.appendChild(errorBox);
+                body.innerHTML =
+                    '<div class="apd-article-side-error">' +
+                        '<p>This article could not load fully inside the same-page reader.</p>' +
+                        '<p class="mt-2 text-xs text-slate-500">' + escapeHtml(error && error.message ? error.message : 'Unknown loading error') + '</p>' +
+                        '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-black text-white hover:bg-blue-700">' +
+                            'Open article page <i class="fas fa-arrow-right text-xs"></i>' +
+                        '</a>' +
+                    '</div>';
             });
     }
 
@@ -5828,56 +5557,6 @@
         }
     }
 
-    function addImageCandidate(list, url) {
-        const cleanUrl = String(url || '').trim();
-        if (!cleanUrl) return;
-        if (!list.includes(cleanUrl)) list.push(cleanUrl);
-    }
-
-    function setLightboxImageWithFallback(lightboxImage, image) {
-    if (!lightboxImage || !image) return;
-
-    const candidates = [];
-
-
-    addImageCandidate(candidates, image.original);
-    addImageCandidate(candidates, image.src);
-    addImageCandidate(candidates, image.thumb);
-
-    const mainImage = getEl('main-product-image');
-
-    addImageCandidate(
-        candidates,
-        mainImage
-            ? mainImage.getAttribute('src')
-            : ''
-    );
-
-    let attempt = 0;
-
-    lightboxImage.onerror = function () {
-        attempt += 1;
-
-        if (attempt < candidates.length) {
-            lightboxImage.src = candidates[attempt];
-            return;
-        }
-
-        console.warn(
-            'Arolana: all lightbox image candidates failed.',
-            candidates
-        );
-    };
-
-    lightboxImage.onload = function () {
-        lightboxImage.style.display = 'block';
-        lightboxImage.style.visibility = 'visible';
-        lightboxImage.style.opacity = '1';
-    };
-
-    lightboxImage.src = candidates[0] || '';
-}
-
     function openImageLightbox(index) {
         if (!state.galleryImages.length) return;
 
@@ -5895,8 +5574,8 @@
         const image = state.galleryImages[state.galleryIndex] || state.galleryImages[0];
         if (!image) return;
 
+        lightboxImage.src = image.src;
         lightboxImage.alt = image.alt || state.productName;
-        setLightboxImageWithFallback(lightboxImage, image);
 
         if (caption) {
             caption.textContent = `${state.galleryIndex + 1} / ${state.galleryImages.length}${image.alt ? ' - ' + image.alt : ''}`;
@@ -7386,25 +7065,20 @@
 
 
     document.addEventListener('DOMContentLoaded', function () {
-    captureDefaultUI();
+        captureDefaultUI();
+	        setupReadingProgress();
+	        setupRatingStars();
+            setupReviewVideoUpload();
+            setupLazyImages();
+		        setupVendorDirectContactActions();
+		        setupVendorChatModal();
 
-    setupReadingProgress();
-    setupRatingStars();
-    setupReviewVideoUpload();
-    setupLazyImages();
-    setupVendorDirectContactActions();
-    setupVendorChatModal();
-
-    /*
-        MAIN FIX:
-        Every normal refresh starts from the main product gallery.
-        No saved variant input.
-        No browser-restored variant.
-        No stale variant image.
-    */
-    resetToMainProduct({
-        silent: true
-    });
+	        /*
+            MAIN FIX:
+            Every normal refresh starts from the main product gallery.
+            No saved variant input, no browser-restored variant, no stale variant image.
+        */
+        resetToMainProduct({ silent: true });
 
         const variantSelector = getEl('variant-selector');
         if (variantSelector) {
@@ -8087,9 +7761,362 @@
 
 
 
+<script>
+    /*
+      AROLANA LIGHTBOX IMAGE SOURCE FIX V5
 
-{# Removed duplicate AROLANA_LIGHTBOX_IMAGE_SOURCE_FIX_V5 script. The main gallery controller now owns all lightbox behavior. #}
+      Fixes the black/blank lightbox problem:
+      - The product card/main gallery image can display correctly,
+        but the lightbox may receive an optimized URL that fails.
+      - This version uses candidate URLs:
+        current visible main image -> original URL -> optimized src -> thumbnail.
+      - If one URL fails, it automatically tries the next candidate.
+      - It keeps thumbnail click/main-image behavior stable.
+    */
+    (function () {
+        const MARKER = 'AROLANA_LIGHTBOX_IMAGE_SOURCE_FIX_V5';
+        if (window[MARKER]) return;
+        window[MARKER] = true;
 
+        let gallery = [];
+        let activeIndex = 0;
+
+        function getEl(id) {
+            return document.getElementById(id);
+        }
+
+        function clean(value) {
+            return String(value || '').trim();
+        }
+
+        function parseJSONScript(id) {
+            const el = getEl(id);
+            if (!el) return [];
+            try {
+                const raw = clean(el.textContent);
+                if (!raw) return [];
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (error) {
+                return [];
+            }
+        }
+
+        function addCandidate(list, url) {
+            url = clean(url);
+            if (!url) return;
+            if (!list.includes(url)) list.push(url);
+        }
+
+        function normalizeItem(item) {
+            if (!item) return null;
+
+            if (typeof item === 'string') {
+                const src = clean(item);
+                if (!src) return null;
+                return {
+                    src,
+                    thumb: src,
+                    original: src,
+                    alt: '{{ product.name|escapejs }}',
+                    candidates: [src]
+                };
+            }
+
+            const src = clean(item.src || item.url || item.image || item.image_url || item.file_url || item.thumbnail || item.thumb);
+            const original = clean(item.original || item.fallback || item.galleryOriginal || src);
+            const thumb = clean(item.thumb || item.thumbnail || src);
+            const alt = clean(item.alt || item.title || item.name || item.galleryAlt || '{{ product.name|escapejs }}');
+
+            if (!src && !original && !thumb) return null;
+
+            const candidates = [];
+            addCandidate(candidates, original);
+            addCandidate(candidates, src);
+            addCandidate(candidates, thumb);
+
+            return {
+                src: src || original || thumb,
+                original: original || src || thumb,
+                thumb: thumb || src || original,
+                alt,
+                candidates
+            };
+        }
+
+        function pushUnique(list, item) {
+            const img = normalizeItem(item);
+            if (!img) return;
+
+            const exists = list.some(function (old) {
+                return old.src === img.src ||
+                       old.original === img.original ||
+                       old.thumb === img.thumb ||
+                       old.candidates.some(function (url) { return img.candidates.includes(url); });
+            });
+
+            if (!exists) list.push(img);
+        }
+
+        function collectGallery() {
+            const list = [];
+
+            // 1. DOM thumbnail buttons: most accurate because these are what you see.
+            document.querySelectorAll('#product-image-thumbnails [data-gallery-src]').forEach(function (button) {
+                pushUnique(list, {
+                    src: button.getAttribute('data-gallery-src'),
+                    thumb: button.getAttribute('data-gallery-thumb'),
+                    original: button.getAttribute('data-gallery-original'),
+                    alt: button.getAttribute('data-gallery-alt')
+                });
+            });
+
+            // 2. Existing JSON fallback.
+            parseJSONScript('gallery-data-json').forEach(function (item) {
+                pushUnique(list, item);
+            });
+
+            // 3. Server-side fallback added by this fix.
+            parseJSONScript('gallery-images-server-json').forEach(function (item) {
+                pushUnique(list, item);
+            });
+
+            // 4. Current main image fallback.
+            const main = getEl('main-product-image');
+            if (main && clean(main.getAttribute('src'))) {
+                pushUnique(list, {
+                    src: main.getAttribute('src'),
+                    original: main.getAttribute('data-fallback-src') || main.getAttribute('src'),
+                    thumb: main.getAttribute('src'),
+                    alt: main.getAttribute('alt')
+                });
+            }
+
+            gallery = list;
+            return gallery;
+        }
+
+        function currentIndex() {
+            collectGallery();
+
+            const main = getEl('main-product-image');
+            const currentSrc = clean(main && main.getAttribute('src'));
+            const dataIndex = Number(main && main.dataset ? main.dataset.galleryIndex : 0);
+
+            if (currentSrc) {
+                const found = gallery.findIndex(function (img) {
+                    return img.src === currentSrc ||
+                           img.original === currentSrc ||
+                           img.thumb === currentSrc ||
+                           img.candidates.includes(currentSrc);
+                });
+                if (found >= 0) return found;
+            }
+
+            if (Number.isFinite(dataIndex) && dataIndex >= 0 && dataIndex < gallery.length) {
+                return dataIndex;
+            }
+
+            return 0;
+        }
+
+        function updateMainImage(index) {
+            collectGallery();
+            if (!gallery.length) return;
+
+            activeIndex = Math.max(0, Math.min(Number(index) || 0, gallery.length - 1));
+            const img = gallery[activeIndex];
+            const main = getEl('main-product-image');
+
+            if (!main || !img) return;
+
+            // Main image should use the same src as thumbnails/main gallery already expects.
+            main.src = img.src || img.original || img.thumb;
+            main.dataset.fallbackSrc = img.original || img.src || img.thumb;
+            main.dataset.galleryIndex = String(activeIndex);
+            main.alt = img.alt || '{{ product.name|escapejs }}';
+            main.style.display = 'block';
+            main.style.visibility = 'visible';
+            main.style.opacity = '1';
+
+            document.querySelectorAll('#product-image-thumbnails .thumbnail-img').forEach(function (thumb, thumbIndex) {
+                const active = thumbIndex === activeIndex;
+                thumb.classList.toggle('active', active);
+                thumb.classList.toggle('border-blue-500', active);
+            });
+        }
+
+        function setLightboxImageWithFallback(lightboxImage, item) {
+            if (!lightboxImage || !item) return;
+
+            const candidates = [];
+
+            // If the selected image is the currently visible main image,
+            // start with the currently visible src because we know browser can display it.
+            const main = getEl('main-product-image');
+            const currentSrc = clean(main && main.getAttribute('src'));
+            if (currentSrc) addCandidate(candidates, currentSrc);
+
+            (item.candidates || []).forEach(function (url) {
+                addCandidate(candidates, url);
+            });
+
+            addCandidate(candidates, item.original);
+            addCandidate(candidates, item.src);
+            addCandidate(candidates, item.thumb);
+
+            let attempt = 0;
+
+            lightboxImage.onerror = function () {
+                attempt += 1;
+                if (attempt < candidates.length) {
+                    lightboxImage.src = candidates[attempt];
+                } else {
+                    console.warn('Arolana lightbox: all image URLs failed.', candidates);
+                }
+            };
+
+            lightboxImage.onload = function () {
+                lightboxImage.style.display = 'block';
+                lightboxImage.style.visibility = 'visible';
+                lightboxImage.style.opacity = '1';
+            };
+
+            lightboxImage.src = candidates[0] || '';
+        }
+
+        function openLightbox(index) {
+            collectGallery();
+            if (!gallery.length) return;
+
+            activeIndex = Math.max(0, Math.min(Number(index) || 0, gallery.length - 1));
+            const item = gallery[activeIndex];
+
+            const lightbox = getEl('image-lightbox');
+            const lightboxImage = getEl('lightbox-image');
+            const caption = getEl('lightbox-caption');
+
+            if (!lightbox || !lightboxImage || !item) return;
+
+            lightboxImage.alt = item.alt || '{{ product.name|escapejs }}';
+            setLightboxImageWithFallback(lightboxImage, item);
+
+            if (caption) {
+                caption.textContent = `${activeIndex + 1} / ${gallery.length}${item.alt ? ' - ' + item.alt : ''}`;
+            }
+
+            lightbox.classList.remove('hidden');
+            lightbox.classList.add('flex');
+            lightbox.style.display = 'flex';
+            lightbox.style.zIndex = '999999';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLightbox() {
+            const lightbox = getEl('image-lightbox');
+            if (!lightbox) return;
+
+            lightbox.classList.add('hidden');
+            lightbox.classList.remove('flex');
+            lightbox.style.display = '';
+            document.body.style.overflow = '';
+        }
+
+        function nextImage() {
+            collectGallery();
+            if (!gallery.length) return;
+
+            activeIndex = (activeIndex + 1) % gallery.length;
+            updateMainImage(activeIndex);
+            openLightbox(activeIndex);
+        }
+
+        function prevImage() {
+            collectGallery();
+            if (!gallery.length) return;
+
+            activeIndex = (activeIndex - 1 + gallery.length) % gallery.length;
+            updateMainImage(activeIndex);
+            openLightbox(activeIndex);
+        }
+
+        function backdropClose(event) {
+            if (event && event.target && event.target.id === 'image-lightbox') {
+                closeLightbox();
+            }
+        }
+
+        function restoreMainIfBlank() {
+            const main = getEl('main-product-image');
+            if (!main) return;
+
+            collectGallery();
+
+            if (!clean(main.getAttribute('src')) && gallery[0]) {
+                updateMainImage(0);
+            }
+        }
+
+        // Override the global functions used by the existing inline onclick.
+        window.openImageLightbox = function (index) {
+            openLightbox(typeof index === 'number' ? index : currentIndex());
+        };
+        window.closeImageLightbox = closeLightbox;
+        window.showNextLightboxImage = nextImage;
+        window.showPreviousLightboxImage = prevImage;
+        window.handleLightboxBackdrop = backdropClose;
+
+        // Let the original thumbnail handler run first; then sync our index after it.
+        document.addEventListener('click', function (event) {
+            const thumbButton = event.target.closest('#product-image-thumbnails [data-gallery-src]');
+            if (!thumbButton) return;
+
+            setTimeout(function () {
+                const index = Number(thumbButton.dataset.galleryIndex || 0);
+                updateMainImage(index);
+            }, 30);
+        });
+
+        // Main image and "View image" open the lightbox.
+        document.addEventListener('click', function (event) {
+            const mainImage = event.target.closest('#main-product-image');
+            const viewButton = event.target.closest('button[onclick*="openImageLightbox"]');
+
+            if (!mainImage && !viewButton) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            openLightbox(currentIndex());
+        }, true);
+
+        document.addEventListener('keydown', function (event) {
+            const lightbox = getEl('image-lightbox');
+            if (!lightbox || lightbox.classList.contains('hidden')) return;
+
+            if (event.key === 'Escape') closeLightbox();
+            if (event.key === 'ArrowRight') nextImage();
+            if (event.key === 'ArrowLeft') prevImage();
+        });
+
+        document.addEventListener('DOMContentLoaded', function () {
+            collectGallery();
+            restoreMainIfBlank();
+            setTimeout(restoreMainIfBlank, 300);
+            setTimeout(restoreMainIfBlank, 1000);
+        });
+
+        window.addEventListener('load', function () {
+            collectGallery();
+            restoreMainIfBlank();
+        });
+
+        window.addEventListener('pageshow', function () {
+            collectGallery();
+            restoreMainIfBlank();
+        });
+    })();
+</script>
 
 <script>
 /*
@@ -8158,6 +8185,7 @@
                 alt: button.getAttribute('data-gallery-alt')
             });
         });
+        parseJson('gallery-images-server-json').forEach(function (item) { addUnique(list, item); });
         parseJson('gallery-data-json').forEach(function (item) { addUnique(list, item); });
         const main = getEl('main-product-image');
         if (main && clean(main.getAttribute('src'))) {

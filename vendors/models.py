@@ -3,8 +3,12 @@ from decimal import Decimal
 from django.db import models
 from django.db.models import Avg
 from django.utils import timezone
+
 from accounts.models import User
 from core.models import BaseModel
+from core.private_upload_validation import (
+    validate_kyc_upload,
+)
 
 class VendorProfile(BaseModel):
     SUBSCRIPTION_TIERS = [
@@ -65,7 +69,14 @@ class VendorProfile(BaseModel):
     preferred_language = models.CharField(max_length=20, default='english', blank=True)
     preferred_currency = models.CharField(max_length=10, default='NGN', blank=True)
     is_verified = models.BooleanField(default=False)
-    verification_documents = models.FileField(upload_to='vendors/documents/', null=True, blank=True)
+    verification_documents = models.FileField(
+    upload_to="vendors/documents/",
+    null=True,
+    blank=True,
+    validators=[
+        validate_kyc_upload,
+    ],
+)
     approval_status = models.CharField(max_length=20, choices=APPROVAL_STATUS_CHOICES, default='pending', db_index=True)
     approval_note = models.TextField(blank=True)
     rejection_reason = models.TextField(blank=True)

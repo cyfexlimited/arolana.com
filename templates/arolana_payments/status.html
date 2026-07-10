@@ -4,75 +4,697 @@
 {% block title %}Payment Status | Arolana{% endblock %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto px-4 py-10">
-    <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 text-center">
-        {% if payment.status == "success" %}
-            <i class="fas fa-check-circle text-6xl text-green-500 mb-4"></i>
-        {% elif payment.status == "failed" %}
-            <i class="fas fa-times-circle text-6xl text-red-500 mb-4"></i>
-        {% elif payment.status == "review" %}
-            <i class="fas fa-search-dollar text-6xl text-yellow-500 mb-4"></i>
-        {% else %}
-            <i class="fas fa-clock text-6xl text-blue-500 mb-4"></i>
-        {% endif %}
+<main class="min-h-screen bg-slate-50">
+    <div class="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:py-14">
 
-        <h1 class="text-3xl font-black text-gray-900">Payment {{ payment.get_status_display }}</h1>
-        <p class="text-gray-600 mt-2">Reference: <strong>{{ payment.reference }}</strong></p>
+        <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl">
 
-        {% if payment.status == "processing" and payment.gateway == "flutterwave" %}
-            <div class="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-left text-sm text-blue-900">
-                <strong class="block text-gray-950">Waiting for Flutterwave confirmation</strong>
-                <p class="mt-1">If you already completed the test payment, click verify below. Arolana will check Flutterwave and create your order tracking when the payment is confirmed.</p>
-            </div>
-        {% endif %}
+            <!-- ========================================================= -->
+            <!-- STATUS HEADER -->
+            <!-- ========================================================= -->
 
-        <div class="mt-6 grid gap-2 text-left bg-gray-50 rounded-2xl p-4">
-            <p><strong>Gateway:</strong> {{ payment.get_gateway_display }}</p>
-            <p><strong>Amount:</strong> {{ payment.amount|currency:request }}</p>
-            {% if payment.order_id %}<p><strong>Order:</strong> {{ payment.order_id }}</p>{% endif %}
-            {% if payment.gateway_reference %}<p><strong>Gateway Ref:</strong> {{ payment.gateway_reference }}</p>{% endif %}
-        </div>
+            <div class="px-6 py-8 text-center sm:px-10 sm:py-10">
 
-        {% if order %}
-            <div class="mt-6 grid gap-3 text-left rounded-2xl border border-blue-100 bg-blue-50 p-4">
-                <p><strong>Order Total:</strong> {{ order.total|currency:request }}</p>
-                <p><strong>Delivery Cost:</strong> {{ order.shipping_cost|currency:request }}</p>
-                {% if delivery %}
-                    <p><strong>Delivery Method:</strong> {{ delivery.get_service_level_display }}{% if delivery.provider %} via {{ delivery.provider.name }}{% endif %}</p>
-                    <p><strong>Tracking Code:</strong> {{ delivery.tracking_code }}</p>
-                    <p><strong>Status:</strong> {{ delivery.get_tracking_status_display }}</p>
+                {% if payment.status == "success" %}
+
+                    <div
+                        class="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-green-50"
+                    >
+                        <i
+                            class="fas fa-check-circle text-6xl text-green-500"
+                            aria-hidden="true"
+                        ></i>
+                    </div>
+
+                    <p
+                        class="mb-2 text-xs font-black uppercase tracking-[0.2em] text-green-600"
+                    >
+                        Payment confirmed
+                    </p>
+
+                {% elif payment.status == "failed" %}
+
+                    <div
+                        class="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-red-50"
+                    >
+                        <i
+                            class="fas fa-times-circle text-6xl text-red-500"
+                            aria-hidden="true"
+                        ></i>
+                    </div>
+
+                    <p
+                        class="mb-2 text-xs font-black uppercase tracking-[0.2em] text-red-600"
+                    >
+                        Payment unsuccessful
+                    </p>
+
+                {% elif payment.status == "review" %}
+
+                    <div
+                        class="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-amber-50"
+                    >
+                        <i
+                            class="fas fa-search-dollar text-6xl text-amber-500"
+                            aria-hidden="true"
+                        ></i>
+                    </div>
+
+                    <p
+                        class="mb-2 text-xs font-black uppercase tracking-[0.2em] text-amber-600"
+                    >
+                        Manual review
+                    </p>
+
+                {% elif payment.status == "cancelled" %}
+
+                    <div
+                        class="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-slate-100"
+                    >
+                        <i
+                            class="fas fa-ban text-5xl text-slate-500"
+                            aria-hidden="true"
+                        ></i>
+                    </div>
+
+                    <p
+                        class="mb-2 text-xs font-black uppercase tracking-[0.2em] text-slate-500"
+                    >
+                        Payment cancelled
+                    </p>
+
+                {% elif payment.status == "refunded" %}
+
+                    <div
+                        class="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-cyan-50"
+                    >
+                        <i
+                            class="fas fa-undo-alt text-5xl text-cyan-600"
+                            aria-hidden="true"
+                        ></i>
+                    </div>
+
+                    <p
+                        class="mb-2 text-xs font-black uppercase tracking-[0.2em] text-cyan-700"
+                    >
+                        Payment refunded
+                    </p>
+
+                {% else %}
+
+                    <div
+                        class="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-blue-50"
+                    >
+                        <i
+                            class="fas fa-clock text-6xl text-blue-500"
+                            aria-hidden="true"
+                        ></i>
+                    </div>
+
+                    <p
+                        class="mb-2 text-xs font-black uppercase tracking-[0.2em] text-blue-600"
+                    >
+                        Payment in progress
+                    </p>
+
                 {% endif %}
-            </div>
-        {% endif %}
 
-        <div class="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            {% if payment.status == "processing" and payment.gateway == "flutterwave" %}
-                <form method="post" action="{% url 'arolana_payments:verify' payment.reference %}">
-                    {% csrf_token %}
-                    <button class="inline-flex w-full justify-center bg-green-600 text-white rounded-xl px-6 py-3 font-black">
-                        Verify Flutterwave Payment
-                    </button>
-                </form>
-                {% if payment.gateway_checkout_url %}
-                    <a href="{{ payment.gateway_checkout_url }}" class="inline-flex justify-center bg-orange-500 text-white rounded-xl px-6 py-3 font-black">
-                        Return to Flutterwave
-                    </a>
+
+                <h1
+                    class="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl"
+                >
+                    Payment {{ payment.get_status_display }}
+                </h1>
+
+                <p class="mt-3 text-sm text-slate-500">
+                    Reference:
+                    <strong class="break-all text-slate-900">
+                        {{ payment.reference }}
+                    </strong>
+                </p>
+
+            </div>
+
+
+            <!-- ========================================================= -->
+            <!-- STATUS MESSAGE -->
+            <!-- ========================================================= -->
+
+            <div class="px-6 pb-2 sm:px-10">
+
+                {% if payment.status == "success" %}
+
+                    <div
+                        class="rounded-2xl border border-green-200 bg-green-50 p-5 text-left"
+                    >
+                        <div class="flex items-start gap-3">
+
+                            <i
+                                class="fas fa-shield-check mt-1 text-green-600"
+                                aria-hidden="true"
+                            ></i>
+
+                            <div>
+                                <strong class="block text-green-950">
+                                    Your payment has been confirmed
+                                </strong>
+
+                                <p class="mt-1 text-sm leading-6 text-green-800">
+                                    Your payment was successfully processed.
+                                    You can now view your order information and
+                                    delivery tracking details below.
+                                </p>
+                            </div>
+
+                        </div>
+                    </div>
+
+                {% elif payment.status == "processing" and payment.gateway == "flutterwave" %}
+
+                    <div
+                        class="rounded-2xl border border-blue-200 bg-blue-50 p-5 text-left"
+                    >
+                        <div class="flex items-start gap-3">
+
+                            <i
+                                class="fas fa-spinner mt-1 text-blue-600"
+                                aria-hidden="true"
+                            ></i>
+
+                            <div>
+                                <strong class="block text-slate-950">
+                                    Waiting for Flutterwave confirmation
+                                </strong>
+
+                                <p class="mt-1 text-sm leading-6 text-blue-900">
+                                    If you have already completed the payment,
+                                    use the verification button below. Arolana
+                                    will securely check Flutterwave and update
+                                    your order when confirmation is received.
+                                </p>
+                            </div>
+
+                        </div>
+                    </div>
+
+                {% elif payment.status == "review" %}
+
+                    <div
+                        class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-left"
+                    >
+                        <div class="flex items-start gap-3">
+
+                            <i
+                                class="fas fa-user-shield mt-1 text-amber-600"
+                                aria-hidden="true"
+                            ></i>
+
+                            <div>
+                                <strong class="block text-amber-950">
+                                    Your payment is under review
+                                </strong>
+
+                                <p class="mt-1 text-sm leading-6 text-amber-900">
+                                    Arolana has received your submitted payment
+                                    information. Our payment team will verify it
+                                    before the payment is confirmed.
+                                </p>
+                            </div>
+
+                        </div>
+                    </div>
+
+                {% elif payment.status == "failed" %}
+
+                    <div
+                        class="rounded-2xl border border-red-200 bg-red-50 p-5 text-left"
+                    >
+                        <div class="flex items-start gap-3">
+
+                            <i
+                                class="fas fa-exclamation-triangle mt-1 text-red-600"
+                                aria-hidden="true"
+                            ></i>
+
+                            <div>
+                                <strong class="block text-red-950">
+                                    Payment was not completed
+                                </strong>
+
+                                <p class="mt-1 text-sm leading-6 text-red-800">
+                                    The payment gateway did not confirm this
+                                    transaction. You may return to shopping and
+                                    try another payment method.
+                                </p>
+                            </div>
+
+                        </div>
+                    </div>
+
+                {% elif payment.status == "cancelled" %}
+
+                    <div
+                        class="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-left"
+                    >
+                        <strong class="block text-slate-950">
+                            This payment attempt was cancelled
+                        </strong>
+
+                        <p class="mt-1 text-sm leading-6 text-slate-600">
+                            No further payment processing will continue for this
+                            payment attempt. You can return to shopping and start
+                            another payment when ready.
+                        </p>
+                    </div>
+
+                {% elif payment.status == "refunded" %}
+
+                    <div
+                        class="rounded-2xl border border-cyan-200 bg-cyan-50 p-5 text-left"
+                    >
+                        <strong class="block text-cyan-950">
+                            This payment has been refunded
+                        </strong>
+
+                        <p class="mt-1 text-sm leading-6 text-cyan-800">
+                            The refund has been recorded by Arolana. The time
+                            required for funds to appear depends on the payment
+                            method and financial provider.
+                        </p>
+                    </div>
+
                 {% endif %}
-            {% endif %}
+
+            </div>
+
+
+            <!-- ========================================================= -->
+            <!-- PAYMENT INFORMATION -->
+            <!-- ========================================================= -->
+
+            <div class="px-6 py-6 sm:px-10">
+
+                <div
+                    class="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
+                >
+
+                    <div
+                        class="border-b border-slate-200 px-5 py-4"
+                    >
+                        <h2 class="font-black text-slate-950">
+                            Payment Details
+                        </h2>
+                    </div>
+
+
+                    <div class="divide-y divide-slate-200">
+
+                        <div
+                            class="flex items-start justify-between gap-6 px-5 py-4"
+                        >
+                            <span class="text-sm text-slate-500">
+                                Gateway
+                            </span>
+
+                            <strong class="text-right text-sm text-slate-950">
+                                {{ payment.get_gateway_display }}
+                            </strong>
+                        </div>
+
+
+                        <div
+                            class="flex items-start justify-between gap-6 px-5 py-4"
+                        >
+                            <span class="text-sm text-slate-500">
+                                Amount
+                            </span>
+
+                            <strong class="text-right text-sm text-slate-950">
+                                {{ payment.amount|currency:request }}
+                            </strong>
+                        </div>
+
+
+                        <div
+                            class="flex items-start justify-between gap-6 px-5 py-4"
+                        >
+                            <span class="text-sm text-slate-500">
+                                Status
+                            </span>
+
+                            <strong class="text-right text-sm text-slate-950">
+                                {{ payment.get_status_display }}
+                            </strong>
+                        </div>
+
+
+                        {% if payment.order_id %}
+
+                            <div
+                                class="flex items-start justify-between gap-6 px-5 py-4"
+                            >
+                                <span class="text-sm text-slate-500">
+                                    Order
+                                </span>
+
+                                <strong
+                                    class="break-all text-right text-sm text-slate-950"
+                                >
+                                    {{ payment.order_id }}
+                                </strong>
+                            </div>
+
+                        {% endif %}
+
+
+                        {% if payment.gateway_reference %}
+
+                            <div
+                                class="flex items-start justify-between gap-6 px-5 py-4"
+                            >
+                                <span class="text-sm text-slate-500">
+                                    Gateway Reference
+                                </span>
+
+                                <strong
+                                    class="max-w-[65%] break-all text-right text-sm text-slate-950"
+                                >
+                                    {{ payment.gateway_reference }}
+                                </strong>
+                            </div>
+
+                        {% endif %}
+
+
+                        {% if payment.paid_at %}
+
+                            <div
+                                class="flex items-start justify-between gap-6 px-5 py-4"
+                            >
+                                <span class="text-sm text-slate-500">
+                                    Confirmed
+                                </span>
+
+                                <strong class="text-right text-sm text-slate-950">
+                                    {{ payment.paid_at|date:"M j, Y g:i A" }}
+                                </strong>
+                            </div>
+
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- ========================================================= -->
+            <!-- ORDER & DELIVERY INFORMATION -->
+            <!-- ========================================================= -->
+
             {% if order %}
-                <a href="{% url 'orders:detail' order.order_number %}" class="inline-flex justify-center bg-blue-600 text-white rounded-xl px-6 py-3 font-black">
-                    View Order & Tracking
-                </a>
-                {% if delivery %}
-                    <a href="{% url 'orders:track' %}?q={{ delivery.tracking_code }}&email={{ payment.customer_email|urlencode }}" class="inline-flex justify-center bg-gray-100 text-gray-900 rounded-xl px-6 py-3 font-black">
-                        Track Delivery
-                    </a>
-                {% endif %}
+
+                <div class="px-6 pb-6 sm:px-10">
+
+                    <div
+                        class="overflow-hidden rounded-2xl border border-blue-200 bg-blue-50"
+                    >
+
+                        <div
+                            class="border-b border-blue-200 px-5 py-4"
+                        >
+                            <div class="flex items-center gap-3">
+
+                                <div
+                                    class="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm"
+                                >
+                                    <i
+                                        class="fas fa-box"
+                                        aria-hidden="true"
+                                    ></i>
+                                </div>
+
+                                <div>
+                                    <h2 class="font-black text-slate-950">
+                                        Order & Delivery
+                                    </h2>
+
+                                    <p class="text-sm text-slate-600">
+                                        Your latest order and tracking information.
+                                    </p>
+                                </div>
+
+                            </div>
+                        </div>
+
+
+                        <div class="divide-y divide-blue-200">
+
+                            <div
+                                class="flex items-start justify-between gap-6 px-5 py-4"
+                            >
+                                <span class="text-sm text-slate-600">
+                                    Order Total
+                                </span>
+
+                                <strong class="text-right text-sm text-slate-950">
+                                    {{ order.total|currency:request }}
+                                </strong>
+                            </div>
+
+
+                            <div
+                                class="flex items-start justify-between gap-6 px-5 py-4"
+                            >
+                                <span class="text-sm text-slate-600">
+                                    Delivery Cost
+                                </span>
+
+                                <strong class="text-right text-sm text-slate-950">
+                                    {{ order.shipping_cost|currency:request }}
+                                </strong>
+                            </div>
+
+
+                            {% if delivery %}
+
+                                <div
+                                    class="flex items-start justify-between gap-6 px-5 py-4"
+                                >
+                                    <span class="text-sm text-slate-600">
+                                        Delivery Method
+                                    </span>
+
+                                    <strong class="text-right text-sm text-slate-950">
+                                        {{ delivery.get_service_level_display }}
+
+                                        {% if delivery.provider %}
+                                            via {{ delivery.provider.name }}
+                                        {% endif %}
+                                    </strong>
+                                </div>
+
+
+                                {% if delivery.tracking_code %}
+
+                                    <div
+                                        class="flex items-start justify-between gap-6 px-5 py-4"
+                                    >
+                                        <span class="text-sm text-slate-600">
+                                            Tracking Code
+                                        </span>
+
+                                        <strong
+                                            class="break-all text-right text-sm text-slate-950"
+                                        >
+                                            {{ delivery.tracking_code }}
+                                        </strong>
+                                    </div>
+
+                                {% endif %}
+
+
+                                <div
+                                    class="flex items-start justify-between gap-6 px-5 py-4"
+                                >
+                                    <span class="text-sm text-slate-600">
+                                        Delivery Status
+                                    </span>
+
+                                    <strong class="text-right text-sm text-slate-950">
+                                        {{ delivery.get_tracking_status_display }}
+                                    </strong>
+                                </div>
+
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+                </div>
+
             {% endif %}
-            <a href="/" class="inline-flex justify-center bg-white border border-gray-200 text-gray-900 rounded-xl px-6 py-3 font-black">
-                Continue Shopping
-            </a>
+
+
+            <!-- ========================================================= -->
+            <!-- ACTIONS -->
+            <!-- ========================================================= -->
+
+            <div
+                class="border-t border-slate-200 bg-slate-50 px-6 py-6 sm:px-10"
+            >
+
+                <div
+                    class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center"
+                >
+
+                    <!-- FLUTTERWAVE VERIFICATION -->
+
+                    {% if payment.status == "processing" and payment.gateway == "flutterwave" %}
+
+                        <form
+                            method="post"
+                            action="{% url 'arolana_payments:verify' payment.reference %}"
+                            class="w-full sm:w-auto"
+                        >
+                            {% csrf_token %}
+
+                            <button
+                                type="submit"
+                                class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-6 py-3 font-black text-white transition hover:bg-green-700 sm:w-auto"
+                            >
+                                <i
+                                    class="fas fa-check-double"
+                                    aria-hidden="true"
+                                ></i>
+
+                                Verify Flutterwave Payment
+                            </button>
+                        </form>
+
+
+                        {% if payment.gateway_checkout_url %}
+
+                            <a
+                                href="{{ payment.gateway_checkout_url }}"
+                                class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-6 py-3 font-black text-white transition hover:bg-orange-600 sm:w-auto"
+                            >
+                                <i
+                                    class="fas fa-external-link-alt"
+                                    aria-hidden="true"
+                                ></i>
+
+                                Return to Flutterwave
+                            </a>
+
+                        {% endif %}
+
+                    {% endif %}
+
+
+                    <!-- ORDER DETAIL -->
+
+                    {% if order %}
+
+                        <a
+                            href="{% url 'orders:detail' order.order_number %}"
+                            class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 font-black text-white transition hover:bg-blue-700 sm:w-auto"
+                        >
+                            <i
+                                class="fas fa-box-open"
+                                aria-hidden="true"
+                            ></i>
+
+                            View Order & Tracking
+                        </a>
+
+
+                        {% if delivery and delivery.tracking_code %}
+
+                            <a
+                                href="{% url 'orders:track' %}?q={{ delivery.tracking_code|urlencode }}&email={{ payment.customer_email|urlencode }}"
+                                class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3 font-black text-slate-900 transition hover:bg-slate-100 sm:w-auto"
+                            >
+                                <i
+                                    class="fas fa-location-arrow"
+                                    aria-hidden="true"
+                                ></i>
+
+                                Track Delivery
+                            </a>
+
+                        {% endif %}
+
+                    {% endif %}
+
+
+                    <!-- CANCEL PAYMENT -->
+
+                    {% if payment.status == "pending" or payment.status == "processing" %}
+
+                        <form
+                            method="post"
+                            action="{% url 'arolana_payments:cancel' payment.reference %}"
+                            class="w-full sm:w-auto"
+                            onsubmit="return confirm('Cancel this payment attempt?');"
+                        >
+                            {% csrf_token %}
+
+                            <button
+                                type="submit"
+                                class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-6 py-3 font-black text-red-600 transition hover:bg-red-50 sm:w-auto"
+                            >
+                                <i
+                                    class="fas fa-ban"
+                                    aria-hidden="true"
+                                ></i>
+
+                                Cancel Payment
+                            </button>
+                        </form>
+
+                    {% endif %}
+
+
+                    <!-- CONTINUE SHOPPING -->
+
+                    <a
+                        href="/"
+                        class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3 font-black text-slate-900 transition hover:bg-slate-100 sm:w-auto"
+                    >
+                        <i
+                            class="fas fa-shopping-bag"
+                            aria-hidden="true"
+                        ></i>
+
+                        Continue Shopping
+                    </a>
+
+                </div>
+
+            </div>
+
         </div>
+
+
+        <!-- ============================================================= -->
+        <!-- SECURITY NOTE -->
+        <!-- ============================================================= -->
+
+        <div class="mt-5 text-center">
+            <p class="text-xs leading-5 text-slate-500">
+                <i
+                    class="fas fa-lock mr-1"
+                    aria-hidden="true"
+                ></i>
+
+                Payment status is confirmed using Arolana's payment gateway
+                verification process.
+            </p>
+        </div>
+
     </div>
-</div>
+</main>
 {% endblock %}

@@ -5,149 +5,483 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from core.private_upload_validation import (
+    validate_payment_proof_upload,
+)
+
+
+# =============================================================================
+# PAYMENT METHODS
+# =============================================================================
+
 
 class PaymentMethod(models.TextChoices):
-    FLUTTERWAVE = "flutterwave", "Flutterwave"
-    PAYPAL = "paypal", "PayPal"
-    PAYSTACK = "paystack", "Paystack"
-    COINBASE = "coinbase", "Coinbase Commerce Crypto"
-    MANUAL_CRYPTO = "manual_crypto", "Manual Crypto Wallet Transfer"
+    FLUTTERWAVE = (
+        "flutterwave",
+        "Flutterwave",
+    )
+
+    PAYPAL = (
+        "paypal",
+        "PayPal",
+    )
+
+    PAYSTACK = (
+        "paystack",
+        "Paystack",
+    )
+
+    COINBASE = (
+        "coinbase",
+        "Coinbase Commerce Crypto",
+    )
+
+    MANUAL_CRYPTO = (
+        "manual_crypto",
+        "Manual Crypto Wallet Transfer",
+    )
+
+
+# =============================================================================
+# PAYMENT GATEWAY CONFIGURATION
+# =============================================================================
 
 
 class PaymentGatewayConfig(models.Model):
-    gateway = models.CharField(max_length=30, choices=PaymentMethod.choices, unique=True)
-    display_name = models.CharField(max_length=80)
-    description = models.CharField(max_length=220, blank=True)
-    icon_class = models.CharField(max_length=80, blank=True)
-    is_active = models.BooleanField(default=True)
-    display_order = models.PositiveIntegerField(default=0)
-    admin_note = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    gateway = models.CharField(
+        max_length=30,
+        choices=PaymentMethod.choices,
+        unique=True,
+    )
+
+    display_name = models.CharField(
+        max_length=80,
+    )
+
+    description = models.CharField(
+        max_length=220,
+        blank=True,
+    )
+
+    icon_class = models.CharField(
+        max_length=80,
+        blank=True,
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+    )
+
+    display_order = models.PositiveIntegerField(
+        default=0,
+    )
+
+    admin_note = models.TextField(
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
 
     class Meta:
-        ordering = ["display_order", "display_name"]
-        verbose_name = "Payment Gateway"
-        verbose_name_plural = "Payment Gateways"
+        ordering = [
+            "display_order",
+            "display_name",
+        ]
+
+        verbose_name = (
+            "Payment Gateway"
+        )
+
+        verbose_name_plural = (
+            "Payment Gateways"
+        )
 
     def __str__(self):
-        return self.display_name or self.get_gateway_display()
+        return (
+            self.display_name
+            or self.get_gateway_display()
+        )
+
+
+# =============================================================================
+# PAYMENT STATUS
+# =============================================================================
 
 
 class PaymentStatus(models.TextChoices):
-    PENDING = "pending", "Pending"
-    PROCESSING = "processing", "Processing"
-    SUCCESS = "success", "Success"
-    FAILED = "failed", "Failed"
-    CANCELLED = "cancelled", "Cancelled"
-    REVIEW = "review", "Manual Review"
-    REFUNDED = "refunded", "Refunded"
+    PENDING = (
+        "pending",
+        "Pending",
+    )
+
+    PROCESSING = (
+        "processing",
+        "Processing",
+    )
+
+    SUCCESS = (
+        "success",
+        "Success",
+    )
+
+    FAILED = (
+        "failed",
+        "Failed",
+    )
+
+    CANCELLED = (
+        "cancelled",
+        "Cancelled",
+    )
+
+    REVIEW = (
+        "review",
+        "Manual Review",
+    )
+
+    REFUNDED = (
+        "refunded",
+        "Refunded",
+    )
+
+
+# =============================================================================
+# PAYMENT TRANSACTION
+# =============================================================================
 
 
 class PaymentTransaction(models.Model):
     """
     Gateway-neutral payment record.
 
-    order_id is intentionally stored as text so this app can work even if your
-    Arolana Order model lives in a different app or uses a custom primary key.
+    order_id is intentionally stored as text so this app can work even if the
+    Arolana Order model lives in another app or uses a custom primary key.
     """
 
-    reference = models.CharField(max_length=80, unique=True, db_index=True, editable=False)
+    reference = models.CharField(
+        max_length=80,
+        unique=True,
+        db_index=True,
+        editable=False,
+    )
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="arolana_payment_transactions",
+        related_name=(
+            "arolana_payment_transactions"
+        ),
     )
-    order_id = models.CharField(max_length=120, blank=True, db_index=True)
 
-    gateway = models.CharField(max_length=30, choices=PaymentMethod.choices)
-    status = models.CharField(max_length=30, choices=PaymentStatus.choices, default=PaymentStatus.PENDING)
+    order_id = models.CharField(
+        max_length=120,
+        blank=True,
+        db_index=True,
+    )
 
-    amount = models.DecimalField(max_digits=14, decimal_places=2)
-    currency = models.CharField(max_length=10, default="NGN")
+    gateway = models.CharField(
+        max_length=30,
+        choices=PaymentMethod.choices,
+    )
 
-    customer_email = models.EmailField(blank=True)
-    customer_name = models.CharField(max_length=180, blank=True)
-    customer_phone = models.CharField(max_length=40, blank=True)
+    status = models.CharField(
+        max_length=30,
+        choices=PaymentStatus.choices,
+        default=PaymentStatus.PENDING,
+    )
 
-    gateway_reference = models.CharField(max_length=220, blank=True, db_index=True)
-    gateway_capture_id = models.CharField(max_length=220, blank=True, db_index=True)
-    gateway_checkout_url = models.URLField(blank=True, max_length=1000)
-    gateway_response = models.JSONField(default=dict, blank=True)
-    webhook_payload = models.JSONField(default=dict, blank=True)
-    checkout_data = models.JSONField(default=dict, blank=True)
+    amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+    )
 
-    manual_wallet_network = models.CharField(max_length=80, blank=True)
-    manual_wallet_address = models.CharField(max_length=255, blank=True)
-    manual_sender_wallet = models.CharField(max_length=255, blank=True)
-    manual_tx_hash = models.CharField(max_length=255, blank=True)
-    manual_proof = models.FileField(upload_to="payment_proofs/", blank=True, null=True)
-    manual_note = models.TextField(blank=True)
+    currency = models.CharField(
+        max_length=10,
+        default="NGN",
+    )
 
-    paid_at = models.DateTimeField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    customer_email = models.EmailField(
+        blank=True,
+    )
+
+    customer_name = models.CharField(
+        max_length=180,
+        blank=True,
+    )
+
+    customer_phone = models.CharField(
+        max_length=40,
+        blank=True,
+    )
+
+    gateway_reference = models.CharField(
+        max_length=220,
+        blank=True,
+        db_index=True,
+    )
+
+    gateway_capture_id = models.CharField(
+        max_length=220,
+        blank=True,
+        db_index=True,
+    )
+
+    gateway_checkout_url = models.URLField(
+        blank=True,
+        max_length=1000,
+    )
+
+    gateway_response = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+
+    webhook_payload = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+
+    checkout_data = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+
+    manual_wallet_network = models.CharField(
+        max_length=80,
+        blank=True,
+    )
+
+    manual_wallet_address = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    manual_sender_wallet = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    manual_tx_hash = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    manual_proof = models.FileField(
+        upload_to="payment_proofs/%Y/%m/",
+        blank=True,
+        null=True,
+        validators=[
+            validate_payment_proof_upload,
+        ],
+    )
+
+    manual_note = models.TextField(
+        blank=True,
+    )
+
+    paid_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = [
+            "-created_at",
+        ]
+
         indexes = [
-            models.Index(fields=["gateway", "status"]),
-            models.Index(fields=["order_id", "status"]),
+            models.Index(
+                fields=[
+                    "gateway",
+                    "status",
+                ]
+            ),
+            models.Index(
+                fields=[
+                    "order_id",
+                    "status",
+                ]
+            ),
         ]
 
     def __str__(self):
-        return f"{self.reference} - {self.gateway} - {self.status}"
+        return (
+            f"{self.reference} - "
+            f"{self.gateway} - "
+            f"{self.status}"
+        )
 
-    def save(self, *args, **kwargs):
+    def save(
+        self,
+        *args,
+        **kwargs,
+    ):
         if not self.reference:
-            self.reference = f"AROLANA-{timezone.now():%Y%m%d}-{uuid.uuid4().hex[:12].upper()}"
-        super().save(*args, **kwargs)
+            self.reference = (
+                f"AROLANA-"
+                f"{timezone.now():%Y%m%d}-"
+                f"{uuid.uuid4().hex[:12].upper()}"
+            )
+
+        super().save(
+            *args,
+            **kwargs,
+        )
 
     @property
     def amount_as_decimal(self):
-        return Decimal(str(self.amount))
+        return Decimal(
+            str(
+                self.amount
+            )
+        )
 
-    def mark_success(self, gateway_reference="", payload=None):
-        self.status = PaymentStatus.SUCCESS
-        self.paid_at = timezone.now()
+    def mark_success(
+        self,
+        gateway_reference="",
+        payload=None,
+    ):
+        self.status = (
+            PaymentStatus.SUCCESS
+        )
+
+        self.paid_at = (
+            timezone.now()
+        )
+
         if gateway_reference:
-            self.gateway_reference = gateway_reference
-        if payload is not None:
-            self.webhook_payload = payload
-        self.save(update_fields=["status", "paid_at", "gateway_reference", "webhook_payload", "updated_at"])
-        if not getattr(self, "_success_handler_running", False):
-            self._success_handler_running = True
-            try:
-                from .services import update_order_after_payment
+            self.gateway_reference = (
+                gateway_reference
+            )
 
-                update_order_after_payment(self)
+        if payload is not None:
+            self.webhook_payload = (
+                payload
+            )
+
+        self.save(
+            update_fields=[
+                "status",
+                "paid_at",
+                "gateway_reference",
+                "webhook_payload",
+                "updated_at",
+            ]
+        )
+
+        if not getattr(
+            self,
+            "_success_handler_running",
+            False,
+        ):
+            self._success_handler_running = True
+
+            try:
+                from .services import (
+                    update_order_after_payment,
+                )
+
+                update_order_after_payment(
+                    self
+                )
+
             except Exception:
                 pass
+
             finally:
                 self._success_handler_running = False
 
-    def mark_failed(self, payload=None):
-        self.status = PaymentStatus.FAILED
+    def mark_failed(
+        self,
+        payload=None,
+    ):
+        self.status = (
+            PaymentStatus.FAILED
+        )
+
         if payload is not None:
-            self.webhook_payload = payload
-        self.save(update_fields=["status", "webhook_payload", "updated_at"])
+            self.webhook_payload = (
+                payload
+            )
+
+        self.save(
+            update_fields=[
+                "status",
+                "webhook_payload",
+                "updated_at",
+            ]
+        )
+
+
+# =============================================================================
+# MANUAL CRYPTO WALLET
+# =============================================================================
 
 
 class ManualCryptoWallet(models.Model):
-    network = models.CharField(max_length=80, help_text="Example: USDT TRC20, USDT ERC20, BTC, ETH")
-    currency = models.CharField(max_length=20, default="USDT")
-    address = models.CharField(max_length=255)
-    qr_code = models.ImageField(upload_to="crypto_wallet_qr/", blank=True, null=True)
-    is_active = models.BooleanField(default=True)
-    sort_order = models.PositiveIntegerField(default=0)
+    network = models.CharField(
+        max_length=80,
+        help_text=(
+            "Example: USDT TRC20, "
+            "USDT ERC20, BTC, ETH"
+        ),
+    )
+
+    currency = models.CharField(
+        max_length=20,
+        default="USDT",
+    )
+
+    address = models.CharField(
+        max_length=255,
+    )
+
+    qr_code = models.ImageField(
+        upload_to="crypto_wallet_qr/",
+        blank=True,
+        null=True,
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+    )
+
+    sort_order = models.PositiveIntegerField(
+        default=0,
+    )
 
     class Meta:
-        ordering = ["sort_order", "network"]
+        ordering = [
+            "sort_order",
+            "network",
+        ]
 
     def __str__(self):
-        return f"{self.currency} - {self.network}"
+        return (
+            f"{self.currency} - "
+            f"{self.network}"
+        )
+
+
+# =============================================================================
+# PAYPAL WEBHOOK LOG
+# =============================================================================
 
 
 class PayPalWebhookLog(models.Model):
@@ -156,47 +490,148 @@ class PayPalWebhookLog(models.Model):
     STATUS_PROCESSED = "processed"
     STATUS_IGNORED = "ignored"
     STATUS_FAILED = "failed"
+
     STATUS_CHOICES = [
-        (STATUS_RECEIVED, "Received"),
-        (STATUS_VERIFIED, "Verified"),
-        (STATUS_PROCESSED, "Processed"),
-        (STATUS_IGNORED, "Ignored"),
-        (STATUS_FAILED, "Failed"),
+        (
+            STATUS_RECEIVED,
+            "Received",
+        ),
+        (
+            STATUS_VERIFIED,
+            "Verified",
+        ),
+        (
+            STATUS_PROCESSED,
+            "Processed",
+        ),
+        (
+            STATUS_IGNORED,
+            "Ignored",
+        ),
+        (
+            STATUS_FAILED,
+            "Failed",
+        ),
     ]
 
-    event_id = models.CharField(max_length=180, unique=True, db_index=True)
-    event_type = models.CharField(max_length=120, blank=True, db_index=True)
-    resource_type = models.CharField(max_length=80, blank=True)
-    resource_id = models.CharField(max_length=220, blank=True, db_index=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_RECEIVED, db_index=True)
-    signature_verified = models.BooleanField(default=False)
-    payload = models.JSONField(default=dict, blank=True)
-    request_headers = models.JSONField(default=dict, blank=True)
+    event_id = models.CharField(
+        max_length=180,
+        unique=True,
+        db_index=True,
+    )
+
+    event_type = models.CharField(
+        max_length=120,
+        blank=True,
+        db_index=True,
+    )
+
+    resource_type = models.CharField(
+        max_length=80,
+        blank=True,
+    )
+
+    resource_id = models.CharField(
+        max_length=220,
+        blank=True,
+        db_index=True,
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_RECEIVED,
+        db_index=True,
+    )
+
+    signature_verified = models.BooleanField(
+        default=False,
+    )
+
+    payload = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+
+    request_headers = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+
     payment = models.ForeignKey(
         PaymentTransaction,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="paypal_webhook_logs",
+        related_name=(
+            "paypal_webhook_logs"
+        ),
     )
-    attempts = models.PositiveIntegerField(default=0)
-    last_error = models.TextField(blank=True)
-    received_at = models.DateTimeField(auto_now_add=True)
-    verified_at = models.DateTimeField(null=True, blank=True)
-    processed_at = models.DateTimeField(null=True, blank=True)
-    updated_at = models.DateTimeField(auto_now=True)
+
+    attempts = models.PositiveIntegerField(
+        default=0,
+    )
+
+    last_error = models.TextField(
+        blank=True,
+    )
+
+    received_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    verified_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    processed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
 
     class Meta:
-        ordering = ["-received_at"]
-        indexes = [
-            models.Index(fields=["event_type", "status"]),
-            models.Index(fields=["resource_id", "status"]),
+        ordering = [
+            "-received_at",
         ]
-        verbose_name = "PayPal Webhook Event"
-        verbose_name_plural = "PayPal Webhook Events"
+
+        indexes = [
+            models.Index(
+                fields=[
+                    "event_type",
+                    "status",
+                ]
+            ),
+            models.Index(
+                fields=[
+                    "resource_id",
+                    "status",
+                ]
+            ),
+        ]
+
+        verbose_name = (
+            "PayPal Webhook Event"
+        )
+
+        verbose_name_plural = (
+            "PayPal Webhook Events"
+        )
 
     def __str__(self):
-        return f"{self.event_type or 'PayPal event'} - {self.event_id}"
+        return (
+            f"{self.event_type or 'PayPal event'} "
+            f"- {self.event_id}"
+        )
+
+
+# =============================================================================
+# PAYMENT REFUND
+# =============================================================================
 
 
 class PaymentRefund(models.Model):
@@ -205,24 +640,87 @@ class PaymentRefund(models.Model):
         on_delete=models.CASCADE,
         related_name="refunds",
     )
-    gateway = models.CharField(max_length=30, choices=PaymentMethod.choices, default=PaymentMethod.PAYPAL)
-    gateway_refund_id = models.CharField(max_length=220, unique=True, db_index=True)
-    gateway_capture_id = models.CharField(max_length=220, blank=True, db_index=True)
-    order_id = models.CharField(max_length=120, blank=True, db_index=True)
-    amount = models.DecimalField(max_digits=14, decimal_places=2)
-    currency = models.CharField(max_length=10, default="USD")
-    status = models.CharField(max_length=30, default="completed", db_index=True)
-    payload = models.JSONField(default=dict, blank=True)
-    refunded_at = models.DateTimeField(default=timezone.now)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+
+    gateway = models.CharField(
+        max_length=30,
+        choices=PaymentMethod.choices,
+        default=PaymentMethod.PAYPAL,
+    )
+
+    gateway_refund_id = models.CharField(
+        max_length=220,
+        unique=True,
+        db_index=True,
+    )
+
+    gateway_capture_id = models.CharField(
+        max_length=220,
+        blank=True,
+        db_index=True,
+    )
+
+    order_id = models.CharField(
+        max_length=120,
+        blank=True,
+        db_index=True,
+    )
+
+    amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+    )
+
+    currency = models.CharField(
+        max_length=10,
+        default="USD",
+    )
+
+    status = models.CharField(
+        max_length=30,
+        default="completed",
+        db_index=True,
+    )
+
+    payload = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+
+    refunded_at = models.DateTimeField(
+        default=timezone.now,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
 
     class Meta:
-        ordering = ["-refunded_at"]
+        ordering = [
+            "-refunded_at",
+        ]
+
         indexes = [
-            models.Index(fields=["gateway", "status"]),
-            models.Index(fields=["order_id", "status"]),
+            models.Index(
+                fields=[
+                    "gateway",
+                    "status",
+                ]
+            ),
+            models.Index(
+                fields=[
+                    "order_id",
+                    "status",
+                ]
+            ),
         ]
 
     def __str__(self):
-        return f"{self.gateway_refund_id} - {self.amount} {self.currency}"
+        return (
+            f"{self.gateway_refund_id} - "
+            f"{self.amount} "
+            f"{self.currency}"
+        )

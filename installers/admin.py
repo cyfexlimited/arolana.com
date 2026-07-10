@@ -42,9 +42,35 @@ class ServicePortfolioInline(admin.StackedInline):
     extra = 0
 
 
-class ProviderKYCDocumentInline(admin.TabularInline):
+class ProviderKYCDocumentInline(
+    admin.TabularInline
+):
     model = ProviderKYCDocument
+
     extra = 0
+
+    fields = (
+        "document_type",
+        "file",
+        "note",
+        "is_active",
+        "created_at",
+    )
+
+    readonly_fields = (
+        "created_at",
+    )
+
+    show_change_link = True
+
+    def get_readonly_fields(
+        self,
+        request,
+        obj=None,
+    ):
+        return (
+            "created_at",
+        )
 
 
 @admin.action(description="Approve selected providers")
@@ -254,16 +280,109 @@ def reject_profile_changes(modeladmin, request, queryset):
 
 @admin.register(ProviderProfileChangeRequest)
 class ProviderProfileChangeRequestAdmin(admin.ModelAdmin):
-    list_display = ("provider", "status", "sensitive_fields_display", "requested_by", "reviewed_by", "created_at")
-    list_filter = ("status", "created_at", "reviewed_at")
-    search_fields = ("provider__business_name", "requested_by__email", "admin_note")
-    autocomplete_fields = ("provider", "requested_by", "reviewed_by")
-    readonly_fields = ("old_values", "proposed_values", "sensitive_fields", "created_at", "updated_at", "reviewed_at")
-    actions = [approve_profile_changes, reject_profile_changes]
+    list_display = (
+        "provider",
+        "status",
+        "sensitive_fields_display",
+        "requested_by",
+        "reviewed_by",
+        "created_at",
+    )
 
-    @admin.display(description="Fields")
-    def sensitive_fields_display(self, obj):
-        return ", ".join(obj.sensitive_fields or [])
+    list_filter = (
+        "status",
+        "created_at",
+        "reviewed_at",
+    )
+
+    search_fields = (
+        "provider__business_name",
+        "requested_by__email",
+        "admin_note",
+    )
+
+    autocomplete_fields = (
+        "provider",
+        "requested_by",
+        "reviewed_by",
+    )
+
+    readonly_fields = (
+        "provider",
+        "requested_by",
+        "old_values",
+        "proposed_values",
+        "sensitive_fields",
+        "proposed_file",
+        "proposed_file_field",
+        "created_at",
+        "updated_at",
+        "reviewed_at",
+    )
+
+    actions = [
+        approve_profile_changes,
+        reject_profile_changes,
+    ]
+
+    fieldsets = (
+        (
+            "Provider",
+            {
+                "fields": (
+                    "provider",
+                    "requested_by",
+                    "status",
+                ),
+            },
+        ),
+        (
+            "Requested Changes",
+            {
+                "fields": (
+                    "sensitive_fields",
+                    "old_values",
+                    "proposed_values",
+                    "proposed_file_field",
+                    "proposed_file",
+                ),
+            },
+        ),
+        (
+            "Review",
+            {
+                "fields": (
+                    "admin_note",
+                    "reviewed_by",
+                    "reviewed_at",
+                ),
+            },
+        ),
+        (
+            "Timestamps",
+            {
+                "fields": (
+                    "created_at",
+                    "updated_at",
+                ),
+                "classes": (
+                    "collapse",
+                ),
+            },
+        ),
+    )
+
+    @admin.display(
+        description="Fields"
+    )
+    def sensitive_fields_display(
+        self,
+        obj,
+    ):
+        return ", ".join(
+            obj.sensitive_fields
+            or []
+        )
 
 
 @admin.register(ProviderKYCDocument)

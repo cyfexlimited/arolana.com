@@ -11,7 +11,6 @@ from django.conf import settings
 from django.views.decorators.http import require_http_methods, require_GET
 from django.views.decorators.csrf import csrf_exempt
 from django.db import IntegrityError, transaction
-from django.contrib.admin.views.decorators import staff_member_required
 
 import json
 import re
@@ -1992,41 +1991,7 @@ def category_view(request, slug):
         'category_article_links_cards': category_article_links_cards,
     })
 
-def _mobile_authenticated_customer(request, payload=None):
-    """
-    Authenticate a mobile customer from either:
 
-    - api_token in JSON/form payload; or
-    - Authorization: Bearer <token>
-
-    Keeps authentication behavior consistent across mobile endpoints.
-    """
-
-    if _auth_mobile_customer_from_request_data is None:
-        raise ValueError(
-            "Mobile customer app is not available."
-        )
-
-    auth_data = dict(payload or {})
-
-    authorization = str(
-        request.headers.get("Authorization")
-        or ""
-    ).strip()
-
-    if (
-        authorization.lower().startswith("bearer ")
-        and not auth_data.get("api_token")
-    ):
-        auth_data["api_token"] = authorization.split(
-            " ",
-            1,
-        )[1].strip()
-
-    return _auth_mobile_customer_from_request_data(
-        auth_data
-    )
-    
 # ================================
 # 🔥 REVIEW VIEWS
 # ================================
@@ -2035,7 +2000,20 @@ def _mobile_authenticated_customer(request, payload=None):
 @require_http_methods(["POST"])
 @transaction.atomic
 def add_review(request, slug):
-    """Add a web product review with optional validated video evidence."""
+    """
+    Add a web product review with optional validated video evidence.
+
+    Security properties:
+    - authenticated customers only;
+    - approved/live product only;
+    - one review per customer/product;
+    - rating is safely parsed;
+    - review video uses the ProductReview model validator;
+    - model full_clean() is executed before save;
+    - duplicate review races are handled;
+    - product rating aggregate is refreshed after successful creation.
+    """
+
     product = get_object_or_404(
         Product,
         slug=slug,
@@ -2043,43 +2021,123 @@ def add_review(request, slug):
         approval_status="approved",
     )
 
+    # Early friendly duplicate check.
     if ProductReview.objects.filter(
         product=product,
         user=request.user,
     ).exists():
-        messages.warning(request, "You have already reviewed this product.")
-        return redirect("products:detail", slug=product.slug)
+        messages.warning(
+            request,
+            "You have already reviewed this product.",
+        )
+
+        return redirect(
+            "products:detail",
+            slug=product.slug,
+        )
+
+    # ----------------------------
+    # Rating
+    # ----------------------------
 
     try:
-        rating = int(request.POST.get("rating", 3))
+        rating = int(
+            request.POST.get(
+                "rating",
+                3,
+            )
+        )
     except (TypeError, ValueError):
-        messages.error(request, "Please select a valid rating between 1 and 5.")
-        return redirect("products:detail", slug=product.slug)
+        messages.error(
+            request,
+            "Please select a valid rating between 1 and 5.",
+        )
+
+        return redirect(
+            "products:detail",
+            slug=product.slug,
+        )
 
     if rating not in {1, 2, 3, 4, 5}:
-        messages.error(request, "Please select a valid rating between 1 and 5.")
-        return redirect("products:detail", slug=product.slug)
+        messages.error(
+            request,
+            "Please select a valid rating between 1 and 5.",
+        )
 
-    title = str(request.POST.get("title", "")).strip()
-    review_text = str(request.POST.get("review", "")).strip()
+        return redirect(
+            "products:detail",
+            slug=product.slug,
+        )
+
+    # ----------------------------
+    # Text
+    # ----------------------------
+
+    title = str(
+        request.POST.get(
+            "title",
+            "",
+        )
+    ).strip()
+
+    review_text = str(
+        request.POST.get(
+            "review",
+            "",
+        )
+    ).strip()
 
     if not title or not review_text:
-        messages.error(request, "Title and review are required.")
-        return redirect("products:detail", slug=product.slug)
+        messages.error(
+            request,
+            "Title and review are required.",
+        )
+
+        return redirect(
+            "products:detail",
+            slug=product.slug,
+        )
 
     if len(title) < 5:
-        messages.error(request, "Title must be at least 5 characters.")
-        return redirect("products:detail", slug=product.slug)
+        messages.error(
+            request,
+            "Title must be at least 5 characters.",
+        )
+
+        return redirect(
+            "products:detail",
+            slug=product.slug,
+        )
 
     if len(title) > 200:
-        messages.error(request, "Review title cannot exceed 200 characters.")
-        return redirect("products:detail", slug=product.slug)
+        messages.error(
+            request,
+            "Review title cannot exceed 200 characters.",
+        )
+
+        return redirect(
+            "products:detail",
+            slug=product.slug,
+        )
 
     if len(review_text) < 20:
-        messages.error(request, "Review must be at least 20 characters.")
-        return redirect("products:detail", slug=product.slug)
+        messages.error(
+            request,
+            "Review must be at least 20 characters.",
+        )
 
-    uploaded_video = request.FILES.get("video_review")
+        return redirect(
+            "products:detail",
+            slug=product.slug,
+        )
+
+    uploaded_video = request.FILES.get(
+        "video_review"
+    )
+
+    # ----------------------------
+    # Build model instance
+    # ----------------------------
 
     review = ProductReview(
         product=product,
@@ -2094,10 +2152,14 @@ def add_review(request, slug):
         review.video_review = uploaded_video
 
     try:
+        # Executes field validators, including validate_review_video_upload.
         review.full_clean()
+
         review.save()
 
     except ValidationError as error:
+        transaction.set_rollback(True)
+
         messages.error(
             request,
             _first_validation_error(
@@ -2112,15 +2174,31 @@ def add_review(request, slug):
         )
 
     except IntegrityError:
-        messages.warning(request, "You have already reviewed this product.")
         transaction.set_rollback(True)
-        return redirect("products:detail", slug=product.slug)
 
-    _refresh_product_review_stats(product.id)
+        messages.warning(
+            request,
+            "You have already reviewed this product.",
+        )
 
-    messages.success(request, "Review added successfully!")
-    return redirect("products:detail", slug=product.slug)
+        return redirect(
+            "products:detail",
+            slug=product.slug,
+        )
 
+    _refresh_product_review_stats(
+        product.id
+    )
+
+    messages.success(
+        request,
+        "Review added successfully!",
+    )
+
+    return redirect(
+        "products:detail",
+        slug=product.slug,
+    )
 
 def _first_validation_error(error, default="The submitted information is invalid."):
     """
@@ -2153,30 +2231,20 @@ def _first_validation_error(error, default="The submitted information is invalid
     return str(error) or default
 
 
-def _review_video_url(request, review):
+def _review_video_url(review):
     """
-    Return a protected Arolana media URL for a review video.
+    Return the protected Django media URL for review video payloads.
 
-    Review videos are private-media resources and should be requested through
-    Django's protected /media/ authorization route rather than exposing an
-    underlying object-storage URL.
+    The storage URL resolution remains behind the configured FieldFile URL.
     """
 
-    if (
-        not review
-        or not review.video_review
-        or not review.video_review.name
-    ):
+    if not review or not review.video_review:
         return ""
 
-    media_path = quote(
-        review.video_review.name,
-        safe="/",
-    )
-
-    return request.build_absolute_uri(
-        f"/media/{media_path}"
-    )
+    try:
+        return review.video_review.url
+    except Exception:
+        return ""
 
 
 def _refresh_product_review_stats(product_id):
@@ -2328,7 +2396,16 @@ def ask_question(request, slug):
 @login_required
 @require_http_methods(["POST"])
 def answer_question(request, qna_id):
-    """Answer a product question as the product vendor or staff."""
+    """
+    Answer a product question.
+
+    Only:
+    - the product vendor user; or
+    - staff
+
+    may answer.
+    """
+
     qna = get_object_or_404(
         ProductQuestion.objects.select_related(
             "product",
@@ -2337,9 +2414,15 @@ def answer_question(request, qna_id):
         id=qna_id,
     )
 
-    is_product_vendor = request.user_id == qna.product.vendor_id
+    is_product_vendor = (
+        request.user_id
+        == qna.product.vendor_id
+    )
 
-    if not (is_product_vendor or request.user.is_staff):
+    if not (
+        is_product_vendor
+        or request.user.is_staff
+    ):
         return JsonResponse(
             {
                 "success": False,
@@ -2348,15 +2431,34 @@ def answer_question(request, qna_id):
             status=403,
         )
 
-    answer_text = str(request.POST.get("answer", "")).strip()
+    answer_text = str(
+        request.POST.get(
+            "answer",
+            "",
+        )
+    ).strip()
 
     if not answer_text:
-        messages.error(request, "Please enter an answer.")
-        return redirect("products:detail", slug=qna.product.slug)
+        messages.error(
+            request,
+            "Please enter an answer.",
+        )
+
+        return redirect(
+            "products:detail",
+            slug=qna.product.slug,
+        )
 
     if len(answer_text) < 10:
-        messages.error(request, "Answer must be at least 10 characters.")
-        return redirect("products:detail", slug=qna.product.slug)
+        messages.error(
+            request,
+            "Answer must be at least 10 characters.",
+        )
+
+        return redirect(
+            "products:detail",
+            slug=qna.product.slug,
+        )
 
     qna.answer = answer_text
     qna.answered_by = request.user
@@ -2371,9 +2473,14 @@ def answer_question(request, qna_id):
         ]
     )
 
-    messages.success(request, "Answer posted successfully!")
+    messages.success(
+        request,
+        "Answer posted successfully!",
+    )
 
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+    if request.headers.get(
+        "X-Requested-With"
+    ) == "XMLHttpRequest":
         return JsonResponse(
             {
                 "success": True,
@@ -2382,13 +2489,18 @@ def answer_question(request, qna_id):
                     request.user.get_full_name()
                     or request.user.username
                 ),
-                "answered_at": qna.answered_at.strftime(
-                    "%b %d, %Y at %I:%M %p"
+                "answered_at": (
+                    qna.answered_at.strftime(
+                        "%b %d, %Y at %I:%M %p"
+                    )
                 ),
             }
         )
 
-    return redirect("products:detail", slug=qna.product.slug)
+    return redirect(
+        "products:detail",
+        slug=qna.product.slug,
+    )
 
 
 @login_required
@@ -2470,7 +2582,12 @@ def delete_question(request, qna_id):
 @login_required
 @require_http_methods(["POST"])
 def edit_answer(request, qna_id):
-    """Edit an answer as the product vendor or staff."""
+    """
+    Edit an existing Q&A answer.
+
+    Only the product vendor user or staff may edit.
+    """
+
     qna = get_object_or_404(
         ProductQuestion.objects.select_related(
             "product",
@@ -2479,9 +2596,15 @@ def edit_answer(request, qna_id):
         id=qna_id,
     )
 
-    is_product_vendor = request.user_id == qna.product.vendor_id
+    is_product_vendor = (
+        request.user_id
+        == qna.product.vendor_id
+    )
 
-    if not (is_product_vendor or request.user.is_staff):
+    if not (
+        is_product_vendor
+        or request.user.is_staff
+    ):
         return JsonResponse(
             {
                 "success": False,
@@ -2490,11 +2613,26 @@ def edit_answer(request, qna_id):
             status=403,
         )
 
-    answer_text = str(request.POST.get("answer", "")).strip()
+    answer_text = str(
+        request.POST.get(
+            "answer",
+            "",
+        )
+    ).strip()
 
-    if not answer_text or len(answer_text) < 10:
-        messages.error(request, "Answer must be at least 10 characters.")
-        return redirect("products:detail", slug=qna.product.slug)
+    if (
+        not answer_text
+        or len(answer_text) < 10
+    ):
+        messages.error(
+            request,
+            "Answer must be at least 10 characters.",
+        )
+
+        return redirect(
+            "products:detail",
+            slug=qna.product.slug,
+        )
 
     qna.answer = answer_text
     qna.answered_by = request.user
@@ -2509,9 +2647,14 @@ def edit_answer(request, qna_id):
         ]
     )
 
-    messages.success(request, "Answer updated successfully!")
+    messages.success(
+        request,
+        "Answer updated successfully!",
+    )
 
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+    if request.headers.get(
+        "X-Requested-With"
+    ) == "XMLHttpRequest":
         return JsonResponse(
             {
                 "success": True,
@@ -2520,13 +2663,18 @@ def edit_answer(request, qna_id):
                     request.user.get_full_name()
                     or request.user.username
                 ),
-                "answered_at": qna.answered_at.strftime(
-                    "%b %d, %Y at %I:%M %p"
+                "answered_at": (
+                    qna.answered_at.strftime(
+                        "%b %d, %Y at %I:%M %p"
+                    )
                 ),
             }
         )
 
-    return redirect("products:detail", slug=qna.product.slug)
+    return redirect(
+        "products:detail",
+        slug=qna.product.slug,
+    )
 
 
 # ================================
@@ -2536,33 +2684,14 @@ def edit_answer(request, qna_id):
 def get_variant_details(request, variant_id):
     """API: Get variant details with pricing and ALL variant images."""
     try:
-        variant = (
-            ProductVariant.objects
-            .select_related(
-                "product",
+        variant = ProductVariant.objects.select_related('product').prefetch_related(
+            Prefetch(
+                'images',
+                queryset=ProductVariantImage.objects.filter(is_active=True).order_by('-is_main', 'order', 'id')
             )
-            .prefetch_related(
-                Prefetch(
-                    "images",
-                    queryset=(
-                        ProductVariantImage.objects
-                        .filter(
-                            is_active=True,
-                        )
-                        .order_by(
-                            "-is_main",
-                            "order",
-                            "id",
-                        )
-                    ),
-                )
-            )
-            .get(
-                id=variant_id,
-                is_active=True,
-                product__is_active=True,
-                product__approval_status="approved",
-            )
+        ).get(
+            id=variant_id,
+            is_active=True
         )
         product = variant.product
 
@@ -2893,62 +3022,27 @@ def add_accessory_to_cart(request, accessory_id):
     return redirect('products:cart')
 
 
-@staff_member_required
-@require_GET
 def debug_colors(request, product_id):
-    """
-    Internal staff-only product variant debugging page.
-    """
-
-    product = get_object_or_404(
-        Product.objects.prefetch_related(
-            "variants",
-        ),
-        id=product_id,
-    )
-
-    variants = product.variants.filter(
-        is_active=True,
-    ).order_by(
-        "variant_type",
-        "name",
-        "value",
-    )
-
+    """Debug view for product colors/variants"""
+    product = get_object_or_404(Product, id=product_id)
+    
     html = f"""
-    <!doctype html>
-    <html lang="en">
-    <head>
-        <meta charset="utf-8">
-        <title>Debug Colors - {product.name}</title>
-    </head>
-
+    <html>
+    <head><title>Debug Colors - {product.name}</title></head>
     <body>
         <h1>Debug Colors for {product.name}</h1>
-
-        <h2>Variants</h2>
-
+        <h2>Variants:</h2>
         <ul>
     """
-
-    for variant in variants:
-        html += (
-            "<li>"
-            f"{variant.variant_type}: "
-            f"{variant.name} = "
-            f"{variant.value}"
-            "</li>"
-        )
-
+    for variant in product.variants.filter(is_active=True):
+        html += f"<li>{variant.variant_type}: {variant.name} = {variant.value}</li>"
+    
     html += """
         </ul>
     </body>
     </html>
     """
-
-    return HttpResponse(
-        html
-    )
+    return HttpResponse(html)
 
 def _mobile_get_value(obj, *field_names, default=None):
     for field_name in field_names:
@@ -4912,9 +5006,27 @@ def mobile_product_review_api(request, slug):
     """
     Create or update a mobile customer product review.
 
-    Supports JSON for text reviews and multipart/form-data for optional
-    video_review uploads.
+    Supports:
+    - application/json
+    - multipart/form-data
+
+    Multipart requests may include:
+    - api_token
+    - phone_number
+    - rating
+    - title
+    - review
+    - video_review
+
+    Security properties:
+    - authenticated mobile customer required;
+    - preserves verified_purchase on review edits;
+    - existing video evidence cannot be replaced;
+    - first video attachment is validated through model full_clean();
+    - row is locked during update;
+    - rating aggregate is refreshed after successful save.
     """
+
     if _auth_mobile_customer_from_request_data is None:
         return JsonResponse(
             {
@@ -4924,14 +5036,28 @@ def mobile_product_review_api(request, slug):
             status=500,
         )
 
-    content_type = str(request.content_type or "").lower()
+    # ----------------------------
+    # Parse request
+    # ----------------------------
+
+    content_type = str(
+        request.content_type
+        or ""
+    ).lower()
 
     if content_type.startswith("multipart/form-data"):
         payload = request.POST.dict()
+
     else:
         try:
-            payload = json.loads(request.body.decode("utf-8") or "{}")
-        except (json.JSONDecodeError, UnicodeDecodeError):
+            payload = json.loads(
+                request.body.decode("utf-8")
+                or "{}"
+            )
+        except (
+            json.JSONDecodeError,
+            UnicodeDecodeError,
+        ):
             return JsonResponse(
                 {
                     "success": False,
@@ -4949,10 +5075,13 @@ def mobile_product_review_api(request, slug):
                 status=400,
             )
 
+    # ----------------------------
+    # Authenticate customer
+    # ----------------------------
+
     try:
-        customer = _mobile_authenticated_customer(
-            request,
-            payload,
+        customer = _auth_mobile_customer_from_request_data(
+            payload
         )
 
     except PermissionError as error:
@@ -4980,19 +5109,33 @@ def mobile_product_review_api(request, slug):
         approval_status="approved",
     )
 
-    user = getattr(customer, "user", None)
+    user = getattr(
+        customer,
+        "user",
+        None,
+    )
 
     if not user:
         return JsonResponse(
             {
                 "success": False,
-                "message": "Customer account is not linked to a user yet.",
+                "message": (
+                    "Customer account is not linked "
+                    "to a user yet."
+                ),
             },
             status=400,
         )
 
+    # ----------------------------
+    # Rating
+    # ----------------------------
+
     try:
-        rating = int(payload.get("rating") or 5)
+        rating = int(
+            payload.get("rating")
+            or 5
+        )
     except (TypeError, ValueError):
         return JsonResponse(
             {
@@ -5011,7 +5154,15 @@ def mobile_product_review_api(request, slug):
             status=400,
         )
 
-    title = str(payload.get("title") or "").strip()
+    # ----------------------------
+    # Text
+    # ----------------------------
+
+    title = str(
+        payload.get("title")
+        or ""
+    ).strip()
+
     review_text = str(
         payload.get("review")
         or payload.get("message")
@@ -5040,12 +5191,21 @@ def mobile_product_review_api(request, slug):
         return JsonResponse(
             {
                 "success": False,
-                "message": "Please write a little more about the product.",
+                "message": (
+                    "Please write a little more "
+                    "about the product."
+                ),
             },
             status=400,
         )
 
-    uploaded_video = request.FILES.get("video_review")
+    uploaded_video = request.FILES.get(
+        "video_review"
+    )
+
+    # ----------------------------
+    # Lock existing review
+    # ----------------------------
 
     review = (
         ProductReview.objects
@@ -5066,12 +5226,17 @@ def mobile_product_review_api(request, slug):
             verified_purchase=False,
         )
 
+    # Preserve verified_purchase for existing reviews.
     review.rating = rating
     review.title = title
     review.review = review_text
 
+    # Existing customer video evidence must not be replaced.
     if uploaded_video:
-        if review.pk and review.video_review:
+        if (
+            review.pk
+            and review.video_review
+        ):
             return JsonResponse(
                 {
                     "success": False,
@@ -5086,11 +5251,17 @@ def mobile_product_review_api(request, slug):
 
         review.video_review = uploaded_video
 
+    # ----------------------------
+    # Validate and save
+    # ----------------------------
+
     try:
         review.full_clean()
         review.save()
 
     except ValidationError as error:
+        transaction.set_rollback(True)
+
         return JsonResponse(
             {
                 "success": False,
@@ -5116,7 +5287,9 @@ def mobile_product_review_api(request, slug):
             status=409,
         )
 
-    _refresh_product_review_stats(product.id)
+    _refresh_product_review_stats(
+        product.id
+    )
 
     return JsonResponse(
         {
@@ -5133,16 +5306,23 @@ def mobile_product_review_api(request, slug):
                 "title": review.title,
                 "review": review.review,
                 "customer_name": (
-                    getattr(customer, "full_name", "")
+                    getattr(
+                        customer,
+                        "full_name",
+                        "",
+                    )
                     or user.get_full_name()
                     or user.username
                     or "Arolana customer"
                 ),
-                "verified_purchase": review.verified_purchase,
-                "has_video": bool(review.video_review),
+                "verified_purchase": (
+                    review.verified_purchase
+                ),
+                "has_video": bool(
+                    review.video_review
+                ),
                 "video_url": _review_video_url(
-                    request,
-                    review,
+                    review
                 ),
             },
         },
@@ -5162,10 +5342,7 @@ def mobile_product_question_api(request, slug):
         return JsonResponse({"success": False, "message": "Invalid JSON payload."}, status=400)
 
     try:
-        customer = _mobile_authenticated_customer(
-            request,
-            payload,
-        )
+        customer = _auth_mobile_customer_from_request_data(payload)
     except PermissionError as error:
         return JsonResponse({"success": False, "message": str(error)}, status=403)
     except ValueError as error:
@@ -5182,15 +5359,12 @@ def mobile_product_question_api(request, slug):
     if len(question_text) > 500:
         return JsonResponse({"success": False, "message": "Question must be less than 500 characters."}, status=400)
 
-    qna = ProductQuestion(
+    qna = ProductQuestion.objects.create(
         product=product,
         user=user,
         question=question_text,
         is_public=True,
     )
-
-    qna.full_clean()
-    qna.save()
 
     return JsonResponse({
         "success": True,
@@ -5374,84 +5548,17 @@ def mobile_product_detail_api(request, slug):
         recently_viewed.extend(list(related_queryset.exclude(id__in=[item.id for item in recently_viewed])[: 8 - len(recently_viewed)]))
 
     reviews = []
-
     for review in product.reviews.all()[:8]:
-        user = getattr(
-            review,
-            "user",
-            None,
-        )
-
+        user = getattr(review, "user", None)
         reviews.append({
             "id": review.id,
-
-            "rating": getattr(
-                review,
-                "rating",
-                0,
-            ),
-
-            "title": getattr(
-                review,
-                "title",
-                "",
-            ),
-
-            "review": getattr(
-                review,
-                "review",
-                "",
-            ),
-
-            "customer_name": (
-                getattr(
-                    user,
-                    "get_full_name",
-                    lambda: "",
-                )()
-                or getattr(
-                    user,
-                    "username",
-                    "Arolana customer",
-                )
-            ),
-
-            "verified_purchase": bool(
-                getattr(
-                    review,
-                    "verified_purchase",
-                    False,
-                )
-            ),
-
-            "helpful_count": getattr(
-                review,
-                "helpful_count",
-                0,
-            ),
-
-            "has_video": bool(
-                getattr(
-                    review,
-                    "video_review",
-                    None,
-                )
-            ),
-
-            "video_url": _review_video_url(
-                request,
-                review,
-            ),
-
-            "created_at": (
-                review.created_at.isoformat()
-                if getattr(
-                    review,
-                    "created_at",
-                    None,
-                )
-                else ""
-            ),
+            "rating": getattr(review, "rating", 0),
+            "title": getattr(review, "title", ""),
+            "review": getattr(review, "review", ""),
+            "customer_name": getattr(user, "get_full_name", lambda: "")() or getattr(user, "username", "Arolana customer"),
+            "verified_purchase": getattr(review, "verified_purchase", False),
+            "helpful_count": getattr(review, "helpful_count", 0),
+            "created_at": getattr(review, "created_at", None).isoformat() if getattr(review, "created_at", None) else "",
         })
 
     questions = []
