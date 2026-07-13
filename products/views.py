@@ -5963,30 +5963,21 @@ def mobile_product_review_api(request, slug):
         )
 
     uploaded_video = request.FILES.get("video_review")
-    
-    import logging
 
-    logger = logging.getLogger(__name__)
+    from django.http import HttpResponse
 
-    logger.warning("=" * 80)
-    logger.warning("FILES: %s", request.FILES)
-    logger.warning("UPLOADED VIDEO: %s", uploaded_video)
+    return HttpResponse(
+        f"""
+    FILES: {list(request.FILES.keys())}
 
-    if uploaded_video:
-        logger.warning("NAME: %s", uploaded_video.name)
-        logger.warning("CONTENT TYPE: %s", uploaded_video.content_type)
-        logger.warning("SIZE: %s", uploaded_video.size)
+    VIDEO EXISTS: {bool(uploaded_video)}
 
-    logger.warning("=" * 80)
-    
-    review = (
-        ProductReview.objects
-        .select_for_update()
-        .filter(
-            product=product,
-            user=user,
-        )
-        .first()
+    NAME: {getattr(uploaded_video,'name','')}
+
+    TYPE: {getattr(uploaded_video,'content_type','')}
+
+    SIZE: {getattr(uploaded_video,'size',0)}
+    """
     )
 
     created = review is None
