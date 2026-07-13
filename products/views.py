@@ -2786,6 +2786,15 @@ def add_review(request, slug):
         review.full_clean()
         review.save()
 
+        if uploaded_video:
+            ProductReview.objects.filter(
+                pk=review.pk
+            ).update(
+                review_video_conversion_status="pending",
+                review_video_conversion_error="",
+                review_video_converted_at=None,
+            )
+
     except ValidationError as error:
         messages.error(
             request,
@@ -3016,10 +3025,30 @@ def _review_video_payloads(request, review):
         })
 
     # ProductReview.video_review
-    direct_video = getattr(
+    converted_video = getattr(
+        review,
+        "review_video_converted",
+        None,
+    )
+
+    original_video = getattr(
         review,
         "video_review",
         None,
+    )
+
+    direct_video = (
+        converted_video
+        if (
+            getattr(
+                review,
+                "review_video_conversion_status",
+                "",
+            )
+            == "completed"
+            and converted_video
+        )
+        else original_video
     )
 
     append_video(
