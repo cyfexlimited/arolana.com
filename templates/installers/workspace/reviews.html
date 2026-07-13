@@ -1,0 +1,251 @@
+{% extends "installers/workspace/base.html" %}
+
+{% block title %}
+Reviews | Arolana Provider Workspace
+{% endblock %}
+
+{% block workspace_content %}
+
+<header class="provider-page-head">
+  <div>
+    <p style="font-weight:900;color:#FF7A00;text-transform:uppercase">
+      Trust & reputation
+    </p>
+
+    <h1>Customer Reviews</h1>
+
+    <p>
+      Understand customer satisfaction and monitor the reputation
+      of your professional services.
+    </p>
+  </div>
+</header>
+
+
+<section class="provider-grid provider-stats">
+
+  <div class="provider-stat">
+    <small>Average rating</small>
+    <strong>
+      {{ averages.overall|default_if_none:0|floatformat:1 }}/5
+    </strong>
+  </div>
+
+  <div class="provider-stat">
+    <small>All reviews</small>
+    <strong>{{ counts.all }}</strong>
+  </div>
+
+  <div class="provider-stat">
+    <small>Published</small>
+    <strong>{{ counts.approved }}</strong>
+  </div>
+
+  <div class="provider-stat">
+    <small>Awaiting moderation</small>
+    <strong>{{ counts.pending }}</strong>
+  </div>
+
+</section>
+
+
+<section
+  class="provider-card"
+  style="margin-top:18px"
+>
+  <h2 style="font-size:22px;font-weight:950">
+    Service performance
+  </h2>
+
+  <p style="color:#64748B;margin-top:5px">
+    Category averages are calculated from approved customer reviews.
+  </p>
+
+  <div
+    style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-top:18px"
+  >
+
+    <div style="background:#F6F9FC;border-radius:18px;padding:16px">
+      <small>Professionalism</small>
+      <strong style="display:block;font-size:26px;margin-top:5px">
+        {{ averages.professionalism|default_if_none:0|floatformat:1 }}
+      </strong>
+    </div>
+
+    <div style="background:#F6F9FC;border-radius:18px;padding:16px">
+      <small>Communication</small>
+      <strong style="display:block;font-size:26px;margin-top:5px">
+        {{ averages.communication|default_if_none:0|floatformat:1 }}
+      </strong>
+    </div>
+
+    <div style="background:#F6F9FC;border-radius:18px;padding:16px">
+      <small>Quality</small>
+      <strong style="display:block;font-size:26px;margin-top:5px">
+        {{ averages.quality|default_if_none:0|floatformat:1 }}
+      </strong>
+    </div>
+
+    <div style="background:#F6F9FC;border-radius:18px;padding:16px">
+      <small>Timeliness</small>
+      <strong style="display:block;font-size:26px;margin-top:5px">
+        {{ averages.timeliness|default_if_none:0|floatformat:1 }}
+      </strong>
+    </div>
+
+  </div>
+</section>
+
+
+<section
+  class="provider-card"
+  style="margin-top:18px"
+>
+  <h2 style="font-size:22px;font-weight:950">
+    Rating distribution
+  </h2>
+
+  <div style="display:grid;gap:10px;margin-top:18px">
+
+    {% for item in rating_distribution %}
+
+      <div
+        style="display:grid;grid-template-columns:70px 1fr 50px;gap:12px;align-items:center"
+      >
+        <strong>
+          {{ item.star }} ★
+        </strong>
+
+        <div class="provider-progress">
+          {% if counts.approved %}
+            <span
+              style="width:{% widthratio item.count counts.approved 100 %}%"
+            ></span>
+          {% else %}
+            <span style="width:0%"></span>
+          {% endif %}
+        </div>
+
+        <strong style="text-align:right">
+          {{ item.count }}
+        </strong>
+      </div>
+
+    {% endfor %}
+
+  </div>
+</section>
+
+
+<div style="display:grid;gap:18px;margin-top:18px">
+
+{% for review in reviews %}
+
+  <article class="provider-card">
+
+    <div
+      style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap"
+    >
+
+      <div>
+        <div style="font-size:22px;color:#FF7A00">
+          {{ review.rating }}/5 ★
+        </div>
+
+        <h2 style="font-size:20px;font-weight:950;margin-top:5px">
+          {% if review.customer %}
+            {{ review.customer.get_full_name|default:review.customer.email }}
+          {% else %}
+            Arolana customer
+          {% endif %}
+        </h2>
+
+        <p style="color:#64748B;margin-top:4px">
+          {{ review.created_at|date:"j M Y" }}
+        </p>
+      </div>
+
+
+      <div>
+        {% if review.is_approved %}
+          <span
+            style="display:inline-block;background:#DCFCE7;color:#15803D;padding:7px 11px;border-radius:999px;font-weight:900;font-size:12px"
+          >
+            Published
+          </span>
+        {% else %}
+          <span
+            style="display:inline-block;background:#FEF3C7;color:#A16207;padding:7px 11px;border-radius:999px;font-weight:900;font-size:12px"
+          >
+            Awaiting moderation
+          </span>
+        {% endif %}
+      </div>
+
+    </div>
+
+
+    <div
+      style="margin-top:16px;background:#F8FAFC;border-radius:18px;padding:16px;color:#334155"
+    >
+      {{ review.comment|linebreaksbr }}
+    </div>
+
+
+    <div
+      style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:16px"
+    >
+
+      <div style="background:#F6F9FC;padding:12px;border-radius:14px">
+        <small>Professionalism</small>
+        <strong style="display:block">
+          {{ review.professionalism_rating }}/5
+        </strong>
+      </div>
+
+      <div style="background:#F6F9FC;padding:12px;border-radius:14px">
+        <small>Communication</small>
+        <strong style="display:block">
+          {{ review.communication_rating }}/5
+        </strong>
+      </div>
+
+      <div style="background:#F6F9FC;padding:12px;border-radius:14px">
+        <small>Quality</small>
+        <strong style="display:block">
+          {{ review.quality_rating }}/5
+        </strong>
+      </div>
+
+      <div style="background:#F6F9FC;padding:12px;border-radius:14px">
+        <small>Timeliness</small>
+        <strong style="display:block">
+          {{ review.timeliness_rating }}/5
+        </strong>
+      </div>
+
+    </div>
+
+  </article>
+
+{% empty %}
+
+  <section
+    class="provider-card"
+    style="text-align:center;padding:50px 24px"
+  >
+    <h2 style="font-size:25px;font-weight:950">
+      No reviews yet
+    </h2>
+
+    <p style="color:#64748B;margin-top:8px">
+      Customer reviews will appear here after customers submit
+      feedback about your services.
+    </p>
+  </section>
+
+{% endfor %}
+
+</div>
+
+{% endblock %}

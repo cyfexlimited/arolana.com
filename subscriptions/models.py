@@ -479,6 +479,13 @@ class VendorSubscription(BaseModel):
     
     class Meta:
         ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=["transaction_id"],
+                condition=~models.Q(transaction_id=""),
+                name="uniq_vendor_subscription_transaction_nonblank",
+            ),
+        ]
     
     def __str__(self):
         return f"{self.vendor.username} - {self.plan.display_name}"

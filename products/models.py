@@ -5636,7 +5636,7 @@ class ReviewVideo(BaseModel):
         ],
         help_text=(
             "Upload customer review video. "
-            "MP4 or WebM only."
+            "MP4, WebM, MOV or M4V."
         ),
     )
 

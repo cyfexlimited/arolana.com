@@ -265,12 +265,39 @@ def mark_order_paid(payment):
             existing_query = existing_query.filter(user=payment.user)
         existing_order = existing_query.first()
     if existing_order:
+        expected_total = _as_money(existing_order.total, default='0.00')
+        paid_amount = _as_money(payment.amount, default='0.00')
+
+        if paid_amount != expected_total:
+            raise ValueError(
+                f'Paid amount {paid_amount} does not match order total {expected_total}.'
+            )
+
+        was_already_paid = (
+            existing_order.payment_status == 'paid'
+        )
+
         existing_order.payment_status = 'paid'
         existing_order.payment_method = payment.gateway
+
         if existing_order.status == 'pending':
             existing_order.status = 'processing'
-        existing_order.save(update_fields=['payment_status', 'payment_method', 'status', 'updated_at'])
-        start_order_robot(existing_order, payment=payment)
+
+        existing_order.save(
+            update_fields=[
+                'payment_status',
+                'payment_method',
+                'status',
+                'updated_at',
+            ]
+        )
+
+        if not was_already_paid:
+            start_order_robot(
+                existing_order,
+                payment=payment,
+            )
+
         return existing_order
 
     if not payment.user or not str(payment.order_id).isdigit():
@@ -302,8 +329,18 @@ def mark_order_paid(payment):
         subtotal=cart.subtotal,
     )
     is_admin_quote_delivery = requires_delivery_admin_quote(provider) or quote.get('requires_admin_quote')
-    delivery_fee = Decimal('0.00') if is_admin_quote_delivery else _as_money(checkout_data.get('delivery_fee'), default=str(quote['fee']))
+    delivery_fee = (
+        Decimal('0.00')
+        if is_admin_quote_delivery
+        else _as_money(quote.get('fee'), default='0.00')
+    )
     order_total = (cart.subtotal + delivery_fee).quantize(Decimal('0.01'))
+    paid_amount = _as_money(payment.amount, default='0.00')
+
+    if paid_amount != order_total:
+        raise ValueError(
+            f'Paid amount {paid_amount} does not match current cart total {order_total}.'
+        )
 
     order = Order.objects.create(
         user=payment.user,

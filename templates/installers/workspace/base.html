@@ -43,6 +43,8 @@
       <a href="{% url 'provider_workspace:projects' %}" class="{% if workspace_active == 'projects' %}active{% endif %}"><i class="fas fa-briefcase"></i> Projects & Media</a>
       <a href="{% url 'provider_workspace:project_leads' %}" class="{% if workspace_active == 'project_leads' %}active{% endif %}"><i class="fas fa-user-magnifying-glass"></i> Project Leads</a>
       <a href="{% url 'provider_workspace:quote_requests' %}" class="{% if workspace_active == 'quote_requests' %}active{% endif %}"><i class="fas fa-clipboard-list"></i> Jobs & Quotes</a>
+      <a href="{% url 'provider_workspace:reviews' %}" class="{% if workspace_active == 'reviews' %}active{% endif %}"><i class="fas fa-star"></i> Reviews</a>
+      <a href="{% url 'provider_workspace:subscription' %}" class="{% if workspace_active == 'subscription' %}active{% endif %}"><i class="fas fa-crown"></i> Subscription</a>
       <a href="{% url 'provider_workspace:coverage' %}" class="{% if workspace_active == 'availability' %}active{% endif %}"><i class="fas fa-location-dot"></i> Coverage & Availability</a>
       <a href="{% url 'provider_workspace:kyc' %}" class="{% if workspace_active == 'kyc' %}active{% endif %}"><i class="fas fa-shield-check"></i> KYC</a>
       <a href="{% url 'provider_workspace:analytics' %}" class="{% if workspace_active == 'analytics' %}active{% endif %}"><i class="fas fa-chart-line"></i> Analytics</a>

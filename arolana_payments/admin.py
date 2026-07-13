@@ -10,6 +10,11 @@ from .models import (
     PaymentTransaction,
 )
 
+from .manual_crypto_services import (
+    approve_manual_crypto_payment,
+    reject_manual_crypto_payment,
+)
+
 
 # =============================================================================
 # PAYMENT GATEWAY CONFIG
@@ -141,6 +146,10 @@ class PaymentTransactionAdmin(admin.ModelAdmin):
         "created_at",
         "updated_at",
         "paid_at",
+        "manual_reviewed_by",
+        "manual_reviewed_at",
+        "manual_review_decision",
+        "manual_review_note",
     )
 
     list_select_related = (
@@ -156,9 +165,8 @@ class PaymentTransactionAdmin(admin.ModelAdmin):
     list_per_page = 100
 
     actions = (
-        "mark_success",
-        "mark_failed",
-        "mark_review",
+        "approve_manual_crypto",
+        "reject_manual_crypto",
     )
 
     fieldsets = (
@@ -220,6 +228,10 @@ class PaymentTransactionAdmin(admin.ModelAdmin):
                     "manual_tx_hash",
                     "manual_proof",
                     "manual_note",
+                    "manual_reviewed_by",
+                    "manual_reviewed_at",
+                    "manual_review_decision",
+                    "manual_review_note",
                 ),
             },
         ),
@@ -260,13 +272,37 @@ class PaymentTransactionAdmin(admin.ModelAdmin):
         )
 
         if obj is not None:
-            readonly.append(
-                "manual_proof"
+            readonly.extend(
+                [
+                    "user",
+                    "order_id",
+                    "gateway",
+                    "status",
+                    "amount",
+                    "currency",
+                    "customer_email",
+                    "customer_name",
+                    "customer_phone",
+                    "gateway_reference",
+                    "gateway_checkout_url",
+                    "manual_wallet_network",
+                    "manual_wallet_address",
+                    "manual_sender_wallet",
+                    "manual_tx_hash",
+                    "manual_proof",
+                    "manual_note",
+                ]
             )
 
         return tuple(
             readonly
         )
+
+    def has_add_permission(
+        self,
+        request,
+    ):
+        return False
 
     def has_delete_permission(
         self,
@@ -283,132 +319,76 @@ class PaymentTransactionAdmin(admin.ModelAdmin):
         return False
 
     @admin.action(
-        description="Mark selected payments successful"
+        description="Approve selected manual crypto payments"
     )
-    def mark_success(
+    def approve_manual_crypto(
         self,
         request,
         queryset,
     ):
-        success_count = 0
-        failed_count = 0
+        approved = 0
+        skipped = 0
 
         for payment in queryset.iterator():
             try:
-                payment.mark_success()
-                success_count += 1
-
+                approve_manual_crypto_payment(
+                    payment.pk,
+                    request.user,
+                )
+                approved += 1
             except Exception:
-                failed_count += 1
+                skipped += 1
 
-        if success_count:
+        if approved:
             self.message_user(
                 request,
-                (
-                    f"{success_count} payment(s) "
-                    "marked successful."
-                ),
+                f"{approved} manual crypto payment(s) approved.",
                 level=messages.SUCCESS,
             )
 
-        if failed_count:
+        if skipped:
             self.message_user(
                 request,
-                (
-                    f"{failed_count} payment(s) "
-                    "could not be marked successful."
-                ),
-                level=messages.ERROR,
-            )
-
-    @admin.action(
-        description="Mark selected payments failed"
-    )
-    def mark_failed(
-        self,
-        request,
-        queryset,
-    ):
-        success_count = 0
-        failed_count = 0
-
-        for payment in queryset.iterator():
-            try:
-                payment.mark_failed()
-                success_count += 1
-
-            except Exception:
-                failed_count += 1
-
-        if success_count:
-            self.message_user(
-                request,
-                (
-                    f"{success_count} payment(s) "
-                    "marked failed."
-                ),
-                level=messages.SUCCESS,
-            )
-
-        if failed_count:
-            self.message_user(
-                request,
-                (
-                    f"{failed_count} payment(s) "
-                    "could not be updated."
-                ),
-                level=messages.ERROR,
-            )
-
-    @admin.action(
-        description="Move selected payments to manual review"
-    )
-    def mark_review(
-        self,
-        request,
-        queryset,
-    ):
-        updated_count = 0
-        skipped_count = 0
-
-        for payment in queryset.iterator():
-            if payment.status in {
-                PaymentStatus.SUCCESS,
-                PaymentStatus.REFUNDED,
-            }:
-                skipped_count += 1
-                continue
-
-            payment.status = PaymentStatus.REVIEW
-
-            payment.save(
-                update_fields=[
-                    "status",
-                    "updated_at",
-                ]
-            )
-
-            updated_count += 1
-
-        if updated_count:
-            self.message_user(
-                request,
-                (
-                    f"{updated_count} payment(s) "
-                    "moved to manual review."
-                ),
-                level=messages.SUCCESS,
-            )
-
-        if skipped_count:
-            self.message_user(
-                request,
-                (
-                    f"{skipped_count} successful or refunded "
-                    "payment(s) were not moved back to review."
-                ),
+                f"{skipped} payment(s) were not eligible for approval.",
                 level=messages.WARNING,
             )
+
+    @admin.action(
+        description="Reject selected manual crypto payments"
+    )
+    def reject_manual_crypto(
+        self,
+        request,
+        queryset,
+    ):
+        rejected = 0
+        skipped = 0
+
+        for payment in queryset.iterator():
+            try:
+                reject_manual_crypto_payment(
+                    payment.pk,
+                    request.user,
+                )
+                rejected += 1
+            except Exception:
+                skipped += 1
+
+        if rejected:
+            self.message_user(
+                request,
+                f"{rejected} manual crypto payment(s) rejected.",
+                level=messages.SUCCESS,
+            )
+
+        if skipped:
+            self.message_user(
+                request,
+                f"{skipped} payment(s) were not eligible for rejection.",
+                level=messages.WARNING,
+            )
+
+
 
 
 # =============================================================================

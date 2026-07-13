@@ -192,24 +192,54 @@ def get_customer_data(request):
 
 
 def create_transaction(request, gateway):
-    try:
-        amount = Decimal(str(request.POST.get("amount", "0")).replace(",", "")).quantize(Decimal("0.01"))
-    except (InvalidOperation, ValueError):
-        raise ValueError("Enter a valid payment amount.")
+    """
+    Create a server-priced cart payment.
 
-    if amount <= 0:
-        raise ValueError("Payment amount must be greater than zero.")
+    The browser may submit contact and delivery destination fields, but it
+    cannot define the payable amount, currency, cart ownership, or delivery
+    fee.
+    """
+    if not request.user.is_authenticated:
+        raise ValueError("Sign in before starting payment.")
 
-    currency = (request.POST.get("currency") or getattr(settings, "AROLANA_DEFAULT_CURRENCY", "NGN")).upper()
-    order_id = request.POST.get("order_id", "")
+    order_id = str(request.POST.get("order_id", "") or "").strip()
+    if not order_id.isdigit():
+        raise ValueError("A valid active cart is required before payment.")
+
+    from orders import services as order_services
+
+    cart = (
+        order_services.Cart.objects
+        .filter(
+            id=int(order_id),
+            user=request.user,
+            is_active=True,
+        )
+        .prefetch_related("items")
+        .first()
+    )
+
+    if not cart or not cart.items.exists():
+        raise ValueError("Your active cart was not found or is empty.")
+
     customer = get_customer_data(request)
+    customer["email"] = request.user.email or customer["email"]
+    customer["name"] = (
+        request.user.get_full_name()
+        or getattr(request.user, "username", "")
+        or customer["name"]
+    )
 
     if not customer["email"]:
         raise ValueError("Customer email is required before payment.")
 
-    from orders.services import normalize_checkout_service_level
+    service_level = order_services.normalize_checkout_service_level(
+        request.POST.get("delivery_service_level", "standard")
+    )
 
     checkout_data = {
+        "purpose": "order",
+        "source": "web_checkout",
         "address": request.POST.get("address", ""),
         "city": request.POST.get("city", ""),
         "state": request.POST.get("state", ""),
@@ -225,14 +255,65 @@ def create_transaction(request, gateway):
         "dropoff_latitude": request.POST.get("dropoff_latitude", ""),
         "dropoff_longitude": request.POST.get("dropoff_longitude", ""),
         "package_weight_kg": request.POST.get("package_weight_kg", "0.00"),
-        "delivery_service_level": normalize_checkout_service_level(request.POST.get("delivery_service_level", "standard")),
-        "delivery_provider": "",
-        "delivery_fee": request.POST.get("delivery_fee", "0.00"),
+        "delivery_service_level": service_level,
     }
 
+    provider = order_services.select_delivery_provider(
+        service_level,
+        provider_id=None,
+    )
+    quote = order_services.calculate_delivery_quote(
+        service_level=service_level,
+        provider=provider,
+        address=checkout_data["address"],
+        city=checkout_data["city"],
+        state=checkout_data["state"],
+        postal_code=checkout_data["postal_code"],
+        country=checkout_data["country"],
+        subtotal=cart.subtotal,
+    )
+
+    requires_admin_quote = (
+        order_services.requires_delivery_admin_quote(provider)
+        or bool(quote.get("requires_admin_quote"))
+    )
+
+    if requires_admin_quote:
+        delivery_fee = Decimal("0.00")
+    else:
+        try:
+            delivery_fee = Decimal(
+                str(quote.get("fee") or "0.00")
+            ).quantize(Decimal("0.01"))
+        except (InvalidOperation, TypeError, ValueError):
+            raise ValueError("The server could not calculate a valid delivery fee.")
+
+    amount = (
+        Decimal(str(cart.subtotal))
+        + delivery_fee
+    ).quantize(Decimal("0.01"))
+
+    if amount <= 0:
+        raise ValueError("Payment amount must be greater than zero.")
+
+    currency = str(
+        getattr(cart, "currency", "")
+        or getattr(settings, "AROLANA_DEFAULT_CURRENCY", "NGN")
+    ).strip().upper()
+
+    checkout_data.update({
+        "delivery_provider": str(getattr(provider, "id", "") or ""),
+        "delivery_fee": str(delivery_fee),
+        "requires_admin_quote": requires_admin_quote,
+        "server_cart_subtotal": str(
+            Decimal(str(cart.subtotal)).quantize(Decimal("0.01"))
+        ),
+        "server_payment_total": str(amount),
+    })
+
     payment = PaymentTransaction.objects.create(
-        user=request.user if request.user.is_authenticated else None,
-        order_id=order_id,
+        user=request.user,
+        order_id=str(cart.id),
         gateway=gateway,
         amount=amount,
         currency=currency,
@@ -242,7 +323,6 @@ def create_transaction(request, gateway):
         checkout_data=checkout_data,
     )
     return payment
-
 
 def init_flutterwave_checkout(request, payment):
     secret_key = settings.FLUTTERWAVE_SECRET_KEY
@@ -308,6 +388,99 @@ def verify_flutterwave_transaction_by_reference(tx_ref):
     )
     return response.json()
 
+
+# =============================================================================
+# STRICT FLUTTERWAVE PAYMENT VALIDATION
+# =============================================================================
+
+
+def validate_flutterwave_payment_response(payment, data):
+    """
+    Validate a Flutterwave verification response against the local payment.
+    """
+
+    if payment.gateway != PaymentMethod.FLUTTERWAVE:
+        return False, "Payment gateway is not Flutterwave."
+
+    if not isinstance(data, dict):
+        return False, "Invalid Flutterwave verification response."
+
+    transaction_data = data.get("data") or {}
+    if not isinstance(transaction_data, dict):
+        return False, "Invalid Flutterwave transaction data."
+
+    if data.get("status") != "success":
+        return False, "Flutterwave verification was not successful."
+
+    if transaction_data.get("status") != "successful":
+        return False, "Flutterwave transaction is not successful."
+
+    verified_reference = str(
+        transaction_data.get("tx_ref")
+        or transaction_data.get("reference")
+        or ""
+    ).strip()
+
+    if verified_reference != str(payment.reference or "").strip():
+        return False, "Flutterwave transaction reference mismatch."
+
+    try:
+        verified_amount = Decimal(
+            str(transaction_data.get("amount"))
+        ).quantize(Decimal("0.01"))
+        expected_amount = payment.amount_as_decimal.quantize(
+            Decimal("0.01")
+        )
+    except (InvalidOperation, TypeError, ValueError):
+        return False, "Invalid Flutterwave transaction amount."
+
+    if verified_amount != expected_amount:
+        return False, "Flutterwave transaction amount mismatch."
+
+    verified_currency = str(
+        transaction_data.get("currency") or ""
+    ).strip().upper()
+
+    expected_currency = str(
+        payment.currency or ""
+    ).strip().upper()
+
+    if verified_currency != expected_currency:
+        return False, "Flutterwave transaction currency mismatch."
+
+    return True, ""
+
+
+def verify_flutterwave_payment(payment, transaction_id=None):
+    """
+    Re-query Flutterwave and strictly bind the response to a local payment.
+    """
+
+    if transaction_id:
+        data = verify_flutterwave_transaction(transaction_id)
+    else:
+        data = verify_flutterwave_transaction_by_reference(
+            payment.reference
+        )
+
+    valid, error = validate_flutterwave_payment_response(
+        payment,
+        data,
+    )
+
+    if valid:
+        return data
+
+    if isinstance(data, dict):
+        data = dict(data)
+        data["validation_error"] = error
+        return data
+
+    return {
+        "status": "error",
+        "validation_error": error,
+        "data": {},
+    }
 
 def paypal_access_token():
     base = settings.PAYPAL_BASE_URL.rstrip("/")
@@ -570,9 +743,61 @@ def _payment_event_metadata(payment, order, event, capture_id=""):
 
 def _handle_paypal_capture_completed(payment, event):
     resource = _paypal_resource(event)
+
+    if str(resource.get("status") or "").strip().upper() != "COMPLETED":
+        raise ValueError(
+            "PayPal capture webhook did not report COMPLETED status."
+        )
+
     _validate_paypal_capture(payment, resource)
     capture_id = str(resource.get("id") or "").strip()
-    paypal_order_id = str(_paypal_related_ids(resource).get("order_id") or payment.gateway_reference or "").strip()
+    paypal_order_id = str(_paypal_related_ids(resource).get("order_id") or "").strip()
+
+    if not capture_id:
+        raise ValueError(
+            "PayPal capture ID is missing."
+        )
+
+    if not paypal_order_id:
+        raise ValueError(
+            "PayPal order ID is missing from capture webhook."
+        )
+
+    local_order_id = str(
+        payment.gateway_reference or ""
+    ).strip()
+
+    if (
+        local_order_id
+        and paypal_order_id != local_order_id
+    ):
+        raise ValueError(
+            "PayPal order identity mismatch."
+        )
+
+    local_capture_id = str(
+        payment.gateway_capture_id or ""
+    ).strip()
+
+    if (
+        local_capture_id
+        and capture_id != local_capture_id
+    ):
+        raise ValueError(
+            "PayPal capture identity mismatch."
+        )
+
+    event_references, _order_ids, _capture_ids = (
+        _paypal_payment_candidates(event)
+    )
+
+    if (
+        event_references
+        and payment.reference not in event_references
+    ):
+        raise ValueError(
+            "PayPal payment reference mismatch."
+        )
 
     was_success = payment.status == PaymentStatus.SUCCESS
     payment.gateway_capture_id = capture_id
@@ -630,8 +855,58 @@ def _handle_paypal_refund(payment, event):
     related = _paypal_related_ids(resource)
     capture_id = str(related.get("capture_id") or payment.gateway_capture_id or "").strip()
     amount, currency = _paypal_event_amount(resource)
+
     if amount <= 0:
-        raise ValueError("PayPal refund event did not include a valid amount.")
+        raise ValueError(
+            "PayPal refund event did not include a valid amount."
+        )
+
+    local_capture_id = str(
+        payment.gateway_capture_id or ""
+    ).strip()
+
+    if (
+        local_capture_id
+        and capture_id != local_capture_id
+    ):
+        raise ValueError(
+            "PayPal refund capture identity mismatch."
+        )
+
+    settlement = (
+        payment.gateway_response or {}
+    ).get("arolana_settlement") or {}
+
+    try:
+        settlement_amount = Decimal(
+            str(
+                settlement.get("settlement_amount")
+                or payment.amount
+            )
+        ).quantize(Decimal("0.01"))
+    except (
+        InvalidOperation,
+        TypeError,
+        ValueError,
+    ):
+        raise ValueError(
+            "Invalid PayPal settlement amount."
+        )
+
+    settlement_currency = str(
+        settlement.get("settlement_currency")
+        or payment.currency
+    ).strip().upper()
+
+    if not currency or currency != settlement_currency:
+        raise ValueError(
+            "PayPal refund currency mismatch."
+        )
+
+    if amount > settlement_amount:
+        raise ValueError(
+            "PayPal refund amount exceeds captured settlement amount."
+        )
 
     refund, _created = PaymentRefund.objects.update_or_create(
         gateway_refund_id=refund_id,
@@ -647,15 +922,61 @@ def _handle_paypal_refund(payment, event):
             "refunded_at": timezone.now(),
         },
     )
-    payment.status = PaymentStatus.REFUNDED
+    total_refunded = sum(
+        (
+            Decimal(str(value))
+            for value in (
+                PaymentRefund.objects
+                .filter(
+                    transaction=payment,
+                    gateway=PaymentMethod.PAYPAL,
+                )
+                .values_list("amount", flat=True)
+            )
+        ),
+        Decimal("0.00"),
+    ).quantize(Decimal("0.01"))
+
+    if total_refunded > settlement_amount:
+        raise ValueError(
+            "Cumulative PayPal refunds exceed the captured settlement amount."
+        )
+
+    is_fully_refunded = (
+        total_refunded >= settlement_amount
+    )
+
     payment.webhook_payload = event
-    payment.save(update_fields=["status", "webhook_payload", "updated_at"])
+
+    if is_fully_refunded:
+        payment.status = PaymentStatus.REFUNDED
+        payment.save(
+            update_fields=[
+                "status",
+                "webhook_payload",
+                "updated_at",
+            ]
+        )
+    else:
+        payment.save(
+            update_fields=[
+                "webhook_payload",
+                "updated_at",
+            ]
+        )
 
     order = _order_for_payment(payment)
-    if order:
+
+    if order and is_fully_refunded:
         order.payment_status = "refunded"
         order.status = "refunded"
-        order.save(update_fields=["payment_status", "status", "updated_at"])
+        order.save(
+            update_fields=[
+                "payment_status",
+                "status",
+                "updated_at",
+            ]
+        )
 
     metadata = _payment_event_metadata(payment, order, event, capture_id)
     metadata["paypal_refund_id"] = refund_id
@@ -826,7 +1147,13 @@ def init_paypal_checkout(request, payment):
     settlement_amount, settlement_currency, conversion_rate = _paypal_settlement(payment)
 
     return_url = absolute_url(request, reverse("arolana_payments:callback", args=[payment.reference]))
-    cancel_url = absolute_url(request, reverse("arolana_payments:cancel", args=[payment.reference]))
+    cancel_url = absolute_url(
+    request,
+    reverse(
+        "arolana_payments:status",
+        args=[payment.reference],
+    ),
+)
 
     payload = {
         "intent": "CAPTURE",
@@ -913,33 +1240,91 @@ def capture_paypal_order(payment):
 
 def record_paypal_capture_response(payment, data):
     """
-    Persist PayPal's synchronous capture response without finalizing payment.
+    Validate and persist PayPal's synchronous capture response.
 
-    The signed PAYMENT.CAPTURE.COMPLETED webhook is the authoritative event
-    that marks the Arolana transaction and order as paid.
+    This response never finalizes the Arolana payment. The signed
+    PAYMENT.CAPTURE.COMPLETED webhook remains authoritative.
     """
-    capture_id = ""
-    for purchase_unit in (data or {}).get("purchase_units") or []:
-        payments = purchase_unit.get("payments") or {}
-        captures = payments.get("captures") or []
-        if captures:
-            capture_id = str(captures[0].get("id") or "").strip()
-            if capture_id:
-                break
+    if payment.gateway != PaymentMethod.PAYPAL:
+        raise ValueError("Payment gateway is not PayPal.")
 
-    payment.gateway_capture_id = capture_id or payment.gateway_capture_id
+    if not isinstance(data, dict):
+        raise ValueError("Invalid PayPal capture response.")
+
+    if str(data.get("status") or "").strip().upper() != "COMPLETED":
+        raise ValueError("PayPal capture response is not completed.")
+
+    paypal_order_id = str(data.get("id") or "").strip()
+    local_order_id = str(payment.gateway_reference or "").strip()
+
+    if not paypal_order_id:
+        raise ValueError("PayPal order ID is missing from capture response.")
+
+    if not local_order_id or paypal_order_id != local_order_id:
+        raise ValueError("PayPal capture response order identity mismatch.")
+
+    purchase_units = data.get("purchase_units") or []
+
+    if not isinstance(purchase_units, list) or len(purchase_units) != 1:
+        raise ValueError("PayPal capture response must contain exactly one purchase unit.")
+
+    purchase_unit = purchase_units[0]
+
+    if not isinstance(purchase_unit, dict):
+        raise ValueError("Invalid PayPal purchase unit.")
+
+    reference_id = str(purchase_unit.get("reference_id") or "").strip()
+
+    if reference_id and reference_id != payment.reference:
+        raise ValueError("PayPal capture response reference mismatch.")
+
+    payments = purchase_unit.get("payments") or {}
+    captures = payments.get("captures") or []
+
+    if not isinstance(captures, list) or len(captures) != 1:
+        raise ValueError("PayPal capture response must contain exactly one capture.")
+
+    capture = captures[0]
+
+    if not isinstance(capture, dict):
+        raise ValueError("Invalid PayPal capture object.")
+
+    if str(capture.get("status") or "").strip().upper() != "COMPLETED":
+        raise ValueError("PayPal capture object is not completed.")
+
+    _validate_paypal_capture(payment, capture)
+
+    capture_id = str(capture.get("id") or "").strip()
+
+    if not capture_id:
+        raise ValueError("PayPal capture ID is missing.")
+
+    local_capture_id = str(payment.gateway_capture_id or "").strip()
+
+    if local_capture_id and capture_id != local_capture_id:
+        raise ValueError("PayPal capture response identity mismatch.")
+
+    payment.gateway_capture_id = capture_id
     payment.gateway_response = {
         **(payment.gateway_response or {}),
-        "paypal_capture_response": data or {},
+        "paypal_capture_response": data,
     }
-    if payment.status not in [PaymentStatus.SUCCESS, PaymentStatus.REFUNDED]:
+
+    if payment.status not in [
+        PaymentStatus.SUCCESS,
+        PaymentStatus.REFUNDED,
+    ]:
         payment.status = PaymentStatus.PROCESSING
-    payment.save(update_fields=[
-        "gateway_capture_id",
-        "gateway_response",
-        "status",
-        "updated_at",
-    ])
+
+    payment.save(
+        update_fields=[
+            "gateway_capture_id",
+            "gateway_response",
+            "status",
+            "updated_at",
+        ]
+    )
+
     return capture_id
 
 
@@ -1007,7 +1392,13 @@ def init_coinbase_checkout(request, payment):
             "order_id": payment.order_id,
         },
         "redirect_url": absolute_url(request, reverse("arolana_payments:callback", args=[payment.reference])),
-        "cancel_url": absolute_url(request, reverse("arolana_payments:cancel", args=[payment.reference])),
+        "cancel_url": absolute_url(
+    request,
+    reverse(
+        "arolana_payments:status",
+        args=[payment.reference],
+    ),
+),
     }
 
     response = requests.post(
@@ -1040,11 +1431,47 @@ def verify_coinbase_signature(request_body, signature):
 
 
 def verify_flutterwave_webhook(request):
-    secret_hash = getattr(settings, "FLUTTERWAVE_SECRET_HASH", "")
+    """
+    Verify Flutterwave webhook signatures.
+
+    Prefer the current HMACSHA256 Base64 signature scheme.
+    Retain the legacy verif-hash fallback for older v3 webhook
+    delivery while the integration is being migrated.
+    """
+
+    secret_hash = str(
+        getattr(settings, "FLUTTERWAVE_SECRET_HASH", "") or ""
+    ).strip()
+
     if not secret_hash:
         return False
-    return hmac.compare_digest(request.headers.get("verif-hash", ""), secret_hash)
 
+    signature = str(
+        request.headers.get("flutterwave-signature", "") or ""
+    ).strip()
+
+    if signature:
+        expected = base64.b64encode(
+            hmac.new(
+                secret_hash.encode("utf-8"),
+                request.body,
+                hashlib.sha256,
+            ).digest()
+        ).decode("ascii")
+
+        return hmac.compare_digest(
+            expected,
+            signature,
+        )
+
+    legacy_signature = str(
+        request.headers.get("verif-hash", "") or ""
+    ).strip()
+
+    return bool(legacy_signature) and hmac.compare_digest(
+        legacy_signature,
+        secret_hash,
+    )
 
 def update_order_after_payment(payment):
     """
@@ -1063,3 +1490,278 @@ def update_order_after_payment(payment):
     module = __import__(module_path, fromlist=[function_name])
     handler = getattr(module, function_name)
     handler(payment)
+
+def validate_paystack_payment_response(payment, data):
+    """
+    Validate a successful Paystack verification response against
+    the Arolana PaymentTransaction being fulfilled.
+    """
+
+    if not isinstance(data, dict):
+        return False, "Invalid Paystack verification response."
+
+    transaction_data = data.get("data") or {}
+
+    if data.get("status") is not True:
+        return False, "Paystack verification was not successful."
+
+    if transaction_data.get("status") != "success":
+        return False, "Paystack transaction is not successful."
+
+    verified_reference = str(
+        transaction_data.get("reference") or ""
+    ).strip()
+
+    expected_references = {
+        str(payment.reference or "").strip(),
+        str(payment.gateway_reference or "").strip(),
+    }
+
+    expected_references.discard("")
+
+    if verified_reference not in expected_references:
+        return False, "Paystack transaction reference mismatch."
+
+    try:
+        verified_amount = int(
+            transaction_data.get("amount")
+        )
+    except (TypeError, ValueError):
+        return False, "Invalid Paystack transaction amount."
+
+    expected_amount = int(
+        payment.amount_as_decimal * 100
+    )
+
+    if verified_amount != expected_amount:
+        return False, "Paystack transaction amount mismatch."
+
+    verified_currency = str(
+        transaction_data.get("currency") or ""
+    ).strip().upper()
+
+    expected_currency = str(
+        payment.currency or ""
+    ).strip().upper()
+
+    if verified_currency != expected_currency:
+        return False, "Paystack transaction currency mismatch."
+
+    return True, ""
+
+
+def verify_paystack_payment(payment):
+    """
+    Verify only the Paystack reference stored on the Arolana
+    PaymentTransaction and validate reference, amount, and currency.
+    """
+
+    reference = str(
+        payment.gateway_reference
+        or payment.reference
+        or ""
+    ).strip()
+
+    data = verify_paystack_transaction(reference)
+
+    transaction_data = (
+        data.get("data") or {}
+        if isinstance(data, dict)
+        else {}
+    )
+
+    is_successful = (
+        isinstance(data, dict)
+        and data.get("status") is True
+        and transaction_data.get("status") == "success"
+    )
+
+    if not is_successful:
+        return data
+
+    valid, validation_error = (
+        validate_paystack_payment_response(
+            payment,
+            data,
+        )
+    )
+
+    if valid:
+        return data
+
+    rejected_data = dict(data)
+
+    rejected_data["status"] = False
+    rejected_data["validation_error"] = (
+        validation_error
+    )
+
+    return rejected_data
+
+def fulfill_successful_payment(payment_id):
+    """
+    Fulfill a successful order payment exactly once.
+
+    Non-order payment purposes are intentionally ignored here.
+    Vendor and provider subscriptions have their own fulfillment
+    services so payment success and subscription activation remain
+    auditable and independently retryable.
+    """
+    from django.db import transaction
+    from django.utils import timezone as django_timezone
+
+    from .models import (
+        PaymentStatus,
+        PaymentTransaction,
+    )
+
+    try:
+        with transaction.atomic():
+            payment = (
+                PaymentTransaction.objects
+                .select_for_update()
+                .get(pk=payment_id)
+            )
+
+            if payment.status != PaymentStatus.SUCCESS:
+                return None
+
+            checkout_data = payment.checkout_data or {}
+
+            purpose = str(
+                checkout_data.get("purpose") or ""
+            ).strip().lower()
+
+            # Empty purpose remains backwards-compatible with
+            # existing order checkout transactions.
+            if purpose and purpose != "order":
+                return None
+
+            if payment.fulfilled_at:
+                return None
+
+            payment.fulfillment_attempts += 1
+            payment.fulfillment_error = ""
+
+            payment.save(
+                update_fields=[
+                    "fulfillment_attempts",
+                    "fulfillment_error",
+                    "updated_at",
+                ]
+            )
+
+            result = update_order_after_payment(
+                payment
+            )
+
+            payment.fulfilled_at = (
+                django_timezone.now()
+            )
+
+            payment.fulfillment_error = ""
+
+            payment.save(
+                update_fields=[
+                    "fulfilled_at",
+                    "fulfillment_error",
+                    "updated_at",
+                ]
+            )
+
+            return result
+
+    except Exception as exc:
+        # The original atomic block rolls back, including its attempt
+        # increment. Record the failed attempt separately.
+        with transaction.atomic():
+            failed_payment = (
+                PaymentTransaction.objects
+                .select_for_update()
+                .get(pk=payment_id)
+            )
+
+            failed_payment.fulfillment_attempts += 1
+
+            failed_payment.fulfillment_error = str(
+                exc
+            )[:4000]
+
+            failed_payment.save(
+                update_fields=[
+                    "fulfillment_attempts",
+                    "fulfillment_error",
+                    "updated_at",
+                ]
+            )
+
+        raise
+
+def dispatch_successful_payment(payment_id):
+    from .models import PaymentTransaction
+
+    payment = (
+        PaymentTransaction.objects
+        .only(
+            "id",
+            "checkout_data",
+        )
+        .get(pk=payment_id)
+    )
+
+    purpose = str(
+        (payment.checkout_data or {}).get("purpose")
+        or "order"
+    ).strip().lower()
+
+    if purpose == "vendor_subscription":
+        from subscriptions.services import (
+            activate_vendor_subscription_payment,
+        )
+
+        return activate_vendor_subscription_payment(
+            payment_id
+        )
+
+    if purpose == "provider_subscription":
+        from installers.subscription_services import (
+            activate_provider_subscription_payment,
+        )
+
+        return activate_provider_subscription_payment(
+            payment_id
+        )
+
+    return fulfill_successful_payment(
+        payment_id
+    )
+
+# =============================================================================
+# PAYSTACK WEBHOOK SIGNATURE VERIFICATION
+# =============================================================================
+
+
+def verify_paystack_webhook_signature(request_body, signature):
+    """
+    Verify Paystack's x-paystack-signature using HMAC-SHA512
+    over the exact raw request body.
+    """
+    secret_key = str(
+        getattr(settings, "PAYSTACK_SECRET_KEY", "") or ""
+    ).strip()
+
+    signature = str(signature or "").strip()
+
+    if not secret_key or not signature:
+        return False
+
+    expected = hmac.new(
+        secret_key.encode("utf-8"),
+        request_body,
+        hashlib.sha512,
+    ).hexdigest()
+
+    return hmac.compare_digest(
+        expected,
+        signature,
+    )

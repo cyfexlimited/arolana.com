@@ -155,18 +155,19 @@ class VendorProfile(BaseModel):
         help_text="Exact store/warehouse pickup address used for checkout delivery pricing."
     )
     pickup_latitude = models.DecimalField(
-        max_digits=10,
-        decimal_places=7,
+        max_digits=12,
+        decimal_places=8,
         null=True,
         blank=True,
-        help_text="Pickup map latitude for exact rider distance pricing."
+        help_text="Pickup map latitude for exact rider distance pricing.",
     )
+    
     pickup_longitude = models.DecimalField(
-        max_digits=10,
-        decimal_places=7,
+        max_digits=12,
+        decimal_places=8,
         null=True,
         blank=True,
-        help_text="Pickup map longitude for exact rider distance pricing."
+        help_text="Pickup map longitude for exact rider distance pricing.",
     )
     
     # Badges

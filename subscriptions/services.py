@@ -1,3 +1,4 @@
+from datetime import timedelta
 from django.conf import settings
 from django.core.mail import send_mail
 from django.db import transaction
@@ -7,7 +8,14 @@ from notifications.models import Notification
 from products.models import Product
 from vendors.models import VendorProfile
 
-from .models import VendorSubscription, apply_vendor_subscription_benefits, get_tier_limits, normalize_subscription_tier, subscription_label
+from .models import (
+    SubscriptionPlan,
+    VendorSubscription,
+    apply_vendor_subscription_benefits,
+    get_tier_limits,
+    normalize_subscription_tier,
+    subscription_label,
+)
 
 
 def _vendor_phone(profile):
@@ -225,3 +233,310 @@ def run_subscription_robot(now=None):
         enforce_vendor_product_visibility(profile)
 
     return stats
+
+def activate_vendor_subscription_payment(payment_id, now=None):
+    """
+    Activate one vendor subscription from one successful payment.
+
+    The same PaymentTransaction can only fulfill the subscription once.
+    """
+
+    from arolana_payments.models import (
+        PaymentStatus,
+        PaymentTransaction,
+    )
+
+    now = now or timezone.now()
+
+    try:
+        with transaction.atomic():
+            payment = (
+                PaymentTransaction.objects
+                .select_for_update()
+                .select_related("user")
+                .get(pk=payment_id)
+            )
+
+            if payment.status != PaymentStatus.SUCCESS:
+                raise ValueError(
+                    "Subscription payment is not successful."
+                )
+
+            checkout_data = payment.checkout_data or {}
+
+            if (
+                str(
+                    checkout_data.get("purpose") or ""
+                ).strip().lower()
+                != "vendor_subscription"
+            ):
+                raise ValueError(
+                    "Payment is not a vendor subscription payment."
+                )
+
+            profile_id = checkout_data.get(
+                "vendor_profile_id"
+            )
+
+            plan_id = checkout_data.get(
+                "plan_id"
+            )
+
+            profile = (
+                VendorProfile.objects
+                .select_for_update()
+                .select_related("user")
+                .filter(pk=profile_id)
+                .first()
+            )
+
+            if not profile:
+                raise ValueError(
+                    "Vendor profile for this payment was not found."
+                )
+
+            plan = (
+                SubscriptionPlan.objects
+                .filter(
+                    pk=plan_id,
+                    is_active=True,
+                )
+                .first()
+            )
+
+            if not plan:
+                raise ValueError(
+                    "Subscription plan for this payment was not found."
+                )
+
+            if payment.user_id != profile.user_id:
+                raise ValueError(
+                    "Subscription payment owner mismatch."
+                )
+
+            if payment.amount != plan.price_monthly:
+                raise ValueError(
+                    "Subscription payment amount mismatch."
+                )
+
+            if (
+                str(payment.currency or "").strip().upper()
+                != "NGN"
+            ):
+                raise ValueError(
+                    "Subscription payment currency mismatch."
+                )
+
+            expected_order_id = (
+                f"vendor_subscription:"
+                f"{profile.id}:"
+                f"{plan.id}"
+            )
+
+            if (
+                payment.order_id
+                and payment.order_id != expected_order_id
+            ):
+                raise ValueError(
+                    "Subscription payment target mismatch."
+                )
+
+            existing = (
+                VendorSubscription.objects
+                .select_related("plan")
+                .filter(
+                    transaction_id=payment.reference
+                )
+                .first()
+            )
+
+            if existing:
+                if (
+                    existing.vendor_id != profile.user_id
+                    or existing.plan_id != plan.id
+                ):
+                    raise ValueError(
+                        "Existing subscription transaction mismatch."
+                    )
+
+            if payment.fulfilled_at:
+                if existing:
+                    return existing
+
+                raise RuntimeError(
+                    "Payment is marked fulfilled but the "
+                    "subscription record is missing."
+                )
+
+            payment.fulfillment_attempts += 1
+            payment.fulfillment_error = ""
+
+            payment.save(
+                update_fields=[
+                    "fulfillment_attempts",
+                    "fulfillment_error",
+                    "updated_at",
+                ]
+            )
+
+            # Recovery path:
+            # subscription exists but payment fulfillment timestamp
+            # was not persisted.
+            if existing:
+                payment.fulfilled_at = now
+                payment.fulfillment_error = ""
+
+                payment.save(
+                    update_fields=[
+                        "fulfilled_at",
+                        "fulfillment_error",
+                        "updated_at",
+                    ]
+                )
+
+                return existing
+
+            VendorSubscription.objects.filter(
+                vendor=profile.user,
+                is_active=True,
+            ).update(
+                is_active=False,
+                auto_renew=False,
+                updated_at=now,
+            )
+
+            started_at = now
+
+            expiry = (
+                started_at
+                + timedelta(days=30)
+            )
+
+            profile.subscription_tier = (
+                plan.tier_key
+            )
+
+            profile.subscription_active = True
+
+            profile.subscription_started_at = (
+                started_at
+            )
+
+            profile.subscription_expires_at = (
+                expiry
+            )
+
+            profile.subscription_expiry = (
+                expiry
+            )
+
+            profile.priority_score = (
+                get_tier_limits(
+                    plan.tier_key
+                )["priority_score"]
+            )
+
+            profile.save(
+                update_fields=[
+                    "subscription_tier",
+                    "subscription_active",
+                    "subscription_started_at",
+                    "subscription_expires_at",
+                    "subscription_expiry",
+                    "priority_score",
+                    "updated_at",
+                ]
+            )
+
+            apply_vendor_subscription_benefits(
+                profile,
+                plan,
+            )
+
+            subscription = (
+                VendorSubscription.objects.create(
+                    vendor=profile.user,
+                    plan=plan,
+                    start_date=started_at,
+                    end_date=expiry,
+                    is_active=True,
+                    payment_method=(
+                        "paid"
+                        if plan.price_monthly > 0
+                        else "free"
+                    ),
+                    transaction_id=payment.reference,
+                )
+            )
+
+            enforce_vendor_product_visibility(
+                profile
+            )
+
+            payment.fulfilled_at = now
+            payment.fulfillment_error = ""
+
+            payment.save(
+                update_fields=[
+                    "fulfilled_at",
+                    "fulfillment_error",
+                    "updated_at",
+                ]
+            )
+
+            plan_name = subscription_label(
+                plan.tier_key
+            )
+
+            message = (
+                f"Your Arolana {plan_name} subscription "
+                f"is active until {expiry:%d %b %Y}. "
+                f"Payment reference: {payment.reference}."
+            )
+
+            notification_key = (
+                f"subscription-activated-"
+                f"{payment.reference}"
+            )
+
+            transaction.on_commit(
+                lambda: notify_vendor_subscription(
+                    profile,
+                    "Subscription activated",
+                    message,
+                    notification_key,
+                    priority=3,
+                ),
+                robust=True,
+            )
+
+            return subscription
+
+    except Exception as exc:
+        with transaction.atomic():
+            failed_payment = (
+                PaymentTransaction.objects
+                .select_for_update()
+                .filter(pk=payment_id)
+                .first()
+            )
+
+            if (
+                failed_payment
+                and not failed_payment.fulfilled_at
+            ):
+                failed_payment.fulfillment_attempts += 1
+
+                failed_payment.fulfillment_error = str(
+                    exc
+                )[:4000]
+
+                failed_payment.save(
+                    update_fields=[
+                        "fulfillment_attempts",
+                        "fulfillment_error",
+                        "updated_at",
+                    ]
+                )
+
+        raise

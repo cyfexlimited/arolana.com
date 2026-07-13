@@ -16,12 +16,13 @@
 {% block content %}
 <div class="max-w-4xl mx-auto py-8">
     <div class="bg-white rounded-lg shadow-md overflow-hidden">
+
         <div class="bg-gradient-to-r from-blue-600 to-purple-600 p-8 text-white text-center">
             <i class="fas fa-store text-5xl mb-4"></i>
             <h1 class="text-3xl font-bold mb-2">Become a Vendor</h1>
             <p class="text-lg opacity-90">Join our marketplace and start selling today</p>
         </div>
-        
+
         <div class="p-8">
             {% if messages %}
                 <div class="mb-6 grid gap-3">
@@ -42,6 +43,7 @@
                     <h3 class="font-semibold mb-2">Reach Millions</h3>
                     <p class="text-sm text-gray-600">Access our large customer base</p>
                 </div>
+
                 <div class="text-center">
                     <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
                         <i class="fas fa-chart-line text-2xl text-green-600"></i>
@@ -49,6 +51,7 @@
                     <h3 class="font-semibold mb-2">Analytics Dashboard</h3>
                     <p class="text-sm text-gray-600">Track your sales and performance</p>
                 </div>
+
                 <div class="text-center">
                     <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
                         <i class="fas fa-shield-alt text-2xl text-purple-600"></i>
@@ -57,114 +60,256 @@
                     <p class="text-sm text-gray-600">Get paid safely and on time</p>
                 </div>
             </div>
-            
+
             <!-- KYC Notice -->
             <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                 <div class="flex items-start gap-3">
                     <i class="fas fa-info-circle text-blue-600 mt-1"></i>
                     <div class="text-sm text-blue-800">
                         <p class="font-semibold mb-1">Important: KYC Required</p>
-                        <p>After registration, you'll need to complete KYC verification before you can start selling. This includes business verification and document upload.</p>
+                        <p>
+                            After registration, you'll need to complete KYC verification
+                            before you can start selling. This includes business verification
+                            and document upload.
+                        </p>
                     </div>
                 </div>
             </div>
-            
+
             <!-- Application Form -->
             <h2 class="text-2xl font-bold mb-6">Start Your Application</h2>
-            
-            <form method="POST">
+
+            <form method="POST" id="vendor-registration-form">
                 {% csrf_token %}
-                
+
                 <div class="mb-4">
-                    <label class="block text-gray-700 font-semibold mb-2">Store Name *</label>
-                    <input type="text" 
-                           name="store_name" 
-                           required 
-                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                           placeholder="e.g., TechPro Store">
-                    <p class="text-sm text-gray-500 mt-1">This will be your store's display name</p>
+                    <label class="block text-gray-700 font-semibold mb-2">
+                        Store Name *
+                    </label>
+
+                    <input
+                        type="text"
+                        name="store_name"
+                        required
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="e.g., TechPro Store"
+                    >
+
+                    <p class="text-sm text-gray-500 mt-1">
+                        This will be your store's display name
+                    </p>
                 </div>
-                
+
                 <div class="mb-4">
-                    <label class="block text-gray-700 font-semibold mb-2">Store URL *</label>
+                    <label class="block text-gray-700 font-semibold mb-2">
+                        Store URL *
+                    </label>
+
                     <div class="flex items-center">
-                        <span class="bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg px-3 py-2 text-gray-600">arolana.com/vendors/</span>
-                        <input type="text" 
-                               name="store_slug" 
-                               required 
-                               pattern="[a-z0-9\-]+"
-                               class="flex-1 px-4 py-2 border border-gray-300 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               placeholder="techpro-store">
+                        <span class="bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg px-3 py-2 text-gray-600">
+                            arolana.com/vendors/
+                        </span>
+
+                        <input
+                            type="text"
+                            name="store_slug"
+                            required
+                            pattern="[a-z0-9\-]+"
+                            class="flex-1 px-4 py-2 border border-gray-300 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="techpro-store"
+                        >
                     </div>
-                    <p class="text-sm text-gray-500 mt-1">Use only lowercase letters, numbers, and hyphens</p>
+
+                    <p class="text-sm text-gray-500 mt-1">
+                        Use only lowercase letters, numbers, and hyphens
+                    </p>
                 </div>
-                
+
                 <div class="mb-6">
-                    <label class="block text-gray-700 font-semibold mb-2">Store Description *</label>
-                    <textarea name="description" 
-                              rows="6" 
-                              required 
-                              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              placeholder="Tell customers about your store, what products you sell, and why they should buy from you..."></textarea>
+                    <label class="block text-gray-700 font-semibold mb-2">
+                        Store Description *
+                    </label>
+
+                    <textarea
+                        name="description"
+                        rows="6"
+                        required
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Tell customers about your store, what products you sell, and why they should buy from you..."
+                    ></textarea>
                 </div>
 
                 <div class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <h3 class="text-xl font-black text-gray-900">Marketplace Address</h3>
-                    <p class="mt-1 text-sm text-gray-600">Customers will see your city/state as the product location. This also helps Arolana trust and delivery checks.</p>
+                    <h3 class="text-xl font-black text-gray-900">
+                        Marketplace Address
+                    </h3>
+
+                    <p class="mt-1 text-sm text-gray-600">
+                        Customers will see your city/state as the product location.
+                        This also helps Arolana trust and delivery checks.
+                    </p>
+
                     <div class="mt-4">
-                        <label class="block text-gray-700 font-semibold mb-2">Business address *</label>
-                        <input type="text" name="address_line_1" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Building, street, area">
+                        <label class="block text-gray-700 font-semibold mb-2">
+                            Business address *
+                        </label>
+
+                        <input
+                            type="text"
+                            name="address_line_1"
+                            required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Building, street, area"
+                        >
                     </div>
+
                     <div class="mt-4 grid gap-4 md:grid-cols-3">
                         <div>
-                            <label class="block text-gray-700 font-semibold mb-2">City *</label>
-                            <input type="text" name="city" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ikeja">
+                            <label class="block text-gray-700 font-semibold mb-2">
+                                City *
+                            </label>
+
+                            <input
+                                type="text"
+                                name="city"
+                                required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Ikeja"
+                            >
                         </div>
+
                         <div>
-                            <label class="block text-gray-700 font-semibold mb-2">State *</label>
-                            <input type="text" name="state" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Lagos">
+                            <label class="block text-gray-700 font-semibold mb-2">
+                                State *
+                            </label>
+
+                            <input
+                                type="text"
+                                name="state"
+                                required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Lagos"
+                            >
                         </div>
+
                         <div>
-                            <label class="block text-gray-700 font-semibold mb-2">Country *</label>
-                            <input type="text" name="country" required value="Nigeria" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nigeria">
+                            <label class="block text-gray-700 font-semibold mb-2">
+                                Country *
+                            </label>
+
+                            <input
+                                type="text"
+                                name="country"
+                                required
+                                value="Nigeria"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Nigeria"
+                            >
                         </div>
                     </div>
                 </div>
 
                 <div class="mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
-                    <h3 class="text-xl font-black text-gray-900">Exact Pickup Location</h3>
-                    <p class="mt-1 text-sm text-gray-600">This is what Arolana uses to calculate delivery fees and send nearby riders to the right store or warehouse.</p>
+                    <h3 class="text-xl font-black text-gray-900">
+                        Exact Pickup Location
+                    </h3>
+
+                    <p class="mt-1 text-sm text-gray-600">
+                        This is what Arolana uses to calculate delivery fees and
+                        send nearby riders to the right store or warehouse.
+                    </p>
+
                     <div class="mt-4 grid gap-4 md:grid-cols-2">
                         <div>
-                            <label class="block text-gray-700 font-semibold mb-2">Pickup contact name</label>
-                            <input type="text" name="pickup_contact_name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Name riders should ask for">
+                            <label class="block text-gray-700 font-semibold mb-2">
+                                Pickup contact name
+                            </label>
+
+                            <input
+                                type="text"
+                                name="pickup_contact_name"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Name riders should ask for"
+                            >
                         </div>
+
                         <div>
-                            <label class="block text-gray-700 font-semibold mb-2">Pickup phone</label>
-                            <input type="tel" name="pickup_phone" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="+234...">
+                            <label class="block text-gray-700 font-semibold mb-2">
+                                Pickup phone
+                            </label>
+
+                            <input
+                                type="tel"
+                                name="pickup_phone"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="+234..."
+                            >
                         </div>
                     </div>
+
                     <div class="mt-4">
-                        <label class="block text-gray-700 font-semibold mb-2">Exact pickup address *</label>
-                        <textarea name="pickup_address" rows="3" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Building number, street, area, city, state, nearby landmark"></textarea>
+                        <label class="block text-gray-700 font-semibold mb-2">
+                            Exact pickup address *
+                        </label>
+
+                        <textarea
+                            name="pickup_address"
+                            rows="3"
+                            required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Building number, street, area, city, state, nearby landmark"
+                        ></textarea>
                     </div>
+
                     <div class="mt-4 flex flex-wrap gap-2">
-                        <button type="button" id="vendor-use-current-location" class="rounded-xl bg-blue-600 px-4 py-2 text-sm font-black text-white hover:bg-blue-700">
-                            <i class="fas fa-location-crosshairs mr-1"></i> Use my current location as pickup pin
+                        <button
+                            type="button"
+                            id="vendor-use-current-location"
+                            class="rounded-xl bg-blue-600 px-4 py-2 text-sm font-black text-white hover:bg-blue-700"
+                        >
+                            <i class="fas fa-location-crosshairs mr-1"></i>
+                            Use my current location as pickup pin
                         </button>
-                        <span id="vendor-location-status" class="inline-flex items-center text-sm font-bold text-gray-600">Map pin is required.</span>
+
+                        <span
+                            id="vendor-location-status"
+                            class="inline-flex items-center text-sm font-bold text-gray-600"
+                        >
+                            Map pin is required.
+                        </span>
                     </div>
-                    <div class="mt-4 vendor-pickup-map" id="vendor-pickup-map"></div>
-                    <input type="hidden" name="pickup_latitude" id="vendor-pickup-latitude" required>
-                    <input type="hidden" name="pickup_longitude" id="vendor-pickup-longitude" required>
-                    <p class="mt-2 text-xs text-gray-500">You can drag the pin on the map after using your current location.</p>
+
+                    <div
+                        class="mt-4 vendor-pickup-map"
+                        id="vendor-pickup-map"
+                    ></div>
+
+                    <input
+                        type="hidden"
+                        name="pickup_latitude"
+                        id="vendor-pickup-latitude"
+                        required
+                    >
+
+                    <input
+                        type="hidden"
+                        name="pickup_longitude"
+                        id="vendor-pickup-longitude"
+                        required
+                    >
+
+                    <p class="mt-2 text-xs text-gray-500">
+                        You can drag the pin on the map after using your current location.
+                    </p>
                 </div>
-                
+
                 <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
                     <div class="flex items-start gap-3">
                         <i class="fas fa-file-alt text-yellow-600 mt-1"></i>
+
                         <div class="text-sm text-yellow-800">
                             <p class="font-semibold mb-1">What happens next?</p>
+
                             <ul class="list-disc list-inside space-y-1">
                                 <li>You'll receive access to your vendor dashboard</li>
                                 <li>Complete KYC verification (business info + documents)</li>
@@ -174,14 +319,22 @@
                         </div>
                     </div>
                 </div>
-                
-                <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
+
+                <button
+                    type="submit"
+                    class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+                >
                     Submit Application
                 </button>
             </form>
-            
+
             <div class="mt-6 text-center text-sm text-gray-500">
-                <p>By submitting, you agree to our <a href="#" class="text-blue-600">Terms of Service</a> and <a href="#" class="text-blue-600">Vendor Agreement</a></p>
+                <p>
+                    By submitting, you agree to our
+                    <a href="#" class="text-blue-600">Terms of Service</a>
+                    and
+                    <a href="#" class="text-blue-600">Vendor Agreement</a>
+                </p>
             </div>
         </div>
     </div>
@@ -190,70 +343,291 @@
 
 {% block extra_js %}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <script>
 (function () {
     "use strict";
 
+    const form = document.getElementById("vendor-registration-form");
     const mapEl = document.getElementById("vendor-pickup-map");
     const latInput = document.getElementById("vendor-pickup-latitude");
     const lngInput = document.getElementById("vendor-pickup-longitude");
     const button = document.getElementById("vendor-use-current-location");
     const status = document.getElementById("vendor-location-status");
-    if (!mapEl || !window.L) return;
 
-    const map = L.map(mapEl).setView([6.5244, 3.3792], 11);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution: "OpenStreetMap"
-    }).addTo(map);
+    if (
+        !form ||
+        !mapEl ||
+        !latInput ||
+        !lngInput ||
+        !button ||
+        !status ||
+        !window.L
+    ) {
+        return;
+    }
+
+    const defaultLatitude = 6.5244;
+    const defaultLongitude = 3.3792;
+
+    const map = L.map(mapEl).setView(
+        [defaultLatitude, defaultLongitude],
+        11
+    );
+
+    L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+            maxZoom: 19,
+            attribution: "OpenStreetMap"
+        }
+    ).addTo(map);
 
     let marker = null;
 
-    function setPin(lat, lng, message) {
-        latInput.value = lat;
-        lngInput.value = lng;
-        if (!marker) {
-            marker = L.marker([lat, lng], { draggable: true }).addTo(map).bindPopup("Vendor pickup pin").openPopup();
-            marker.on("dragend", function () {
-                const point = marker.getLatLng();
-                latInput.value = point.lat;
-                lngInput.value = point.lng;
-                status.textContent = "Pickup pin updated from map.";
-                status.className = "inline-flex items-center text-sm font-bold text-green-700";
-            });
-        } else {
-            marker.setLatLng([lat, lng]);
-        }
-        map.setView([lat, lng], 16);
-        status.textContent = message || "Pickup pin set accurately.";
-        status.className = "inline-flex items-center text-sm font-bold text-green-700";
+    function showLocationError(message) {
+        status.textContent = message;
+        status.className =
+            "inline-flex items-center text-sm font-bold text-red-700";
     }
 
-    document.addEventListener("arolana:address-selected", function (event) {
-        const detail = event.detail || {};
-        if (detail.field && detail.field.name === "pickup_address" && detail.latitude && detail.longitude) {
-            setPin(detail.latitude, detail.longitude, "Pickup pin set from the selected address.");
-        }
-    });
+    function showLocationSuccess(message) {
+        status.textContent = message;
+        status.className =
+            "inline-flex items-center text-sm font-bold text-green-700";
+    }
 
-    button?.addEventListener("click", function () {
+    function normalizeCoordinate(value, minimum, maximum) {
+        const number = Number(value);
+
+        if (!Number.isFinite(number)) {
+            return null;
+        }
+
+        if (number < minimum || number > maximum) {
+            return null;
+        }
+
+        return number;
+    }
+
+    function saveCoordinates(latitude, longitude) {
+        latInput.value = latitude.toFixed(8);
+        lngInput.value = longitude.toFixed(8);
+    }
+
+    function setPin(lat, lng, message) {
+        const latitude = normalizeCoordinate(lat, -90, 90);
+        const longitude = normalizeCoordinate(lng, -180, 180);
+
+        if (latitude === null || longitude === null) {
+            latInput.value = "";
+            lngInput.value = "";
+
+            showLocationError(
+                "Invalid location received. Please try again."
+            );
+
+            return false;
+        }
+
+        saveCoordinates(latitude, longitude);
+
+        if (!marker) {
+            marker = L.marker(
+                [latitude, longitude],
+                {
+                    draggable: true
+                }
+            )
+                .addTo(map)
+                .bindPopup("Vendor pickup pin")
+                .openPopup();
+
+            marker.on("dragend", function () {
+                const point = marker.getLatLng();
+
+                const draggedLatitude = normalizeCoordinate(
+                    point.lat,
+                    -90,
+                    90
+                );
+
+                const draggedLongitude = normalizeCoordinate(
+                    point.lng,
+                    -180,
+                    180
+                );
+
+                if (
+                    draggedLatitude === null ||
+                    draggedLongitude === null
+                ) {
+                    showLocationError(
+                        "The selected map location is invalid. Please move the pin again."
+                    );
+
+                    return;
+                }
+
+                saveCoordinates(
+                    draggedLatitude,
+                    draggedLongitude
+                );
+
+                showLocationSuccess(
+                    "Pickup pin updated from map."
+                );
+            });
+        } else {
+            marker.setLatLng([latitude, longitude]);
+        }
+
+        map.setView([latitude, longitude], 16);
+
+        showLocationSuccess(
+            message || "Pickup pin set accurately."
+        );
+
+        return true;
+    }
+
+    document.addEventListener(
+        "arolana:address-selected",
+        function (event) {
+            const detail = event.detail || {};
+            const field = detail.field || null;
+
+            if (
+                field &&
+                field.name === "pickup_address" &&
+                detail.latitude !== undefined &&
+                detail.latitude !== null &&
+                detail.longitude !== undefined &&
+                detail.longitude !== null
+            ) {
+                setPin(
+                    detail.latitude,
+                    detail.longitude,
+                    "Pickup pin set from the selected address."
+                );
+            }
+        }
+    );
+
+    button.addEventListener("click", function () {
         if (!navigator.geolocation) {
-            status.textContent = "This browser cannot get your location. Please use a supported browser.";
-            status.className = "inline-flex items-center text-sm font-bold text-red-700";
+            showLocationError(
+                "This browser cannot get your location. Please use a supported browser."
+            );
+
             return;
         }
+
+        button.disabled = true;
+        button.classList.add("opacity-60", "cursor-not-allowed");
+
         status.textContent = "Getting accurate location...";
-        navigator.geolocation.getCurrentPosition(function (position) {
-            setPin(position.coords.latitude, position.coords.longitude, "Pickup pin set from your current GPS location.");
-        }, function () {
-            status.textContent = "Location permission was denied. Please allow location or try again.";
-            status.className = "inline-flex items-center text-sm font-bold text-red-700";
-        }, {
-            enableHighAccuracy: true,
-            timeout: 15000,
-            maximumAge: 10000
-        });
+        status.className =
+            "inline-flex items-center text-sm font-bold text-blue-700";
+
+        navigator.geolocation.getCurrentPosition(
+            function (position) {
+                button.disabled = false;
+                button.classList.remove(
+                    "opacity-60",
+                    "cursor-not-allowed"
+                );
+
+                const latitude = position.coords.latitude;
+                const longitude = position.coords.longitude;
+
+                setPin(
+                    latitude,
+                    longitude,
+                    "Pickup pin set from your current GPS location."
+                );
+            },
+            function (error) {
+                button.disabled = false;
+                button.classList.remove(
+                    "opacity-60",
+                    "cursor-not-allowed"
+                );
+
+                let errorMessage =
+                    "Arolana could not get your location. Please try again.";
+
+                if (error.code === error.PERMISSION_DENIED) {
+                    errorMessage =
+                        "Location permission was denied. Please allow location access in your browser settings.";
+                } else if (error.code === error.POSITION_UNAVAILABLE) {
+                    errorMessage =
+                        "Your current location is unavailable. Please move to an area with better GPS or network signal.";
+                } else if (error.code === error.TIMEOUT) {
+                    errorMessage =
+                        "Getting your location took too long. Please try again.";
+                }
+
+                showLocationError(errorMessage);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 20000,
+                maximumAge: 0
+            }
+        );
     });
+
+    map.on("click", function (event) {
+        if (!event || !event.latlng) {
+            return;
+        }
+
+        setPin(
+            event.latlng.lat,
+            event.latlng.lng,
+            "Pickup pin set from the map."
+        );
+    });
+
+    form.addEventListener("submit", function (event) {
+        const latitude = normalizeCoordinate(
+            latInput.value,
+            -90,
+            90
+        );
+
+        const longitude = normalizeCoordinate(
+            lngInput.value,
+            -180,
+            180
+        );
+
+        if (latitude === null || longitude === null) {
+            event.preventDefault();
+
+            latInput.value = "";
+            lngInput.value = "";
+
+            showLocationError(
+                "Please use your current location or tap the map to set a valid pickup pin."
+            );
+
+            mapEl.scrollIntoView({
+                behavior: "smooth",
+                block: "center"
+            });
+
+            return;
+        }
+
+        saveCoordinates(latitude, longitude);
+    });
+
+    window.setTimeout(function () {
+        map.invalidateSize();
+    }, 300);
 })();
 </script>
 {% endblock %}

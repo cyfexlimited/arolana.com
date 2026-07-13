@@ -1,0 +1,421 @@
+{% extends "installers/workspace/base.html" %}
+
+{% block title %}
+Subscription | Arolana Provider Workspace
+
+<section class="provider-card" style="margin-top:24px">
+  <div class="provider-page-head">
+    <div>
+      <h2 style="font-size:24px;font-weight:950">Recent subscription payments</h2>
+      <p>Track your provider plan checkouts and payment status.</p>
+    </div>
+  </div>
+
+  {% if provider_payments %}
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;min-width:680px">
+        <thead>
+          <tr style="text-align:left;border-bottom:1px solid #E2E8F0">
+            <th style="padding:12px 8px">Reference</th>
+            <th style="padding:12px 8px">Plan</th>
+            <th style="padding:12px 8px">Billing</th>
+            <th style="padding:12px 8px">Amount</th>
+            <th style="padding:12px 8px">Status</th>
+            <th style="padding:12px 8px">Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for payment in provider_payments %}
+            <tr style="border-bottom:1px solid #EEF2F7">
+              <td style="padding:13px 8px;font-weight:800">{{ payment.reference }}</td>
+              <td style="padding:13px 8px">{{ payment.checkout_data.plan_name|default:"Provider plan" }}</td>
+              <td style="padding:13px 8px;text-transform:capitalize">{{ payment.checkout_data.billing_cycle|default:"—" }}</td>
+              <td style="padding:13px 8px">{{ payment.currency }} {{ payment.amount|floatformat:2 }}</td>
+              <td style="padding:13px 8px;text-transform:capitalize"><strong>{{ payment.status }}</strong></td>
+              <td style="padding:13px 8px">{{ payment.created_at|date:"j M Y, H:i" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div style="background:#F6F9FC;padding:18px;border-radius:18px;margin-top:14px">
+      <strong>No subscription payments yet.</strong>
+      <p style="color:#64748B;margin-top:4px">
+        Your provider subscription payment history will appear here.
+      </p>
+    </div>
+  {% endif %}
+</section>
+
+{% endblock %}
+
+{% block workspace_content %}
+
+<header class="provider-page-head">
+  <div>
+    <p style="font-weight:900;color:#FF7A00;text-transform:uppercase">
+      Provider growth
+    </p>
+
+    <h1>Subscription</h1>
+
+    <p>
+      Manage your provider plan, project allowances,
+      visibility features, and growth access.
+    </p>
+  </div>
+</header>
+
+
+<section
+  class="provider-card"
+  style="background:#071A44;color:white"
+>
+  <div
+    style="display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;align-items:flex-start"
+  >
+
+    <div>
+      <small
+        style="color:#9CC8FF;font-weight:900;text-transform:uppercase"
+      >
+        Current plan
+      </small>
+
+      <h2
+        style="font-size:32px;font-weight:950;margin-top:6px"
+      >
+        {{ provider.subscription_plan }}
+      </h2>
+
+      <p style="color:#CBD8EC;margin-top:6px">
+        Status:
+        <strong>
+          {{ subscription_status_display }}
+        </strong>
+      </p>
+
+      {% if provider.subscription_expires_at %}
+        <p style="color:#CBD8EC;margin-top:4px">
+          Expires:
+          {{ provider.subscription_expires_at|date:"j M Y, H:i" }}
+        </p>
+      {% endif %}
+    </div>
+
+
+    <div
+      style="background:rgba(255,255,255,.08);padding:16px 20px;border-radius:18px"
+    >
+      <small
+        style="display:block;color:#9CC8FF;font-weight:800"
+      >
+        Serious job eligibility
+      </small>
+
+      <strong
+        style="display:block;font-size:20px;margin-top:5px"
+      >
+        {% if provider.can_receive_serious_jobs %}
+          Eligible
+        {% else %}
+          Not currently eligible
+        {% endif %}
+      </strong>
+    </div>
+
+  </div>
+</section>
+
+
+<section
+  class="provider-card"
+  style="margin-top:18px"
+>
+  <h2 style="font-size:22px;font-weight:950">
+    Your current project allowance
+  </h2>
+
+  <p style="color:#64748B;margin-top:5px">
+    These limits are calculated from your current subscription
+    state and provider project entitlements.
+  </p>
+
+
+  <div
+    style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-top:18px"
+  >
+
+    <div
+      style="background:#F6F9FC;padding:16px;border-radius:18px"
+    >
+      <small>Project limit</small>
+
+      <strong style="display:block;font-size:25px;margin-top:5px">
+        {{ project_entitlements.project_limit }}
+      </strong>
+    </div>
+
+
+    <div
+      style="background:#F6F9FC;padding:16px;border-radius:18px"
+    >
+      <small>Projects used</small>
+
+      <strong style="display:block;font-size:25px;margin-top:5px">
+        {{ project_entitlements.projects_used }}
+      </strong>
+    </div>
+
+
+    <div
+      style="background:#F6F9FC;padding:16px;border-radius:18px"
+    >
+      <small>Remaining projects</small>
+
+      <strong style="display:block;font-size:25px;margin-top:5px">
+        {{ project_entitlements.remaining_projects }}
+      </strong>
+    </div>
+
+
+    <div
+      style="background:#F6F9FC;padding:16px;border-radius:18px"
+    >
+      <small>Media per project</small>
+
+      <strong style="display:block;font-size:25px;margin-top:5px">
+        {{ project_entitlements.max_media_per_project }}
+      </strong>
+    </div>
+
+
+    <div
+      style="background:#F6F9FC;padding:16px;border-radius:18px"
+    >
+      <small>Product links</small>
+
+      <strong style="display:block;font-size:25px;margin-top:5px">
+        {{ project_entitlements.max_product_links }}
+      </strong>
+    </div>
+
+
+    <div
+      style="background:#F6F9FC;padding:16px;border-radius:18px"
+    >
+      <small>Project analytics</small>
+
+      <strong style="display:block;font-size:20px;margin-top:5px">
+        {% if project_entitlements.analytics_enabled %}
+          Included
+        {% else %}
+          Not included
+        {% endif %}
+      </strong>
+    </div>
+
+  </div>
+</section>
+
+
+<section style="margin-top:24px">
+
+  <div class="provider-page-head">
+    <div>
+      <h2 style="font-size:28px;font-weight:950">
+        Available plans
+      </h2>
+
+      <p>
+        Compare provider plans and choose the level that fits
+        your business.
+      </p>
+    </div>
+  </div>
+
+
+  <div
+    style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px"
+  >
+
+    {% for plan in plans %}
+
+      <article
+        class="provider-card"
+        {% if current_plan and current_plan.id == plan.id %}
+          style="border:2px solid #0066CC"
+        {% endif %}
+      >
+
+        <div
+          style="display:flex;justify-content:space-between;gap:10px;align-items:start"
+        >
+          <div>
+            <h3 style="font-size:23px;font-weight:950">
+              {{ plan.name }}
+            </h3>
+
+            {% if plan.is_default %}
+              <span
+                style="display:inline-block;margin-top:7px;background:#EDF6FF;color:#0066CC;padding:5px 9px;border-radius:999px;font-size:11px;font-weight:900"
+              >
+                DEFAULT PLAN
+              </span>
+            {% endif %}
+          </div>
+
+
+          {% if current_plan and current_plan.id == plan.id %}
+            <span
+              style="background:#DCFCE7;color:#15803D;padding:6px 10px;border-radius:999px;font-size:11px;font-weight:900"
+            >
+              CURRENT
+            </span>
+          {% endif %}
+        </div>
+
+
+        <div style="margin-top:18px">
+
+          {% if plan.price_monthly == 0 %}
+            <strong style="font-size:30px">
+              Free
+            </strong>
+          {% else %}
+            <strong style="font-size:30px">
+              ₦{{ plan.price_monthly|floatformat:0 }}
+            </strong>
+
+            <span style="color:#64748B">
+              / month
+            </span>
+          {% endif %}
+
+        </div>
+
+
+        {% if plan.price_yearly %}
+          <p style="color:#64748B;margin-top:4px">
+            ₦{{ plan.price_yearly|floatformat:0 }} yearly
+          </p>
+        {% endif %}
+
+
+        {% if plan.description %}
+          <p style="color:#64748B;margin-top:14px">
+            {{ plan.description }}
+          </p>
+        {% endif %}
+
+
+        <div style="margin-top:18px">
+
+          {% for benefit in plan.benefits %}
+            <div
+              style="display:flex;gap:8px;align-items:flex-start;margin-top:9px"
+            >
+              <span style="color:#0066CC;font-weight:950">
+                ✓
+              </span>
+
+              <span>
+                {{ benefit }}
+              </span>
+            </div>
+          {% empty %}
+            <p style="color:#64748B">
+              Standard provider access.
+            </p>
+          {% endfor %}
+
+        </div>
+
+
+        <div style="margin-top:22px">
+
+          {% if current_plan and current_plan.id == plan.id %}
+
+            <button
+              class="provider-button soft"
+              type="button"
+              disabled
+            >
+              Current plan
+            </button>
+
+          {% elif plan.price_monthly == 0 and plan.price_yearly == 0 %}
+
+            <form method="post">
+              {% csrf_token %}
+
+              <input
+                type="hidden"
+                name="plan_id"
+                value="{{ plan.id }}"
+              >
+
+              <button
+                class="provider-button"
+                type="submit"
+              >
+                Activate {{ plan.name }}
+              </button>
+            </form>
+
+          {% else %}
+
+            {% if current_plan and current_plan.id == plan.id %}
+              <p style="margin-bottom:12px;color:#0066CC;font-weight:850">
+                Renew or extend your current plan
+              </p>
+            {% endif %}
+
+            {% if plan.price_monthly > 0 %}
+              <form method="post" style="margin-bottom:10px">
+                {% csrf_token %}
+                <input type="hidden" name="plan_id" value="{{ plan.id }}">
+                <input type="hidden" name="billing_cycle" value="monthly">
+                <button class="provider-button orange" type="submit" style="width:100%">
+                  Pay ₦{{ plan.price_monthly|floatformat:0 }} monthly
+                </button>
+              </form>
+            {% endif %}
+
+            {% if plan.price_yearly > 0 %}
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="plan_id" value="{{ plan.id }}">
+                <input type="hidden" name="billing_cycle" value="yearly">
+                <button class="provider-button" type="submit" style="width:100%">
+                  Pay ₦{{ plan.price_yearly|floatformat:0 }} yearly
+                </button>
+              </form>
+            {% endif %}
+
+            <p style="font-size:12px;color:#64748B;margin-top:10px">
+              Secure payment through Arolana checkout.
+            </p>
+
+          {% endif %}
+
+        </div>
+
+      </article>
+
+    {% empty %}
+
+      <section class="provider-card">
+        <h3 style="font-size:22px;font-weight:950">
+          No subscription plans are currently available.
+        </h3>
+      </section>
+
+    {% endfor %}
+
+  </div>
+
+</section>
+
+{% endblock %}

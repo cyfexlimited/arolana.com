@@ -3106,12 +3106,25 @@
 
                 <h1 class="text-3xl font-bold mb-3 leading-tight">{{ product.name }}</h1>
 
-                <!-- Rating with Animation -->
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="flex text-yellow-400 text-lg">
-                        {{ product.rating_avg|rating_stars|safe }}
-                    </div>
-                    <span class="text-sm text-gray-500">{{ product.rating_count }} Reviews</span>
+                <!-- Authoritative rating summary from real ProductReview rows -->
+                <div class="flex flex-wrap items-center gap-3 mb-4">
+                    {% if review_count %}
+                        <div class="flex text-yellow-400 text-lg" aria-label="{{ review_average|floatformat:1 }} out of 5 stars">
+                            {{ review_average|rating_stars|safe }}
+                        </div>
+                        <span class="text-sm text-gray-500">
+                            {{ review_count }} Review{{ review_count|pluralize }}
+                        </span>
+                    {% else %}
+                        <div class="flex text-slate-300 text-lg" aria-label="No ratings yet">
+                            <i class="far fa-star"></i>
+                            <i class="far fa-star"></i>
+                            <i class="far fa-star"></i>
+                            <i class="far fa-star"></i>
+                            <i class="far fa-star"></i>
+                        </div>
+                        <span class="text-sm text-gray-500">No reviews yet</span>
+                    {% endif %}
                     <span class="text-sm text-green-600">{{ product.sales_count }} Sold</span>
                 </div>
 
@@ -3774,7 +3787,7 @@
         <div class="border-b flex flex-wrap gap-2 px-0 pt-4 bg-transparent">
             <button id="product-overview-tab-button" @click="tab='overview'" :class="{'modern-tab active': tab=='overview'}" class="px-6 py-3 font-semibold transition-all">Overview</button>
             <button @click="tab='specs'" :class="{'modern-tab active': tab=='specs'}" class="px-6 py-3 font-semibold transition-all">Specifications</button>
-            <button @click="tab='reviews'" :class="{'modern-tab active': tab=='reviews'}" class="px-6 py-3 font-semibold transition-all">Reviews ({{ product.rating_count }})</button>
+            <button @click="tab='reviews'" :class="{'modern-tab active': tab=='reviews'}" class="px-6 py-3 font-semibold transition-all">Reviews ({{ review_count }})</button>
 	            <button @click="tab='qa'" :class="{'modern-tab active': tab=='qa'}" class="px-6 py-3 font-semibold transition-all">Q&A ({{ question_count }})</button>
             <button data-product-videos-tab @click="tab='videos'" :class="{'modern-tab active': tab=='videos'}" class="px-6 py-3 font-semibold transition-all">Videos</button>
             {% if product_article_links_tab %}
@@ -4070,11 +4083,30 @@
             <div x-show="tab=='reviews'" x-transition.duration.300ms>
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div class="lg:col-span-1 bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl p-6 text-center">
-                        <div class="text-6xl font-bold text-blue-600">{{ product.rating_avg|floatformat:1 }}</div>
-                        <div class="flex justify-center text-yellow-400 text-xl my-3">
-                            {{ product.rating_avg|rating_stars|safe }}
-                        </div>
-                        <div class="text-sm text-gray-500">{{ product.rating_count }} verified ratings</div>
+                        {% if review_count %}
+                            <div class="text-6xl font-bold text-blue-600">{{ review_average|floatformat:1 }}</div>
+                            <div class="flex justify-center text-yellow-400 text-xl my-3" aria-label="{{ review_average|floatformat:1 }} out of 5 stars">
+                                {{ review_average|rating_stars|safe }}
+                            </div>
+                            <div class="text-sm text-gray-500">
+                                {{ review_count }} customer rating{{ review_count|pluralize }}
+                            </div>
+                            {% if verified_review_count %}
+                                <div class="mt-1 text-xs font-bold text-emerald-600">
+                                    {{ verified_review_count }} verified purchase rating{{ verified_review_count|pluralize }}
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            <div class="text-6xl font-bold text-blue-600">0.0</div>
+                            <div class="flex justify-center gap-1 text-slate-300 text-xl my-3" aria-label="No ratings yet">
+                                <i class="far fa-star"></i>
+                                <i class="far fa-star"></i>
+                                <i class="far fa-star"></i>
+                                <i class="far fa-star"></i>
+                                <i class="far fa-star"></i>
+                            </div>
+                            <div class="text-sm text-gray-500">No customer ratings yet</div>
+                        {% endif %}
                         <div class="mt-4 flex justify-center gap-4 text-xs text-gray-500">
 	                            <div><i class="fas fa-star text-yellow-400"></i> 5 ★ <span class="font-bold">{{ five_star_percent }}%</span></div>
 	                            <div><i class="fas fa-star text-yellow-400"></i> 4 ★ <span class="font-bold">{{ four_star_percent }}%</span></div>
@@ -4082,29 +4114,154 @@
                         </div>
                     </div>
                     <div class="lg:col-span-2">
-                        <div class="space-y-4 max-h-96 overflow-y-auto pr-4">
-                            {% for review in product.visible_reviews %}
-                            <div class="review-card border-b pb-4 hover:bg-gray-50 p-3 rounded-lg transition">
-                                <div class="flex items-center justify-between mb-2">
-                                    <div class="flex text-yellow-400">{{ review.rating|rating_stars|safe }}</div>
-                                    <span class="text-sm text-gray-500">{{ review.created_at|date:"M d, Y" }}</span>
-                                </div>
-                                <p class="font-semibold">{{ review.title }}</p>
-                                <p class="text-gray-600 text-sm mt-1">{{ review.review }}</p>
-                                <div class="flex items-center gap-4 mt-2">
-                                    <span class="text-sm text-gray-500">by {{ review.user.username }}</span>
-                                    {% if review.verified_purchase %}
-                                    <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                                        <i class="fas fa-check-circle"></i> Verified
-                                    </span>
-                                    {% endif %}
-                                    <button onclick="markHelpful({{ review.id }})" class="text-xs text-gray-400 hover:text-blue-600">
-                                        <i class="fas fa-thumbs-up"></i> Helpful ({{ review.helpful_count }})
-                                    </button>
-                                </div>
+                        {% if visible_reviews %}
+                            <div class="space-y-6">
+                                {% for review in visible_reviews %}
+                                    <article
+                                        id="review-{{ review.id }}"
+                                        class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
+                                    >
+                                        <div class="p-5 sm:p-6">
+                                            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                                <div>
+                                                    <div class="flex flex-wrap items-center gap-2">
+                                                        <h3 class="text-base font-bold text-slate-900">
+                                                            {{ review.user.get_full_name|default:review.user.username }}
+                                                        </h3>
+                    
+                                                        {% if review.verified_purchase %}
+                                                            <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                                                                <svg
+                                                                    class="h-3.5 w-3.5"
+                                                                    viewBox="0 0 20 20"
+                                                                    fill="currentColor"
+                                                                    aria-hidden="true"
+                                                                >
+                                                                    <path
+                                                                        fill-rule="evenodd"
+                                                                        d="M16.704 5.293a1 1 0 010 1.414l-7.5 7.5a1 1 0 01-1.414 0l-3.5-3.5a1 1 0 011.414-1.414L8.5 12.086l6.793-6.793a1 1 0 011.411 0z"
+                                                                        clip-rule="evenodd"
+                                                                    />
+                                                                </svg>
+                    
+                                                                Verified purchase
+                                                            </span>
+                                                        {% endif %}
+                                                    </div>
+                    
+                                                    <div
+                                                        class="mt-2 flex items-center gap-1"
+                                                        aria-label="{{ review.rating }} out of 5 stars"
+                                                    >
+                                                        {% for star in "12345" %}
+                                                            {% if forloop.counter <= review.rating %}
+                                                                <span class="text-lg text-amber-400">★</span>
+                                                            {% else %}
+                                                                <span class="text-lg text-slate-300">★</span>
+                                                            {% endif %}
+                                                        {% endfor %}
+                                                    </div>
+                                                </div>
+                    
+                                                <time
+                                                    class="text-sm text-slate-500"
+                                                    datetime="{{ review.created_at|date:'c' }}"
+                                                >
+                                                    {{ review.created_at|date:"M d, Y" }}
+                                                </time>
+                                            </div>
+                    
+                                            {% if review.title %}
+                                                <h4 class="mt-4 text-lg font-bold text-slate-900">
+                                                    {{ review.title }}
+                                                </h4>
+                                            {% endif %}
+                    
+                                            <div class="mt-2 whitespace-pre-line text-sm leading-7 text-slate-700 sm:text-base">
+                                                {{ review.review }}
+                                            </div>
+                    
+                                            {% if review.display_video_payloads %}
+                                                <section class="mt-5">
+                                                    <div class="mb-3 flex items-center justify-between gap-3">
+                                                        <h5 class="text-sm font-bold text-slate-900">
+                                                            Customer video
+                                                        </h5>
+                    
+                                                        <span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                                                            {{ review.display_video_payloads|length }}
+                                                            video{{ review.display_video_payloads|length|pluralize }}
+                                                        </span>
+                                                    </div>
+                    
+                                                    <div class="grid gap-4 {% if review.display_video_payloads|length > 1 %}lg:grid-cols-2{% endif %}">
+                                                        {% for review_video in review.display_video_payloads %}
+                                                            <figure class="overflow-hidden rounded-2xl border border-slate-200 bg-slate-950 shadow-lg">
+                                                                <video
+                                                                    class="block aspect-video w-full bg-black object-contain"
+                                                                    controls
+                                                                    playsinline
+                                                                    preload="metadata"
+                                                                    {% if review_video.thumbnail_url %}
+                                                                        poster="{{ review_video.thumbnail_url }}"
+                                                                    {% endif %}
+                                                                >
+                                                                    <source
+                                                                        src="{{ review_video.url }}"
+                                                                        type="{{ review_video.mime_type }}"
+                                                                    >
+                    
+                                                                    Your browser does not support HTML5 video.
+                    
+                                                                    <a href="{{ review_video.url }}">
+                                                                        Open the review video
+                                                                    </a>
+                                                                </video>
+                    
+                                                                {% if review_video.title %}
+                                                                    <figcaption class="bg-slate-900 px-4 py-3 text-sm font-medium text-white">
+                                                                        {{ review_video.title }}
+                                                                    </figcaption>
+                                                                {% endif %}
+                                                            </figure>
+                                                        {% endfor %}
+                                                    </div>
+                                                </section>
+                                            {% endif %}
+                    
+                                            <div class="mt-5 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4 text-sm text-slate-500">
+                                                <span id="review-helpful-count-{{ review.id }}">
+                                                    Helpful: {{ review.helpful_count|default:0 }}
+                                                </span>
+                    
+                                                <button
+                                                    type="button"
+                                                    onclick="markHelpful({{ review.id }})"
+                                                    class="inline-flex items-center gap-1 rounded-full bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600 transition hover:bg-blue-50 hover:text-blue-700"
+                                                >
+                                                    <i class="fas fa-thumbs-up"></i>
+                                                    Helpful
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </article>
+                                {% endfor %}
                             </div>
-                            {% empty %}<p class="text-gray-500 text-center py-8">Be the first to review!</p>{% endfor %}
-                        </div>
+                        {% else %}
+                            <div class="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center">
+                                <div class="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-blue-50 text-blue-600">
+                                    <i class="fas fa-star text-xl"></i>
+                                </div>
+                    
+                                <h3 class="mt-4 text-lg font-bold text-slate-900">
+                                    No reviews yet
+                                </h3>
+                    
+                                <p class="mt-2 text-sm text-slate-600">
+                                    Be the first customer to review this product.
+                                </p>
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -4276,37 +4433,37 @@
                                         </p>
 
                                         <p class="mt-1 text-xs font-semibold text-slate-500">
-                                            MP4 or WebM only. Maximum file size: 150 MB.
+                                            MP4, WebM, MOV or M4V. Maximum file size: 150 MB.
                                         </p>
                                     </div>
                                 </div>
 
                                 <div class="p-4">
                                     <input
-                                        id="video-review"
-                                        type="file"
-                                        name="video_review"
-                                        accept="video/mp4,video/webm,.mp4,.webm"
-                                        class="
-                                            block
-                                            w-full
-                                            text-sm
-                                            font-semibold
-                                            text-slate-600
-
-                                            file:mr-4
-                                            file:cursor-pointer
-                                            file:rounded-xl
-                                            file:border-0
-                                            file:bg-blue-50
-                                            file:px-4
-                                            file:py-2.5
-                                            file:font-black
-                                            file:text-blue-700
-
-                                            hover:file:bg-blue-100
-                                        "
-                                    >
+                                          id="video-review"
+                                          type="file"
+                                          name="video_review"
+                                          accept="video/mp4,video/webm,video/quicktime,video/x-m4v,.mp4,.webm,.mov,.m4v"
+                                          class="
+                                              block
+                                              w-full
+                                              text-sm
+                                              font-semibold
+                                              text-slate-600
+                                      
+                                              file:mr-4
+                                              file:cursor-pointer
+                                              file:rounded-xl
+                                              file:border-0
+                                              file:bg-blue-50
+                                              file:px-4
+                                              file:py-2.5
+                                              file:font-black
+                                              file:text-blue-700
+                                      
+                                              hover:file:bg-blue-100
+                                          "
+                                      >
 
                                     <div
                                         id="review-video-file-status"
@@ -7191,31 +7348,36 @@
                 const status = getEl('review-video-file-status');
                 const form = getEl('product-review-form');
                 const submitButton = getEl('product-review-submit');
-
+            
                 if (!input || !form) return;
-
+            
                 const allowedMimeTypes = new Set([
                     'video/mp4',
-                    'video/webm'
+                    'video/webm',
+                    'video/quicktime',
+                    'video/x-m4v',
+                    'application/octet-stream'
                 ]);
-
+            
                 const allowedExtensions = new Set([
                     'mp4',
-                    'webm'
+                    'webm',
+                    'mov',
+                    'm4v'
                 ]);
-
+            
                 const maxBytes = 150 * 1024 * 1024;
-
+            
                 function clearStatus() {
                     if (!status) return;
-
+            
                     status.classList.add('hidden');
                     status.textContent = '';
                 }
-
+            
                 function showStatus(message, isError) {
                     if (!status) return;
-
+            
                     status.classList.remove(
                         'hidden',
                         'border-red-100',
@@ -7225,7 +7387,7 @@
                         'bg-blue-50',
                         'text-blue-700'
                     );
-
+            
                     if (isError) {
                         status.classList.add(
                             'border-red-100',
@@ -7239,88 +7401,86 @@
                             'text-blue-700'
                         );
                     }
-
+            
                     status.textContent = message;
                 }
-
+            
                 function validateSelectedVideo() {
                     clearStatus();
-
+            
                     const file = input.files && input.files[0];
-
+            
+                    // Video is optional.
                     if (!file) {
                         return true;
                     }
-
-                    const extension = String(file.name || '')
-                        .split('.')
-                        .pop()
-                        .toLowerCase();
-
+            
+                    const filename = String(file.name || '');
+                    const extension = filename.includes('.')
+                        ? filename.split('.').pop().toLowerCase()
+                        : '';
+            
                     if (!allowedExtensions.has(extension)) {
                         showStatus(
-                            'Please choose an MP4 or WebM video.',
+                            'Please choose an MP4, WebM, MOV or M4V video.',
                             true
                         );
-
+            
                         input.value = '';
-
                         return false;
                     }
-
+            
+                    /*
+                     * Safari and iOS may return an empty MIME type or
+                     * application/octet-stream. The extension check above remains
+                     * required, while recognised incompatible MIME types are rejected.
+                     */
                     if (
                         file.type &&
-                        !allowedMimeTypes.has(file.type)
+                        !allowedMimeTypes.has(file.type.toLowerCase())
                     ) {
                         showStatus(
-                            'The browser reports an unsupported video format.',
+                            `Unsupported video format reported by your browser: ${file.type}`,
                             true
                         );
-
+            
                         input.value = '';
-
                         return false;
                     }
-
+            
                     if (file.size > maxBytes) {
                         showStatus(
                             'This video is larger than the 150 MB limit.',
                             true
                         );
-
+            
                         input.value = '';
-
                         return false;
                     }
-
+            
                     const sizeMb = (
                         file.size /
                         (1024 * 1024)
                     ).toFixed(1);
-
+            
                     showStatus(
                         `${file.name} selected · ${sizeMb} MB`,
                         false
                     );
-
+            
                     return true;
                 }
-
-                input.addEventListener(
-                    'change',
-                    validateSelectedVideo
-                );
-
+            
+                input.addEventListener('change', validateSelectedVideo);
+            
                 form.addEventListener('submit', function (event) {
                     if (!validateSelectedVideo()) {
                         event.preventDefault();
-
                         return;
                     }
-
+            
                     if (submitButton) {
                         submitButton.disabled = true;
-
                         submitButton.innerHTML =
                             '<i class="fas fa-spinner fa-spin"></i> Submitting Review...';
                     }

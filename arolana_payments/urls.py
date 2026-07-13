@@ -18,6 +18,7 @@ urlpatterns = [
     path("api/mobile/options/", views.mobile_payment_options_api, name="mobile_options"),
 
     path("paypal/webhook/", views.paypal_webhook, name="paypal_webhook"),
+    path("webhooks/paystack/", views.paystack_webhook, name="paystack_webhook"),
     path("webhooks/flutterwave/", views.flutterwave_webhook, name="flutterwave_webhook"),
     path("webhooks/coinbase/", views.coinbase_webhook, name="coinbase_webhook"),
 ]

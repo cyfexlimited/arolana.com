@@ -35,20 +35,21 @@ from subscriptions.models import (
     subscription_label,
     user_subscription_tier,
 )
-from subscriptions.services import enforce_vendor_product_visibility
+from subscriptions.services import activate_vendor_subscription_payment
 from vendors.models import VendorBankAccount, VendorProfile, VendorRFQ, VendorTransaction, VendorWallet, VendorWithdrawal
 from vendors.security import send_vendor_password_changed_email
 from arolana_payments.models import PaymentMethod, PaymentStatus, PaymentTransaction
 from arolana_payments.services import (
     capture_paypal_order,
+    record_paypal_capture_response,
     gateway_is_available,
     get_gateway_options,
     init_coinbase_checkout,
     init_flutterwave_checkout,
     init_paypal_checkout,
     init_paystack_checkout,
-    verify_flutterwave_transaction_by_reference,
-    verify_paystack_transaction,
+    verify_flutterwave_payment,
+    verify_paystack_payment,
 )
 from smartchat.models import SmartChatConversation, SmartChatMessage
 from installers.models import ProviderProfileChangeRequest, ServiceProviderProfile, ServiceQuoteRequest
@@ -1110,20 +1111,39 @@ def _verify_subscription_payment_now(payment):
         return True, "Payment is already confirmed."
 
     if payment.gateway == PaymentMethod.FLUTTERWAVE:
-        data = verify_flutterwave_transaction_by_reference(payment.reference)
+        data = verify_flutterwave_payment(payment)
         tx = data.get("data", {}) if isinstance(data, dict) else {}
-        if data.get("status") == "success" and tx.get("status") == "successful":
-            payment.mark_success(str(tx.get("id") or tx.get("tx_ref") or payment.reference), data)
+        validation_error = (
+            data.get("validation_error", "")
+            if isinstance(data, dict)
+            else "Invalid Flutterwave verification response."
+        )
+
+        if (
+            not validation_error
+            and data.get("status") == "success"
+            and tx.get("status") == "successful"
+        ):
+            payment.mark_success(
+                str(tx.get("id") or tx.get("tx_ref") or payment.reference),
+                data,
+            )
             return True, "Flutterwave payment confirmed."
+
         if tx.get("status") in ["failed", "cancelled"]:
             payment.mark_failed(data)
             return False, "Flutterwave reported this payment as failed or cancelled."
+
         payment.gateway_response = data
         payment.save(update_fields=["gateway_response", "updated_at"])
+
+        if validation_error:
+            return False, validation_error
+
         return False, "Flutterwave has not confirmed this payment yet."
 
     if payment.gateway == PaymentMethod.PAYSTACK:
-        data = verify_paystack_transaction(payment.gateway_reference or payment.reference)
+        data = verify_paystack_payment(payment)
         tx = data.get("data", {}) if isinstance(data, dict) else {}
         if data.get("status") is True and tx.get("status") == "success":
             payment.mark_success(tx.get("reference") or payment.reference, data)
@@ -1138,8 +1158,11 @@ def _verify_subscription_payment_now(payment):
     if payment.gateway == PaymentMethod.PAYPAL:
         data = capture_paypal_order(payment)
         if data.get("status") == "COMPLETED":
-            payment.mark_success(data.get("id", ""), data)
-            return True, "PayPal payment confirmed."
+            record_paypal_capture_response(payment, data)
+            return (
+                False,
+                "PayPal capture received. Secure webhook confirmation is pending.",
+            )
         payment.gateway_response = data
         payment.save(update_fields=["gateway_response", "updated_at"])
         return False, "PayPal has not confirmed this payment yet."
@@ -3099,54 +3122,16 @@ def _send_subscription_email(profile, plan, payment):
 
 
 def _activate_vendor_subscription(profile, plan, reference="", payment=None):
-    VendorSubscription.objects.filter(vendor=profile.user, is_active=True).update(is_active=False, auto_renew=False)
-    started_at = timezone.now()
-    expiry = timezone.now() + timezone.timedelta(days=30)
-    profile.subscription_tier = plan.tier_key
-    profile.subscription_active = True
-    profile.subscription_started_at = started_at
-    profile.subscription_expires_at = expiry
-    profile.priority_score = get_tier_limits(plan.tier_key)["priority_score"]
-    profile.subscription_expiry = expiry
-    profile.save(update_fields=[
-        "subscription_tier",
-        "subscription_active",
-        "subscription_started_at",
-        "subscription_expires_at",
-        "priority_score",
-        "subscription_expiry",
-        "updated_at",
-    ])
-    apply_vendor_subscription_benefits(profile, plan)
+    """Compatibility wrapper for the shared subscription activation service."""
+    if payment is None and reference:
+        payment = PaymentTransaction.objects.filter(user=profile.user, reference=reference, checkout_data__purpose="vendor_subscription").first()
+
+    if payment is None:
+        raise ValueError("Vendor subscription payment was not found.")
+
+    subscription = activate_vendor_subscription_payment(payment.pk)
     profile.refresh_from_db()
-    VendorSubscription.objects.create(
-        vendor=profile.user,
-        plan=plan,
-        start_date=started_at,
-        end_date=expiry,
-        is_active=True,
-        payment_method="paid" if plan.price_monthly > 0 else "free",
-        transaction_id=reference,
-    )
-    enforce_vendor_product_visibility(profile)
-    plan_name = subscription_label(plan.tier_key)
-    notification_message = _subscription_message(profile.store_name, plan_name, reference)
-    _notify(
-        profile.user,
-        "Subscription activated",
-        notification_message,
-        "payment",
-        {
-            "plan_id": plan.id,
-            "tier": plan.tier_key,
-            "reference": reference,
-            "subscription_started_at": started_at.isoformat(),
-            "subscription_expires_at": expiry.isoformat(),
-        },
-    )
-    if payment:
-        _send_subscription_email(profile, plan, payment)
-    return expiry
+    return subscription.end_date
 
 
 def _subscription_receipt(profile, plan, gateway=PaymentMethod.PAYSTACK, status=PaymentStatus.PENDING):
@@ -3232,9 +3217,6 @@ def vendor_subscription_checkout_api(request):
         return _error(disabled_reason or "This payment gateway is not available yet.", status=400)
 
     payment = _subscription_receipt(profile, plan, gateway=gateway, status=PaymentStatus.PENDING)
-    if data.get("currency"):
-        payment.currency = data.get("currency")
-        payment.save(update_fields=["currency", "updated_at"])
     if gateway == PaymentMethod.MANUAL_CRYPTO:
         payment.status = PaymentStatus.PENDING
         payment.save(update_fields=["status", "updated_at"])
@@ -3288,11 +3270,22 @@ def vendor_subscription_verify_api(request):
         return _error(error, status=403)
     if not reference:
         return _error("Payment reference is required.")
-    payment_query = PaymentTransaction.objects.filter(user=profile.user)
+    payment_query = PaymentTransaction.objects.filter(
+        user=profile.user,
+        checkout_data__purpose="vendor_subscription",
+    )
     if invoice_id:
-        payment_query = payment_query.filter(Q(id=invoice_id) | Q(reference=reference) | Q(gateway_reference=reference))
+        payment_query = payment_query.filter(
+            id=invoice_id,
+        ).filter(
+            Q(reference=reference)
+            | Q(gateway_reference=reference)
+        )
     else:
-        payment_query = payment_query.filter(Q(reference=reference) | Q(gateway_reference=reference))
+        payment_query = payment_query.filter(
+            Q(reference=reference)
+            | Q(gateway_reference=reference)
+        )
     payment = payment_query.first()
     if not payment:
         return _error("Payment transaction not found.", status=404)

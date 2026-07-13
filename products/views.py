@@ -31,17 +31,21 @@ from core.local_cache import local_get_or_set
 from core.models import HomePageAppearance
 from core.media_optimization import get_optimized_image_url, optimized_name_for
 from .models import (
-    Product, Category, ProductReview, Wishlist, RecentlyViewed, 
+    Product, Category, ProductReview, Wishlist, RecentlyViewed,
     ProductVariant, ProductQuestion, Accessory, AccessoryProduct,
     ProductImage, ProductVideo, ProductVariantImage, Brand, ProductListingBanner,
     ProductArticleLink, CategoryArticleLink, ProductWholesaleTier, ProductDetailSection,
     ProductDetailFieldConfig, ProductVariantTypeConfig, ManufacturerWarranty,
-    VendorProductOffer,
+    VendorProductOffer, ReviewVideo,
 )
 from accounts.models import User
 from currency.templatetags.currency_filters import currency as format_currency
 from arolana_payments.services import get_gateway_options
 from products.ranking import order_storefront_products
+from .review_stats import (
+    calculate_product_review_stats,
+    refresh_product_review_stats,
+)
 
 try:
     from subscriptions.models import get_tier_limits, user_has_paid_subscription
@@ -1387,484 +1391,1086 @@ def product_list(request):
 
 def product_detail(request, slug):
     """
-    Display detailed product page with reviews, Q&A, variants and full galleries.
+    Display the complete product page.
 
-    IMPORTANT:
-    - Page refresh always loads the main product gallery.
-    - No variant is auto-selected on page load.
-    - Every variant sends ALL its images to variant_data_json.
+    Behaviour:
+    - Page refresh loads the main product gallery.
+    - No product variant is automatically selected.
+    - Every active variant sends its complete gallery to the frontend.
+    - Reviews support ProductReview.video_review and ReviewVideo.video_file.
     """
+
     product = get_object_or_404(
-        Product.objects.select_related(
-            'category',
-            'brand',
-            'vendor',
-            'vendor__vendor_profile',
-            'manufacturer_warranty',
-            'shipping_info',
-        ).prefetch_related(
+        Product.objects
+        .select_related(
+            "category",
+            "brand",
+            "vendor",
+            "vendor__vendor_profile",
+            "manufacturer_warranty",
+            "shipping_info",
+        )
+        .prefetch_related(
             Prefetch(
-                'images',
-                queryset=ProductImage.objects.filter(is_active=True).order_by('-is_main', 'order', 'id')
-            ),
-            Prefetch(
-                'variants',
-                queryset=ProductVariant.objects.filter(is_active=True).prefetch_related(
-                    Prefetch(
-                        'images',
-                        queryset=ProductVariantImage.objects.filter(is_active=True).order_by('-is_main', 'order', 'id')
+                "images",
+                queryset=(
+                    ProductImage.objects
+                    .filter(is_active=True)
+                    .order_by(
+                        "-is_main",
+                        "order",
+                        "id",
                     )
-                ).order_by('variant_type', 'name', 'value', 'id'),
-                to_attr='active_variants'
+                ),
             ),
             Prefetch(
-                'reviews',
-                queryset=ProductReview.objects.select_related('user').order_by('-created_at')[:10],
-                to_attr='visible_reviews',
+                "variants",
+                queryset=(
+                    ProductVariant.objects
+                    .filter(is_active=True)
+                    .prefetch_related(
+                        Prefetch(
+                            "images",
+                            queryset=(
+                                ProductVariantImage.objects
+                                .filter(is_active=True)
+                                .order_by(
+                                    "-is_main",
+                                    "order",
+                                    "id",
+                                )
+                            ),
+                        )
+                    )
+                    .order_by(
+                        "variant_type",
+                        "name",
+                        "value",
+                        "id",
+                    )
+                ),
+                to_attr="active_variants",
             ),
             Prefetch(
-                'product_accessories',
-                queryset=AccessoryProduct.objects.filter(
-                    accessory__is_active=True,
-                ).select_related('accessory'),
-                to_attr='active_accessory_links',
+                "product_accessories",
+                queryset=(
+                    AccessoryProduct.objects
+                    .filter(accessory__is_active=True)
+                    .select_related("accessory")
+                ),
+                to_attr="active_accessory_links",
             ),
             Prefetch(
-                'article_links',
-                queryset=ProductArticleLink.objects.filter(
-                    is_active=True,
-                    article__is_published=True,
-                ).select_related('article', 'article__category', 'article__author').order_by('sort_order', '-article__published_at'),
-                to_attr='active_article_links'
+                "article_links",
+                queryset=(
+                    ProductArticleLink.objects
+                    .filter(
+                        is_active=True,
+                        article__is_published=True,
+                    )
+                    .select_related(
+                        "article",
+                        "article__category",
+                        "article__author",
+                    )
+                    .order_by(
+                        "sort_order",
+                        "-article__published_at",
+                    )
+                ),
+                to_attr="active_article_links",
             ),
             Prefetch(
-                'additional_videos',
-                queryset=ProductVideo.objects.filter(is_active=True).order_by('display_order'),
-                to_attr='active_videos',
+                "additional_videos",
+                queryset=(
+                    ProductVideo.objects
+                    .filter(is_active=True)
+                    .order_by("display_order")
+                ),
+                to_attr="active_videos",
             ),
             Prefetch(
-                'questions',
-                queryset=ProductQuestion.objects.filter(is_public=True).select_related(
-                    'user',
-                    'answered_by',
-                ).order_by('-created_at')[:10],
-                to_attr='visible_questions',
-            )
+                "questions",
+                queryset=(
+                    ProductQuestion.objects
+                    .filter(is_public=True)
+                    .select_related(
+                        "user",
+                        "answered_by",
+                    )
+                    .order_by("-created_at")[:10]
+                ),
+                to_attr="visible_questions",
+            ),
         ),
         slug=slug,
         is_active=True,
-        approval_status='approved'
+        approval_status="approved",
     )
 
-    # ====== Track Views ======
-    Product.objects.filter(pk=product.id).update(views_count=F('views_count') + 1)
+    # ============================================================
+    # Track product view
+    # ============================================================
 
-    # ====== Track Recently Viewed ======
+    Product.objects.filter(
+        pk=product.pk,
+    ).update(
+        views_count=F("views_count") + 1
+    )
+
+    # ============================================================
+    # Recently viewed
+    # ============================================================
+
     if request.user.is_authenticated:
         RecentlyViewed.objects.update_or_create(
             user=request.user,
             product=product,
-            defaults={'viewed_at': timezone.now()}
+            defaults={
+                "viewed_at": timezone.now(),
+            },
         )
     else:
-        _save_guest_recently_viewed(request, product)
+        _save_guest_recently_viewed(
+            request,
+            product,
+        )
 
-    # ====== Currency ======
-    user_currency = get_user_currency(request)
+    # ============================================================
+    # Currency
+    # ============================================================
+
+    user_currency = get_user_currency(
+        request
+    )
+
     base_currency = get_base_currency()
 
-    # ====== Small safe image helpers ======
+    # ============================================================
+    # Product and variant image helpers
+    # ============================================================
+
     def safe_url(image_field):
-        """
-        Return a usable URL for ImageField/FileField.
-        Keeps the page safe if an image is missing or storage is not ready.
-        """
         if not image_field:
             return None
+
         try:
             return image_field.url
         except Exception:
             return None
 
-    def push_image(images, image_field, alt):
-        """
-        Add image once only. This prevents duplicates between:
-        product.main_image + ProductImage marked as main,
-        variant.image + ProductVariantImage marked as main.
-        """
-        original_src = safe_url(image_field)
-        if not original_src:
-            return
-        src = get_optimized_image_url(image_field, 'product_detail')
-        thumb = get_optimized_image_url(image_field, 'product_gallery')
-        if original_src not in {image['original'] for image in images}:
-            images.append({
-                'src': src,
-                'thumb': thumb,
-                'original': original_src,
-                'alt': alt or product.name,
-            })
-
-    def build_product_gallery():
-        """
-        Main product gallery.
-        This is what must load after every refresh.
-        """
-        images = []
-
-        # Main product image first
-        push_image(images, product.main_image, product.name)
-
-        # Then all ProductImage rows from admin
-        for image in product.images.all():
-            push_image(images, image.image, image.alt_text or product.name)
-
-        return images
-
-    def build_variant_gallery(variant):
-        """
-        Variant gallery.
-        This sends ALL variant images to the frontend, not only variant.image.
-        """
-        images = []
-
-        # Main variant image first
-        push_image(
-            images,
-            variant.image,
-            f"{product.name} - {variant.value}"
+    def push_image(
+        images,
+        image_field,
+        alt,
+    ):
+        original_src = safe_url(
+            image_field
         )
 
-        # Then all ProductVariantImage rows from admin
-        for image in variant.images.all():
+        if not original_src:
+            return
+
+        existing_originals = {
+            item["original"]
+            for item in images
+            if item.get("original")
+        }
+
+        if original_src in existing_originals:
+            return
+
+        src = get_optimized_image_url(
+            image_field,
+            "product_detail",
+        )
+
+        thumb = get_optimized_image_url(
+            image_field,
+            "product_gallery",
+        )
+
+        images.append({
+            "src": src or original_src,
+            "thumb": thumb or src or original_src,
+            "original": original_src,
+            "alt": alt or product.name,
+        })
+
+    def build_product_gallery():
+        images = []
+
+        push_image(
+            images,
+            product.main_image,
+            product.name,
+        )
+
+        for image in product.images.all():
             push_image(
                 images,
                 image.image,
-                image.alt_text or f"{product.name} - {variant.value}"
+                image.alt_text or product.name,
             )
 
         return images
 
-    # ====== Variants ======
-    all_variants = list(getattr(product, 'active_variants', []))
+    def build_variant_gallery(variant):
+        images = []
 
-    # ====== Approved Vendor Offers ======
-    # Product-family/vendor-offer data is only customer-visible once approved.
-    # This keeps pending or suspended marketplace offers out of the public page.
-    approved_vendor_offers = list(
-        product.vendor_offers.filter(
-            is_active=True,
-            approval_status=VendorProductOffer.STATUS_APPROVED,
+        variant_label = (
+            f"{product.name} - "
+            f"{variant.value or variant.name}"
         )
-        .select_related('vendor', 'variant')
-        .order_by('-is_preferred', '-is_featured', 'price', '-created_at')
-    )
-    default_vendor_offer = next(
-        (offer for offer in approved_vendor_offers if offer.is_available),
-        approved_vendor_offers[0] if approved_vendor_offers else None,
+
+        push_image(
+            images,
+            variant.image,
+            variant_label,
+        )
+
+        for image in variant.images.all():
+            push_image(
+                images,
+                image.image,
+                image.alt_text or variant_label,
+            )
+
+        return images
+
+    # ============================================================
+    # Variants
+    # ============================================================
+
+    all_variants = list(
+        getattr(
+            product,
+            "active_variants",
+            [],
+        )
     )
 
     variants_by_type = {}
     variant_options = {}
 
     for variant in all_variants:
-        variant_type = variant.variant_type or 'other'
+        variant_type = (
+            variant.variant_type
+            or "other"
+        )
 
-        if variant_type not in variants_by_type:
-            variants_by_type[variant_type] = []
-            variant_options[variant_type] = []
+        variants_by_type.setdefault(
+            variant_type,
+            [],
+        )
 
-        variants_by_type[variant_type].append(variant)
+        variant_options.setdefault(
+            variant_type,
+            [],
+        )
 
-        if variant.value not in variant_options[variant_type]:
-            variant_options[variant_type].append(variant.value)
+        variants_by_type[
+            variant_type
+        ].append(
+            variant
+        )
 
-    size_variants = variants_by_type.get('size', [])
-    color_variants = variants_by_type.get('color', [])
+        if (
+            variant.value
+            not in variant_options[variant_type]
+        ):
+            variant_options[
+                variant_type
+            ].append(
+                variant.value
+            )
+
+    size_variants = variants_by_type.get(
+        "size",
+        [],
+    )
+
+    color_variants = variants_by_type.get(
+        "color",
+        [],
+    )
 
     variant_groups = []
-    for variant_type, variant_label in ProductVariant.VARIANT_TYPES:
-        options = variants_by_type.get(variant_type, [])
+
+    for (
+        variant_type,
+        variant_label,
+    ) in ProductVariant.VARIANT_TYPES:
+        options = variants_by_type.get(
+            variant_type,
+            [],
+        )
+
         if options:
             variant_groups.append({
-                'type': variant_type,
-                'label': variant_label,
-                'options': options,
+                "type": variant_type,
+                "label": variant_label,
+                "options": options,
             })
 
-    # ====== CRITICAL FIX ======
-    # Do not read variant_id from GET/POST for the page initial render.
-    # Do not auto-select the first/default variant.
-    # This makes every browser refresh return to the main product image/gallery.
+    # Never preselect a variant on initial page load.
     selected_variant = None
     selected_variant_id = None
-    default_variant = all_variants[0] if all_variants else None
+
+    # Keep the initial page state on the main product gallery.
+    # No variant is selected until the customer clicks one.
+    default_variant = None
+    first_variant = all_variants[0] if all_variants else None
 
     current_price = product.price
-    current_compare_price = product.compare_price
+    current_compare_price = (
+        product.compare_price
+    )
 
-    # ====== Product Gallery JSON ======
-    gallery_images = build_product_gallery()
+    # ============================================================
+    # Product and variant gallery JSON
+    # ============================================================
 
-    # ====== Variant Data JSON ======
+    gallery_images = (
+        build_product_gallery()
+    )
+
     variant_data = {}
 
     for variant in all_variants:
-        variant_price = product.price + variant.price_adjustment
-        variant_compare_price = product.compare_price + variant.price_adjustment if product.compare_price else None
+        variant_price = (
+            product.price
+            + variant.price_adjustment
+        )
+
+        variant_compare_price = None
+
+        if product.compare_price:
+            variant_compare_price = (
+                product.compare_price
+                + variant.price_adjustment
+            )
+
         converted_variant_price = convert_price(
             variant_price,
             base_currency,
-            user_currency
+            user_currency,
         )
 
-        variant_images = build_variant_gallery(variant)
+        variant_images = (
+            build_variant_gallery(
+                variant
+            )
+        )
 
-        variant_data[str(variant.id)] = {
-            'id': variant.id,
-            'name': variant.name,
-            'value': variant.value,
-            'variant_type': variant.variant_type,
-            'price': float(converted_variant_price or variant_price),
-            'price_display': format_currency(variant_price, request),
-            'price_raw': float(variant_price),
-            'compare_price_display': format_currency(variant_compare_price, request) if variant_compare_price else '',
-            'sku': variant.sku or f"{product.sku}-{variant.value[:3]}",
-            'stock': variant.stock_quantity,
-            'price_adjustment': float(variant.price_adjustment),
-            'price_adjustment_display': format_currency(variant.price_adjustment, request),
-            'image': variant_images[0]['src'] if variant_images else '',
-            'images': variant_images,
-            'gallery_images': variant_images,
-            'variant_images': variant_images,
-            'color_code': variant.color_code or '#CCCCCC',
-            'is_available': variant.is_available,
+        variant_data[str(variant.pk)] = {
+            "id": variant.pk,
+            "name": variant.name,
+            "value": variant.value,
+            "variant_type": variant.variant_type,
+            "price": float(
+                converted_variant_price
+                or variant_price
+            ),
+            "price_display": format_currency(
+                variant_price,
+                request,
+            ),
+            "price_raw": float(
+                variant_price
+            ),
+            "compare_price_display": (
+                format_currency(
+                    variant_compare_price,
+                    request,
+                )
+                if variant_compare_price
+                else ""
+            ),
+            "sku": (
+                variant.sku
+                or (
+                    f"{product.sku}-"
+                    f"{str(variant.value or '')[:3]}"
+                )
+            ),
+            "stock": variant.stock_quantity,
+            "price_adjustment": float(
+                variant.price_adjustment
+            ),
+            "price_adjustment_display": (
+                format_currency(
+                    variant.price_adjustment,
+                    request,
+                )
+            ),
+            "image": (
+                variant_images[0]["src"]
+                if variant_images
+                else ""
+            ),
+            "images": variant_images,
+            "gallery_images": variant_images,
+            "variant_images": variant_images,
+            "color_code": (
+                variant.color_code
+                or "#CCCCCC"
+            ),
+            "is_available": bool(
+                variant.is_available
+            ),
         }
 
-    # ====== Accessories ======
-    accessories = getattr(product, 'active_accessory_links', [])
+    # ============================================================
+    # Vendor offers
+    # ============================================================
 
-    # ====== Videos ======
-    videos = getattr(product, 'active_videos', [])
-
-    # ====== Editorial articles attached from admin ======
-    product_article_links = list(getattr(product, 'active_article_links', []))
-    product_article_links_hero = [link for link in product_article_links if link.placement == 'hero']
-    product_article_links_overview = [link for link in product_article_links if link.placement in {'overview', 'description'}]
-    product_article_links_tab = [link for link in product_article_links if link.placement == 'articles_tab']
-
-    # ====== Related Products (APPROVED ONLY) ======
-    related_products = Product.objects.filter(
-        category=product.category,
-        is_active=True,
-        approval_status='approved'
-    ).exclude(id=product.id).select_related(
-        'brand', 'vendor', 'vendor__vendor_profile'
-    )
-    related_products = order_storefront_products(
-        related_products,
-        '-is_featured',
-        '-rating_avg',
-        '-sales_count',
-    )[:8]
-
-    top_rated = Product.objects.filter(
-        category=product.category,
-        is_active=True,
-        rating_avg__gt=0,
-        approval_status='approved'
-    ).exclude(id=product.id).select_related('vendor', 'vendor__vendor_profile')
-    top_rated = order_storefront_products(
-        top_rated,
-        '-rating_avg',
-        '-rating_count',
-    )[:8]
-
-    bestsellers = Product.objects.filter(
-        category=product.category,
-        is_active=True,
-        approval_status='approved'
-    ).exclude(id=product.id).select_related('vendor', 'vendor__vendor_profile')
-    bestsellers = order_storefront_products(
-        bestsellers,
-        '-sales_count',
-        '-rating_avg',
-    )[:8]
-
-    frequently_bought_together = Product.objects.filter(
-        is_active=True,
-        approval_status='approved'
-    ).exclude(id=product.id).select_related('vendor', 'vendor__vendor_profile')
-    frequently_bought_together = order_storefront_products(
-        frequently_bought_together,
-        '-sales_count',
-        '-rating_avg',
-    )[:8]
-
-    # ====== Recently Viewed ======
-    recently_viewed = []
-    if request.user.is_authenticated:
-        recently_viewed = RecentlyViewed.objects.filter(
-            user=request.user
-        ).exclude(product=product).select_related('product').order_by('-viewed_at')[:12]
-
-    # ====== AI Recommendations (APPROVED ONLY) ======
-    ai_recommendations = Product.objects.filter(
-        is_active=True,
-        approval_status='approved'
-    ).exclude(id=product.id).select_related('vendor', 'vendor__vendor_profile')
-    ai_recommendations = order_storefront_products(
-        ai_recommendations,
-        '-views_count',
-        '-rating_avg',
-        '-sales_count',
-    )[:8]
-
-    # ====== Rating Percentages ======
-    total_reviews = product.rating_count or 1
-    review_breakdown = ProductReview.objects.filter(product=product).aggregate(
-        five_star_count=Count('id', filter=Q(rating=5)),
-        four_star_count=Count('id', filter=Q(rating=4)),
-        three_star_count=Count('id', filter=Q(rating=3)),
-    )
-    five_star_count = review_breakdown['five_star_count']
-    four_star_count = review_breakdown['four_star_count']
-    three_star_count = review_breakdown['three_star_count']
-    question_count = ProductQuestion.objects.filter(
-        product=product,
-        is_public=True,
-    ).count()
-
-    five_star_percent = int((five_star_count / total_reviews) * 100)
-    four_star_percent = int((four_star_count / total_reviews) * 100)
-    three_star_percent = int((three_star_count / total_reviews) * 100)
-
-    # ====== Explore Categories ======
-    all_categories = Category.objects.filter(
-        is_active=True,
-        parent=None,
-    ).annotate(
-        approved_product_count=Count(
-            'products',
-            filter=Q(
-                products__is_active=True,
-                products__approval_status='approved',
+    approved_vendor_offers = list(
+        product.vendor_offers
+        .filter(
+            is_active=True,
+            approval_status=(
+                VendorProductOffer
+                .STATUS_APPROVED
             ),
         )
-    ).order_by('name')[:12]
+        .select_related(
+            "vendor",
+            "variant",
+        )
+        .order_by(
+            "-is_preferred",
+            "-is_featured",
+            "price",
+            "-created_at",
+        )
+    )
 
-    # ====== Wishlist ======
-    in_wishlist = False
+    default_vendor_offer = next(
+        (
+            offer
+            for offer
+            in approved_vendor_offers
+            if offer.is_available
+        ),
+        (
+            approved_vendor_offers[0]
+            if approved_vendor_offers
+            else None
+        ),
+    )
+
+    # ============================================================
+    # Reviews and review videos
+    # ============================================================
+
+    visible_reviews_queryset = (
+        ProductReview.objects
+        .filter(product=product)
+        .select_related("user")
+        .prefetch_related(
+            Prefetch(
+                "review_videos",
+                queryset=(
+                    ReviewVideo.objects
+                    .order_by(
+                        "-is_main",
+                        "-created_at",
+                        "-id",
+                    )
+                ),
+                to_attr="visible_review_videos",
+            )
+        )
+        .order_by("-created_at")[:10]
+    )
+
+    visible_reviews = _attach_review_media(
+        request,
+        visible_reviews_queryset,
+    )
+
+    # ============================================================
+    # Accessories and product videos
+    # ============================================================
+
+    accessories = getattr(
+        product,
+        "active_accessory_links",
+        [],
+    )
+
+    videos = getattr(
+        product,
+        "active_videos",
+        [],
+    )
+
+    # ============================================================
+    # Editorial articles
+    # ============================================================
+
+    product_article_links = list(
+        getattr(
+            product,
+            "active_article_links",
+            [],
+        )
+    )
+
+    product_article_links_hero = [
+        link
+        for link in product_article_links
+        if link.placement == "hero"
+    ]
+
+    product_article_links_overview = [
+        link
+        for link in product_article_links
+        if link.placement
+        in {
+            "overview",
+            "description",
+        }
+    ]
+
+    product_article_links_tab = [
+        link
+        for link in product_article_links
+        if link.placement == "articles_tab"
+    ]
+
+    # ============================================================
+    # Related products
+    # ============================================================
+
+    related_products = (
+        Product.objects
+        .filter(
+            category=product.category,
+            is_active=True,
+            approval_status="approved",
+        )
+        .exclude(pk=product.pk)
+        .select_related(
+            "brand",
+            "vendor",
+            "vendor__vendor_profile",
+        )
+    )
+
+    related_products = (
+        order_storefront_products(
+            related_products,
+            "-is_featured",
+            "-rating_avg",
+            "-sales_count",
+        )[:8]
+    )
+
+    top_rated = (
+        Product.objects
+        .filter(
+            category=product.category,
+            is_active=True,
+            rating_avg__gt=0,
+            approval_status="approved",
+        )
+        .exclude(pk=product.pk)
+        .select_related(
+            "vendor",
+            "vendor__vendor_profile",
+        )
+    )
+
+    top_rated = (
+        order_storefront_products(
+            top_rated,
+            "-rating_avg",
+            "-rating_count",
+        )[:8]
+    )
+
+    bestsellers = (
+        Product.objects
+        .filter(
+            category=product.category,
+            is_active=True,
+            approval_status="approved",
+        )
+        .exclude(pk=product.pk)
+        .select_related(
+            "vendor",
+            "vendor__vendor_profile",
+        )
+    )
+
+    bestsellers = (
+        order_storefront_products(
+            bestsellers,
+            "-sales_count",
+            "-rating_avg",
+        )[:8]
+    )
+
+    frequently_bought_together = (
+        Product.objects
+        .filter(
+            is_active=True,
+            approval_status="approved",
+        )
+        .exclude(pk=product.pk)
+        .select_related(
+            "vendor",
+            "vendor__vendor_profile",
+        )
+    )
+
+    frequently_bought_together = (
+        order_storefront_products(
+            frequently_bought_together,
+            "-sales_count",
+            "-rating_avg",
+        )[:8]
+    )
+
+    # ============================================================
+    # Recently viewed
+    # ============================================================
+
+    recently_viewed = []
+
     if request.user.is_authenticated:
-        in_wishlist = Wishlist.objects.filter(
-            user=request.user,
-            product=product
-        ).exists()
-    else:
-        guest_wishlist = {str(product_id) for product_id in request.session.get(GUEST_WISHLIST_SESSION_KEY, [])}
-        in_wishlist = str(product.id) in guest_wishlist
+        recently_viewed = (
+            RecentlyViewed.objects
+            .filter(user=request.user)
+            .exclude(product=product)
+            .select_related("product")
+            .order_by("-viewed_at")[:12]
+        )
 
-    vendor_profile = getattr(product.vendor, "vendor_profile", None)
+    # ============================================================
+    # AI recommendations
+    # ============================================================
+
+    ai_recommendations = (
+        Product.objects
+        .filter(
+            is_active=True,
+            approval_status="approved",
+        )
+        .exclude(pk=product.pk)
+        .select_related(
+            "vendor",
+            "vendor__vendor_profile",
+        )
+    )
+
+    ai_recommendations = (
+        order_storefront_products(
+            ai_recommendations,
+            "-views_count",
+            "-rating_avg",
+            "-sales_count",
+        )[:8]
+    )
+
+    # ============================================================
+    # Rating breakdown
+    # ============================================================
+
+    review_stats = calculate_product_review_stats(
+        product.pk,
+    )
+
+    real_total_reviews = review_stats["count"]
+    review_average = review_stats["average"]
+    verified_review_count = review_stats["verified_count"]
+
+    five_star_count = review_stats["five_star_count"]
+    four_star_count = review_stats["four_star_count"]
+    three_star_count = review_stats["three_star_count"]
+
+    five_star_percent = review_stats["five_star_percent"]
+    four_star_percent = review_stats["four_star_percent"]
+    three_star_percent = review_stats["three_star_percent"]
+
+    # Self-heal old or manually edited cached product values immediately.
+    # This guarantees that this response, SEO schema, product cards, and the
+    # Reviews tab all use the real ProductReview rows as their source of truth.
+    cached_average = Decimal(
+        str(product.rating_avg or 0)
+    ).quantize(Decimal("0.01"))
+
+    if (
+        int(product.rating_count or 0) != real_total_reviews
+        or cached_average != review_average
+    ):
+        Product.objects.filter(pk=product.pk).update(
+            rating_count=real_total_reviews,
+            rating_avg=review_average,
+        )
+
+        # Keep the already-loaded object correct for this same response.
+        product.rating_count = real_total_reviews
+        product.rating_avg = review_average
+
+    question_count = (
+        ProductQuestion.objects
+        .filter(
+            product=product,
+            is_public=True,
+        )
+        .count()
+    )
+
+    # ============================================================
+    # Explore categories
+    # ============================================================
+
+    all_categories = (
+        Category.objects
+        .filter(
+            is_active=True,
+            parent=None,
+        )
+        .annotate(
+            approved_product_count=Count(
+                "products",
+                filter=Q(
+                    products__is_active=True,
+                    products__approval_status=(
+                        "approved"
+                    ),
+                ),
+            )
+        )
+        .order_by("name")[:12]
+    )
+
+    # ============================================================
+    # Wishlist
+    # ============================================================
+
+    if request.user.is_authenticated:
+        in_wishlist = (
+            Wishlist.objects
+            .filter(
+                user=request.user,
+                product=product,
+            )
+            .exists()
+        )
+    else:
+        guest_wishlist = {
+            str(product_id)
+            for product_id
+            in request.session.get(
+                GUEST_WISHLIST_SESSION_KEY,
+                [],
+            )
+        }
+
+        in_wishlist = (
+            str(product.pk)
+            in guest_wishlist
+        )
+
+    # ============================================================
+    # Vendor information
+    # ============================================================
+
+    vendor_profile = getattr(
+        product.vendor,
+        "vendor_profile",
+        None,
+    )
+
     try:
-        manufacturer_warranty = product.manufacturer_warranty
+        manufacturer_warranty = (
+            product.manufacturer_warranty
+        )
     except ManufacturerWarranty.DoesNotExist:
         manufacturer_warranty = None
-    vendor_contact_options = _vendor_contact_options(vendor_profile, product=product, request=request)
-    condition_value = getattr(product, "condition", "") or ""
-    default_condition_label = (
-        getattr(product, "condition_label", "")
-        or condition_value.replace("_", " ").title()
+
+    vendor_contact_options = (
+        _vendor_contact_options(
+            vendor_profile,
+            product=product,
+            request=request,
+        )
     )
+
+    condition_value = (
+        getattr(
+            product,
+            "condition",
+            "",
+        )
+        or ""
+    )
+
+    default_condition_label = (
+        getattr(
+            product,
+            "condition_label",
+            "",
+        )
+        or condition_value
+        .replace("_", " ")
+        .title()
+    )
+
     condition_label = translated_key(
-        translation_key_for_condition(condition_value),
+        translation_key_for_condition(
+            condition_value
+        ),
         default_condition_label,
         request=request,
     )
-    vendor_name = getattr(product, "vendor_display_name", "") or (getattr(vendor_profile, "store_name", "") if vendor_profile else "")
-    vendor_package = getattr(product, "vendor_package_name", "") or (getattr(vendor_profile, "active_plan_name", "") if vendor_profile else "")
+
+    vendor_name = (
+        getattr(
+            product,
+            "vendor_display_name",
+            "",
+        )
+        or (
+            getattr(
+                vendor_profile,
+                "store_name",
+                "",
+            )
+            if vendor_profile
+            else ""
+        )
+    )
+
+    vendor_package = (
+        getattr(
+            product,
+            "vendor_package_name",
+            "",
+        )
+        or (
+            getattr(
+                vendor_profile,
+                "active_plan_name",
+                "",
+            )
+            if vendor_profile
+            else ""
+        )
+    )
+
     if vendor_profile:
         vendor_package = translated_key(
-            f"subscription.plan.{getattr(vendor_profile, 'subscription_tier', 'free')}",
+            (
+                "subscription.plan."
+                f"{getattr(vendor_profile, 'subscription_tier', 'free')}"
+            ),
             vendor_package,
             request=request,
         )
-    location_label = getattr(product, "location_label", "") or ""
-    try:
-        from installers.services import suggested_categories_for_product, suggested_providers_for_product
-        from installers.models import ServicePortfolio
 
-        related_service_categories = suggested_categories_for_product(product)
-        suggested_service_providers = list(suggested_providers_for_product(product))
+    location_label = (
+        getattr(
+            product,
+            "location_label",
+            "",
+        )
+        or ""
+    )
+
+    # ============================================================
+    # Service-provider recommendations
+    # ============================================================
+
+    try:
+        from installers.models import ServicePortfolio
+        from installers.services import (
+            suggested_categories_for_product,
+            suggested_providers_for_product,
+        )
+
+        related_service_categories = (
+            suggested_categories_for_product(
+                product
+            )
+        )
+
+        suggested_service_providers = list(
+            suggested_providers_for_product(
+                product
+            )
+        )
+
         real_projects_using_product = (
-            ServicePortfolio.objects.public()
+            ServicePortfolio.objects
+            .public()
             .optimized()
-            .filter(project_products__product=product)
+            .filter(
+                project_products__product=product
+            )
             .distinct()[:6]
         )
+
     except Exception:
         related_service_categories = []
         suggested_service_providers = []
         real_projects_using_product = []
 
+    # ============================================================
+    # Template context
+    # ============================================================
+
     context = {
-        'product': product,
-        'size_variants': size_variants,
-        'color_variants': color_variants,
-        'all_variants': all_variants,
-        'variants_by_type': variants_by_type,
-        'variant_options': variant_options,
-        'variant_groups': variant_groups,
-        'approved_vendor_offers': approved_vendor_offers,
-        'default_vendor_offer': default_vendor_offer,
-        'has_vendor_offers': bool(approved_vendor_offers),
+        "product": product,
 
-        # JSON for frontend gallery + variant switching
-        'variant_data_json': json.dumps(variant_data),
-        'gallery_images': gallery_images,
-        'gallery_images_json': json.dumps(gallery_images),
+        "size_variants": size_variants,
+        "color_variants": color_variants,
+        "all_variants": all_variants,
+        "variants_by_type": variants_by_type,
+        "variant_options": variant_options,
+        "variant_groups": variant_groups,
 
-        # CRITICAL: keep empty on refresh/page load
-        'selected_variant': selected_variant,
-        'selected_variant_id': selected_variant_id,
-        'default_variant': default_variant,
+        "approved_vendor_offers": approved_vendor_offers,
+        "default_vendor_offer": default_vendor_offer,
+        "has_vendor_offers": bool(
+            approved_vendor_offers
+        ),
 
-        # Main product price on refresh/page load
-        'current_price': current_price,
-        'current_compare_price': current_compare_price,
+        "variant_data_json": json.dumps(
+            variant_data
+        ),
+        "gallery_images": gallery_images,
+        "gallery_images_json": json.dumps(
+            gallery_images
+        ),
 
-        'vendor_chat_available': vendor_contact_options.get('can_chat', False),
-        'vendor_contact_options': vendor_contact_options,
-        'manufacturer_warranty': manufacturer_warranty,
-        'accessories': accessories,
-        'product_accessories': accessories,
-        'videos': videos,
-        'product_videos': videos,
-        'product_article_links': product_article_links,
-        'product_article_links_hero': product_article_links_hero,
-        'product_article_links_overview': product_article_links_overview,
-        'product_article_links_tab': product_article_links_tab,
-        'related_products': related_products,
-        'top_rated_similar': top_rated,
-        'best_sellers': bestsellers,
-        'frequently_bought_together': frequently_bought_together,
-        'recently_viewed': recently_viewed,
-        'ai_recommendations': ai_recommendations,
-        'all_categories': all_categories,
-        'in_wishlist': in_wishlist,
-        'five_star_percent': five_star_percent,
-        'four_star_percent': four_star_percent,
-        'three_star_percent': three_star_percent,
-        'question_count': question_count,
-        'user_currency': user_currency,
-        'product_detail_sections': ProductDetailSection.objects.filter(is_enabled=True, web_enabled=True).order_by('display_order', 'title'),
-        'product_detail_fields': ProductDetailFieldConfig.objects.filter(is_enabled=True).order_by('display_order', 'label'),
-        'service_available': bool(related_service_categories),
-        'related_service_categories': related_service_categories,
-        'suggested_service_providers': suggested_service_providers,
-        'real_projects_using_product': real_projects_using_product,
+        "selected_variant": selected_variant,
+        "selected_variant_id": selected_variant_id,
+        "default_variant": default_variant,
+        "first_variant": first_variant,
+        "has_variants": bool(all_variants),
+
+        "current_price": current_price,
+        "current_compare_price": (
+            current_compare_price
+        ),
+
+        "vendor_chat_available": (
+            vendor_contact_options.get(
+                "can_chat",
+                False,
+            )
+        ),
+        "vendor_contact_options": (
+            vendor_contact_options
+        ),
+
+        "vendor_name": vendor_name,
+        "vendor_package": vendor_package,
+        "location_label": location_label,
+        "condition_label": condition_label,
+
+        "manufacturer_warranty": (
+            manufacturer_warranty
+        ),
+
+        "accessories": accessories,
+        "product_accessories": accessories,
+
+        "videos": videos,
+        "product_videos": videos,
+
+        # Both keys are provided for template compatibility.
+        "visible_reviews": visible_reviews,
+        "reviews": visible_reviews,
+        "review_count": real_total_reviews,
+        "review_average": review_average,
+        "verified_review_count": verified_review_count,
+
+        "product_article_links": (
+            product_article_links
+        ),
+        "product_article_links_hero": (
+            product_article_links_hero
+        ),
+        "product_article_links_overview": (
+            product_article_links_overview
+        ),
+        "product_article_links_tab": (
+            product_article_links_tab
+        ),
+
+        "related_products": related_products,
+        "top_rated_similar": top_rated,
+        "best_sellers": bestsellers,
+        "frequently_bought_together": (
+            frequently_bought_together
+        ),
+        "recently_viewed": recently_viewed,
+        "ai_recommendations": (
+            ai_recommendations
+        ),
+
+        "all_categories": all_categories,
+        "in_wishlist": in_wishlist,
+
+        "five_star_percent": (
+            five_star_percent
+        ),
+        "four_star_percent": (
+            four_star_percent
+        ),
+        "three_star_percent": (
+            three_star_percent
+        ),
+        "question_count": question_count,
+
+        "user_currency": user_currency,
+
+        "product_detail_sections": (
+            ProductDetailSection.objects
+            .filter(
+                is_enabled=True,
+                web_enabled=True,
+            )
+            .order_by(
+                "display_order",
+                "title",
+            )
+        ),
+
+        "product_detail_fields": (
+            ProductDetailFieldConfig.objects
+            .filter(is_enabled=True)
+            .order_by(
+                "display_order",
+                "label",
+            )
+        ),
+
+        "service_available": bool(
+            related_service_categories
+        ),
+        "related_service_categories": (
+            related_service_categories
+        ),
+        "suggested_service_providers": (
+            suggested_service_providers
+        ),
+        "real_projects_using_product": (
+            real_projects_using_product
+        ),
     }
 
-    return render(request, 'products/detail.html', context)
+    return render(
+        request,
+        "products/detail.html",
+        context,
+    )
 
 
 def _category_hero_image(category):
@@ -2122,9 +2728,13 @@ def add_review(request, slug):
     return redirect("products:detail", slug=product.slug)
 
 
-def _first_validation_error(error, default="The submitted information is invalid."):
+def _first_validation_error(
+    error,
+    default="The submitted information is invalid.",
+):
     """
-    Convert Django ValidationError structures into one safe user-facing message.
+    Convert Django ValidationError structures into one safe user-facing
+    message.
 
     Handles:
     - field_errors
@@ -2140,7 +2750,11 @@ def _first_validation_error(error, default="The submitted information is invalid
 
             first_error = field_errors[0]
 
-            if field_name == "video_review":
+            if field_name in {
+                "video_review",
+                "video_file",
+                "thumbnail",
+            }:
                 return str(first_error)
 
             label = str(field_name).replace("_", " ").title()
@@ -2153,24 +2767,31 @@ def _first_validation_error(error, default="The submitted information is invalid
     return str(error) or default
 
 
-def _review_video_url(request, review):
+def _review_file_url(request, file_field):
     """
-    Return a protected Arolana media URL for a review video.
+    Return a protected Arolana /media/ URL for review media.
 
-    Review videos are private-media resources and should be requested through
-    Django's protected /media/ authorization route rather than exposing an
-    underlying object-storage URL.
+    The storage provider URL is not exposed directly. The request passes
+    through Arolana's protected media route.
     """
 
-    if (
-        not review
-        or not review.video_review
-        or not review.video_review.name
-    ):
+    if not file_field:
+        return ""
+
+    file_name = str(
+        getattr(
+            file_field,
+            "name",
+            "",
+        )
+        or ""
+    ).strip()
+
+    if not file_name:
         return ""
 
     media_path = quote(
-        review.video_review.name,
+        file_name,
         safe="/",
     )
 
@@ -2179,39 +2800,228 @@ def _review_video_url(request, review):
     )
 
 
-def _refresh_product_review_stats(product_id):
+def _review_video_mime_type(file_name):
     """
-    Recalculate the public aggregate rating after a review create/update.
-
-    Uses QuerySet.update() for the aggregate fields so we do not trigger
-    unrelated Product.save() media/image processing.
+    Return the browser MIME type for a review video.
     """
 
-    review_stats = ProductReview.objects.filter(
-        product_id=product_id,
-    ).aggregate(
-        average=Avg("rating"),
-        total=Count("id"),
+    name = str(file_name or "").lower()
+
+    if name.endswith(".webm"):
+        return "video/webm"
+
+    if name.endswith(".ogg") or name.endswith(".ogv"):
+        return "video/ogg"
+
+    if name.endswith(".mov"):
+        return "video/quicktime"
+
+    if name.endswith(".m4v"):
+        return "video/x-m4v"
+
+    return "video/mp4"
+
+
+def _review_video_payloads(request, review):
+    """
+    Return every video belonging to a product review.
+
+    Supports both existing review-video systems:
+
+    1. ProductReview.video_review
+    2. ReviewVideo.video_file through review.review_videos
+
+    Duplicate storage paths are removed so the same video is never displayed
+    twice.
+    """
+
+    if not review:
+        return []
+
+    videos = []
+    seen_file_names = set()
+
+    def append_video(
+        *,
+        payload_id,
+        title,
+        video_file,
+        thumbnail=None,
+        is_main=False,
+        source="review",
+    ):
+        if not video_file:
+            return
+
+        file_name = str(
+            getattr(
+                video_file,
+                "name",
+                "",
+            )
+            or ""
+        ).strip()
+
+        if not file_name:
+            return
+
+        if file_name in seen_file_names:
+            return
+
+        video_url = _review_file_url(
+            request,
+            video_file,
+        )
+
+        if not video_url:
+            return
+
+        seen_file_names.add(file_name)
+
+        thumbnail_url = ""
+
+        if thumbnail and getattr(
+            thumbnail,
+            "name",
+            "",
+        ):
+            thumbnail_url = _review_file_url(
+                request,
+                thumbnail,
+            )
+
+        videos.append({
+            "id": str(payload_id),
+            "title": (
+                str(title or "").strip()
+                or "Customer review video"
+            ),
+            "url": video_url,
+            "video_url": video_url,
+            "mime_type": _review_video_mime_type(
+                file_name
+            ),
+            "thumbnail_url": thumbnail_url,
+            "poster_url": thumbnail_url,
+            "is_main": bool(is_main),
+            "source": source,
+            "file_name": file_name.rsplit("/", 1)[-1],
+        })
+
+    # ProductReview.video_review
+    direct_video = getattr(
+        review,
+        "video_review",
+        None,
     )
 
-    average = Decimal(
-        str(
-            review_stats["average"]
-            or 0
+    append_video(
+        payload_id=f"review-main-{review.pk}",
+        title=getattr(review, "title", ""),
+        video_file=direct_video,
+        is_main=True,
+        source="product_review",
+    )
+
+    # ReviewVideo rows prefetched by the product-detail views.
+    review_video_rows = getattr(
+        review,
+        "visible_review_videos",
+        None,
+    )
+
+    if review_video_rows is None:
+        try:
+            review_video_rows = list(
+                review.review_videos.all().order_by(
+                    "-is_main",
+                    "-created_at",
+                    "-id",
+                )
+            )
+        except Exception:
+            review_video_rows = []
+
+    for video in review_video_rows:
+        append_video(
+            payload_id=f"review-video-{video.pk}",
+            title=(
+                getattr(video, "title", "")
+                or getattr(review, "title", "")
+            ),
+            video_file=getattr(
+                video,
+                "video_file",
+                None,
+            ),
+            thumbnail=getattr(
+                video,
+                "thumbnail",
+                None,
+            ),
+            is_main=getattr(
+                video,
+                "is_main",
+                False,
+            ),
+            source="review_video",
+        )
+
+    videos.sort(
+        key=lambda item: (
+            not item.get("is_main", False),
+            item.get("source") != "product_review",
+            item.get("title", "").lower(),
         )
     )
 
-    total = int(
-        review_stats["total"]
-        or 0
+    return videos
+
+
+def _review_video_url(request, review):
+    """
+    Backward-compatible single review-video URL.
+
+    New code should use _review_video_payloads() because one review may contain
+    more than one video.
+    """
+
+    videos = _review_video_payloads(
+        request,
+        review,
     )
 
-    Product.objects.filter(
-        pk=product_id,
-    ).update(
-        rating_avg=average,
-        rating_count=total,
-    )
+    return videos[0]["url"] if videos else ""
+
+
+def _attach_review_media(request, reviews):
+    """
+    Attach template-ready video data to every review object.
+    """
+
+    prepared_reviews = list(reviews or [])
+
+    for review in prepared_reviews:
+        video_payloads = _review_video_payloads(
+            request,
+            review,
+        )
+
+        review.display_video_payloads = video_payloads
+        review.has_display_video = bool(video_payloads)
+        review.display_video_url = (
+            video_payloads[0]["url"]
+            if video_payloads
+            else ""
+        )
+
+    return prepared_reviews
+
+
+def _refresh_product_review_stats(product_id):
+    """Backward-compatible wrapper around the shared review-stat service."""
+
+    return refresh_product_review_stats(product_id)
 # ================================
 # 🔥 WISHLIST VIEWS
 # ================================
@@ -5118,6 +5928,11 @@ def mobile_product_review_api(request, slug):
 
     _refresh_product_review_stats(product.id)
 
+    review_video_payloads = _review_video_payloads(
+        request,
+        review,
+    )
+
     return JsonResponse(
         {
             "success": True,
@@ -5128,21 +5943,62 @@ def mobile_product_review_api(request, slug):
                 else "Review updated successfully."
             ),
             "review": {
-                "id": review.id,
+                "id": review.pk,
                 "rating": review.rating,
                 "title": review.title,
                 "review": review.review,
+
                 "customer_name": (
-                    getattr(customer, "full_name", "")
+                    getattr(
+                        customer,
+                        "full_name",
+                        "",
+                    )
                     or user.get_full_name()
                     or user.username
+                    or user.email
                     or "Arolana customer"
                 ),
-                "verified_purchase": review.verified_purchase,
-                "has_video": bool(review.video_review),
-                "video_url": _review_video_url(
-                    request,
-                    review,
+
+                "verified_purchase": bool(
+                    review.verified_purchase
+                ),
+
+                "helpful_count": int(
+                    review.helpful_count
+                    or 0
+                ),
+
+                "unhelpful_count": int(
+                    review.unhelpful_count
+                    or 0
+                ),
+
+                "has_video": bool(
+                    review_video_payloads
+                ),
+
+                "video_url": (
+                    review_video_payloads[0]["url"]
+                    if review_video_payloads
+                    else ""
+                ),
+
+                "videos": review_video_payloads,
+                "review_videos": (
+                    review_video_payloads
+                ),
+
+                "created_at": (
+                    review.created_at.isoformat()
+                    if review.created_at
+                    else ""
+                ),
+
+                "updated_at": (
+                    review.updated_at.isoformat()
+                    if review.updated_at
+                    else ""
                 ),
             },
         },
@@ -5214,27 +6070,56 @@ def mobile_product_detail_api(request, slug):
             "vendor__vendor_profile",
             "manufacturer_warranty",
             "shipping_info",
-        ).prefetch_related(
-            "images",
-            "variants",
-            "variants__images",
-            "variants__structured_specs",
-            "variants__vendor_offers",
-            "vendor_offers",
-            "reviews__user",
-            "questions__user",
-            "additional_videos",
-            "wholesale_tiers",
-            "product_accessories__accessory",
-            Prefetch(
-                "article_links",
-                queryset=ProductArticleLink.objects.filter(
-                    is_active=True,
-                    article__is_published=True,
-                ).select_related("article", "article__category", "article__author"),
-                to_attr="mobile_article_links",
-            ),
-        ),
+                ).prefetch_related(
+                    "images",
+                    "variants",
+                    "variants__images",
+                    "variants__structured_specs",
+                    "variants__vendor_offers",
+                    "vendor_offers",
+        
+                    Prefetch(
+                        "reviews",
+                        queryset=(
+                            ProductReview.objects
+                            .select_related("user")
+                            .prefetch_related(
+                                Prefetch(
+                                    "review_videos",
+                                    queryset=(
+                                        ReviewVideo.objects
+                                        .order_by(
+                                            "-is_main",
+                                            "-created_at",
+                                            "-id",
+                                        )
+                                    ),
+                                    to_attr="visible_review_videos",
+                                )
+                            )
+                            .order_by("-created_at")
+                        ),
+                        to_attr="mobile_visible_reviews",
+                    ),
+        
+                    "questions__user",
+                    "additional_videos",
+                    "wholesale_tiers",
+                    "product_accessories__accessory",
+        
+                    Prefetch(
+                        "article_links",
+                        queryset=ProductArticleLink.objects.filter(
+                            is_active=True,
+                            article__is_published=True,
+                        ).select_related(
+                            "article",
+                            "article__category",
+                            "article__author",
+                        ),
+                        to_attr="mobile_article_links",
+                    ),
+                ),
         slug=slug,
         is_active=True,
         approval_status="approved",
@@ -5289,7 +6174,10 @@ def mobile_product_detail_api(request, slug):
     mobile_customer = None
     if _auth_mobile_customer_from_request_data is not None:
         try:
-            mobile_customer = _auth_mobile_customer_from_request_data(request.GET)
+            mobile_customer = _mobile_authenticated_customer(
+                request,
+                request.GET,
+            )
         except Exception:
             mobile_customer = None
 
@@ -5375,45 +6263,81 @@ def mobile_product_detail_api(request, slug):
 
     reviews = []
 
-    for review in product.reviews.all()[:8]:
+    mobile_visible_reviews = list(
+        getattr(
+            product,
+            "mobile_visible_reviews",
+            [],
+        )
+    )[:8]
+
+    for review in mobile_visible_reviews:
         user = getattr(
             review,
             "user",
             None,
         )
 
+        review_videos = (
+            _review_video_payloads(
+                request,
+                review,
+            )
+        )
+
+        customer_name = (
+            user.get_full_name()
+            if user
+            else ""
+        )
+
+        if not customer_name and user:
+            customer_name = (
+                getattr(
+                    user,
+                    "username",
+                    "",
+                )
+                or getattr(
+                    user,
+                    "email",
+                    "",
+                )
+            )
+
         reviews.append({
-            "id": review.id,
+            "id": review.pk,
 
-            "rating": getattr(
-                review,
-                "rating",
-                0,
+            "rating": int(
+                getattr(
+                    review,
+                    "rating",
+                    0,
+                )
+                or 0
             ),
 
-            "title": getattr(
-                review,
-                "title",
-                "",
+            "title": (
+                getattr(
+                    review,
+                    "title",
+                    "",
+                )
+                or ""
             ),
 
-            "review": getattr(
-                review,
-                "review",
-                "",
+            "review": (
+                getattr(
+                    review,
+                    "review",
+                    "",
+                )
+                or ""
             ),
 
             "customer_name": (
-                getattr(
-                    user,
-                    "get_full_name",
-                    lambda: "",
-                )()
-                or getattr(
-                    user,
-                    "username",
-                    "Arolana customer",
-                )
+                customer_name
+                or "Arolana customer"
             ),
 
             "verified_purchase": bool(
@@ -5424,24 +6348,38 @@ def mobile_product_detail_api(request, slug):
                 )
             ),
 
-            "helpful_count": getattr(
-                review,
-                "helpful_count",
-                0,
+            "helpful_count": int(
+                getattr(
+                    review,
+                    "helpful_count",
+                    0,
+                )
+                or 0
+            ),
+
+            "unhelpful_count": int(
+                getattr(
+                    review,
+                    "unhelpful_count",
+                    0,
+                )
+                or 0
             ),
 
             "has_video": bool(
-                getattr(
-                    review,
-                    "video_review",
-                    None,
-                )
+                review_videos
             ),
 
-            "video_url": _review_video_url(
-                request,
-                review,
+            # Backward compatibility for the current app.
+            "video_url": (
+                review_videos[0]["url"]
+                if review_videos
+                else ""
             ),
+
+            # Complete new video collection.
+            "videos": review_videos,
+            "review_videos": review_videos,
 
             "created_at": (
                 review.created_at.isoformat()
@@ -5452,8 +6390,17 @@ def mobile_product_detail_api(request, slug):
                 )
                 else ""
             ),
-        })
 
+            "updated_at": (
+                review.updated_at.isoformat()
+                if getattr(
+                    review,
+                    "updated_at",
+                    None,
+                )
+                else ""
+            ),
+        })
     questions = []
     for question in product.questions.filter(is_public=True)[:8]:
         questions.append({
@@ -5750,10 +6697,17 @@ def mobile_product_detail_api(request, slug):
     })
 
 
-def _mobile_customer_from_payload(payload):
-    if _auth_mobile_customer_from_request_data is None:
-        raise ValueError("Mobile customer app is not available.")
-    return _auth_mobile_customer_from_request_data(payload)
+def _mobile_customer_from_payload(request, payload=None):
+    """
+    Backward-compatible request-aware mobile authentication wrapper.
+
+    Bearer authentication is preferred. The legacy api_token payload bridge
+    remains available while older app builds are being phased out.
+    """
+    return _mobile_authenticated_customer(
+        request,
+        payload,
+    )
 
 
 def _get_vendor_and_product_from_payload(payload):
@@ -5856,9 +6810,9 @@ def mobile_vendor_request_callback_api(request):
         return JsonResponse({"success": False, "message": "Invalid JSON payload."}, status=400)
 
     customer = None
-    if _auth_mobile_customer_from_request_data is not None and payload.get("api_token"):
+    if _auth_mobile_customer_from_request_data is not None:
         try:
-            customer = _mobile_customer_from_payload(payload)
+            customer = _mobile_customer_from_payload(request, payload)
         except Exception:
             customer = None
 
@@ -5927,9 +6881,9 @@ def mobile_vendor_reveal_phone_api(request):
         return JsonResponse({"success": False, "message": "This supplier phone is not available. Please use Arolana Chat."}, status=403)
 
     customer = None
-    if _auth_mobile_customer_from_request_data is not None and payload.get("api_token"):
+    if _auth_mobile_customer_from_request_data is not None:
         try:
-            customer = _mobile_customer_from_payload(payload)
+            customer = _mobile_customer_from_payload(request, payload)
         except Exception:
             customer = None
     _create_vendor_lead(request, vendor_profile, "phone_reveal", product=product, customer=customer, payload=payload)
@@ -5972,9 +6926,9 @@ def mobile_vendor_track_contact_api(request):
         return JsonResponse({"success": False, "message": "WhatsApp contact is not enabled for this supplier."}, status=403)
 
     customer = None
-    if _auth_mobile_customer_from_request_data is not None and payload.get("api_token"):
+    if _auth_mobile_customer_from_request_data is not None:
         try:
-            customer = _mobile_customer_from_payload(payload)
+            customer = _mobile_customer_from_payload(request, payload)
         except Exception:
             customer = None
     _create_vendor_lead(request, vendor_profile, action_type, product=product, customer=customer, payload=payload)
@@ -6017,7 +6971,7 @@ def mobile_vendor_chat_context_api(request):
         return JsonResponse({"success": False, "message": "Invalid JSON payload."}, status=400)
 
     try:
-        customer = _mobile_customer_from_payload(payload)
+        customer = _mobile_customer_from_payload(request, payload)
     except Exception:
         return JsonResponse({"success": False, "message": "Login is required before chatting with a vendor."}, status=401)
 
@@ -6081,7 +7035,7 @@ def mobile_vendor_chat_send_api(request, room_id):
         return JsonResponse({"success": False, "message": "Invalid JSON payload."}, status=400)
 
     try:
-        customer = _mobile_customer_from_payload(payload)
+        customer = _mobile_customer_from_payload(request, payload)
     except Exception:
         return JsonResponse({"success": False, "message": "Login is required before sending a message."}, status=401)
 
@@ -6233,7 +7187,7 @@ def mobile_vendor_follow_api(request, vendor_id):
 
     try:
         payload = json.loads(request.body.decode("utf-8") or "{}")
-        customer = _mobile_customer_from_payload(payload)
+        customer = _mobile_customer_from_payload(request, payload)
     except PermissionError as error:
         return JsonResponse({"success": False, "message": str(error)}, status=403)
     except Exception as error:
@@ -6258,7 +7212,7 @@ def mobile_vendor_unfollow_api(request, vendor_id):
 
     try:
         payload = json.loads(request.body.decode("utf-8") or "{}")
-        customer = _mobile_customer_from_payload(payload)
+        customer = _mobile_customer_from_payload(request, payload)
     except PermissionError as error:
         return JsonResponse({"success": False, "message": str(error)}, status=403)
     except Exception as error:
@@ -6281,7 +7235,7 @@ def mobile_rfqs_api(request):
         return JsonResponse({"success": False, "message": "RFQ system is not available."}, status=500)
 
     try:
-        customer = _mobile_customer_from_payload(request.GET)
+        customer = _mobile_customer_from_payload(request, request.GET)
     except PermissionError as error:
         return JsonResponse({"success": False, "message": str(error)}, status=403)
     except Exception as error:
@@ -6301,7 +7255,7 @@ def mobile_rfq_create_api(request):
 
     try:
         payload = json.loads(request.body.decode("utf-8") or "{}")
-        customer = _mobile_customer_from_payload(payload)
+        customer = _mobile_customer_from_payload(request, payload)
     except PermissionError as error:
         return JsonResponse({"success": False, "message": str(error)}, status=403)
     except Exception as error:
@@ -6368,7 +7322,7 @@ def mobile_rfq_detail_api(request, rfq_id):
         return JsonResponse({"success": False, "message": "RFQ system is not available."}, status=500)
 
     try:
-        customer = _mobile_customer_from_payload(request.GET)
+        customer = _mobile_customer_from_payload(request, request.GET)
     except PermissionError as error:
         return JsonResponse({"success": False, "message": str(error)}, status=403)
     except Exception as error:
@@ -6389,7 +7343,7 @@ def mobile_rfq_status_api(request, rfq_id, action):
 
     try:
         payload = json.loads(request.body.decode("utf-8") or "{}")
-        customer = _mobile_customer_from_payload(payload)
+        customer = _mobile_customer_from_payload(request, payload)
     except PermissionError as error:
         return JsonResponse({"success": False, "message": str(error)}, status=403)
     except Exception as error:

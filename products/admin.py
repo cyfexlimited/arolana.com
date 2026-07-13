@@ -17,6 +17,7 @@ from .models import (
 
 from django.utils.timezone import now
 from core.image_protection import duplicate_warning_payload, set_protected_image_uploader
+from .review_stats import refresh_product_review_stats
 
 # NOTE FOR VARIANT IMAGES:
 # Add variant rows from the Product admin, save, then click the change/open link
@@ -112,7 +113,59 @@ class AccessoryAdminForm(forms.ModelForm):
             'all': ('css/ckeditor-custom.css',)
         }
 
+class ProductReviewAdminForm(forms.ModelForm):
+    """
+    Admin form for customer product reviews.
 
+    The browser file picker permits the same video formats accepted by the
+    backend validator, including iPhone MOV videos.
+    """
+    
+    class Meta:
+        model = ProductReview
+        fields = "__all__"
+        widgets = {
+            "video_review": forms.ClearableFileInput(
+                attrs={
+                    "accept": (
+                        "video/mp4,"
+                        "video/webm,"
+                        "video/quicktime,"
+                        "video/x-m4v,"
+                        ".mp4,.webm,.mov,.m4v"
+                    ),
+                }
+            ),
+        }
+
+
+class ReviewVideoAdminForm(forms.ModelForm):
+    """
+    Admin form for additional review-video evidence.
+    """
+
+    class Meta:
+        model = ReviewVideo
+        fields = "__all__"
+        widgets = {
+            "video_file": forms.ClearableFileInput(
+                attrs={
+                    "accept": (
+                        "video/mp4,"
+                        "video/webm,"
+                        "video/quicktime,"
+                        "video/x-m4v,"
+                        ".mp4,.webm,.mov,.m4v"
+                    ),
+                }
+            ),
+            "thumbnail": forms.ClearableFileInput(
+                attrs={
+                    "accept": "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp",
+                }
+            ),
+        }
+        
 class InventoryStatusFilter(admin.SimpleListFilter):
     title = 'inventory status'
     parameter_name = 'inventory_status'
@@ -352,12 +405,13 @@ class ReviewVideoInline(admin.TabularInline):
     """
     Review video evidence attached to a customer review.
 
-    New ReviewVideo records may be added through the ProductReview admin,
-    but existing uploaded video and thumbnail evidence cannot be silently
-    replaced after creation.
+    Existing review evidence must not be silently replaced. Staff may add new
+    validated videos, while the dedicated ReviewVideo admin freezes previously
+    uploaded media.
     """
 
     model = ReviewVideo
+    form = ReviewVideoAdminForm
     extra = 1
 
     fields = [
@@ -369,26 +423,7 @@ class ReviewVideoInline(admin.TabularInline):
 
     show_change_link = True
 
-    def get_readonly_fields(
-        self,
-        request,
-        obj=None,
-    ):
-        """
-        Inline-level protection.
-
-        Django's inline get_readonly_fields() receives the parent ProductReview
-        object rather than the individual ReviewVideo instance, so this alone
-        cannot safely freeze only existing individual inline rows.
-
-        Therefore:
-        - validation remains active for new uploads;
-        - the dedicated ReviewVideo admin below provides immutable evidence
-          protection for existing ReviewVideo records.
-
-        We intentionally return a fresh tuple.
-        """
-
+    def get_readonly_fields(self, request, obj=None):
         return tuple(
             super().get_readonly_fields(
                 request,
@@ -591,6 +626,7 @@ class ProductAdmin(admin.ModelAdmin):
         'reset_reserved_quantity',
         'enable_backorders',
         'disable_backorders',
+        'rebuild_review_statistics',
     ]
     
     def mark_as_featured(self, request, queryset):
@@ -644,6 +680,19 @@ class ProductAdmin(admin.ModelAdmin):
         updated = queryset.update(allow_backorder=False)
         self.message_user(request, f"Backorders disabled for {updated} product(s).")
     disable_backorders.short_description = "Disable backorders"
+
+    @admin.action(description="Rebuild selected product review statistics")
+    def rebuild_review_statistics(self, request, queryset):
+        repaired = 0
+
+        for product_id in queryset.values_list("pk", flat=True).iterator():
+            refresh_product_review_stats(product_id)
+            repaired += 1
+
+        self.message_user(
+            request,
+            f"Rebuilt review statistics for {repaired} product(s).",
+        )
 
 
 # =================================
@@ -1163,6 +1212,7 @@ class ProductVideoAdmin(admin.ModelAdmin):
 
 @admin.register(ProductReview)
 class ProductReviewAdmin(admin.ModelAdmin):
+    form = ProductReviewAdminForm
     """
     Customer review moderation.
 
@@ -1177,6 +1227,8 @@ class ProductReviewAdmin(admin.ModelAdmin):
 
     But they cannot silently replace the original review video.
     """
+
+    form = ProductReviewAdminForm
 
     list_display = [
         "product_name",
@@ -1468,6 +1520,7 @@ class ProductQnAAdmin(admin.ModelAdmin):
 
 @admin.register(ReviewVideo)
 class ReviewVideoAdmin(admin.ModelAdmin):
+    form = ReviewVideoAdminForm
     """
     Review video evidence moderation.
 

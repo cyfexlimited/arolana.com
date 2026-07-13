@@ -798,19 +798,17 @@ class ServiceProviderProfile(BaseModel):
 
     @property
     def can_receive_serious_jobs(self):
+        eligible_plans = {
+            "verified pro",
+            "enterprise",
+        }
+
         return (
             self.approval_allows_dashboard
             and self.is_active
-            and (
-                self.kyc_status
-                == self.KYC_APPROVED
-                or self.allow_limited_jobs_without_kyc
-            )
-            and self.subscription_status
-            in [
-                "active",
-                "trial",
-            ]
+            and self.kyc_status == self.KYC_APPROVED
+            and self.subscription_status in {"active", "trial"}
+            and (self.subscription_plan or "").strip().casefold() in eligible_plans
         )
 
     @property

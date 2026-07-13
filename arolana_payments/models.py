@@ -287,8 +287,49 @@ class PaymentTransaction(models.Model):
         blank=True,
     )
 
+
+    manual_reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_manual_crypto_payments",
+    )
+
+    manual_reviewed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    manual_review_decision = models.CharField(
+        max_length=20,
+        blank=True,
+        choices=[
+            ("approved", "Approved"),
+            ("rejected", "Rejected"),
+        ],
+    )
+
+    manual_review_note = models.TextField(
+        blank=True,
+    )
+
     paid_at = models.DateTimeField(
         null=True,
+        blank=True,
+    )
+
+    fulfilled_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+    )
+
+    fulfillment_attempts = models.PositiveIntegerField(
+        default=0,
+    )
+
+    fulfillment_error = models.TextField(
         blank=True,
     )
 
@@ -317,6 +358,15 @@ class PaymentTransaction(models.Model):
                     "order_id",
                     "status",
                 ]
+            ),
+        ]
+
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=["manual_tx_hash"],
+                condition=~models.Q(manual_tx_hash=""),
+                name="uniq_payment_manual_tx_hash_nonblank",
             ),
         ]
 
@@ -357,13 +407,10 @@ class PaymentTransaction(models.Model):
         gateway_reference="",
         payload=None,
     ):
-        self.status = (
-            PaymentStatus.SUCCESS
-        )
+        self.status = PaymentStatus.SUCCESS
 
-        self.paid_at = (
-            timezone.now()
-        )
+        if self.paid_at is None:
+            self.paid_at = timezone.now()
 
         if gateway_reference:
             self.gateway_reference = (
@@ -371,9 +418,7 @@ class PaymentTransaction(models.Model):
             )
 
         if payload is not None:
-            self.webhook_payload = (
-                payload
-            )
+            self.webhook_payload = payload
 
         self.save(
             update_fields=[
@@ -385,27 +430,19 @@ class PaymentTransaction(models.Model):
             ]
         )
 
-        if not getattr(
-            self,
-            "_success_handler_running",
-            False,
-        ):
-            self._success_handler_running = True
-
+        if self.pk:
             try:
                 from .services import (
-                    update_order_after_payment,
+                    dispatch_successful_payment,
                 )
 
-                update_order_after_payment(
-                    self
+                dispatch_successful_payment(
+                    self.pk
                 )
 
             except Exception:
+                # Fulfillment failure details are persisted by the service.
                 pass
-
-            finally:
-                self._success_handler_running = False
 
     def mark_failed(
         self,
@@ -482,6 +519,53 @@ class ManualCryptoWallet(models.Model):
 # =============================================================================
 # PAYPAL WEBHOOK LOG
 # =============================================================================
+
+
+
+class CoinbaseWebhookLog(models.Model):
+    event_id = models.CharField(
+        max_length=180,
+        unique=True,
+        db_index=True,
+    )
+
+    event_type = models.CharField(
+        max_length=80,
+        blank=True,
+        db_index=True,
+    )
+
+    payment = models.ForeignKey(
+        PaymentTransaction,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="coinbase_webhook_logs",
+    )
+
+    payload = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+
+    processed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.event_type or 'coinbase'} - {self.event_id}"
 
 
 class PayPalWebhookLog(models.Model):

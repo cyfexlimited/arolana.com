@@ -2,205 +2,1014 @@
 {% load static %}
 
 {% block title %}Messages - Vendor Dashboard{% endblock %}
+{% block dashboard_side_ad %}{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<style>
+    :root {
+        --arolana-navy: #071A44;
+        --arolana-blue: #0066CC;
+        --arolana-orange: #FF7A00;
+        --arolana-soft: #F4F8FF;
+        --arolana-border: #E3ECF8;
+        --arolana-text: #0B1E46;
+        --arolana-muted: #65758B;
+        --arolana-bg: #F4F7FB;
+        --arolana-green: #16A34A;
+        --arolana-red: #DC2626;
+        --arolana-amber: #F59E0B;
+    }
+
+    html,
+    body {
+        width: 100%;
+        min-height: 100%;
+        overflow-x: hidden;
+        background: var(--arolana-bg) !important;
+    }
+
+    * {
+        box-sizing: border-box;
+    }
+
+    body:has(.vendor-messages-page) main,
+    body:has(.vendor-messages-page) .main-content,
+    body:has(.vendor-messages-page) .dashboard-content,
+    body:has(.vendor-messages-page) .content-wrapper,
+    body:has(.vendor-messages-page) .container,
+    body:has(.vendor-messages-page) .container-fluid {
+        width: 100% !important;
+        max-width: none !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    body:has(.vendor-messages-page) .arolana-following-ad,
+    body:has(.vendor-messages-page) .arolana-floating-ad-shell,
+    body:has(.vendor-messages-page) .arolana-ad-placeholder,
+    .arolana-following-ad,
+    .arolana-floating-ad-shell,
+    .arolana-ad-placeholder {
+        display: none !important;
+    }
+
+    .vendor-messages-page {
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        padding: 1rem 1.25rem 2rem;
+        color: var(--arolana-text);
+    }
+
+    .vendor-messages-shell {
+        width: 100%;
+        max-width: 1180px;
+        margin: 0 auto;
+    }
+
+    .vendor-messages-hero {
+        overflow: hidden;
+        border-radius: 1.35rem;
+        background:
+            radial-gradient(circle at 14% 18%, rgba(56,189,248,.24), transparent 28%),
+            radial-gradient(circle at 88% 16%, rgba(255,122,0,.24), transparent 24%),
+            linear-gradient(135deg, #071A44, #063E85);
+        color: #fff;
+        box-shadow: 0 18px 42px rgba(7, 26, 68, .18);
+        margin-bottom: 1rem;
+    }
+
+    .vendor-messages-hero-inner {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.25rem;
+    }
+
+    .vendor-messages-eyebrow {
+        color: #FFD7B0;
+        font-size: .68rem;
+        font-weight: 950;
+        letter-spacing: .18em;
+        text-transform: uppercase;
+    }
+
+    .vendor-messages-title {
+        margin: .25rem 0 0;
+        color: #fff;
+        font-size: clamp(1.55rem, 2.6vw, 2.45rem);
+        line-height: 1.05;
+        font-weight: 950;
+        letter-spacing: -.03em;
+    }
+
+    .vendor-messages-subtitle {
+        margin-top: .45rem;
+        max-width: 46rem;
+        color: rgba(255,255,255,.78);
+        font-size: .84rem;
+        line-height: 1.5;
+        font-weight: 750;
+    }
+
+    .vendor-messages-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .45rem;
+        min-height: 2.55rem;
+        padding: .7rem 1rem;
+        border-radius: .9rem;
+        border: 1px solid transparent;
+        font-size: .76rem;
+        font-weight: 950;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: .18s ease;
+        cursor: pointer;
+    }
+
+    .vendor-messages-btn:hover {
+        transform: translateY(-1px);
+        text-decoration: none;
+    }
+
+    .vendor-messages-btn-primary {
+        background: linear-gradient(135deg, var(--arolana-orange), #E85F00);
+        color: #fff;
+        box-shadow: 0 12px 26px rgba(255, 122, 0, .2);
+    }
+
+    .vendor-messages-btn-blue {
+        background: linear-gradient(135deg, var(--arolana-blue), #064B99);
+        color: #fff;
+        box-shadow: 0 12px 26px rgba(0, 102, 204, .18);
+    }
+
+    .vendor-messages-btn-light {
+        background: #fff;
+        color: var(--arolana-navy);
+        border-color: var(--arolana-border);
+        box-shadow: 0 8px 22px rgba(15, 23, 42, .05);
+    }
+
+    .vendor-unread-card {
+        margin-top: .85rem;
+        display: inline-flex;
+        align-items: center;
+        gap: .45rem;
+        border-radius: 999px;
+        background: rgba(255,255,255,.14);
+        border: 1px solid rgba(255,255,255,.24);
+        padding: .45rem .8rem;
+        color: #fff;
+        font-size: .72rem;
+        font-weight: 950;
+    }
+
+    .vendor-messages-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr);
+        gap: 1rem;
+        align-items: start;
+    }
+
+    .vendor-messages-panel {
+        overflow: hidden;
+        border-radius: 1.15rem;
+        background: #fff;
+        border: 1px solid var(--arolana-border);
+        box-shadow: 0 14px 34px rgba(15, 23, 42, .06);
+        min-width: 0;
+        margin-bottom: 1rem;
+    }
+
+    .vendor-messages-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .85rem;
+        padding: 1rem;
+        border-bottom: 1px solid var(--arolana-border);
+        background: linear-gradient(180deg, #fff, #F8FBFF);
+    }
+
+    .vendor-messages-panel-title {
+        margin: 0;
+        color: var(--arolana-navy);
+        font-size: 1.05rem;
+        line-height: 1.2;
+        font-weight: 950;
+    }
+
+    .vendor-messages-panel-subtitle {
+        margin-top: .22rem;
+        color: var(--arolana-muted);
+        font-size: .72rem;
+        line-height: 1.45;
+        font-weight: 750;
+    }
+
+    .vendor-messages-panel-body {
+        padding: 1rem;
+    }
+
+    .vendor-search-form {
+        margin-bottom: 1rem;
+    }
+
+    .vendor-search-wrap {
+        position: relative;
+    }
+
+    .vendor-search-input {
+        width: 100%;
+        min-height: 2.75rem;
+        border: 1px solid var(--arolana-border);
+        border-radius: .95rem;
+        background: #fff;
+        color: var(--arolana-navy);
+        padding: .75rem 2.75rem;
+        font-size: .82rem;
+        font-weight: 750;
+        outline: none;
+    }
+
+    .vendor-search-input:focus {
+        border-color: var(--arolana-blue);
+        box-shadow: 0 0 0 4px rgba(0, 102, 204, .12);
+    }
+
+    .vendor-search-icon {
+        position: absolute;
+        left: .95rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94A3B8;
+    }
+
+    .vendor-search-clear {
+        position: absolute;
+        right: .9rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94A3B8;
+        text-decoration: none;
+    }
+
+    .vendor-conversation-list {
+        display: grid;
+        gap: .75rem;
+    }
+
+    .vendor-conversation-card {
+        display: block;
+        border-radius: 1rem;
+        border: 1px solid var(--arolana-border);
+        background: #fff;
+        text-decoration: none;
+        color: inherit;
+        overflow: hidden;
+        transition: .18s ease;
+    }
+
+    .vendor-conversation-card:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 12px 26px rgba(15, 23, 42, .06);
+        text-decoration: none;
+    }
+
+    .vendor-conversation-card.unread {
+        border-color: #BFDBFE;
+        background: #EFF6FF;
+    }
+
+    .vendor-conversation-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .9rem;
+        padding: .9rem;
+    }
+
+    .vendor-conversation-left {
+        display: flex;
+        align-items: center;
+        gap: .85rem;
+        min-width: 0;
+    }
+
+    .vendor-admin-avatar {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        background: #CBD5E1;
+        flex: 0 0 auto;
+    }
+
+    .vendor-conversation-card.unread .vendor-admin-avatar {
+        background: var(--arolana-blue);
+    }
+
+    .vendor-admin-content {
+        min-width: 0;
+    }
+
+    .vendor-admin-line {
+        display: flex;
+        align-items: center;
+        gap: .45rem;
+        flex-wrap: wrap;
+    }
+
+    .vendor-admin-email {
+        color: var(--arolana-navy);
+        font-size: .86rem;
+        line-height: 1.25;
+        font-weight: 950;
+        overflow-wrap: anywhere;
+    }
+
+    .vendor-new-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 1.45rem;
+        padding: .25rem .55rem;
+        border-radius: 999px;
+        background: var(--arolana-red);
+        color: #fff;
+        font-size: .62rem;
+        font-weight: 950;
+        white-space: nowrap;
+    }
+
+    .vendor-admin-role {
+        margin-top: .14rem;
+        color: var(--arolana-muted);
+        font-size: .68rem;
+        font-weight: 800;
+    }
+
+    .vendor-last-message {
+        margin-top: .35rem;
+        color: var(--arolana-muted);
+        font-size: .74rem;
+        line-height: 1.45;
+        font-weight: 750;
+        overflow-wrap: anywhere;
+    }
+
+    .vendor-last-message-prefix {
+        color: #94A3B8;
+        font-size: .68rem;
+        font-weight: 950;
+    }
+
+    .vendor-conversation-right {
+        text-align: right;
+        flex: 0 0 auto;
+    }
+
+    .vendor-message-time {
+        color: #94A3B8;
+        font-size: .66rem;
+        font-weight: 850;
+        white-space: nowrap;
+    }
+
+    .vendor-chevron {
+        margin-top: .45rem;
+        color: #94A3B8;
+    }
+
+    .vendor-empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--arolana-muted);
+        font-size: .82rem;
+        font-weight: 800;
+    }
+
+    .vendor-empty-icon {
+        width: 4rem;
+        height: 4rem;
+        margin: 0 auto 1rem;
+        border-radius: 1.2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #F8FBFF;
+        color: #CBD5E1;
+        font-size: 1.6rem;
+        border: 1px solid var(--arolana-border);
+    }
+
+    .vendor-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: .55rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+    }
+
+    .vendor-page-link,
+    .vendor-page-current {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 2.4rem;
+        padding: .62rem 1rem;
+        border-radius: .85rem;
+        font-size: .72rem;
+        font-weight: 950;
+        text-decoration: none;
+    }
+
+    .vendor-page-link {
+        background: #fff;
+        color: var(--arolana-navy);
+        border: 1px solid var(--arolana-border);
+    }
+
+    .vendor-page-current {
+        background: var(--arolana-blue);
+        color: #fff;
+        border: 1px solid var(--arolana-blue);
+    }
+
+    .vendor-notification-list {
+        display: grid;
+        gap: .7rem;
+    }
+
+    .vendor-notification-card {
+        position: relative;
+        border-radius: 1rem;
+        border: 1px solid var(--arolana-border);
+        background: #F8FBFF;
+        padding: .85rem;
+    }
+
+    .vendor-notification-inner {
+        display: flex;
+        align-items: flex-start;
+        gap: .7rem;
+        padding-right: 1.4rem;
+    }
+
+    .vendor-notification-icon {
+        width: 2.25rem;
+        height: 2.25rem;
+        border-radius: .75rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #DBEAFE;
+        color: var(--arolana-blue);
+        flex: 0 0 auto;
+    }
+
+    .vendor-notification-title {
+        color: var(--arolana-navy);
+        font-size: .78rem;
+        font-weight: 950;
+        line-height: 1.3;
+    }
+
+    .vendor-notification-message {
+        margin-top: .18rem;
+        color: var(--arolana-muted);
+        font-size: .68rem;
+        line-height: 1.4;
+        font-weight: 750;
+    }
+
+    .vendor-notification-time {
+        margin-top: .22rem;
+        color: #94A3B8;
+        font-size: .64rem;
+        font-weight: 800;
+    }
+
+    .vendor-notification-action {
+        display: inline-flex;
+        margin-top: .32rem;
+        color: var(--arolana-blue);
+        font-size: .68rem;
+        font-weight: 950;
+        text-decoration: none;
+    }
+
+    .vendor-notification-delete {
+        position: absolute;
+        top: .65rem;
+        right: .65rem;
+        width: 1.7rem;
+        height: 1.7rem;
+        border: 0;
+        border-radius: 999px;
+        background: #FEE2E2;
+        color: #B91C1C;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .vendor-notifications-empty {
+        text-align: center;
+        padding: 1.5rem 1rem;
+        color: var(--arolana-muted);
+        font-size: .76rem;
+        font-weight: 800;
+    }
+
+    .vendor-danger-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .35rem;
+        border: 0;
+        background: #FEE2E2;
+        color: #B91C1C;
+        min-height: 2.2rem;
+        padding: .55rem .75rem;
+        border-radius: .8rem;
+        font-size: .7rem;
+        font-weight: 950;
+        cursor: pointer;
+    }
+
+    .vendor-toast {
+        position: fixed;
+        right: 1rem;
+        bottom: 1rem;
+        z-index: 9999;
+        border-radius: .9rem;
+        color: #fff;
+        padding: .8rem 1rem;
+        font-size: .78rem;
+        font-weight: 950;
+        box-shadow: 0 16px 34px rgba(15, 23, 42, .18);
+    }
+
+    .vendor-toast.success {
+        background: var(--arolana-green);
+    }
+
+    .vendor-toast.error {
+        background: var(--arolana-red);
+    }
+
+    @media (max-width: 980px) {
+        .vendor-messages-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .vendor-messages-page {
+            padding: .7rem .55rem 5rem !important;
+        }
+
+        .vendor-messages-hero {
+            border-radius: 1rem;
+        }
+
+        .vendor-messages-hero-inner {
+            flex-direction: column;
+            align-items: stretch;
+            padding: 1rem;
+        }
+
+        .vendor-messages-title {
+            font-size: 1.35rem;
+        }
+
+        .vendor-messages-subtitle {
+            font-size: .72rem;
+        }
+
+        .vendor-messages-btn {
+            width: 100%;
+            min-height: 2.5rem;
+            font-size: .7rem;
+            border-radius: .82rem;
+        }
+
+        .vendor-messages-panel {
+            border-radius: 1rem;
+        }
+
+        .vendor-messages-panel-header {
+            align-items: stretch;
+            flex-direction: column;
+            padding: .78rem;
+        }
+
+        .vendor-messages-panel-body {
+            padding: .78rem;
+        }
+
+        .vendor-messages-panel-title {
+            font-size: .92rem;
+        }
+
+        .vendor-messages-panel-subtitle {
+            font-size: .66rem;
+        }
+
+        .vendor-search-input {
+            min-height: 2.5rem;
+            border-radius: .78rem;
+            font-size: .72rem;
+        }
+
+        .vendor-conversation-card {
+            border-radius: .9rem;
+        }
+
+        .vendor-conversation-inner {
+            align-items: flex-start;
+            padding: .78rem;
+        }
+
+        .vendor-admin-avatar {
+            width: 2.55rem;
+            height: 2.55rem;
+            border-radius: .82rem;
+        }
+
+        .vendor-admin-email {
+            font-size: .76rem;
+        }
+
+        .vendor-last-message {
+            font-size: .68rem;
+        }
+
+        .vendor-message-time {
+            font-size: .6rem;
+        }
+
+        .vendor-notification-card {
+            border-radius: .9rem;
+            padding: .75rem;
+        }
+
+        .vendor-notification-title {
+            font-size: .72rem;
+        }
+
+        .vendor-notification-message {
+            font-size: .64rem;
+        }
+
+        .vendor-page-link,
+        .vendor-page-current {
+            flex: 1 1 auto;
+            min-height: 2.35rem;
+            font-size: .66rem;
+        }
+
+        .vendor-toast {
+            left: .7rem;
+            right: .7rem;
+            bottom: 5rem;
+            text-align: center;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block dashboard_content %}
-<div class="bg-white rounded-xl shadow-lg p-6">
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <div>
-            <h1 class="text-2xl font-bold">Messages from Admin</h1>
-            {% if total_unread %}
-            <p class="text-sm text-red-500 mt-1">You have {{ total_unread }} unread message{{ total_unread|pluralize }}</p>
-            {% endif %}
-        </div>
-        <a href="{% url 'dashboard:vendor_start_conversation' %}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-            <i class="fas fa-plus"></i> Start New Conversation
-        </a>
-    </div>
-    
-    <!-- Search Bar -->
-    <form method="GET" class="mb-6">
-        <div class="relative">
-            <input type="text" name="search" value="{{ search_query }}" 
-                   placeholder="Search by admin email or message content..." 
-                   class="w-full px-4 py-3 pl-10 border rounded-lg focus:ring-2 focus:ring-blue-500">
-            <i class="fas fa-search absolute left-3 top-3.5 text-gray-400"></i>
-            {% if search_query %}
-            <a href="{% url 'dashboard:vendor_messages' %}" class="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
-                <i class="fas fa-times"></i>
-            </a>
-            {% endif %}
-        </div>
-    </form>
-    
-    {% if admins %}
-    <div class="space-y-3">
-        {% for admin_data in admins %}
-        <a href="{% url 'dashboard:vendor_message_conversation' admin_data.admin.id %}" 
-           class="block border rounded-lg p-4 hover:bg-gray-50 transition {% if admin_data.unread_count %}bg-blue-50 border-blue-200{% endif %}">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div class="w-12 h-12 rounded-full flex items-center justify-center {% if admin_data.unread_count %}bg-blue-500{% else %}bg-gray-200{% endif %}">
-                        <i class="fas fa-user-shield text-white text-xl"></i>
+<div class="vendor-messages-page">
+    <div class="vendor-messages-shell">
+
+        <section class="vendor-messages-hero">
+            <div class="vendor-messages-hero-inner">
+                <div>
+                    <div class="vendor-messages-eyebrow">Arolana Vendor Support</div>
+                    <h1 class="vendor-messages-title">Messages From Admin</h1>
+                    <p class="vendor-messages-subtitle">
+                        View conversations with Arolana admin, reply to support messages, and track important product, KYC, order, and subscription updates.
+                    </p>
+
+                    {% if total_unread %}
+                    <div class="vendor-unread-card">
+                        <i class="fas fa-envelope"></i>
+                        {{ total_unread }} unread message{{ total_unread|pluralize }}
                     </div>
-                    <div>
-                        <div class="flex items-center gap-2">
-                            <h3 class="font-semibold">{{ admin_data.admin.email }}</h3>
-                            {% if admin_data.unread_count %}
-                            <span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full">{{ admin_data.unread_count }} new</span>
+                    {% endif %}
+                </div>
+
+                <a href="{% url 'dashboard:vendor_start_conversation' %}" class="vendor-messages-btn vendor-messages-btn-primary">
+                    <i class="fas fa-plus"></i>
+                    Start New Conversation
+                </a>
+            </div>
+        </section>
+
+        <div class="vendor-messages-layout">
+            <main>
+                <section class="vendor-messages-panel">
+                    <div class="vendor-messages-panel-header">
+                        <div>
+                            <h2 class="vendor-messages-panel-title">Admin Conversations</h2>
+                            <p class="vendor-messages-panel-subtitle">Search and open your support conversations.</p>
+                        </div>
+                    </div>
+
+                    <div class="vendor-messages-panel-body">
+                        <form method="GET" class="vendor-search-form">
+                            <div class="vendor-search-wrap">
+                                <i class="fas fa-search vendor-search-icon"></i>
+                                <input
+                                    type="text"
+                                    name="search"
+                                    value="{{ search_query }}"
+                                    placeholder="Search by admin email or message content..."
+                                    class="vendor-search-input"
+                                >
+
+                                {% if search_query %}
+                                <a href="{% url 'dashboard:vendor_messages' %}" class="vendor-search-clear">
+                                    <i class="fas fa-times"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </form>
+
+                        {% if admins %}
+                        <div class="vendor-conversation-list">
+                            {% for admin_data in admins %}
+                            <a
+                                href="{% url 'dashboard:vendor_message_conversation' admin_data.admin.id %}"
+                                class="vendor-conversation-card {% if admin_data.unread_count %}unread{% endif %}"
+                            >
+                                <div class="vendor-conversation-inner">
+                                    <div class="vendor-conversation-left">
+                                        <div class="vendor-admin-avatar">
+                                            <i class="fas fa-user-shield"></i>
+                                        </div>
+
+                                        <div class="vendor-admin-content">
+                                            <div class="vendor-admin-line">
+                                                <h3 class="vendor-admin-email">{{ admin_data.admin.email }}</h3>
+
+                                                {% if admin_data.unread_count %}
+                                                <span class="vendor-new-badge">
+                                                    {{ admin_data.unread_count }} new
+                                                </span>
+                                                {% endif %}
+                                            </div>
+
+                                            <p class="vendor-admin-role">Administrator</p>
+
+                                            {% if admin_data.last_message_preview %}
+                                            <p class="vendor-last-message">
+                                                <span class="vendor-last-message-prefix">
+                                                    {% if admin_data.last_message_sender == request.user %}You:{% else %}Admin:{% endif %}
+                                                </span>
+                                                {{ admin_data.last_message_preview|truncatechars:70 }}
+                                            </p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    <div class="vendor-conversation-right">
+                                        {% if admin_data.last_message_time %}
+                                        <p class="vendor-message-time">{{ admin_data.last_message_time|timesince }} ago</p>
+                                        {% endif %}
+                                        <i class="fas fa-chevron-right vendor-chevron"></i>
+                                    </div>
+                                </div>
+                            </a>
+                            {% endfor %}
+                        </div>
+
+                        {% if admins.has_other_pages %}
+                        <div class="vendor-pagination">
+                            {% if admins.has_previous %}
+                            <a href="?page={{ admins.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}" class="vendor-page-link">
+                                Previous
+                            </a>
+                            {% endif %}
+
+                            <span class="vendor-page-current">
+                                Page {{ admins.number }} of {{ admins.paginator.num_pages }}
+                            </span>
+
+                            {% if admins.has_next %}
+                            <a href="?page={{ admins.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}" class="vendor-page-link">
+                                Next
+                            </a>
                             {% endif %}
                         </div>
-                        <p class="text-sm text-gray-500">Administrator</p>
-                        {% if admin_data.last_message_preview %}
-                        <p class="text-sm text-gray-600 mt-1">
-                            <span class="text-xs text-gray-400">
-                                {% if admin_data.last_message_sender == request.user %}You:{% else %}Admin:{% endif %}
-                            </span>
-                            {{ admin_data.last_message_preview|truncatechars:50 }}
-                        </p>
                         {% endif %}
-                    </div>
-                </div>
-                <div class="text-right">
-                    <p class="text-xs text-gray-400">{{ admin_data.last_message_time|timesince }} ago</p>
-                    <i class="fas fa-chevron-right text-gray-400 mt-2"></i>
-                </div>
-            </div>
-        </a>
-        {% endfor %}
-    </div>
-    
-    <!-- Pagination -->
-    {% if admins.has_other_pages %}
-    <div class="flex justify-center gap-2 mt-6">
-        {% if admins.has_previous %}
-            <a href="?page={{ admins.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}" 
-               class="px-3 py-1 bg-gray-100 rounded-lg hover:bg-gray-200">Previous</a>
-        {% endif %}
-        
-        <span class="px-3 py-1 bg-blue-600 text-white rounded-lg">{{ admins.number }}</span>
-        
-        {% if admins.has_next %}
-            <a href="?page={{ admins.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}" 
-               class="px-3 py-1 bg-gray-100 rounded-lg hover:bg-gray-200">Next</a>
-        {% endif %}
-    </div>
-    {% endif %}
-    
-    {% else %}
-    <div class="text-center py-12">
-        <i class="fas fa-comments text-5xl text-gray-300 mb-4"></i>
-        <p class="text-gray-500">No messages yet</p>
-        <a href="{% url 'dashboard:vendor_start_conversation' %}" class="mt-4 inline-block text-blue-600 hover:underline">
-            <i class="fas fa-plus"></i> Start a conversation with Admin
-        </a>
-    </div>
-    {% endif %}
-    
-    <!-- Notifications Section -->
-    {% if notifications %}
-    <div class="mt-8">
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-semibold">Recent Notifications</h2>
-            <button onclick="deleteAllNotifications()" class="text-red-600 hover:text-red-800 text-sm">
-                <i class="fas fa-trash-alt"></i> Delete All
-            </button>
-        </div>
-        <div class="space-y-3" id="notificationsList">
-            {% for notif in notifications %}
-            <div id="notification-{{ notif.id }}" class="bg-gray-50 rounded-lg p-3 relative group">
-                <button onclick="deleteNotification({{ notif.id }})" 
-                        class="absolute top-2 right-2 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition">
-                    <i class="fas fa-times"></i>
-                </button>
-                <div class="flex items-start gap-3 pr-6">
-                    <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <i class="fas fa-bell text-blue-600 text-sm"></i>
-                    </div>
-                    <div class="flex-1">
-                        <h4 class="font-semibold text-sm">{{ notif.title }}</h4>
-                        <p class="text-xs text-gray-500 mt-1">{{ notif.message|truncatewords:20 }}</p>
-                        <p class="text-xs text-gray-400 mt-1">{{ notif.created_at|timesince }} ago</p>
-                        {% if notif.action_url %}
-                        <a href="{{ notif.action_url }}" class="text-xs text-blue-600 hover:underline mt-1 inline-block">
-                            View Details →
-                        </a>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-</div>
 
+                        {% else %}
+                        <div class="vendor-empty-state">
+                            <div class="vendor-empty-icon">
+                                <i class="fas fa-comments"></i>
+                            </div>
+                            <p>No messages yet.</p>
+                            <a href="{% url 'dashboard:vendor_start_conversation' %}" class="vendor-messages-btn vendor-messages-btn-blue" style="margin-top:.9rem;">
+                                <i class="fas fa-plus"></i>
+                                Start a conversation with Admin
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </section>
+            </main>
+
+            <aside>
+                <section class="vendor-messages-panel">
+                    <div class="vendor-messages-panel-header">
+                        <div>
+                            <h2 class="vendor-messages-panel-title">Recent Notifications</h2>
+                            <p class="vendor-messages-panel-subtitle">Latest vendor alerts and actions.</p>
+                        </div>
+
+                        {% if notifications %}
+                        <button onclick="deleteAllNotifications()" class="vendor-danger-btn" type="button">
+                            <i class="fas fa-trash-alt"></i>
+                            Delete All
+                        </button>
+                        {% endif %}
+                    </div>
+
+                    <div class="vendor-messages-panel-body">
+                        {% if notifications %}
+                        <div class="vendor-notification-list" id="notificationsList">
+                            {% for notif in notifications %}
+                            <div id="notification-{{ notif.id }}" class="vendor-notification-card">
+                                <button
+                                    onclick="deleteNotification({{ notif.id }})"
+                                    class="vendor-notification-delete"
+                                    type="button"
+                                    aria-label="Delete notification"
+                                >
+                                    <i class="fas fa-times"></i>
+                                </button>
+
+                                <div class="vendor-notification-inner">
+                                    <div class="vendor-notification-icon">
+                                        <i class="fas fa-bell"></i>
+                                    </div>
+
+                                    <div style="min-width:0;">
+                                        <h4 class="vendor-notification-title">{{ notif.title }}</h4>
+                                        <p class="vendor-notification-message">{{ notif.message|truncatewords:20 }}</p>
+                                        <p class="vendor-notification-time">{{ notif.created_at|timesince }} ago</p>
+
+                                        {% if notif.action_url %}
+                                        <a href="{{ notif.action_url }}" class="vendor-notification-action">
+                                            View Details →
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="vendor-notifications-empty" id="notificationsList">
+                            No notifications.
+                        </div>
+                        {% endif %}
+                    </div>
+                </section>
+            </aside>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
 <script>
 function deleteNotification(notificationId) {
-    if (confirm('Are you sure you want to delete this notification?')) {
-        fetch(`/dashboard/vendor/notifications/delete/${notificationId}/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCookie('csrftoken'),
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                document.getElementById(`notification-${notificationId}`).remove();
-                showToast('Notification deleted', 'success');
-            }
-        })
-        .catch(error => console.error('Error:', error));
+    if (!confirm("Are you sure you want to delete this notification?")) {
+        return;
     }
+
+    fetch(`/dashboard/vendor/notifications/delete/${notificationId}/`, {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": getCookie("csrftoken"),
+            "Content-Type": "application/json"
+        }
+    })
+    .then(function (response) {
+        return response.json();
+    })
+    .then(function (data) {
+        if (data.success) {
+            const item = document.getElementById(`notification-${notificationId}`);
+
+            if (item) {
+                item.remove();
+            }
+
+            showToast("Notification deleted", "success");
+            refreshNotificationEmptyState();
+        } else {
+            showToast(data.error || "Could not delete notification", "error");
+        }
+    })
+    .catch(function () {
+        showToast("Network error. Please try again.", "error");
+    });
 }
 
 function deleteAllNotifications() {
-    if (confirm('Delete all notifications? This action cannot be undone.')) {
-        fetch('/dashboard/vendor/notifications/delete-all/', {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCookie('csrftoken'),
-                'Content-Type': 'application/json'
+    if (!confirm("Delete all notifications? This action cannot be undone.")) {
+        return;
+    }
+
+    fetch("/dashboard/vendor/notifications/delete-all/", {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": getCookie("csrftoken"),
+            "Content-Type": "application/json"
+        }
+    })
+    .then(function (response) {
+        return response.json();
+    })
+    .then(function (data) {
+        if (data.success) {
+            const container = document.getElementById("notificationsList");
+
+            if (container) {
+                container.innerHTML = '<div class="vendor-notifications-empty">No notifications.</div>';
             }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                const container = document.getElementById('notificationsList');
-                if (container) {
-                    container.innerHTML = '<div class="text-center py-4 text-gray-500">No notifications</div>';
-                }
-                showToast(`${data.deleted} notifications deleted`, 'success');
-            }
-        })
-        .catch(error => console.error('Error:', error));
+
+            showToast((data.deleted || "All") + " notifications deleted", "success");
+        } else {
+            showToast(data.error || "Could not delete notifications", "error");
+        }
+    })
+    .catch(function () {
+        showToast("Network error. Please try again.", "error");
+    });
+}
+
+function refreshNotificationEmptyState() {
+    const container = document.getElementById("notificationsList");
+
+    if (!container) {
+        return;
+    }
+
+    const remaining = container.querySelectorAll(".vendor-notification-card").length;
+
+    if (remaining === 0) {
+        container.innerHTML = '<div class="vendor-notifications-empty">No notifications.</div>';
     }
 }
 
 function getCookie(name) {
     let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
+
+    if (document.cookie && document.cookie !== "") {
+        const cookies = document.cookie.split(";");
+
         for (let i = 0; i < cookies.length; i++) {
             const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+
+            if (cookie.substring(0, name.length + 1) === (name + "=")) {
                 cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
                 break;
             }
         }
     }
+
     return cookieValue;
 }
 
 function showToast(message, type) {
-    const toast = document.createElement('div');
-    toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded-lg text-white z-50 ${
-        type === 'success' ? 'bg-green-500' : 'bg-red-500'
-    }`;
+    const toast = document.createElement("div");
+
+    toast.className = "vendor-toast " + (type === "success" ? "success" : "error");
     toast.textContent = message;
+
     document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
+
+    setTimeout(function () {
+        toast.remove();
+    }, 3000);
 }
 </script>
 {% endblock %}

@@ -3,9 +3,12 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Count, Q, Sum
+from django.db.models import Avg, Count, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+
+from arolana_payments.models import PaymentMethod, PaymentStatus, PaymentTransaction
+from arolana_payments.services import gateway_is_available, init_paystack_checkout
 
 from notifications.models import Notification
 from products.models import Product
@@ -41,6 +44,8 @@ from .project_services import (
     record_project_event,
     resolve_project_gallery_media,
 )
+from .subscription_services import create_provider_subscription_payment
+
 from .services import (
     filter_public_providers,
     notify_staff_service_quote,
@@ -1636,7 +1641,7 @@ def add_portfolio(request):
         )
 
         return redirect(
-            "installers:provider_projects"
+            "provider_workspace:projects"
         )
 
     form = ServicePortfolioForm(
@@ -1671,7 +1676,7 @@ def add_portfolio(request):
         )
 
         return redirect(
-            "installers:provider_project_edit",
+            "provider_workspace:project_edit",
             project_id=portfolio.id,
         )
 
@@ -2187,7 +2192,7 @@ def provider_project_edit(
             )
 
         return redirect(
-            "installers:provider_project_edit",
+            "provider_workspace:project_edit",
             project_id=project.id,
         )
 
@@ -2276,7 +2281,7 @@ def provider_project_media(
                 )
 
                 return redirect(
-                    "installers:provider_project_media",
+                    "provider_workspace:project_media",
                     project_id=project.id,
                 )
 
@@ -2742,4 +2747,405 @@ def submit_review(
                 f"Review {provider.business_name}"
             ),
         },
+    )
+
+@login_required
+def workspace_quote_requests(request):
+    provider = _provider_workspace(request)
+
+    if not provider.approval_allows_dashboard:
+        return redirect("installers:provider_dashboard")
+
+    allowed_statuses = {
+        value
+        for value, _label
+        in ServiceQuoteRequest.STATUS_CHOICES
+    }
+
+    if request.method == "POST":
+        quote = get_object_or_404(
+            provider.quote_requests,
+            pk=request.POST.get("quote_id"),
+        )
+
+        next_status = (
+            request.POST.get("status", "")
+            or ""
+        ).strip()
+
+        if next_status not in allowed_statuses:
+            messages.error(
+                request,
+                "Select a valid service request status.",
+            )
+
+            return redirect(
+                "provider_workspace:quote_requests"
+            )
+
+        quote.status = next_status
+
+        quote.provider_note = (
+            request.POST.get("provider_note", "")
+            or ""
+        ).strip()[:2000]
+
+        update_fields = [
+            "status",
+            "provider_note",
+            "updated_at",
+        ]
+
+        if (
+            next_status == "accepted"
+            and quote.accepted_at is None
+        ):
+            quote.accepted_at = timezone.now()
+            update_fields.append("accepted_at")
+
+        if (
+            next_status == "completed"
+            and quote.completed_at is None
+        ):
+            quote.completed_at = timezone.now()
+            update_fields.append("completed_at")
+
+        quote.save(
+            update_fields=update_fields
+        )
+
+        messages.success(
+            request,
+            "Service request updated.",
+        )
+
+        return redirect(
+            "provider_workspace:quote_requests"
+        )
+
+    all_quotes = (
+        provider.quote_requests
+        .select_related(
+            "product",
+            "category",
+            "source_project",
+            "customer",
+        )
+        .order_by("-created_at")
+    )
+
+    selected_status = (
+        request.GET.get("status", "")
+        or ""
+    ).strip()
+
+    quote_requests = all_quotes
+
+    if selected_status in allowed_statuses:
+        quote_requests = quote_requests.filter(
+            status=selected_status
+        )
+
+    context = _workspace_context(
+        provider,
+        "quote_requests",
+    )
+
+    context.update(
+        {
+            "quote_requests": quote_requests,
+            "quote_status_choices": (
+                ServiceQuoteRequest.STATUS_CHOICES
+            ),
+            "selected_status": selected_status,
+            "counts": {
+                "all": all_quotes.count(),
+                "pending": all_quotes.filter(
+                    status__in=[
+                        "new",
+                        "under_review",
+                        "assigned",
+                    ]
+                ).count(),
+                "active": all_quotes.filter(
+                    status__in=[
+                        "assigned",
+                        "accepted",
+                        "on_the_way",
+                        "in_progress",
+                    ]
+                ).count(),
+                "completed": all_quotes.filter(
+                    status__in=[
+                        "completed",
+                        "closed",
+                    ]
+                ).count(),
+                "urgent": (
+                    all_quotes
+                    .filter(
+                        Q(urgency="urgent")
+                        | Q(urgency="emergency")
+                    )
+                    .exclude(
+                        status__in=[
+                            "completed",
+                            "closed",
+                            "cancelled",
+                        ]
+                    )
+                    .count()
+                ),
+            },
+        }
+    )
+
+    return render(
+        request,
+        "installers/workspace/quote_requests.html",
+        context,
+    )
+
+@login_required
+def workspace_reviews(request):
+    provider = _provider_workspace(request)
+
+    reviews = (
+        provider.reviews
+        .select_related("customer")
+        .order_by("-created_at")
+    )
+
+    approved_reviews = reviews.filter(
+        is_approved=True
+    )
+
+    pending_reviews = reviews.filter(
+        is_approved=False
+    )
+
+    averages = approved_reviews.aggregate(
+        overall=Avg("rating"),
+        professionalism=Avg(
+            "professionalism_rating"
+        ),
+        communication=Avg(
+            "communication_rating"
+        ),
+        quality=Avg(
+            "quality_rating"
+        ),
+        timeliness=Avg(
+            "timeliness_rating"
+        ),
+    )
+
+    rating_distribution = [
+        {
+            "star": star,
+            "count": approved_reviews.filter(
+                rating=star
+            ).count(),
+        }
+        for star in range(5, 0, -1)
+    ]
+
+    context = _workspace_context(
+        provider,
+        "reviews",
+    )
+
+    context.update(
+        {
+            "reviews": reviews,
+            "approved_reviews": approved_reviews,
+            "pending_reviews": pending_reviews,
+            "averages": averages,
+            "rating_distribution": rating_distribution,
+            "counts": {
+                "all": reviews.count(),
+                "approved": approved_reviews.count(),
+                "pending": pending_reviews.count(),
+            },
+        }
+    )
+
+    return render(
+        request,
+        "installers/workspace/reviews.html",
+        context,
+    )
+
+@login_required
+def workspace_subscription(request):
+    provider = _provider_workspace(request)
+
+    plans = (
+        ProviderSubscriptionPlan.objects
+        .filter(is_active=True)
+        .order_by(
+            "display_order",
+            "price_monthly",
+            "name",
+        )
+    )
+
+    current_plan = (
+        plans
+        .filter(
+            name__iexact=provider.subscription_plan
+        )
+        .first()
+    )
+
+    if request.method == "POST":
+        plan = get_object_or_404(
+            plans,
+            pk=request.POST.get("plan_id"),
+        )
+
+        if (
+            plan.price_monthly > 0
+            or plan.price_yearly > 0
+        ):
+            billing_cycle = str(
+                request.POST.get("billing_cycle") or ""
+            ).strip().lower()
+
+            if billing_cycle not in {"monthly", "yearly"}:
+                messages.error(
+                    request,
+                    "Choose monthly or yearly billing.",
+                )
+                return redirect(
+                    "provider_workspace:subscription"
+                )
+
+            selected_amount = (
+                plan.price_monthly
+                if billing_cycle == "monthly"
+                else plan.price_yearly
+            )
+
+            if selected_amount <= 0:
+                messages.error(
+                    request,
+                    f"{billing_cycle.title()} billing is not available for this plan.",
+                )
+                return redirect(
+                    "provider_workspace:subscription"
+                )
+
+            payment = None
+
+            try:
+                payment = create_provider_subscription_payment(
+                    provider=provider,
+                    plan=plan,
+                    billing_cycle=billing_cycle,
+                    gateway=PaymentMethod.PAYSTACK,
+                )
+
+                checkout_url = init_paystack_checkout(
+                    request,
+                    payment,
+                )
+
+                if not checkout_url:
+                    raise ValueError(
+                        "Paystack did not return a checkout URL."
+                    )
+
+                return redirect(checkout_url)
+
+            except Exception as exc:
+                if (
+                    payment is not None
+                    and payment.status != PaymentStatus.SUCCESS
+                ):
+                    payment.mark_failed(
+                        {
+                            "error": str(exc),
+                            "stage": "provider_subscription_checkout",
+                        }
+                    )
+
+                messages.error(
+                    request,
+                    f"Unable to start secure checkout: {exc}",
+                )
+
+                return redirect(
+                    "provider_workspace:subscription"
+                )
+
+        provider.subscription_plan = plan.name
+        provider.subscription_status = "active"
+        provider.subscription_expires_at = None
+
+        provider.save(
+            update_fields=[
+                "subscription_plan",
+                "subscription_status",
+                "subscription_expires_at",
+                "updated_at",
+            ]
+        )
+
+        Notification.send(
+            provider.user,
+            "system",
+            "Provider subscription updated",
+            (
+                "Your provider subscription is now "
+                f"{provider.subscription_plan}."
+            ),
+            metadata={
+                "service_provider_id": provider.id,
+                "provider_subscription_plan_id": plan.id,
+                "workspace": "provider",
+            },
+        )
+
+        messages.success(
+            request,
+            (
+                f"{plan.name} has been activated "
+                "for your provider account."
+            ),
+        )
+
+        return redirect(
+            "provider_workspace:subscription"
+        )
+
+    provider_payments = (
+        PaymentTransaction.objects
+        .filter(
+            user=provider.user,
+            checkout_data__purpose="provider_subscription",
+        )
+        .order_by("-created_at")[:20]
+    )
+
+    context = _workspace_context(
+        provider,
+        "subscription",
+    )
+
+    context.update(
+        {
+            "plans": plans,
+            "current_plan": current_plan,
+            "provider_payments": provider_payments,
+            "subscription_status_display": (
+                provider.get_subscription_status_display()
+            ),
+        }
+    )
+
+    return render(
+        request,
+        "installers/workspace/subscription.html",
+        context,
     )

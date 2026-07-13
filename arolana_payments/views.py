@@ -4,6 +4,7 @@ from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.db import transaction
@@ -28,6 +29,8 @@ from django.views.decorators.http import (
 from orders.models import Cart, Order
 from orders.services import normalize_checkout_service_level
 
+from .coinbase_services import process_coinbase_webhook_event
+
 from .models import (
     ManualCryptoWallet,
     PayPalWebhookLog,
@@ -47,10 +50,11 @@ from .services import (
     process_paypal_webhook,
     record_paypal_capture_response,
     verify_coinbase_signature,
-    verify_flutterwave_transaction,
-    verify_flutterwave_transaction_by_reference,
+    verify_flutterwave_payment,
     verify_flutterwave_webhook,
     verify_paypal_webhook_signature,
+    verify_paystack_payment,
+    verify_paystack_webhook_signature,
     verify_paystack_transaction,
 )
 
@@ -647,57 +651,34 @@ def _verify_transaction_now(payment):
     # FLUTTERWAVE
     # -------------------------------------------------------------------------
 
-    if (
-        payment.gateway
-        == PaymentMethod.FLUTTERWAVE
-    ):
-        data = (
-            verify_flutterwave_transaction_by_reference(
-                payment.reference
-            )
-        )
-
+    if payment.gateway == PaymentMethod.FLUTTERWAVE:
+        data = verify_flutterwave_payment(payment)
         transaction_data = (
-            data.get(
-                "data",
-                {},
-            )
-            if isinstance(
-                data,
-                dict,
-            )
+            data.get("data", {})
+            if isinstance(data, dict)
             else {}
         )
-
-        transaction_status = (
-            transaction_data.get(
-                "status"
-            )
+        transaction_status = transaction_data.get("status")
+        validation_error = (
+            data.get("validation_error", "")
+            if isinstance(data, dict)
+            else "Invalid Flutterwave verification response."
         )
-
         transaction_id = (
-            transaction_data.get(
-                "id"
-            )
-            or transaction_data.get(
-                "tx_ref"
-            )
+            transaction_data.get("id")
+            or transaction_data.get("tx_ref")
             or payment.reference
         )
 
         if (
-            data.get("status")
-            == "success"
-            and transaction_status
-            == "successful"
+            not validation_error
+            and data.get("status") == "success"
+            and transaction_status == "successful"
         ):
             payment.mark_success(
-                str(
-                    transaction_id
-                ),
+                str(transaction_id),
                 data,
             )
-
             return (
                 True,
                 "Flutterwave payment confirmed.",
@@ -708,10 +689,7 @@ def _verify_transaction_now(payment):
             "failed",
             "cancelled",
         }:
-            payment.mark_failed(
-                data
-            )
-
+            payment.mark_failed(data)
             return (
                 False,
                 (
@@ -722,7 +700,6 @@ def _verify_transaction_now(payment):
             )
 
         payment.gateway_response = data
-
         payment.save(
             update_fields=[
                 "gateway_response",
@@ -732,10 +709,8 @@ def _verify_transaction_now(payment):
 
         return (
             False,
-            (
-                "Flutterwave has not confirmed "
-                "this payment yet."
-            ),
+            validation_error
+            or "Flutterwave has not confirmed this payment yet.",
             data,
         )
 
@@ -747,10 +722,7 @@ def _verify_transaction_now(payment):
         payment.gateway
         == PaymentMethod.PAYSTACK
     ):
-        data = verify_paystack_transaction(
-            payment.gateway_reference
-            or payment.reference
-        )
+        data = verify_paystack_payment(payment)
 
         if (
             data.get(
@@ -1425,9 +1397,17 @@ def manual_crypto(
     request,
     reference,
 ):
+    if not request.user.is_authenticated:
+        messages.error(
+            request,
+            "Sign in before accessing this payment.",
+        )
+        return redirect("arolana_payments:checkout")
+
     payment = get_object_or_404(
         PaymentTransaction,
         reference=reference,
+        user=request.user,
         gateway=(
             PaymentMethod.MANUAL_CRYPTO
         ),
@@ -1445,15 +1425,15 @@ def manual_crypto(
         # FINAL PAYMENT STATES CANNOT ACCEPT NEW PROOF
         # ---------------------------------------------------------------------
 
-        if payment.status in {
-            PaymentStatus.SUCCESS,
-            PaymentStatus.REFUNDED,
+        if payment.status not in {
+            PaymentStatus.PENDING,
+            PaymentStatus.PROCESSING,
         }:
             messages.error(
                 request,
                 (
-                    "This payment is already completed "
-                    "and cannot accept another payment proof."
+                    "Payment proof has already been submitted "
+                    "or this payment is no longer reviewable."
                 ),
             )
 
@@ -1475,6 +1455,22 @@ def manual_crypto(
         uploaded_proof = request.FILES.get(
             "proof"
         )
+
+        if uploaded_proof is None:
+            messages.error(
+                request,
+                "Payment proof is required.",
+            )
+
+            return render(
+                request,
+                "arolana_payments/manual_crypto.html",
+                {
+                    "payment": payment,
+                    "wallets": wallets,
+                },
+                status=400,
+            )
 
         # ---------------------------------------------------------------------
         # VALIDATE PAYMENT PROOF BEFORE SAVE
@@ -1565,6 +1561,27 @@ def manual_crypto(
                     "arolana_payments/"
                     "manual_crypto.html"
                 ),
+                {
+                    "payment": payment,
+                    "wallets": wallets,
+                },
+                status=400,
+            )
+
+        if (
+            PaymentTransaction.objects
+            .exclude(pk=payment.pk)
+            .filter(manual_tx_hash=tx_hash)
+            .exists()
+        ):
+            messages.error(
+                request,
+                "This transaction hash has already been submitted.",
+            )
+
+            return render(
+                request,
+                "arolana_payments/manual_crypto.html",
                 {
                     "payment": payment,
                     "wallets": wallets,
@@ -1753,6 +1770,24 @@ def manual_crypto(
     )
 
 
+def _payment_for_web_request(request, reference):
+    """Return a payment only to its owner or Arolana staff."""
+    queryset = PaymentTransaction.objects.all()
+
+    if not (
+        request.user.is_staff
+        or request.user.is_superuser
+    ):
+        queryset = queryset.filter(
+            user=request.user,
+        )
+
+    return get_object_or_404(
+        queryset,
+        reference=reference,
+    )
+
+
 # =============================================================================
 # PAYMENT CALLBACK
 # =============================================================================
@@ -1771,70 +1806,49 @@ def callback(
     # FLUTTERWAVE
     # -------------------------------------------------------------------------
 
-    if (
-        payment.gateway
-        == PaymentMethod.FLUTTERWAVE
-    ):
-        transaction_id = request.GET.get(
-            "transaction_id"
-        )
+    if payment.gateway == PaymentMethod.FLUTTERWAVE:
+        transaction_id = request.GET.get("transaction_id")
+        callback_status = request.GET.get("status")
 
-        callback_status = request.GET.get(
-            "status"
-        )
-
-        if (
-            transaction_id
-            and callback_status
-            == "successful"
-        ):
-            data = verify_flutterwave_transaction(
-                transaction_id
+        if transaction_id and callback_status == "successful":
+            data = verify_flutterwave_payment(
+                payment,
+                transaction_id=transaction_id,
+            )
+            transaction_data = (
+                data.get("data", {})
+                if isinstance(data, dict)
+                else {}
+            )
+            validation_error = (
+                data.get("validation_error", "")
+                if isinstance(data, dict)
+                else "Invalid Flutterwave verification response."
             )
 
             if (
-                data.get(
-                    "status"
-                )
-                == "success"
-                and data.get(
-                    "data",
-                    {},
-                ).get(
-                    "status"
-                )
-                == "successful"
+                not validation_error
+                and data.get("status") == "success"
+                and transaction_data.get("status") == "successful"
             ):
                 payment.mark_success(
                     str(
-                        transaction_id
+                        transaction_data.get("id")
+                        or transaction_id
+                        or payment.reference
                     ),
                     data,
                 )
 
-            elif (
-                data.get(
-                    "data",
-                    {},
-                ).get(
-                    "status"
-                )
-                in {
-                    "failed",
-                    "cancelled",
-                }
-            ):
-                payment.mark_failed(
-                    data
-                )
+            elif transaction_data.get("status") in {
+                "failed",
+                "cancelled",
+            }:
+                payment.mark_failed(data)
 
             else:
                 payment.gateway_response = data
-
-                payment.status = (
-                    PaymentStatus.PROCESSING
-                )
-
+                payment.status = PaymentStatus.PROCESSING
                 payment.save(
                     update_fields=[
                         "gateway_response",
@@ -1898,9 +1912,7 @@ def callback(
         )
 
         if reference_to_verify:
-            data = verify_paystack_transaction(
-                reference_to_verify
-            )
+            data = verify_paystack_payment(payment)
 
             if (
                 data.get(
@@ -1992,25 +2004,26 @@ def callback(
 # =============================================================================
 
 
+@login_required
 @require_POST
 def cancel(
     request,
     reference,
 ):
-    payment = get_object_or_404(
-        PaymentTransaction,
-        reference=reference,
+    payment = _payment_for_web_request(
+        request,
+        reference,
     )
 
-    if payment.status in {
-        PaymentStatus.SUCCESS,
-        PaymentStatus.REFUNDED,
+    if payment.status not in {
+        PaymentStatus.PENDING,
+        PaymentStatus.PROCESSING,
     }:
         messages.error(
             request,
             (
-                "A successful or refunded "
-                "payment cannot be cancelled."
+                "This payment can no longer "
+                "be cancelled."
             ),
         )
 
@@ -2046,26 +2059,34 @@ def cancel(
 # =============================================================================
 
 
+@login_required
 def status(
     request,
     reference,
 ):
-    payment = get_object_or_404(
-        PaymentTransaction,
-        reference=reference,
+    payment = _payment_for_web_request(
+        request,
+        reference,
     )
 
     order = None
     delivery = None
 
     if payment.order_id:
-        order = (
-            Order.objects
-            .filter(
-                order_number=(
-                    payment.order_id
-                )
+        order_queryset = Order.objects.filter(
+            order_number=payment.order_id,
+        )
+
+        if not (
+            request.user.is_staff
+            or request.user.is_superuser
+        ):
+            order_queryset = order_queryset.filter(
+                user=request.user,
             )
+
+        order = (
+            order_queryset
             .prefetch_related(
                 "delivery_requests__provider"
             )
@@ -2239,9 +2260,11 @@ def mobile_initialize_payment_api(request):
                 amount=_order_amount(
                     order
                 ),
-                currency=(
-                    payload.get(
-                        "currency"
+                currency=str(
+                    getattr(
+                        order,
+                        "currency",
+                        "",
                     )
                     or getattr(
                         settings,
@@ -2264,6 +2287,7 @@ def mobile_initialize_payment_api(request):
                     or customer.phone_number
                 ),
                 checkout_data={
+                    "purpose": "order",
                     "source": (
                         "mobile_app"
                     ),
@@ -2472,56 +2496,81 @@ def mobile_verify_payment_api(request):
                 status=404,
             )
 
-        order = None
+        checkout_data = (
+            payment.checkout_data
+            if isinstance(payment.checkout_data, dict)
+            else {}
+        )
+        purpose = str(
+            checkout_data.get("purpose")
+            or "order"
+        ).strip().lower()
+        source = str(
+            checkout_data.get("source")
+            or ""
+        ).strip().lower()
 
-        if payment.order_id:
-            order = (
-                Order.objects
-                .filter(
-                    order_number=(
-                        payment.order_id
-                    )
-                )
-                .first()
+        if purpose != "order" or source != "mobile_app":
+            return _json_error(
+                "This payment cannot be verified through the customer mobile payment endpoint.",
+                status=403,
             )
 
-        if order:
-            allowed = False
+        customer_user_id = getattr(
+            customer,
+            "user_id",
+            None,
+        )
 
-            if (
-                getattr(
-                    customer,
-                    "user_id",
-                    None,
-                )
-                and (
-                    order.user_id
-                    == customer.user_id
-                )
-            ):
-                allowed = True
+        if (
+            payment.user_id
+            and payment.user_id != customer_user_id
+        ):
+            return _json_error(
+                "This payment does not belong to this customer.",
+                status=403,
+            )
 
-            if (
-                hasattr(
-                    order,
-                    "customer_phone",
-                )
-                and (
-                    order.customer_phone
-                    == customer.phone_number
-                )
-            ):
-                allowed = True
+        if not payment.order_id:
+            return _json_error(
+                "This payment is not linked to a valid order.",
+                status=403,
+            )
 
-            if not allowed:
-                return _json_error(
-                    (
-                        "This payment does not "
-                        "belong to this customer."
-                    ),
-                    status=403,
-                )
+        order = (
+            Order.objects
+            .filter(
+                order_number=payment.order_id
+            )
+            .first()
+        )
 
+        if not order:
+            return _json_error(
+                "This payment is not linked to a valid order.",
+                status=403,
+            )
+
+        allowed = False
+
+        if (
+            customer_user_id
+            and order.user_id == customer_user_id
+        ):
+            allowed = True
+
+        if (
+            hasattr(order, "customer_phone")
+            and order.customer_phone
+            and order.customer_phone == customer.phone_number
+        ):
+            allowed = True
+
+        if not allowed:
+            return _json_error(
+                "This payment does not belong to this customer.",
+                status=403,
+            )
         (
             confirmed,
             verification_message,
@@ -2616,56 +2665,32 @@ def verify_payment(
             reference=payment.reference,
         )
 
-    if (
-        payment.gateway
-        == PaymentMethod.FLUTTERWAVE
-    ):
-        data = (
-            verify_flutterwave_transaction_by_reference(
-                payment.reference
-            )
-        )
-
+    if payment.gateway == PaymentMethod.FLUTTERWAVE:
+        data = verify_flutterwave_payment(payment)
         transaction_data = (
-            data.get(
-                "data",
-                {},
-            )
-            if isinstance(
-                data,
-                dict,
-            )
+            data.get("data", {})
+            if isinstance(data, dict)
             else {}
         )
-
-        transaction_status = (
-            transaction_data.get(
-                "status"
-            )
+        transaction_status = transaction_data.get("status")
+        validation_error = (
+            data.get("validation_error", "")
+            if isinstance(data, dict)
+            else "Invalid Flutterwave verification response."
         )
-
         transaction_id = (
-            transaction_data.get(
-                "id"
-            )
-            or transaction_data.get(
-                "tx_ref"
-            )
+            transaction_data.get("id")
+            or transaction_data.get("tx_ref")
             or payment.reference
         )
 
         if (
-            data.get(
-                "status"
-            )
-            == "success"
-            and transaction_status
-            == "successful"
+            not validation_error
+            and data.get("status") == "success"
+            and transaction_status == "successful"
         ):
             payment.mark_success(
-                str(
-                    transaction_id
-                ),
+                str(transaction_id),
                 data,
             )
 
@@ -2681,9 +2706,7 @@ def verify_payment(
             "failed",
             "cancelled",
         }:
-            payment.mark_failed(
-                data
-            )
+            payment.mark_failed(data)
 
             messages.error(
                 request,
@@ -2695,7 +2718,6 @@ def verify_payment(
 
         else:
             payment.gateway_response = data
-
             payment.save(
                 update_fields=[
                     "gateway_response",
@@ -2705,7 +2727,8 @@ def verify_payment(
 
             messages.info(
                 request,
-                (
+                validation_error
+                or (
                     "Flutterwave has not confirmed "
                     "this payment yet. Please wait "
                     "a moment and try again."
@@ -3040,102 +3063,124 @@ def paypal_webhook(request):
 # =============================================================================
 
 
+
 @csrf_exempt
 @require_POST
 def flutterwave_webhook(request):
-    if not verify_flutterwave_webhook(
-        request
-    ):
+    if not verify_flutterwave_webhook(request):
         return HttpResponseBadRequest(
-            (
-                "Invalid Flutterwave "
-                "webhook."
-            )
+            "Invalid Flutterwave webhook."
         )
 
     try:
         payload = json.loads(
-            request.body.decode(
-                "utf-8"
-            )
-            or "{}"
+            request.body.decode("utf-8") or "{}"
         )
-
     except (
         UnicodeDecodeError,
         json.JSONDecodeError,
     ):
         return _json_error(
-            (
-                "Invalid Flutterwave "
-                "webhook JSON."
-            ),
+            "Invalid Flutterwave webhook JSON.",
             status=400,
         )
 
     data = (
-        payload.get(
-            "data",
-            {},
-        )
-        if isinstance(
-            payload.get(
-                "data",
-                {},
-            ),
-            dict,
-        )
+        payload.get("data", {})
+        if isinstance(payload.get("data", {}), dict)
         else {}
     )
 
     tx_ref = (
-        data.get(
-            "tx_ref"
-        )
-        or payload.get(
-            "tx_ref"
-        )
+        data.get("tx_ref")
+        or data.get("reference")
+        or payload.get("tx_ref")
+        or payload.get("reference")
     )
 
     webhook_status = (
-        data.get(
-            "status"
-        )
-        or payload.get(
-            "status"
-        )
+        data.get("status")
+        or payload.get("status")
     )
 
     payment = (
         PaymentTransaction.objects
         .filter(
-            reference=tx_ref
+            gateway=PaymentMethod.FLUTTERWAVE,
+            reference=tx_ref,
         )
         .first()
     )
 
-    if payment:
+    if payment is None:
+        return JsonResponse(
+            {
+                "received": True,
+                "ignored": True,
+            }
+        )
+
+    if webhook_status in {
+        "successful",
+        "succeeded",
+    }:
+        transaction_id = data.get("id")
+
+        verification_data = verify_flutterwave_payment(
+            payment,
+            transaction_id=transaction_id,
+        )
+
+        verified_transaction = (
+            verification_data.get("data") or {}
+            if isinstance(verification_data, dict)
+            else {}
+        )
+
         if (
-            webhook_status
-            == "successful"
+            isinstance(verification_data, dict)
+            and not verification_data.get("validation_error")
+            and verification_data.get("status") == "success"
+            and verified_transaction.get("status") == "successful"
         ):
             payment.mark_success(
                 str(
-                    data.get(
-                        "id",
-                        "",
-                    )
+                    verified_transaction.get("id")
+                    or transaction_id
+                    or payment.reference
                 ),
-                payload,
+                {
+                    "flutterwave_webhook": payload,
+                    "flutterwave_verification": verification_data,
+                },
             )
 
-        elif webhook_status in {
-            "failed",
-            "cancelled",
-        }:
-            payment.mark_failed(
-                payload
+            return JsonResponse(
+                {
+                    "received": True,
+                    "verified": True,
+                }
             )
+
+        return JsonResponse(
+            {
+                "received": False,
+                "verified": False,
+                "error": (
+                    verification_data.get("validation_error")
+                    if isinstance(verification_data, dict)
+                    else "Flutterwave verification failed."
+                )
+                or "Flutterwave verification failed.",
+            },
+            status=409,
+        )
+
+    if webhook_status in {
+        "failed",
+        "cancelled",
+    }:
+        payment.mark_failed(payload)
 
     return JsonResponse(
         {
@@ -3143,10 +3188,10 @@ def flutterwave_webhook(request):
         }
     )
 
-
 # =============================================================================
 # COINBASE WEBHOOK
 # =============================================================================
+
 
 
 @csrf_exempt
@@ -3162,134 +3207,192 @@ def coinbase_webhook(request):
         signature,
     ):
         return HttpResponseBadRequest(
-            (
-                "Invalid Coinbase "
-                "webhook."
-            )
+            "Invalid Coinbase webhook."
         )
 
     try:
         payload = json.loads(
-            request.body.decode(
-                "utf-8"
-            )
-            or "{}"
+            request.body.decode("utf-8") or "{}"
         )
-
     except (
         UnicodeDecodeError,
         json.JSONDecodeError,
     ):
         return _json_error(
-            (
-                "Invalid Coinbase "
-                "webhook JSON."
-            ),
+            "Invalid Coinbase webhook JSON.",
             status=400,
         )
 
     event = (
-        payload.get(
-            "event",
-            {},
-        )
-        if isinstance(
-            payload.get(
-                "event",
-                {},
-            ),
-            dict,
-        )
+        payload.get("event", {})
+        if isinstance(payload.get("event", {}), dict)
         else {}
     )
 
-    event_type = event.get(
-        "type",
-        "",
-    )
-
-    data = (
-        event.get(
-            "data",
-            {},
+    try:
+        log, duplicate = process_coinbase_webhook_event(
+            event,
+            payload,
         )
-        if isinstance(
-            event.get(
-                "data",
-                {},
-            ),
-            dict,
+    except ValueError as error:
+        return JsonResponse(
+            {
+                "received": False,
+                "error": str(error),
+            },
+            status=409,
         )
-        else {}
-    )
-
-    metadata = (
-        data.get(
-            "metadata",
-            {},
-        )
-        if isinstance(
-            data.get(
-                "metadata",
-                {},
-            ),
-            dict,
-        )
-        else {}
-    )
-
-    reference = metadata.get(
-        "reference"
-    )
-
-    payment = (
-        PaymentTransaction.objects
-        .filter(
-            reference=reference
-        )
-        .first()
-    )
-
-    if payment:
-        if (
-            event_type
-            == "charge:confirmed"
-        ):
-            payment.mark_success(
-                data.get(
-                    "id",
-                    "",
-                ),
-                payload,
-            )
-
-        elif (
-            event_type
-            == "charge:failed"
-        ):
-            payment.mark_failed(
-                payload
-            )
-
-        else:
-            payment.status = (
-                PaymentStatus.PROCESSING
-            )
-
-            payment.webhook_payload = (
-                payload
-            )
-
-            payment.save(
-                update_fields=[
-                    "status",
-                    "webhook_payload",
-                    "updated_at",
-                ]
-            )
 
     return JsonResponse(
         {
             "received": True,
+            "duplicate": duplicate,
+            "event_id": log.event_id,
+            "event_type": log.event_type,
+        }
+    )
+
+# =============================================================================
+# PAYSTACK WEBHOOK
+# =============================================================================
+
+
+@csrf_exempt
+@require_POST
+def paystack_webhook(request):
+    signature = request.headers.get(
+        "x-paystack-signature",
+        "",
+    )
+
+    if not verify_paystack_webhook_signature(
+        request.body,
+        signature,
+    ):
+        return JsonResponse(
+            {
+                "ok": False,
+                "error": "Invalid Paystack webhook signature.",
+            },
+            status=401,
+        )
+
+    try:
+        event = json.loads(
+            request.body.decode("utf-8") or "{}"
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return JsonResponse(
+            {
+                "ok": False,
+                "error": "Invalid Paystack webhook JSON.",
+            },
+            status=400,
+        )
+
+    event_name = str(
+        event.get("event") or ""
+    ).strip()
+
+    if event_name != "charge.success":
+        return JsonResponse(
+            {
+                "ok": True,
+                "ignored": True,
+                "event": event_name,
+            }
+        )
+
+    webhook_data = event.get("data") or {}
+
+    reference = str(
+        webhook_data.get("reference") or ""
+    ).strip()
+
+    if not reference:
+        return JsonResponse(
+            {
+                "ok": False,
+                "error": "Paystack webhook reference is missing.",
+            },
+            status=400,
+        )
+
+    payment = (
+        PaymentTransaction.objects
+        .filter(
+            gateway=PaymentMethod.PAYSTACK,
+            reference=reference,
+        )
+        .first()
+    )
+
+    if payment is None:
+        payment = (
+            PaymentTransction.objects
+            .filter(
+                gateway=PaymentMethod.PAYSTACK,
+                gateway_reference=reference,
+            )
+            .first()
+        )
+
+    if payment is None:
+        return JsonResponse(
+            {
+                "ok": False,
+                "error": "Payment transaction not found.",
+            },
+            status=404,
+        )
+
+    verification_data = verify_paystack_payment(
+        payment
+    )
+
+    verified_transaction = (
+        verification_data.get("data") or {}
+        if isinstance(verification_data, dict)
+        else {}
+    )
+
+    is_verified_success = (
+        isinstance(verification_data, dict)
+        and verification_data.get("status") is True
+        and verified_transaction.get("status") == "success"
+    )
+
+    if not is_verified_success:
+        return JsonResponse(
+            {
+                "ok": False,
+                "error": (
+                    verification_data.get("validation_error")
+                    if isinstance(verification_data, dict)
+                    else "Paystack verification failed."
+                )
+                or "Paystack verification failed.",
+            },
+            status=409,
+        )
+
+    verified_reference = str(
+        verified_transaction.get("reference")
+        or reference
+    )
+
+    payment.mark_success(
+        verified_reference,
+        {
+            "paystack_webhook": event,
+            "paystack_verification": verification_data,
+        },
+    )
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "reference": payment.reference,
+            "status": "success",
         }
     )
