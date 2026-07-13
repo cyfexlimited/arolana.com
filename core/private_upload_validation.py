@@ -314,12 +314,16 @@ REVIEW_VIDEO_POLICY = UploadPolicy(
         {
             ".mp4",
             ".webm",
+            ".mov",
+            ".m4v",
         }
     ),
     allowed_detected_types=frozenset(
         {
             MIME_MP4,
             MIME_WEBM,
+            MIME_QUICKTIME,
+            MIME_M4V,
         }
     ),
     max_size_bytes=150 * 1024 * 1024,
