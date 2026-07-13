@@ -442,12 +442,14 @@ MEDIA_PROXY_ENABLED = config(
     cast=bool,
 )
 MEDIA_PROXY_PUBLIC_PREFIXES = tuple(csv_config(
-    'MEDIA_PROXY_PUBLIC_PREFIXES',
+    "MEDIA_PROXY_PUBLIC_PREFIXES",
     default=(
-        'settings,categories,vendors,hero_banners,products,ads,optimized,'
-        'manufacturers,homepage,videos,brands,advertisements,promo,avatars,installers'
+        "settings,categories,vendors,hero_banners,products,ads,optimized,"
+        "manufacturers,homepage,videos,brands,advertisements,promo,avatars,"
+        "installers,reviews/videos,reviews/thumbs"
     ),
 ))
+
 
 PROJECT_NETWORK_ENABLED = config("PROJECT_NETWORK_ENABLED", default=True, cast=bool)
 LOCAL_PROJECT_VIDEO_UPLOADS_ENABLED = config(
