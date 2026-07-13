@@ -64,7 +64,8 @@ MIME_MP4 = "video/mp4"
 
 MIME_WEBM = "video/webm"
 
-
+MIME_QUICKTIME = "video/quicktime"
+MIME_M4V = "video/x-m4v"
 # ============================================================================
 # GENERAL CONSTANTS
 # ============================================================================
@@ -537,17 +538,33 @@ def _extension_family(
 # ============================================================================
 
 
-def _looks_like_mp4(
-    header: bytes,
-) -> bool:
+def _looks_like_mp4(header: bytes) -> str:
     """
-    ISO Base Media File Format commonly places `ftyp`
-    at byte offset 4.
+    Detect MP4-family containers by FTYP brand.
+    Returns the detected MIME type.
     """
-    return (
-        len(header) >= 12
-        and header[4:8] == b"ftyp"
-    )
+
+    if len(header) < 12:
+        return ""
+
+    if header[4:8] != b"ftyp":
+        return ""
+
+    brand = header[8:12]
+
+    if brand in {
+        b"qt  ",
+    }:
+        return MIME_QUICKTIME
+
+    if brand in {
+        b"M4V ",
+        b"M4VH",
+        b"M4VP",
+    }:
+        return MIME_M4V
+
+    return MIME_MP4
 
 
 def _looks_like_webp(
@@ -644,10 +661,10 @@ def detect_file_type(
     ):
         return MIME_WEBP
 
-    if _looks_like_mp4(
-        header
-    ):
-        return MIME_MP4
+    mp4_family = _looks_like_mp4(header)
+
+    if mp4_family:
+        return mp4_family
 
     if _looks_like_webm(
         header
