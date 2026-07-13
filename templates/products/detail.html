@@ -4181,6 +4181,68 @@
                                                 {{ review.review }}
                                             </div>
                     
+                                            {% if review.has_display_video %}
+                                            <div class="mt-4 space-y-4">
+                                                {% for video in review.display_video_payloads %}
+                                                <div
+                                                    class="overflow-hidden rounded-2xl border border-blue-100 bg-slate-950 shadow-sm"
+                                                >
+                                                    <video
+                                                        controls
+                                                        playsinline
+                                                        preload="metadata"
+                                                        class="block max-h-[520px] w-full bg-black object-contain"
+                                                        {% if video.poster_url %}
+                                                        poster="{{ video.poster_url }}"
+                                                        {% endif %}
+                                                    >
+                                                        <source
+                                                            src="{{ video.url }}"
+                                                            type="{{ video.mime_type }}"
+                                                        >
+
+                                                        Your browser does not support this review video.
+
+                                                        <a
+                                                            href="{{ video.url }}"
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                        >
+                                                            Open review video
+                                                        </a>
+                                                    </video>
+
+                                                    <div
+                                                        class="flex items-center justify-between gap-3 bg-white px-4 py-3"
+                                                    >
+                                                        <div class="min-w-0">
+                                                            <p
+                                                                class="truncate text-sm font-black text-[#071A44]"
+                                                            >
+                                                                {{ video.title|default:"Customer review video" }}
+                                                            </p>
+
+                                                            <p
+                                                                class="mt-0.5 text-xs font-semibold text-slate-500"
+                                                            >
+                                                                Video submitted with this customer review
+                                                            </p>
+                                                        </div>
+
+                                                        <a
+                                                            href="{{ video.url }}"
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            class="shrink-0 text-xs font-black text-blue-600 hover:text-blue-800"
+                                                        >
+                                                            Open video
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                            {% endif %}
+
                                             {% if review.display_video_payloads %}
                                                 <section class="mt-5">
                                                     <div class="mb-3 flex items-center justify-between gap-3">

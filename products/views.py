@@ -2323,7 +2323,11 @@ def product_detail(request, slug):
     # ============================================================
     # Template context
     # ============================================================
-
+        visible_reviews = _attach_review_media(
+        request,
+        visible_reviews,
+    )
+        
     context = {
         "product": product,
 
@@ -2641,7 +2645,12 @@ def _mobile_authenticated_customer(request, payload=None):
 @require_http_methods(["POST"])
 @transaction.atomic
 def add_review(request, slug):
-    """Add a web product review with optional validated video evidence."""
+    """
+    Create or update one product review per customer.
+
+    An existing review may be updated and may receive its original video if
+    no review video has previously been uploaded.
+    """
     product = get_object_or_404(
         Product,
         slug=slug,
@@ -2649,54 +2658,135 @@ def add_review(request, slug):
         approval_status="approved",
     )
 
-    if ProductReview.objects.filter(
-        product=product,
-        user=request.user,
-    ).exists():
-        messages.warning(request, "You have already reviewed this product.")
-        return redirect("products:detail", slug=product.slug)
-
     try:
-        rating = int(request.POST.get("rating", 3))
+        rating = int(
+            request.POST.get(
+                "rating",
+                5,
+            )
+        )
     except (TypeError, ValueError):
-        messages.error(request, "Please select a valid rating between 1 and 5.")
-        return redirect("products:detail", slug=product.slug)
+        messages.error(
+            request,
+            "Please select a valid rating between 1 and 5.",
+        )
+        return redirect(
+            "products:detail",
+            slug=product.slug,
+        )
 
-    if rating not in {1, 2, 3, 4, 5}:
-        messages.error(request, "Please select a valid rating between 1 and 5.")
-        return redirect("products:detail", slug=product.slug)
+    if rating not in {
+        1,
+        2,
+        3,
+        4,
+        5,
+    }:
+        messages.error(
+            request,
+            "Please select a valid rating between 1 and 5.",
+        )
+        return redirect(
+            "products:detail",
+            slug=product.slug,
+        )
 
-    title = str(request.POST.get("title", "")).strip()
-    review_text = str(request.POST.get("review", "")).strip()
+    title = str(
+        request.POST.get(
+            "title",
+            "",
+        )
+    ).strip()
+
+    review_text = str(
+        request.POST.get(
+            "review",
+            "",
+        )
+    ).strip()
 
     if not title or not review_text:
-        messages.error(request, "Title and review are required.")
-        return redirect("products:detail", slug=product.slug)
+        messages.error(
+            request,
+            "Title and review are required.",
+        )
+        return redirect(
+            "products:detail",
+            slug=product.slug,
+        )
 
     if len(title) < 5:
-        messages.error(request, "Title must be at least 5 characters.")
-        return redirect("products:detail", slug=product.slug)
+        messages.error(
+            request,
+            "Title must be at least 5 characters.",
+        )
+        return redirect(
+            "products:detail",
+            slug=product.slug,
+        )
 
     if len(title) > 200:
-        messages.error(request, "Review title cannot exceed 200 characters.")
-        return redirect("products:detail", slug=product.slug)
+        messages.error(
+            request,
+            "Review title cannot exceed 200 characters.",
+        )
+        return redirect(
+            "products:detail",
+            slug=product.slug,
+        )
 
     if len(review_text) < 20:
-        messages.error(request, "Review must be at least 20 characters.")
-        return redirect("products:detail", slug=product.slug)
+        messages.error(
+            request,
+            "Review must be at least 20 characters.",
+        )
+        return redirect(
+            "products:detail",
+            slug=product.slug,
+        )
 
-    uploaded_video = request.FILES.get("video_review")
-
-    review = ProductReview(
-        product=product,
-        user=request.user,
-        rating=rating,
-        title=title,
-        review=review_text,
-        verified_purchase=False,
+    uploaded_video = request.FILES.get(
+        "video_review"
     )
 
+    review = (
+        ProductReview.objects
+        .select_for_update()
+        .filter(
+            product=product,
+            user=request.user,
+        )
+        .first()
+    )
+
+    created = review is None
+
+    if review is None:
+        review = ProductReview(
+            product=product,
+            user=request.user,
+            verified_purchase=False,
+        )
+
+    review.rating = rating
+    review.title = title
+    review.review = review_text
+
     if uploaded_video:
+        if review.pk and review.video_review:
+            messages.error(
+                request,
+                (
+                    "The original review video cannot be replaced. "
+                    "Please contact Arolana support if the uploaded "
+                    "video is incorrect."
+                ),
+            )
+            return redirect(
+                "products:detail",
+                slug=product.slug,
+            )
+
         review.video_review = uploaded_video
 
     try:
@@ -2708,7 +2798,7 @@ def add_review(request, slug):
             request,
             _first_validation_error(
                 error,
-                default="The review could not be submitted.",
+                default="The review could not be saved.",
             ),
         )
 
@@ -2718,14 +2808,38 @@ def add_review(request, slug):
         )
 
     except IntegrityError:
-        messages.warning(request, "You have already reviewed this product.")
         transaction.set_rollback(True)
-        return redirect("products:detail", slug=product.slug)
 
-    _refresh_product_review_stats(product.id)
+        messages.error(
+            request,
+            (
+                "The review could not be saved because another review "
+                "already exists. Refresh the page and try again."
+            ),
+        )
 
-    messages.success(request, "Review added successfully!")
-    return redirect("products:detail", slug=product.slug)
+        return redirect(
+            "products:detail",
+            slug=product.slug,
+        )
+
+    _refresh_product_review_stats(
+        product.id
+    )
+
+    messages.success(
+        request,
+        (
+            "Review added successfully!"
+            if created
+            else "Your review was updated successfully!"
+        ),
+    )
+
+    return redirect(
+        "products:detail",
+        slug=product.slug,
+    )
 
 
 def _first_validation_error(
