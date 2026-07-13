@@ -2320,13 +2320,6 @@ def product_detail(request, slug):
         suggested_service_providers = []
         real_projects_using_product = []
 
-    # ============================================================
-    # Template context
-    # ============================================================
-        visible_reviews = _attach_review_media(
-        request,
-        visible_reviews,
-    )
         
     context = {
         "product": product,
