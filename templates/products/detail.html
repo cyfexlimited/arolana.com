@@ -4243,53 +4243,6 @@
                                             </div>
                                             {% endif %}
 
-                                            {% if review.display_video_payloads %}
-                                                <section class="mt-5">
-                                                    <div class="mb-3 flex items-center justify-between gap-3">
-                                                        <h5 class="text-sm font-bold text-slate-900">
-                                                            Customer video
-                                                        </h5>
-                    
-                                                        <span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                                                            {{ review.display_video_payloads|length }}
-                                                            video{{ review.display_video_payloads|length|pluralize }}
-                                                        </span>
-                                                    </div>
-                    
-                                                    <div class="grid gap-4 {% if review.display_video_payloads|length > 1 %}lg:grid-cols-2{% endif %}">
-                                                        {% for review_video in review.display_video_payloads %}
-                                                            <figure class="overflow-hidden rounded-2xl border border-slate-200 bg-slate-950 shadow-lg">
-                                                                <video
-                                                                    class="block aspect-video w-full bg-black object-contain"
-                                                                    controls
-                                                                    playsinline
-                                                                    preload="metadata"
-                                                                    {% if review_video.thumbnail_url %}
-                                                                        poster="{{ review_video.thumbnail_url }}"
-                                                                    {% endif %}
-                                                                >
-                                                                    <source
-                                                                        src="{{ review_video.url }}"
-                                                                        type="{{ review_video.mime_type }}"
-                                                                    >
-                    
-                                                                    Your browser does not support HTML5 video.
-                    
-                                                                    <a href="{{ review_video.url }}">
-                                                                        Open the review video
-                                                                    </a>
-                                                                </video>
-                    
-                                                                {% if review_video.title %}
-                                                                    <figcaption class="bg-slate-900 px-4 py-3 text-sm font-medium text-white">
-                                                                        {{ review_video.title }}
-                                                                    </figcaption>
-                                                                {% endif %}
-                                                            </figure>
-                                                        {% endfor %}
-                                                    </div>
-                                                </section>
-                                            {% endif %}
                     
                                             <div class="mt-5 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4 text-sm text-slate-500">
                                                 <span id="review-helpful-count-{{ review.id }}">
