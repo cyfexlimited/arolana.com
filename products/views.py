@@ -5963,7 +5963,22 @@ def mobile_product_review_api(request, slug):
         )
 
     uploaded_video = request.FILES.get("video_review")
+    
+    import logging
 
+    logger = logging.getLogger(__name__)
+
+    logger.warning("=" * 80)
+    logger.warning("FILES: %s", request.FILES)
+    logger.warning("UPLOADED VIDEO: %s", uploaded_video)
+
+    if uploaded_video:
+        logger.warning("NAME: %s", uploaded_video.name)
+        logger.warning("CONTENT TYPE: %s", uploaded_video.content_type)
+        logger.warning("SIZE: %s", uploaded_video.size)
+
+    logger.warning("=" * 80)
+    
     review = (
         ProductReview.objects
         .select_for_update()
