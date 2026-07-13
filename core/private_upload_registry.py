@@ -171,7 +171,7 @@ EXPLICIT_PUBLIC_UPLOADS = frozenset({
     ("products.Product", "local_video"),
     ("products.Product", "video_thumbnail"),
     ("products.Product", "manual_pdf"),
-
+    
     ("products.Accessory", "image"),
 
     ("products.ProductImage", "image"),
@@ -186,6 +186,8 @@ EXPLICIT_PUBLIC_UPLOADS = frozenset({
 
     ("products.ProductVideo", "local_video"),
     ("products.ProductVideo", "thumbnail"),
+
+    ("products.ProductReview", "review_video_converted"),
 
     ("products.ProductListingBanner", "background_image"),
     ("products.ProductListingBanner", "side_image"),

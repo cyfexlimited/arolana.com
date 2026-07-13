@@ -5116,6 +5116,38 @@ class ProductReview(BaseModel):
         ),
     )
 
+    review_video_converted = models.FileField(
+        upload_to="reviews/videos/converted/%Y/%m/",
+        blank=True,
+        null=True,
+        help_text=(
+            "Browser-compatible H.264/AAC MP4 generated automatically "
+            "from the customer upload."
+        ),
+    )
+
+    review_video_conversion_status = models.CharField(
+        max_length=20,
+        choices=(
+            ("none", "No video"),
+            ("pending", "Pending"),
+            ("processing", "Processing"),
+            ("completed", "Completed"),
+            ("failed", "Failed"),
+        ),
+        default="none",
+        db_index=True,
+    )
+
+    review_video_conversion_error = models.TextField(
+        blank=True,
+    )
+
+    review_video_converted_at = models.DateTimeField(
+        blank=True,
+        null=True,
+    )
+
     class Meta:
         unique_together = [
             "product",
