@@ -1,41 +1,45 @@
 import logging
 import mimetypes
 import posixpath
+import re
 
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.core.files.storage import default_storage
-from django.http import FileResponse, Http404, JsonResponse
+from django.http import (
+    FileResponse,
+    Http404,
+    HttpResponse,
+    JsonResponse,
+    StreamingHttpResponse,
+)
 from django.shortcuts import redirect, render
 from django.urls import include, path, re_path
 from django.utils.cache import patch_vary_headers
 from django.views.decorators.http import require_safe
 from django.views.generic import TemplateView
 
+from accounts import views as accounts_views
+from core import admin_views as core_admin_views
+from core import views as core_views
+from core.private_media import authorize_private_media_request
+from core.private_media_audit import record_private_media_access
+from installers.api_urls import provider_urlpatterns
+from landing_pages import views as landing_page_views
+from orders import views as orders_views
 from pages.views import (
-    page_by_slug,
-    page_detail,
-    help_center,
-    faq_page,
     article_detail,
     careers_page,
     contact_page,
+    faq_page,
+    help_center,
+    page_by_slug,
 )
 from products import views as products_views
-from orders import views as orders_views
+
 import currency.views as currency_views
-import core.views as core_views
-from core import admin_views as core_admin_views
-from accounts import views as accounts_views
-from landing_pages import views as landing_page_views
-from installers.api_urls import provider_urlpatterns
-from core.private_media import authorize_private_media_request
-from products.models import Product, Category
-from vendors.models import VendorProfile
-from core.private_media_audit import (
-    record_private_media_access,
-)
+
 
 logger = logging.getLogger(__name__)
 
@@ -43,64 +47,28 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 # MEDIA SECURITY POLICY
 # ============================================================================
-#
-# IMPORTANT:
-#
-# The /media/ endpoint must never behave as:
-#
-#     "If the object exists, make it public."
-#
-# Instead, Arolana uses:
-#
-#     1. Deny sensitive/private namespaces first.
-#     2. Allow explicitly approved public namespaces.
-#     3. Validate optimized derivatives against their original source namespace.
-#     4. Permit staff-only viewing of sensitive files for moderation/admin review.
-#     5. Never publicly cache private media.
-#
-# Do NOT add broad prefixes such as:
-#
-#     "installers"
-#     "orders"
-#     "documents"
-#
-# because those roots may contain private files.
-# ============================================================================
-
 
 PUBLIC_MEDIA_PREFIXES = (
-    # Core
     "settings",
     "categories",
     "hero_banners",
     "homepage",
     "brands",
     "avatars",
-
-    # Products and marketplace
     "products",
     "accessories",
     "vendors",
     "manufacturers",
-
-    # Advertising
     "ads",
     "advertisements",
     "promo",
-
-    # Public content
     "blog",
     "landing_pages",
     "uploads",
     "newsletter",
     "videos",
     "support",
-
-    # Reviews pending moderation
-    "reviews/videos",
     "reviews/thumbs",
-
-    # Public service marketplace media
     "installers/providers",
     "installers/categories",
     "installers/portfolio",
@@ -108,122 +76,63 @@ PUBLIC_MEDIA_PREFIXES = (
     "installers/projects/thumbnails",
     "installers/projects/videos",
     "installers/homepage",
-
-    # Wallet payment display assets
     "crypto_wallet_qr",
 )
 
 
 PRIVATE_MEDIA_PREFIXES = (
-    # =========================================================
-    # Provider identity / verification
-    # =========================================================
     "installers/kyc",
     "installers/verification",
     "installers/profile-change-requests",
     "installers/completions",
-
     "installers/providers/kyc",
     "installers/providers/private",
     "installers/providers/documents",
-
-    # =========================================================
-    # Central KYC
-    # =========================================================
     "kyc",
-
-    # =========================================================
-    # Delivery rider identity and operational evidence
-    # =========================================================
     "delivery/riders/id_documents",
     "delivery/riders/licenses",
     "delivery/riders/vehicle_documents",
     "delivery/riders/photos",
     "delivery/riders/banners",
     "delivery/proofs",
-
-    # =========================================================
-    # Chat attachments
-    # =========================================================
     "chat/attachments",
     "chat/vendor_attachments",
     "smartchat/images",
-
-    # =========================================================
-    # Payment evidence
-    # =========================================================
     "payment_proofs",
-
-    # =========================================================
-    # Job applications
-    # =========================================================
     "job_applications/resumes",
-
-    # =========================================================
-    # Customer account media
-    # =========================================================
     "mobile_customers/profile_pictures",
-
-    # =========================================================
-    # Reviews pending moderation
-    #
-    # Safer to protect by default until a dedicated approved-
-    # review media delivery strategy exists.
-    # =========================================================
     "reviews/videos",
-
-    # =========================================================
-    # Defensive generic sensitive namespaces
-    # =========================================================
     "private",
     "protected",
     "verification",
     "identity",
     "documents/private",
-
-    # Vendor sensitive media
     "vendors/kyc",
     "vendors/private",
     "vendors/documents",
-
-    # Manufacturer sensitive media
     "manufacturers/kyc",
     "manufacturers/private",
     "manufacturers/documents",
-
-    # Account sensitive media
     "accounts/kyc",
     "accounts/private",
     "accounts/documents",
 )
 
 
-def _clean_media_path(path):
-    """
-    Return a normalized storage-relative path or an empty string when unsafe.
+# ============================================================================
+# MEDIA PATH HELPERS
+# ============================================================================
 
-    Security rules:
-    - reject missing paths;
-    - reject NUL bytes;
-    - reject traversal using '..';
-    - normalize Windows-style backslashes to POSIX separators;
-    - remove a leading /media/ prefix when one is accidentally supplied;
-    - preserve filename case because object-storage keys are case-sensitive.
-    """
+
+def _clean_media_path(path):
     raw_path = str(path or "").strip()
 
-    if not raw_path:
+    if not raw_path or "\x00" in raw_path:
         return ""
 
-    if "\x00" in raw_path:
-        return ""
-
-    # Treat backslashes as separators before checking traversal.
     raw_path = raw_path.replace("\\", "/")
 
-    raw_segments = raw_path.split("/")
-
-    if any(segment == ".." for segment in raw_segments):
+    if any(segment == ".." for segment in raw_path.split("/")):
         return ""
 
     normalized_path = posixpath.normpath(raw_path).lstrip("/")
@@ -244,12 +153,6 @@ def _clean_media_path(path):
 
 
 def _path_matches_prefix(path, prefixes):
-    """
-    Return True when path exactly matches or is contained by a prefix.
-
-    Prefix comparisons are case-insensitive, while the original path is
-    preserved for object-storage access.
-    """
     cleaned_path = _clean_media_path(path)
 
     if not cleaned_path:
@@ -267,9 +170,7 @@ def _path_matches_prefix(path, prefixes):
 
         if (
             comparison_path == comparison_prefix
-            or comparison_path.startswith(
-                f"{comparison_prefix}/"
-            )
+            or comparison_path.startswith(f"{comparison_prefix}/")
         ):
             return True
 
@@ -277,38 +178,9 @@ def _path_matches_prefix(path, prefixes):
 
 
 def _optimized_source_path(path):
-    """
-    Recover the source namespace embedded in an optimized image path.
-
-    Example:
-
-        optimized/
-            provider_profile/
-            installers/providers/2026/06/photo.webp
-
-    becomes:
-
-        installers/providers/2026/06/photo.webp
-
-    Another example:
-
-        optimized/
-            seo/
-            installers/kyc/2026/06/document.webp
-
-    becomes:
-
-        installers/kyc/2026/06/document.webp
-
-    This prevents somebody from bypassing private-media restrictions by
-    requesting an optimized derivative of a sensitive source file.
-    """
     cleaned_path = _clean_media_path(path)
 
-    if not cleaned_path:
-        return ""
-
-    if not cleaned_path.lower().startswith("optimized/"):
+    if not cleaned_path or not cleaned_path.lower().startswith("optimized/"):
         return ""
 
     parts = cleaned_path.split("/", 2)
@@ -316,186 +188,287 @@ def _optimized_source_path(path):
     if len(parts) != 3:
         return ""
 
-    source_path = _clean_media_path(parts[2])
-
-    return source_path
+    return _clean_media_path(parts[2])
 
 
 def _is_private_media_path(path):
-    """
-    Return True when a media path belongs to a protected namespace.
-
-    Both original paths and optimized derivative paths are checked.
-    """
     cleaned_path = _clean_media_path(path)
 
     if not cleaned_path:
         return True
 
-    # Direct private path.
-    if _path_matches_prefix(
-        cleaned_path,
-        PRIVATE_MEDIA_PREFIXES,
-    ):
+    if _path_matches_prefix(cleaned_path, PRIVATE_MEDIA_PREFIXES):
         return True
 
-    # Optimized derivative whose embedded original belongs to a private path.
     source_path = _optimized_source_path(cleaned_path)
 
-    if (
+    return bool(
         source_path
-        and _path_matches_prefix(
-            source_path,
-            PRIVATE_MEDIA_PREFIXES,
-        )
-    ):
-        return True
-
-    return False
+        and _path_matches_prefix(source_path, PRIVATE_MEDIA_PREFIXES)
+    )
 
 
 def _is_public_media_path(path):
-    """
-    Return True only for explicitly approved public media.
-
-    Optimized media is not automatically public merely because its path starts
-    with "optimized/". The embedded source namespace must itself be public.
-    """
     cleaned_path = _clean_media_path(path)
 
-    if not cleaned_path:
+    if not cleaned_path or _is_private_media_path(cleaned_path):
         return False
 
-    if _is_private_media_path(cleaned_path):
-        return False
-
-    # ------------------------------------------------------------------------
-    # Optimized derivatives
-    # ------------------------------------------------------------------------
     if cleaned_path.lower().startswith("optimized/"):
         source_path = _optimized_source_path(cleaned_path)
 
-        if not source_path:
+        if not source_path or _is_private_media_path(source_path):
             return False
 
-        if _is_private_media_path(source_path):
-            return False
+        return _path_matches_prefix(source_path, PUBLIC_MEDIA_PREFIXES)
 
-        return _path_matches_prefix(
-            source_path,
-            PUBLIC_MEDIA_PREFIXES,
-        )
-
-    # ------------------------------------------------------------------------
-    # Original public media
-    # ------------------------------------------------------------------------
-    return _path_matches_prefix(
-        cleaned_path,
-        PUBLIC_MEDIA_PREFIXES,
-    )
+    return _path_matches_prefix(cleaned_path, PUBLIC_MEDIA_PREFIXES)
 
 
-def _open_media_response(
-    normalized_path,
-    *,
-    private=False,
-):
-    """
-    Open a storage object and return a streaming response.
+# ============================================================================
+# HTTP BYTE-RANGE SUPPORT
+# ============================================================================
 
-    Public media:
-        Cache-Control: public, one year, immutable
+_RANGE_HEADER_PATTERN = re.compile(
+    r"^bytes=(\d*)-(\d*)$",
+    re.IGNORECASE,
+)
 
-    Private media:
-        Cache-Control: private, no-store
-        Vary: Cookie
-    """
+
+def _media_file_size(file_obj, normalized_path):
     try:
-        file_obj = default_storage.open(
-            normalized_path,
-            "rb",
-        )
-    except Exception as exc:
-        raise Http404(
-            "Media file not found"
-        ) from exc
+        return int(default_storage.size(normalized_path))
+    except Exception:
+        pass
 
-    content_type, _ = mimetypes.guess_type(
-        normalized_path
-    )
+    try:
+        original_position = int(file_obj.tell())
+    except Exception:
+        original_position = 0
 
-    response = FileResponse(
-        file_obj,
-        content_type=content_type or "application/octet-stream",
-    )
+    try:
+        file_obj.seek(0, 2)
+        return int(file_obj.tell())
+    finally:
+        try:
+            file_obj.seek(original_position)
+        except Exception:
+            pass
 
+
+def _parse_media_range(range_header, file_size):
+    header = str(range_header or "").strip()
+
+    if not header:
+        return None
+
+    match = _RANGE_HEADER_PATTERN.fullmatch(header)
+
+    if not match:
+        raise ValueError("Invalid Range header.")
+
+    first_value = match.group(1)
+    last_value = match.group(2)
+
+    if not first_value and not last_value:
+        raise ValueError("Empty Range header.")
+
+    if first_value:
+        start = int(first_value)
+        end = int(last_value) if last_value else file_size - 1
+    else:
+        suffix_length = int(last_value)
+
+        if suffix_length <= 0:
+            raise ValueError("Invalid suffix range.")
+
+        suffix_length = min(suffix_length, file_size)
+        start = file_size - suffix_length
+        end = file_size - 1
+
+    if start < 0 or start >= file_size or end < start:
+        raise ValueError("Requested range is not satisfiable.")
+
+    return start, min(end, file_size - 1)
+
+
+def _iter_media_range(
+    file_obj,
+    *,
+    start,
+    length,
+    chunk_size=64 * 1024,
+):
+    try:
+        file_obj.seek(start)
+        remaining = int(length)
+
+        while remaining > 0:
+            chunk = file_obj.read(min(chunk_size, remaining))
+
+            if not chunk:
+                break
+
+            remaining -= len(chunk)
+            yield chunk
+    finally:
+        try:
+            file_obj.close()
+        except Exception:
+            pass
+
+
+def _safe_inline_filename(normalized_path):
+    filename = str(normalized_path.rsplit("/", 1)[-1] or "media")
+    filename = filename.replace("\r", "").replace("\n", "").replace('"', "")
+    return filename or "media"
+
+
+def _apply_media_security_headers(response, *, private):
     response["X-Content-Type-Options"] = "nosniff"
+    response["Accept-Ranges"] = "bytes"
 
     if private:
         response["Cache-Control"] = (
             "private, no-store, no-cache, must-revalidate"
         )
-
         response["Pragma"] = "no-cache"
         response["Expires"] = "0"
-
-        patch_vary_headers(
-            response,
-            ["Cookie"],
-        )
-
+        patch_vary_headers(response, ["Cookie"])
     else:
-        response["Cache-Control"] = (
-            "public, max-age=31536000, immutable"
-        )
+        response["Cache-Control"] = "public, max-age=31536000, immutable"
 
     return response
 
 
+def _range_not_satisfiable_response(
+    *,
+    file_size,
+    content_type,
+    filename,
+    private,
+):
+    response = HttpResponse(status=416, content_type=content_type)
+    response["Content-Range"] = f"bytes */{file_size}"
+    response["Content-Length"] = "0"
+    response["Content-Disposition"] = f'inline; filename="{filename}"'
+    return _apply_media_security_headers(response, private=private)
+
+
+def _open_media_response(
+    request,
+    normalized_path,
+    *,
+    private=False,
+):
+    try:
+        file_obj = default_storage.open(normalized_path, "rb")
+    except Exception as exc:
+        logger.warning(
+            "Could not open media object path=%s error=%s",
+            normalized_path,
+            exc,
+        )
+        raise Http404("Media file not found") from exc
+
+    try:
+        file_size = _media_file_size(file_obj, normalized_path)
+    except Exception as exc:
+        try:
+            file_obj.close()
+        except Exception:
+            pass
+
+        logger.warning(
+            "Could not determine media size path=%s error=%s",
+            normalized_path,
+            exc,
+        )
+        raise Http404("Media file not found") from exc
+
+    if file_size <= 0:
+        try:
+            file_obj.close()
+        except Exception:
+            pass
+        raise Http404("Media file not found")
+
+    content_type = (
+        mimetypes.guess_type(normalized_path)[0]
+        or "application/octet-stream"
+    )
+    filename = _safe_inline_filename(normalized_path)
+
+    try:
+        requested_range = _parse_media_range(
+            request.headers.get("Range", ""),
+            file_size,
+        )
+    except (TypeError, ValueError):
+        try:
+            file_obj.close()
+        except Exception:
+            pass
+
+        return _range_not_satisfiable_response(
+            file_size=file_size,
+            content_type=content_type,
+            filename=filename,
+            private=private,
+        )
+
+    if requested_range is not None:
+        start, end = requested_range
+        content_length = end - start + 1
+
+        if request.method == "HEAD":
+            try:
+                file_obj.close()
+            except Exception:
+                pass
+            response = HttpResponse(status=206, content_type=content_type)
+        else:
+            response = StreamingHttpResponse(
+                _iter_media_range(
+                    file_obj,
+                    start=start,
+                    length=content_length,
+                ),
+                status=206,
+                content_type=content_type,
+            )
+
+        response["Content-Length"] = str(content_length)
+        response["Content-Range"] = f"bytes {start}-{end}/{file_size}"
+        response["Content-Disposition"] = f'inline; filename="{filename}"'
+        return _apply_media_security_headers(response, private=private)
+
+    if request.method == "HEAD":
+        try:
+            file_obj.close()
+        except Exception:
+            pass
+
+        response = HttpResponse(status=200, content_type=content_type)
+        response["Content-Length"] = str(file_size)
+        response["Content-Disposition"] = f'inline; filename="{filename}"'
+        return _apply_media_security_headers(response, private=private)
+
+    response = FileResponse(file_obj, content_type=content_type)
+    response["Content-Length"] = str(file_size)
+    response["Content-Disposition"] = f'inline; filename="{filename}"'
+    return _apply_media_security_headers(response, private=private)
+
+
 @require_safe
 def serve_public_media(request, path):
-    """
-    Secure Arolana media gateway.
-
-    PUBLIC ACCESS
-    -------------
-    Anonymous users may retrieve only explicitly approved public media:
-    - products;
-    - categories;
-    - vendors;
-    - manufacturers;
-    - provider profile photos, logos and banners;
-    - project images, thumbnails and videos;
-    - homepage media;
-    - advertisements;
-    - promotional media;
-    - blog media;
-    - landing-page media;
-    - newsletter public images;
-    - validated optimized derivatives of public source media.
-
-    PRIVATE ACCESS
-    --------------
-    Sensitive namespaces are never publicly available.
-
-    Staff users may retrieve private media through the same endpoint for
-    legitimate moderation/admin review. Private responses are never publicly
-    cacheable.
-
-    Unknown media namespaces are denied by default.
-    """
     normalized_path = _clean_media_path(path)
 
     if not normalized_path:
-        raise Http404(
-            "Media file not found"
-        )
+        raise Http404("Media file not found")
 
     if _is_private_media_path(normalized_path):
-        decision = authorize_private_media_request(
-            request,
-            normalized_path,
-        )
+        decision = authorize_private_media_request(request, normalized_path)
 
         if not decision.allowed:
             record_private_media_access(
@@ -515,17 +488,10 @@ def serve_public_media(request, path):
                 decision.object_id,
                 decision.principal_user_id,
             )
+            raise Http404("Media file not found")
 
-            # Hide existence of private resources.
-            raise Http404(
-                "Media file not found"
-            )
-
-        # Open the file first.
-        #
-        # We only record ALLOWED after storage successfully returns a response,
-        # so a missing storage object is not incorrectly recorded as viewed.
         response = _open_media_response(
+            request,
             normalized_path,
             private=True,
         )
@@ -535,58 +501,41 @@ def serve_public_media(request, path):
             path=normalized_path,
             decision=decision,
         )
-
         return response
 
-    # ------------------------------------------------------------------------
-    # PUBLIC MEDIA
-    #
-    # Unknown namespaces are denied by default.
-    # ------------------------------------------------------------------------
     if not _is_public_media_path(normalized_path):
         logger.warning(
-            "Blocked request to non-public media namespace."
+            "Blocked request to non-public media namespace path=%s",
+            normalized_path,
         )
-
-        raise Http404(
-            "Media file not found"
-        )
+        raise Http404("Media file not found")
 
     return _open_media_response(
+        request,
         normalized_path,
         private=False,
     )
 
 
 # ============================================================================
-# HEALTH
+# HEALTH / SIMPLE PAGES
 # ============================================================================
 
 
 def health_check(request):
-    return JsonResponse(
-        {
-            "status": "ok",
-        }
-    )
-
-
-# ============================================================================
-# SITEMAP PAGE
-# ============================================================================
+    return JsonResponse({"status": "ok"})
 
 
 def sitemap_page(request):
-    categories = Category.objects.filter(
-        is_active=True,
-        parent=None,
-    )[:20]
+    # Local imports avoid circular imports while Django loads the root URLconf.
+    from products.models import Category, Product
+    from vendors.models import VendorProfile
 
+    categories = Category.objects.filter(is_active=True, parent=None)[:20]
     products = Product.objects.filter(
         is_active=True,
         approval_status="approved",
     )[:50]
-
     vendors = VendorProfile.objects.filter(
         is_verified=True,
         is_active=True,
@@ -603,21 +552,13 @@ def sitemap_page(request):
     )
 
 
-# ============================================================================
-# HOMEPAGE
-# ============================================================================
-
-
 def home_view(request):
-    """Custom home view with video section and proper context."""
     from core.local_cache import local_get_or_set
     from homepage.models import HomepageVideoSection
 
     video_section = local_get_or_set(
         "homepage:video_section",
-        lambda: HomepageVideoSection.objects.filter(
-            is_active=True,
-        )
+        lambda: HomepageVideoSection.objects.filter(is_active=True)
         .order_by("display_order")
         .first(),
         300,
@@ -626,76 +567,36 @@ def home_view(request):
     return render(
         request,
         "base/home.html",
-        {
-            "video_section": video_section,
-        },
+        {"video_section": video_section},
     )
-
-
-# ============================================================================
-# REGISTRATION / ONBOARDING REDIRECTS
-# ============================================================================
 
 
 def vendor_register_redirect(request):
-    """
-    Public vendor registration entry point.
-
-    Prevents /vendors/register/ from returning 404 when shared with vendors.
-    """
-    return redirect(
-        "/accounts/register/?account_type=vendor"
-    )
+    return redirect("/accounts/register/?account_type=vendor")
 
 
 def manufacturer_register_redirect(request):
-    """
-    Public manufacturer registration entry point.
-
-    Supports:
-    - /manufacturer/register/
-    - /manufacturers/register/
-    """
-    return redirect(
-        "/accounts/register/?account_type=manufacturer"
-    )
+    return redirect("/accounts/register/?account_type=manufacturer")
 
 
 def sell_redirect(request):
-    """
-    Public sell shortcut for onboarding vendors.
-    """
-    return redirect(
-        "/vendors/register/"
-    )
+    return redirect("/vendors/register/")
 
 
 def returns_redirect(request, path=None):
-    return redirect(
-        "returns"
-    )
-
-
-# ============================================================================
-# ERROR HANDLERS
-# ============================================================================
+    return redirect("returns")
 
 
 def custom_404(request, exception):
-    return render(
-        request,
-        "404.html",
-        status=404,
-    )
+    return render(request, "404.html", status=404)
 
 
 # ============================================================================
 # CKEDITOR 5
 # ============================================================================
 
-
 try:
-    from django_ckeditor_5.views import upload_file, browse_files
+    from django_ckeditor_5.views import browse_files, upload_file
 
     CKEDITOR_URLS = [
         re_path(
@@ -710,12 +611,9 @@ try:
         ),
     ]
 
-    print(
-        "✅ Using django_ckeditor_5 built-in views"
-    )
-
+    print("✅ Using django_ckeditor_5 built-in views")
 except ImportError:
-    from ckeditor_views.views import upload_file, browse_files
+    from ckeditor_views.views import browse_files, upload_file
 
     CKEDITOR_URLS = [
         re_path(
@@ -730,49 +628,27 @@ except ImportError:
         ),
     ]
 
-    print(
-        "⚠️ Using custom CKEditor views"
-    )
+    print("⚠️ Using custom CKEditor views")
 
 
 # ============================================================================
 # URL PATTERNS
 # ============================================================================
 
-
 urlpatterns = [
-    # ------------------------------------------------------------------------
-    # Secure media gateway
-    #
-    # IMPORTANT:
-    # Keep before catch-all routes and root includes.
-    # ------------------------------------------------------------------------
     re_path(
         r"^media/(?P<path>.*)$",
         serve_public_media,
         name="serve_public_media",
     ),
 
-    # ------------------------------------------------------------------------
-    # Admin & Core
-    # ------------------------------------------------------------------------
-    path(
-        "admin/live-stats/",
-        core_views.live_stats,
-        name="live_stats",
-    ),
+    path("admin/live-stats/", core_views.live_stats, name="live_stats"),
     path(
         "admin/logo-check/",
-        TemplateView.as_view(
-            template_name="admin/logo_check.html"
-        ),
+        TemplateView.as_view(template_name="admin/logo_check.html"),
         name="logo_check",
     ),
-    path(
-        "admin/upload-logo/",
-        core_admin_views.upload_logo,
-        name="upload_logo",
-    ),
+    path("admin/upload-logo/", core_admin_views.upload_logo, name="upload_logo"),
     path(
         "admin/avatar-upload/<int:user_id>/",
         core_admin_views.upload_user_avatar,
@@ -783,30 +659,11 @@ urlpatterns = [
         core_admin_views.delete_user_avatar,
         name="avatar_delete",
     ),
-    path(
-        "admin/",
-        admin.site.urls,
-    ),
-    path(
-        "visitor-analytics/",
-        include("visitor_analytics.urls"),
-    ),
+    path("admin/", admin.site.urls),
+    path("visitor-analytics/", include("visitor_analytics.urls")),
 
-    # ------------------------------------------------------------------------
-    # Public onboarding redirects
-    #
-    # Keep before vendors/manufacturers includes.
-    # ------------------------------------------------------------------------
-    path(
-        "sell/",
-        sell_redirect,
-        name="sell_redirect",
-    ),
-    path(
-        "vendors/register/",
-        vendor_register_redirect,
-        name="vendor_register_redirect",
-    ),
+    path("sell/", sell_redirect, name="sell_redirect"),
+    path("vendors/register/", vendor_register_redirect, name="vendor_register_redirect"),
     path(
         "vendor/register/",
         vendor_register_redirect,
@@ -823,95 +680,38 @@ urlpatterns = [
         name="manufacturers_register_redirect",
     ),
 
-    # ------------------------------------------------------------------------
-    # Dedicated APIs
-    #
-    # Keep before broad products include.
-    # ------------------------------------------------------------------------
     path(
         "api/installers/",
-        include(
-            (
-                "installers.api_urls",
-                "installers_api",
-            ),
-            namespace="installers_api",
-        ),
+        include(("installers.api_urls", "installers_api"), namespace="installers_api"),
     ),
     path(
         "api/provider/",
-        include(
-            (
-                provider_urlpatterns,
-                "provider_api",
-            ),
-            namespace="provider_api",
-        ),
+        include((provider_urlpatterns, "provider_api"), namespace="provider_api"),
     ),
     path(
         "api/projects/",
-        include(
-            (
-                "installers.project_api_urls",
-                "projects_api",
-            ),
-            namespace="projects_api",
-        ),
+        include(("installers.project_api_urls", "projects_api"), namespace="projects_api"),
     ),
     path(
         "api/smartchat/",
-        include(
-            (
-                "smartchat.api_urls",
-                "smartchat_api",
-            ),
-            namespace="smartchat_api",
-        ),
+        include(("smartchat.api_urls", "smartchat_api"), namespace="smartchat_api"),
     ),
     path(
         "api/quotes/",
-        include(
-            (
-                "core.api_urls",
-                "quotes_api",
-            ),
-            namespace="quotes_api",
-        ),
+        include(("core.api_urls", "quotes_api"), namespace="quotes_api"),
     ),
     path(
         "dashboard/provider/",
         include(
-            (
-                "installers.workspace_urls",
-                "provider_workspace",
-            ),
+            ("installers.workspace_urls", "provider_workspace"),
             namespace="provider_workspace",
         ),
     ),
-    path(
-        "api/",
-        include(
-            "products.urls",
-            namespace="products_api",
-        ),
-    ),
-    path(
-        "",
-        include("core.urls"),
-    ),
+    path("api/", include("products.urls", namespace="products_api")),
+    path("", include("core.urls")),
 
-    # ------------------------------------------------------------------------
-    # Railway health check
-    # ------------------------------------------------------------------------
-    path(
-        "health/",
-        health_check,
-        name="health",
-    ),
+    path("health/", health_check, name="health"),
 
-    # ------------------------------------------------------------------------
-    # PWA
-    # ------------------------------------------------------------------------
     path(
         "manifest.webmanifest",
         TemplateView.as_view(
@@ -929,123 +729,36 @@ urlpatterns = [
         name="service_worker",
     ),
 
-    # ------------------------------------------------------------------------
-    # SEO routes
-    # ------------------------------------------------------------------------
-    path(
-        "",
-        include("arolana_seo.urls"),
-    ),
+    path("", include("arolana_seo.urls")),
+    path("", home_view, name="home"),
+    path("sitemap/", sitemap_page, name="sitemap"),
 
-    # ------------------------------------------------------------------------
-    # Homepage
-    # ------------------------------------------------------------------------
-    path(
-        "",
-        home_view,
-        name="home",
-    ),
-    path(
-        "sitemap/",
-        sitemap_page,
-        name="sitemap",
-    ),
+    path("accounts/", include("accounts.urls")),
+    path("accounts/", include("allauth.urls")),
 
-    # ------------------------------------------------------------------------
-    # Authentication
-    # ------------------------------------------------------------------------
-    path(
-        "accounts/",
-        include("accounts.urls"),
-    ),
-    path(
-        "accounts/",
-        include("allauth.urls"),
-    ),
-
-    # ------------------------------------------------------------------------
-    # Application URLs
-    # ------------------------------------------------------------------------
-    path(
-        "newsletter/",
-        include("newsletter.urls"),
-    ),
-    path(
-        "vendors/",
-        include("vendors.urls"),
-    ),
+    path("newsletter/", include("newsletter.urls")),
+    path("vendors/", include("vendors.urls")),
     path(
         "installers/",
-        include(
-            (
-                "installers.urls",
-                "installers",
-            ),
-            namespace="installers",
-        ),
+        include(("installers.urls", "installers"), namespace="installers"),
     ),
     path(
         "projects/",
-        include(
-            (
-                "installers.project_web_urls",
-                "projects",
-            ),
-            namespace="projects",
-        ),
+        include(("installers.project_web_urls", "projects"), namespace="projects"),
     ),
-    path(
-        "products/",
-        include("products.urls"),
-    ),
-    path(
-        "orders/",
-        include("orders.urls"),
-    ),
-    path(
-        "deliveries/",
-        include("deliveries.urls"),
-    ),
-    path(
-        "order-robot/",
-        include("order_robot.urls"),
-    ),
-    path(
-        "dashboard/",
-        include("dashboard.urls"),
-    ),
-    path(
-        "hero-banners/",
-        include("hero_banners.urls"),
-    ),
-    path(
-        "ads/",
-        include("ads.urls"),
-    ),
-    path(
-        "pages/",
-        include("pages.urls"),
-    ),
-    path(
-        "manufacturers/",
-        include("manufacturers.urls"),
-    ),
-    path(
-        "kyc/",
-        include("kyc.urls"),
-    ),
-    path(
-        "chat/",
-        include("chat.urls"),
-    ),
-    path(
-        "blog/",
-        include("blog.urls"),
-    ),
-    path(
-        "currency/",
-        include("currency.urls"),
-    ),
+    path("products/", include("products.urls")),
+    path("orders/", include("orders.urls")),
+    path("deliveries/", include("deliveries.urls")),
+    path("order-robot/", include("order_robot.urls")),
+    path("dashboard/", include("dashboard.urls")),
+    path("hero-banners/", include("hero_banners.urls")),
+    path("ads/", include("ads.urls")),
+    path("pages/", include("pages.urls")),
+    path("manufacturers/", include("manufacturers.urls")),
+    path("kyc/", include("kyc.urls")),
+    path("chat/", include("chat.urls")),
+    path("blog/", include("blog.urls")),
+    path("currency/", include("currency.urls")),
     path(
         "api/currency/rates/",
         currency_views.api_currency_rates,
@@ -1056,152 +769,53 @@ urlpatterns = [
         currency_views.api_convert_amount,
         name="api_currency_convert",
     ),
-    path(
-        "subscriptions/",
-        include("subscriptions.urls"),
-    ),
-    path(
-        "videos/",
-        include("videos.urls"),
-    ),
-    path(
-        "reports/",
-        include("reports.urls"),
-    ),
-    path(
-        "notifications/",
-        include("notifications.urls"),
-    ),
-    path(
-        "payments/",
-        include("arolana_payments.urls"),
-    ),
-    path(
-        "landing/",
-        include("landing_pages.urls"),
-    ),
+    path("subscriptions/", include("subscriptions.urls")),
+    path("videos/", include("videos.urls")),
+    path("reports/", include("reports.urls")),
+    path("notifications/", include("notifications.urls")),
+    path("payments/", include("arolana_payments.urls")),
+    path("landing/", include("landing_pages.urls")),
     path(
         "landing-preview/<slug:slug>/",
         landing_page_views.landing_page_preview,
         name="landing_page_preview",
     ),
 
-    # ------------------------------------------------------------------------
-    # Smart AI Chat
-    # ------------------------------------------------------------------------
     path(
         "smartchat/",
-        include(
-            (
-                "smartchat.urls",
-                "smartchat",
-            ),
-            namespace="smartchat",
-        ),
+        include(("smartchat.urls", "smartchat"), namespace="smartchat"),
     ),
-    path(
-        "support/ai/",
-        include("smartchat.compat_urls"),
-    ),
+    path("support/ai/", include("smartchat.compat_urls")),
 
-    # ------------------------------------------------------------------------
-    # Social Apps Status
-    # ------------------------------------------------------------------------
     path(
         "social-apps-status/",
         accounts_views.social_apps_status,
         name="social_apps_status",
     ),
 
-    # ------------------------------------------------------------------------
-    # CKEditor
-    # ------------------------------------------------------------------------
     *CKEDITOR_URLS,
 
-    # ------------------------------------------------------------------------
-    # Support Pages
-    # ------------------------------------------------------------------------
     path(
         "shipping/",
-        TemplateView.as_view(
-            template_name="support/shipping.html"
-        ),
+        TemplateView.as_view(template_name="support/shipping.html"),
         name="shipping",
     ),
     path(
         "youtube-embed-test/",
-        TemplateView.as_view(
-            template_name="youtube_embed_test.html"
-        ),
+        TemplateView.as_view(template_name="youtube_embed_test.html"),
         name="youtube_embed_test",
     ),
-    path(
-        "support/",
-        contact_page,
-        name="support",
-    ),
-    path(
-        "contact/",
-        contact_page,
-        name="contact",
-    ),
-    path(
-        "about/",
-        page_by_slug,
-        {
-            "slug": "about",
-        },
-        name="about",
-    ),
-    path(
-        "privacy/",
-        page_by_slug,
-        {
-            "slug": "privacy",
-        },
-        name="privacy",
-    ),
-    path(
-        "terms/",
-        page_by_slug,
-        {
-            "slug": "terms",
-        },
-        name="terms",
-    ),
-    path(
-        "returns/",
-        page_by_slug,
-        {
-            "slug": "returns",
-        },
-        name="returns",
-    ),
-    path(
-        "faq/",
-        faq_page,
-        name="faq",
-    ),
-    re_path(
-        r"^returns/.*$",
-        returns_redirect,
-        name="returns_catchall",
-    ),
+    path("support/", contact_page, name="support"),
+    path("contact/", contact_page, name="contact"),
+    path("about/", page_by_slug, {"slug": "about"}, name="about"),
+    path("privacy/", page_by_slug, {"slug": "privacy"}, name="privacy"),
+    path("terms/", page_by_slug, {"slug": "terms"}, name="terms"),
+    path("returns/", page_by_slug, {"slug": "returns"}, name="returns"),
+    path("faq/", faq_page, name="faq"),
+    re_path(r"^returns/.*$", returns_redirect, name="returns_catchall"),
 
-    # ------------------------------------------------------------------------
-    # Order tracking
-    # ------------------------------------------------------------------------
-    path(
-        "orders/track/",
-        orders_views.track_order,
-        name="track_order",
-    ),
+    path("orders/track/", orders_views.track_order, name="track_order"),
 
-    # ------------------------------------------------------------------------
-    # Mobile Orders API
-    #
-    # Keep before search_ai root include.
-    # ------------------------------------------------------------------------
     path(
         "api/mobile/orders/create/",
         orders_views.mobile_authenticated_order_create_api,
@@ -1238,9 +852,6 @@ urlpatterns = [
         name="mobile_authenticated_order_cancel_api",
     ),
 
-    # ------------------------------------------------------------------------
-    # Mobile Notifications API
-    # ------------------------------------------------------------------------
     path(
         "api/mobile/notifications/",
         orders_views.mobile_notifications_api,
@@ -1262,47 +873,19 @@ urlpatterns = [
         name="mobile_notifications_delete_api",
     ),
 
-    # ------------------------------------------------------------------------
-    # Mobile Customers / Ops / Staff APIs
-    # ------------------------------------------------------------------------
+    path("", include("mobile_customers.urls")),
+    path("", include("arolana_ops.urls")),
+    path("", include("staff_mobile.urls")),
+
+    path("search/", include("search_ai.urls")),
     path(
         "",
-        include("mobile_customers.urls"),
-    ),
-    path(
-        "",
-        include("arolana_ops.urls"),
-    ),
-    path(
-        "",
-        include("staff_mobile.urls"),
+        include("search_ai.urls", namespace="search_ai_legacy"),
     ),
 
-    # ------------------------------------------------------------------------
-    # Search
-    #
-    # Keep after mobile API routes.
-    # ------------------------------------------------------------------------
-    path(
-        "search/",
-        include("search_ai.urls"),
-    ),
-    path(
-        "",
-        include(
-            "search_ai.urls",
-            namespace="search_ai_legacy",
-        ),
-    ),
-
-    # ------------------------------------------------------------------------
-    # Help & Debug
-    # ------------------------------------------------------------------------
     path(
         "color-test/",
-        TemplateView.as_view(
-            template_name="products/color_test.html"
-        ),
+        TemplateView.as_view(template_name="products/color_test.html"),
         name="color_test",
     ),
     path(
@@ -1310,62 +893,32 @@ urlpatterns = [
         products_views.debug_colors,
         name="debug_colors",
     ),
-    path(
-        "careers/",
-        careers_page,
-        name="careers",
-    ),
-    path(
-        "help/",
-        help_center,
-        name="help_center",
-    ),
-    path(
-        "faq/",
-        faq_page,
-        name="faq_page",
-    ),
-    path(
-        "article/<slug:slug>/",
-        article_detail,
-        name="article_detail",
-    ),
+    path("careers/", careers_page, name="careers"),
+    path("help/", help_center, name="help_center"),
+    path("faq/", faq_page, name="faq_page"),
+    path("article/<slug:slug>/", article_detail, name="article_detail"),
     path(
         "currency/diagnose/",
         currency_views.diagnose_currency,
         name="diagnose_currency",
     ),
 
-    # ------------------------------------------------------------------------
-    # Test Pages
-    # ------------------------------------------------------------------------
     path(
         "ads-test/",
-        TemplateView.as_view(
-            template_name="ads/test.html"
-        ),
+        TemplateView.as_view(template_name="ads/test.html"),
         name="ads_test",
     ),
     path(
         "image-test/",
-        TemplateView.as_view(
-            template_name="ads/direct_test.html"
-        ),
+        TemplateView.as_view(template_name="ads/direct_test.html"),
         name="image_test",
     ),
     path(
         "social-test/",
-        TemplateView.as_view(
-            template_name="socialaccount/test.html"
-        ),
+        TemplateView.as_view(template_name="socialaccount/test.html"),
         name="social_test",
     ),
 
-    # ------------------------------------------------------------------------
-    # Landing clean detail
-    #
-    # Keep near bottom because it catches slugs.
-    # ------------------------------------------------------------------------
     path(
         "<slug:slug>/",
         landing_page_views.landing_page_detail,
@@ -1374,26 +927,15 @@ urlpatterns = [
 ]
 
 
-# ============================================================================
-# DEVELOPMENT STATIC / MEDIA
-# ============================================================================
-
-
 if settings.DEBUG:
     urlpatterns += static(
         settings.MEDIA_URL,
         document_root=settings.MEDIA_ROOT,
     )
-
     urlpatterns += static(
         settings.STATIC_URL,
         document_root=settings.STATIC_ROOT,
     )
-
-
-# ============================================================================
-# CUSTOM ERROR HANDLER
-# ============================================================================
 
 
 handler404 = "arolana_config.urls.custom_404"
