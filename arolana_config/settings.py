@@ -75,25 +75,38 @@ WEB_PUSH_TTL = config('WEB_PUSH_TTL', default=86400, cast=int)
 WEB_PUSH_ASYNC = config('WEB_PUSH_ASYNC', default=not DEBUG, cast=bool)
 
 
-CSRF_TRUSTED_ORIGINS = [
-    'https://arolana.com',
-    'https://www.arolana.com',
-    'https://agile-wonder-production-dfa7.up.railway.app',
-    'https://*.railway.app',
-    'https://*.up.railway.app',
-
-    # Local Django
-    'http://localhost:8000',
-    'http://127.0.0.1:8000',
-    'http://0.0.0.0:8000',
-
-    # Local network Django
-    'http://192.168.1.3:8000',
-    'http://192.168.1.5:8000',
-]
+CSRF_TRUSTED_ORIGINS = csv_config(
+    "CSRF_TRUSTED_ORIGINS",
+    default=(
+        "https://arolana.com,"
+        "https://www.arolana.com,"
+        "https://agile-wonder-production-dfa7.up.railway.app,"
+        "https://*.railway.app,"
+        "https://*.up.railway.app,"
+        "http://localhost:8000,"
+        "http://127.0.0.1:8000,"
+        "http://0.0.0.0:8000,"
+        "http://192.168.1.3:8000,"
+        "http://192.168.1.5:8000"
+    ),
+)
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
+
+# Keep admin authentication and CSRF cookies on the canonical domain.
+CSRF_COOKIE_NAME = "arolana_csrftoken"
+SESSION_COOKIE_NAME = "arolana_sessionid"
+
+CSRF_COOKIE_PATH = "/"
+SESSION_COOKIE_PATH = "/"
+
+CSRF_COOKIE_DOMAIN = None
+SESSION_COOKIE_DOMAIN = None
+
+CSRF_USE_SESSIONS = False
+CSRF_COOKIE_HTTPONLY = False
+
 
 # ============ AD SETTINGS ============
 DISPLAY_ARTICLE_TOP_AD = True
@@ -198,30 +211,28 @@ GOOGLE_MERCHANT_CURRENCY = "NGN"
 GOOGLE_MERCHANT_FEED_LABEL = "NG"
 # ============ MIDDLEWARE ============
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.middleware.gzip.GZipMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "django.middleware.gzip.GZipMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
 
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
 
-    # Prevent stale cached admin forms from causing CSRF issues after cache/cookie clears.
-    'core.admin_no_cache_middleware.AdminNoCacheMiddleware',
+    "core.admin_no_cache_middleware.AdminNoCacheMiddleware",
 
-    # Arolana tracking/security/business middleware
-    'visitor_analytics.middleware.PageVisitTrackingMiddleware',
-    'core.middleware.ArolanaRateLimitMiddleware',
+    "visitor_analytics.middleware.PageVisitTrackingMiddleware",
+    "core.middleware.ArolanaRateLimitMiddleware",
 
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'core.middleware.ArolanaSecurityHeadersMiddleware',
-    'django_htmx.middleware.HtmxMiddleware',
-    'currency.middleware.CurrencyMiddleware',
-    'currency.middleware.CurrencyContextMiddleware',
-    'allauth.account.middleware.AccountMiddleware',
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "core.middleware.ArolanaSecurityHeadersMiddleware",
+    "django_htmx.middleware.HtmxMiddleware",
+    "currency.middleware.CurrencyMiddleware",
+    "currency.middleware.CurrencyContextMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 ROOT_URLCONF = 'arolana_config.urls'
@@ -925,6 +936,7 @@ LOGGING = {
     'loggers': {
         'django': {'handlers': ['console'], 'level': 'INFO'},
         'django.security': {'handlers': ['console'], 'level': 'WARNING', 'propagate': True},
+        'django.security.csrf': {'handlers': ['console'], 'level': 'WARNING', 'propagate': False},
     },
 }
 
