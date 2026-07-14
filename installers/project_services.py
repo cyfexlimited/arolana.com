@@ -13,7 +13,6 @@ from notifications.models import Notification
 from core.media_optimization import get_verified_optimized_image_url
 
 from .models import (
-    ProviderSubscriptionPlan,
     ServicePortfolio,
     ServiceProjectEvent,
     ServiceProjectMedia,
@@ -256,6 +255,17 @@ DEFAULT_PROJECT_LIMITS = {
         "featured_project_slots": 8,
         "project_product_links_limit": 30,
     },
+    "special": {
+        "max_projects": 300,
+        "max_project_media": 45,
+        "max_project_videos": 30,
+        "max_local_video_uploads": 40,
+        "max_video_size_mb": 400,
+        "project_analytics_enabled": True,
+        "project_leads_enabled": True,
+        "featured_project_slots": 20,
+        "project_product_links_limit": 50,
+    },
     "enterprise": {
         "max_projects": -1,
         "max_project_media": 60,
@@ -268,26 +278,6 @@ DEFAULT_PROJECT_LIMITS = {
         "project_product_links_limit": -1,
     },
 }
-
-
-def _normalized_plan_name(provider):
-    value = (getattr(provider, "subscription_plan", "") or "free").strip().lower()
-    if "enterprise" in value:
-        return "enterprise"
-    if "pro" in value or "special" in value:
-        return "pro"
-    if "plus" in value or "standard" in value:
-        return "plus"
-    if "basic" in value:
-        return "basic"
-    return "free"
-
-
-def _plan_overrides(provider):
-    plan_name = getattr(provider, "subscription_plan", "") or ""
-    plan = ProviderSubscriptionPlan.objects.filter(name__iexact=plan_name, is_active=True).first()
-    benefits = plan.benefits if plan and isinstance(plan.benefits, dict) else {}
-    return benefits.get("projects", benefits) if isinstance(benefits, dict) else {}
 
 
 @dataclass
@@ -313,14 +303,20 @@ class ProjectEntitlement:
 class ProjectEntitlementService:
     def __init__(self, provider):
         self.provider = provider
-        tier = _normalized_plan_name(provider)
+        from subscriptions.lifecycle import get_effective_subscription
+
+        self.effective_subscription = get_effective_subscription(
+            provider.user,
+            role_context="provider",
+        )
+        tier = self.effective_subscription.tier
         configured = getattr(settings, "PROJECT_SUBSCRIPTION_LIMITS", {}) or {}
         self.limits = {
             **DEFAULT_PROJECT_LIMITS.get(tier, DEFAULT_PROJECT_LIMITS["free"]),
             **configured.get(tier, {}),
-            **_plan_overrides(provider),
+            **(self.effective_subscription.entitlements or {}),
         }
-        if getattr(provider, "subscription_status", "inactive") not in {"active", "trial"}:
+        if self.effective_subscription.status not in {"active", "trial"}:
             self.limits = {
                 **DEFAULT_PROJECT_LIMITS["free"],
                 **configured.get("free", {}),

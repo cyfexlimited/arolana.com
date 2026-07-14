@@ -8,14 +8,14 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
-            "--skip-visibility",
+            "--enforce-legacy-visibility",
             action="store_true",
-            help="Only sync subscription fields and benefits; do not enforce product visibility limits.",
+            help="Deprecated emergency option. Hide products using old tier limits.",
         )
 
     def handle(self, *args, **options):
         stats = sync_all_vendor_subscription_profiles(
-            enforce_visibility=not options["skip_visibility"],
+            enforce_visibility=options["enforce_legacy_visibility"],
         )
         self.stdout.write(
             self.style.SUCCESS(

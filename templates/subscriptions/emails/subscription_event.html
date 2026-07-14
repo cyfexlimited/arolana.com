@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title }}</title>
+</head>
+<body style="margin:0;background:#f4f8ff;font-family:Arial,sans-serif;color:#071a44;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f8ff;padding:28px 12px;">
+        <tr>
+            <td align="center">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background:#ffffff;border:1px solid #e3ecf8;border-radius:18px;overflow:hidden;">
+                    <tr>
+                        <td style="padding:24px 28px;background:#071a44;color:#ffffff;">
+                            <div style="font-size:13px;letter-spacing:2px;text-transform:uppercase;color:#7dd3fc;font-weight:700;">Arolana Subscription</div>
+                            <h1 style="margin:8px 0 0;font-size:26px;line-height:1.2;color:#ffffff;">{{ title }}</h1>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:28px;">
+                            <p style="margin:0 0 12px;font-size:16px;line-height:1.65;">Hello {{ user.get_full_name|default:user.username }},</p>
+                            <p style="margin:0 0 24px;font-size:16px;line-height:1.65;color:#334155;">{{ message }}</p>
+                            <a href="{{ subscription_url }}" style="display:inline-block;background:#ff7a00;color:#ffffff;text-decoration:none;font-weight:700;padding:13px 20px;border-radius:10px;">Manage subscription</a>
+                            <p style="margin:24px 0 0;font-size:13px;line-height:1.55;color:#64748b;">Your subscription applies to the approved Arolana roles connected to this account. Contact Arolana support if you did not expect this update.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

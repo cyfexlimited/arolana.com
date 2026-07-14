@@ -395,10 +395,21 @@ class ProviderKYCDocumentAdmin(admin.ModelAdmin):
 
 @admin.register(ProviderSubscriptionPlan)
 class ProviderSubscriptionPlanAdmin(admin.ModelAdmin):
-    list_display = ("name", "price_monthly", "price_yearly", "display_order", "is_default", "is_active")
-    list_editable = ("display_order", "is_active")
-    list_filter = ("is_default", "is_active")
+    list_display = (
+        "name", "official_tier_key", "price_monthly", "price_yearly",
+        "is_deprecated", "display_order", "is_default", "is_active",
+    )
+    list_filter = ("official_tier_key", "is_deprecated", "is_default", "is_active")
     search_fields = ("name", "description")
+
+    def get_readonly_fields(self, request, obj=None):
+        return [field.name for field in self.model._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(ServicePortfolio)

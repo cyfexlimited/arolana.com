@@ -525,10 +525,22 @@ Arolana Vendor Support
 
 
 @admin.register(VendorSubscription)
-class VendorSubscriptionAdmin(admin.ModelAdmin):
+class LegacyVendorSubscriptionAdmin(admin.ModelAdmin):
+    """Historical vendor billing records; subscriptions app is the source of truth."""
+
     list_display = ['vendor', 'plan', 'start_date', 'end_date', 'is_active']
     list_filter = ['plan', 'is_active']
-    search_fields = ['vendor__username']
+    search_fields = ['vendor__username', 'vendor__email', 'transaction_id']
+    actions = None
+
+    def get_readonly_fields(self, request, obj=None):
+        return [field.name for field in self.model._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(VendorReview)

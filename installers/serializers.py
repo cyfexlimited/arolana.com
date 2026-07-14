@@ -392,6 +392,7 @@ class ServiceProviderListSerializer(serializers.ModelSerializer):
     description = serializers.SerializerMethodField()
     approved_project_count = serializers.IntegerField(read_only=True)
     rating_label = serializers.SerializerMethodField()
+    effective_subscription = serializers.SerializerMethodField()
 
     class Meta:
         model = ServiceProviderProfile
@@ -402,6 +403,7 @@ class ServiceProviderListSerializer(serializers.ModelSerializer):
             "total_completed_jobs", "approved_project_count", "verified", "phone_number", "whatsapp_number",
             "whatsapp_url", "services", "verification_status", "kyc_status",
             "subscription_plan", "subscription_status", "profile_completion_percent",
+            "effective_subscription",
             "availability_status", "is_active", "approval_allows_dashboard",
             "can_receive_serious_jobs", "sensitive_update_locked",
             "sensitive_update_available_at",
@@ -421,6 +423,11 @@ class ServiceProviderListSerializer(serializers.ModelSerializer):
 
     def get_rating_label(self, obj):
         return f"{obj.average_rating} ({obj.total_reviews} reviews)" if obj.total_reviews else "No reviews yet"
+
+    def get_effective_subscription(self, obj):
+        from subscriptions.lifecycle import get_effective_subscription
+
+        return get_effective_subscription(obj.user, role_context="provider").as_dict()
 
 
 class ServiceProviderDetailSerializer(ServiceProviderListSerializer):

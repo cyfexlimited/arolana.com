@@ -38,6 +38,7 @@ from .models import (
     ServiceProviderProfile,
     ServiceQuoteRequest,
 )
+from subscriptions.lifecycle import get_effective_subscription, official_plans
 from .project_services import (
     ProjectEntitlementService,
     notify_project_submitted,
@@ -124,6 +125,11 @@ def _workspace_context(
                 provider
             ).payload()
         ),
+        "effective_subscription": get_effective_subscription(
+            provider.user,
+            role_context="provider",
+        ).as_dict(),
+        "subscription_plans": official_plans(),
     }
 
 
@@ -592,16 +598,11 @@ def provider_dashboard(request):
         )[:8]
     )
 
-    subscription_plans = (
-        ProviderSubscriptionPlan.objects
-        .filter(
-            is_active=True
-        )
-        .order_by(
-            "display_order",
-            "price_monthly",
-        )
+    effective_subscription = get_effective_subscription(
+        request.user,
+        role_context="provider",
     )
+    subscription_plans = official_plans()
 
     return render(
         request,
@@ -680,6 +681,9 @@ def provider_dashboard(request):
             "subscription_plans": (
                 subscription_plans
             ),
+            "effective_subscription": (
+                effective_subscription.as_dict()
+            ),
             "availability_choices": (
                 ServiceProviderProfile
                 ._meta
@@ -693,6 +697,7 @@ def provider_dashboard(request):
             ),
         },
     )
+
 
 
 # =============================================================================

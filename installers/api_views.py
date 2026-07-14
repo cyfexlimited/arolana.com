@@ -11,10 +11,19 @@ from rest_framework.views import APIView
 from mobile_customers.views import _auth_mobile_customer_from_request_data
 from notifications.models import Notification
 from products.models import Product
+from arolana_payments.models import PaymentMethod
+from arolana_payments.services import gateway_is_available
+from subscriptions.lifecycle import (
+    activate_free_subscription,
+    create_subscription_payment,
+    get_effective_subscription,
+    get_plan_entitlements,
+    official_plans,
+)
+from subscriptions.models import SubscriptionPlan, VendorSubscription
 from .models import (
     ProviderKYCDocument,
     ProviderProfileChangeRequest,
-    ProviderSubscriptionPlan,
     ServiceCategory,
     ServicePortfolio,
     ServiceProviderProfile,
@@ -679,22 +688,25 @@ class ProviderSubscriptionPlansAPIView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        plans = ProviderSubscriptionPlan.objects.filter(is_active=True)
-        return Response({
-            "plans": [
-                {
-                    "id": plan.id,
-                    "name": plan.name,
-                    "display_name": plan.name,
-                    "price_monthly": str(plan.price_monthly),
-                    "price_yearly": str(plan.price_yearly),
-                    "description": plan.description,
-                    "benefits": plan.benefits,
-                    "is_default": plan.is_default,
-                }
-                for plan in plans
-            ],
-        })
+        user = provider_user_from_request(request)
+        current = get_effective_subscription(user, role_context="provider").as_dict() if user else None
+        plans = []
+        for plan in official_plans():
+            plans.append({
+                "id": plan.id,
+                "tier": plan.tier_key,
+                "name": plan.tier_key,
+                "display_name": plan.display_name,
+                "price_monthly": str(plan.price_monthly),
+                "price_yearly": str(plan.price_yearly),
+                "currency": "NGN",
+                "description": plan.description,
+                "benefits": plan.feature_bullets or [],
+                "provider_entitlements": get_plan_entitlements(plan, "provider"),
+                "is_current": bool(current and current["plan_id"] == plan.id),
+                "is_free": plan.tier_key == "free",
+            })
+        return Response({"plans": plans, "current_subscription": current})
 
 
 class ProviderSubscriptionSelectAPIView(APIView):
@@ -706,37 +718,86 @@ class ProviderSubscriptionSelectAPIView(APIView):
             return error
 
         plan_reference = request.data.get("plan_id") or request.data.get("plan_name") or request.data.get("tier")
-        plans = ProviderSubscriptionPlan.objects.filter(is_active=True)
+        official_plan_ids = [plan.id for plan in official_plans()]
+        plans = SubscriptionPlan.objects.filter(is_active=True, id__in=official_plan_ids)
         if str(plan_reference).isdigit():
             plan = plans.filter(pk=plan_reference).first()
         else:
-            plan = plans.filter(name__iexact=str(plan_reference or "").strip()).first()
+            reference = str(plan_reference or "").strip()
+            plan = plans.filter(name__iexact=reference).first() or plans.filter(display_name__iexact=reference).first()
         if not plan:
             return Response(
                 {"detail": "Select a valid active provider subscription plan."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        if plan.price_monthly > 0 or plan.price_yearly > 0:
+        billing_cycle = str(request.data.get("billing_cycle") or VendorSubscription.BILLING_MONTHLY).strip().lower()
+        if billing_cycle not in dict(VendorSubscription.BILLING_CYCLE_CHOICES):
+            return Response({"detail": "Choose monthly or yearly billing."}, status=status.HTTP_400_BAD_REQUEST)
+
+        selected_price = plan.price_yearly if billing_cycle == VendorSubscription.BILLING_YEARLY else plan.price_monthly
+        if selected_price <= 0:
+            activate_free_subscription(provider.user, source_platform="provider_mobile")
+            provider.refresh_from_db()
+            return Response({
+                "success": True,
+                "message": "Free account subscription selected.",
+                "provider": ServiceProviderDetailSerializer(provider, context={"request": request}).data,
+                "subscription": get_effective_subscription(provider.user, role_context="provider").as_dict(),
+            })
+
+        gateway = str(
+            request.data.get("payment_gateway")
+            or request.data.get("gateway")
+            or PaymentMethod.PAYSTACK
+        ).strip().lower()
+        if gateway not in PaymentMethod.values:
+            return Response({"detail": "Choose a supported Arolana payment gateway."}, status=status.HTTP_400_BAD_REQUEST)
+        available, reason = gateway_is_available(gateway)
+        if not available:
+            return Response({"detail": reason or "This payment gateway is unavailable."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            payment = create_subscription_payment(
+                provider.user,
+                plan,
+                billing_cycle,
+                gateway,
+                source_platform="provider_mobile",
+                role_context="provider",
+            )
+            if gateway == PaymentMethod.MANUAL_CRYPTO:
+                checkout_url = ""
+            else:
+                from staff_mobile.views import _hosted_subscription_checkout_url
+
+                checkout_url = _hosted_subscription_checkout_url(request, payment)
+        except (DjangoValidationError, ValueError) as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
             return Response(
-                {
-                    "detail": "Paid provider plans must be activated through secure checkout.",
-                    "payment_required": True,
-                    "plan_id": plan.id,
-                },
-                status=status.HTTP_402_PAYMENT_REQUIRED,
+                {"detail": "Unable to start secure subscription checkout. Please try again."},
+                status=status.HTTP_502_BAD_GATEWAY,
             )
 
-        provider.subscription_plan = plan.name
-        provider.subscription_status = "active"
-        provider.save(update_fields=["subscription_plan", "subscription_status", "updated_at"])
-        Notification.send(
-            provider.user,
-            "system",
-            "Provider subscription updated",
-            f"Your provider subscription is now {provider.subscription_plan}.",
-            metadata={"service_provider_id": provider.id, "provider_subscription_plan_id": plan.id},
-        )
-        return Response({"provider": ServiceProviderDetailSerializer(provider, context={"request": request}).data})
+        return Response({
+            "success": True,
+            "payment_required": True,
+            "manual_payment": gateway == PaymentMethod.MANUAL_CRYPTO,
+            "plan_id": plan.id,
+            "tier": plan.tier_key,
+            "billing_cycle": billing_cycle,
+            "amount": str(selected_price),
+            "currency": "NGN",
+            "reference": payment.reference,
+            "payment_reference": payment.reference,
+            "checkout_url": checkout_url,
+            "authorization_url": checkout_url,
+            "message": (
+                "Manual payment created. Arolana will activate the plan after verification."
+                if gateway == PaymentMethod.MANUAL_CRYPTO
+                else "Secure subscription checkout initialized."
+            ),
+        })
 
 
 class ProviderNotificationsAPIView(APIView):

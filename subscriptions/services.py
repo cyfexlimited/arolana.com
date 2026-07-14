@@ -100,7 +100,7 @@ def enforce_vendor_product_visibility(profile):
 
 
 @transaction.atomic
-def sync_vendor_subscription_profile(user_or_profile, now=None, enforce_visibility=True):
+def sync_vendor_subscription_profile(user_or_profile, now=None, enforce_visibility=False):
     """Make VendorProfile match the current non-expired subscription source of truth."""
     now = now or timezone.now()
     profile = user_or_profile if isinstance(user_or_profile, VendorProfile) else getattr(user_or_profile, "vendor_profile", None)
@@ -159,7 +159,7 @@ def sync_vendor_subscription_profile(user_or_profile, now=None, enforce_visibili
     }
 
 
-def sync_all_vendor_subscription_profiles(now=None, enforce_visibility=True):
+def sync_all_vendor_subscription_profiles(now=None, enforce_visibility=False):
     now = now or timezone.now()
     vendor_ids = set(
         VendorSubscription.objects.values_list("vendor_id", flat=True)
@@ -217,20 +217,15 @@ def run_subscription_robot(now=None):
                 stats["expiring"] += 1
 
         if subscription.end_date <= now:
-            result = sync_vendor_subscription_profile(profile, now=now, enforce_visibility=True)
-            visibility = (result or {}).get("visibility") or {"hidden": 0}
+            sync_vendor_subscription_profile(profile, now=now, enforce_visibility=False)
             message = (
                 "Your Arolana subscription has ended, so your account has returned to Free. "
-                "Your first approved product remains public. Additional approved products are kept safely in your vendor product list "
-                "and will become public again when you renew or choose a paid plan."
+                "Your existing approved products remain available. Free plan limits now apply to new products and paid-only tools "
+                "until you renew or choose another plan."
             )
             key = f"subscription-expired-{subscription.id}-{now:%Y%m%d}"
             notify_vendor_subscription(profile, "Your Arolana plan has ended", message, key, priority=4)
             stats["expired"] += 1
-            stats["visibility_updated"] += visibility["hidden"]
-
-    for profile in VendorProfile.objects.select_related("user").filter(subscription_tier="free"):
-        enforce_vendor_product_visibility(profile)
 
     return stats
 

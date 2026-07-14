@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from core.models import BaseModel
 from accounts.models import User
@@ -367,7 +368,7 @@ def apply_vendor_subscription_benefits(vendor, plan):
     return vendor
 
 class SubscriptionPlan(BaseModel):
-    """Subscription plans for vendors"""
+    """One account plan shared by every approved Arolana role."""
     name = models.CharField(max_length=50, unique=True)
     display_name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
@@ -408,6 +409,14 @@ class SubscriptionPlan(BaseModel):
     support_level = models.CharField(max_length=40, default='basic')
     badge_label = models.CharField(max_length=80, default='Free Vendor')
     feature_bullets = models.JSONField(default=list, blank=True)
+    role_entitlements = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            "Optional role-specific overrides keyed by vendor, manufacturer, or provider. "
+            "The shared entitlement resolver merges these with Arolana's safe defaults."
+        ),
+    )
     
     # Display
     icon = models.CharField(max_length=50, blank=True)
@@ -467,7 +476,39 @@ class SubscriptionPlan(BaseModel):
         return features
 
 class VendorSubscription(BaseModel):
-    """Vendor's active subscription"""
+    """Account-level subscription (legacy model name retained for API compatibility)."""
+
+    STATUS_INACTIVE = "inactive"
+    STATUS_PENDING_PAYMENT = "pending_payment"
+    STATUS_TRIAL = "trial"
+    STATUS_ACTIVE = "active"
+    STATUS_PAST_DUE = "past_due"
+    STATUS_GRACE_PERIOD = "grace_period"
+    STATUS_EXPIRED = "expired"
+    STATUS_CANCELLED = "cancelled"
+    STATUS_CHOICES = [
+        (STATUS_INACTIVE, "Inactive"),
+        (STATUS_PENDING_PAYMENT, "Pending payment"),
+        (STATUS_TRIAL, "Trial"),
+        (STATUS_ACTIVE, "Active"),
+        (STATUS_PAST_DUE, "Past due"),
+        (STATUS_GRACE_PERIOD, "Grace period"),
+        (STATUS_EXPIRED, "Expired"),
+        (STATUS_CANCELLED, "Cancelled"),
+    ]
+    BILLING_MONTHLY = "monthly"
+    BILLING_YEARLY = "yearly"
+    BILLING_CYCLE_CHOICES = [
+        (BILLING_MONTHLY, "Monthly"),
+        (BILLING_YEARLY, "Yearly"),
+    ]
+    CHANGE_UPGRADE = "upgrade"
+    CHANGE_DOWNGRADE = "downgrade"
+    CHANGE_CHOICES = [
+        (CHANGE_UPGRADE, "Upgrade"),
+        (CHANGE_DOWNGRADE, "Downgrade"),
+    ]
+
     vendor = models.ForeignKey(User, on_delete=models.CASCADE, related_name='subscriptions')
     plan = models.ForeignKey(SubscriptionPlan, on_delete=models.CASCADE)
     start_date = models.DateTimeField(default=timezone.now)
@@ -476,6 +517,30 @@ class VendorSubscription(BaseModel):
     auto_renew = models.BooleanField(default=True)
     payment_method = models.CharField(max_length=50, blank=True)
     transaction_id = models.CharField(max_length=200, blank=True)
+    status = models.CharField(max_length=24, choices=STATUS_CHOICES, default=STATUS_ACTIVE, db_index=True)
+    billing_cycle = models.CharField(
+        max_length=12,
+        choices=BILLING_CYCLE_CHOICES,
+        default=BILLING_MONTHLY,
+    )
+    currency = models.CharField(max_length=10, default="NGN")
+    payment_state = models.CharField(max_length=24, default="paid", db_index=True)
+    trial_ends_at = models.DateTimeField(blank=True, null=True)
+    grace_period_ends_at = models.DateTimeField(blank=True, null=True)
+    cancel_at_period_end = models.BooleanField(default=False)
+    cancellation_requested_at = models.DateTimeField(blank=True, null=True)
+    cancelled_at = models.DateTimeField(blank=True, null=True)
+    cancellation_reason = models.TextField(blank=True)
+    pending_plan = models.ForeignKey(
+        SubscriptionPlan,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="pending_account_subscriptions",
+    )
+    pending_change_type = models.CharField(max_length=16, choices=CHANGE_CHOICES, blank=True)
+    pending_change_effective_at = models.DateTimeField(blank=True, null=True)
+    source_platform = models.CharField(max_length=30, blank=True)
     
     class Meta:
         ordering = ['-created_at']
@@ -486,10 +551,146 @@ class VendorSubscription(BaseModel):
                 name="uniq_vendor_subscription_transaction_nonblank",
             ),
         ]
+        indexes = [
+            models.Index(fields=["vendor", "is_active", "status", "end_date"]),
+            models.Index(fields=["status", "end_date"]),
+        ]
     
     def __str__(self):
         return f"{self.vendor.username} - {self.plan.display_name}"
 
     @property
     def is_current(self):
-        return self.is_active and self.end_date > timezone.now()
+        now = timezone.now()
+        if not self.is_active:
+            return False
+        if self.status in {self.STATUS_ACTIVE, self.STATUS_TRIAL}:
+            return self.end_date > now
+        return bool(
+            self.status in {self.STATUS_PAST_DUE, self.STATUS_GRACE_PERIOD}
+            and self.grace_period_ends_at
+            and self.grace_period_ends_at > now
+        )
+
+
+class SubscriptionPayment(BaseModel):
+    """Immutable subscription receipt linked to a server-verified payment."""
+
+    STATUS_PENDING = "pending"
+    STATUS_SUCCESS = "success"
+    STATUS_FAILED = "failed"
+    STATUS_REFUNDED = "refunded"
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pending"),
+        (STATUS_SUCCESS, "Success"),
+        (STATUS_FAILED, "Failed"),
+        (STATUS_REFUNDED, "Refunded"),
+    ]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="subscription_payments")
+    subscription = models.ForeignKey(
+        VendorSubscription,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="subscription_payments",
+    )
+    plan = models.ForeignKey(SubscriptionPlan, on_delete=models.PROTECT, related_name="subscription_payments")
+    payment_transaction = models.OneToOneField(
+        "arolana_payments.PaymentTransaction",
+        on_delete=models.PROTECT,
+        blank=True,
+        null=True,
+        related_name="subscription_payment_record",
+    )
+    billing_cycle = models.CharField(max_length=12, choices=VendorSubscription.BILLING_CYCLE_CHOICES)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    currency = models.CharField(max_length=10, default="NGN")
+    gateway = models.CharField(max_length=40, blank=True)
+    reference = models.CharField(max_length=200, unique=True)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    verified_at = models.DateTimeField(blank=True, null=True)
+    activated_at = models.DateTimeField(blank=True, null=True)
+    source_platform = models.CharField(max_length=30, blank=True)
+    verification_summary = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "status", "-created_at"]),
+            models.Index(fields=["plan", "billing_cycle", "status"]),
+        ]
+
+    def __str__(self):
+        return f"{self.reference} - {self.plan.tier_key} - {self.status}"
+
+
+class SubscriptionHistory(models.Model):
+    """Append-only lifecycle audit trail."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="subscription_history_events")
+    subscription = models.ForeignKey(
+        VendorSubscription,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="history_events",
+    )
+    event_type = models.CharField(max_length=50, db_index=True)
+    previous_plan = models.ForeignKey(
+        SubscriptionPlan,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="subscription_history_previous",
+    )
+    new_plan = models.ForeignKey(
+        SubscriptionPlan,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="subscription_history_new",
+    )
+    previous_status = models.CharField(max_length=24, blank=True)
+    new_status = models.CharField(max_length=24, blank=True)
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="subscription_changes_made",
+    )
+    source_platform = models.CharField(max_length=30, blank=True)
+    payment_reference = models.CharField(max_length=200, blank=True, db_index=True)
+    effective_at = models.DateTimeField(default=timezone.now)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["user", "event_type", "-created_at"])]
+
+    def __str__(self):
+        return f"{self.user} - {self.event_type}"
+
+
+class SubscriptionReminderLog(models.Model):
+    """Idempotency guard for lifecycle reminders across all delivery channels."""
+
+    subscription = models.ForeignKey(VendorSubscription, on_delete=models.CASCADE, related_name="reminder_logs")
+    event_key = models.CharField(max_length=100)
+    channel = models.CharField(max_length=20, default="in_app")
+    sent_at = models.DateTimeField(default=timezone.now)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-sent_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["subscription", "event_key", "channel"],
+                name="unique_subscription_reminder_event_channel",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.subscription_id} - {self.event_key} - {self.channel}"

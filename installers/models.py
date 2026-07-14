@@ -798,18 +798,15 @@ class ServiceProviderProfile(BaseModel):
 
     @property
     def can_receive_serious_jobs(self):
-        eligible_plans = {
-            "verified pro",
-            "enterprise",
-        }
+        # Billing belongs to the account, not the provider profile. Keeping the
+        # decision in the shared resolver prevents a vendor/provider account
+        # from being charged twice or receiving mismatched role access.
+        from subscriptions.lifecycle import get_effective_subscription
 
-        return (
-            self.approval_allows_dashboard
-            and self.is_active
-            and self.kyc_status == self.KYC_APPROVED
-            and self.subscription_status in {"active", "trial"}
-            and (self.subscription_plan or "").strip().casefold() in eligible_plans
-        )
+        return get_effective_subscription(
+            self.user,
+            role_context="provider",
+        ).can_receive_serious_jobs
 
     @property
     def profile_completion_percent(self):
@@ -1603,6 +1600,23 @@ class ProviderKYCDocument(BaseModel):
 
 
 class ProviderSubscriptionPlan(BaseModel):
+    """Deprecated provider catalog retained for historical compatibility.
+
+    New billing and entitlement decisions use subscriptions.SubscriptionPlan.
+    These records may still describe old provider purchases in production, so
+    they are mapped instead of being deleted.
+    """
+
+    OFFICIAL_TIER_CHOICES = [
+        ("", "Not mapped"),
+        ("free", "Free"),
+        ("basic", "Basic"),
+        ("plus", "Plus"),
+        ("pro", "Pro"),
+        ("special", "Special"),
+        ("enterprise", "Enterprise"),
+    ]
+
     name = models.CharField(
         max_length=100,
         unique=True,
@@ -1635,6 +1649,19 @@ class ProviderSubscriptionPlan(BaseModel):
 
     is_default = models.BooleanField(
         default=False,
+    )
+
+    official_tier_key = models.CharField(
+        max_length=20,
+        choices=OFFICIAL_TIER_CHOICES,
+        blank=True,
+        default="",
+        db_index=True,
+        help_text="Compatibility mapping to the official account-level tier.",
+    )
+    is_deprecated = models.BooleanField(
+        default=True,
+        help_text="Deprecated catalogs cannot activate or price subscriptions.",
     )
 
     class Meta:

@@ -9,7 +9,6 @@ from django.contrib.auth import authenticate, get_user_model
 from django.core import signing
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
-from django.core.mail import send_mail
 from django.contrib.auth.password_validation import validate_password
 from django.db import transaction
 from django.db.models import Count, Q, Sum
@@ -35,7 +34,12 @@ from subscriptions.models import (
     subscription_label,
     user_subscription_tier,
 )
-from subscriptions.services import activate_vendor_subscription_payment
+from subscriptions.lifecycle import (
+    activate_free_subscription,
+    activate_subscription_from_payment,
+    create_subscription_payment,
+    get_effective_subscription,
+)
 from vendors.models import VendorBankAccount, VendorProfile, VendorRFQ, VendorTransaction, VendorWallet, VendorWithdrawal
 from vendors.security import send_vendor_password_changed_email
 from arolana_payments.models import PaymentMethod, PaymentStatus, PaymentTransaction
@@ -3021,7 +3025,8 @@ def vendor_subscription_plans_api(request):
     for plan in SubscriptionPlan.objects.filter(is_active=True).order_by("order", "price_monthly"):
         existing.setdefault(plan.tier_key, plan)
     plans = [existing[tier] for tier in desired_order if tier in existing]
-    current_tier = user_subscription_tier(profile.user)
+    effective = get_effective_subscription(profile.user, role_context="vendor")
+    current_tier = effective.tier
     def localized_features(plan):
         value = translated_field(plan, "feature_bullets", request=request, default=plan.feature_bullets)
         if isinstance(value, list):
@@ -3052,10 +3057,14 @@ def vendor_subscription_plans_api(request):
             "price_monthly": str(plan.price_monthly),
             "price_yearly": str(plan.price_yearly),
             "limits": get_tier_limits(plan.tier_key),
+            "role_entitlements": plan.role_entitlements or {},
             "is_current": current_tier == plan.tier_key,
         }
         for plan in plans
-    ], "benefits_image_url": request.build_absolute_uri("/static/images/arolana-vendor-subscription-benefits.png")})
+    ],
+        "current_subscription": effective.as_dict(),
+        "benefits_image_url": request.build_absolute_uri("/static/images/arolana-vendor-subscription-benefits.png"),
+    })
 
 
 @require_GET
@@ -3076,91 +3085,64 @@ def vendor_subscription_status_api(request):
     return JsonResponse({
         "success": True,
         "vendor": _subscription_status_payload(profile),
+        "subscription": get_effective_subscription(profile.user, role_context="vendor").as_dict(),
     })
 
 
-def _subscription_message(vendor_name, plan_name, reference):
-    return (
-        f"Dear {vendor_name},\n\n"
-        "Arolana appreciates you!\n\n"
-        f"Your {plan_name} subscription has been activated successfully.\n\n"
-        "Reference No:\n"
-        f"{reference}\n\n"
-        "Your invoice/receipt is now available for download.\n\n"
-        "Offer ends Apr 30.\n\n"
-        "Call:\n"
-        "+2349033713922\n\n"
-        "WhatsApp:\n"
-        "+2349132924620\n\n"
-        "Thank you for choosing Arolana.\n\n"
-        "Arolana Team"
-    )
-
-
-def _send_subscription_email(profile, plan, payment):
-    email = profile.user.email or profile.support_email
-    if not email:
-        return
-    receipt_url = ""
-    try:
-        receipt_url = f"{getattr(settings, 'SITE_URL', '').rstrip()}/api/staff/vendor/subscription/invoices/{payment.id}/pdf/"
-    except Exception:
-        receipt_url = ""
-    message = _subscription_message(profile.store_name, subscription_label(plan.tier_key), payment.reference)
-    if receipt_url:
-        message = f"{message}\n\nReceipt link:\n{receipt_url}"
-    try:
-        send_mail(
-            "Arolana Subscription Activated Successfully",
-            message,
-            getattr(settings, "DEFAULT_FROM_EMAIL", "support@arolana.com"),
-            [email],
-            fail_silently=True,
-        )
-    except Exception:
-        return
-
-
 def _activate_vendor_subscription(profile, plan, reference="", payment=None):
-    """Compatibility wrapper for the shared subscription activation service."""
+    """Activate a free plan or a server-verified paid account subscription."""
     if payment is None and reference:
-        payment = PaymentTransaction.objects.filter(user=profile.user, reference=reference, checkout_data__purpose="vendor_subscription").first()
+        payment = PaymentTransaction.objects.filter(
+            user=profile.user,
+            reference=reference,
+            checkout_data__purpose__in=[
+                "account_subscription",
+                "vendor_subscription",
+            ],
+        ).first()
 
-    if payment is None:
-        raise ValueError("Vendor subscription payment was not found.")
-
-    subscription = activate_vendor_subscription_payment(payment.pk)
+    if payment:
+        subscription = activate_subscription_from_payment(
+            payment,
+            source_platform="staff_mobile",
+        )
+    elif plan.tier_key == "free":
+        subscription = activate_free_subscription(
+            profile.user,
+            source_platform="staff_mobile",
+        )
+    else:
+        raise ValidationError(
+            "A verified payment is required before activating a paid plan."
+        )
     profile.refresh_from_db()
     return subscription.end_date
 
 
-def _subscription_receipt(profile, plan, gateway=PaymentMethod.PAYSTACK, status=PaymentStatus.PENDING):
-    payment = PaymentTransaction.objects.create(
-        user=profile.user,
-        order_id=f"vendor_subscription:{profile.id}:{plan.id}",
-        gateway=gateway,
-        status=status,
-        amount=plan.price_monthly,
-        currency="NGN",
-        customer_email=profile.user.email or profile.support_email,
-        customer_name=profile.store_name,
-        customer_phone=profile.support_phone or profile.pickup_phone,
-        checkout_data={
-            "purpose": "vendor_subscription",
-            "plan_id": plan.id,
-            "tier": plan.tier_key,
-            "plan_name": plan.display_name,
-            "vendor_profile_id": profile.id,
-        },
+def _subscription_receipt(
+    profile,
+    plan,
+    gateway=PaymentMethod.PAYSTACK,
+    status=PaymentStatus.PENDING,
+    billing_cycle=VendorSubscription.BILLING_MONTHLY,
+):
+    payment = create_subscription_payment(
+        profile.user,
+        plan,
+        billing_cycle,
+        gateway,
+        source_platform="staff_mobile",
+        role_context="vendor",
     )
+    if status != PaymentStatus.PENDING:
+        payment.status = status
+        payment.save(update_fields=["status", "updated_at"])
     return payment
 
 
 def _activate_free_vendor_plan(profile, plan):
-    payment = _subscription_receipt(profile, plan, gateway=PaymentMethod.PAYSTACK, status=PaymentStatus.PENDING)
-    payment.mark_success("free-plan", {"message": "Free vendor plan activated."})
-    _activate_vendor_subscription(profile, plan, reference=payment.reference, payment=payment)
-    return payment
+    subscription = activate_free_subscription(profile.user, source_platform="staff_mobile")
+    return subscription
 
 
 @csrf_exempt
@@ -3176,12 +3158,13 @@ def vendor_subscription_choose_api(request):
         return _error("Subscription plan not found.", status=404)
     if plan.price_monthly > 0:
         return _error("Paid plans must be activated through checkout.", status=402)
-    payment = _activate_free_vendor_plan(profile, plan)
+    subscription = _activate_free_vendor_plan(profile, plan)
     return JsonResponse({
         "success": True,
         "vendor": _vendor_payload(profile),
-        "invoice_id": payment.id,
-        "reference": payment.reference,
+        "invoice_id": None,
+        "reference": f"FREE-{subscription.id}",
+        "subscription": get_effective_subscription(profile.user, role_context="vendor").as_dict(),
         "message": "Free plan selected.",
     })
 
@@ -3200,13 +3183,18 @@ def vendor_subscription_checkout_api(request):
     plan = SubscriptionPlan.objects.filter(id=plan_id, is_active=True).first()
     if not plan:
         return _error("Subscription plan not found.", status=404)
-    if plan.price_monthly <= 0:
-        payment = _activate_free_vendor_plan(profile, plan)
+    billing_cycle = _clean_text(data.get("billing_cycle") or VendorSubscription.BILLING_MONTHLY).lower()
+    if billing_cycle not in dict(VendorSubscription.BILLING_CYCLE_CHOICES):
+        return _error("Choose monthly or yearly billing.", status=400)
+    selected_price = plan.price_yearly if billing_cycle == VendorSubscription.BILLING_YEARLY else plan.price_monthly
+    if selected_price <= 0:
+        subscription = _activate_free_vendor_plan(profile, plan)
         return JsonResponse({
             "success": True,
             "vendor": _vendor_payload(profile),
-            "invoice_id": payment.id,
-            "reference": payment.reference,
+            "invoice_id": None,
+            "reference": f"FREE-{subscription.id}",
+            "subscription": get_effective_subscription(profile.user, role_context="vendor").as_dict(),
             "message": "Free plan selected.",
         })
     gateway = _clean_text(data.get("payment_gateway") or data.get("gateway") or data.get("payment_method") or PaymentMethod.PAYSTACK).lower()
@@ -3216,7 +3204,13 @@ def vendor_subscription_checkout_api(request):
     if not is_available:
         return _error(disabled_reason or "This payment gateway is not available yet.", status=400)
 
-    payment = _subscription_receipt(profile, plan, gateway=gateway, status=PaymentStatus.PENDING)
+    payment = _subscription_receipt(
+        profile,
+        plan,
+        gateway=gateway,
+        status=PaymentStatus.PENDING,
+        billing_cycle=billing_cycle,
+    )
     if gateway == PaymentMethod.MANUAL_CRYPTO:
         payment.status = PaymentStatus.PENDING
         payment.save(update_fields=["status", "updated_at"])
@@ -3318,10 +3312,18 @@ def vendor_subscription_verify_api(request):
     plan = SubscriptionPlan.objects.filter(id=checkout_data.get("plan_id"), is_active=True).first()
     if not plan:
         return _error("Subscription plan for this payment was not found.", status=404)
-    _activate_vendor_subscription(profile, plan, reference=payment.reference, payment=payment)
+    try:
+        subscription = activate_subscription_from_payment(payment, source_platform="staff_mobile_verify")
+    except ValidationError as error:
+        message = "; ".join(error.messages) if getattr(error, "messages", None) else str(error)
+        return _error(message or "Subscription payment could not be activated.", status=400)
+    if not subscription:
+        return _error("This payment is not linked to an Arolana subscription checkout.", status=400)
+    profile.refresh_from_db()
     return JsonResponse({
         "success": True,
         "vendor": _vendor_payload(profile),
+        "subscription": get_effective_subscription(profile.user, role_context="vendor").as_dict(),
         "invoice": _subscription_invoice_payload(request, payment),
         "message": "Subscription payment verified and plan activated.",
     })
@@ -3359,7 +3361,7 @@ def vendor_subscription_invoices_api(request):
         return _error(error, status=403)
     payments = PaymentTransaction.objects.filter(
         user=profile.user,
-        checkout_data__purpose="vendor_subscription",
+        checkout_data__purpose__in=["account_subscription", "vendor_subscription", "provider_subscription"],
     ).order_by("-created_at")[:50]
     return JsonResponse({"success": True, "invoices": [
         _subscription_invoice_payload(request, payment)
@@ -3381,7 +3383,7 @@ def vendor_subscription_invoice_pdf_api(request, invoice_id):
     payment = PaymentTransaction.objects.filter(
         id=invoice_id,
         user=profile.user,
-        checkout_data__purpose="vendor_subscription",
+        checkout_data__purpose__in=["account_subscription", "vendor_subscription", "provider_subscription"],
     ).first()
     if not payment:
         return _error("Subscription invoice not found.", status=404)

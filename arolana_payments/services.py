@@ -1482,6 +1482,16 @@ def update_order_after_payment(payment):
 
     The function will receive one argument: payment.
     """
+    checkout_purpose = (payment.checkout_data or {}).get("purpose")
+    if checkout_purpose in {
+        "account_subscription",
+        "vendor_subscription",
+        "provider_subscription",
+    }:
+        from subscriptions.lifecycle import activate_subscription_from_payment
+
+        activate_subscription_from_payment(payment, source_platform="payment_success_hook")
+
     dotted_path = getattr(settings, "AROLANA_PAYMENT_SUCCESS_HANDLER", "")
     if not dotted_path:
         return

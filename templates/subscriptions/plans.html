@@ -485,6 +485,77 @@
         gap: .7rem;
     }
 
+    .billing-switch {
+        display: inline-flex;
+        align-items: center;
+        gap: .25rem;
+        padding: .25rem;
+        border-radius: 999px;
+        background: #EAF2FC;
+        border: 1px solid var(--arolana-border);
+    }
+
+    .billing-choice {
+        border: 0;
+        border-radius: 999px;
+        background: transparent;
+        color: var(--arolana-muted);
+        padding: .55rem .9rem;
+        font-size: .72rem;
+        font-weight: 950;
+        cursor: pointer;
+    }
+
+    .billing-choice.active {
+        background: var(--arolana-navy);
+        color: #fff;
+        box-shadow: 0 7px 18px rgba(7,26,68,.18);
+    }
+
+    .yearly-price {
+        display: none;
+    }
+
+    .subscription-current-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: .55rem;
+    }
+
+    .subscription-control-form {
+        margin: 0;
+    }
+
+    .subscription-control-btn {
+        min-height: 2.35rem;
+        border-radius: .75rem;
+        border: 1px solid #BBF7D0;
+        background: #fff;
+        color: #166534;
+        padding: .55rem .8rem;
+        font-size: .68rem;
+        font-weight: 950;
+        cursor: pointer;
+    }
+
+    .subscription-control-btn.warning {
+        color: #9A3412;
+        border-color: #FED7AA;
+        background: #FFF7ED;
+    }
+
+    .subscription-control-btn.danger {
+        color: #B91C1C;
+        border-color: #FECACA;
+        background: #FEF2F2;
+    }
+
+    .subscription-scheduled-change {
+        color: #92400E;
+        font-weight: 900;
+    }
+
     .plan-gateway-select {
         width: 100%;
         min-height: 2.55rem;
@@ -649,6 +720,23 @@
             padding: .8rem;
         }
 
+        .subscription-current-actions {
+            justify-content: stretch;
+        }
+
+        .subscription-current-actions > *,
+        .subscription-control-btn {
+            width: 100%;
+        }
+
+        .billing-switch {
+            width: 100%;
+        }
+
+        .billing-choice {
+            flex: 1;
+        }
+
         .plans-header {
             flex-direction: column;
             align-items: stretch;
@@ -741,33 +829,32 @@
     <section class="subscription-hero">
         <div class="subscription-hero-top">
             <div class="subscription-hero-content">
-                <div class="subscription-eyebrow">Arolana Vendor Growth Plans</div>
+                <div class="subscription-eyebrow">Arolana {{ role_label }} Growth Plans</div>
 
-                <h1 class="subscription-title">Grow your business with the right Arolana plan.</h1>
+                <h1 class="subscription-title">One Arolana plan. Every approved role, fully synchronized.</h1>
 
                 <p class="subscription-subtitle">
-                    Start free, then upgrade when your store needs more products, more images, RFQ access,
-                    customer chat, callback requests, homepage visibility, and stronger marketplace ranking.
-                    Benefits sync across website, vendor dashboard, admin, staff app, customer app, invoices,
-                    search ranking, and notifications.
+                    Choose the shared account plan for your {{ role_label|lower }} workspace. Entitlements,
+                    billing, renewal, invoices, visibility, and notifications stay synchronized across the
+                    website, customer app, operations app, dashboard, and Django admin.
                 </p>
 
                 <div class="subscription-hero-badges">
                     <span class="subscription-hero-badge">
                         <i class="fas fa-box"></i>
-                        10 products free
+                        Free tier available
                     </span>
                     <span class="subscription-hero-badge">
                         <i class="fas fa-store"></i>
-                        Vendor marketplace access
+                        {{ role_label }} marketplace access
                     </span>
                     <span class="subscription-hero-badge">
                         <i class="fas fa-chart-line"></i>
-                        Ranking and growth benefits
+                        Role-aware growth benefits
                     </span>
                     <span class="subscription-hero-badge">
                         <i class="fas fa-mobile-screen"></i>
-                        Web and app synced
+                        Web, app, billing, and admin synced
                     </span>
                 </div>
             </div>
@@ -779,7 +866,7 @@
                         Open full image
                     </button>
                     <a
-                        href="{% static 'images/arolana-vendor-subscription-benefits-2026.png' %}"
+                        href="{{ subscription_benefits_image_url }}"
                         target="_blank"
                         rel="noopener"
                         class="subscription-image-btn"
@@ -792,8 +879,8 @@
                 <div class="subscription-hero-visual">
                     <img
                         id="subscriptionHeroImage"
-                        src="{% static 'images/arolana-vendor-subscription-benefits-2026.png' %}"
-                        alt="Arolana vendor subscription plans showing Free, Basic, Plus, Pro, Special and Enterprise benefits"
+                        src="{{ subscription_benefits_image_url }}"
+                        alt="Arolana shared subscription plans showing Free, Basic, Plus, Pro, Special and Enterprise benefits"
                         loading="eager"
                         decoding="async"
                         onerror="this.style.display='none';"
@@ -803,35 +890,62 @@
         </div>
 
         <div class="subscription-benefit-grid">
+            {% if role_context == "provider" %}
             <div class="subscription-benefit">
-                <div class="subscription-benefit-label">Product Uploads</div>
-                <div class="subscription-benefit-value">10 to unlimited</div>
+                <div class="subscription-benefit-label">Portfolio Projects</div>
+                <div class="subscription-benefit-value">1 to unlimited</div>
             </div>
 
             <div class="subscription-benefit">
-                <div class="subscription-benefit-label">Images</div>
-                <div class="subscription-benefit-value">3 to 30 per product</div>
+                <div class="subscription-benefit-label">Project Media</div>
+                <div class="subscription-benefit-value">5 to 60 per project</div>
             </div>
 
             <div class="subscription-benefit">
-                <div class="subscription-benefit-label">Variants</div>
-                <div class="subscription-benefit-value">0 to unlimited</div>
+                <div class="subscription-benefit-label">Project Videos</div>
+                <div class="subscription-benefit-value">1 to unlimited</div>
             </div>
 
             <div class="subscription-benefit">
-                <div class="subscription-benefit-label">RFQ Access</div>
+                <div class="subscription-benefit-label">Customer Leads</div>
+                <div class="subscription-benefit-value">Included by entitlement</div>
+            </div>
+
+            <div class="subscription-benefit">
+                <div class="subscription-benefit-label">Featured Projects</div>
                 <div class="subscription-benefit-value">Plus and above</div>
             </div>
 
             <div class="subscription-benefit">
+                <div class="subscription-benefit-label">Serious Jobs</div>
+                <div class="subscription-benefit-value">Pro and above</div>
+            </div>
+            {% else %}
+            <div class="subscription-benefit">
+                <div class="subscription-benefit-label">Product Uploads</div>
+                <div class="subscription-benefit-value">1 to unlimited</div>
+            </div>
+            <div class="subscription-benefit">
+                <div class="subscription-benefit-label">Images</div>
+                <div class="subscription-benefit-value">3 to 30 per product</div>
+            </div>
+            <div class="subscription-benefit">
+                <div class="subscription-benefit-label">Variants</div>
+                <div class="subscription-benefit-value">0 to unlimited</div>
+            </div>
+            <div class="subscription-benefit">
+                <div class="subscription-benefit-label">RFQ Access</div>
+                <div class="subscription-benefit-value">Plus and above</div>
+            </div>
+            <div class="subscription-benefit">
                 <div class="subscription-benefit-label">Homepage Visibility</div>
                 <div class="subscription-benefit-value">Pro and above</div>
             </div>
-
             <div class="subscription-benefit">
                 <div class="subscription-benefit-label">Direct Contact</div>
                 <div class="subscription-benefit-value">Special & Enterprise</div>
             </div>
+            {% endif %}
         </div>
     </section>
 
@@ -842,33 +956,79 @@
                 <i class="fas fa-check-circle"></i>
             </span>
             <div>
-                <div class="subscription-current-title">Current Plan: {{ current_subscription.plan.vendor_label }}</div>
+                <div class="subscription-current-title">Current Plan: {{ current_subscription.plan.display_name }}</div>
                 <div class="subscription-current-text">
-                    Expires: {{ current_subscription.end_date|date:"M d, Y" }}
+                    {{ current_subscription.get_status_display }} · {{ current_subscription.get_billing_cycle_display }} ·
+                    access through {{ current_subscription.end_date|date:"M d, Y" }}
+                    {% if current_subscription.pending_plan %}
+                    <br><span class="subscription-scheduled-change">
+                        {{ current_subscription.pending_change_type|title }} to {{ current_subscription.pending_plan.display_name }}
+                        scheduled for {{ current_subscription.pending_change_effective_at|date:"M d, Y" }}.
+                    </span>
+                    {% endif %}
                 </div>
             </div>
         </div>
 
-        <a href="{% url 'subscriptions:history' %}" class="subscription-history-link">
-            <i class="fas fa-receipt"></i>
-            View History
-        </a>
+        <div class="subscription-current-actions">
+            {% if effective_subscription.pending_plan_id %}
+            <form method="post" action="{% url 'subscriptions:cancel_scheduled_change' %}" class="subscription-control-form">
+                {% csrf_token %}
+                <input type="hidden" name="role" value="{{ role_context }}">
+                <button type="submit" class="subscription-control-btn warning">Cancel scheduled change</button>
+            </form>
+            {% endif %}
+
+            {% if effective_subscription.cancel_at_period_end %}
+            <form method="post" action="{% url 'subscriptions:undo_cancellation' %}" class="subscription-control-form">
+                {% csrf_token %}
+                <input type="hidden" name="subscription_id" value="{{ current_subscription.id }}">
+                <input type="hidden" name="role" value="{{ role_context }}">
+                <button type="submit" class="subscription-control-btn">Keep subscription</button>
+            </form>
+            {% elif current_subscription.plan.price_monthly > 0 %}
+            <form method="post" action="{% url 'subscriptions:cancel' current_subscription.id %}" class="subscription-control-form">
+                {% csrf_token %}
+                <input type="hidden" name="role" value="{{ role_context }}">
+                <button type="submit" class="subscription-control-btn danger">Cancel at period end</button>
+            </form>
+            {% endif %}
+
+            {% if current_subscription.plan.price_monthly > 0 %}
+            <form method="post" action="{% url 'subscriptions:auto_renew' %}" class="subscription-control-form">
+                {% csrf_token %}
+                <input type="hidden" name="enabled" value="{% if effective_subscription.auto_renew %}false{% else %}true{% endif %}">
+                <input type="hidden" name="role" value="{{ role_context }}">
+                <button type="submit" class="subscription-control-btn">
+                    Turn auto-renew {% if effective_subscription.auto_renew %}off{% else %}on{% endif %}
+                </button>
+            </form>
+            <form method="post" action="{% url 'subscriptions:renew' %}" class="subscription-control-form">
+                {% csrf_token %}
+                <input type="hidden" name="role" value="{{ role_context }}">
+                <button type="submit" class="subscription-control-btn">Renew now</button>
+            </form>
+            {% endif %}
+
+            <a href="{% url 'subscriptions:history' %}?role={{ role_context }}" class="subscription-history-link">
+                <i class="fas fa-receipt"></i> History & invoices
+            </a>
+        </div>
     </div>
     {% endif %}
 
     <div class="plans-header">
         <div>
-            <h2 class="plans-header-title">Available vendor plans</h2>
+            <h2 class="plans-header-title">Available {{ role_label|lower }} plans</h2>
             <p class="plans-header-subtitle">
-                Choose based on your product capacity, images, variants, ranking priority, commission rate,
-                chat access, RFQ access, callback requests, and homepage visibility.
+                Plan capabilities below come from the same entitlement rules enforced by web and mobile APIs.
             </p>
         </div>
 
-        <a href="{% url 'subscriptions:history' %}" class="subscription-history-link">
-            <i class="fas fa-clock-rotate-left"></i>
-            Subscription History
-        </a>
+        <div class="billing-switch" role="group" aria-label="Billing cycle">
+            <button type="button" class="billing-choice active" data-cycle="monthly">Monthly</button>
+            <button type="button" class="billing-choice" data-cycle="yearly">Yearly</button>
+        </div>
     </div>
 
     <section class="plans-grid">
@@ -877,7 +1037,7 @@
             {% if plan.is_popular %}
             <div class="popular-ribbon">
                 <i class="fas fa-star"></i>
-                Best Value for Growing Vendors
+                Best Value
             </div>
             {% endif %}
 
@@ -887,157 +1047,76 @@
                         <i class="{{ plan.icon|default:'fas fa-store' }}"></i>
                     </div>
 
-                    <h3 class="plan-name">{{ plan.vendor_label }}</h3>
+                    <h3 class="plan-name">{{ plan.display_name }}</h3>
 
                     <div class="plan-price-wrap">
                         {% if plan.price_monthly == 0 %}
                             <span class="plan-price">Free</span>
                         {% else %}
-                            <span class="plan-price">₦{{ plan.price_monthly|floatformat:0|intcomma }}</span>
-                            <span class="plan-period">/month</span>
+                            <span class="monthly-price">
+                                <span class="plan-price">₦{{ plan.price_monthly|floatformat:0|intcomma }}</span>
+                                <span class="plan-period">/month</span>
+                            </span>
+                            <span class="yearly-price">
+                                <span class="plan-price">₦{{ plan.price_yearly|floatformat:0|intcomma }}</span>
+                                <span class="plan-period">/year</span>
+                            </span>
                         {% endif %}
                     </div>
 
+                    {% if role_context != "provider" %}
                     <div class="plan-commission">
                         <i class="fas fa-percent"></i>
                         {{ plan.commission_rate|floatformat:0 }}% commission
                     </div>
+                    {% endif %}
                 </div>
 
                 <div class="plan-features">
-                    {% if plan.max_products == -1 %}
+                    {% for feature in plan.web_features %}
                     <div class="plan-feature">
                         <i class="fas fa-check-circle"></i>
-                        <span>Unlimited product uploads</span>
+                        <span>{{ feature }}</span>
                     </div>
-                    {% else %}
-                    <div class="plan-feature">
-                        <i class="fas fa-check-circle"></i>
-                        <span>Up to {{ plan.max_products|intcomma }} product upload{{ plan.max_products|pluralize }}</span>
-                    </div>
-                    {% endif %}
-
-                    <div class="plan-feature">
-                        <i class="fas fa-check-circle"></i>
-                        <span>Up to {{ plan.max_images_per_product }} image{{ plan.max_images_per_product|pluralize }} per product</span>
-                    </div>
-
-                    {% if plan.max_variants_per_product == -1 %}
-                    <div class="plan-feature">
-                        <i class="fas fa-check-circle"></i>
-                        <span>Unlimited variants per product</span>
-                    </div>
-                    {% elif plan.max_variants_per_product > 0 %}
-                    <div class="plan-feature">
-                        <i class="fas fa-check-circle"></i>
-                        <span>Up to {{ plan.max_variants_per_product }} variant{{ plan.max_variants_per_product|pluralize }} per product</span>
-                    </div>
-                    {% else %}
+                    {% empty %}
                     <div class="plan-feature locked">
                         <i class="fas fa-lock"></i>
-                        <span>Product variants not included</span>
+                        <span>No additional entitlements configured</span>
                     </div>
-                    {% endif %}
-
-                    {% if plan.priority_score > 0 %}
-                    <div class="plan-feature">
-                        <i class="fas fa-check-circle"></i>
-                        <span>{{ plan.priority_score }} ranking priority score</span>
-                    </div>
-                    {% else %}
-                    <div class="plan-feature locked">
-                        <i class="fas fa-lock"></i>
-                        <span>No ranking boost</span>
-                    </div>
-                    {% endif %}
-
-                    {% if plan.can_receive_direct_enquiries %}
-                    <div class="plan-feature">
-                        <i class="fas fa-check-circle"></i>
-                        <span>Customer chat and direct enquiries</span>
-                    </div>
-                    {% else %}
-                    <div class="plan-feature locked">
-                        <i class="fas fa-lock"></i>
-                        <span>Customer chat and direct enquiries not included</span>
-                    </div>
-                    {% endif %}
-
-                    {% if plan.can_access_rfq %}
-                    <div class="plan-feature">
-                        <i class="fas fa-check-circle"></i>
-                        <span>RFQ access for buyer enquiries</span>
-                    </div>
-                    {% else %}
-                    <div class="plan-feature locked">
-                        <i class="fas fa-lock"></i>
-                        <span>RFQ access not included</span>
-                    </div>
-                    {% endif %}
-
-                    {% if plan.can_receive_callback_requests %}
-                    <div class="plan-feature">
-                        <i class="fas fa-check-circle"></i>
-                        <span>Can receive customer callback requests</span>
-                    </div>
-                    {% else %}
-                    <div class="plan-feature locked">
-                        <i class="fas fa-lock"></i>
-                        <span>Callback requests not included</span>
-                    </div>
-                    {% endif %}
-
-                    {% if plan.can_show_phone %}
-                    <div class="plan-feature">
-                        <i class="fas fa-check-circle"></i>
-                        <span>Can show phone number to customers</span>
-                    </div>
-                    {% else %}
-                    <div class="plan-feature locked">
-                        <i class="fas fa-lock"></i>
-                        <span>Phone number hidden from customers</span>
-                    </div>
-                    {% endif %}
-
-                    {% if plan.can_show_whatsapp %}
-                    <div class="plan-feature">
-                        <i class="fas fa-check-circle"></i>
-                        <span>Can show WhatsApp contact</span>
-                    </div>
-                    {% else %}
-                    <div class="plan-feature locked">
-                        <i class="fas fa-lock"></i>
-                        <span>WhatsApp contact hidden from customers</span>
-                    </div>
-                    {% endif %}
-
-                    {% if plan.can_show_on_homepage %}
-                    <div class="plan-feature">
-                        <i class="fas fa-check-circle"></i>
-                        <span>Eligible for homepage visibility</span>
-                    </div>
-                    {% else %}
-                    <div class="plan-feature locked">
-                        <i class="fas fa-lock"></i>
-                        <span>Homepage visibility not included</span>
-                    </div>
-                    {% endif %}
+                    {% endfor %}
                 </div>
 
                 <div class="plan-action">
-                    {% if current_subscription and current_subscription.plan.id == plan.id %}
+                    {% if plan.web_action == "current" %}
                         <button class="plan-current-btn" disabled>
                             <i class="fas fa-check"></i>
                             Current Plan
                         </button>
+                    {% elif plan.web_action == "downgrade" %}
+                        <form method="post" action="{% url 'subscriptions:schedule_downgrade' %}" class="plan-payment-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="plan_id" value="{{ plan.id }}">
+                            <input type="hidden" name="role" value="{{ role_context }}">
+                            <button type="submit" class="plan-free-btn">
+                                <i class="fas fa-calendar-alt"></i>
+                                Schedule Downgrade
+                            </button>
+                        </form>
                     {% elif plan.price_monthly == 0 %}
-                        <a href="{% url 'subscriptions:subscribe' plan.id %}" class="plan-free-btn">
-                            <i class="fas fa-bolt"></i>
-                            Activate Free Vendor
-                        </a>
+                        <form method="post" action="{% url 'subscriptions:subscribe' plan.id %}" class="plan-payment-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="role" value="{{ role_context }}">
+                            <input type="hidden" name="billing_cycle" value="monthly">
+                            <button type="submit" class="plan-free-btn">
+                                <i class="fas fa-bolt"></i>
+                                Activate Free Plan
+                            </button>
+                        </form>
                     {% else %}
                         <form method="post" action="{% url 'subscriptions:subscribe' plan.id %}" class="plan-payment-form">
                             {% csrf_token %}
+                            <input type="hidden" name="role" value="{{ role_context }}">
+                            <input type="hidden" name="billing_cycle" value="monthly" class="billing-cycle-input">
                             <select name="payment_gateway" class="plan-gateway-select">
                                 {% for gateway in payment_gateways %}
                                 <option value="{{ gateway.gateway }}" {% if not gateway.available %}disabled{% endif %}>
@@ -1048,7 +1127,7 @@
 
                             <button type="submit" class="plan-pay-btn">
                                 <i class="fas fa-credit-card"></i>
-                                Pay / Choose
+                                {% if plan.web_action == "upgrade" %}Upgrade Securely{% else %}Choose Plan{% endif %}
                             </button>
                         </form>
                     {% endif %}
@@ -1059,10 +1138,9 @@
     </section>
 
     <div class="subscription-note">
-        Arolana plans are built for startup growth: Free Vendor helps sellers test the marketplace,
-        Basic supports small sellers, Plus is the best value for growing vendors, Pro is for serious businesses,
-        Special unlocks premium visibility and direct contact, while Enterprise supports large distributors,
-        brands, manufacturers, and high-volume vendors.
+        Arolana uses one trusted six-tier subscription system across Vendor, Manufacturer, and Service Provider
+        workspaces. Your entitlements, billing history, renewal state, and scheduled changes stay synchronized
+        across web and mobile.
     </div>
 </div>
 
@@ -1072,8 +1150,8 @@
             <i class="fas fa-times"></i>
         </button>
         <img
-            src="{% static 'images/arolana-vendor-subscription-benefits-2026.png' %}"
-            alt="Arolana vendor subscription plan comparison full image"
+            src="{{ subscription_benefits_image_url }}"
+            alt="Arolana subscription plan comparison full image"
         >
     </div>
 </div>
@@ -1084,6 +1162,22 @@
         const image = document.getElementById('subscriptionHeroImage');
         const modal = document.getElementById('subscriptionImageModal');
         const closeBtn = document.getElementById('closeSubscriptionImageModal');
+        const billingChoices = document.querySelectorAll('.billing-choice');
+
+        function setBillingCycle(cycle) {
+            billingChoices.forEach(function (choice) {
+                choice.classList.toggle('active', choice.dataset.cycle === cycle);
+            });
+            document.querySelectorAll('.monthly-price').forEach(function (price) {
+                price.style.display = cycle === 'monthly' ? 'inline' : 'none';
+            });
+            document.querySelectorAll('.yearly-price').forEach(function (price) {
+                price.style.display = cycle === 'yearly' ? 'inline' : 'none';
+            });
+            document.querySelectorAll('.billing-cycle-input').forEach(function (input) {
+                input.value = cycle;
+            });
+        }
 
         function openModal() {
             if (!modal) return;
@@ -1102,6 +1196,12 @@
         if (openBtn) openBtn.addEventListener('click', openModal);
         if (image) image.addEventListener('click', openModal);
         if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        billingChoices.forEach(function (choice) {
+            choice.addEventListener('click', function () {
+                setBillingCycle(choice.dataset.cycle || 'monthly');
+            });
+        });
+        setBillingCycle('monthly');
 
         if (modal) {
             modal.addEventListener('click', function (event) {
