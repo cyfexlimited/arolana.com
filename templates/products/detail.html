@@ -3106,12 +3106,25 @@
 
                 <h1 class="text-3xl font-bold mb-3 leading-tight">{{ product.name }}</h1>
 
-                <!-- Rating with Animation -->
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="flex text-yellow-400 text-lg">
-                        {{ product.rating_avg|rating_stars|safe }}
-                    </div>
-                    <span class="text-sm text-gray-500">{{ product.rating_count }} Reviews</span>
+                <!-- Authoritative rating summary from real ProductReview rows -->
+                <div class="flex flex-wrap items-center gap-3 mb-4">
+                    {% if review_count %}
+                        <div class="flex text-yellow-400 text-lg" aria-label="{{ review_average|floatformat:1 }} out of 5 stars">
+                            {{ review_average|rating_stars|safe }}
+                        </div>
+                        <span class="text-sm text-gray-500">
+                            {{ review_count }} Review{{ review_count|pluralize }}
+                        </span>
+                    {% else %}
+                        <div class="flex text-slate-300 text-lg" aria-label="No ratings yet">
+                            <i class="far fa-star"></i>
+                            <i class="far fa-star"></i>
+                            <i class="far fa-star"></i>
+                            <i class="far fa-star"></i>
+                            <i class="far fa-star"></i>
+                        </div>
+                        <span class="text-sm text-gray-500">No reviews yet</span>
+                    {% endif %}
                     <span class="text-sm text-green-600">{{ product.sales_count }} Sold</span>
                 </div>
 
@@ -3155,13 +3168,21 @@
                             {% endif %}
                         </div>
 	                        {% if product.manual_pdf %}
-                        <div class="mt-3">
-                            <a href="{{ product.manual_pdf.url }}" download class="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-bold text-blue-700 shadow-sm ring-1 ring-blue-100 transition hover:bg-blue-50">
-                                <i class="fas fa-file-pdf"></i>
-                                Download manual / brochure
-                            </a>
-                        </div>
-                        {% endif %}
+                                {% seo_media_url product.manual_pdf as product_manual_url %}
+
+                                {% if product_manual_url %}
+                                <div class="mt-3">
+                                    <a
+                                        href="{{ product_manual_url }}"
+                                        download
+                                        class="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-bold text-blue-700 shadow-sm ring-1 ring-blue-100 transition hover:bg-blue-50"
+                                    >
+                                        <i class="fas fa-file-pdf"></i>
+                                        Download manual / brochure
+                                    </a>
+                                </div>
+                                {% endif %}
+                            {% endif %}
                 </div>
 
                 {# Optional Shipping + Delivery Info from existing ShippingInfo inline/admin. Shows only fields that have values. #}
@@ -3766,7 +3787,7 @@
         <div class="border-b flex flex-wrap gap-2 px-0 pt-4 bg-transparent">
             <button id="product-overview-tab-button" @click="tab='overview'" :class="{'modern-tab active': tab=='overview'}" class="px-6 py-3 font-semibold transition-all">Overview</button>
             <button @click="tab='specs'" :class="{'modern-tab active': tab=='specs'}" class="px-6 py-3 font-semibold transition-all">Specifications</button>
-            <button @click="tab='reviews'" :class="{'modern-tab active': tab=='reviews'}" class="px-6 py-3 font-semibold transition-all">Reviews ({{ product.rating_count }})</button>
+            <button @click="tab='reviews'" :class="{'modern-tab active': tab=='reviews'}" class="px-6 py-3 font-semibold transition-all">Reviews ({{ review_count }})</button>
 	            <button @click="tab='qa'" :class="{'modern-tab active': tab=='qa'}" class="px-6 py-3 font-semibold transition-all">Q&A ({{ question_count }})</button>
             <button data-product-videos-tab @click="tab='videos'" :class="{'modern-tab active': tab=='videos'}" class="px-6 py-3 font-semibold transition-all">Videos</button>
             {% if product_article_links_tab %}
@@ -3897,114 +3918,195 @@
             </div>
 
             <!-- Specifications Tab -->
-            <div x-show="tab=='specs'" x-transition.duration.300ms>
-                <div class="mb-4">
-                    <h3 class="text-2xl font-black text-gray-950">{{ product.name }}</h3>
-                </div>
+<div x-show="tab=='specs'" x-transition.duration.300ms>
+    <div class="mb-4">
+        <h3 class="text-2xl font-black text-gray-950">
+            {{ product.name }}
+        </h3>
+    </div>
 
-                {% if product.specifications %}
-                <div class="apd-specs-xlsx-wrap">
-                    <div class="apd-specs-xlsx-content">
-                        {{ product.specifications|safe }}
-                    </div>
+    {% if product.specifications %}
+    <div class="apd-specs-xlsx-wrap">
+        <div class="apd-specs-xlsx-content">
+            {{ product.specifications|safe }}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="mt-6 grid gap-4 md:grid-cols-2">
+
+        <!-- General Information -->
+        <div class="apd-specs-fallback-card">
+            <div class="bg-gradient-to-r from-blue-50 to-orange-50 px-4 py-3">
+                <h4 class="font-black text-gray-950">
+                    <i class="fas fa-circle-info mr-2 text-blue-600"></i>
+                    General Info
+                </h4>
+            </div>
+
+            <table>
+                <tbody>
+                    <tr>
+                        <td>Brand</td>
+                        <td>
+                            {% if product.brand %}
+                                {{ product.brand.name|default:product.brand }}
+                            {% else %}
+                                Arolana
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td>Model / SKU</td>
+                        <td>{{ product.sku }}</td>
+                    </tr>
+
+                    {% if product.manufacturer_sku %}
+                    <tr>
+                        <td>Manufacturer SKU</td>
+                        <td>{{ product.manufacturer_sku }}</td>
+                    </tr>
+                    {% endif %}
+
+                    <tr>
+                        <td>Condition</td>
+                        <td>{{ product.get_condition_display }}</td>
+                    </tr>
+
+                    {% if product.manual_pdf %}
+                        {% seo_media_url product.manual_pdf as product_manual_url %}
+
+                        {% if product_manual_url %}
+                        <tr>
+                            <td>Manual / Brochure</td>
+                            <td>
+                                <a
+                                    href="{{ product_manual_url }}"
+                                    download
+                                    class="font-black text-blue-600 hover:underline"
+                                >
+                                    <i class="fas fa-file-pdf mr-1"></i>
+                                    Download PDF
+                                </a>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    {% endif %}
+
+                    {% if product.warranty_years %}
+                    <tr>
+                        <td>Warranty</td>
+                        <td>
+                            {{ product.warranty_years }}
+                            year{{ product.warranty_years|pluralize }}
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+
+        <!-- Package & Physical Details -->
+        {% if product.weight or product.dimensions_length or product.dimensions_width or product.dimensions_height %}
+        <div class="apd-package-spec-card">
+
+            <h4 class="apd-package-spec-title">
+                <i class="fas fa-box"></i>
+                Package & Physical Details
+            </h4>
+
+            <div class="apd-package-spec-grid">
+
+                {% if product.weight %}
+                <div class="apd-package-spec-item">
+                    <span class="apd-package-spec-label">
+                        Product Weight
+                    </span>
+
+                    <span class="apd-package-spec-value">
+                        {{ product.weight }}
+
+                        {% if product.weight_unit %}
+                            {{ product.weight_unit }}
+                        {% endif %}
+                    </span>
                 </div>
                 {% endif %}
 
-                <div class="mt-6 grid md:grid-cols-2 gap-4">
-                    <div class="apd-specs-fallback-card">
-                        <div class="bg-gradient-to-r from-blue-50 to-orange-50 px-4 py-3">
-                            <h4 class="font-black text-gray-950">
-                                <i class="fas fa-circle-info text-blue-600 mr-2"></i>
-                                General Info
-                            </h4>
-                        </div>
-                        <table>
-                            <tbody>
-                                <tr>
-                                    <td>Brand</td>
-                                    <td>
-                                          {% if product.brand %}
-                                              {{ product.brand.name|default:product.brand }}
-                                          {% else %}
-                                              Arolana
-                                          {% endif %}
-                                      </td>
-                                </tr>
-                                <tr>
-                                    <td>Model / SKU</td>
-                                    <td>{{ product.sku }}</td>
-                                </tr>
-                                {% if product.manufacturer_sku %}
-                                <tr>
-                                    <td>Manufacturer SKU</td>
-                                    <td>{{ product.manufacturer_sku }}</td>
-                                </tr>
-                                {% endif %}
-                                <tr>
-                                    <td>Condition</td>
-                                    <td>{{ product.get_condition_display }}</td>
-                                </tr>
-                                {% if product.manual_pdf %}
-                                <tr>
-                                    <td>Manual / Brochure</td>
-                                    <td>
-                                        <a href="{{ product.manual_pdf.url }}" download class="text-blue-600 font-black hover:underline">
-                                            Download PDF
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% endif %}
-                                {% if product.warranty_years %}
-                                <tr>
-                                    <td>Warranty</td>
-                                    <td>{{ product.warranty_years }} Years</td>
-                                </tr>
-                                {% endif %}
-                            </tbody>
-                        </table>
-                    </div>
 
-                    {% if product.weight or product.weight_unit or product.dimensions_length or product.dimensions_width or product.dimensions_height or product.dimension_unit %}
-                    <div class="apd-package-spec-card">
-                        <h4 class="apd-package-spec-title">
-                            <i class="fas fa-box-open"></i>
-                            Package Specifications
-                        </h4>
-                        <div class="apd-package-spec-grid">
-                            {% if product.weight %}
-                            <div class="apd-package-spec-item">
-                                <span class="apd-package-spec-label">Weight</span>
-                                <span class="apd-package-spec-value">{{ product.weight }}{% if product.weight_unit %} {{ product.weight_unit }}{% endif %}</span>
-                            </div>
-                            {% endif %}
-                            {% if product.dimensions_length or product.dimensions_width or product.dimensions_height %}
-                            <div class="apd-package-spec-item">
-                                <span class="apd-package-spec-label">Dimensions (L×W×H)</span>
-                                <span class="apd-package-spec-value">
-                                    {% if product.dimensions_length %}{{ product.dimensions_length }}{% else %}-{% endif %}
-                                    ×
-                                    {% if product.dimensions_width %}{{ product.dimensions_width }}{% else %}-{% endif %}
-                                    ×
-                                    {% if product.dimensions_height %}{{ product.dimensions_height }}{% else %}-{% endif %}
-                                    {% if product.dimension_unit %} {{ product.dimension_unit }}{% endif %}
-                                </span>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% endif %}
+                {% if product.dimensions_length or product.dimensions_width or product.dimensions_height %}
+                <div class="apd-package-spec-item">
+                    <span class="apd-package-spec-label">
+                        Dimensions (L×W×H)
+                    </span>
+
+                    <span class="apd-package-spec-value">
+                        {% if product.dimensions_length %}
+                            {{ product.dimensions_length }}
+                        {% else %}
+                            —
+                        {% endif %}
+
+                        ×
+
+                        {% if product.dimensions_width %}
+                            {{ product.dimensions_width }}
+                        {% else %}
+                            —
+                        {% endif %}
+
+                        ×
+
+                        {% if product.dimensions_height %}
+                            {{ product.dimensions_height }}
+                        {% else %}
+                            —
+                        {% endif %}
+
+                        {% if product.dimension_unit %}
+                            {{ product.dimension_unit }}
+                        {% endif %}
+                    </span>
                 </div>
+                {% endif %}
+
             </div>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
 
             <!-- Reviews Tab -->
             <div x-show="tab=='reviews'" x-transition.duration.300ms>
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div class="lg:col-span-1 bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl p-6 text-center">
-                        <div class="text-6xl font-bold text-blue-600">{{ product.rating_avg|floatformat:1 }}</div>
-                        <div class="flex justify-center text-yellow-400 text-xl my-3">
-                            {{ product.rating_avg|rating_stars|safe }}
-                        </div>
-                        <div class="text-sm text-gray-500">{{ product.rating_count }} verified ratings</div>
+                        {% if review_count %}
+                            <div class="text-6xl font-bold text-blue-600">{{ review_average|floatformat:1 }}</div>
+                            <div class="flex justify-center text-yellow-400 text-xl my-3" aria-label="{{ review_average|floatformat:1 }} out of 5 stars">
+                                {{ review_average|rating_stars|safe }}
+                            </div>
+                            <div class="text-sm text-gray-500">
+                                {{ review_count }} customer rating{{ review_count|pluralize }}
+                            </div>
+                            {% if verified_review_count %}
+                                <div class="mt-1 text-xs font-bold text-emerald-600">
+                                    {{ verified_review_count }} verified purchase rating{{ verified_review_count|pluralize }}
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            <div class="text-6xl font-bold text-blue-600">0.0</div>
+                            <div class="flex justify-center gap-1 text-slate-300 text-xl my-3" aria-label="No ratings yet">
+                                <i class="far fa-star"></i>
+                                <i class="far fa-star"></i>
+                                <i class="far fa-star"></i>
+                                <i class="far fa-star"></i>
+                                <i class="far fa-star"></i>
+                            </div>
+                            <div class="text-sm text-gray-500">No customer ratings yet</div>
+                        {% endif %}
                         <div class="mt-4 flex justify-center gap-4 text-xs text-gray-500">
 	                            <div><i class="fas fa-star text-yellow-400"></i> 5 ★ <span class="font-bold">{{ five_star_percent }}%</span></div>
 	                            <div><i class="fas fa-star text-yellow-400"></i> 4 ★ <span class="font-bold">{{ four_star_percent }}%</span></div>
@@ -4012,29 +4114,169 @@
                         </div>
                     </div>
                     <div class="lg:col-span-2">
-                        <div class="space-y-4 max-h-96 overflow-y-auto pr-4">
-                            {% for review in product.visible_reviews %}
-                            <div class="review-card border-b pb-4 hover:bg-gray-50 p-3 rounded-lg transition">
-                                <div class="flex items-center justify-between mb-2">
-                                    <div class="flex text-yellow-400">{{ review.rating|rating_stars|safe }}</div>
-                                    <span class="text-sm text-gray-500">{{ review.created_at|date:"M d, Y" }}</span>
-                                </div>
-                                <p class="font-semibold">{{ review.title }}</p>
-                                <p class="text-gray-600 text-sm mt-1">{{ review.review }}</p>
-                                <div class="flex items-center gap-4 mt-2">
-                                    <span class="text-sm text-gray-500">by {{ review.user.username }}</span>
-                                    {% if review.verified_purchase %}
-                                    <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                                        <i class="fas fa-check-circle"></i> Verified
-                                    </span>
-                                    {% endif %}
-                                    <button onclick="markHelpful({{ review.id }})" class="text-xs text-gray-400 hover:text-blue-600">
-                                        <i class="fas fa-thumbs-up"></i> Helpful ({{ review.helpful_count }})
-                                    </button>
-                                </div>
+                        {% if visible_reviews %}
+                            <div class="space-y-6">
+                                {% for review in visible_reviews %}
+                                    <article
+                                        id="review-{{ review.id }}"
+                                        class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
+                                    >
+                                        <div class="p-5 sm:p-6">
+                                            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                                <div>
+                                                    <div class="flex flex-wrap items-center gap-2">
+                                                        <h3 class="text-base font-bold text-slate-900">
+                                                            {{ review.user.get_full_name|default:review.user.username }}
+                                                        </h3>
+                    
+                                                        {% if review.verified_purchase %}
+                                                            <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                                                                <svg
+                                                                    class="h-3.5 w-3.5"
+                                                                    viewBox="0 0 20 20"
+                                                                    fill="currentColor"
+                                                                    aria-hidden="true"
+                                                                >
+                                                                    <path
+                                                                        fill-rule="evenodd"
+                                                                        d="M16.704 5.293a1 1 0 010 1.414l-7.5 7.5a1 1 0 01-1.414 0l-3.5-3.5a1 1 0 011.414-1.414L8.5 12.086l6.793-6.793a1 1 0 011.411 0z"
+                                                                        clip-rule="evenodd"
+                                                                    />
+                                                                </svg>
+                    
+                                                                Verified purchase
+                                                            </span>
+                                                        {% endif %}
+                                                    </div>
+                    
+                                                    <div
+                                                        class="mt-2 flex items-center gap-1"
+                                                        aria-label="{{ review.rating }} out of 5 stars"
+                                                    >
+                                                        {% for star in "12345" %}
+                                                            {% if forloop.counter <= review.rating %}
+                                                                <span class="text-lg text-amber-400">★</span>
+                                                            {% else %}
+                                                                <span class="text-lg text-slate-300">★</span>
+                                                            {% endif %}
+                                                        {% endfor %}
+                                                    </div>
+                                                </div>
+                    
+                                                <time
+                                                    class="text-sm text-slate-500"
+                                                    datetime="{{ review.created_at|date:'c' }}"
+                                                >
+                                                    {{ review.created_at|date:"M d, Y" }}
+                                                </time>
+                                            </div>
+                    
+                                            {% if review.title %}
+                                                <h4 class="mt-4 text-lg font-bold text-slate-900">
+                                                    {{ review.title }}
+                                                </h4>
+                                            {% endif %}
+                    
+                                            <div class="mt-2 whitespace-pre-line text-sm leading-7 text-slate-700 sm:text-base">
+                                                {{ review.review }}
+                                            </div>
+                    
+                                            {% if review.has_display_video %}
+                                            <div class="mt-4 space-y-4">
+                                                {% for video in review.display_video_payloads %}
+                                                <div
+                                                    class="overflow-hidden rounded-2xl border border-blue-100 bg-slate-950 shadow-sm"
+                                                >
+                                                    <video
+                                                        controls
+                                                        playsinline
+                                                        preload="metadata"
+                                                        class="block max-h-[520px] w-full bg-black object-contain"
+                                                        {% if video.poster_url %}
+                                                        poster="{{ video.poster_url }}"
+                                                        {% endif %}
+                                                    >
+                                                        <source
+                                                            src="{{ video.url }}"
+                                                            type="{{ video.mime_type }}"
+                                                        >
+
+                                                        Your browser does not support this review video.
+
+                                                        <a
+                                                            href="{{ video.url }}"
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                        >
+                                                            Open review video
+                                                        </a>
+                                                    </video>
+
+                                                    <div
+                                                        class="flex items-center justify-between gap-3 bg-white px-4 py-3"
+                                                    >
+                                                        <div class="min-w-0">
+                                                            <p
+                                                                class="truncate text-sm font-black text-[#071A44]"
+                                                            >
+                                                                {{ video.title|default:"Customer review video" }}
+                                                            </p>
+
+                                                            <p
+                                                                class="mt-0.5 text-xs font-semibold text-slate-500"
+                                                            >
+                                                                Video submitted with this customer review
+                                                            </p>
+                                                        </div>
+
+                                                        <a
+                                                            href="{{ video.url }}"
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            class="shrink-0 text-xs font-black text-blue-600 hover:text-blue-800"
+                                                        >
+                                                            Open video
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                            {% endif %}
+
+                    
+                                            <div class="mt-5 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4 text-sm text-slate-500">
+                                                <span id="review-helpful-count-{{ review.id }}">
+                                                    Helpful: {{ review.helpful_count|default:0 }}
+                                                </span>
+                    
+                                                <button
+                                                    type="button"
+                                                    onclick="markHelpful({{ review.id }})"
+                                                    class="inline-flex items-center gap-1 rounded-full bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-600 transition hover:bg-blue-50 hover:text-blue-700"
+                                                >
+                                                    <i class="fas fa-thumbs-up"></i>
+                                                    Helpful
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </article>
+                                {% endfor %}
                             </div>
-                            {% empty %}<p class="text-gray-500 text-center py-8">Be the first to review!</p>{% endfor %}
-                        </div>
+                        {% else %}
+                            <div class="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center">
+                                <div class="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-blue-50 text-blue-600">
+                                    <i class="fas fa-star text-xl"></i>
+                                </div>
+                    
+                                <h3 class="mt-4 text-lg font-bold text-slate-900">
+                                    No reviews yet
+                                </h3>
+                    
+                                <p class="mt-2 text-sm text-slate-600">
+                                    Be the first customer to review this product.
+                                </p>
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -4206,37 +4448,37 @@
                                         </p>
 
                                         <p class="mt-1 text-xs font-semibold text-slate-500">
-                                            MP4 or WebM only. Maximum file size: 150 MB.
+                                            MP4, WebM, MOV or M4V. Maximum file size: 150 MB.
                                         </p>
                                     </div>
                                 </div>
 
                                 <div class="p-4">
                                     <input
-                                        id="video-review"
-                                        type="file"
-                                        name="video_review"
-                                        accept="video/mp4,video/webm,.mp4,.webm"
-                                        class="
-                                            block
-                                            w-full
-                                            text-sm
-                                            font-semibold
-                                            text-slate-600
-
-                                            file:mr-4
-                                            file:cursor-pointer
-                                            file:rounded-xl
-                                            file:border-0
-                                            file:bg-blue-50
-                                            file:px-4
-                                            file:py-2.5
-                                            file:font-black
-                                            file:text-blue-700
-
-                                            hover:file:bg-blue-100
-                                        "
-                                    >
+                                          id="video-review"
+                                          type="file"
+                                          name="video_review"
+                                          accept="video/mp4,video/webm,video/quicktime,video/x-m4v,.mp4,.webm,.mov,.m4v"
+                                          class="
+                                              block
+                                              w-full
+                                              text-sm
+                                              font-semibold
+                                              text-slate-600
+                                      
+                                              file:mr-4
+                                              file:cursor-pointer
+                                              file:rounded-xl
+                                              file:border-0
+                                              file:bg-blue-50
+                                              file:px-4
+                                              file:py-2.5
+                                              file:font-black
+                                              file:text-blue-700
+                                      
+                                              hover:file:bg-blue-100
+                                          "
+                                      >
 
                                     <div
                                         id="review-video-file-status"
@@ -4297,8 +4539,10 @@
                         </div>
                     </div>
 
-                    {% endif %}
+                     {% endif %}
                 </div>
+            </div>
+            <!-- End Reviews Tab -->
 
             <!-- Q&A Tab -->
             <div x-show="tab=='qa'" x-transition.duration.300ms>
@@ -4339,11 +4583,26 @@
                     <div class="video-immersive rounded-xl overflow-hidden">
                         <div class="product-video-frame">
                             {% if product.video_type == 'local' and product.local_video %}
-                                <video id="product-video-main" controls preload="metadata"
-                                       {% if product.video_thumbnail %}poster="{{ product.video_thumbnail|optimized_image_url:'product_thumb' }}"{% endif %}>
-                                    <source src="{{ product.local_video.url }}" type="video/mp4">
+
+                                {% seo_media_url product.local_video as product_local_video_url %}
+
+                                {% if product_local_video_url %}
+                                <video
+                                    id="product-video-main"
+                                    controls
+                                    preload="metadata"
+                                    {% if product.video_thumbnail %}
+                                        poster="{{ product.video_thumbnail|optimized_image_url:'product_thumb' }}"
+                                    {% endif %}
+                                >
+                                    <source
+                                        src="{{ product_local_video_url }}"
+                                        type="video/mp4"
+                                    >
+
                                     Your browser does not support the video tag.
                                 </video>
+                                {% endif %}
                             {% else %}
                                 <iframe src="{{ product.get_video_embed_url }}"
                                         title="{{ product.video_title|default:product.name }}"
@@ -4364,11 +4623,25 @@
                     <div class="video-immersive rounded-xl overflow-hidden">
                         <div class="product-video-frame">
                             {% if video.is_local_video %}
-                                <video controls preload="metadata"
-                                       {% if video.thumbnail %}poster="{{ video.thumbnail|optimized_image_url:'product_thumb' }}"{% endif %}>
-                                    <source src="{{ video.local_video.url }}" type="video/mp4">
+
+                                {% seo_media_url video.local_video as video_local_url %}
+
+                                {% if video_local_url %}
+                                <video
+                                    controls
+                                    preload="metadata"
+                                    {% if video.thumbnail %}
+                                        poster="{{ video.thumbnail|optimized_image_url:'product_thumb' }}"
+                                    {% endif %}
+                                >
+                                    <source
+                                        src="{{ video_local_url }}"
+                                        type="video/mp4"
+                                    >
+
                                     Your browser does not support the video tag.
                                 </video>
+                                {% endif %}
                             {% else %}
                                 <iframe src="{{ video.get_embed_url }}"
                                         title="{{ video.title|default:product.name }}"
@@ -4966,22 +5239,8 @@
     </div>
 </div>
 
-<script id="variant-data-json" type="application/json">{{ variant_data_json|safe }}</script>
-<script id="gallery-data-json" type="application/json">{{ gallery_images_json|safe }}</script>
-
-<script id="gallery-images-server-json" type="application/json">
-[
-{% for image in gallery_images %}
-    {
-        "src": "{{ image.src|escapejs }}",
-        "thumb": "{{ image.thumb|default:image.src|escapejs }}",
-        "original": "{{ image.original|default:image.src|escapejs }}",
-        "alt": "{{ image.alt|default:product.name|escapejs }}"
-    }{% if not forloop.last %},{% endif %}
-{% endfor %}
-]
-</script>
-
+{{ variant_data|default:variant_data_json|json_script:"variant-data-json" }}
+{{ gallery_images_data|default:gallery_images_json|json_script:"gallery-data-json" }}
 
 <script>
 (function () {
@@ -5008,12 +5267,77 @@
             const el = getEl(elementId);
             const value = el ? el.textContent.trim() : '';
             if (!value) return fallback;
-            return JSON.parse(value);
+
+            const parsed = JSON.parse(value);
+
+            if (parsed === '' || parsed === null || typeof parsed === 'undefined') {
+                return fallback;
+            }
+
+            /*
+                Backward-compatible json_script support:
+                - Preferred: view passes Python dict/list, json_script parses directly.
+                - Existing view: view passes a JSON string, json_script safely encodes it as a string,
+                  so we parse the string one more time here.
+            */
+            if (
+                typeof parsed === 'string' &&
+                parsed.trim() &&
+                ['{', '['].includes(parsed.trim().charAt(0))
+            ) {
+                return JSON.parse(parsed);
+            }
+
+            return parsed;
         } catch (error) {
             console.warn(`Arolana: ${elementId} JSON could not be parsed.`, error);
             return fallback;
         }
     }
+    function showToast(message, type) {
+    /*
+        Use the global Arolana toast system when available.
+    */
+    if (
+        window.ArolanaToast &&
+        typeof window.ArolanaToast.show === 'function'
+    ) {
+        window.ArolanaToast.show(message, type);
+        return;
+    }
+
+    const toast = document.createElement('div');
+
+    const success = type === 'success';
+
+    toast.className = [
+        'fixed',
+        'bottom-20',
+        'right-4',
+        'max-w-sm',
+        'rounded-xl',
+        'px-5',
+        'py-3',
+        'font-bold',
+        'text-white',
+        'shadow-2xl',
+        'transition',
+        success
+            ? 'bg-emerald-600'
+            : 'bg-red-600'
+    ].join(' ');
+
+    toast.style.zIndex = '2147483640';
+    toast.textContent = String(
+        message || 'Something went wrong.'
+    );
+
+    document.body.appendChild(toast);
+
+    window.setTimeout(function () {
+        toast.remove();
+    }, 3500);
+}
 
     function openProductArticleModal(url, title, options) {
         const modal = getEl('product-article-modal');
@@ -5111,6 +5435,96 @@
                 }
 
                 if (!contentRoot) throw new Error('Article content could not be found.');
+                
+                const sanitizeImportedArticleContent = function (root) {
+                    if (!root) return;
+
+                    /*
+                        Remove active content and document-level elements
+                        that should never be imported into the product reader.
+                    */
+                    root.querySelectorAll([
+                        'script',
+                        'noscript',
+                        'object',
+                        'embed',
+                        'base',
+                        'meta[http-equiv]',
+                        'link[rel="import"]'
+                    ].join(',')).forEach(function (node) {
+                        node.remove();
+                    });
+
+                    root.querySelectorAll('*').forEach(function (node) {
+                        /*
+                            Remove inline JavaScript handlers:
+                            onclick, onerror, onload, onmouseover, etc.
+                        */
+                        Array.from(node.attributes || []).forEach(function (attribute) {
+                            const name = String(
+                                attribute.name || ''
+                            ).toLowerCase();
+
+                            const value = String(
+                                attribute.value || ''
+                            )
+                                .replace(/\s+/g, '')
+                                .toLowerCase();
+
+                            if (name.startsWith('on')) {
+                                node.removeAttribute(attribute.name);
+                                return;
+                            }
+
+                            if (
+                                [
+                                    'href',
+                                    'src',
+                                    'xlink:href',
+                                    'formaction'
+                                ].includes(name)
+                            ) {
+                                if (
+                                    value.startsWith('javascript:') ||
+                                    value.startsWith('vbscript:') ||
+                                    value.startsWith('data:text/html')
+                                ) {
+                                    node.removeAttribute(attribute.name);
+                                }
+                            }
+                        });
+
+                        /*
+                            Allow only approved video iframe providers
+                            inside the same-page article reader.
+                        */
+                        if (node.tagName === 'IFRAME') {
+                            const src = node.getAttribute('src') || '';
+
+                            try {
+                                const iframeUrl = new URL(
+                                    src,
+                                    window.location.origin
+                                );
+
+                                const allowedHosts = new Set([
+                                    'www.youtube.com',
+                                    'youtube.com',
+                                    'www.youtube-nocookie.com',
+                                    'youtube-nocookie.com',
+                                    'player.vimeo.com'
+                                ]);
+
+                                if (!allowedHosts.has(iframeUrl.hostname)) {
+                                    node.remove();
+                                }
+
+                            } catch (error) {
+                                node.remove();
+                            }
+                        }
+                    });
+                };
 
                 const removeImportedNoise = function (root) {
                     if (!root) return;
@@ -5251,6 +5665,7 @@
                 };
 
                 removeImportedNoise(contentRoot);
+                sanitizeImportedArticleContent(contentRoot);
 
                 contentRoot.querySelectorAll('[id]').forEach(function (node) {
                     node.removeAttribute('id');
@@ -5290,14 +5705,42 @@
                 body.scrollTop = 0;
             })
             .catch(function (error) {
-                body.innerHTML =
-                    '<div class="apd-article-side-error">' +
-                        '<p>This article could not load fully inside the same-page reader.</p>' +
-                        '<p class="mt-2 text-xs text-slate-500">' + escapeHtml(error && error.message ? error.message : 'Unknown loading error') + '</p>' +
-                        '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-black text-white hover:bg-blue-700">' +
-                            'Open article page <i class="fas fa-arrow-right text-xs"></i>' +
-                        '</a>' +
-                    '</div>';
+                body.innerHTML = '';
+
+                const errorBox = document.createElement('div');
+                errorBox.className = 'apd-article-side-error';
+
+                const title = document.createElement('p');
+                title.textContent =
+                    'This article could not load fully inside the same-page reader.';
+
+                const detail = document.createElement('p');
+                detail.className = 'mt-2 text-xs text-slate-500';
+                detail.textContent =
+                    error && error.message
+                        ? error.message
+                        : 'Unknown loading error';
+
+                const link = document.createElement('a');
+                link.href = url;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.className =
+                    'mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-black text-white hover:bg-blue-700';
+
+                const linkText = document.createTextNode('Open article page ');
+
+                const icon = document.createElement('i');
+                icon.className = 'fas fa-arrow-right text-xs';
+
+                link.appendChild(linkText);
+                link.appendChild(icon);
+
+                errorBox.appendChild(title);
+                errorBox.appendChild(detail);
+                errorBox.appendChild(link);
+
+                body.appendChild(errorBox);
             });
     }
 
@@ -5557,6 +6000,56 @@
         }
     }
 
+    function addImageCandidate(list, url) {
+        const cleanUrl = String(url || '').trim();
+        if (!cleanUrl) return;
+        if (!list.includes(cleanUrl)) list.push(cleanUrl);
+    }
+
+    function setLightboxImageWithFallback(lightboxImage, image) {
+    if (!lightboxImage || !image) return;
+
+    const candidates = [];
+
+
+    addImageCandidate(candidates, image.original);
+    addImageCandidate(candidates, image.src);
+    addImageCandidate(candidates, image.thumb);
+
+    const mainImage = getEl('main-product-image');
+
+    addImageCandidate(
+        candidates,
+        mainImage
+            ? mainImage.getAttribute('src')
+            : ''
+    );
+
+    let attempt = 0;
+
+    lightboxImage.onerror = function () {
+        attempt += 1;
+
+        if (attempt < candidates.length) {
+            lightboxImage.src = candidates[attempt];
+            return;
+        }
+
+        console.warn(
+            'Arolana: all lightbox image candidates failed.',
+            candidates
+        );
+    };
+
+    lightboxImage.onload = function () {
+        lightboxImage.style.display = 'block';
+        lightboxImage.style.visibility = 'visible';
+        lightboxImage.style.opacity = '1';
+    };
+
+    lightboxImage.src = candidates[0] || '';
+}
+
     function openImageLightbox(index) {
         if (!state.galleryImages.length) return;
 
@@ -5574,8 +6067,8 @@
         const image = state.galleryImages[state.galleryIndex] || state.galleryImages[0];
         if (!image) return;
 
-        lightboxImage.src = image.src;
         lightboxImage.alt = image.alt || state.productName;
+        setLightboxImageWithFallback(lightboxImage, image);
 
         if (caption) {
             caption.textContent = `${state.galleryIndex + 1} / ${state.galleryImages.length}${image.alt ? ' - ' + image.alt : ''}`;
@@ -6870,31 +7363,36 @@
                 const status = getEl('review-video-file-status');
                 const form = getEl('product-review-form');
                 const submitButton = getEl('product-review-submit');
-
+            
                 if (!input || !form) return;
-
+            
                 const allowedMimeTypes = new Set([
                     'video/mp4',
-                    'video/webm'
+                    'video/webm',
+                    'video/quicktime',
+                    'video/x-m4v',
+                    'application/octet-stream'
                 ]);
-
+            
                 const allowedExtensions = new Set([
                     'mp4',
-                    'webm'
+                    'webm',
+                    'mov',
+                    'm4v'
                 ]);
-
+            
                 const maxBytes = 150 * 1024 * 1024;
-
+            
                 function clearStatus() {
                     if (!status) return;
-
+            
                     status.classList.add('hidden');
                     status.textContent = '';
                 }
-
+            
                 function showStatus(message, isError) {
                     if (!status) return;
-
+            
                     status.classList.remove(
                         'hidden',
                         'border-red-100',
@@ -6904,7 +7402,7 @@
                         'bg-blue-50',
                         'text-blue-700'
                     );
-
+            
                     if (isError) {
                         status.classList.add(
                             'border-red-100',
@@ -6918,88 +7416,86 @@
                             'text-blue-700'
                         );
                     }
-
+            
                     status.textContent = message;
                 }
-
+            
                 function validateSelectedVideo() {
                     clearStatus();
-
+            
                     const file = input.files && input.files[0];
-
+            
+                    // Video is optional.
                     if (!file) {
                         return true;
                     }
-
-                    const extension = String(file.name || '')
-                        .split('.')
-                        .pop()
-                        .toLowerCase();
-
+            
+                    const filename = String(file.name || '');
+                    const extension = filename.includes('.')
+                        ? filename.split('.').pop().toLowerCase()
+                        : '';
+            
                     if (!allowedExtensions.has(extension)) {
                         showStatus(
-                            'Please choose an MP4 or WebM video.',
+                            'Please choose an MP4, WebM, MOV or M4V video.',
                             true
                         );
-
+            
                         input.value = '';
-
                         return false;
                     }
-
+            
+                    /*
+                     * Safari and iOS may return an empty MIME type or
+                     * application/octet-stream. The extension check above remains
+                     * required, while recognised incompatible MIME types are rejected.
+                     */
                     if (
                         file.type &&
-                        !allowedMimeTypes.has(file.type)
+                        !allowedMimeTypes.has(file.type.toLowerCase())
                     ) {
                         showStatus(
-                            'The browser reports an unsupported video format.',
+                            `Unsupported video format reported by your browser: ${file.type}`,
                             true
                         );
-
+            
                         input.value = '';
-
                         return false;
                     }
-
+            
                     if (file.size > maxBytes) {
                         showStatus(
                             'This video is larger than the 150 MB limit.',
                             true
                         );
-
+            
                         input.value = '';
-
                         return false;
                     }
-
+            
                     const sizeMb = (
                         file.size /
                         (1024 * 1024)
                     ).toFixed(1);
-
+            
                     showStatus(
                         `${file.name} selected · ${sizeMb} MB`,
                         false
                     );
-
+            
                     return true;
                 }
-
-                input.addEventListener(
-                    'change',
-                    validateSelectedVideo
-                );
-
+            
+                input.addEventListener('change', validateSelectedVideo);
+            
                 form.addEventListener('submit', function (event) {
                     if (!validateSelectedVideo()) {
                         event.preventDefault();
-
                         return;
                     }
-
+            
                     if (submitButton) {
                         submitButton.disabled = true;
-
                         submitButton.innerHTML =
                             '<i class="fas fa-spinner fa-spin"></i> Submitting Review...';
                     }
@@ -7065,20 +7561,25 @@
 
 
     document.addEventListener('DOMContentLoaded', function () {
-        captureDefaultUI();
-	        setupReadingProgress();
-	        setupRatingStars();
-            setupReviewVideoUpload();
-            setupLazyImages();
-		        setupVendorDirectContactActions();
-		        setupVendorChatModal();
+    captureDefaultUI();
 
-	        /*
-            MAIN FIX:
-            Every normal refresh starts from the main product gallery.
-            No saved variant input, no browser-restored variant, no stale variant image.
-        */
-        resetToMainProduct({ silent: true });
+    setupReadingProgress();
+    setupRatingStars();
+    setupReviewVideoUpload();
+    setupLazyImages();
+    setupVendorDirectContactActions();
+    setupVendorChatModal();
+
+    /*
+        MAIN FIX:
+        Every normal refresh starts from the main product gallery.
+        No saved variant input.
+        No browser-restored variant.
+        No stale variant image.
+    */
+    resetToMainProduct({
+        silent: true
+    });
 
         const variantSelector = getEl('variant-selector');
         if (variantSelector) {
@@ -7761,362 +8262,9 @@
 
 
 
-<script>
-    /*
-      AROLANA LIGHTBOX IMAGE SOURCE FIX V5
 
-      Fixes the black/blank lightbox problem:
-      - The product card/main gallery image can display correctly,
-        but the lightbox may receive an optimized URL that fails.
-      - This version uses candidate URLs:
-        current visible main image -> original URL -> optimized src -> thumbnail.
-      - If one URL fails, it automatically tries the next candidate.
-      - It keeps thumbnail click/main-image behavior stable.
-    */
-    (function () {
-        const MARKER = 'AROLANA_LIGHTBOX_IMAGE_SOURCE_FIX_V5';
-        if (window[MARKER]) return;
-        window[MARKER] = true;
+{# Removed duplicate AROLANA_LIGHTBOX_IMAGE_SOURCE_FIX_V5 script. The main gallery controller now owns all lightbox behavior. #}
 
-        let gallery = [];
-        let activeIndex = 0;
-
-        function getEl(id) {
-            return document.getElementById(id);
-        }
-
-        function clean(value) {
-            return String(value || '').trim();
-        }
-
-        function parseJSONScript(id) {
-            const el = getEl(id);
-            if (!el) return [];
-            try {
-                const raw = clean(el.textContent);
-                if (!raw) return [];
-                const parsed = JSON.parse(raw);
-                return Array.isArray(parsed) ? parsed : [];
-            } catch (error) {
-                return [];
-            }
-        }
-
-        function addCandidate(list, url) {
-            url = clean(url);
-            if (!url) return;
-            if (!list.includes(url)) list.push(url);
-        }
-
-        function normalizeItem(item) {
-            if (!item) return null;
-
-            if (typeof item === 'string') {
-                const src = clean(item);
-                if (!src) return null;
-                return {
-                    src,
-                    thumb: src,
-                    original: src,
-                    alt: '{{ product.name|escapejs }}',
-                    candidates: [src]
-                };
-            }
-
-            const src = clean(item.src || item.url || item.image || item.image_url || item.file_url || item.thumbnail || item.thumb);
-            const original = clean(item.original || item.fallback || item.galleryOriginal || src);
-            const thumb = clean(item.thumb || item.thumbnail || src);
-            const alt = clean(item.alt || item.title || item.name || item.galleryAlt || '{{ product.name|escapejs }}');
-
-            if (!src && !original && !thumb) return null;
-
-            const candidates = [];
-            addCandidate(candidates, original);
-            addCandidate(candidates, src);
-            addCandidate(candidates, thumb);
-
-            return {
-                src: src || original || thumb,
-                original: original || src || thumb,
-                thumb: thumb || src || original,
-                alt,
-                candidates
-            };
-        }
-
-        function pushUnique(list, item) {
-            const img = normalizeItem(item);
-            if (!img) return;
-
-            const exists = list.some(function (old) {
-                return old.src === img.src ||
-                       old.original === img.original ||
-                       old.thumb === img.thumb ||
-                       old.candidates.some(function (url) { return img.candidates.includes(url); });
-            });
-
-            if (!exists) list.push(img);
-        }
-
-        function collectGallery() {
-            const list = [];
-
-            // 1. DOM thumbnail buttons: most accurate because these are what you see.
-            document.querySelectorAll('#product-image-thumbnails [data-gallery-src]').forEach(function (button) {
-                pushUnique(list, {
-                    src: button.getAttribute('data-gallery-src'),
-                    thumb: button.getAttribute('data-gallery-thumb'),
-                    original: button.getAttribute('data-gallery-original'),
-                    alt: button.getAttribute('data-gallery-alt')
-                });
-            });
-
-            // 2. Existing JSON fallback.
-            parseJSONScript('gallery-data-json').forEach(function (item) {
-                pushUnique(list, item);
-            });
-
-            // 3. Server-side fallback added by this fix.
-            parseJSONScript('gallery-images-server-json').forEach(function (item) {
-                pushUnique(list, item);
-            });
-
-            // 4. Current main image fallback.
-            const main = getEl('main-product-image');
-            if (main && clean(main.getAttribute('src'))) {
-                pushUnique(list, {
-                    src: main.getAttribute('src'),
-                    original: main.getAttribute('data-fallback-src') || main.getAttribute('src'),
-                    thumb: main.getAttribute('src'),
-                    alt: main.getAttribute('alt')
-                });
-            }
-
-            gallery = list;
-            return gallery;
-        }
-
-        function currentIndex() {
-            collectGallery();
-
-            const main = getEl('main-product-image');
-            const currentSrc = clean(main && main.getAttribute('src'));
-            const dataIndex = Number(main && main.dataset ? main.dataset.galleryIndex : 0);
-
-            if (currentSrc) {
-                const found = gallery.findIndex(function (img) {
-                    return img.src === currentSrc ||
-                           img.original === currentSrc ||
-                           img.thumb === currentSrc ||
-                           img.candidates.includes(currentSrc);
-                });
-                if (found >= 0) return found;
-            }
-
-            if (Number.isFinite(dataIndex) && dataIndex >= 0 && dataIndex < gallery.length) {
-                return dataIndex;
-            }
-
-            return 0;
-        }
-
-        function updateMainImage(index) {
-            collectGallery();
-            if (!gallery.length) return;
-
-            activeIndex = Math.max(0, Math.min(Number(index) || 0, gallery.length - 1));
-            const img = gallery[activeIndex];
-            const main = getEl('main-product-image');
-
-            if (!main || !img) return;
-
-            // Main image should use the same src as thumbnails/main gallery already expects.
-            main.src = img.src || img.original || img.thumb;
-            main.dataset.fallbackSrc = img.original || img.src || img.thumb;
-            main.dataset.galleryIndex = String(activeIndex);
-            main.alt = img.alt || '{{ product.name|escapejs }}';
-            main.style.display = 'block';
-            main.style.visibility = 'visible';
-            main.style.opacity = '1';
-
-            document.querySelectorAll('#product-image-thumbnails .thumbnail-img').forEach(function (thumb, thumbIndex) {
-                const active = thumbIndex === activeIndex;
-                thumb.classList.toggle('active', active);
-                thumb.classList.toggle('border-blue-500', active);
-            });
-        }
-
-        function setLightboxImageWithFallback(lightboxImage, item) {
-            if (!lightboxImage || !item) return;
-
-            const candidates = [];
-
-            // If the selected image is the currently visible main image,
-            // start with the currently visible src because we know browser can display it.
-            const main = getEl('main-product-image');
-            const currentSrc = clean(main && main.getAttribute('src'));
-            if (currentSrc) addCandidate(candidates, currentSrc);
-
-            (item.candidates || []).forEach(function (url) {
-                addCandidate(candidates, url);
-            });
-
-            addCandidate(candidates, item.original);
-            addCandidate(candidates, item.src);
-            addCandidate(candidates, item.thumb);
-
-            let attempt = 0;
-
-            lightboxImage.onerror = function () {
-                attempt += 1;
-                if (attempt < candidates.length) {
-                    lightboxImage.src = candidates[attempt];
-                } else {
-                    console.warn('Arolana lightbox: all image URLs failed.', candidates);
-                }
-            };
-
-            lightboxImage.onload = function () {
-                lightboxImage.style.display = 'block';
-                lightboxImage.style.visibility = 'visible';
-                lightboxImage.style.opacity = '1';
-            };
-
-            lightboxImage.src = candidates[0] || '';
-        }
-
-        function openLightbox(index) {
-            collectGallery();
-            if (!gallery.length) return;
-
-            activeIndex = Math.max(0, Math.min(Number(index) || 0, gallery.length - 1));
-            const item = gallery[activeIndex];
-
-            const lightbox = getEl('image-lightbox');
-            const lightboxImage = getEl('lightbox-image');
-            const caption = getEl('lightbox-caption');
-
-            if (!lightbox || !lightboxImage || !item) return;
-
-            lightboxImage.alt = item.alt || '{{ product.name|escapejs }}';
-            setLightboxImageWithFallback(lightboxImage, item);
-
-            if (caption) {
-                caption.textContent = `${activeIndex + 1} / ${gallery.length}${item.alt ? ' - ' + item.alt : ''}`;
-            }
-
-            lightbox.classList.remove('hidden');
-            lightbox.classList.add('flex');
-            lightbox.style.display = 'flex';
-            lightbox.style.zIndex = '999999';
-            document.body.style.overflow = 'hidden';
-        }
-
-        function closeLightbox() {
-            const lightbox = getEl('image-lightbox');
-            if (!lightbox) return;
-
-            lightbox.classList.add('hidden');
-            lightbox.classList.remove('flex');
-            lightbox.style.display = '';
-            document.body.style.overflow = '';
-        }
-
-        function nextImage() {
-            collectGallery();
-            if (!gallery.length) return;
-
-            activeIndex = (activeIndex + 1) % gallery.length;
-            updateMainImage(activeIndex);
-            openLightbox(activeIndex);
-        }
-
-        function prevImage() {
-            collectGallery();
-            if (!gallery.length) return;
-
-            activeIndex = (activeIndex - 1 + gallery.length) % gallery.length;
-            updateMainImage(activeIndex);
-            openLightbox(activeIndex);
-        }
-
-        function backdropClose(event) {
-            if (event && event.target && event.target.id === 'image-lightbox') {
-                closeLightbox();
-            }
-        }
-
-        function restoreMainIfBlank() {
-            const main = getEl('main-product-image');
-            if (!main) return;
-
-            collectGallery();
-
-            if (!clean(main.getAttribute('src')) && gallery[0]) {
-                updateMainImage(0);
-            }
-        }
-
-        // Override the global functions used by the existing inline onclick.
-        window.openImageLightbox = function (index) {
-            openLightbox(typeof index === 'number' ? index : currentIndex());
-        };
-        window.closeImageLightbox = closeLightbox;
-        window.showNextLightboxImage = nextImage;
-        window.showPreviousLightboxImage = prevImage;
-        window.handleLightboxBackdrop = backdropClose;
-
-        // Let the original thumbnail handler run first; then sync our index after it.
-        document.addEventListener('click', function (event) {
-            const thumbButton = event.target.closest('#product-image-thumbnails [data-gallery-src]');
-            if (!thumbButton) return;
-
-            setTimeout(function () {
-                const index = Number(thumbButton.dataset.galleryIndex || 0);
-                updateMainImage(index);
-            }, 30);
-        });
-
-        // Main image and "View image" open the lightbox.
-        document.addEventListener('click', function (event) {
-            const mainImage = event.target.closest('#main-product-image');
-            const viewButton = event.target.closest('button[onclick*="openImageLightbox"]');
-
-            if (!mainImage && !viewButton) return;
-
-            event.preventDefault();
-            event.stopPropagation();
-
-            openLightbox(currentIndex());
-        }, true);
-
-        document.addEventListener('keydown', function (event) {
-            const lightbox = getEl('image-lightbox');
-            if (!lightbox || lightbox.classList.contains('hidden')) return;
-
-            if (event.key === 'Escape') closeLightbox();
-            if (event.key === 'ArrowRight') nextImage();
-            if (event.key === 'ArrowLeft') prevImage();
-        });
-
-        document.addEventListener('DOMContentLoaded', function () {
-            collectGallery();
-            restoreMainIfBlank();
-            setTimeout(restoreMainIfBlank, 300);
-            setTimeout(restoreMainIfBlank, 1000);
-        });
-
-        window.addEventListener('load', function () {
-            collectGallery();
-            restoreMainIfBlank();
-        });
-
-        window.addEventListener('pageshow', function () {
-            collectGallery();
-            restoreMainIfBlank();
-        });
-    })();
-</script>
 
 <script>
 /*
@@ -8185,7 +8333,6 @@
                 alt: button.getAttribute('data-gallery-alt')
             });
         });
-        parseJson('gallery-images-server-json').forEach(function (item) { addUnique(list, item); });
         parseJson('gallery-data-json').forEach(function (item) { addUnique(list, item); });
         const main = getEl('main-product-image');
         if (main && clean(main.getAttribute('src'))) {
