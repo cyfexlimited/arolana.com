@@ -80,6 +80,7 @@ class Command(BaseCommand):
                         f"Converted review {review.pk}."
                     )
                 )
+                
             else:
                 self.stdout.write(
                     self.style.ERROR(
