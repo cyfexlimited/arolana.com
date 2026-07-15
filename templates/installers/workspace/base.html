@@ -47,6 +47,7 @@
       <a href="{% url 'provider_workspace:subscription' %}" class="{% if workspace_active == 'subscription' %}active{% endif %}"><i class="fas fa-crown"></i> Subscription</a>
       <a href="{% url 'provider_workspace:coverage' %}" class="{% if workspace_active == 'availability' %}active{% endif %}"><i class="fas fa-location-dot"></i> Coverage & Availability</a>
       <a href="{% url 'provider_workspace:kyc' %}" class="{% if workspace_active == 'kyc' %}active{% endif %}"><i class="fas fa-shield-check"></i> KYC</a>
+      <a href="{% url 'subscriptions:plans' %}?role=provider"><i class="fas fa-credit-card"></i> Subscription & Billing</a>
       <a href="{% url 'provider_workspace:analytics' %}" class="{% if workspace_active == 'analytics' %}active{% endif %}"><i class="fas fa-chart-line"></i> Analytics</a>
       <a href="{% url 'provider_workspace:notifications' %}" class="{% if workspace_active == 'notifications' %}active{% endif %}"><i class="fas fa-bell"></i> Notifications</a>
       <a href="{% url 'provider_workspace:settings' %}" class="{% if workspace_active == 'settings' %}active{% endif %}"><i class="fas fa-gear"></i> Settings</a>

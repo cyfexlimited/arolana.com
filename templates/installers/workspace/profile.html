@@ -1,7 +1,14 @@
 {% extends "installers/workspace/base.html" %}
 {% load optimized_images %}
 {% block workspace_content %}
-<header class="provider-page-head"><div><h1>Business Profile</h1><p>Keep your identity, location, media, and customer-facing information accurate.</p></div><span class="provider-button soft">{{ provider.profile_completion_percent }}% complete</span></header>
+<header class="provider-page-head">
+  <div><h1>Business Profile</h1><p>Keep your identity, location, media, and customer-facing information accurate.</p></div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px">
+    <span class="provider-button soft">{{ provider.profile_completion_percent }}% complete</span>
+    <a href="{{ provider.get_absolute_url }}" class="provider-button soft"><i class="fas fa-eye" style="margin-right:7px"></i>View public profile</a>
+    <a href="{% url 'subscriptions:plans' %}?role=provider" class="provider-button orange"><i class="fas fa-credit-card" style="margin-right:7px"></i>Manage subscription</a>
+  </div>
+</header>
 {% if pending_changes %}<div class="provider-message">A sensitive profile update is awaiting Arolana approval. Your live profile stays unchanged until review is complete.</div>{% endif %}
 <div class="provider-grid" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));margin-bottom:18px">
   <div class="provider-card"><h3 style="font-weight:950">Profile photo</h3>{% if provider.profile_image %}<img src="{{ provider.profile_image|optimized_image_url:'provider_profile' }}" alt="" style="width:100%;height:180px;object-fit:contain;margin:12px 0;border-radius:16px;background:#f8fafc">{% endif %}<form method="post" enctype="multipart/form-data">{% csrf_token %}<input type="hidden" name="action" value="media"><input type="hidden" name="field_name" value="profile_image"><input type="file" name="file" accept="image/jpeg,image/png,image/webp,image/avif" required><button class="provider-button soft" style="margin-top:10px">Update photo</button></form></div>
