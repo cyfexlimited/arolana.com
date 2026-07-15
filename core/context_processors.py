@@ -192,8 +192,21 @@ def global_context(request):
     notification_unread_count = 0
     recent_user_notifications = []
     chat_unread_count = 0
+    service_provider_profile = None
 
     if request.user.is_authenticated:
+        try:
+            from installers.models import ServiceProviderProfile
+
+            service_provider_profile = (
+                ServiceProviderProfile.objects
+                .only("id", "verification_status", "is_active")
+                .filter(user_id=request.user.pk)
+                .first()
+            )
+        except Exception:
+            service_provider_profile = None
+
         try:
             from notifications.models import Notification
 
@@ -258,6 +271,7 @@ def global_context(request):
         "notification_unread_count": notification_unread_count,
         "recent_user_notifications": recent_user_notifications,
         "chat_unread_count": chat_unread_count,
+        "service_provider_profile": service_provider_profile,
 
         "all_currencies": active_currencies,
         "current_currency_code": (

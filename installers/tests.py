@@ -138,6 +138,13 @@ class ProviderWorkspaceTests(TestCase):
             self.assertEqual(response.status_code, 200, name)
             self.assertContains(response, self.provider.business_name)
 
+    def test_shared_header_exposes_provider_dashboard(self):
+        response = self.client.get("/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("provider_workspace:dashboard"))
+        self.assertContains(response, "Provider Dashboard")
+
     def test_completion_tracks_services_projects_kyc_and_hours(self):
         initial = self.provider.profile_completion_percent
         ProviderService.objects.create(
