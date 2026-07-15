@@ -711,9 +711,28 @@ def workspace_dashboard(request):
     Canonical provider operations dashboard at /dashboard/provider/.
     """
 
-    provider = _provider_workspace(
-        request
+    provider = (
+        ServiceProviderProfile.objects
+        .select_related(
+            "user"
+        )
+        .filter(
+            user=request.user
+        )
+        .first()
     )
+
+    if provider is None:
+        messages.info(
+            request,
+            (
+                "Set up your Provider Profile to open "
+                "the Provider Dashboard."
+            ),
+        )
+        return redirect(
+            "installers:register"
+        )
 
     if not provider.approval_allows_dashboard:
         return redirect(

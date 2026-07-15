@@ -2776,6 +2776,8 @@
                             <a href="{% if user.is_authenticated %}{% url 'deliveries:rider_dashboard' %}{% else %}{% url 'deliveries:rider_register' %}{% endif %}" @click="dropdownOpen = false" class="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-brand transition text-sm"><i class="fas fa-motorcycle w-5"></i> Rider Center</a>
                             {% if service_provider_profile %}
                                 <a href="{% url 'provider_workspace:dashboard' %}" @click="dropdownOpen = false" class="flex items-center gap-2 px-4 py-2.5 text-blue-700 hover:bg-blue-50 hover:text-brand transition text-sm"><i class="fas fa-screwdriver-wrench w-5"></i> Provider Dashboard</a>
+                            {% else %}
+                                <a href="{% url 'installers:register' %}" @click="dropdownOpen = false" class="flex items-center gap-2 px-4 py-2.5 text-blue-700 hover:bg-blue-50 hover:text-brand transition text-sm"><i class="fas fa-screwdriver-wrench w-5"></i> Set Up Provider Profile</a>
                             {% endif %}
                             <a href="{% url 'accounts:wishlist' %}" @click="dropdownOpen = false" class="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-brand transition text-sm"><i class="fas fa-heart w-5"></i> Wishlist</a>
                             <a href="{% url 'notifications:list' %}" @click="dropdownOpen = false" class="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-brand transition text-sm"><i class="fas fa-bell w-5"></i> Notifications</a>
@@ -3515,6 +3517,14 @@
                         <span class="mobile-menu-left">
                             <span class="mobile-menu-icon"><i class="fas fa-screwdriver-wrench"></i></span>
                             <span class="mobile-menu-label">Provider Dashboard</span>
+                        </span>
+                        <i class="fas fa-chevron-right mobile-menu-arrow text-xs"></i>
+                    </a>
+                    {% else %}
+                    <a href="{% url 'installers:register' %}" @click="mobileMenuOpen = false" class="mobile-menu-link">
+                        <span class="mobile-menu-left">
+                            <span class="mobile-menu-icon"><i class="fas fa-screwdriver-wrench"></i></span>
+                            <span class="mobile-menu-label">Set Up Provider Profile</span>
                         </span>
                         <i class="fas fa-chevron-right mobile-menu-arrow text-xs"></i>
                     </a>

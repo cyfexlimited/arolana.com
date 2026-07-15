@@ -145,6 +145,15 @@ class ProviderWorkspaceTests(TestCase):
         self.assertContains(response, reverse("provider_workspace:dashboard"))
         self.assertContains(response, "Provider Dashboard")
 
+    def test_provider_dashboard_redirects_unregistered_user_to_profile_setup(self):
+        self.provider.delete()
+
+        response = self.client.get(reverse("provider_workspace:dashboard"))
+
+        self.assertRedirects(response, reverse("installers:register"))
+        homepage = self.client.get("/")
+        self.assertContains(homepage, "Set Up Provider Profile")
+
     def test_completion_tracks_services_projects_kyc_and_hours(self):
         initial = self.provider.profile_completion_percent
         ProviderService.objects.create(
