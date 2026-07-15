@@ -520,6 +520,21 @@ CKEDITOR_5_CONFIGS = {
         'fontFamily': {'options': ['default', 'Arial', 'Courier New', 'Georgia', 'Times New Roman', 'Verdana']},
         'alignment': {'options': ['left', 'center', 'right', 'justify']},
     },
+    'provider_service': {
+        'toolbar': [
+            'heading', '|', 'bold', 'italic',
+            '|', 'bulletedList', 'numberedList', 'blockQuote', 'link',
+            '|', 'undo', 'redo',
+        ],
+        'heading': {
+            'options': [
+                {'model': 'paragraph', 'title': 'Paragraph'},
+                {'model': 'heading2', 'view': 'h2', 'title': 'Heading 2'},
+                {'model': 'heading3', 'view': 'h3', 'title': 'Heading 3'},
+            ]
+        },
+        'height': 300,
+    },
 }
 CKEDITOR_5_UPLOAD_PATH = 'uploads/ckeditor5/'
 CKEDITOR_5_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'

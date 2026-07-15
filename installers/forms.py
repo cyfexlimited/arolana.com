@@ -3,9 +3,11 @@ from __future__ import annotations
 from django import forms
 
 from products.models import Product
+from core.html_sanitization import normalize_rich_text_input
 
 from .models import (
     ProviderService,
+    ServiceCategory,
     ServicePortfolio,
     ServiceProjectMedia,
     ServiceProjectProduct,
@@ -428,22 +430,57 @@ class ProviderServiceForm(
 ):
     class Meta:
         model = ProviderService
-
         fields = [
             "category",
             "service_name",
+            "short_description",
             "description",
             "starting_price",
             "is_active",
         ]
-
-        widgets = {
-            "description": forms.Textarea(
-                attrs={
-                    "rows": 4,
-                }
+        help_texts = {
+            "short_description": "Up to 240 characters for profile and marketplace cards.",
+            "description": (
+                "Explain what is included, the systems or brands you support, the customer "
+                "types you serve, and what customers should expect."
+            ),
+            "starting_price": (
+                "Enter the minimum professional fee. Customers can still request a custom quote."
             ),
         }
+        labels = {
+            "service_name": "Service name",
+            "short_description": "Service summary",
+            "description": "Full service description",
+            "starting_price": "Starting price",
+            "is_active": "Active and visible to customers",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["category"].queryset = ServiceCategory.objects.filter(is_active=True).order_by("name")
+        self.fields["service_name"].widget.attrs.setdefault(
+            "placeholder", "Conference Room Design, Installation & Integration"
+        )
+        self.fields["short_description"].widget.attrs.setdefault(
+            "placeholder", "A concise summary customers can scan on service cards"
+        )
+        self.fields["description"].widget.attrs.setdefault("data-min-height", "280")
+
+    def clean_service_name(self):
+        value = " ".join((self.cleaned_data.get("service_name") or "").split())
+        if len(value) < 3:
+            raise forms.ValidationError("Enter a clear service name of at least 3 characters.")
+        return value
+
+    def clean_short_description(self):
+        return " ".join((self.cleaned_data.get("short_description") or "").split())
+
+    def clean_description(self):
+        value = normalize_rich_text_input(self.cleaned_data.get("description"))
+        if len(value) > 20000:
+            raise forms.ValidationError("Keep the full service description under 20,000 characters.")
+        return value
 
 
 # =============================================================================

@@ -1,12 +1,88 @@
 {% extends "installers/workspace/base.html" %}
+{% load currency_filters %}
 {% block workspace_content %}
-<header class="provider-page-head"><div><h1>Services</h1><p>Define exactly what customers can hire you to install, repair, maintain, or consult on.</p></div></header>
-<div class="provider-grid" style="grid-template-columns:minmax(0,1.25fr) minmax(300px,.75fr)">
-  <section class="provider-grid">
+{{ form.media }}
+<style>
+  .service-workspace-grid { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(310px,.75fr); gap:20px; align-items:start; }
+  .service-card-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+  .service-card { display:flex; min-height:250px; flex-direction:column; padding:22px; }
+  .service-card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+  .service-eyebrow { color:#ff7a00; font-size:12px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+  .service-card h2 { margin:6px 0 0; color:#071a44; font-size:20px; font-weight:700; line-height:1.3; }
+  .service-excerpt { display:-webkit-box; margin:12px 0 0; overflow:hidden; color:#64748b; font-size:15px; font-weight:400; line-height:1.65; -webkit-box-orient:vertical; -webkit-line-clamp:4; }
+  .service-status { flex:0 0 auto; border-radius:999px; padding:5px 9px; font-size:12px; font-weight:800; }
+  .service-status.active { background:#dcfce7; color:#15803d; }
+  .service-status.inactive { background:#f1f5f9; color:#64748b; }
+  .service-card-footer { margin-top:auto; padding-top:16px; }
+  .service-price { display:block; margin-bottom:12px; color:#0066cc; font-size:17px; font-weight:750; }
+  .service-actions { display:flex; flex-wrap:wrap; gap:8px; }
+  .service-editor { position:sticky; top:18px; }
+  .service-editor h2 { color:#071a44; font-size:24px; font-weight:700; }
+  .service-editor .provider-form p { margin-top:15px; }
+  .service-editor .provider-form label { display:block; margin-bottom:6px; color:#334155; font-size:14px; font-weight:700; }
+  .service-editor .helptext { display:block; margin-top:6px; color:#64748b; font-size:12px; line-height:1.5; }
+  .service-editor .ck-editor__editable { min-height:280px; }
+  .service-editor .errorlist { margin:6px 0; color:#b91c1c; font-size:13px; }
+  @media (max-width:980px) { .service-workspace-grid { grid-template-columns:1fr; } .service-editor { position:static; grid-row:1; } }
+  @media (max-width:680px) { .service-card-grid { grid-template-columns:1fr; } .service-card { min-height:0; padding:18px; } }
+</style>
+
+<header class="provider-page-head">
+  <div>
+    <h1>Services</h1>
+    <p>Define exactly what customers can hire you to install, repair, maintain, or consult on.</p>
+  </div>
+  <div class="provider-card" style="padding:13px 16px">
+    <strong>{{ service_access.used }} active</strong>
+    <small style="display:block;color:#64748b">Limit: {{ service_access.limit_label }} · {{ service_access.plan }}</small>
+  </div>
+</header>
+
+<div class="service-workspace-grid">
+  <section class="service-card-grid" aria-label="Your service offerings">
     {% for service in services %}
-      <article class="provider-card"><div style="display:flex;justify-content:space-between;gap:14px"><div><small style="color:#ff7a00;font-weight:950">{{ service.category.name }}</small><h2 style="font-size:20px;font-weight:950">{{ service.service_name }}</h2><p style="color:#64748b;margin-top:7px">{{ service.description|default:"No description yet." }}</p>{% if service.starting_price %}<strong style="display:block;margin-top:10px;color:#0066cc">From ₦{{ service.starting_price }}</strong>{% endif %}</div><span style="font-weight:900;color:{% if service.is_active %}#15803d{% else %}#94a3b8{% endif %}">{% if service.is_active %}Active{% else %}Inactive{% endif %}</span></div><div style="display:flex;gap:8px;margin-top:14px"><a class="provider-button soft" href="{% url 'provider_workspace:service_edit' service.id %}">Edit</a><form method="post" action="{% url 'provider_workspace:service_edit' service.id %}">{% csrf_token %}<input type="hidden" name="action" value="delete"><button class="provider-button danger">Deactivate</button></form></div></article>
-    {% empty %}<div class="provider-card"><p>No services yet. Add your first professional offering.</p></div>{% endfor %}
+      <article class="provider-card service-card">
+        <div class="service-card-head">
+          <div>
+            <p class="service-eyebrow">{{ service.category.name }}</p>
+            <h2>{{ service.service_name }}</h2>
+          </div>
+          <span class="service-status {% if service.is_active %}active{% else %}inactive{% endif %}">{% if service.is_active %}Active{% else %}Inactive{% endif %}</span>
+        </div>
+        <p class="service-excerpt">{{ service.card_excerpt|default:"No description yet." }}</p>
+        <div class="service-card-footer">
+          {% if service.starting_price %}<strong class="service-price">Starting from {{ service.starting_price|currency:request }}</strong>{% endif %}
+          <div class="service-actions">
+            <a class="provider-button soft" href="{% url 'provider_workspace:service_edit' service.id %}">Edit</a>
+            {% if service.is_active %}
+              <a class="provider-button soft" href="{{ service.get_absolute_url }}">View service</a>
+              <form method="post" action="{% url 'provider_workspace:service_edit' service.id %}" onsubmit="return confirm('Deactivate this service? Existing request history will remain available.')">
+                {% csrf_token %}<input type="hidden" name="action" value="deactivate"><button class="provider-button danger">Deactivate</button>
+              </form>
+            {% else %}
+              <form method="post" action="{% url 'provider_workspace:service_edit' service.id %}">
+                {% csrf_token %}<input type="hidden" name="action" value="activate"><button class="provider-button">Activate</button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+      </article>
+    {% empty %}
+      <div class="provider-card"><h2 style="color:#071a44;font-size:20px">Add your first service</h2><p style="margin-top:8px;color:#64748b;line-height:1.6">Publish a concise professional offering so customers can understand your expertise and request a quote.</p></div>
+    {% endfor %}
   </section>
-  <aside class="provider-card" style="align-self:start;position:sticky;top:18px"><h2 style="font-size:22px;font-weight:950">{% if editing_service %}Edit service{% else %}Add a service{% endif %}</h2><form method="post" class="provider-form" style="margin-top:14px">{% csrf_token %}{{ form.as_p }}<button class="provider-button orange">Save service</button></form></aside>
+
+  <aside class="provider-card service-editor">
+    <h2>{% if editing_service %}Edit service{% else %}Add a service{% endif %}</h2>
+    {% if service_access.upgrade_required %}<div class="provider-message" style="margin-top:12px;background:#fff7ed;color:#9a3412">{{ service_access.message }}</div>{% endif %}
+    <form method="post" class="provider-form" style="margin-top:14px">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:16px">
+        <button class="provider-button orange">Save service</button>
+        {% if editing_service %}<a href="{% url 'provider_workspace:services' %}" class="provider-button soft">Cancel</a>{% endif %}
+      </div>
+    </form>
+  </aside>
 </div>
 {% endblock %}

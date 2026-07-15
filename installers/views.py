@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Avg, Count, Q, Sum
+from django.db.models import Avg, Count, Prefetch, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -35,6 +35,7 @@ from .models import (
     SavedServiceProject,
     ServiceCategory,
     ServicePortfolio,
+    ProviderService,
     ServiceProviderProfile,
     ServiceQuoteRequest,
 )
@@ -46,7 +47,7 @@ from .project_services import (
     resolve_project_gallery_media,
 )
 from .subscription_services import create_provider_subscription_payment
-
+from .service_offerings import ProviderServicePolicy
 from .services import (
     filter_public_providers,
     notify_staff_service_quote,
@@ -258,28 +259,23 @@ def provider_detail(
             "user"
         )
         .prefetch_related(
-            "services__category",
+            Prefetch(
+                "services",
+                queryset=ProviderService.objects.filter(is_active=True).select_related("category"),
+                to_attr="public_services",
+            ),
             "portfolio_items__media_items",
             "portfolio_items__service_category",
             "reviews__customer",
         ),
         slug=slug,
     )
-
     return render(
         request,
         "installers/provider_detail.html",
         {
             "provider": provider,
-            "services": (
-                provider.services
-                .filter(
-                    is_active=True
-                )
-                .select_related(
-                    "category"
-                )
-            ),
+            "services": provider.public_services,
             "portfolio_items": (
                 ServicePortfolio.objects
                 .public()
@@ -308,6 +304,42 @@ def provider_detail(
             ),
         },
     )
+
+
+# =============================================================================
+# PUBLIC SERVICE DETAIL
+# =============================================================================
+
+
+def service_detail(request, provider_slug, service_id):
+    provider = get_object_or_404(
+        ServiceProviderProfile.objects.public().select_related("user"),
+        slug=provider_slug,
+    )
+    service = get_object_or_404(
+        ProviderService.objects.select_related("category", "provider", "provider__user"),
+        pk=service_id,
+        provider=provider,
+        is_active=True,
+    )
+    related_services = (
+        provider.services.filter(is_active=True)
+        .exclude(pk=service.pk)
+        .select_related("category", "provider")[:6]
+    )
+    related_projects = (
+        ServicePortfolio.objects.public()
+        .optimized()
+        .filter(provider=provider)[:3]
+    )
+    return render(request, "installers/service_detail.html", {
+        "provider": provider,
+        "service": service,
+        "related_services": related_services,
+        "related_projects": related_projects,
+        "seo_title": f"{service.service_name} by {provider.business_name} | Arolana",
+        "seo_description": service.card_excerpt,
+    })
 
 
 # =============================================================================
@@ -1162,7 +1194,7 @@ def workspace_services(
         )
 
         if (
-            action == "delete"
+            action in {"delete", "deactivate"}
             and service
         ):
             service.is_active = False
@@ -1186,47 +1218,37 @@ def workspace_services(
                 "provider_workspace:services"
             )
 
+        if action == "activate" and service:
+            access = ProviderServicePolicy(provider).can_activate(service=service)
+            if not access.allowed:
+                messages.error(request, access.message)
+            else:
+                service.is_active = True
+                service.save(update_fields=["is_active", "updated_at"])
+                messages.success(request, "Service activated and visible to customers.")
+            return redirect("provider_workspace:services")
         if form.is_valid():
             offering = form.save(
                 commit=False
             )
 
             offering.provider = provider
-
-            offering.save()
-
-            messages.success(
-                request,
-                "Service offering saved.",
-            )
-
-            return redirect(
-                "provider_workspace:services"
-            )
-
-    context = _workspace_context(
-        provider,
-        "services",
-    )
-
-    context.update(
-        {
-            "services": (
-                provider.services
-                .select_related(
-                    "category"
-                )
-            ),
-            "form": form,
-            "editing_service": service,
-        }
-    )
-
-    return render(
-        request,
-        "installers/workspace/services.html",
-        context,
-    )
+            access = ProviderServicePolicy(provider).can_activate(service=offering)
+            if offering.is_active and not access.allowed:
+                form.add_error(None, access.message)
+            else:
+                offering.save()
+                messages.success(request, "Service offering saved.")
+                return redirect("provider_workspace:services")
+    service_access = ProviderServicePolicy(provider).payload(service=service)
+    context = _workspace_context(provider, "services")
+    context.update({
+        "services": provider.services.select_related("category"),
+        "form": form,
+        "editing_service": service,
+        "service_access": service_access,
+    })
+    return render(request, "installers/workspace/services.html", context)
 
 
 # =============================================================================
@@ -1618,26 +1640,18 @@ def add_provider_service(request):
         )
 
         service.provider = provider
-
-        service.save()
-
-        messages.success(
-            request,
-            "Service added.",
-        )
-
-        return redirect(
-            "installers:provider_dashboard"
-        )
-
-    return render(
-        request,
-        "installers/simple_form.html",
-        {
-            "form": form,
-            "title": "Add service",
-        },
-    )
+        access = ProviderServicePolicy(provider).can_activate(service=service)
+        if service.is_active and not access.allowed:
+            form.add_error(None, access.message)
+        else:
+            service.save()
+            messages.success(request, "Service added.")
+            return redirect("provider_workspace:services")
+    return render(request, "installers/simple_form.html", {
+        "form": form,
+        "title": "Add service",
+        "service_access": ProviderServicePolicy(provider).payload(),
+    })
 
 
 # =============================================================================
@@ -2495,7 +2509,6 @@ def provider_project_leads(request):
 
 def request_quote(request):
     initial = {}
-
     provider_id = request.GET.get(
         "provider"
     )
@@ -2511,7 +2524,7 @@ def request_quote(request):
     project_id = request.GET.get(
         "project"
     )
-
+    service_id = request.GET.get("service")
     if provider_id:
         initial["provider"] = (
             ServiceProviderProfile.objects
@@ -2595,6 +2608,26 @@ def request_quote(request):
                 }
             )
 
+    if service_id:
+        service = (
+            ProviderService.objects.filter(pk=service_id, is_active=True)
+            .select_related("provider", "category")
+            .filter(
+                provider__is_active=True,
+                provider__verification_status__in=(
+                    ServiceProviderProfile.STATUS_APPROVED,
+                    ServiceProviderProfile.STATUS_VERIFIED,
+                ),
+            )
+            .first()
+        )
+        if service:
+            initial.update({
+                "provider": service.provider,
+                "category": service.category,
+                "service_needed": service.service_name,
+                "message": f"I would like a quote for {service.service_name}.",
+            })
     if request.user.is_authenticated:
         initial.update(
             {

@@ -1,7 +1,9 @@
 from rest_framework import serializers
 
 from core.content_i18n import translated_field
+from core.html_sanitization import rich_text_excerpt, rich_text_to_plain_text, sanitize_rich_html
 from core.media_optimization import get_optimized_image_url, get_verified_optimized_image_url
+from currency.templatetags.currency_filters import currency as format_currency
 
 from .models import (
     ProviderKYCDocument,
@@ -65,23 +67,44 @@ class ServiceCategorySerializer(serializers.ModelSerializer):
         return translated_field(obj, "description", request=self.context.get("request"))
 
     def get_provider_count(self, obj):
+        annotated_count = getattr(obj, "public_provider_count", None)
+        if annotated_count is not None:
+            return annotated_count
         return obj.provider_services.filter(
             is_active=True,
             provider__is_active=True,
-            provider__is_verified=True,
-            provider__verification_status=ServiceProviderProfile.STATUS_APPROVED,
+            provider__verification_status__in=(
+                ServiceProviderProfile.STATUS_APPROVED,
+                ServiceProviderProfile.STATUS_VERIFIED,
+            ),
         ).values("provider_id").distinct().count()
 
 
+class ServiceCategorySummarySerializer(ServiceCategorySerializer):
+    """Category metadata for nested service cards without count queries."""
+
+    class Meta(ServiceCategorySerializer.Meta):
+        fields = ["id", "name", "slug", "description", "image", "icon"]
+
+
 class ProviderServiceSerializer(serializers.ModelSerializer):
-    category = ServiceCategorySerializer(read_only=True)
+    category = ServiceCategorySummarySerializer(read_only=True)
     service_name = serializers.SerializerMethodField()
     description = serializers.SerializerMethodField()
+    description_html = serializers.SerializerMethodField()
+    description_text = serializers.SerializerMethodField()
+    excerpt = serializers.SerializerMethodField()
+    starting_price_formatted = serializers.SerializerMethodField()
+    formatted_starting_price = serializers.SerializerMethodField()
+    provider = serializers.SerializerMethodField()
+    absolute_url = serializers.SerializerMethodField()
 
     class Meta:
         model = ProviderService
         fields = [
-            "id", "category", "service_name", "description", "starting_price",
+            "id", "category", "service_name", "short_description", "description",
+            "description_html", "description_text", "excerpt", "starting_price",
+            "starting_price_formatted", "formatted_starting_price", "provider", "absolute_url",
             "is_active", "created_at", "updated_at",
         ]
 
@@ -90,6 +113,54 @@ class ProviderServiceSerializer(serializers.ModelSerializer):
 
     def get_description(self, obj):
         return translated_field(obj, "description", request=self.context.get("request"))
+
+    def _translated_description(self, obj):
+        return translated_field(obj, "description", request=self.context.get("request")) or ""
+
+    def get_description_html(self, obj):
+        return sanitize_rich_html(self._translated_description(obj))
+
+    def get_description_text(self, obj):
+        return rich_text_to_plain_text(self._translated_description(obj))
+
+    def get_excerpt(self, obj):
+        return obj.short_description or rich_text_excerpt(self._translated_description(obj), limit=220)
+
+    def get_starting_price_formatted(self, obj):
+        if obj.starting_price is None:
+            return ""
+        return format_currency(obj.starting_price, self.context.get("request"))
+
+    def get_formatted_starting_price(self, obj):
+        return self.get_starting_price_formatted(obj)
+
+    def get_provider(self, obj):
+        provider = obj.provider
+        return {
+            "id": provider.id,
+            "name": provider.business_name,
+            "slug": provider.slug,
+            "verified": provider.is_verified,
+            "type": provider.get_provider_type_display(),
+            "location": provider.location_label,
+            "coverage": provider.service_coverage,
+        }
+
+    def get_absolute_url(self, obj):
+        url = obj.get_absolute_url()
+        request = self.context.get("request")
+        return request.build_absolute_uri(url) if request else url
+
+
+class ProviderServiceSummarySerializer(ProviderServiceSerializer):
+    """Compact marketplace payload; rich HTML is fetched on service detail."""
+
+    class Meta(ProviderServiceSerializer.Meta):
+        fields = [
+            "id", "category", "service_name", "short_description", "excerpt",
+            "starting_price", "starting_price_formatted", "formatted_starting_price",
+            "provider", "absolute_url", "is_active", "created_at", "updated_at",
+        ]
 
 
 class ServicePortfolioSerializer(serializers.ModelSerializer):
@@ -381,7 +452,7 @@ class ServiceProviderListSerializer(serializers.ModelSerializer):
     business_banner = serializers.SerializerMethodField()
     provider_type_label = serializers.CharField(source="get_provider_type_display", read_only=True)
     location = serializers.CharField(source="location_label", read_only=True)
-    services = ProviderServiceSerializer(many=True, read_only=True)
+    services = serializers.SerializerMethodField()
     whatsapp_url = serializers.CharField(read_only=True)
     verified = serializers.BooleanField(source="is_verified", read_only=True)
     profile_completion_percent = serializers.IntegerField(read_only=True)
@@ -434,6 +505,12 @@ class ServiceProviderListSerializer(serializers.ModelSerializer):
         url = obj.get_absolute_url()
         request = self.context.get("request")
         return request.build_absolute_uri(url) if request else url
+
+    def get_services(self, obj):
+        prefetched = getattr(obj, "public_services", None)
+        if prefetched is None:
+            prefetched = obj.services.filter(is_active=True).select_related("category", "provider")
+        return ProviderServiceSummarySerializer(prefetched, many=True, context=self.context).data
 
 
 class ServiceProviderDetailSerializer(ServiceProviderListSerializer):

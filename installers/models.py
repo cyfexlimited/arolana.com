@@ -15,7 +15,14 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.text import slugify
+from django_ckeditor_5.fields import CKEditor5Field
 
+from core.html_sanitization import (
+    normalize_rich_text_input,
+    rich_text_excerpt,
+    rich_text_to_plain_text,
+    sanitize_rich_html,
+)
 from core.image_protection import (
     ProtectedImageUploadPath,
     protect_uploaded_image,
@@ -1345,15 +1352,26 @@ class ProviderService(BaseModel):
         on_delete=models.PROTECT,
         related_name="provider_services",
     )
-
     service_name = models.CharField(
         max_length=180,
     )
-
-    description = models.TextField(
+    short_description = models.CharField(
+        max_length=240,
         blank=True,
+        help_text=(
+            "A compact customer-facing summary used on "
+            "service cards."
+        ),
     )
-
+    description = CKEditor5Field(
+        "Service description",
+        blank=True,
+        config_name="provider_service",
+        help_text=(
+            "Explain what is included, the customers served, supported systems, "
+            "and relevant experience."
+        ),
+    )
     starting_price = models.DecimalField(
         max_digits=12,
         decimal_places=2,
@@ -1368,7 +1386,11 @@ class ProviderService(BaseModel):
         ordering = [
             "service_name",
         ]
-
+        indexes = [
+            models.Index(fields=["provider", "is_active"]),
+            models.Index(fields=["category", "is_active"]),
+            models.Index(fields=["-created_at"]),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=[
@@ -1387,6 +1409,39 @@ class ProviderService(BaseModel):
             f"{self.provider} - "
             f"{self.service_name}"
         )
+
+    @property
+    def description_html(self):
+        return sanitize_rich_html(self.description)
+
+    @property
+    def description_text(self):
+        return rich_text_to_plain_text(self.description)
+
+    @property
+    def card_excerpt(self):
+        return self.short_description or rich_text_excerpt(self.description, limit=220)
+
+    def get_absolute_url(self):
+        return reverse(
+            "installers:service_detail",
+            kwargs={"provider_slug": self.provider.slug, "service_id": self.pk},
+        )
+
+    def save(self, *args, **kwargs):
+        self.description = normalize_rich_text_input(self.description)
+        super().save(*args, **kwargs)
+        from .service_offerings import invalidate_provider_service_cache
+
+        invalidate_provider_service_cache(self.provider)
+
+    def delete(self, *args, **kwargs):
+        provider = self.provider
+        result = super().delete(*args, **kwargs)
+        from .service_offerings import invalidate_provider_service_cache
+
+        invalidate_provider_service_cache(provider)
+        return result
 
 
 # =============================================================================

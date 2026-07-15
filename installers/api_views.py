@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db.models import Count
+from django.db.models import Count, Prefetch, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, permissions, status
@@ -30,6 +30,8 @@ from .models import (
     ServiceQuoteRequest,
     ProviderService,
 )
+from .forms import ProviderServiceForm
+from .service_offerings import ProviderServicePolicy
 from .serializers import (
     ProviderChangeRequestSerializer,
     ProviderKYCDocumentSerializer,
@@ -137,13 +139,36 @@ class ProviderListAPIView(generics.ListAPIView):
     permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
-        return filter_public_providers(self.request.query_params)
+        return filter_public_providers(self.request.query_params).prefetch_related(
+            Prefetch(
+                "services",
+                queryset=ProviderService.objects.filter(is_active=True).select_related("category", "provider"),
+                to_attr="public_services",
+            )
+        )
 
 
 class CategoryListAPIView(generics.ListAPIView):
     serializer_class = ServiceCategorySerializer
     permission_classes = [permissions.AllowAny]
-    queryset = ServiceCategory.objects.filter(is_active=True).order_by("name")
+    queryset = (
+        ServiceCategory.objects.filter(is_active=True)
+        .annotate(
+            public_provider_count=Count(
+                "provider_services__provider",
+                filter=Q(
+                    provider_services__is_active=True,
+                    provider_services__provider__is_active=True,
+                    provider_services__provider__verification_status__in=(
+                        ServiceProviderProfile.STATUS_APPROVED,
+                        ServiceProviderProfile.STATUS_VERIFIED,
+                    ),
+                ),
+                distinct=True,
+            )
+        )
+        .order_by("name")
+    )
     pagination_class = None
 
 
@@ -153,8 +178,36 @@ class ProviderDetailAPIView(generics.RetrieveAPIView):
     queryset = (
         ServiceProviderProfile.objects.public()
         .select_related("user")
-        .prefetch_related("services__category", "portfolio_items", "reviews__customer")
+        .prefetch_related(
+            Prefetch(
+                "services",
+                queryset=ProviderService.objects.filter(is_active=True).select_related("category", "provider"),
+                to_attr="public_services",
+            ),
+            "portfolio_items",
+            "reviews__customer",
+        )
     )
+
+
+class PublicProviderServiceDetailAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, provider_id, service_id):
+        provider = get_object_or_404(
+            ServiceProviderProfile.objects.public().select_related("user"),
+            pk=provider_id,
+        )
+        service = get_object_or_404(
+            ProviderService.objects.select_related("category", "provider", "provider__user"),
+            pk=service_id,
+            provider=provider,
+            is_active=True,
+        )
+        return Response({
+            "service": ProviderServiceSerializer(service, context={"request": request}).data,
+            "provider": ServiceProviderListSerializer(provider, context={"request": request}).data,
+        })
 
 
 class ProviderRegistrationAPIView(APIView):
@@ -433,31 +486,57 @@ class ProviderServicesAPIView(APIView):
         provider, error = provider_from_request(request)
         if error:
             return error
+        categories = (
+            ServiceCategory.objects.filter(is_active=True)
+            .annotate(
+                public_provider_count=Count(
+                    "provider_services__provider",
+                    filter=Q(
+                        provider_services__is_active=True,
+                        provider_services__provider__is_active=True,
+                        provider_services__provider__verification_status__in=(
+                            ServiceProviderProfile.STATUS_APPROVED,
+                            ServiceProviderProfile.STATUS_VERIFIED,
+                        ),
+                    ),
+                    distinct=True,
+                )
+            )
+            .order_by("name")
+        )
         return Response({
-            "services": ProviderServiceSerializer(provider.services.select_related("category"), many=True, context={"request": request}).data,
-            "categories": ServiceCategorySerializer(ServiceCategory.objects.filter(is_active=True), many=True, context={"request": request}).data,
+            "services": ProviderServiceSerializer(
+                provider.services.select_related("category", "provider"),
+                many=True,
+                context={"request": request},
+            ).data,
+            "categories": ServiceCategorySerializer(categories, many=True, context={"request": request}).data,
+            "service_access": ProviderServicePolicy(provider).payload(),
         })
 
     def post(self, request):
         provider, error = provider_from_request(request)
         if error:
             return error
-        category = ServiceCategory.objects.filter(pk=request.data.get("category"), is_active=True).first()
-        service_name = str(request.data.get("service_name", "")).strip()
-        if not category or not service_name:
-            return Response({"detail": "Choose a service category and enter a service name."}, status=status.HTTP_400_BAD_REQUEST)
         service_id = request.data.get("id")
         service = provider.services.filter(pk=service_id).first() if service_id else None
-        service = service or ProviderService(provider=provider)
-        service.category = category
-        service.service_name = service_name
-        service.description = str(request.data.get("description", "")).strip()
-        service.starting_price = request.data.get("starting_price") or None
+        payload = request.data.copy()
+        if "is_active" not in payload:
+            payload["is_active"] = True if service is None else service.is_active
+        form = ProviderServiceForm(payload, instance=service)
+        if not form.is_valid():
+            return Response({"detail": "Check the service details.", "errors": form.errors}, status=status.HTTP_400_BAD_REQUEST)
+        service = form.save(commit=False)
+        service.provider = provider
+        access = ProviderServicePolicy(provider).can_activate(service=service)
+        if service.is_active and not access.allowed:
+            return Response({"detail": access.message, "service_access": access.as_dict()}, status=status.HTTP_403_FORBIDDEN)
         service.save()
         return Response({
             "message": "Service offering saved.",
             "service": ProviderServiceSerializer(service, context={"request": request}).data,
-        }, status=status.HTTP_201_CREATED)
+            "service_access": ProviderServicePolicy(provider).payload(service=service),
+        }, status=status.HTTP_200_OK if service_id else status.HTTP_201_CREATED)
 
 
 class ProviderServiceDetailAPIView(APIView):
@@ -484,22 +563,27 @@ class ProviderServiceDetailAPIView(APIView):
         service = provider.services.filter(pk=service_id).first()
         if not service:
             return Response({"detail": "Service offering not found."}, status=status.HTTP_404_NOT_FOUND)
-        category_id = request.data.get("category")
-        if category_id:
-            category = ServiceCategory.objects.filter(pk=category_id, is_active=True).first()
-            if not category:
-                return Response({"detail": "Choose an active service category."}, status=status.HTTP_400_BAD_REQUEST)
-            service.category = category
-        for field in ("service_name", "description", "starting_price", "is_active"):
-            if field in request.data:
-                value = request.data[field]
-                setattr(service, field, value if field != "starting_price" else (value or None))
-        if not service.service_name.strip():
-            return Response({"detail": "Service name is required."}, status=status.HTTP_400_BAD_REQUEST)
+        payload = {
+            "category": service.category_id,
+            "service_name": service.service_name,
+            "short_description": service.short_description,
+            "description": service.description,
+            "starting_price": service.starting_price,
+            "is_active": service.is_active,
+        }
+        payload.update({key: value for key, value in request.data.items() if key in payload})
+        form = ProviderServiceForm(payload, instance=service)
+        if not form.is_valid():
+            return Response({"detail": "Check the service details.", "errors": form.errors}, status=status.HTTP_400_BAD_REQUEST)
+        service = form.save(commit=False)
+        access = ProviderServicePolicy(provider).can_activate(service=service)
+        if service.is_active and not access.allowed:
+            return Response({"detail": access.message, "service_access": access.as_dict()}, status=status.HTTP_403_FORBIDDEN)
         service.save()
         return Response({
             "message": "Service offering updated.",
             "service": ProviderServiceSerializer(service, context={"request": request}).data,
+            "service_access": ProviderServicePolicy(provider).payload(service=service),
         })
 
 

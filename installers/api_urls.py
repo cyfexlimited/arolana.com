@@ -12,6 +12,7 @@ urlpatterns = [
     path("quote-request/", api_views.QuoteRequestAPIView.as_view(), name="quote_request"),
     path("reviews/", api_views.ReviewCreateAPIView.as_view(), name="review_create"),
     path("product/<int:product_id>/suggested/", api_views.SuggestedProvidersAPIView.as_view(), name="product_suggested"),
+    path("<int:provider_id>/services/<int:service_id>/", api_views.PublicProviderServiceDetailAPIView.as_view(), name="public_service_detail"),
     path("<int:pk>/", api_views.ProviderDetailAPIView.as_view(), name="provider_detail"),
 ]
 
