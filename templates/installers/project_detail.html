@@ -19,10 +19,14 @@
 {"@context":"https://schema.org","@type":"CreativeWork","name":"{{ project.title|escapejs }}","description":"{{ project.short_summary|default:seo_description|escapejs }}","url":"{{ request.scheme }}://{{ request.get_host }}{{ request.path }}"{% if project_schema_image %},"image":"{{ project_schema_image|escapejs }}"{% endif %},"datePublished":"{{ project.published_at|date:'c' }}","dateModified":"{{ project.updated_at|date:'c' }}","creator":{"@type":"Organization","name":"{{ project.provider.business_name|escapejs }}","url":"{{ request.scheme }}://{{ request.get_host }}{{ project.provider.get_absolute_url }}"}}}
 </script>
 {% endblock %}
+{% block extra_css %}
+<style>
+  .project-media-stage + .project-media-stage{margin-top:1.75rem}.project-media-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem}.project-media-card{position:relative;overflow:hidden;border:1px solid #e2e8f0;border-radius:1.25rem;background:#f8fafc}.project-media-button{display:block;width:100%;border:0;padding:0;background:transparent;text-align:left;cursor:pointer}.project-media-visual{position:relative;aspect-ratio:4/3;overflow:hidden;background:#e9f2fb}.project-media-visual img,.project-media-visual video,.project-media-visual iframe{width:100%;height:100%;object-fit:cover}.project-media-copy{padding:.9rem 1rem}.project-media-copy strong{display:block;color:#071a44}.project-media-copy span{display:-webkit-box;margin-top:.25rem;overflow:hidden;color:#64748b;font-size:.8rem;-webkit-box-orient:vertical;-webkit-line-clamp:2}.project-video-state{display:grid;min-height:220px;place-items:center;padding:1.5rem;text-align:center}.project-video-state.pending{background:#eff6ff;color:#075cb7}.project-video-state.failed{background:#fff7ed;color:#c2410c}.project-document-card{display:flex;min-height:150px;align-items:center;gap:1rem;padding:1.25rem;text-decoration:none}.project-lightbox{width:min(94vw,1100px);max-width:none;border:0;border-radius:1.5rem;padding:0;background:#071a44;color:#fff;box-shadow:0 30px 80px rgba(7,26,68,.45)}.project-lightbox::backdrop{background:rgba(2,8,23,.82);backdrop-filter:blur(8px)}.project-lightbox img{display:block;width:100%;max-height:78vh;object-fit:contain;background:#020817}.project-lightbox-bar{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.15rem}.project-lightbox-close{display:grid;width:2.5rem;height:2.5rem;place-items:center;border:0;border-radius:999px;background:#fff;color:#071a44;cursor:pointer}@media(max-width:640px){.project-media-grid{grid-template-columns:1fr}.project-lightbox{width:96vw}}
+</style>
+{% endblock %}
 {% block content %}
 <main class="bg-[#F6F9FC] pb-20 text-[#071A44]">
   {% project_hero_image_url project as project_hero_url %}
-  {% project_gallery_items project as project_gallery %}
   <div class="mx-auto max-w-7xl px-4 py-8">
     <nav class="mb-5 text-sm font-bold text-slate-500"><a href="{% url 'projects:directory' %}" class="text-[#0066CC]">Projects</a> / {{ project.service_category.name }} / {{ project.title }}</nav>
     <section class="overflow-hidden rounded-[2rem] bg-[#071A44] text-white shadow-2xl">
@@ -41,28 +45,46 @@
 
     <div class="mt-8 grid gap-8 lg:grid-cols-[1fr_340px]">
       <div class="space-y-8">
-        {% if project.video_url or project.local_video %}
+        {% if not has_normalized_video and project.video_url or not has_normalized_video and project.local_video %}
         <section class="overflow-hidden rounded-[2rem] bg-black shadow-lg">
           {% if project.video_source == "youtube" and project.video_embed_url %}<div class="aspect-video"><iframe src="{{ project.video_embed_url }}" title="{{ project.title }}" class="h-full w-full" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>{% elif project.local_video %}<video controls playsinline poster="{% if project.video_thumbnail %}{{ project.video_thumbnail|optimized_image_url:'project_hero' }}{% endif %}" class="aspect-video w-full"><source src="{{ project.local_video.url }}"></video>{% else %}<a href="{{ project.video_url }}" target="_blank" rel="noopener" class="grid aspect-video place-items-center text-center text-white"><span><i class="fas fa-circle-play text-6xl text-[#FF7A00]"></i><strong class="mt-3 block">Watch project video</strong></span></a>{% endif %}
         </section>
         {% endif %}
-        {% if project_gallery %}
+        {% if project_gallery_groups %}
         <section class="rounded-[2rem] bg-white p-6 shadow-sm">
           <p class="text-xs font-black uppercase tracking-widest text-[#FF7A00]">Project gallery</p><h2 class="mt-1 text-3xl font-black">See the work from every angle</h2>
-          <div class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {% for media in project_gallery %}
-              {% if media.kind == "video" %}
-                <a href="{{ media.video_url }}" class="group relative overflow-hidden rounded-2xl bg-[#071A44]" target="_blank" rel="noopener">
-                  {% if media.thumbnail_url %}<img src="{{ media.thumbnail_url }}" alt="{{ media.alt|default:project.title }}" class="aspect-[4/3] h-full w-full object-cover opacity-80 transition group-hover:scale-105" loading="lazy">{% else %}<div class="grid aspect-[4/3] place-items-center text-white/70"><i class="fas fa-play-circle text-5xl"></i></div>{% endif %}
-                  <span class="absolute inset-0 grid place-items-center text-white"><i class="fas fa-circle-play text-5xl drop-shadow-lg"></i></span>
-                  <span class="absolute bottom-3 left-3 rounded-full bg-[#071A44]/80 px-3 py-1 text-xs font-black text-white">{{ media.label|default:"Video" }}</span>
-                </a>
-              {% else %}
-                <a href="{{ media.original_url|default:media.url }}" class="group relative overflow-hidden rounded-2xl bg-slate-100" target="_blank" rel="noopener">
-                  <img src="{{ media.url }}" alt="{{ media.alt|default:project.title }}" class="aspect-[4/3] h-full w-full object-cover transition group-hover:scale-105" loading="lazy" decoding="async">
-                  <span class="absolute bottom-3 left-3 rounded-full bg-[#071A44]/80 px-3 py-1 text-xs font-black text-white">{{ media.label|default:"Project image" }}</span>
-                </a>
-              {% endif %}
+          <div class="mt-5">
+            {% for group in project_gallery_groups %}
+            <section class="project-media-stage" aria-labelledby="project-stage-{{ group.stage }}">
+              <div class="mb-3 flex items-center justify-between gap-3"><h3 id="project-stage-{{ group.stage }}" class="text-xl font-black">{{ group.label }}</h3><span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-[#0066CC]">{{ group.items|length }} item{{ group.items|length|pluralize }}</span></div>
+              <div class="project-media-grid">
+                {% for media in group.items %}
+                  {% if media.kind == "image" %}
+                    <article class="project-media-card">
+                      <button type="button" class="project-media-button" data-project-lightbox data-image-url="{{ media.original_url|default:media.url }}" data-image-alt="{{ media.alt|default:project.title }}" data-image-caption="{{ media.caption|default:group.label }}">
+                        <span class="project-media-visual"><img src="{{ media.url }}" alt="{{ media.alt|default:project.title }}" loading="lazy" decoding="async"></span>
+                        <span class="project-media-copy"><strong>{{ media.label|default:group.label }}</strong>{% if media.caption %}<span>{{ media.caption }}</span>{% endif %}</span>
+                      </button>
+                    </article>
+                  {% elif media.kind == "video" %}
+                    <article class="project-media-card">
+                      {% if media.embed_url %}
+                        <div class="project-media-visual"><iframe src="{{ media.embed_url }}" title="{{ media.alt|default:project.title }}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>
+                      {% elif media.video_url %}
+                        <div class="project-media-visual"><video controls playsinline preload="metadata" {% if media.thumbnail_url %}poster="{{ media.thumbnail_url }}"{% endif %}><source src="{{ media.video_url }}"></video></div>
+                      {% elif media.processing_status == "failed" %}
+                        <div class="project-video-state failed"><span><i class="fas fa-triangle-exclamation text-3xl"></i><strong class="mt-2 block">Video unavailable</strong><small>Arolana could not prepare this video.</small></span></div>
+                      {% else %}
+                        <div class="project-video-state pending"><span><i class="fas fa-spinner text-3xl"></i><strong class="mt-2 block">Preparing project video</strong><small>This proof will appear after safe processing.</small></span></div>
+                      {% endif %}
+                      <div class="project-media-copy"><strong>{{ media.label|default:"Project video" }}</strong>{% if media.caption %}<span>{{ media.caption }}</span>{% endif %}</div>
+                    </article>
+                  {% elif media.kind == "document" and media.document_url %}
+                    <article class="project-media-card"><a href="{{ media.document_url }}" class="project-document-card" target="_blank" rel="noopener"><i class="fas fa-file-shield text-4xl text-[#0066CC]"></i><span><strong class="block text-[#071A44]">{{ media.caption|default:"Supporting project document" }}</strong><small class="mt-1 block text-slate-500">Open verified supporting evidence</small></span></a></article>
+                  {% endif %}
+                {% endfor %}
+              </div>
+            </section>
             {% endfor %}
           </div>
         </section>
@@ -95,4 +117,27 @@
     </div>
   </div>
 </main>
+<dialog class="project-lightbox" id="project-media-lightbox" aria-label="Project image viewer">
+  <div class="project-lightbox-bar"><strong id="project-lightbox-caption">Project image</strong><button type="button" class="project-lightbox-close" data-project-lightbox-close aria-label="Close image viewer"><i class="fas fa-xmark"></i></button></div>
+  <img id="project-lightbox-image" src="" alt="">
+</dialog>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded",function(){
+  const dialog=document.getElementById("project-media-lightbox");
+  const image=document.getElementById("project-lightbox-image");
+  const caption=document.getElementById("project-lightbox-caption");
+  if(!dialog||!image)return;
+  document.querySelectorAll("[data-project-lightbox]").forEach(button=>button.addEventListener("click",()=>{
+    image.src=button.dataset.imageUrl||"";
+    image.alt=button.dataset.imageAlt||"Project image";
+    caption.textContent=button.dataset.imageCaption||image.alt;
+    if(typeof dialog.showModal==="function")dialog.showModal();
+  }));
+  document.querySelectorAll("[data-project-lightbox-close]").forEach(button=>button.addEventListener("click",()=>dialog.close()));
+  dialog.addEventListener("click",event=>{if(event.target===dialog)dialog.close();});
+  dialog.addEventListener("close",()=>{image.src="";});
+});
+</script>
 {% endblock %}

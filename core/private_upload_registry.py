@@ -207,6 +207,8 @@ EXPLICIT_PUBLIC_UPLOADS = frozenset({
     ("installers.ServicePortfolio", "video_thumbnail"),
     ("installers.ServiceProjectMedia", "image"),
     ("installers.ServiceProjectMedia", "video"),
+    ("installers.ServiceProjectMedia", "processed_video"),
+    ("installers.ServiceProjectMedia", "document"),
     ("installers.ServiceProjectMedia", "thumbnail"),
     ("landing_pages.LandingPage", "hero_background_image"),
     ("landing_pages.LandingPage", "hero_mobile_image"),

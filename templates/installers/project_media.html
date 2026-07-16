@@ -1,0 +1,123 @@
+{% extends "installers/workspace/base.html" %}
+{% load optimized_images %}
+{% block title %}Project media | {{ project.title }}{% endblock %}
+{% block workspace_content %}
+<style>
+  .media-drop{border:2px dashed #b9cee6;border-radius:20px;background:#f8fbff;padding:18px;transition:.2s ease}.media-drop.is-dragging{border-color:#ff7a00;background:#fff7ed;transform:translateY(-2px)}.media-drop input[type=file]{width:100%;padding:14px;border-radius:14px;background:white}.media-file-list{display:grid;gap:6px;margin-top:10px}.media-file-list span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-radius:10px;background:white;padding:7px 10px;font-size:11px;font-weight:800;color:#334155}
+  .media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(225px,1fr));gap:15px}.media-card{overflow:hidden;border:1px solid #e2eaf4;border-radius:20px;background:#fff}.media-preview{position:relative;aspect-ratio:16/10;background:#edf4fb;display:grid;place-items:center;overflow:hidden}.media-preview img,.media-preview video{width:100%;height:100%;object-fit:cover}.media-cover{position:absolute;left:10px;top:10px;border-radius:999px;background:#ff7a00;color:white;padding:5px 9px;font-size:10px;font-weight:950;text-transform:uppercase}.media-status{border-radius:999px;padding:5px 9px;font-size:10px;font-weight:950;text-transform:uppercase}.media-status.approved{background:#dcfce7;color:#15803d}.media-status.pending{background:#dbeafe;color:#075cb7}.media-status.rejected,.media-status.requires_changes{background:#fee2e2;color:#b91c1c}.media-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.media-actions button{border:0;border-radius:11px;padding:9px;font-size:11px;font-weight:900;cursor:pointer}.media-usage{display:flex;align-items:center;gap:12px}.media-usage-track{height:9px;flex:1;min-width:120px;overflow:hidden;border-radius:999px;background:#dbe6f2}.media-usage-track span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#0066cc,#20c5e8)}
+  @media(max-width:640px){.media-grid{grid-template-columns:1fr}.media-actions{grid-template-columns:1fr}.media-drop{padding:14px}}
+</style>
+
+<div class="provider-page-head">
+  <div>
+    <p class="text-xs font-black uppercase tracking-widest text-[#FF7A00]">Project media workspace</p>
+    <h1>{{ project.title }}</h1>
+    <p>Upload proof in any order. Before and after stages are helpful, but never required.</p>
+  </div>
+  <div class="flex flex-wrap gap-2">
+    <a href="{% url 'provider_workspace:project_edit' project.id %}" class="provider-button soft">Project details</a>
+    {% if project.approval_status == 'approved' %}<a href="{{ project.get_absolute_url }}" class="provider-button orange">View public project</a>{% endif %}
+  </div>
+</div>
+
+<section class="provider-card">
+  <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+    <div>
+      <h2 class="text-2xl font-black">Add images, videos or documents</h2>
+      <p class="mt-2 text-sm text-slate-500">Select several files at once, choose the project stage, and Arolana will keep them grouped for customers.</p>
+      {% if not media_permission.allowed %}<div class="mt-4 rounded-2xl bg-orange-50 p-4 font-bold text-orange-800">{{ media_permission.message }}</div>{% endif %}
+    </div>
+    <div class="rounded-2xl bg-[#071A44] p-5 text-white">
+      <div class="media-usage">
+        <div><span class="text-xs font-black uppercase text-cyan-200">Media used</span><strong class="mt-1 block text-2xl">{{ media_items|length }} / {% if entitlements.max_project_media < 0 %}Unlimited{% else %}{{ entitlements.max_project_media }}{% endif %}</strong></div>
+      </div>
+      {% if entitlements.max_project_media > 0 %}<div class="media-usage-track mt-3"><span style="width:{% widthratio media_items|length entitlements.max_project_media 100 %}%"></span></div>{% endif %}
+      <p class="mt-3 text-xs text-white/70">Videos: {{ entitlements.max_project_videos|default:0 }} per project · Up to {{ entitlements.max_video_size_mb|default:0 }} MB each</p>
+    </div>
+  </div>
+
+  <form method="post" enctype="multipart/form-data" class="provider-form mt-6">
+    {% csrf_token %}<input type="hidden" name="action" value="upload">
+    {% if form.non_field_errors %}<div class="mb-4 rounded-2xl bg-red-50 p-4 font-bold text-red-700">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="media-drop">
+      <label for="{{ form.files.id_for_label }}">Choose multiple project files</label>
+      {{ form.files }}
+      <p class="mt-2 text-xs text-slate-500">JPG, PNG, WebP, supported AVIF, GIF, MP4, WebM, MOV, M4V, PDF or DOCX. Unsupported files are rejected safely.</p>
+      {% if form.files.errors %}<p class="mt-2 text-sm font-bold text-red-600">{{ form.files.errors|striptags }}</p>{% endif %}
+    </div>
+    <div class="mt-5 grid gap-4 md:grid-cols-2">
+      <label><span>Project stage</span>{{ form.stage }}{% if form.stage.errors %}<small class="text-red-600">{{ form.stage.errors|striptags }}</small>{% endif %}</label>
+      <label><span>External video URL</span>{{ form.external_video_url }}<small class="mt-1 block text-slate-500">{% if entitlements.external_video_allowed %}Use a supported YouTube or Vimeo URL when direct upload is unavailable.{% else %}{{ entitlements.external_video_message }}{% endif %}</small>{% if form.external_video_url.errors %}<small class="text-red-600">{{ form.external_video_url.errors|striptags }}</small>{% endif %}</label>
+      <label><span>Shared caption</span>{{ form.caption }}</label>
+      <label><span>Accessible image description</span>{{ form.alt_text }}</label>
+      <label><span>Optional video thumbnail</span>{{ form.thumbnail }}</label>
+      <label class="flex items-center gap-3 rounded-2xl bg-slate-50 p-4 normal-case"><span class="w-auto">{{ form.make_first_image_cover }}</span><strong>Make the first uploaded image the project cover</strong></label>
+      <label class="flex items-center gap-3 rounded-2xl bg-slate-50 p-4 normal-case"><span class="w-auto">{{ form.mark_featured }}</span><strong>{{ form.mark_featured.label }}</strong></label>
+      <label><span>{{ form.display_order_start.label }}</span>{{ form.display_order_start }}<small class="mt-1 block text-slate-500">{{ form.display_order_start.help_text }}</small></label>
+    </div>
+    <div class="mt-5 flex flex-wrap items-center justify-between gap-3">
+      <p class="text-sm text-slate-500">New media stays in review until approved by Arolana.</p>
+      <button class="provider-button orange" {% if not media_permission.allowed %}disabled aria-disabled="true"{% endif %}><i class="fas fa-cloud-arrow-up mr-2"></i>Upload project media</button>
+    </div>
+  </form>
+</section>
+
+{% for group in stage_groups %}
+<section class="mt-6">
+  <div class="mb-3 flex items-center justify-between gap-3"><div><p class="text-xs font-black uppercase tracking-widest text-[#0066CC]">{{ group.label }}</p><h2 class="text-2xl font-black">{{ group.items|length }} media item{{ group.items|length|pluralize }}</h2></div></div>
+  <div class="media-grid">
+    {% for media in group.items %}
+    <article class="media-card">
+      <div class="media-preview">
+        {% if media.image %}
+          <img src="{{ media.image|optimized_image_url:'project_thumb' }}" alt="{{ media.alt_text|default:media.caption|default:project.title }}" loading="lazy" decoding="async">
+        {% elif media.thumbnail %}
+          <img src="{{ media.thumbnail|optimized_image_url:'project_thumb' }}" alt="{{ media.alt_text|default:project.title }}" loading="lazy" decoding="async">
+          <i class="fas fa-circle-play absolute text-5xl text-white drop-shadow-lg"></i>
+        {% elif media.media_type == 'video' %}
+          <div class="text-center text-[#0066CC]"><i class="fas fa-video text-4xl"></i><strong class="mt-2 block text-sm">Video proof</strong></div>
+        {% else %}
+          <div class="text-center text-[#0066CC]"><i class="fas fa-file-lines text-4xl"></i><strong class="mt-2 block text-sm">Supporting document</strong></div>
+        {% endif %}
+        {% if media.is_cover %}<span class="media-cover"><i class="fas fa-star mr-1"></i>Cover</span>{% endif %}
+      </div>
+      <div class="p-4">
+        <div class="flex flex-wrap items-center justify-between gap-2"><strong class="text-sm">{{ media.get_media_type_display }}</strong><span class="media-status {{ media.approval_status }}">{{ media.get_approval_status_display }}</span></div>
+        {% if media.processing_status != 'none' %}<p class="mt-2 text-xs font-bold text-slate-500">Processing: {{ media.get_processing_status_display }}</p>{% endif %}
+        {% if media.moderation_note %}<p class="mt-3 rounded-xl bg-orange-50 p-3 text-xs font-bold text-orange-800">{{ media.moderation_note }}</p>{% endif %}
+        <form method="post" class="provider-form mt-4">
+          {% csrf_token %}<input type="hidden" name="action" value="update"><input type="hidden" name="media_id" value="{{ media.id }}">
+          <label><span>Stage</span><select name="stage">{% for value,label in form.fields.stage.choices %}<option value="{{ value }}" {% if media.stage == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+          <label class="mt-3"><span>Caption</span><input name="caption" value="{{ media.caption }}" maxlength="300"></label>
+          <label class="mt-3"><span>Accessible description</span><input name="alt_text" value="{{ media.alt_text }}" maxlength="220"></label>
+          <label class="mt-3 flex items-center gap-2 normal-case"><input type="checkbox" name="is_featured" class="w-auto" {% if media.is_featured %}checked{% endif %}><strong>Feature this media</strong></label>
+          <button class="mt-3 w-full rounded-xl bg-[#0066CC] px-3 py-2 text-xs font-black text-white">Save details</button>
+        </form>
+        <div class="media-actions mt-3">
+          <form method="post">{% csrf_token %}<input type="hidden" name="action" value="move_up"><input type="hidden" name="media_id" value="{{ media.id }}"><button class="w-full bg-blue-50 text-blue-700"><i class="fas fa-arrow-up mr-1"></i>Move up</button></form>
+          <form method="post">{% csrf_token %}<input type="hidden" name="action" value="move_down"><input type="hidden" name="media_id" value="{{ media.id }}"><button class="w-full bg-blue-50 text-blue-700"><i class="fas fa-arrow-down mr-1"></i>Move down</button></form>
+          {% if media.media_type == 'image' and not media.is_cover %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="set_cover"><input type="hidden" name="media_id" value="{{ media.id }}"><button class="w-full bg-orange-50 text-orange-700">Set as cover</button></form>{% endif %}
+          {% if media.media_type == 'document' and media.document %}<a href="{{ media.document.url }}" target="_blank" rel="noopener" class="rounded-xl bg-slate-100 px-3 py-2 text-center text-xs font-black text-slate-700">Open document</a>{% endif %}
+          <form method="post" onsubmit="return confirm('Remove this media item?');">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="media_id" value="{{ media.id }}"><button class="w-full bg-red-50 text-red-700">Remove</button></form>
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% empty %}
+<section class="provider-card mt-6 text-center"><i class="fas fa-photo-film text-5xl text-[#0066CC]"></i><h2 class="mt-4 text-2xl font-black">Add proof customers can trust</h2><p class="mx-auto mt-2 max-w-xl text-slate-500">Upload installation photos, progress clips, final results, walkthroughs, testimonials, or supporting documents. A before-and-after pair is optional.</p></section>
+{% endfor %}
+<script>
+document.addEventListener("DOMContentLoaded",function(){
+  const drop=document.querySelector(".media-drop");
+  const input=document.getElementById("{{ form.files.id_for_label }}");
+  if(!drop||!input)return;
+  const list=document.createElement("div");list.className="media-file-list";drop.appendChild(list);
+  ["dragenter","dragover"].forEach(name=>drop.addEventListener(name,event=>{event.preventDefault();drop.classList.add("is-dragging");}));
+  ["dragleave","drop"].forEach(name=>drop.addEventListener(name,event=>{event.preventDefault();drop.classList.remove("is-dragging");}));
+  const render=()=>{list.innerHTML="";Array.from(input.files||[]).forEach(file=>{const row=document.createElement("span");row.textContent=`${file.name} · ${(file.size/1024/1024).toFixed(1)} MB`;list.appendChild(row);});};
+  input.addEventListener("change",render);
+});
+</script>
+{% endblock %}

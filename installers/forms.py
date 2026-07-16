@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django import forms
+from django.core.exceptions import ValidationError as DjangoValidationError
 
 from products.models import Product
 from core.html_sanitization import normalize_rich_text_input
@@ -14,6 +15,7 @@ from .models import (
     ServiceProviderProfile,
     ServiceQuoteRequest,
     ServiceReview,
+    validate_project_external_video_url,
 )
 
 
@@ -556,12 +558,7 @@ class ServicePortfolioForm(
             "project_value_max",
             "project_value_currency",
             "show_project_value",
-            "image",
-            "video_source",
-            "video_url",
-            "local_video",
-            "video_thumbnail",
-            "video_duration",
+            "products_used",
         ]
 
         widgets = {
@@ -621,6 +618,14 @@ class ServicePortfolioForm(
             .filter(
                 is_active=True,
                 approval_status="approved",
+            )
+            .select_related(
+                "brand",
+                "category",
+            )
+            .prefetch_related(
+                "variants",
+                "images",
             )
             .order_by(
                 "name"
@@ -717,49 +722,6 @@ class ServicePortfolioForm(
                     if item.strip()
                 ]
 
-        video_source = cleaned.get(
-            "video_source"
-        )
-
-        local_video = cleaned.get(
-            "local_video"
-        )
-
-        video_url = (
-            cleaned.get(
-                "video_url"
-            )
-            or ""
-        ).strip()
-
-        if (
-            video_source == "upload"
-            and not local_video
-        ):
-            self.add_error(
-                "local_video",
-                (
-                    "Upload a video file when the video "
-                    "source is set to Arolana upload."
-                ),
-            )
-
-        if (
-            video_source
-            in {
-                "youtube",
-                "external",
-            }
-            and not video_url
-        ):
-            self.add_error(
-                "video_url",
-                (
-                    "Enter a video URL for the selected "
-                    "video source."
-                ),
-            )
-
         min_value = cleaned.get(
             "project_value_min"
         )
@@ -853,14 +815,17 @@ class ServiceProjectMediaForm(
 
         fields = [
             "media_type",
+            "stage",
             "image",
             "video",
+            "document",
             "external_video_url",
             "thumbnail",
             "caption",
             "alt_text",
             "display_order",
             "is_featured",
+            "is_cover",
         ]
 
     def clean(self):
@@ -878,6 +843,10 @@ class ServiceProjectMediaForm(
             "video"
         )
 
+        document = cleaned.get(
+            "document"
+        )
+
         external_video_url = (
             cleaned.get(
                 "external_video_url"
@@ -885,16 +854,22 @@ class ServiceProjectMediaForm(
             or ""
         ).strip()
 
-        image_types = {
-            "image",
-            "before_image",
-            "during_image",
-            "after_image",
-            "progress_image",
-        }
+        if external_video_url:
+            try:
+                cleaned["external_video_url"] = (
+                    validate_project_external_video_url(external_video_url)
+                )
+            except DjangoValidationError as exc:
+                self.add_error("external_video_url", exc)
+
+        if video and external_video_url:
+            self.add_error(
+                "external_video_url",
+                "Use either a local video or an external video URL, not both.",
+            )
 
         if (
-            media_type in image_types
+            media_type == ServiceProjectMedia.TYPE_IMAGE
             and not image
             and not (
                 self.instance
@@ -908,6 +883,20 @@ class ServiceProjectMediaForm(
                     "Upload an image for the selected "
                     "media type."
                 ),
+            )
+
+        if (
+            media_type == ServiceProjectMedia.TYPE_DOCUMENT
+            and not document
+            and not (
+                self.instance
+                and self.instance.pk
+                and self.instance.document
+            )
+        ):
+            self.add_error(
+                "document",
+                "Upload a document for document media.",
             )
 
         if (
@@ -928,6 +917,78 @@ class ServiceProjectMediaForm(
                 ),
             )
 
+        return cleaned
+
+
+class MultipleProjectMediaInput(forms.ClearableFileInput):
+    allow_multiple_selected = True
+
+
+class MultipleProjectMediaField(forms.FileField):
+    def clean(self, data, initial=None):
+        single_clean = super().clean
+        if not data:
+            return []
+        files = data if isinstance(data, (list, tuple)) else [data]
+        return [single_clean(item, initial) for item in files]
+
+
+class ServiceProjectBulkMediaForm(forms.Form):
+    files = MultipleProjectMediaField(
+        required=False,
+        widget=MultipleProjectMediaInput(
+            attrs={
+                "accept": (
+                    "image/jpeg,image/png,image/webp,image/avif,image/gif,"
+                    "video/mp4,video/quicktime,video/webm,video/x-m4v,"
+                    "application/pdf,application/vnd.openxmlformats-"
+                    "officedocument.wordprocessingml.document"
+                ),
+            }
+        ),
+        help_text="Select several images, videos, or supporting documents at once.",
+    )
+    stage = forms.ChoiceField(
+        choices=ServiceProjectMedia.STAGE_CHOICES,
+        initial=ServiceProjectMedia.STAGE_GENERAL,
+    )
+    caption = forms.CharField(max_length=300, required=False)
+    alt_text = forms.CharField(max_length=220, required=False)
+    external_video_url = forms.URLField(required=False)
+    thumbnail = forms.ImageField(required=False)
+    make_first_image_cover = forms.BooleanField(required=False, initial=False)
+    mark_featured = forms.BooleanField(
+        required=False,
+        initial=False,
+        label="Feature uploaded media",
+    )
+    display_order_start = forms.IntegerField(
+        required=False,
+        min_value=0,
+        label="Starting display order",
+        help_text="Leave blank to add these files after the current gallery.",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            existing = field.widget.attrs.get("class", "")
+            field.widget.attrs["class"] = f"{existing} {INPUT_CLASS}".strip()
+
+    def clean(self):
+        cleaned = super().clean()
+        if not cleaned.get("files") and not cleaned.get("external_video_url"):
+            raise forms.ValidationError("Select one or more files, or add a supported video URL.")
+        if cleaned.get("external_video_url") and cleaned.get("stage") == ServiceProjectMedia.STAGE_SUPPORTING_DOCUMENT:
+            self.add_error("stage", "An external video cannot use the supporting document stage.")
+        external_video_url = (cleaned.get("external_video_url") or "").strip()
+        if external_video_url:
+            try:
+                cleaned["external_video_url"] = (
+                    validate_project_external_video_url(external_video_url)
+                )
+            except DjangoValidationError as exc:
+                self.add_error("external_video_url", exc)
         return cleaned
 
 

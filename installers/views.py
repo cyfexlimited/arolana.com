@@ -1,9 +1,11 @@
+from pathlib import Path
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Avg, Count, Prefetch, Q, Sum
+from django.db.models import Avg, Count, Max, Prefetch, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -14,6 +16,8 @@ from notifications.models import Notification
 from products.models import Product
 
 from core.private_upload_validation import (
+    validate_project_document_upload,
+    validate_project_video_upload,
     validate_private_profile_image_upload,
 )
 
@@ -24,6 +28,7 @@ from .forms import (
     ProviderWorkspaceProfileForm,
     ProviderWorkspaceSettingsForm,
     ServicePortfolioForm,
+    ServiceProjectBulkMediaForm,
     ServiceProjectMediaForm,
     ServiceQuoteRequestForm,
     ServiceReviewForm,
@@ -35,6 +40,7 @@ from .models import (
     SavedServiceProject,
     ServiceCategory,
     ServicePortfolio,
+    ServiceProjectMedia,
     ProviderService,
     ServiceProviderProfile,
     ServiceQuoteRequest,
@@ -42,6 +48,7 @@ from .models import (
 from subscriptions.lifecycle import get_effective_subscription, official_plans
 from .project_services import (
     ProjectEntitlementService,
+    group_project_gallery_media,
     notify_project_submitted,
     record_project_event,
     resolve_project_gallery_media,
@@ -82,6 +89,35 @@ def _validation_error_messages(exc: ValidationError) -> list[str]:
         str(message)
         for message in exc.messages
     ]
+
+
+def _project_media_summary(project):
+    if not project or not project.pk:
+        return {
+            "cover": None,
+            "images": 0,
+            "videos": 0,
+            "documents": 0,
+            "total": 0,
+        }
+
+    media = project.media_items.all()
+    counts = media.aggregate(
+        images=Count("id", filter=Q(media_type=ServiceProjectMedia.TYPE_IMAGE)),
+        videos=Count("id", filter=Q(media_type=ServiceProjectMedia.TYPE_VIDEO)),
+        documents=Count("id", filter=Q(media_type=ServiceProjectMedia.TYPE_DOCUMENT)),
+        total=Count("id"),
+    )
+    counts["cover"] = (
+        media.filter(
+            media_type=ServiceProjectMedia.TYPE_IMAGE,
+            is_cover=True,
+        ).first()
+        or media.filter(
+            media_type=ServiceProjectMedia.TYPE_IMAGE,
+        ).order_by("-is_featured", "display_order", "id").first()
+    )
+    return counts
 
 
 def _show_validation_errors(
@@ -1732,6 +1768,7 @@ def add_portfolio(request):
                     provider
                 ).payload()
             ),
+            "media_summary": _project_media_summary(None),
         },
     )
 
@@ -1918,7 +1955,15 @@ def project_detail(
         source="web",
     )
 
-    project.refresh_from_db()
+    # Keep the approved media prefetch attached to this instance. Refreshing
+    # here discarded ``_public_media_items`` and caused the public gallery to
+    # issue extra queries or fall back to legacy media unexpectedly.
+    project_gallery = resolve_project_gallery_media(project)
+    project_gallery_groups = group_project_gallery_media(project)
+    has_normalized_video = any(
+        item.kind == ServiceProjectMedia.TYPE_VIDEO
+        for item in project_gallery
+    )
 
     related = (
         ServicePortfolio.objects
@@ -1956,6 +2001,9 @@ def project_detail(
             "media_items": (
                 project.public_media
             ),
+            "project_gallery": project_gallery,
+            "project_gallery_groups": project_gallery_groups,
+            "has_normalized_video": has_normalized_video,
             "products_used": (
                 project.project_products
                 .select_related(
@@ -2249,6 +2297,7 @@ def provider_project_edit(
                     provider
                 ).payload()
             ),
+            "media_summary": _project_media_summary(project),
         },
     )
 
@@ -2273,89 +2322,454 @@ def provider_project_media(
         pk=project_id,
     )
 
-    media_permission = (
-        ProjectEntitlementService(
-            provider
-        ).can_add_project_media(
-            project
-        )
+    entitlement_service = ProjectEntitlementService(
+        provider
     )
-
-    form = ServiceProjectMediaForm(
+    entitlements = entitlement_service.payload()
+    form = ServiceProjectBulkMediaForm(
         request.POST or None,
         request.FILES or None,
     )
+    if not entitlements.get("external_video_allowed", True):
+        form.fields["external_video_url"].widget.attrs.update(
+            {
+                "disabled": "disabled",
+                "aria-disabled": "true",
+            }
+        )
 
     if request.method == "POST":
-        if not media_permission.allowed:
-            messages.error(
-                request,
-                media_permission.message,
+        action = (
+            request.POST.get("action")
+            or "upload"
+        ).strip()
+
+        if action in {
+            "delete",
+            "set_cover",
+            "update",
+            "move_up",
+            "move_down",
+        }:
+            media = get_object_or_404(
+                project.media_items,
+                pk=request.POST.get("media_id"),
             )
 
-        elif form.is_valid():
-            media = form.save(
-                commit=False
-            )
-
-            media.project = project
-
-            try:
-                media.save()
-
-            except Exception as exc:
-                messages.error(
+            if action == "delete":
+                media.delete()
+                messages.success(
                     request,
-                    str(exc),
+                    "Project media removed.",
+                )
+
+            elif action == "set_cover":
+                if media.media_type != ServiceProjectMedia.TYPE_IMAGE:
+                    messages.error(
+                        request,
+                        "Only an image can be the project cover.",
+                    )
+                else:
+                    media.is_cover = True
+                    media.is_featured = True
+                    media.save(
+                        update_fields=[
+                            "is_cover",
+                            "is_featured",
+                            "updated_at",
+                        ]
+                    )
+                    messages.success(
+                        request,
+                        "Project cover updated.",
+                    )
+
+            elif action == "update":
+                allowed_stages = {
+                    value
+                    for value, _label
+                    in ServiceProjectMedia.STAGE_CHOICES
+                }
+                stage = request.POST.get("stage", "")
+                stage_is_valid = stage in allowed_stages
+                if (
+                    stage == ServiceProjectMedia.STAGE_SUPPORTING_DOCUMENT
+                    and media.media_type != ServiceProjectMedia.TYPE_DOCUMENT
+                ):
+                    stage_is_valid = False
+                    messages.error(
+                        request,
+                        "Supporting document is only valid for document media.",
+                    )
+                if (
+                    stage == ServiceProjectMedia.STAGE_COVER
+                    and media.media_type != ServiceProjectMedia.TYPE_IMAGE
+                ):
+                    stage_is_valid = False
+                    messages.error(
+                        request,
+                        "Only an image can use the cover stage.",
+                    )
+                if not stage_is_valid:
+                    return redirect(
+                        "provider_workspace:project_media",
+                        project_id=project.id,
+                    )
+                media.stage = stage
+                media.caption = (
+                    request.POST.get("caption", "")
+                    or ""
+                ).strip()[:300]
+                media.alt_text = (
+                    request.POST.get("alt_text", "")
+                    or ""
+                ).strip()[:220]
+                media.is_featured = bool(
+                    request.POST.get("is_featured")
+                )
+                media.save(
+                    update_fields=[
+                        "stage",
+                        "caption",
+                        "alt_text",
+                        "is_featured",
+                        "updated_at",
+                    ]
+                )
+                messages.success(
+                    request,
+                    "Media details saved.",
                 )
 
             else:
-                messages.success(
-                    request,
+                ordered_media = list(
+                    project.media_items.order_by(
+                        "display_order",
+                        "id",
+                    )
+                )
+                current_index = next(
                     (
-                        "Media uploaded for "
-                        "Arolana review."
+                        index
+                        for index, item in enumerate(ordered_media)
+                        if item.pk == media.pk
+                    ),
+                    None,
+                )
+                offset = -1 if action == "move_up" else 1
+                target_index = (
+                    current_index + offset
+                    if current_index is not None
+                    else -1
+                )
+
+                if 0 <= target_index < len(ordered_media):
+                    ordered_media[current_index], ordered_media[target_index] = (
+                        ordered_media[target_index],
+                        ordered_media[current_index],
+                    )
+                    for position, item in enumerate(ordered_media, start=1):
+                        if item.display_order != position:
+                            item.display_order = position
+                            item.save(
+                                update_fields=[
+                                    "display_order",
+                                    "updated_at",
+                                ]
+                            )
+                    messages.success(
+                        request,
+                        "Project media order updated.",
+                    )
+
+            return redirect(
+                "provider_workspace:project_media",
+                project_id=project.id,
+            )
+
+        if form.is_valid():
+            files = form.cleaned_data.get("files") or []
+            external_video_url = (
+                form.cleaned_data.get("external_video_url")
+                or ""
+            ).strip()
+            requested_count = len(files) + bool(
+                external_video_url
+            )
+
+            image_extensions = {
+                ".jpg", ".jpeg", ".png", ".webp",
+                ".avif", ".gif",
+            }
+            video_extensions = {
+                ".mp4", ".webm", ".mov", ".m4v",
+            }
+            classified_files = []
+
+            for upload in files:
+                content_type = (
+                    getattr(upload, "content_type", "")
+                    or ""
+                ).lower()
+                suffix = Path(
+                    getattr(upload, "name", "")
+                ).suffix.lower()
+
+                if (
+                    content_type.startswith("image/")
+                    or suffix in image_extensions
+                ):
+                    media_type = ServiceProjectMedia.TYPE_IMAGE
+                elif (
+                    content_type.startswith("video/")
+                    or suffix in video_extensions
+                ):
+                    media_type = ServiceProjectMedia.TYPE_VIDEO
+                else:
+                    media_type = ServiceProjectMedia.TYPE_DOCUMENT
+
+                classified_files.append(
+                    (upload, media_type)
+                )
+
+            overall_permission = (
+                entitlement_service.can_add_project_media(
+                    project,
+                    requested_count=requested_count,
+                )
+            )
+            video_count = sum(
+                media_type == ServiceProjectMedia.TYPE_VIDEO
+                for _upload, media_type in classified_files
+            ) + bool(external_video_url)
+            image_count = sum(
+                media_type == ServiceProjectMedia.TYPE_IMAGE
+                for _upload, media_type in classified_files
+            )
+            document_count = sum(
+                media_type == ServiceProjectMedia.TYPE_DOCUMENT
+                for _upload, media_type in classified_files
+            )
+            image_permission = (
+                entitlement_service.can_add_project_media(
+                    project,
+                    requested_count=image_count,
+                    media_type=ServiceProjectMedia.TYPE_IMAGE,
+                )
+                if image_count
+                else None
+            )
+            video_permission = (
+                entitlement_service.can_add_project_media(
+                    project,
+                    requested_count=video_count,
+                    media_type=ServiceProjectMedia.TYPE_VIDEO,
+                )
+                if video_count
+                else None
+            )
+            document_permission = (
+                entitlement_service.can_add_project_media(
+                    project,
+                    requested_count=document_count,
+                    media_type=ServiceProjectMedia.TYPE_DOCUMENT,
+                )
+                if document_count
+                else None
+            )
+            local_video_permission = (
+                entitlement_service.can_upload_local_video(
+                    project,
+                    requested_count=sum(
+                        media_type == ServiceProjectMedia.TYPE_VIDEO
+                        for _upload, media_type in classified_files
                     ),
                 )
-
-                return redirect(
-                    "provider_workspace:project_media",
-                    project_id=project.id,
+                if any(
+                    media_type == ServiceProjectMedia.TYPE_VIDEO
+                    for _upload, media_type in classified_files
                 )
+                else None
+            )
+            external_video_permission = (
+                entitlement_service.can_add_external_video()
+                if external_video_url
+                else None
+            )
 
-    gallery_items = (
-        resolve_project_gallery_media(
+            permission_error = ""
+            if not overall_permission.allowed:
+                permission_error = overall_permission.message
+            elif image_permission and not image_permission.allowed:
+                permission_error = image_permission.message
+            elif video_permission and not video_permission.allowed:
+                permission_error = video_permission.message
+            elif document_permission and not document_permission.allowed:
+                permission_error = document_permission.message
+            elif (
+                local_video_permission
+                and not local_video_permission.allowed
+            ):
+                permission_error = local_video_permission.message
+            elif (
+                external_video_permission
+                and not external_video_permission.allowed
+            ):
+                permission_error = external_video_permission.message
+
+            max_video_size_mb = int(
+                entitlements.get("max_video_size_mb", 0)
+                or 0
+            )
+
+            if permission_error:
+                messages.error(
+                    request,
+                    permission_error,
+                )
+            else:
+                try:
+                    for upload, media_type in classified_files:
+                        if media_type == ServiceProjectMedia.TYPE_VIDEO:
+                            validate_project_video_upload(upload)
+                            if (
+                                max_video_size_mb > 0
+                                and int(getattr(upload, "size", 0) or 0)
+                                > max_video_size_mb * 1024 * 1024
+                            ):
+                                raise ValidationError(
+                                    f"{upload.name} exceeds your plan's "
+                                    f"{max_video_size_mb} MB video limit."
+                                )
+                        elif media_type == ServiceProjectMedia.TYPE_DOCUMENT:
+                            validate_project_document_upload(upload)
+
+                    thumbnail = form.cleaned_data.get("thumbnail")
+                    stage = form.cleaned_data["stage"]
+                    caption = form.cleaned_data.get("caption", "")
+                    alt_text = form.cleaned_data.get("alt_text", "")
+                    requested_order = form.cleaned_data.get(
+                        "display_order_start"
+                    )
+                    next_order = requested_order
+                    if next_order is None:
+                        next_order = (
+                            project.media_items.aggregate(
+                                value=Max("display_order")
+                            )["value"]
+                            or 0
+                        ) + 1
+                    mark_featured = bool(
+                        form.cleaned_data.get("mark_featured")
+                    )
+                    first_image = True
+                    thumbnail_used = False
+
+                    with transaction.atomic():
+                        for upload, media_type in classified_files:
+                            item_stage = stage
+                            if media_type == ServiceProjectMedia.TYPE_DOCUMENT:
+                                item_stage = (
+                                    ServiceProjectMedia.STAGE_SUPPORTING_DOCUMENT
+                                )
+                            elif stage == ServiceProjectMedia.STAGE_SUPPORTING_DOCUMENT:
+                                item_stage = ServiceProjectMedia.STAGE_GENERAL
+
+                            make_cover = bool(
+                                media_type == ServiceProjectMedia.TYPE_IMAGE
+                                and first_image
+                                and form.cleaned_data.get(
+                                    "make_first_image_cover"
+                                )
+                            )
+                            media = ServiceProjectMedia(
+                                project=project,
+                                media_type=media_type,
+                                stage=item_stage,
+                                caption=caption,
+                                alt_text=alt_text,
+                                display_order=next_order,
+                                uploaded_by=request.user,
+                                is_featured=mark_featured or make_cover,
+                                is_cover=make_cover,
+                            )
+                            if media_type == ServiceProjectMedia.TYPE_IMAGE:
+                                media.image = upload
+                                first_image = False
+                            elif media_type == ServiceProjectMedia.TYPE_VIDEO:
+                                media.video = upload
+                                if thumbnail and not thumbnail_used:
+                                    media.thumbnail = thumbnail
+                                    thumbnail_used = True
+                            else:
+                                media.document = upload
+                            media.save()
+                            next_order += 1
+
+                        if external_video_url:
+                            external_media = ServiceProjectMedia(
+                                project=project,
+                                media_type=ServiceProjectMedia.TYPE_VIDEO,
+                                stage=stage,
+                                external_video_url=external_video_url,
+                                caption=caption,
+                                alt_text=alt_text,
+                                display_order=next_order,
+                                uploaded_by=request.user,
+                                is_featured=mark_featured,
+                            )
+                            if thumbnail and not thumbnail_used:
+                                external_media.thumbnail = thumbnail
+                            external_media.save()
+
+                except ValidationError as exc:
+                    _show_validation_errors(
+                        request,
+                        exc,
+                    )
+                except Exception as exc:
+                    messages.error(
+                        request,
+                        str(exc),
+                    )
+                else:
+                    messages.success(
+                        request,
+                        (
+                            f"{requested_count} media item"
+                            f"{'s' if requested_count != 1 else ''} "
+                            "uploaded for Arolana review."
+                        ),
+                    )
+                    return redirect(
+                        "provider_workspace:project_media",
+                        project_id=project.id,
+                    )
+
+    media_items = list(
+        project.media_items.all()
+    )
+    stage_groups = []
+    for stage, label in ServiceProjectMedia.STAGE_CHOICES:
+        items = [
+            item
+            for item in media_items
+            if item.stage == stage
+        ]
+        if items:
+            stage_groups.append(
+                {
+                    "key": stage,
+                    "label": label,
+                    "items": items,
+                }
+            )
+
+    media_permission = (
+        entitlement_service.can_add_project_media(
             project
         )
     )
-
-    grouped_media = {
-        "before": [
-            item
-            for item in gallery_items
-            if item.media_type == "before_image"
-        ],
-        "during": [
-            item
-            for item in gallery_items
-            if item.media_type
-            in {
-                "during_image",
-                "progress_image",
-            }
-        ],
-        "after": [
-            item
-            for item in gallery_items
-            if item.media_type == "after_image"
-        ],
-        "videos": [
-            item
-            for item in gallery_items
-            if item.kind == "video"
-        ],
-        "all": gallery_items,
-    }
 
     return render(
         request,
@@ -2363,23 +2777,14 @@ def provider_project_media(
         {
             "provider": provider,
             "project": project,
-            "media_items": (
-                project.media_items.all()
-            ),
-            "resolved_media_items": (
-                gallery_items
-            ),
-            "grouped_media": (
-                grouped_media
-            ),
+            "media_items": media_items,
+            "stage_groups": stage_groups,
             "form": form,
             "media_permission": (
                 media_permission.as_dict()
             ),
             "entitlements": (
-                ProjectEntitlementService(
-                    provider
-                ).payload()
+                entitlements
             ),
             "workspace_active": (
                 "projects"

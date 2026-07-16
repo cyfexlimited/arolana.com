@@ -51,6 +51,21 @@ class ProtectedImageUploadPath:
         return f"{self.prefix}/{today:%Y/%m}/{uuid.uuid4().hex}.webp"
 
 
+@deconstructible
+class ProtectedFileUploadPath:
+    """UUID upload path for non-image media while preserving its safe suffix."""
+
+    def __init__(self, prefix):
+        self.prefix = str(prefix or "uploads").strip("/")
+
+    def __call__(self, instance, filename):
+        today = timezone.now()
+        original = str(filename or "")
+        suffix = original.rsplit(".", 1)[-1].lower() if "." in original else "bin"
+        safe_suffix = suffix if suffix.isalnum() and len(suffix) <= 8 else "bin"
+        return f"{self.prefix}/{today:%Y/%m}/{uuid.uuid4().hex}.{safe_suffix}"
+
+
 @dataclass
 class ImageFingerprint:
     file_name: str

@@ -76,6 +76,7 @@ PUBLIC_MEDIA_PREFIXES = (
     "installers/projects/gallery",
     "installers/projects/thumbnails",
     "installers/projects/videos",
+    "installers/projects/documents",
     "installers/homepage",
     "crypto_wallet_qr",
 )

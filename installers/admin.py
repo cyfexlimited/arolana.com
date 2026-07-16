@@ -485,9 +485,74 @@ class ServicePortfolioAdmin(admin.ModelAdmin):
         queryset.update(is_verified_project=True)
 
 
+def _service_project_media_preview(obj):
+    if not obj or not obj.pk:
+        return "Save the media item to preview it."
+    image = obj.image or obj.thumbnail
+    if image:
+        url = get_optimized_image_url(image, "project_thumb")
+        if url:
+            return format_html(
+                '<img src="{}" alt="" style="width:150px;height:96px;'
+                'object-fit:cover;border-radius:12px;background:#eef4fb">',
+                url,
+            )
+    if obj.media_type == ServiceProjectMedia.TYPE_VIDEO:
+        if obj.video_embed_url:
+            return format_html(
+                '<a href="{}" target="_blank" rel="noopener">Preview external video</a>',
+                obj.external_video_url,
+            )
+        if obj.playable_video:
+            return format_html(
+                '<video src="{}" controls preload="metadata" '
+                'style="width:220px;max-height:130px;border-radius:12px"></video>',
+                obj.playable_video.url,
+            )
+        return format_html(
+            '<strong style="color:#075cb7">Video {}</strong>',
+            obj.get_processing_status_display().lower(),
+        )
+    if obj.media_type == ServiceProjectMedia.TYPE_DOCUMENT and obj.document:
+        return format_html(
+            '<a href="{}" target="_blank" rel="noopener">Open supporting document</a>',
+            obj.document.url,
+        )
+    return "No preview available"
+
+
 class ServiceProjectMediaInline(admin.StackedInline):
     model = ServiceProjectMedia
     extra = 0
+    fields = (
+        "media_preview",
+        "media_type",
+        "stage",
+        "image",
+        "video",
+        "processed_video",
+        "external_video_url",
+        "document",
+        "thumbnail",
+        "caption",
+        "alt_text",
+        "display_order",
+        "is_featured",
+        "is_cover",
+        "approval_status",
+        "moderation_note",
+        "processing_status",
+        "processing_error",
+    )
+    readonly_fields = (
+        "media_preview",
+        "processing_error",
+    )
+    show_change_link = True
+
+    @admin.display(description="Preview")
+    def media_preview(self, obj):
+        return _service_project_media_preview(obj)
 
 
 class ServiceProjectProductInline(admin.TabularInline):
@@ -512,10 +577,88 @@ ServicePortfolioAdmin.inlines = (
 
 @admin.register(ServiceProjectMedia)
 class ServiceProjectMediaAdmin(admin.ModelAdmin):
-    list_display = ("project", "media_type", "approval_status", "is_featured", "display_order", "created_at")
-    list_filter = ("media_type", "approval_status", "is_featured", "created_at")
+    list_display = (
+        "media_preview",
+        "project",
+        "provider_name",
+        "media_type",
+        "stage",
+        "approval_status",
+        "processing_status",
+        "is_cover",
+        "is_featured",
+        "display_order",
+        "created_at",
+    )
+    list_filter = (
+        "media_type",
+        "stage",
+        "approval_status",
+        "processing_status",
+        "is_cover",
+        "is_featured",
+        "created_at",
+    )
     search_fields = ("project__title", "project__provider__business_name", "caption", "alt_text")
     autocomplete_fields = ("project",)
+    readonly_fields = (
+        "media_preview",
+        "file_size",
+        "mime_type",
+        "original_filename",
+        "processing_error",
+        "created_at",
+        "updated_at",
+    )
+    actions = (
+        "approve_media",
+        "request_media_changes",
+        "reject_media",
+        "mark_featured",
+    )
+    fieldsets = (
+        ("Project & Classification", {"fields": ("project", "media_type", "stage")}),
+        ("Preview", {"fields": ("media_preview",)}),
+        ("Media Sources", {"fields": ("image", "video", "processed_video", "external_video_url", "document", "thumbnail")}),
+        ("Presentation", {"fields": ("caption", "alt_text", "display_order", "is_cover", "is_featured")}),
+        ("Moderation", {"fields": ("approval_status", "moderation_note", "is_active")}),
+        ("Processing", {"fields": ("processing_status", "processing_error", "file_size", "mime_type", "original_filename")}),
+        ("Audit", {"fields": ("uploaded_by", "created_at", "updated_at")}),
+    )
+
+    @admin.display(description="Preview")
+    def media_preview(self, obj):
+        return _service_project_media_preview(obj)
+
+    @admin.display(description="Provider", ordering="project__provider__business_name")
+    def provider_name(self, obj):
+        return obj.project.provider.business_name
+
+    @admin.action(description="Approve selected project media")
+    def approve_media(self, request, queryset):
+        queryset.update(
+            approval_status=ServiceProjectMedia.STATUS_APPROVED,
+            moderation_note="",
+            is_active=True,
+        )
+
+    @admin.action(description="Request changes for selected project media")
+    def request_media_changes(self, request, queryset):
+        queryset.update(
+            approval_status=ServiceProjectMedia.STATUS_REQUIRES_CHANGES,
+            is_active=True,
+        )
+
+    @admin.action(description="Reject selected project media")
+    def reject_media(self, request, queryset):
+        queryset.update(
+            approval_status=ServiceProjectMedia.STATUS_REJECTED,
+            is_active=False,
+        )
+
+    @admin.action(description="Mark selected project media as featured")
+    def mark_featured(self, request, queryset):
+        queryset.update(is_featured=True)
 
 
 @admin.register(ServiceProjectReport)

@@ -331,6 +331,55 @@ REVIEW_VIDEO_POLICY = UploadPolicy(
 )
 
 
+PROJECT_VIDEO_POLICY = UploadPolicy(
+    key="project_video",
+    allowed_extensions=frozenset(
+        {
+            ".mp4",
+            ".webm",
+            ".mov",
+            ".m4v",
+        }
+    ),
+    allowed_detected_types=frozenset(
+        {
+            MIME_MP4,
+            MIME_WEBM,
+            MIME_QUICKTIME,
+            MIME_M4V,
+        }
+    ),
+    max_size_bytes=500 * 1024 * 1024,
+)
+
+
+PROJECT_DOCUMENT_POLICY = UploadPolicy(
+    key="project_document",
+    allowed_extensions=frozenset(
+        {
+            ".pdf",
+            ".docx",
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".webp",
+        }
+    ),
+    allowed_detected_types=frozenset(
+        {
+            MIME_PDF,
+            MIME_DOCX,
+            MIME_JPEG,
+            MIME_PNG,
+            MIME_WEBP,
+        }
+    ),
+    max_size_bytes=25 * 1024 * 1024,
+    require_image_verification=True,
+    require_docx_verification=True,
+)
+
+
 PRIVATE_PROFILE_IMAGE_POLICY = UploadPolicy(
     key="private_profile_image",
     allowed_extensions=frozenset(
@@ -929,6 +978,29 @@ class PrivateUploadValidator:
         )
 
 
+@deconstructible
+class PublicUploadValidator:
+    """Content-aware validation for files intentionally served as public media."""
+
+    def __init__(self, policy_key: str):
+        self.policy_key = policy_key
+
+    def __call__(self, uploaded_file):
+        policy = PRIVATE_UPLOAD_POLICIES.get(self.policy_key)
+        if policy is None:
+            raise ValidationError(
+                "Upload security policy configuration is invalid.",
+                code="unknown_upload_policy",
+            )
+        validate_upload_against_policy(uploaded_file, policy)
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, PublicUploadValidator)
+            and self.policy_key == other.policy_key
+        )
+
+
 # ============================================================================
 # POLICY REGISTRY
 # ============================================================================
@@ -943,6 +1015,8 @@ PRIVATE_UPLOAD_POLICIES = {
     RIDER_DOCUMENT_POLICY.key: RIDER_DOCUMENT_POLICY,
     RESUME_POLICY.key: RESUME_POLICY,
     REVIEW_VIDEO_POLICY.key: REVIEW_VIDEO_POLICY,
+    PROJECT_VIDEO_POLICY.key: PROJECT_VIDEO_POLICY,
+    PROJECT_DOCUMENT_POLICY.key: PROJECT_DOCUMENT_POLICY,
     PRIVATE_PROFILE_IMAGE_POLICY.key: PRIVATE_PROFILE_IMAGE_POLICY,
     SENSITIVE_PROFILE_FILE_POLICY.key: SENSITIVE_PROFILE_FILE_POLICY,
 }
@@ -983,6 +1057,14 @@ validate_resume_upload = PrivateUploadValidator(
 
 validate_review_video_upload = PrivateUploadValidator(
     "review_video"
+)
+
+validate_project_video_upload = PublicUploadValidator(
+    "project_video"
+)
+
+validate_project_document_upload = PublicUploadValidator(
+    "project_document"
 )
 
 validate_private_profile_image_upload = PrivateUploadValidator(

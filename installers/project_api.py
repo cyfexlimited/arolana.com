@@ -1,5 +1,8 @@
+from pathlib import Path
+
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db.models import Count, Q
+from django.db import transaction
+from django.db.models import Count, Max, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import permissions, status
@@ -8,6 +11,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from products.models import Product
+from core.private_upload_validation import (
+    validate_project_document_upload,
+    validate_project_video_upload,
+)
 
 from .api_views import provider_from_request, provider_user_from_request, request_user_from_mobile_payload
 from .models import (
@@ -24,6 +31,7 @@ from .project_services import (
     moderate_project,
     notify_project_submitted,
     record_project_event,
+    validate_external_project_video_url,
 )
 from .serializers import (
     ServiceCategorySerializer,
@@ -50,6 +58,62 @@ def _project_lookup(queryset, value):
     if str(value).isdigit():
         lookup |= Q(pk=int(value))
     return get_object_or_404(queryset, lookup)
+
+
+PROJECT_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".avif"}
+PROJECT_VIDEO_EXTENSIONS = {".mp4", ".webm", ".mov", ".m4v"}
+PROJECT_DOCUMENT_EXTENSIONS = {".pdf", ".docx"}
+
+
+def _truthy(value):
+    return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _classify_project_upload(upload, requested_media_type=""):
+    if requested_media_type in dict(ServiceProjectMedia.MEDIA_TYPES):
+        return requested_media_type
+    content_type = str(getattr(upload, "content_type", "") or "").lower()
+    suffix = Path(str(getattr(upload, "name", "") or "")).suffix.lower()
+    if content_type.startswith("video/") or suffix in PROJECT_VIDEO_EXTENSIONS:
+        return ServiceProjectMedia.TYPE_VIDEO
+    if content_type in {
+        "application/pdf",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    } or suffix in PROJECT_DOCUMENT_EXTENSIONS:
+        return ServiceProjectMedia.TYPE_DOCUMENT
+    if content_type.startswith("image/") or suffix in PROJECT_IMAGE_EXTENSIONS:
+        return ServiceProjectMedia.TYPE_IMAGE
+    raise DjangoValidationError(
+        "Unsupported project media. Upload JPG, PNG, WebP, AVIF, MP4, WebM, MOV, M4V, PDF, or DOCX."
+    )
+
+
+def _normalized_project_stage(stage, media_type, is_cover=False):
+    valid_stages = dict(ServiceProjectMedia.STAGE_CHOICES)
+    stage = stage if stage in valid_stages else ServiceProjectMedia.STAGE_GENERAL
+    if media_type == ServiceProjectMedia.TYPE_DOCUMENT:
+        return ServiceProjectMedia.STAGE_SUPPORTING_DOCUMENT
+    if stage == ServiceProjectMedia.STAGE_SUPPORTING_DOCUMENT:
+        stage = ServiceProjectMedia.STAGE_GENERAL
+    if stage == ServiceProjectMedia.STAGE_COVER and media_type != ServiceProjectMedia.TYPE_IMAGE:
+        return ServiceProjectMedia.STAGE_GENERAL
+    return stage
+
+
+def _media_group_payload(media_items, request):
+    groups = []
+    grouped = {}
+    for media in media_items:
+        grouped.setdefault(media.stage, []).append(media)
+    for stage, label in ServiceProjectMedia.STAGE_CHOICES:
+        items = grouped.get(stage, [])
+        if items:
+            groups.append({
+                "stage": stage,
+                "label": label,
+                "items": ServiceProjectMediaSerializer(items, many=True, context={"request": request}).data,
+            })
+    return groups
 
 
 class PublicProjectListAPIView(APIView):
@@ -335,24 +399,189 @@ class ProviderProjectSubmitAPIView(ProviderProjectDetailAPIView):
 
 
 class ProviderProjectMediaAPIView(ProviderProjectDetailAPIView):
+    def get(self, request, project_id):
+        provider, project, error = self._project(request, project_id)
+        if error:
+            return error
+        media_items = list(project.media_items.order_by("display_order", "id"))
+        return Response({
+            "media": ServiceProjectMediaSerializer(
+                media_items,
+                many=True,
+                context={"request": request},
+            ).data,
+            "media_groups": _media_group_payload(media_items, request),
+            "entitlements": ProjectEntitlementService(provider).payload(),
+        })
+
     def post(self, request, project_id):
         provider, project, error = self._project(request, project_id)
         if error:
             return error
-        permission = ProjectEntitlementService(provider).can_add_project_media(project)
-        if not permission.allowed:
-            return Response(permission.as_dict(), status=status.HTTP_403_FORBIDDEN)
-        if request.FILES.get("video") and not ProjectEntitlementService(provider).can_upload_local_video(project).allowed:
-            return Response(ProjectEntitlementService(provider).can_upload_local_video(project).as_dict(), status=status.HTTP_403_FORBIDDEN)
-        serializer = ServiceProjectMediaWriteSerializer(data=request.data, context={"request": request})
-        serializer.is_valid(raise_exception=True)
+        service = ProjectEntitlementService(provider)
+        uploads = list(request.FILES.getlist("files"))
+        external_video_url = str(request.data.get("external_video_url", "") or "").strip()
+        thumbnail = request.FILES.get("thumbnail")
+
+        if external_video_url:
+            external_permission = service.can_add_external_video()
+            if not external_permission.allowed:
+                return Response(
+                    external_permission.as_dict(),
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            try:
+                external_video_url = validate_external_project_video_url(
+                    external_video_url
+                )
+            except DjangoValidationError as exc:
+                detail = getattr(exc, "messages", None) or str(exc)
+                return Response(
+                    {"detail": detail},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        # Preserve the original single-media API contract used by older clients.
+        if not uploads:
+            for field_name in ("image", "video", "document"):
+                upload = request.FILES.get(field_name)
+                if upload:
+                    uploads.append(upload)
+                    break
+
+        if not uploads and not external_video_url:
+            return Response(
+                {"detail": "Choose one or more project files or provide a video URL."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        explicit_media_type = str(request.data.get("media_type", "") or "").strip()
         try:
-            media = serializer.save(project=project)
+            classified = [
+                (upload, _classify_project_upload(upload, explicit_media_type if len(uploads) == 1 else ""))
+                for upload in uploads
+            ]
         except DjangoValidationError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        requested_by_type = {
+            ServiceProjectMedia.TYPE_IMAGE: 0,
+            ServiceProjectMedia.TYPE_VIDEO: 0,
+            ServiceProjectMedia.TYPE_DOCUMENT: 0,
+        }
+        for _upload, media_type in classified:
+            requested_by_type[media_type] += 1
+        if external_video_url:
+            requested_by_type[ServiceProjectMedia.TYPE_VIDEO] += 1
+
+        total_requested = sum(requested_by_type.values())
+        permission = service.can_add_project_media(project, requested_count=total_requested)
+        if not permission.allowed:
+            return Response(permission.as_dict(), status=status.HTTP_403_FORBIDDEN)
+        for media_type, requested_count in requested_by_type.items():
+            if not requested_count:
+                continue
+            type_permission = service.can_add_project_media(
+                project,
+                requested_count=requested_count,
+                media_type=media_type,
+            )
+            if not type_permission.allowed:
+                return Response(type_permission.as_dict(), status=status.HTTP_403_FORBIDDEN)
+
+        local_video_count = sum(
+            1 for _upload, media_type in classified
+            if media_type == ServiceProjectMedia.TYPE_VIDEO
+        )
+        if local_video_count:
+            video_permission = service.can_upload_local_video(
+                project,
+                requested_count=local_video_count,
+            )
+            if not video_permission.allowed:
+                return Response(video_permission.as_dict(), status=status.HTTP_403_FORBIDDEN)
+
+        max_video_size_mb = int(service.limits.get("max_video_size_mb", 0) or 0)
+        stage = str(request.data.get("stage", ServiceProjectMedia.STAGE_GENERAL) or "").strip()
+        caption = str(request.data.get("caption", "") or "").strip()[:300]
+        alt_text = str(request.data.get("alt_text", "") or "").strip()[:220]
+        make_cover = _truthy(request.data.get("is_cover"))
+        mark_featured = _truthy(request.data.get("is_featured"))
+        current_max = project.media_items.aggregate(value=Max("display_order"))["value"] or 0
+        try:
+            order_start = int(request.data.get("display_order", current_max + 1))
+        except (TypeError, ValueError):
+            order_start = current_max + 1
+
+        created = []
+        try:
+            with transaction.atomic():
+                for index, (upload, media_type) in enumerate(classified):
+                    is_cover = bool(
+                        make_cover
+                        and media_type == ServiceProjectMedia.TYPE_IMAGE
+                        and not any(item.is_cover for item in created)
+                    )
+                    media_stage = _normalized_project_stage(stage, media_type, is_cover=is_cover)
+                    if media_type == ServiceProjectMedia.TYPE_VIDEO:
+                        validate_project_video_upload(upload)
+                        if max_video_size_mb >= 0 and (
+                            max_video_size_mb == 0
+                            or int(getattr(upload, "size", 0) or 0) > max_video_size_mb * 1024 * 1024
+                        ):
+                            raise DjangoValidationError(
+                                f"This video exceeds your plan's {max_video_size_mb} MB project video limit."
+                            )
+                    elif media_type == ServiceProjectMedia.TYPE_DOCUMENT:
+                        validate_project_document_upload(upload)
+
+                    media = ServiceProjectMedia(
+                        project=project,
+                        media_type=media_type,
+                        stage=media_stage,
+                        caption=caption,
+                        alt_text=alt_text,
+                        display_order=max(order_start + index, 0),
+                        is_featured=mark_featured or is_cover,
+                        is_cover=is_cover,
+                        uploaded_by=provider.user,
+                    )
+                    if media_type == ServiceProjectMedia.TYPE_IMAGE:
+                        media.image = upload
+                    elif media_type == ServiceProjectMedia.TYPE_VIDEO:
+                        media.video = upload
+                        if thumbnail:
+                            media.thumbnail = thumbnail
+                            thumbnail = None
+                    else:
+                        media.document = upload
+                    media.save()
+                    created.append(media)
+
+                if external_video_url:
+                    media = ServiceProjectMedia(
+                        project=project,
+                        media_type=ServiceProjectMedia.TYPE_VIDEO,
+                        stage=_normalized_project_stage(stage, ServiceProjectMedia.TYPE_VIDEO),
+                        external_video_url=external_video_url,
+                        caption=caption,
+                        alt_text=alt_text,
+                        display_order=max(order_start + len(created), 0),
+                        is_featured=mark_featured,
+                        uploaded_by=provider.user,
+                    )
+                    if thumbnail:
+                        media.thumbnail = thumbnail
+                    media.save()
+                    created.append(media)
+        except DjangoValidationError as exc:
+            detail = getattr(exc, "message_dict", None) or getattr(exc, "messages", None) or str(exc)
+            return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
+
         return Response({
-            "message": "Project media uploaded for review.",
-            "media": ServiceProjectMediaSerializer(media, context={"request": request}).data,
+            "message": f"{len(created)} project media item{'s' if len(created) != 1 else ''} uploaded for review.",
+            "media": ServiceProjectMediaSerializer(created, many=True, context={"request": request}).data,
+            "entitlements": service.payload(),
         }, status=status.HTTP_201_CREATED)
 
 
@@ -369,12 +598,20 @@ class ProviderProjectMediaDeleteAPIView(ProviderProjectDetailAPIView):
             context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
+        source_changed = any(
+            key in request.data
+            for key in ("media_type", "image", "video", "document", "external_video_url", "thumbnail")
+        )
         media = serializer.save()
-        if media.approval_status == ServiceProjectMedia.STATUS_APPROVED:
+        if source_changed and media.approval_status == ServiceProjectMedia.STATUS_APPROVED:
             media.approval_status = ServiceProjectMedia.STATUS_PENDING
             media.save(update_fields=["approval_status", "updated_at"])
         return Response({
-            "message": "Project media updated for review.",
+            "message": (
+                "Project media source updated and returned for review."
+                if source_changed
+                else "Project media details updated."
+            ),
             "media": ServiceProjectMediaSerializer(media, context={"request": request}).data,
         })
 
@@ -385,6 +622,54 @@ class ProviderProjectMediaDeleteAPIView(ProviderProjectDetailAPIView):
         media = get_object_or_404(project.media_items, pk=media_id)
         media.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ProviderProjectMediaReorderAPIView(ProviderProjectDetailAPIView):
+    def post(self, request, project_id):
+        _provider, project, error = self._project(request, project_id)
+        if error:
+            return error
+        media_ids = request.data.get("media_ids")
+        if not isinstance(media_ids, list) or not media_ids:
+            return Response({"detail": "Provide media_ids in the required order."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            media_ids = [int(value) for value in media_ids]
+        except (TypeError, ValueError):
+            return Response({"detail": "Every media id must be numeric."}, status=status.HTTP_400_BAD_REQUEST)
+        project_ids = set(project.media_items.filter(pk__in=media_ids).values_list("id", flat=True))
+        if len(project_ids) != len(set(media_ids)):
+            return Response({"detail": "One or more media items do not belong to this project."}, status=status.HTTP_403_FORBIDDEN)
+        with transaction.atomic():
+            for index, media_id in enumerate(media_ids):
+                ServiceProjectMedia.objects.filter(project=project, pk=media_id).update(display_order=index)
+            remaining = project.media_items.exclude(pk__in=media_ids).order_by("display_order", "id")
+            for index, media in enumerate(remaining, start=len(media_ids)):
+                if media.display_order != index:
+                    ServiceProjectMedia.objects.filter(pk=media.pk).update(display_order=index)
+        media_items = project.media_items.order_by("display_order", "id")
+        return Response({
+            "message": "Project media order saved.",
+            "media": ServiceProjectMediaSerializer(media_items, many=True, context={"request": request}).data,
+        })
+
+
+class ProviderProjectMediaCoverAPIView(ProviderProjectDetailAPIView):
+    def post(self, request, project_id, media_id):
+        _provider, project, error = self._project(request, project_id)
+        if error:
+            return error
+        media = get_object_or_404(
+            project.media_items,
+            pk=media_id,
+            media_type=ServiceProjectMedia.TYPE_IMAGE,
+        )
+        media.is_cover = True
+        media.is_featured = True
+        media.save(update_fields=["is_cover", "is_featured", "updated_at"])
+        return Response({
+            "message": "Project cover updated.",
+            "media": ServiceProjectMediaSerializer(media, context={"request": request}).data,
+        })
 
 
 class ProviderProjectEntitlementsAPIView(APIView):
@@ -524,3 +809,66 @@ class StaffProjectVerifyAPIView(StaffProjectDetailAPIView):
         project.is_verified_project = bool(request.data.get("verified", True))
         project.save(update_fields=["is_verified_project", "updated_at"])
         return Response({"success": True, "is_verified_project": project.is_verified_project})
+
+
+class StaffProjectMediaAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        user = provider_user_from_request(request)
+        if not user or not user.is_staff:
+            return Response({"detail": "Arolana staff access is required."}, status=status.HTTP_403_FORBIDDEN)
+        media_items = ServiceProjectMedia.objects.select_related(
+            "project",
+            "project__provider",
+            "uploaded_by",
+        ).order_by("created_at", "id")
+        approval_status = str(request.query_params.get("status", "") or "").strip()
+        project_id = request.query_params.get("project_id")
+        media_type = str(request.query_params.get("media_type", "") or "").strip()
+        if approval_status:
+            media_items = media_items.filter(approval_status=approval_status)
+        if project_id:
+            media_items = media_items.filter(project_id=project_id)
+        if media_type:
+            media_items = media_items.filter(media_type=media_type)
+        return Response({
+            "media": ServiceProjectMediaSerializer(
+                media_items[:200],
+                many=True,
+                context={"request": request},
+            ).data,
+        })
+
+
+class StaffProjectMediaModerationAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, project_id, media_id):
+        user = provider_user_from_request(request)
+        if not user or not user.is_staff:
+            return Response({"detail": "Arolana staff access is required."}, status=status.HTTP_403_FORBIDDEN)
+        media = get_object_or_404(
+            ServiceProjectMedia.objects.select_related("project", "project__provider"),
+            pk=media_id,
+            project_id=project_id,
+        )
+        approval_status = str(request.data.get("status", "") or "").strip()
+        allowed_statuses = {
+            ServiceProjectMedia.STATUS_PENDING,
+            ServiceProjectMedia.STATUS_APPROVED,
+            ServiceProjectMedia.STATUS_REJECTED,
+            ServiceProjectMedia.STATUS_REQUIRES_CHANGES,
+        }
+        if approval_status not in allowed_statuses:
+            return Response(
+                {"detail": "Choose pending, approved, rejected, or requires_changes."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        media.approval_status = approval_status
+        media.moderation_note = str(request.data.get("note", "") or "").strip()
+        media.save(update_fields=["approval_status", "moderation_note", "updated_at"])
+        return Response({
+            "message": f"Project media marked {media.get_approval_status_display().lower()}.",
+            "media": ServiceProjectMediaSerializer(media, context={"request": request}).data,
+        })

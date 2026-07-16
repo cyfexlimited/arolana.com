@@ -1,15 +1,17 @@
 from datetime import timedelta
 from decimal import Decimal
+from pathlib import Path
 import uuid
 from urllib.parse import parse_qs, urlparse
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.validators import (
     MaxValueValidator,
     MinValueValidator,
     RegexValidator,
 )
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Avg, Prefetch
 from django.urls import reverse
 from django.utils import timezone
@@ -24,6 +26,7 @@ from core.html_sanitization import (
     sanitize_rich_html,
 )
 from core.image_protection import (
+    ProtectedFileUploadPath,
     ProtectedImageUploadPath,
     protect_uploaded_image,
     record_protected_image,
@@ -32,6 +35,8 @@ from core.models import BaseModel
 from core.private_upload_validation import (
     validate_kyc_upload,
     validate_private_profile_image_upload,
+    validate_project_document_upload,
+    validate_project_video_upload,
     validate_sensitive_profile_file_upload,
 )
 
@@ -43,6 +48,54 @@ phone_validator = RegexValidator(
         "preferably with country code."
     ),
 )
+
+
+PROJECT_VIDEO_HOSTS = {
+    "youtube.com",
+    "www.youtube.com",
+    "m.youtube.com",
+    "youtu.be",
+    "vimeo.com",
+    "www.vimeo.com",
+    "player.vimeo.com",
+}
+
+
+def project_external_video_embed_url(value):
+    """Return a safe embed URL for supported project video providers."""
+    value = str(value or "").strip()
+    if not value:
+        return ""
+    try:
+        parsed = urlparse(value)
+    except (TypeError, ValueError):
+        return ""
+    host = parsed.netloc.lower()
+    if parsed.scheme not in {"http", "https"} or host not in PROJECT_VIDEO_HOSTS:
+        return ""
+
+    path_parts = [part for part in parsed.path.split("/") if part]
+    if "youtu" in host:
+        video_id = ""
+        if host == "youtu.be" and path_parts:
+            video_id = path_parts[0]
+        elif parsed.path == "/watch":
+            video_id = (parse_qs(parsed.query).get("v") or [""])[0]
+        elif path_parts and path_parts[0] in {"embed", "shorts", "live"} and len(path_parts) > 1:
+            video_id = path_parts[1]
+        if video_id and all(character.isalnum() or character in {"-", "_"} for character in video_id):
+            return f"https://www.youtube.com/embed/{video_id}?playsinline=1&rel=0&modestbranding=1"
+        return ""
+
+    video_id = path_parts[-1] if path_parts else ""
+    return f"https://player.vimeo.com/video/{video_id}" if video_id.isdigit() else ""
+
+
+def validate_project_external_video_url(value):
+    value = str(value or "").strip()
+    if value and not project_external_video_embed_url(value):
+        raise ValidationError("Use a supported public YouTube or Vimeo video URL.")
+    return value
 
 
 # =============================================================================
@@ -1793,6 +1846,7 @@ class PublicProjectQuerySet(
                             is_active=True,
                         )
                         .order_by(
+                            "-is_cover",
                             "-is_featured",
                             "display_order",
                             "id",
@@ -2436,6 +2490,7 @@ class ServicePortfolio(models.Model):
                 )
             )
             .order_by(
+                "-is_cover",
                 "-is_featured",
                 "display_order",
                 "id",
@@ -2463,6 +2518,7 @@ class ServicePortfolio(models.Model):
                 is_active=True,
             )
             .order_by(
+                "-is_cover",
                 "display_order",
                 "id",
             )
@@ -2608,6 +2664,7 @@ class ServiceProjectMedia(BaseModel):
     STATUS_PENDING = "pending"
     STATUS_APPROVED = "approved"
     STATUS_REJECTED = "rejected"
+    STATUS_REQUIRES_CHANGES = "requires_changes"
 
     STATUS_CHOICES = [
         (
@@ -2622,38 +2679,74 @@ class ServiceProjectMedia(BaseModel):
             STATUS_REJECTED,
             "Rejected",
         ),
+        (
+            STATUS_REQUIRES_CHANGES,
+            "Requires changes",
+        ),
     ]
 
+    TYPE_IMAGE = "image"
+    TYPE_VIDEO = "video"
+    TYPE_DOCUMENT = "document"
+
     MEDIA_TYPES = [
-        (
-            "image",
-            "Image",
-        ),
-        (
-            "video",
-            "Video",
-        ),
-        (
-            "before_image",
-            "Before image",
-        ),
-        (
-            "during_image",
-            "During image",
-        ),
-        (
-            "after_image",
-            "After image",
-        ),
-        (
-            "progress_image",
-            "Progress image",
-        ),
-        (
-            "document",
-            "Document",
-        ),
+        (TYPE_IMAGE, "Image"),
+        (TYPE_VIDEO, "Video"),
+        (TYPE_DOCUMENT, "Document"),
     ]
+
+    STAGE_GENERAL = "general"
+    STAGE_COVER = "cover"
+    STAGE_BEFORE = "before"
+    STAGE_PROGRESS = "progress"
+    STAGE_INSTALLATION = "installation"
+    STAGE_REPAIR_DIAGNOSIS = "repair_diagnosis"
+    STAGE_REPAIR_PROCESS = "repair_process"
+    STAGE_TESTING = "testing"
+    STAGE_COMMISSIONING = "commissioning"
+    STAGE_AFTER = "after"
+    STAGE_FINAL_RESULT = "final_result"
+    STAGE_WALKTHROUGH = "walkthrough"
+    STAGE_CUSTOMER_TESTIMONIAL = "customer_testimonial"
+    STAGE_SUPPORTING_DOCUMENT = "supporting_document"
+
+    STAGE_CHOICES = [
+        (STAGE_GENERAL, "General"),
+        (STAGE_COVER, "Cover"),
+        (STAGE_BEFORE, "Before"),
+        (STAGE_PROGRESS, "Progress"),
+        (STAGE_INSTALLATION, "Installation"),
+        (STAGE_REPAIR_DIAGNOSIS, "Repair diagnosis"),
+        (STAGE_REPAIR_PROCESS, "Repair process"),
+        (STAGE_TESTING, "Testing"),
+        (STAGE_COMMISSIONING, "Commissioning"),
+        (STAGE_AFTER, "After"),
+        (STAGE_FINAL_RESULT, "Final result"),
+        (STAGE_WALKTHROUGH, "Walkthrough"),
+        (STAGE_CUSTOMER_TESTIMONIAL, "Customer testimonial"),
+        (STAGE_SUPPORTING_DOCUMENT, "Supporting document"),
+    ]
+
+    PROCESSING_NONE = "none"
+    PROCESSING_PENDING = "pending"
+    PROCESSING_ACTIVE = "processing"
+    PROCESSING_COMPLETED = "completed"
+    PROCESSING_FAILED = "failed"
+
+    PROCESSING_CHOICES = [
+        (PROCESSING_NONE, "Not required"),
+        (PROCESSING_PENDING, "Pending"),
+        (PROCESSING_ACTIVE, "Processing"),
+        (PROCESSING_COMPLETED, "Completed"),
+        (PROCESSING_FAILED, "Failed"),
+    ]
+
+    LEGACY_TYPE_MAP = {
+        "before_image": (TYPE_IMAGE, STAGE_BEFORE),
+        "during_image": (TYPE_IMAGE, STAGE_PROGRESS),
+        "progress_image": (TYPE_IMAGE, STAGE_PROGRESS),
+        "after_image": (TYPE_IMAGE, STAGE_AFTER),
+    }
 
     project = models.ForeignKey(
         ServicePortfolio,
@@ -2668,6 +2761,13 @@ class ServiceProjectMedia(BaseModel):
         db_index=True,
     )
 
+    stage = models.CharField(
+        max_length=32,
+        choices=STAGE_CHOICES,
+        default=STAGE_GENERAL,
+        db_index=True,
+    )
+
     image = models.ImageField(
         upload_to=ProtectedImageUploadPath(
             "installers/projects/gallery"
@@ -2677,11 +2777,24 @@ class ServiceProjectMedia(BaseModel):
     )
 
     video = models.FileField(
-        upload_to=(
-            "installers/projects/videos/%Y/%m/"
-        ),
+        upload_to=ProtectedFileUploadPath("installers/projects/videos"),
         blank=True,
         null=True,
+        validators=[validate_project_video_upload],
+    )
+
+    processed_video = models.FileField(
+        upload_to=ProtectedFileUploadPath("installers/projects/videos/processed"),
+        blank=True,
+        null=True,
+        validators=[validate_project_video_upload],
+    )
+
+    document = models.FileField(
+        upload_to=ProtectedFileUploadPath("installers/projects/documents"),
+        blank=True,
+        null=True,
+        validators=[validate_project_document_upload],
     )
 
     external_video_url = models.URLField(
@@ -2714,11 +2827,58 @@ class ServiceProjectMedia(BaseModel):
         default=False,
     )
 
+    is_cover = models.BooleanField(
+        default=False,
+        db_index=True,
+    )
+
     approval_status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
         default=STATUS_PENDING,
         db_index=True,
+    )
+
+    moderation_note = models.TextField(
+        blank=True,
+    )
+
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="uploaded_service_project_media",
+    )
+
+    video_duration = models.PositiveIntegerField(
+        default=0,
+        help_text="Duration in seconds when known.",
+    )
+
+    file_size = models.BigIntegerField(
+        default=0,
+    )
+
+    mime_type = models.CharField(
+        max_length=120,
+        blank=True,
+    )
+
+    original_filename = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    processing_status = models.CharField(
+        max_length=20,
+        choices=PROCESSING_CHOICES,
+        default=PROCESSING_NONE,
+        db_index=True,
+    )
+
+    processing_error = models.TextField(
+        blank=True,
     )
 
     class Meta:
@@ -2738,16 +2898,70 @@ class ServiceProjectMedia(BaseModel):
             models.Index(
                 fields=[
                     "media_type",
+                    "stage",
                     "approval_status",
                 ]
+            ),
+            models.Index(
+                fields=[
+                    "project",
+                    "is_cover",
+                    "is_featured",
+                ]
+            ),
+            models.Index(
+                fields=[
+                    "project",
+                    "created_at",
+                ]
+            ),
+        ]
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=["project"],
+                condition=models.Q(is_cover=True),
+                name="unique_service_project_cover_media",
             ),
         ]
 
     def __str__(self):
         return (
             f"{self.project.title} - "
-            f"{self.get_media_type_display()}"
+            f"{self.get_media_type_display()} / "
+            f"{self.get_stage_display()}"
         )
+
+    @property
+    def moderation_status(self):
+        return self.approval_status
+
+    @moderation_status.setter
+    def moderation_status(self, value):
+        self.approval_status = value
+
+    @property
+    def video_thumbnail(self):
+        return self.thumbnail
+
+    @property
+    def playable_video(self):
+        if self.processed_video:
+            return self.processed_video
+        suffix = Path(str(getattr(self.video, "name", "") or "")).suffix.lower()
+        return self.video if suffix in {".mp4", ".webm"} else None
+
+    @property
+    def video_embed_url(self):
+        return project_external_video_embed_url(self.external_video_url)
+
+    @property
+    def source_file(self):
+        if self.media_type == self.TYPE_IMAGE:
+            return self.image
+        if self.media_type == self.TYPE_VIDEO:
+            return self.video or self.processed_video
+        return self.document
 
     @property
     def vendor(self):
@@ -2757,11 +2971,131 @@ class ServiceProjectMedia(BaseModel):
             else None
         )
 
+    def _normalize_legacy_type(self):
+        mapped = self.LEGACY_TYPE_MAP.get(self.media_type)
+        if mapped:
+            self.media_type, mapped_stage = mapped
+            if not self.stage or self.stage == self.STAGE_GENERAL:
+                self.stage = mapped_stage
+
+    def _capture_upload_metadata(self):
+        source = self.source_file
+        if not source:
+            return
+        self.file_size = int(getattr(source, "size", 0) or 0)
+        self.mime_type = str(getattr(source, "content_type", "") or "")[:120]
+        source_name = str(getattr(source, "name", "") or "")
+        if source_name and (not self.pk or not self.original_filename):
+            self.original_filename = source_name.rsplit("/", 1)[-1][:255]
+
+    def clean(self):
+        super().clean()
+        self._normalize_legacy_type()
+
+        has_image = bool(self.image)
+        has_video = bool(self.video or self.processed_video or self.external_video_url)
+        has_document = bool(self.document)
+
+        if self.media_type == self.TYPE_IMAGE and not has_image:
+            raise ValidationError({"image": "Upload an image for image media."})
+        if self.media_type == self.TYPE_IMAGE and (has_video or has_document):
+            raise ValidationError(
+                "Image media cannot also contain a video, external video, or document."
+            )
+        if self.media_type == self.TYPE_VIDEO and not has_video:
+            raise ValidationError({"video": "Upload a video or provide a video URL."})
+        if self.media_type == self.TYPE_VIDEO and self.external_video_url and (self.video or self.processed_video):
+            raise ValidationError(
+                {"external_video_url": "Use either a local video or an external video URL, not both."}
+            )
+        if self.external_video_url:
+            try:
+                self.external_video_url = validate_project_external_video_url(
+                    self.external_video_url
+                )
+            except ValidationError as exc:
+                raise ValidationError({"external_video_url": exc.messages}) from exc
+        if self.media_type == self.TYPE_VIDEO and (has_image or has_document):
+            raise ValidationError(
+                "Video media cannot also contain an image or document. Use the thumbnail field for its poster."
+            )
+        if self.media_type == self.TYPE_DOCUMENT and not has_document:
+            raise ValidationError({"document": "Upload a supporting document."})
+        if self.media_type == self.TYPE_DOCUMENT and (has_image or has_video):
+            raise ValidationError(
+                "Document media cannot also contain an image, video, or external video."
+            )
+        if self.stage == self.STAGE_SUPPORTING_DOCUMENT and self.media_type != self.TYPE_DOCUMENT:
+            raise ValidationError({"stage": "Supporting document stage requires document media."})
+        if self.is_cover and self.media_type != self.TYPE_IMAGE:
+            raise ValidationError({"is_cover": "Only an image can be the project cover."})
+
+        if self.stage == self.STAGE_COVER:
+            if self.media_type != self.TYPE_IMAGE:
+                raise ValidationError({"stage": "Project cover media must be an image."})
+            self.is_cover = True
+
+        if self.media_type == self.TYPE_DOCUMENT and self.stage == self.STAGE_GENERAL:
+            self.stage = self.STAGE_SUPPORTING_DOCUMENT
+
+        if self.media_type == self.TYPE_VIDEO:
+            source_suffix = Path(
+                str(getattr(self.video, "name", "") or "")
+            ).suffix.lower()
+            if self.processed_video:
+                self.processing_status = self.PROCESSING_COMPLETED
+            elif self.external_video_url or source_suffix in {".mp4", ".webm"}:
+                self.processing_status = self.PROCESSING_NONE
+                self.processing_error = ""
+            elif self.video and source_suffix in {".mov", ".m4v"}:
+                if self.processing_status not in {
+                    self.PROCESSING_ACTIVE,
+                    self.PROCESSING_FAILED,
+                }:
+                    self.processing_status = self.PROCESSING_PENDING
+
     def save(
         self,
         *args,
         **kwargs,
     ):
+        previous_processed_name = ""
+        source_changed = False
+        if self.pk:
+            previous = (
+                ServiceProjectMedia.objects
+                .filter(pk=self.pk)
+                .values(
+                    "media_type",
+                    "video",
+                    "processed_video",
+                    "external_video_url",
+                )
+                .first()
+            )
+            if previous:
+                source_changed = any(
+                    (
+                        previous["media_type"] != self.media_type,
+                        str(previous["video"] or "")
+                        != str(getattr(self.video, "name", "") or ""),
+                        str(previous["external_video_url"] or "")
+                        != str(self.external_video_url or ""),
+                    )
+                )
+                if source_changed:
+                    previous_processed_name = str(
+                        previous["processed_video"] or ""
+                    )
+                    self.processed_video = None
+                    self.video_duration = 0
+                    self.processing_error = ""
+                    self.processing_status = self.PROCESSING_NONE
+
+        self._normalize_legacy_type()
+        self._capture_upload_metadata()
+        self.clean()
+
         protect_uploaded_image(
             self,
             "image",
@@ -2774,10 +3108,56 @@ class ServiceProjectMedia(BaseModel):
             block_cross_vendor_duplicates=True,
         )
 
-        super().save(
-            *args,
-            **kwargs,
-        )
+        with transaction.atomic():
+            if self.is_cover:
+                ServiceProjectMedia.objects.filter(
+                    project_id=self.project_id,
+                    is_cover=True,
+                ).exclude(pk=self.pk).update(
+                    is_cover=False,
+                    is_featured=False,
+                )
+                self.is_featured = True
+            elif (
+                self.media_type == self.TYPE_IMAGE
+                and self.project_id
+                and not ServiceProjectMedia.objects.filter(
+                    project_id=self.project_id,
+                    is_cover=True,
+                ).exclude(pk=self.pk).exists()
+            ):
+                self.is_cover = True
+                self.is_featured = True
+
+            if kwargs.get("update_fields") is not None:
+                kwargs["update_fields"] = set(kwargs["update_fields"]) | {
+                    "media_type",
+                    "stage",
+                    "is_cover",
+                    "is_featured",
+                    "file_size",
+                    "mime_type",
+                    "original_filename",
+                    "processing_status",
+                }
+                if source_changed:
+                    kwargs["update_fields"] |= {
+                        "processed_video",
+                        "video_duration",
+                        "processing_error",
+                    }
+
+            super().save(*args, **kwargs)
+
+        if (
+            source_changed
+            and previous_processed_name
+            and previous_processed_name
+            != str(getattr(self.processed_video, "name", "") or "")
+        ):
+            storage = self.processed_video.storage
+            if storage.exists(previous_processed_name):
+                storage.delete(previous_processed_name)
 
         record_protected_image(
             self,
@@ -2788,6 +3168,21 @@ class ServiceProjectMedia(BaseModel):
             self,
             "thumbnail",
         )
+
+    def delete(self, *args, **kwargs):
+        project_id = self.project_id
+        was_cover = self.is_cover
+        result = super().delete(*args, **kwargs)
+        if was_cover and project_id:
+            replacement = ServiceProjectMedia.objects.filter(
+                project_id=project_id,
+                media_type=self.TYPE_IMAGE,
+                is_active=True,
+            ).order_by("display_order", "id").first()
+            if replacement:
+                replacement.is_cover = True
+                replacement.save(update_fields=["is_cover", "is_featured", "updated_at"])
+        return result
 
 
 # =============================================================================

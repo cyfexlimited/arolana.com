@@ -27,14 +27,18 @@ provider_project_urlpatterns = [
     path("projects/<int:project_id>/", project_api.ProviderProjectDetailAPIView.as_view(), name="provider_project_detail"),
     path("projects/<int:project_id>/submit/", project_api.ProviderProjectSubmitAPIView.as_view(), name="provider_project_submit"),
     path("projects/<int:project_id>/media/", project_api.ProviderProjectMediaAPIView.as_view(), name="provider_project_media"),
+    path("projects/<int:project_id>/media/reorder/", project_api.ProviderProjectMediaReorderAPIView.as_view(), name="provider_project_media_reorder"),
     path("projects/<int:project_id>/media/<int:media_id>/", project_api.ProviderProjectMediaDeleteAPIView.as_view(), name="provider_project_media_delete"),
+    path("projects/<int:project_id>/media/<int:media_id>/cover/", project_api.ProviderProjectMediaCoverAPIView.as_view(), name="provider_project_media_cover"),
     path("projects/<int:project_id>/analytics/", project_api.ProviderProjectAnalyticsAPIView.as_view(), name="provider_project_analytics"),
 ]
 
 
 staff_project_urlpatterns = [
     path("projects/", project_api.StaffProjectsAPIView.as_view(), name="staff_projects"),
+    path("projects/media/", project_api.StaffProjectMediaAPIView.as_view(), name="staff_project_media"),
     path("projects/<int:project_id>/", project_api.StaffProjectDetailAPIView.as_view(), name="staff_project_detail"),
+    path("projects/<int:project_id>/media/<int:media_id>/moderate/", project_api.StaffProjectMediaModerationAPIView.as_view(), name="staff_project_media_moderate"),
     path("projects/<int:project_id>/approve/", project_api.StaffProjectApproveAPIView.as_view(), name="staff_project_approve"),
     path("projects/<int:project_id>/require-changes/", project_api.StaffProjectRequireChangesAPIView.as_view(), name="staff_project_require_changes"),
     path("projects/<int:project_id>/reject/", project_api.StaffProjectRejectAPIView.as_view(), name="staff_project_reject"),
