@@ -29,6 +29,7 @@
   .project-hero-content{position:relative;z-index:1;display:flex;min-height:inherit;max-width:52rem;flex-direction:column;justify-content:flex-end;padding:clamp(1.4rem,4vw,3rem)}
   .project-hero-title{max-width:18ch;font-size:clamp(2rem,5vw,4rem);line-height:1.04;text-wrap:balance}
   .project-section-title{font-size:clamp(1.6rem,3vw,2rem);line-height:1.15;text-wrap:balance}
+  .project-detail-content,.project-gallery-panel,.project-media-stage{min-width:0}
   .project-media-stage + .project-media-stage{margin-top:1.75rem}
   .project-media-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:start;gap:1rem}
   .project-media-card{position:relative;align-self:start;overflow:hidden;border:1px solid #e2e8f0;border-radius:1.15rem;background:#f8fafc;box-shadow:0 8px 24px rgba(15,23,42,.05)}
@@ -45,7 +46,7 @@
   .project-media-copy span{display:-webkit-box;margin-top:.25rem;overflow:hidden;color:#64748b;font-size:.8rem;-webkit-box-orient:vertical;-webkit-line-clamp:2}
   .project-video-overlay{position:absolute;inset:0;display:grid;place-items:center;padding:1rem;background:rgba(2,8,23,.82);color:#fff;text-align:center;transition:opacity .2s ease}
   .project-video-overlay[hidden]{display:none}
-  .project-video-action{margin-top:.75rem;border:1px solid rgba(255,255,255,.45);border-radius:999px;padding:.5rem .85rem;background:#fff;color:#071a44;font-size:.75rem;font-weight:900}
+  .project-video-action{display:inline-flex;align-items:center;justify-content:center;margin-top:.75rem;border:1px solid rgba(255,255,255,.45);border-radius:999px;padding:.5rem .85rem;background:#fff;color:#071a44;font-size:.75rem;font-weight:900;text-decoration:none}
   .project-video-state{display:grid;min-height:180px;place-items:center;padding:1.5rem;text-align:center}
   .project-video-state.pending{background:#eff6ff;color:#075cb7}
   .project-video-state.failed{background:#fff7ed;color:#c2410c}
@@ -63,11 +64,13 @@
   .project-lightbox-prev{left:.75rem}.project-lightbox-next{right:.75rem}
   .project-lightbox-counter{flex:0 0 auto;color:#bfdbfe;font-size:.8rem;font-weight:800}
   body.project-detail-active .scroll-top-luxury,body.project-detail-active .arolana-scroll-top{right:max(.75rem,env(safe-area-inset-right));bottom:calc(6.25rem + env(safe-area-inset-bottom))}
+  body.project-detail-active .scroll-top-luxury{display:none!important}
   body.project-detail-active #arolana-smartchat-widget{right:max(.75rem,env(safe-area-inset-right));bottom:calc(.9rem + env(safe-area-inset-bottom))}
   @media(max-width:900px){.project-media-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
   @media(max-width:640px){
-    .project-detail-shell{padding-top:1rem}.project-breadcrumb > :not(a){display:none}.project-breadcrumb-desktop{display:none}.project-breadcrumb-mobile{display:inline}.project-hero{min-height:285px;border-radius:1.35rem!important}.project-hero-content{padding:1.2rem}.project-hero-title{display:-webkit-box;max-width:22ch;overflow:hidden;font-size:clamp(1.65rem,7vw,2.15rem);-webkit-box-orient:vertical;-webkit-line-clamp:4}.project-hero-summary{display:-webkit-box;overflow:hidden;font-size:.9rem;line-height:1.45;-webkit-box-orient:vertical;-webkit-line-clamp:3}.project-hero-meta{gap:.55rem!important;font-size:.75rem!important}.project-hero-views{display:none}
-    .project-gallery-panel,.project-overview-panel{border-radius:1.35rem!important;padding:1rem!important}.project-media-grid{gap:.65rem}.project-media-card{border-radius:.9rem}.project-media-card--video,.project-media-card--document{grid-column:1/-1}.project-media-copy{padding:.65rem .7rem}.project-media-copy strong{font-size:.78rem}.project-media-copy span{font-size:.7rem}.project-stage-count{display:none}.project-lightbox{width:100vw;max-height:100dvh;border-radius:0}.project-lightbox-stage{min-height:70dvh}.project-lightbox img{max-height:78dvh}.project-lightbox-bar{padding:max(.75rem,env(safe-area-inset-top)) .85rem .75rem}
+    .project-detail-shell{padding:.75rem}.project-breadcrumb{margin-bottom:.75rem!important}.project-breadcrumb > :not(a){display:none}.project-breadcrumb-desktop{display:none}.project-breadcrumb-mobile{display:inline}.project-hero{min-height:285px;border-radius:1.35rem!important}.project-hero-content{padding:1.2rem}.project-hero-title{display:-webkit-box;max-width:22ch;overflow:hidden;font-size:clamp(1.65rem,7vw,2.15rem);-webkit-box-orient:vertical;-webkit-line-clamp:4}.project-hero-summary{display:-webkit-box;overflow:hidden;font-size:.9rem;line-height:1.45;-webkit-box-orient:vertical;-webkit-line-clamp:3}.project-hero-meta{gap:.55rem!important;font-size:.75rem!important}.project-hero-views{display:none}
+    .project-detail-main{margin-top:1rem!important;gap:1rem!important}.project-detail-content > :not([hidden]) ~ :not([hidden]){margin-top:1rem!important}.project-gallery-panel{border-radius:1.2rem!important;padding:.85rem!important}.project-overview-panel{border-radius:1.2rem!important;padding:1rem!important}.project-section-title{font-size:1.35rem}.project-media-stage + .project-media-stage{margin-top:1.15rem}.project-media-stage h3{font-size:1.1rem}.project-media-grid{display:flex;gap:.7rem;overflow-x:auto;padding:.15rem .1rem .55rem;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch}.project-media-grid::-webkit-scrollbar{display:none}.project-media-card{flex:0 0 min(calc(100% - 1.25rem),20rem);border-radius:.9rem;scroll-snap-align:start}.project-media-card--video,.project-media-card--document{flex-basis:100%;min-width:100%}.project-media-card--image .project-media-copy strong{display:none}.project-media-card--image .project-media-copy span{margin-top:0}.project-media-copy{padding:.6rem .7rem}.project-media-copy strong{font-size:.78rem}.project-media-copy span{font-size:.72rem;line-height:1.45}.project-stage-count{padding:.3rem .55rem;font-size:.64rem}.project-overview-panel .project-copy-paragraph{margin:.7rem 0;font-size:.93rem;line-height:1.65}.project-overview-panel .project-copy-list{margin:.7rem 0;padding-left:1.15rem;font-size:.9rem}.project-overview-panel .project-copy-list li{margin:.35rem 0;line-height:1.55}.project-story-grid{gap:.75rem!important}.project-story-card{border-radius:1rem!important;padding:1rem!important}.project-story-card h3{font-size:1rem}.project-story-card .project-copy-paragraph,.project-story-card .project-copy-list{font-size:.86rem;line-height:1.55}.project-equipment-heading{font-size:1.35rem!important;line-height:1.2}.project-product-card{gap:.75rem!important;padding:.8rem!important}.project-product-image{width:5.25rem!important;height:5.25rem!important;flex:0 0 5.25rem}.project-product-name{font-size:.9rem;line-height:1.35}.project-product-actions{flex-wrap:wrap}.project-product-actions a{min-width:5.25rem;text-align:center}.project-provider-card{border-radius:1.2rem!important;padding:1rem!important}.project-lightbox{width:100vw;max-height:100dvh;border-radius:0}.project-lightbox-stage{min-height:70dvh}.project-lightbox img{max-height:78dvh}.project-lightbox-bar{padding:max(.75rem,env(safe-area-inset-top)) .85rem .75rem}
+    body.project-detail-active .arolana-scroll-top{right:max(.55rem,env(safe-area-inset-right))!important;bottom:calc(4.55rem + env(safe-area-inset-bottom))!important;width:2.6rem!important;height:2.6rem!important}body.project-detail-active #arolana-smartchat-widget{right:0!important;bottom:calc(.5rem + env(safe-area-inset-bottom))!important}body.project-detail-active #arolana-smartchat-widget > .group{width:3.25rem!important;height:3.25rem!important;margin-right:.55rem!important}body.project-detail-active #arolana-smartchat-toggle{width:3.25rem!important;height:3.25rem!important}
   }
 </style>
 {% endblock %}
@@ -90,8 +93,8 @@
       </div>
     </section>
 
-    <div class="mt-8 grid gap-8 lg:grid-cols-[1fr_340px]">
-      <div class="space-y-8">
+    <div class="project-detail-main mt-8 grid gap-8 lg:grid-cols-[1fr_340px]">
+      <div class="project-detail-content space-y-8">
         {% if project_gallery_groups %}
         <section class="project-gallery-panel rounded-[2rem] bg-white p-6 shadow-sm">
           <p class="text-xs font-black uppercase tracking-widest text-[#FF7A00]">Project gallery</p><h2 class="project-section-title mt-1 font-black">See the work from every angle</h2>
@@ -102,7 +105,7 @@
               <div class="project-media-grid">
                 {% for media in group.items %}
                   {% if media.kind == "image" %}
-                    <article class="project-media-card">
+                    <article class="project-media-card project-media-card--image">
                       <button type="button" class="project-media-button" data-project-lightbox data-image-url="{{ media.original_url|default:media.url }}" data-image-alt="{{ media.alt|default:project.title }}" data-image-caption="{{ media.caption|default:group.label }}">
                         <span class="project-media-visual project-media-visual--image"><img src="{{ media.url }}" alt="{{ media.alt|default:project.title }}" loading="lazy" decoding="async" width="720" height="540" data-project-gallery-image></span>
                         <span class="project-media-copy"><strong>{{ media.label|default:group.label }}</strong>{% if media.caption %}<span>{{ media.caption }}</span>{% endif %}</span>
@@ -113,7 +116,7 @@
                       {% if media.embed_url %}
                         <div class="project-media-visual project-media-visual--video"><iframe src="{{ media.embed_url }}" title="{{ media.alt|default:project.title }}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>
                       {% elif media.video_url %}
-                        <div class="project-media-visual project-media-visual--video"><video controls playsinline preload="metadata" {% if media.thumbnail_url %}poster="{{ media.thumbnail_url }}"{% endif %} data-project-video><source src="{{ media.video_url }}"{% if media.mime_type %} type="{{ media.mime_type }}"{% endif %}></video><div class="project-video-overlay" data-project-video-overlay><span><i class="fas fa-circle-notch fa-spin text-3xl text-[#FF7A00]"></i><strong class="mt-2 block">Loading project video</strong><small class="mt-1 block text-white/75" data-project-video-message>Preparing the player…</small><button type="button" class="project-video-action" data-project-video-retry hidden>Try again</button></span></div></div>
+                        <div class="project-media-visual project-media-visual--video"><video controls playsinline preload="metadata" {% if media.thumbnail_url %}poster="{{ media.thumbnail_url }}"{% endif %} data-project-video><source src="{{ media.video_url }}"{% if media.mime_type %} type="{{ media.mime_type }}"{% endif %}></video><div class="project-video-overlay" data-project-video-overlay><span><i class="fas fa-circle-notch fa-spin text-3xl text-[#FF7A00]"></i><strong class="mt-2 block">Loading project video</strong><small class="mt-1 block text-white/75" data-project-video-message>Preparing the player…</small><span class="flex flex-wrap justify-center gap-2"><button type="button" class="project-video-action" data-project-video-retry hidden>Try again</button><a href="{{ media.video_url }}" class="project-video-action" target="_blank" rel="noopener" data-project-video-open hidden>Open video</a></span></span></div></div>
                       {% elif media.processing_status == "failed" %}
                         <div class="project-video-state failed"><span><i class="fas fa-triangle-exclamation text-3xl"></i><strong class="mt-2 block">Video unavailable</strong><small class="mt-1 block">Arolana could not prepare this video.</small><button type="button" class="project-video-action" onclick="window.location.reload()">Check again</button></span></div>
                       {% else %}
@@ -134,20 +137,20 @@
         <section class="project-overview-panel rounded-[2rem] bg-white p-7 shadow-sm">
           <p class="text-xs font-black uppercase tracking-widest text-[#0066CC]">Project overview</p>
           <div class="mt-4 max-w-none text-slate-700">{{ project.description|project_rich_text }}</div>
-          <div class="mt-7 grid gap-5 md:grid-cols-2">
-            {% if project.challenge %}<article class="rounded-2xl bg-slate-50 p-5"><h3 class="font-black">The challenge</h3><div class="mt-2 text-sm text-slate-600">{{ project.challenge|project_rich_text }}</div></article>{% endif %}
-            {% if project.solution %}<article class="rounded-2xl bg-blue-50 p-5"><h3 class="font-black">The solution</h3><div class="mt-2 text-sm text-slate-600">{{ project.solution|project_rich_text }}</div></article>{% endif %}
-            {% if project.implementation_process %}<article class="rounded-2xl bg-orange-50 p-5"><h3 class="font-black">Implementation</h3><div class="mt-2 text-sm text-slate-600">{{ project.implementation_process|project_rich_text }}</div></article>{% endif %}
-            {% if project.project_result or project.customer_outcome %}<article class="rounded-2xl bg-emerald-50 p-5"><h3 class="font-black">Result and outcome</h3>{% if project.project_result %}<div class="mt-2 text-sm text-slate-600">{{ project.project_result|project_rich_text }}</div>{% endif %}{% if project.customer_outcome %}<div class="mt-2 text-sm text-slate-600">{{ project.customer_outcome|project_rich_text }}</div>{% endif %}</article>{% endif %}
+          <div class="project-story-grid mt-7 grid gap-5 md:grid-cols-2">
+            {% if project.challenge %}<article class="project-story-card rounded-2xl bg-slate-50 p-5"><h3 class="font-black">The challenge</h3><div class="mt-2 text-sm text-slate-600">{{ project.challenge|project_rich_text }}</div></article>{% endif %}
+            {% if project.solution %}<article class="project-story-card rounded-2xl bg-blue-50 p-5"><h3 class="font-black">The solution</h3><div class="mt-2 text-sm text-slate-600">{{ project.solution|project_rich_text }}</div></article>{% endif %}
+            {% if project.implementation_process %}<article class="project-story-card rounded-2xl bg-orange-50 p-5"><h3 class="font-black">Implementation</h3><div class="mt-2 text-sm text-slate-600">{{ project.implementation_process|project_rich_text }}</div></article>{% endif %}
+            {% if project.project_result or project.customer_outcome %}<article class="project-story-card rounded-2xl bg-emerald-50 p-5"><h3 class="font-black">Result and outcome</h3>{% if project.project_result %}<div class="mt-2 text-sm text-slate-600">{{ project.project_result|project_rich_text }}</div>{% endif %}{% if project.customer_outcome %}<div class="mt-2 text-sm text-slate-600">{{ project.customer_outcome|project_rich_text }}</div>{% endif %}</article>{% endif %}
           </div>
         </section>
         {% if products_used %}
-        <section><p class="text-xs font-black uppercase tracking-widest text-[#FF7A00]">Equipment and materials</p><h2 class="mt-1 text-3xl font-black">Products used in this project</h2><div class="mt-5 grid gap-4 sm:grid-cols-2">{% for link in products_used %}<article class="flex gap-4 rounded-2xl bg-white p-4 shadow-sm">{% if link.product.main_image %}<img src="{{ link.product.main_image|optimized_image_url:'product_card' }}" alt="{{ link.product.name }}" class="h-28 w-28 rounded-xl object-contain">{% endif %}<div class="min-w-0"><a href="{{ link.product.get_absolute_url }}" class="font-black">{{ link.product.name }}</a><p class="mt-1 text-sm text-slate-500">{{ link.usage_note }}</p><p class="mt-2 font-black text-[#0066CC]">{{ link.product.price|currency:request }}</p><div class="mt-2 flex gap-2"><a href="{{ link.product.get_absolute_url }}" class="rounded-lg bg-slate-100 px-3 py-2 text-xs font-black">View product</a><a href="{{ link.product.get_absolute_url }}" class="rounded-lg bg-[#FF7A00] px-3 py-2 text-xs font-black text-white">Buy / quote</a></div></div></article>{% endfor %}</div></section>
+        <section><p class="text-xs font-black uppercase tracking-widest text-[#FF7A00]">Equipment and materials</p><h2 class="project-equipment-heading mt-1 text-3xl font-black">Products used in this project</h2><div class="mt-5 grid gap-4 sm:grid-cols-2">{% for link in products_used %}<article class="project-product-card flex gap-4 rounded-2xl bg-white p-4 shadow-sm">{% if link.product.main_image %}<img src="{{ link.product.main_image|optimized_image_url:'product_card' }}" alt="{{ link.product.name }}" class="project-product-image h-28 w-28 rounded-xl object-contain">{% endif %}<div class="min-w-0"><a href="{{ link.product.get_absolute_url }}" class="project-product-name font-black">{{ link.product.name }}</a><p class="mt-1 text-sm text-slate-500">{{ link.usage_note }}</p><p class="mt-2 font-black text-[#0066CC]">{{ link.product.price|currency:request }}</p><div class="project-product-actions mt-2 flex gap-2"><a href="{{ link.product.get_absolute_url }}" class="rounded-lg bg-slate-100 px-3 py-2 text-xs font-black">View product</a><a href="{{ link.product.get_absolute_url }}" class="rounded-lg bg-[#FF7A00] px-3 py-2 text-xs font-black text-white">Buy / quote</a></div></div></article>{% endfor %}</div></section>
         {% endif %}
         {% if related_projects %}<section><h2 class="text-3xl font-black">Related projects</h2><div class="mt-5 grid gap-5 md:grid-cols-2">{% for project in related_projects %}{% include "installers/partials/project_card.html" %}{% endfor %}</div></section>{% endif %}
       </div>
       <aside class="space-y-5">
-        <section class="sticky top-24 rounded-[2rem] bg-white p-6 shadow-lg">
+        <section class="project-provider-card sticky top-24 rounded-[2rem] bg-white p-6 shadow-lg">
           <p class="text-xs font-black uppercase tracking-widest text-[#FF7A00]">Completed by</p>
           <div class="mt-4 flex items-center gap-3">{% if project.provider.business_logo %}<img src="{{ project.provider.business_logo|optimized_image_url:'logo' }}" alt="{{ project.provider.business_name }}" class="h-16 w-16 rounded-2xl object-contain">{% endif %}<div><h2 class="font-black">{{ project.provider.business_name }}</h2><p class="text-sm font-bold text-emerald-600">{% if project.provider.is_verified %}Verified provider{% else %}Approved provider{% endif %}</p></div></div>
           <div class="mt-5 grid grid-cols-2 gap-3 text-center"><div class="rounded-xl bg-slate-50 p-3"><strong class="block text-xl">{{ project.provider.average_rating|floatformat:1 }}</strong><span class="text-xs text-slate-500">Rating</span></div><div class="rounded-xl bg-slate-50 p-3"><strong class="block text-xl">{{ project.provider.total_completed_jobs }}</strong><span class="text-xs text-slate-500">Completed jobs</span></div></div>
@@ -219,21 +222,29 @@ document.addEventListener("DOMContentLoaded",function(){
     const overlay=frame?.querySelector("[data-project-video-overlay]");
     const message=frame?.querySelector("[data-project-video-message]");
     const retry=frame?.querySelector("[data-project-video-retry]");
-    let timeout=window.setTimeout(()=>{
-      if(message)message.textContent="The video is taking longer than expected. You can retry safely.";
-      if(retry)retry.hidden=false;
-    },12000);
-    const ready=()=>{window.clearTimeout(timeout);if(overlay)overlay.hidden=true;try{window.sessionStorage.removeItem(processingRefreshKey);}catch(error){}};
+    const open=frame?.querySelector("[data-project-video-open]");
+    let timeout=0;
+    const armTimeout=()=>{
+      window.clearTimeout(timeout);
+      timeout=window.setTimeout(()=>{
+        if(message)message.textContent="The video is taking longer than expected.";
+        if(retry)retry.hidden=false;
+        if(open)open.hidden=false;
+      },12000);
+    };
+    const ready=()=>{window.clearTimeout(timeout);if(overlay)overlay.hidden=true;if(retry)retry.hidden=true;if(open)open.hidden=true;try{window.sessionStorage.removeItem(processingRefreshKey);}catch(error){}};
     const failed=()=>{
       window.clearTimeout(timeout);
       if(message)message.textContent="This video could not be loaded. Check your connection and try again.";
       if(retry)retry.hidden=false;
+      if(open)open.hidden=false;
       if(overlay)overlay.hidden=false;
     };
     video.addEventListener("loadedmetadata",ready,{once:true});
     video.addEventListener("canplay",ready,{once:true});
     video.addEventListener("error",failed);
-    retry?.addEventListener("click",()=>{if(message)message.textContent="Reloading the video…";retry.hidden=true;video.load();});
+    retry?.addEventListener("click",()=>{if(message)message.textContent="Reloading the video…";retry.hidden=true;if(open)open.hidden=true;if(overlay)overlay.hidden=false;video.load();armTimeout();});
+    if(video.readyState>=1)ready();else armTimeout();
   });
 
   if(document.querySelector("[data-project-video-processing]")){

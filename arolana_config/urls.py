@@ -518,6 +518,49 @@ def serve_public_media(request, path):
     )
 
 
+@require_safe
+def stream_public_media(request, path):
+    """
+    Send public video playback to object storage.
+
+    Cloudflare can cache the first full proxy response for a large MP4 and then
+    answer later Range requests with that same 200 response. A short-lived,
+    uncached redirect lets the browser negotiate byte ranges with Tigris
+    directly while keeping the bucket private.
+    """
+    normalized_path = _clean_media_path(path)
+    video_suffix = posixpath.splitext(normalized_path)[1].lower()
+
+    if (
+        not normalized_path
+        or video_suffix not in {".mp4", ".webm", ".mov", ".m4v"}
+        or not _is_public_media_path(normalized_path)
+    ):
+        raise Http404("Media file not found")
+
+    try:
+        direct_url = default_storage.url(
+            normalized_path,
+            expire=15 * 60,
+            http_method=request.method,
+        )
+    except (AttributeError, NotImplementedError, TypeError, ValueError):
+        direct_url = ""
+
+    if str(direct_url).startswith(("http://", "https://")):
+        response = redirect(direct_url)
+        response["Cache-Control"] = "private, no-store, max-age=0"
+        response["Pragma"] = "no-cache"
+        response["Referrer-Policy"] = "no-referrer"
+        return response
+
+    return _open_media_response(
+        request,
+        normalized_path,
+        private=False,
+    )
+
+
 # ============================================================================
 # HEALTH / SIMPLE PAGES
 # ============================================================================
@@ -637,6 +680,11 @@ except ImportError:
 # ============================================================================
 
 urlpatterns = [
+    re_path(
+        r"^stream-media/(?P<path>.*)$",
+        stream_public_media,
+        name="stream_public_media",
+    ),
     re_path(
         r"^media/(?P<path>.*)$",
         serve_public_media,

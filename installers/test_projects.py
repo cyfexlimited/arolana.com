@@ -446,7 +446,68 @@ class ProjectNetworkTests(TestCase):
         self.assertContains(page, "-webkit-line-clamp:4")
         self.assertContains(
             page,
-            ".project-media-grid{grid-template-columns:repeat(2,minmax(0,1fr))}",
+            "scroll-snap-type:x mandatory",
+        )
+        self.assertContains(page, "project-media-card--image")
+        self.assertContains(page, "data-project-video-open")
+        self.assertContains(page, "video.load();armTimeout();")
+        self.assertContains(page, "if(video.readyState>=1)ready();else armTimeout();")
+
+    def test_processed_project_video_uses_streaming_route_with_byte_ranges(self):
+        media = ServiceProjectMedia.objects.create(
+            project=self.project,
+            media_type=ServiceProjectMedia.TYPE_VIDEO,
+            stage=ServiceProjectMedia.STAGE_WALKTHROUGH,
+            processed_video=SimpleUploadedFile(
+                "processed-walkthrough.mp4",
+                b"0123456789",
+                content_type="video/mp4",
+            ),
+            approval_status=ServiceProjectMedia.STATUS_APPROVED,
+            processing_status=ServiceProjectMedia.PROCESSING_COMPLETED,
+        )
+
+        detail = self.client.get(
+            reverse("projects_api:detail", args=[self.project.slug])
+        )
+        video_url = detail.json()["project"]["primary_video"]["video_url"]
+        self.assertIn("/stream-media/", video_url)
+
+        stream = self.client.get(
+            reverse(
+                "stream_public_media",
+                kwargs={"path": media.processed_video.name},
+            ),
+            HTTP_RANGE="bytes=0-3",
+        )
+        self.assertEqual(stream.status_code, 206)
+        self.assertEqual(stream["Accept-Ranges"], "bytes")
+        self.assertEqual(stream["Content-Range"], "bytes 0-3/10")
+        self.assertEqual(b"".join(stream.streaming_content), b"0123")
+
+    def test_streaming_route_redirects_to_uncached_signed_object_url(self):
+        stream_path = (
+            "installers/projects/videos/processed/"
+            "signed-walkthrough.mp4"
+        )
+        signed_url = "https://storage.example/video.mp4?signature=test"
+
+        with patch(
+            "arolana_config.urls.default_storage.url",
+            return_value=signed_url,
+        ):
+            response = self.client.get(
+                reverse(
+                    "stream_public_media",
+                    kwargs={"path": stream_path},
+                )
+            )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], signed_url)
+        self.assertEqual(
+            response["Cache-Control"],
+            "private, no-store, max-age=0",
         )
 
     def test_legacy_video_repair_is_idempotent_and_queues_conversion(self):
