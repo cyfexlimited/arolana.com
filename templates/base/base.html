@@ -638,6 +638,23 @@
             z-index: 1001;
         }
 
+        .premium-topbar .container,
+        .luxury-header .container {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+        }
+
+        .premium-topbar-primary,
+        .premium-topbar-actions {
+            min-width: 0;
+        }
+
+        .premium-topbar-actions {
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
         .premium-topbar-item {
             position: relative;
             transition: color 0.2s ease;
@@ -662,7 +679,7 @@
             height: var(--arolana-logo-height-desktop);
             max-height: none;
             width: auto;
-            max-width: min(44vw, 720px);
+            max-width: clamp(150px, 24vw, 360px);
             object-fit: contain;
             transition: transform 0.25s ease, filter 0.25s ease;
             filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.08));
@@ -813,6 +830,20 @@
         .user-account-dropdown {
             position: relative;
             z-index: 10002;
+            min-width: 0;
+        }
+
+        .account-name-label {
+            max-width: 10rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 1366px) {
+            .account-name-label {
+                max-width: 7rem;
+            }
         }
 
         .user-account-menu {
@@ -834,27 +865,42 @@
             background: #f8fafc;
             font-family: var(--font-mega);
             font-weight: 700;
+            overflow: visible !important;
         }
 
         .desktop-nav .container {
             position: relative;
             max-width: 100%;
-            overflow: visible;
+            overflow: hidden;
         }
 
         .desktop-nav-list {
             position: relative;
             display: flex;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
+            flex-wrap: nowrap;
             gap: 0.15rem;
-            overflow: visible;
+            overflow-x: auto;
+            overflow-y: visible;
             min-width: 0;
+            width: 100%;
+            scroll-behavior: smooth;
+            scroll-padding-inline: 1rem;
+            scroll-snap-type: x proximity;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .desktop-nav-list::-webkit-scrollbar {
+            display: none;
         }
 
         .mega-menu-container {
             position: relative;
             flex: 0 0 auto;
+            min-width: 0;
+            scroll-snap-align: start;
         }
 
 
@@ -1366,16 +1412,52 @@
 
 
         @media (min-width: 1024px) and (max-width: 1240px) {
+            .luxury-header-main-row {
+                grid-template-columns: minmax(140px, 20vw) minmax(220px, 1fr) auto;
+                gap: 0.75rem !important;
+            }
+
+            .luxury-logo {
+                max-width: min(20vw, 230px);
+            }
+
             .mega-menu-container > a {
-                padding-left: 0.52rem !important;
-                padding-right: 0.52rem !important;
-                font-size: 0.84rem !important;
-                gap: 0.35rem !important;
+                padding: 0.72rem 0.48rem !important;
+                font-size: 0.8rem !important;
+                gap: 0.3rem !important;
             }
 
             .mega-menu-container > a img,
             .mega-menu-container > a i {
                 transform: scale(0.92);
+            }
+        }
+
+        @media (min-width: 1241px) and (max-width: 1535px) {
+            .luxury-header-main-row {
+                grid-template-columns: minmax(180px, 22vw) minmax(260px, 1fr) auto;
+                gap: 1rem !important;
+            }
+
+            .luxury-logo {
+                max-width: min(22vw, 320px);
+            }
+
+            .mega-menu-container > a {
+                padding-left: 0.62rem !important;
+                padding-right: 0.62rem !important;
+                font-size: 0.86rem !important;
+            }
+        }
+
+        @media (min-width: 1920px) {
+            .desktop-nav .container {
+                overflow: visible;
+            }
+
+            .desktop-nav-list {
+                justify-content: center;
+                overflow: visible;
             }
         }
 
@@ -2657,8 +2739,8 @@
     </button>
 
     <div class="premium-topbar text-white text-xs py-2">
-        <div class="container mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-3">
-            <div class="flex flex-wrap justify-center sm:justify-start gap-4 sm:gap-6">
+        <div class="container mx-auto px-4 flex flex-col sm:flex-row sm:flex-wrap justify-between items-center gap-3">
+            <div class="premium-topbar-primary flex flex-wrap justify-center sm:justify-start gap-4 sm:gap-6">
                 {% if site_settings.shipping_note %}
                     <span class="premium-topbar-item inline-flex items-center gap-2">
                         <i class="fas fa-truck text-brand"></i>
@@ -2679,7 +2761,7 @@
                 {% endif %}
             </div>
 
-            <div class="flex gap-4 sm:gap-6 items-center">
+            <div class="premium-topbar-actions flex gap-4 sm:gap-6 items-center">
                 <form method="POST" action="{% url 'currency:switch' %}" class="inline" id="currency-form">
                     {% csrf_token %}
                     <input type="hidden" name="next" value="{{ request.path }}">
@@ -2758,7 +2840,7 @@
                     <div class="user-account-dropdown" x-data="{ dropdownOpen: false }" @keydown.escape="dropdownOpen = false">
                         <button type="button" @click="dropdownOpen = !dropdownOpen" class="hover:text-brand transition inline-flex items-center gap-1 text-sm font-medium">
                             <i class="fas fa-user"></i>
-                            <span class="hidden sm:inline">{{ user.username|truncatechars:15 }}</span>
+                            <span class="account-name-label hidden sm:inline-block" title="{{ user.username }}">{{ user.username }}</span>
                             <i class="fas fa-chevron-down text-xs"></i>
                         </button>
                         <div x-show="dropdownOpen"
@@ -2808,7 +2890,7 @@
 
     <header class="luxury-header" :class="{ 'scrolled': headerScrolled }">
         <div class="container mx-auto px-4 py-3 lg:py-4">
-            <div class="grid grid-cols-[auto_1fr_auto] items-center gap-3 lg:gap-6">
+            <div class="luxury-header-main-row grid grid-cols-[auto_1fr_auto] items-center gap-3 lg:gap-6">
                 <a href="/" class="shrink-0 hover-lift min-w-0" aria-label="{{ site_settings.site_name }}">
                     {% if site_settings.site_logo %}
                         <img src="{{ site_logo_url }}" alt="{{ site_settings.site_name }}" class="luxury-logo">

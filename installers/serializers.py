@@ -23,6 +23,7 @@ from .project_services import (
     resolve_project_card_media,
     resolve_project_gallery_media,
     resolve_project_hero_media,
+    resolve_project_primary_video,
     validate_external_project_video_url,
 )
 
@@ -172,6 +173,8 @@ class ServicePortfolioSerializer(serializers.ModelSerializer):
     thumbnail_url = serializers.SerializerMethodField()
     hero_image_url = serializers.SerializerMethodField()
     video_url = serializers.SerializerMethodField()
+    primary_video = serializers.SerializerMethodField()
+    has_video = serializers.SerializerMethodField()
     provider = serializers.SerializerMethodField()
     service_category = ServiceCategorySerializer(read_only=True)
     media = serializers.SerializerMethodField()
@@ -192,6 +195,7 @@ class ServicePortfolioSerializer(serializers.ModelSerializer):
             "location_display", "project_location", "completed_at", "project_duration_text",
             "customer_type", "customer_name_display", "show_project_value", "project_value_min",
             "project_value_max", "project_value_currency", "video_source", "video_url",
+            "primary_video", "has_video",
             "video_duration", "challenge", "solution", "implementation_process", "project_result",
             "customer_outcome", "technologies_used", "services_performed", "approval_status",
             "approval_status_label", "moderation_notes", "is_verified_project", "is_featured",
@@ -223,14 +227,31 @@ class ServicePortfolioSerializer(serializers.ModelSerializer):
         return absolute_url(self.context.get("request"), media.url)
 
     def get_video_url(self, obj):
+        primary_video = resolve_project_primary_video(obj)
+        if not primary_video:
+            return ""
+        return absolute_url(
+            self.context.get("request"),
+            primary_video.video_url,
+        )
+
+    def get_primary_video(self, obj):
+        primary_video = resolve_project_primary_video(obj)
+        if not primary_video:
+            return None
         request = self.context.get("request")
-        if obj.local_video:
-            try:
-                value = obj.local_video.url
-                return request.build_absolute_uri(value) if request and not value.startswith(("http://", "https://")) else value
-            except Exception:
-                pass
-        return obj.video_url or ""
+        payload = primary_video.as_dict()
+        for key in (
+            "url",
+            "video_url",
+            "thumbnail_url",
+            "external_url",
+        ):
+            payload[key] = absolute_url(request, payload.get(key, ""))
+        return payload
+
+    def get_has_video(self, obj):
+        return resolve_project_primary_video(obj) is not None
 
     def get_provider(self, obj):
         provider = obj.provider
@@ -308,6 +329,8 @@ class ServiceProjectMediaSerializer(serializers.ModelSerializer):
     video_url = serializers.SerializerMethodField()
     document_url = serializers.SerializerMethodField()
     embed_url = serializers.SerializerMethodField()
+    mime_type = serializers.SerializerMethodField()
+    is_playable = serializers.SerializerMethodField()
     media_type_label = serializers.CharField(source="get_media_type_display", read_only=True)
     stage_label = serializers.CharField(source="get_stage_display", read_only=True)
     approval_status_label = serializers.CharField(source="get_approval_status_display", read_only=True)
@@ -321,7 +344,7 @@ class ServiceProjectMediaSerializer(serializers.ModelSerializer):
             "external_video_url", "embed_url", "caption", "alt_text", "display_order",
             "is_featured", "is_cover", "approval_status", "approval_status_label",
             "moderation_note", "processing_status", "processing_status_label",
-            "processing_error", "video_duration", "file_size", "mime_type",
+            "processing_error", "video_duration", "file_size", "mime_type", "is_playable",
             "original_filename", "created_at", "updated_at",
         ]
 
@@ -350,6 +373,18 @@ class ServiceProjectMediaSerializer(serializers.ModelSerializer):
 
     def get_embed_url(self, obj):
         return project_video_embed_url(obj.external_video_url)
+
+    def get_mime_type(self, obj):
+        playable = obj.playable_video
+        name = str(getattr(playable, "name", "") or "").lower()
+        if name.endswith(".mp4"):
+            return "video/mp4"
+        if name.endswith(".webm"):
+            return "video/webm"
+        return str(obj.mime_type or "")
+
+    def get_is_playable(self, obj):
+        return bool(obj.playable_video or self.get_embed_url(obj))
 
     def get_document_url(self, obj):
         if not obj.document:

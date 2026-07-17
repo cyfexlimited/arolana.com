@@ -49,6 +49,9 @@ class ResolvedProjectMedia:
     processing_status: str = "none"
     embed_url: str = ""
     is_external: bool = False
+    external_url: str = ""
+    mime_type: str = ""
+    video_duration: int = 0
 
     def as_dict(self):
         return {
@@ -72,6 +75,10 @@ class ResolvedProjectMedia:
             "processing_status": self.processing_status,
             "embed_url": self.embed_url,
             "is_external": self.is_external,
+            "external_url": self.external_url,
+            "mime_type": self.mime_type,
+            "video_duration": self.video_duration,
+            "is_playable": bool(self.video_url or self.embed_url),
             "id": getattr(self.media, "id", None),
         }
 
@@ -234,6 +241,79 @@ def _media_video_url(media):
     return ""
 
 
+def _video_mime_type(file_field=None, url=""):
+    name = str(getattr(file_field, "name", "") or url or "")
+    suffix = Path(name.split("?", 1)[0]).suffix.lower()
+    return {
+        ".mp4": "video/mp4",
+        ".webm": "video/webm",
+        ".mov": "video/quicktime",
+        ".m4v": "video/x-m4v",
+    }.get(suffix, "")
+
+
+def _legacy_project_video(project):
+    """Resolve old portfolio video fields without exposing an unplayable MOV."""
+    local_video = getattr(project, "local_video", None)
+    local_name = str(getattr(local_video, "name", "") or "")
+    external_url = str(getattr(project, "video_url", "") or "").strip()
+    thumbnail = getattr(project, "video_thumbnail", None)
+    thumbnail_url = _optimized_url(thumbnail, "project_thumb") if thumbnail else ""
+
+    if local_name:
+        suffix = Path(local_name).suffix.lower()
+        playable = suffix in {".mp4", ".webm"}
+        return ResolvedProjectMedia(
+            url=thumbnail_url,
+            thumbnail_url=thumbnail_url,
+            kind=ServiceProjectMedia.TYPE_VIDEO,
+            source="legacy_project_video",
+            alt=getattr(project, "title", ""),
+            caption=getattr(project, "title", ""),
+            media_type=ServiceProjectMedia.TYPE_VIDEO,
+            label="Project video",
+            video_url=_file_url(local_video) if playable else "",
+            stage=ServiceProjectMedia.STAGE_WALKTHROUGH,
+            stage_label=dict(ServiceProjectMedia.STAGE_CHOICES)[
+                ServiceProjectMedia.STAGE_WALKTHROUGH
+            ],
+            approval_status=getattr(project, "approval_status", ""),
+            processing_status=(
+                ServiceProjectMedia.PROCESSING_NONE
+                if playable
+                else ServiceProjectMedia.PROCESSING_PENDING
+            ),
+            mime_type=_video_mime_type(local_video),
+            video_duration=int(getattr(project, "video_duration", 0) or 0),
+        )
+
+    if external_url:
+        embed_url = project_video_embed_url(external_url)
+        if embed_url:
+            return ResolvedProjectMedia(
+                url=thumbnail_url,
+                thumbnail_url=thumbnail_url,
+                kind=ServiceProjectMedia.TYPE_VIDEO,
+                source="legacy_project_video",
+                alt=getattr(project, "title", ""),
+                caption=getattr(project, "title", ""),
+                media_type=ServiceProjectMedia.TYPE_VIDEO,
+                label="Project video",
+                video_url=external_url,
+                embed_url=embed_url,
+                external_url=external_url,
+                is_external=True,
+                stage=ServiceProjectMedia.STAGE_WALKTHROUGH,
+                stage_label=dict(ServiceProjectMedia.STAGE_CHOICES)[
+                    ServiceProjectMedia.STAGE_WALKTHROUGH
+                ],
+                approval_status=getattr(project, "approval_status", ""),
+                processing_status=ServiceProjectMedia.PROCESSING_NONE,
+                video_duration=int(getattr(project, "video_duration", 0) or 0),
+            )
+    return None
+
+
 def resolve_project_gallery_media(project):
     items = []
     for media in _public_media(project):
@@ -283,6 +363,7 @@ def resolve_project_gallery_media(project):
             thumb_source = getattr(media, "thumbnail", None) or getattr(project, "video_thumbnail", None) or getattr(project, "image", None)
             thumb_url = _optimized_url(thumb_source, "project_thumb") if thumb_source else ""
             external_url = str(getattr(media, "external_video_url", "") or "").strip()
+            playable_file = getattr(media, "playable_video", None)
             items.append(ResolvedProjectMedia(
                 url=thumb_url,
                 thumbnail_url=thumb_url,
@@ -297,6 +378,13 @@ def resolve_project_gallery_media(project):
                 video_url=video_url,
                 embed_url=project_video_embed_url(external_url),
                 is_external=bool(external_url),
+                external_url=external_url,
+                mime_type=(
+                    ""
+                    if external_url
+                    else _video_mime_type(playable_file, video_url)
+                ),
+                video_duration=int(getattr(media, "video_duration", 0) or 0),
                 **common,
             ))
             continue
@@ -317,7 +405,23 @@ def resolve_project_gallery_media(project):
                     label=label,
                     **common,
                 ))
+    if not any(item.kind == ServiceProjectMedia.TYPE_VIDEO for item in items):
+        legacy_video = _legacy_project_video(project)
+        if legacy_video:
+            items.append(legacy_video)
     return items
+
+
+def resolve_project_primary_video(project):
+    videos = [
+        item
+        for item in resolve_project_gallery_media(project)
+        if item.kind == ServiceProjectMedia.TYPE_VIDEO
+    ]
+    return next(
+        (item for item in videos if item.video_url or item.embed_url),
+        videos[0] if videos else None,
+    )
 
 
 def group_project_gallery_media(project):

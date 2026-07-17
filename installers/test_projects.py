@@ -1,5 +1,11 @@
 from datetime import date
 from io import BytesIO
+from pathlib import Path
+import shutil
+import subprocess
+import tempfile
+from unittest import skipUnless
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -19,6 +25,11 @@ from .project_services import (
     ProjectEntitlementService,
     group_project_gallery_media,
     moderate_project,
+    resolve_project_primary_video,
+)
+from .project_video_processing import (
+    ensure_legacy_project_video_media,
+    process_project_video,
 )
 
 
@@ -376,6 +387,170 @@ class ProjectNetworkTests(TestCase):
         self.assertContains(response, "Repair process")
         self.assertContains(response, "youtube.com/embed/dQw4w9WgXcQ")
         self.assertNotContains(response, '<h3 class="text-xl font-black text-[#071A44]">Before</h3>')
+
+    def test_legacy_mov_is_normalized_as_pending_without_exposing_raw_source(self):
+        self.project.local_video = SimpleUploadedFile(
+            "legacy-walkthrough.mov",
+            b"legacy-mov-placeholder",
+            content_type="video/quicktime",
+        )
+        self.project.video_source = "upload"
+        self.project.save(update_fields=["local_video", "video_source", "updated_at"])
+
+        response = self.client.get(
+            reverse("projects_api:detail", args=[self.project.slug])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()["project"]
+        self.assertTrue(payload["has_video"])
+        self.assertEqual(payload["video_url"], "")
+        self.assertEqual(payload["primary_video"]["processing_status"], "pending")
+        self.assertEqual(payload["primary_video"]["mime_type"], "video/quicktime")
+        self.assertFalse(payload["primary_video"]["is_playable"])
+
+        page = self.client.get(self.project.get_absolute_url())
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "Preparing project video")
+        self.assertContains(page, "Back to projects")
+        self.assertNotContains(page, "legacy-walkthrough.mov")
+        self.assertNotContains(page, "<source")
+
+    def test_project_detail_includes_responsive_gallery_and_lightbox_controls(self):
+        for name, stage in (
+            ("portrait.gif", ServiceProjectMedia.STAGE_BEFORE),
+            ("landscape.gif", ServiceProjectMedia.STAGE_REPAIR_PROCESS),
+            ("square.gif", ServiceProjectMedia.STAGE_FINAL_RESULT),
+        ):
+            ServiceProjectMedia.objects.create(
+                project=self.project,
+                media_type=ServiceProjectMedia.TYPE_IMAGE,
+                stage=stage,
+                image=tiny_gif(name),
+                approval_status=ServiceProjectMedia.STATUS_APPROVED,
+            )
+
+        page = self.client.get(self.project.get_absolute_url())
+
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, 'class="project-media-grid"', count=3)
+        self.assertContains(
+            page,
+            'loading="lazy" decoding="async" width="720" height="540" '
+            "data-project-gallery-image></span>",
+            count=3,
+        )
+        self.assertContains(page, "data-project-lightbox-prev")
+        self.assertContains(page, "data-project-lightbox-next")
+        self.assertContains(page, 'id="project-lightbox-counter"')
+        self.assertContains(page, "-webkit-line-clamp:4")
+        self.assertContains(
+            page,
+            ".project-media-grid{grid-template-columns:repeat(2,minmax(0,1fr))}",
+        )
+
+    def test_legacy_video_repair_is_idempotent_and_queues_conversion(self):
+        self.project.local_video = SimpleUploadedFile(
+            "repair-me.mov",
+            b"legacy-mov-placeholder",
+            content_type="video/quicktime",
+        )
+        self.project.video_source = "upload"
+        self.project.save(update_fields=["local_video", "video_source", "updated_at"])
+
+        self.assertEqual(ensure_legacy_project_video_media(), 1)
+        self.assertEqual(ensure_legacy_project_video_media(), 0)
+        media = self.project.media_items.get(media_type=ServiceProjectMedia.TYPE_VIDEO)
+        self.assertEqual(media.processing_status, ServiceProjectMedia.PROCESSING_PENDING)
+        self.assertEqual(media.approval_status, ServiceProjectMedia.STATUS_APPROVED)
+
+    def test_active_video_job_cannot_be_claimed_by_a_second_worker(self):
+        media = ServiceProjectMedia.objects.create(
+            project=self.project,
+            media_type=ServiceProjectMedia.TYPE_VIDEO,
+            stage=ServiceProjectMedia.STAGE_WALKTHROUGH,
+            video=SimpleUploadedFile(
+                "claimed.mov",
+                b"legacy-mov-placeholder",
+                content_type="video/quicktime",
+            ),
+            approval_status=ServiceProjectMedia.STATUS_APPROVED,
+        )
+        ServiceProjectMedia.objects.filter(pk=media.pk).update(
+            processing_status=ServiceProjectMedia.PROCESSING_ACTIVE,
+        )
+
+        with patch("installers.project_video_processing._binary") as binary:
+            self.assertFalse(process_project_video(media.pk))
+
+        binary.assert_not_called()
+        media.refresh_from_db()
+        self.assertEqual(
+            media.processing_status,
+            ServiceProjectMedia.PROCESSING_ACTIVE,
+        )
+
+    def test_project_copy_renders_escaped_semantic_bullets(self):
+        self.project.description = (
+            "A documented professional installation.\n\n"
+            "* Professional conference room design\n"
+            "* <script>unsafe</script>"
+        )
+        self.project.save(update_fields=["description", "updated_at"])
+
+        response = self.client.get(self.project.get_absolute_url())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<ul class="project-copy-list">')
+        self.assertContains(response, "Professional conference room design")
+        self.assertContains(response, "&lt;script&gt;unsafe&lt;/script&gt;")
+        self.assertNotContains(response, "* Professional conference room design")
+
+    @skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "FFmpeg is required")
+    def test_mov_processing_creates_streaming_mp4_payload(self):
+        with tempfile.TemporaryDirectory(prefix="arolana-project-test-source-") as root:
+            source_path = Path(root) / "source.mov"
+            subprocess.run(
+                [
+                    shutil.which("ffmpeg"),
+                    "-hide_banner",
+                    "-loglevel",
+                    "error",
+                    "-y",
+                    "-f",
+                    "lavfi",
+                    "-i",
+                    "color=c=blue:s=160x90:d=0.3",
+                    "-c:v",
+                    "mpeg4",
+                    "-pix_fmt",
+                    "yuv420p",
+                    str(source_path),
+                ],
+                check=True,
+                timeout=30,
+            )
+            media = ServiceProjectMedia.objects.create(
+                project=self.project,
+                media_type=ServiceProjectMedia.TYPE_VIDEO,
+                stage=ServiceProjectMedia.STAGE_WALKTHROUGH,
+                video=SimpleUploadedFile(
+                    "source.mov",
+                    source_path.read_bytes(),
+                    content_type="video/quicktime",
+                ),
+                approval_status=ServiceProjectMedia.STATUS_APPROVED,
+            )
+
+        self.assertTrue(process_project_video(media.id))
+        media.refresh_from_db()
+        primary_video = resolve_project_primary_video(
+            ServicePortfolio.objects.public().optimized().get(pk=self.project.pk)
+        )
+        self.assertEqual(media.processing_status, ServiceProjectMedia.PROCESSING_COMPLETED)
+        self.assertTrue(media.processed_video.name.endswith(".mp4"))
+        self.assertEqual(primary_video.mime_type, "video/mp4")
+        self.assertTrue(primary_video.video_url.endswith(".mp4"))
 
     def test_project_video_processing_state_follows_source_format(self):
         mov_media = ServiceProjectMedia.objects.create(

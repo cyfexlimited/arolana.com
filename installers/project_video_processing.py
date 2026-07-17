@@ -10,8 +10,14 @@ from pathlib import Path
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.db import transaction
+from django.db.models import Q
+from django.utils import timezone
 
-from .models import ServiceProjectMedia
+from .models import (
+    ServicePortfolio,
+    ServiceProjectMedia,
+    project_external_video_embed_url,
+)
 
 
 logger = logging.getLogger("arolana.project_video_processing")
@@ -19,6 +25,72 @@ logger = logging.getLogger("arolana.project_video_processing")
 
 class ProjectVideoProcessingError(Exception):
     """Raised when a project video cannot be prepared for web/mobile playback."""
+
+
+def ensure_legacy_project_video_media() -> int:
+    """Import legacy portfolio videos that were added after the data migration."""
+    project_ids = list(
+        ServicePortfolio.objects.filter(
+            Q(local_video__isnull=False) & ~Q(local_video="")
+            | Q(video_url__isnull=False) & ~Q(video_url="")
+        ).values_list("id", flat=True)
+    )
+    created_count = 0
+    for project_id in project_ids:
+        with transaction.atomic():
+            project = ServicePortfolio.objects.select_for_update().get(pk=project_id)
+            approval_status = (
+                ServiceProjectMedia.STATUS_APPROVED
+                if project.approval_status == ServicePortfolio.STATUS_APPROVED
+                else ServiceProjectMedia.STATUS_PENDING
+            )
+            local_name = str(getattr(project.local_video, "name", "") or "")
+            if local_name and not ServiceProjectMedia.objects.filter(
+                project_id=project.pk,
+                media_type=ServiceProjectMedia.TYPE_VIDEO,
+                video=local_name,
+            ).exists():
+                ServiceProjectMedia.objects.create(
+                    project=project,
+                    media_type=ServiceProjectMedia.TYPE_VIDEO,
+                    stage=ServiceProjectMedia.STAGE_WALKTHROUGH,
+                    video=local_name,
+                    thumbnail=str(getattr(project.video_thumbnail, "name", "") or ""),
+                    caption=project.title,
+                    alt_text=project.title,
+                    is_active=project.is_active,
+                    approval_status=approval_status,
+                    uploaded_by_id=project.created_by_id,
+                    video_duration=project.video_duration or 0,
+                    original_filename=Path(local_name).name,
+                )
+                created_count += 1
+
+            external_url = str(project.video_url or "").strip()
+            if (
+                external_url
+                and project_external_video_embed_url(external_url)
+                and not ServiceProjectMedia.objects.filter(
+                    project_id=project.pk,
+                    media_type=ServiceProjectMedia.TYPE_VIDEO,
+                    external_video_url=external_url,
+                ).exists()
+            ):
+                ServiceProjectMedia.objects.create(
+                    project=project,
+                    media_type=ServiceProjectMedia.TYPE_VIDEO,
+                    stage=ServiceProjectMedia.STAGE_WALKTHROUGH,
+                    external_video_url=external_url,
+                    thumbnail=str(getattr(project.video_thumbnail, "name", "") or ""),
+                    caption=project.title,
+                    alt_text=project.title,
+                    is_active=project.is_active,
+                    approval_status=approval_status,
+                    uploaded_by_id=project.created_by_id,
+                    video_duration=project.video_duration or 0,
+                )
+                created_count += 1
+    return created_count
 
 
 def _binary(name: str) -> str:
@@ -80,7 +152,12 @@ def _run(command: list[str], timeout: int) -> None:
         raise ProjectVideoProcessingError(error[-4000:])
 
 
-def process_project_video(media_id: int, *, force: bool = False) -> bool:
+def process_project_video(
+    media_id: int,
+    *,
+    force: bool = False,
+    retry_failed: bool = False,
+) -> bool:
     """Create a streaming MP4 and poster while retaining the protected original."""
     media = ServiceProjectMedia.objects.filter(
         pk=media_id,
@@ -106,10 +183,31 @@ def process_project_video(media_id: int, *, force: bool = False) -> bool:
         )
         return True
 
-    ServiceProjectMedia.objects.filter(pk=media_id).update(
+    claimable_statuses = [ServiceProjectMedia.PROCESSING_PENDING]
+    if retry_failed:
+        claimable_statuses.append(ServiceProjectMedia.PROCESSING_FAILED)
+    if force:
+        claimable_statuses.extend(
+            [
+                ServiceProjectMedia.PROCESSING_NONE,
+                ServiceProjectMedia.PROCESSING_COMPLETED,
+            ]
+        )
+    claimed = ServiceProjectMedia.objects.filter(
+        pk=media_id,
+        processing_status__in=set(claimable_statuses),
+    ).update(
         processing_status=ServiceProjectMedia.PROCESSING_ACTIVE,
         processing_error="",
+        updated_at=timezone.now(),
     )
+    if not claimed:
+        logger.info(
+            "Project video media_id=%s was already claimed or is not eligible.",
+            media_id,
+        )
+        return False
+    media.refresh_from_db()
 
     old_processed = str(
         getattr(media.processed_video, "name", "") or ""
@@ -156,7 +254,10 @@ def process_project_video(media_id: int, *, force: bool = False) -> bool:
                     "-pix_fmt",
                     "yuv420p",
                     "-vf",
-                    "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease",
+                    (
+                        "scale=w='min(1920,iw)':h='min(1080,ih)':"
+                        "force_original_aspect_ratio=decrease:force_divisible_by=2"
+                    ),
                     "-c:a",
                     "aac",
                     "-b:a",
@@ -252,6 +353,7 @@ def process_project_video(media_id: int, *, force: bool = False) -> bool:
         ServiceProjectMedia.objects.filter(pk=media_id).update(
             processing_status=ServiceProjectMedia.PROCESSING_FAILED,
             processing_error=str(exc)[-4000:],
+            updated_at=timezone.now(),
         )
         logger.exception("Project video processing failed media_id=%s", media_id)
         return False

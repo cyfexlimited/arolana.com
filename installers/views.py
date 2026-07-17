@@ -2004,6 +2004,7 @@ def project_detail(
             "project_gallery": project_gallery,
             "project_gallery_groups": project_gallery_groups,
             "has_normalized_video": has_normalized_video,
+            "is_landing_page": True,
             "products_used": (
                 project.project_products
                 .select_related(

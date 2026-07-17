@@ -1,7 +1,13 @@
+from datetime import timedelta
+
 from django.core.management.base import BaseCommand
+from django.utils import timezone
 
 from installers.models import ServiceProjectMedia
-from installers.project_video_processing import process_project_video
+from installers.project_video_processing import (
+    ensure_legacy_project_video_media,
+    process_project_video,
+)
 
 
 class Command(BaseCommand):
@@ -14,6 +20,28 @@ class Command(BaseCommand):
         parser.add_argument("--force", action="store_true")
 
     def handle(self, *args, **options):
+        imported = ensure_legacy_project_video_media()
+        if imported:
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"Imported {imported} legacy project video item"
+                    f"{'s' if imported != 1 else ''}."
+                )
+            )
+
+        stale_before = timezone.now() - timedelta(minutes=45)
+        recovered = ServiceProjectMedia.objects.filter(
+            media_type=ServiceProjectMedia.TYPE_VIDEO,
+            processing_status=ServiceProjectMedia.PROCESSING_ACTIVE,
+            updated_at__lt=stale_before,
+        ).update(
+            processing_status=ServiceProjectMedia.PROCESSING_PENDING,
+            processing_error="Recovered after an interrupted conversion.",
+            updated_at=timezone.now(),
+        )
+        if recovered:
+            self.stdout.write(f"Recovered {recovered} interrupted project video job(s).")
+
         queryset = ServiceProjectMedia.objects.filter(
             media_type=ServiceProjectMedia.TYPE_VIDEO,
         ).exclude(video="")
@@ -36,7 +64,11 @@ class Command(BaseCommand):
         completed = 0
         for item_id in ids:
             self.stdout.write(f"Processing project media {item_id}...")
-            if process_project_video(item_id, force=bool(options.get("force"))):
+            if process_project_video(
+                item_id,
+                force=bool(options.get("force")),
+                retry_failed=bool(options.get("retry_failed")),
+            ):
                 completed += 1
                 self.stdout.write(self.style.SUCCESS(f"Processed media {item_id}."))
             else:

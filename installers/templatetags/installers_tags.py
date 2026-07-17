@@ -1,5 +1,9 @@
+import re
+
 from django import template
 from django.db import DatabaseError, OperationalError
+from django.utils.html import conditional_escape
+from django.utils.safestring import mark_safe
 
 from installers.models import ServiceMarketplaceHomepageSection, ServicePortfolio
 from installers.project_services import (
@@ -10,6 +14,52 @@ from installers.project_services import (
 
 
 register = template.Library()
+
+
+@register.filter(needs_autoescape=True)
+def project_rich_text(value, autoescape=True):
+    """Render plain project copy as escaped paragraphs and semantic lists."""
+    escape = conditional_escape if autoescape else str
+    lines = str(value or "").replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    output = []
+    paragraph = []
+    list_items = []
+
+    def flush_paragraph():
+        if paragraph:
+            output.append(
+                '<p class="project-copy-paragraph">{}</p>'.format(
+                    " ".join(escape(item) for item in paragraph)
+                )
+            )
+            paragraph.clear()
+
+    def flush_list():
+        if list_items:
+            output.append(
+                '<ul class="project-copy-list">{}</ul>'.format(
+                    "".join(f"<li>{escape(item)}</li>" for item in list_items)
+                )
+            )
+            list_items.clear()
+
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line:
+            flush_paragraph()
+            flush_list()
+            continue
+        bullet = re.match(r"^(?:[*•-]|\d+[.)])\s+(.+)$", line)
+        if bullet:
+            flush_paragraph()
+            list_items.append(bullet.group(1).strip())
+            continue
+        flush_list()
+        paragraph.append(line)
+
+    flush_paragraph()
+    flush_list()
+    return mark_safe("".join(output))
 
 
 @register.inclusion_tag("installers/partials/homepage_service_section.html", takes_context=True)

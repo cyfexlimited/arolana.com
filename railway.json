@@ -5,7 +5,7 @@
   },
   "deploy": {
     "preDeployCommand": "python manage.py migrate --noinput",
-    "startCommand": "gunicorn arolana_config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 4 --worker-class gthread --timeout 90 --keep-alive 5 --access-logfile - --error-logfile -",
+    "startCommand": "bash scripts/start-production.sh",
     "restartPolicyType": "ON_FAILURE",
     "healthcheckPath": "/health/"
   }
