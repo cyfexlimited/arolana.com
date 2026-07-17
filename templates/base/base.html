@@ -1450,17 +1450,6 @@
             }
         }
 
-        @media (min-width: 1920px) {
-            .desktop-nav .container {
-                overflow: visible;
-            }
-
-            .desktop-nav-list {
-                justify-content: center;
-                overflow: visible;
-            }
-        }
-
         /* ===============================
            AROLANA AMAZON-STYLE MOBILE DRAWER
            =============================== */
@@ -2988,7 +2977,7 @@
 
         <nav class="desktop-nav hidden lg:block bg-gray-50 border-t border-gray-200">
             <div class="container mx-auto px-4">
-                <ul class="desktop-nav-list flex items-center overflow-visible">
+                <ul class="desktop-nav-list flex items-center">
                     {% for category in main_categories %}
                     <li class="mega-menu-container {% if forloop.counter >= 8 %}mega-align-right{% elif forloop.counter >= 5 %}mega-align-center{% endif %}">
                         <a href="{% url 'products:category' category.slug %}" class="flex items-center gap-2 px-4 py-4 hover:text-brand transition font-medium group">
