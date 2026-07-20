@@ -29,6 +29,10 @@ from django.views.decorators.http import (
 
 from orders.models import Cart, Order
 from orders.services import normalize_checkout_service_level
+from mobile_customers.token_auth import (
+    authenticate_mobile_customer_token,
+    extract_bearer_token,
+)
 
 from .coinbase_services import process_coinbase_webhook_event
 
@@ -260,20 +264,9 @@ def _clean_text(value):
 
 def _mobile_customer_from_payload(
     payload,
+    *,
+    request=None,
 ):
-    try:
-        from mobile_customers.models import (
-            MobileCustomer,
-        )
-
-    except Exception as error:
-        raise RuntimeError(
-            (
-                "Mobile customer accounts are required "
-                "before mobile payments can work."
-            )
-        ) from error
-
     mobile_payload = (
         payload.get(
             "mobile_customer"
@@ -310,7 +303,8 @@ def _mobile_customer_from_payload(
     )
 
     api_token = _clean_text(
-        payload.get(
+        extract_bearer_token(request)
+        or payload.get(
             "api_token"
         )
         or payload.get(
@@ -337,28 +331,14 @@ def _mobile_customer_from_payload(
             )
         )
 
-    customer = (
-        MobileCustomer.objects
-        .select_related(
-            "user"
-        )
-        .filter(
-            phone_number=phone_number,
-            api_token=api_token,
-            is_active=True,
-        )
-        .first()
+    authentication = authenticate_mobile_customer_token(
+        api_token,
+        phone_number=phone_number,
+        request=request,
+        allow_legacy=True,
     )
 
-    if not customer:
-        raise PermissionError(
-            (
-                "Invalid login token. "
-                "Login/register again."
-            )
-        )
-
-    return customer
+    return authentication.customer
 
 
 # =============================================================================
@@ -2132,7 +2112,8 @@ def mobile_initialize_payment_api(request):
     try:
         customer = (
             _mobile_customer_from_payload(
-                payload
+                payload,
+                request=request,
             )
         )
 
@@ -2461,7 +2442,8 @@ def mobile_verify_payment_api(request):
     try:
         customer = (
             _mobile_customer_from_payload(
-                payload
+                payload,
+                request=request,
             )
         )
 

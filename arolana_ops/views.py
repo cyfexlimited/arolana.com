@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
-from mobile_customers.models import MobileCustomer
+from mobile_customers.token_auth import authenticate_mobile_customer_token, extract_bearer_token
 from orders.models import OrderItem
 from products.models import Product
 
@@ -29,19 +29,26 @@ def _json_body(request):
         return {}
 
 
-def _auth_customer(data):
+def _auth_customer(data, request=None):
     phone_number = _clean_phone(data.get("phone") or data.get("phone_number") or data.get("phoneNumber"))
-    api_token = _clean_text(data.get("api_token") or data.get("apiToken"))
+    api_token = _clean_text(
+        extract_bearer_token(request)
+        or data.get("api_token")
+        or data.get("apiToken")
+    )
 
     if not phone_number:
         raise ValueError("Phone number is required.")
     if not api_token:
         raise PermissionError("Login token is required.")
 
-    customer = MobileCustomer.objects.filter(phone_number=phone_number, api_token=api_token, is_active=True).first()
-    if not customer:
-        raise PermissionError("Invalid login token. Login/register again.")
-    return customer
+    authentication = authenticate_mobile_customer_token(
+        api_token,
+        phone_number=phone_number,
+        request=request,
+        allow_legacy=True,
+    )
+    return authentication.customer
 
 
 def _product_price(product):
@@ -275,7 +282,7 @@ def mobile_product_view_api(request):
     data = _json_body(request)
 
     try:
-        customer = _auth_customer(data)
+        customer = _auth_customer(data, request=request)
     except PermissionError as error:
         return JsonResponse({"success": False, "message": str(error)}, status=403)
     except Exception as error:
@@ -324,7 +331,7 @@ def mobile_product_view_api(request):
 @require_GET
 def mobile_product_history_api(request):
     try:
-        customer = _auth_customer(request.GET)
+        customer = _auth_customer(request.GET, request=request)
     except PermissionError as error:
         return JsonResponse({"success": False, "message": str(error)}, status=403)
     except Exception as error:
@@ -350,7 +357,7 @@ def mobile_product_history_api(request):
 @require_GET
 def mobile_recommendations_api(request):
     try:
-        customer = _auth_customer(request.GET)
+        customer = _auth_customer(request.GET, request=request)
     except PermissionError as error:
         return JsonResponse({"success": False, "message": str(error)}, status=403)
     except Exception as error:
@@ -387,7 +394,7 @@ def mobile_recommendations_api(request):
 @require_GET
 def mobile_price_alerts_api(request):
     try:
-        customer = _auth_customer(request.GET)
+        customer = _auth_customer(request.GET, request=request)
     except PermissionError as error:
         return JsonResponse({"success": False, "message": str(error)}, status=403)
     except Exception as error:
@@ -414,7 +421,7 @@ def mobile_price_alert_create_api(request):
     data = _json_body(request)
 
     try:
-        customer = _auth_customer(data)
+        customer = _auth_customer(data, request=request)
     except PermissionError as error:
         return JsonResponse({"success": False, "message": str(error)}, status=403)
     except Exception as error:
@@ -455,7 +462,7 @@ def mobile_price_alert_delete_api(request):
     data = _json_body(request)
 
     try:
-        customer = _auth_customer(data)
+        customer = _auth_customer(data, request=request)
     except PermissionError as error:
         return JsonResponse({"success": False, "message": str(error)}, status=403)
     except Exception as error:

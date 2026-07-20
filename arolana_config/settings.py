@@ -64,6 +64,11 @@ for host in REQUIRED_ALLOWED_HOSTS:
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 AROLANA_AI_MODEL = os.environ.get("AROLANA_AI_MODEL", "gpt-5.5")
+AROLANA_EMAIL_MX_VALIDATION_ENABLED = config(
+    "AROLANA_EMAIL_MX_VALIDATION_ENABLED",
+    default=not DEBUG,
+    cast=bool,
+)
 
 
 # ============ WEB PUSH / PWA NOTIFICATIONS ============
@@ -186,6 +191,7 @@ INSTALLED_APPS = [
     'newsletter',
     'pages',
     'videos',
+    'ai_core.apps.AiCoreConfig',
     'manufacturers',
     'subscriptions',
     'kyc',

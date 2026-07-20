@@ -1,4 +1,5 @@
 from django import forms
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import (
     PasswordResetForm,
@@ -146,7 +147,7 @@ def normalize_and_validate_real_email(email):
     if ".." in domain or domain.startswith(".") or domain.endswith("."):
         raise ValidationError("Please enter a valid email address.")
 
-    if dns:
+    if dns and getattr(settings, "AROLANA_EMAIL_MX_VALIDATION_ENABLED", not settings.DEBUG):
         try:
             mx_records = dns.resolver.resolve(domain, "MX")
             if not mx_records:

@@ -823,6 +823,7 @@ urlpatterns = [
     path("reports/", include("reports.urls")),
     path("notifications/", include("notifications.urls")),
     path("payments/", include("arolana_payments.urls")),
+    path("", include("ai_core.urls")),
     path("landing/", include("landing_pages.urls")),
     path(
         "landing-preview/<slug:slug>/",
