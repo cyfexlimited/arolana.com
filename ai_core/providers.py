@@ -3,6 +3,7 @@ import time
 
 from django.conf import settings
 
+from .feature_flags import require_external_provider_enabled
 from .models import AIAuditLog, AIProviderConfig, AIUsageEvent
 from .quota import assert_quota_available
 from .redaction import redact_mapping
@@ -27,6 +28,22 @@ class OpenAIProvider(BaseAIProvider):
 
     def structured_response(self, *, model_config, prompt, input_payload, role, user=None, feature="", request_id=""):
         safe_input = redact_mapping(input_payload)
+        try:
+            require_external_provider_enabled()
+        except PermissionError as exc:
+            AIUsageEvent.objects.create(
+                user=user,
+                role=role,
+                feature=feature or model_config.feature,
+                provider=self.provider_name,
+                model_name=model_config.model_name,
+                prompt_key=getattr(prompt, "key", ""),
+                status=AIUsageEvent.STATUS_SKIPPED,
+                request_id=request_id,
+                metadata={"reason": "external_provider_disabled"},
+            )
+            raise AIProviderError(str(exc)) from exc
+
         assert_quota_available(role, feature or model_config.feature, user=user)
         api_key_env = self.config.api_key_env_var if self.config else "OPENAI_API_KEY"
         api_key = os.environ.get(api_key_env) or getattr(settings, api_key_env, "")

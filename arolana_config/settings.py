@@ -64,6 +64,10 @@ for host in REQUIRED_ALLOWED_HOSTS:
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 AROLANA_AI_MODEL = os.environ.get("AROLANA_AI_MODEL", "gpt-5.5")
+AI_CORE_ENABLED = config("AI_CORE_ENABLED", default=False, cast=bool)
+AI_EXTERNAL_PROVIDER_ENABLED = config("AI_EXTERNAL_PROVIDER_ENABLED", default=False, cast=bool)
+AI_SMART_SHOPPING_ENABLED = config("AI_SMART_SHOPPING_ENABLED", default=False, cast=bool)
+AI_TOOL_EXECUTION_ENABLED = config("AI_TOOL_EXECUTION_ENABLED", default=False, cast=bool)
 AROLANA_EMAIL_MX_VALIDATION_ENABLED = config(
     "AROLANA_EMAIL_MX_VALIDATION_ENABLED",
     default=not DEBUG,

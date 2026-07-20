@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.conf import settings
+from django.core.validators import RegexValidator
 from django.db import models
 from django.utils import timezone
 
@@ -112,7 +113,19 @@ class AIPromptTemplate(models.Model):
 
 
 class AIToolDefinition(models.Model):
-    name = models.SlugField(max_length=120, unique=True)
+    name = models.CharField(
+        max_length=120,
+        unique=True,
+        validators=[
+            RegexValidator(
+                regex=r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$",
+                message=(
+                    "Use a dotted lowercase tool name such as "
+                    "quotes.create_quote_request."
+                ),
+            ),
+        ],
+    )
     feature = models.CharField(max_length=80, db_index=True)
     description = models.TextField()
     input_schema = models.JSONField(default=dict, blank=True)
