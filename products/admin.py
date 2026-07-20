@@ -708,16 +708,37 @@ class CategoryAdmin(OptionalColorFieldAdminMixin, admin.ModelAdmin):
         'hero_button_background_color',
         'hero_button_text_color',
     }
-    list_display = ['name', 'parent', 'order', 'is_active', 'image_preview', 'has_background_status', 'article_links_display', 'product_count_display']
-    list_filter = ['is_active', 'parent']
+    list_display = [
+        'name',
+        'parent',
+        'order',
+        'is_navigation_featured',
+        'is_active',
+        'image_preview',
+        'has_background_status',
+        'article_links_display',
+        'product_count_display',
+    ]
+    list_filter = [
+        'is_active',
+        'is_navigation_featured',
+        'parent',
+    ]
     search_fields = ['name', 'slug', 'description']
     prepopulated_fields = {'slug': ['name']}
-    list_editable = ['order', 'is_active']
+    list_editable = ['order', 'is_navigation_featured', 'is_active']
     inlines = [CategoryArticleLinkInline]
     
     fieldsets = (
         ('Basic Information', {
-            'fields': ('name', 'slug', 'parent', 'order', 'is_active')
+            'fields': (
+                'name',
+                'slug',
+                'parent',
+                'order',
+                'is_navigation_featured',
+                'is_active',
+            )
         }),
         ('Category Images', {
             'fields': ('image', 'background_image'),

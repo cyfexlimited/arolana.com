@@ -88,6 +88,15 @@ def _main_categories():
     )
 
 
+def _desktop_priority_categories(categories):
+    """Derive the desktop rail from the shared navigation hierarchy."""
+    return [
+        category
+        for category in categories
+        if getattr(category, "is_navigation_featured", True)
+    ]
+
+
 def global_context(request):
     """Global context for all templates"""
 
@@ -140,6 +149,7 @@ def global_context(request):
         _main_categories,
         [],
     )
+    desktop_priority_categories = _desktop_priority_categories(main_categories)
 
     top_vendors = _safe_cached(
         "global_context:top_vendors",
@@ -258,6 +268,7 @@ def global_context(request):
         "featured_products": featured_products,
         "vendors": vendors,
         "main_categories": main_categories,
+        "desktop_priority_categories": desktop_priority_categories,
         "product_conditions": Product.PRODUCT_CONDITION_CHOICES,
         "top_vendors": top_vendors,
         "trending_vendors": trending_vendors,

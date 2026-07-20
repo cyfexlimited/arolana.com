@@ -1,0 +1,68 @@
+{% load media_optimization %}
+
+<div class="mega-menu-container desktop-all-categories mega-align-right" data-all-categories-menu>
+    <button type="button"
+            class="desktop-all-categories-trigger"
+            data-mega-trigger
+            aria-expanded="false"
+            aria-controls="desktop-all-categories-panel">
+        <i class="fas fa-grid-2" aria-hidden="true"></i>
+        <span>All Categories</span>
+        <i class="fas fa-chevron-down desktop-all-categories-chevron" aria-hidden="true"></i>
+    </button>
+
+    <div id="desktop-all-categories-panel"
+         class="mega-menu-dropdown desktop-all-categories-menu"
+         role="region"
+         aria-label="All product categories">
+        <div class="desktop-all-categories-heading">
+            <div>
+                <span>Shop by Department</span>
+                <h2>All Categories</h2>
+            </div>
+            <a href="{% url 'products:list' %}">View all products <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+        </div>
+
+        <div class="desktop-all-categories-grid">
+            {% for category in main_categories %}
+            <section class="desktop-department-card">
+                <a href="{% url 'products:category' category.slug %}" class="desktop-department-heading">
+                    <span class="desktop-department-icon">
+                        {% if category.image %}
+                            {% safe_background_image_url category.image 'nav_icon' as category_image_url %}
+                            <img data-src="{{ category_image_url }}" alt="" width="42" height="42" decoding="async">
+                        {% elif category.icon %}
+                            <i class="fas fa-{{ category.icon }}" aria-hidden="true"></i>
+                        {% else %}
+                            <i class="fas fa-folder-open" aria-hidden="true"></i>
+                        {% endif %}
+                    </span>
+                    <strong>{{ category.name }}</strong>
+                    <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                </a>
+
+                {% if category.active_child_count %}
+                <ul class="desktop-department-children">
+                    {% for child in category.children.all %}
+                    <li>
+                        <a href="{% url 'products:category' child.slug %}" class="desktop-department-child">
+                            {{ child.name }}
+                        </a>
+                        {% if child.active_child_count %}
+                        <div class="desktop-department-grandchildren">
+                            {% for grandchild in child.children.all %}
+                            <a href="{% url 'products:category' grandchild.slug %}">{{ grandchild.name }}</a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </section>
+            {% empty %}
+            <p class="desktop-all-categories-empty">No active categories are available right now.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>

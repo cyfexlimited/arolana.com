@@ -489,6 +489,16 @@ class Category(BaseModel):
         db_index=True,
     )
 
+    is_navigation_featured = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text=(
+            "Show this top-level category in the desktop "
+            "priority navigation rail. It always remains "
+            "available in All Categories."
+        ),
+    )
+
     is_active = models.BooleanField(
         default=True,
         db_index=True,

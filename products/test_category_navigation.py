@@ -1,6 +1,8 @@
 from django.test import RequestFactory, TestCase
+from django.urls import reverse
 
-from core.context_processors import _main_categories
+from core.context_processors import _desktop_priority_categories, _main_categories
+from core.local_cache import local_delete
 from products.models import Category
 from products.views import _category_hero_image, _mobile_category_payload
 
@@ -55,6 +57,87 @@ class CategoryNavigationTests(TestCase):
         categories = _main_categories()
 
         self.assertEqual(len(categories), 12)
+
+    def test_desktop_priority_categories_use_shared_ordered_hierarchy(self):
+        first = Category.objects.create(
+            name="First Priority Department",
+            slug="first-priority-department",
+            order=-2,
+            is_navigation_featured=True,
+            is_active=True,
+        )
+        Category.objects.create(
+            name="Mega Menu Only Department",
+            slug="mega-menu-only-department",
+            order=-1,
+            is_navigation_featured=False,
+            is_active=True,
+        )
+
+        categories = _main_categories()
+        priority_categories = _desktop_priority_categories(categories)
+
+        self.assertEqual(priority_categories[0].pk, first.pk)
+        self.assertEqual(
+            [category.pk for category in priority_categories],
+            [
+                category.pk
+                for category in categories
+                if category.is_navigation_featured
+            ],
+        )
+        self.assertNotIn(
+            "mega-menu-only-department",
+            {category.slug for category in priority_categories},
+        )
+
+    def test_desktop_mega_menu_and_mobile_drawer_share_every_category(self):
+        mega_only = Category.objects.create(
+            name="Mega Menu Only Department",
+            slug="mega-menu-only-department",
+            order=-1,
+            is_navigation_featured=False,
+            is_active=True,
+        )
+        mega_child = Category.objects.create(
+            name="Mega Menu Child",
+            slug="mega-menu-child",
+            parent=mega_only,
+            order=1,
+            is_active=True,
+        )
+        local_delete("global_context:main_categories")
+
+        response = self.client.get(
+            f"/products/category/{self.parent.slug}/",
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        rail_html = html.split("data-desktop-category-rail", 1)[1].split(
+            "data-all-categories-menu",
+            1,
+        )[0]
+        all_categories_html = html.split("data-all-categories-menu", 1)[1].split(
+            "</nav>",
+            1,
+        )[0]
+        mobile_drawer_html = html.split("mobile-drawer-shell", 1)[1]
+
+        self.assertIn(self.parent.name, rail_html)
+        self.assertNotIn(mega_only.name, rail_html)
+        self.assertIn(mega_only.name, all_categories_html)
+        self.assertIn(mega_child.name, all_categories_html)
+        self.assertIn(mega_only.name, mobile_drawer_html)
+        self.assertIn(mega_child.name, mobile_drawer_html)
+        self.assertIn('aria-label="Scroll categories left"', html)
+        self.assertIn('aria-label="Scroll categories right"', html)
+        self.assertIn("Shop by Department", mobile_drawer_html)
+        self.assertGreaterEqual(
+            html.count(reverse("products:category", args=[mega_child.slug])),
+            2,
+        )
 
     def test_mobile_payload_includes_all_active_children(self):
         request = RequestFactory().get("/api/mobile/home/")

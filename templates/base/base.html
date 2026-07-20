@@ -874,6 +874,21 @@
             overflow: hidden;
         }
 
+        .desktop-category-nav-shell {
+            display: flex;
+            align-items: stretch;
+            gap: 0.45rem;
+            width: 100%;
+            min-width: 0;
+        }
+
+        .desktop-nav-viewport {
+            position: relative;
+            flex: 1 1 auto;
+            min-width: 0;
+            overflow: hidden;
+        }
+
         .desktop-nav-list {
             position: relative;
             display: flex;
@@ -890,10 +905,51 @@
             scroll-snap-type: x proximity;
             scrollbar-width: none;
             -webkit-overflow-scrolling: touch;
+            cursor: grab;
+            outline: none;
+        }
+
+        .desktop-nav-list.is-dragging {
+            cursor: grabbing;
+            user-select: none;
+            scroll-behavior: auto;
+        }
+
+        .desktop-nav-list:focus-visible {
+            box-shadow: inset 0 0 0 2px var(--color-primary);
         }
 
         .desktop-nav-list::-webkit-scrollbar {
             display: none;
+        }
+
+        .desktop-nav-scroll-button {
+            align-items: center;
+            align-self: center;
+            background: #fff;
+            border: 1px solid #dbe3ef;
+            border-radius: 999px;
+            color: #111827;
+            display: inline-flex;
+            flex: 0 0 2.25rem;
+            height: 2.25rem;
+            justify-content: center;
+            position: relative;
+            transition: border-color 0.18s ease, color 0.18s ease, opacity 0.18s ease, transform 0.18s ease;
+            width: 2.25rem;
+            z-index: 2;
+        }
+
+        .desktop-nav-scroll-button:not(:disabled):hover,
+        .desktop-nav-scroll-button:not(:disabled):focus-visible {
+            border-color: var(--color-primary);
+            color: var(--color-primary);
+            transform: translateY(-1px);
+        }
+
+        .desktop-nav-scroll-button:disabled {
+            cursor: not-allowed;
+            opacity: 0.34;
         }
 
         .mega-menu-container {
@@ -945,6 +1001,227 @@
             transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
         }
 
+        .desktop-all-categories {
+            align-items: center;
+            display: flex;
+            flex: 0 0 auto;
+        }
+
+        .desktop-all-categories-trigger {
+            align-items: center;
+            align-self: center;
+            background: #111827;
+            border: 1px solid #111827;
+            border-radius: 0.75rem;
+            color: #fff;
+            display: inline-flex;
+            font-family: var(--font-mega);
+            font-size: 0.86rem;
+            font-weight: 800;
+            gap: 0.5rem;
+            min-height: 2.55rem;
+            padding: 0.65rem 0.85rem;
+            white-space: nowrap;
+        }
+
+        .desktop-all-categories-trigger:hover,
+        .desktop-all-categories-trigger:focus-visible,
+        .desktop-all-categories.is-mega-open > .desktop-all-categories-trigger {
+            background: var(--color-primary);
+            border-color: var(--color-primary);
+            color: #111827;
+        }
+
+        .desktop-all-categories-chevron {
+            font-size: 0.68rem;
+            transition: transform 0.18s ease;
+        }
+
+        .desktop-all-categories.is-mega-open .desktop-all-categories-chevron {
+            transform: rotate(180deg);
+        }
+
+        .mega-menu-dropdown.desktop-all-categories-menu {
+            width: min(80rem, calc(100vw - 32px));
+            max-height: min(76vh, calc(100vh - var(--mega-viewport-top, 150px) - 20px));
+            padding: 0;
+        }
+
+        .desktop-all-categories-heading {
+            align-items: center;
+            background: rgba(255, 255, 255, 0.98);
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            gap: 1rem;
+            justify-content: space-between;
+            padding: 1.1rem 1.25rem;
+            position: sticky;
+            top: 0;
+            z-index: 3;
+        }
+
+        .desktop-all-categories-heading span {
+            color: var(--color-primary);
+            display: block;
+            font-size: 0.68rem;
+            font-weight: 900;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .desktop-all-categories-heading h2 {
+            color: #111827;
+            font-size: 1.35rem;
+            font-weight: 900;
+            line-height: 1.2;
+            margin: 0.1rem 0 0;
+        }
+
+        .desktop-all-categories-heading > a {
+            align-items: center;
+            color: var(--color-primary);
+            display: inline-flex;
+            flex: 0 0 auto;
+            font-size: 0.82rem;
+            font-weight: 900;
+            gap: 0.45rem;
+            padding: 0.55rem 0.75rem;
+        }
+
+        .desktop-all-categories-grid {
+            display: grid;
+            gap: 0.8rem;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            padding: 1rem 1.25rem 1.25rem;
+        }
+
+        .desktop-department-card {
+            align-self: start;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.9rem;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .desktop-department-heading {
+            align-items: center;
+            background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
+            color: #111827;
+            display: flex;
+            gap: 0.65rem;
+            min-height: 4.2rem;
+            padding: 0.75rem;
+        }
+
+        .desktop-department-heading:hover {
+            background: #fffaf0 !important;
+            color: var(--color-primary);
+        }
+
+        .desktop-department-heading strong {
+            flex: 1 1 auto;
+            font-size: 0.9rem;
+            line-height: 1.25;
+            min-width: 0;
+        }
+
+        .desktop-department-heading > i {
+            color: #94a3b8;
+            flex: 0 0 auto;
+            font-size: 0.72rem;
+        }
+
+        .desktop-department-icon {
+            align-items: center;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.75rem;
+            color: var(--color-primary);
+            display: inline-flex;
+            flex: 0 0 2.6rem;
+            height: 2.6rem;
+            justify-content: center;
+            overflow: hidden;
+            width: 2.6rem;
+        }
+
+        .desktop-department-icon img {
+            height: 100%;
+            object-fit: cover;
+            width: 100%;
+        }
+
+        .desktop-department-children {
+            display: grid;
+            gap: 0;
+            margin: 0;
+            padding: 0.35rem 0.75rem 0.7rem;
+        }
+
+        .desktop-department-children > li {
+            border-top: 1px solid #eef2f7;
+            min-width: 0;
+            padding: 0.5rem 0;
+        }
+
+        .desktop-department-child {
+            color: #334155;
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 800;
+            line-height: 1.3;
+            padding: 0.25rem 0.35rem;
+        }
+
+        .desktop-department-grandchildren {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+            padding: 0.25rem 0.35rem 0;
+        }
+
+        .desktop-department-grandchildren a {
+            background: #f1f5f9;
+            color: #64748b;
+            font-size: 0.68rem;
+            font-weight: 700;
+            line-height: 1.25;
+            max-width: 100%;
+            padding: 0.32rem 0.45rem;
+        }
+
+        .desktop-all-categories-empty {
+            color: #64748b;
+            grid-column: 1 / -1;
+            margin: 0;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        @media (min-width: 1024px) and (max-width: 1279px) {
+            .desktop-category-nav-shell {
+                gap: 0.3rem;
+            }
+
+            .desktop-nav-scroll-button {
+                flex-basis: 2rem;
+                height: 2rem;
+                width: 2rem;
+            }
+
+            .desktop-all-categories-trigger {
+                font-size: 0.78rem;
+                gap: 0.35rem;
+                padding-left: 0.65rem;
+                padding-right: 0.65rem;
+            }
+
+            .desktop-all-categories-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+
         .mega-menu-container > a img {
             width: 1.25rem;
             height: 1.25rem;
@@ -971,7 +1248,7 @@
             width: min(58rem, calc(100vw - 32px));
             max-width: calc(100vw - 32px);
             min-height: 220px;
-            max-height: min(72vh, calc(100vh - var(--mega-top, 150px) - 24px));
+            max-height: min(72vh, calc(100vh - var(--mega-viewport-top, 150px) - 24px));
 
             overflow-y: auto;
             overflow-x: hidden;
@@ -1021,6 +1298,13 @@
             visibility: visible;
             pointer-events: auto;
             transform: translateY(0) scale(1);
+        }
+
+        .desktop-all-categories:not(.is-mega-open) > .desktop-all-categories-menu {
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+            transform: translateY(8px) scale(0.985) !important;
         }
 
         .mega-menu-dropdown::before {
@@ -2977,8 +3261,23 @@
 
         <nav class="desktop-nav hidden lg:block bg-gray-50 border-t border-gray-200">
             <div class="container mx-auto px-4">
-                <ul class="desktop-nav-list flex items-center">
-                    {% for category in main_categories %}
+                <div class="desktop-category-nav-shell" data-desktop-category-nav>
+                    <button type="button"
+                            class="desktop-nav-scroll-button"
+                            data-desktop-nav-scroll="left"
+                            aria-label="Scroll categories left"
+                            disabled>
+                        <i class="fas fa-chevron-left" aria-hidden="true"></i>
+                    </button>
+
+                    <div class="desktop-nav-viewport">
+                        <span id="desktop-category-rail-help" class="sr-only">Use Left and Right arrow keys, the mouse wheel, trackpad, or drag to browse priority categories.</span>
+                        <ul class="desktop-nav-list flex items-center"
+                            data-desktop-category-rail
+                            tabindex="0"
+                            aria-label="Priority product categories"
+                            aria-describedby="desktop-category-rail-help">
+                    {% for category in desktop_priority_categories %}
                     <li class="mega-menu-container {% if forloop.counter >= 8 %}mega-align-right{% elif forloop.counter >= 5 %}mega-align-center{% endif %}">
                         <a href="{% url 'products:category' category.slug %}" class="flex items-center gap-2 px-4 py-4 hover:text-brand transition font-medium group">
                             {% if category.image %}
@@ -3229,7 +3528,18 @@
                             </div>
                         </div>
                     </li>
-                </ul>
+                        </ul>
+                    </div>
+
+                    <button type="button"
+                            class="desktop-nav-scroll-button"
+                            data-desktop-nav-scroll="right"
+                            aria-label="Scroll categories right">
+                        <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                    </button>
+
+                    {% include "base/_desktop_all_categories.html" %}
+                </div>
             </div>
         </nav>
     </header>
@@ -4523,7 +4833,7 @@
             }
 
             function positionMegaDropdown(item) {
-                const trigger = item ? item.querySelector(':scope > a') : null;
+                const trigger = item ? item.querySelector(':scope > [data-mega-trigger], :scope > a') : null;
                 const dropdown = item ? item.querySelector(':scope > .mega-menu-dropdown') : null;
 
                 if (!trigger || !dropdown || window.innerWidth < 1024) return;
@@ -4533,6 +4843,10 @@
                 const triggerRect = trigger.getBoundingClientRect();
                 const width = desiredDropdownWidth(dropdown);
                 const viewportPadding = 16;
+                const fixedContainer = item.closest('.luxury-header');
+                const fixedContainerRect = fixedContainer
+                    ? fixedContainer.getBoundingClientRect()
+                    : { left: 0, top: 0 };
 
                 /*
                     Important:
@@ -4559,11 +4873,14 @@
                     18,
                     width - 36
                 );
+                const localLeft = left - fixedContainerRect.left;
+                const localTop = top - fixedContainerRect.top;
 
                 dropdown.style.width = width + 'px';
-                dropdown.style.setProperty('--mega-left', Math.round(left) + 'px');
-                dropdown.style.setProperty('--mega-top', top + 'px');
-                dropdown.style.setProperty('--mega-caret-left', Math.round(left + caretLeft) + 'px');
+                dropdown.style.setProperty('--mega-left', Math.round(localLeft) + 'px');
+                dropdown.style.setProperty('--mega-top', Math.round(localTop) + 'px');
+                dropdown.style.setProperty('--mega-viewport-top', top + 'px');
+                dropdown.style.setProperty('--mega-caret-left', Math.round(localLeft + caretLeft) + 'px');
 
                 item.classList.add('is-mega-positioned');
             }
@@ -4571,6 +4888,8 @@
             function closeItem(item) {
                 if (!item) return;
                 item.classList.remove(OPEN_CLASS);
+                const trigger = item.querySelector(':scope > [data-mega-trigger]');
+                if (trigger) trigger.setAttribute('aria-expanded', 'false');
                 if (activeItem === item) {
                     activeItem = null;
                 }
@@ -4605,6 +4924,8 @@
                 loadMegaImages(item);
                 positionMegaDropdown(item);
                 item.classList.add(OPEN_CLASS);
+                const trigger = item.querySelector(':scope > [data-mega-trigger]');
+                if (trigger) trigger.setAttribute('aria-expanded', 'true');
                 activeItem = item;
             }
 
@@ -4633,7 +4954,7 @@
                 const items = document.querySelectorAll('.desktop-nav .mega-menu-container');
 
                 items.forEach(function (item) {
-                    const trigger = item.querySelector(':scope > a');
+                    const trigger = item.querySelector(':scope > [data-mega-trigger], :scope > a');
                     const dropdown = item.querySelector(':scope > .mega-menu-dropdown');
 
                     if (!trigger || !dropdown) return;
@@ -4685,6 +5006,12 @@
                     trigger.addEventListener('click', function (event) {
                         if (window.innerWidth < 1024 || !dropdown) return;
 
+                        if (trigger.matches('button')) {
+                            event.preventDefault();
+                            openItem(item);
+                            return;
+                        }
+
                         if (!item.classList.contains(OPEN_CLASS)) {
                             event.preventDefault();
                             openItem(item);
@@ -4694,7 +5021,12 @@
 
                 document.addEventListener('keydown', function (event) {
                     if (event.key === 'Escape') {
+                        const itemToClose = activeItem;
                         closeAllMegaMenus();
+                        if (itemToClose) {
+                            const trigger = itemToClose.querySelector(':scope > [data-mega-trigger], :scope > a');
+                            if (trigger) trigger.focus();
+                        }
                     }
                 });
 
@@ -4712,12 +5044,169 @@
                 window.addEventListener('scroll', function () {
                     document.querySelectorAll('.mega-menu-container.' + OPEN_CLASS).forEach(positionMegaDropdown);
                 }, { passive: true });
+
+                document.addEventListener('desktop-category-rail-scroll', function () {
+                    document.querySelectorAll('.mega-menu-container.' + OPEN_CLASS).forEach(positionMegaDropdown);
+                });
             }
 
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', bindMegaMenus);
             } else {
                 bindMegaMenus();
+            }
+        })();
+    </script>
+
+    <script>
+        (function () {
+            'use strict';
+
+            function bindDesktopCategoryRail() {
+                const navigation = document.querySelector('[data-desktop-category-nav]');
+                if (!navigation) return;
+
+                const rail = navigation.querySelector('[data-desktop-category-rail]');
+                const leftButton = navigation.querySelector('[data-desktop-nav-scroll="left"]');
+                const rightButton = navigation.querySelector('[data-desktop-nav-scroll="right"]');
+                if (!rail || !leftButton || !rightButton) return;
+
+                let scrollFrame = null;
+                let dragState = null;
+                let suppressClick = false;
+
+                function maxScrollLeft() {
+                    return Math.max(0, rail.scrollWidth - rail.clientWidth);
+                }
+
+                function updateButtons() {
+                    const maxScroll = maxScrollLeft();
+                    leftButton.disabled = rail.scrollLeft <= 2;
+                    rightButton.disabled = rail.scrollLeft >= maxScroll - 2;
+                }
+
+                function scrollByPage(direction) {
+                    const distance = Math.max(220, Math.round(rail.clientWidth * 0.72));
+                    rail.scrollBy({
+                        left: direction * distance,
+                        behavior: 'smooth'
+                    });
+                }
+
+                leftButton.addEventListener('click', function () {
+                    scrollByPage(-1);
+                });
+
+                rightButton.addEventListener('click', function () {
+                    scrollByPage(1);
+                });
+
+                rail.addEventListener('wheel', function (event) {
+                    const maxScroll = maxScrollLeft();
+                    if (maxScroll <= 0) return;
+
+                    const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY)
+                        ? event.deltaX
+                        : event.deltaY;
+                    if (!delta) return;
+
+                    const movingLeft = delta < 0;
+                    const canMove = movingLeft
+                        ? rail.scrollLeft > 0
+                        : rail.scrollLeft < maxScroll;
+                    if (!canMove) return;
+
+                    event.preventDefault();
+                    rail.scrollLeft += delta;
+                }, { passive: false });
+
+                rail.addEventListener('pointerdown', function (event) {
+                    if (event.button !== 0 || event.pointerType === 'touch') return;
+
+                    dragState = {
+                        pointerId: event.pointerId,
+                        startX: event.clientX,
+                        startScrollLeft: rail.scrollLeft,
+                        moved: false
+                    };
+                    suppressClick = false;
+                    rail.setPointerCapture(event.pointerId);
+                });
+
+                rail.addEventListener('pointermove', function (event) {
+                    if (!dragState || event.pointerId !== dragState.pointerId) return;
+
+                    const distance = event.clientX - dragState.startX;
+                    if (Math.abs(distance) > 5) {
+                        dragState.moved = true;
+                        suppressClick = true;
+                        rail.classList.add('is-dragging');
+                        event.preventDefault();
+                    }
+                    rail.scrollLeft = dragState.startScrollLeft - distance;
+                });
+
+                function finishDrag(event) {
+                    if (!dragState || event.pointerId !== dragState.pointerId) return;
+                    if (rail.hasPointerCapture(event.pointerId)) {
+                        rail.releasePointerCapture(event.pointerId);
+                    }
+                    rail.classList.remove('is-dragging');
+                    dragState = null;
+                    window.setTimeout(function () {
+                        suppressClick = false;
+                    }, 0);
+                }
+
+                rail.addEventListener('pointerup', finishDrag);
+                rail.addEventListener('pointercancel', finishDrag);
+
+                rail.addEventListener('click', function (event) {
+                    if (!suppressClick) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                }, true);
+
+                rail.addEventListener('keydown', function (event) {
+                    if (event.key === 'ArrowLeft') {
+                        event.preventDefault();
+                        scrollByPage(-1);
+                    } else if (event.key === 'ArrowRight') {
+                        event.preventDefault();
+                        scrollByPage(1);
+                    } else if (event.key === 'Home') {
+                        event.preventDefault();
+                        rail.scrollTo({ left: 0, behavior: 'smooth' });
+                    } else if (event.key === 'End') {
+                        event.preventDefault();
+                        rail.scrollTo({ left: maxScrollLeft(), behavior: 'smooth' });
+                    }
+                });
+
+                rail.addEventListener('scroll', function () {
+                    if (scrollFrame) return;
+                    scrollFrame = window.requestAnimationFrame(function () {
+                        updateButtons();
+                        document.dispatchEvent(new CustomEvent('desktop-category-rail-scroll'));
+                        scrollFrame = null;
+                    });
+                }, { passive: true });
+
+                if ('ResizeObserver' in window) {
+                    const observer = new ResizeObserver(updateButtons);
+                    observer.observe(rail);
+                } else {
+                    window.addEventListener('resize', updateButtons, { passive: true });
+                }
+
+                updateButtons();
+                window.addEventListener('load', updateButtons, { once: true });
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', bindDesktopCategoryRail);
+            } else {
+                bindDesktopCategoryRail();
             }
         })();
     </script>
