@@ -39,6 +39,9 @@
     
     <form method="POST" class="space-y-4" id="otp-form">
         {% csrf_token %}
+        {% if next %}
+            <input type="hidden" name="next" value="{{ next }}">
+        {% endif %}
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">OTP Code</label>
             <div class="relative">
@@ -73,7 +76,7 @@
             <i class="fas fa-envelope"></i> Check your spam folder if you don't see the email
         </p>
         <div class="pt-4 border-t">
-            <a href="{% url 'accounts:login' %}" class="text-sm text-gray-500 hover:text-gray-700">
+            <a href="{% url 'accounts:login' %}?cancel_auth=1{% if next %}&amp;next={{ next|urlencode }}{% endif %}" class="text-sm text-gray-500 hover:text-gray-700">
                 <i class="fas fa-arrow-left mr-1"></i> Back to Login
             </a>
         </div>

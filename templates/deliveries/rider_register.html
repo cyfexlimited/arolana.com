@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load auth_links %}
 
 {% block title %}Register as Arolana Rider{% endblock %}
 
@@ -81,7 +82,7 @@
                         </a>
                         {% endif %}
                         {% if is_public_registration %}
-                        <a href="{% url 'accounts:login' %}" class="inline-flex items-center gap-2 rounded-xl border border-white/25 px-4 py-3 text-sm font-black text-white transition hover:bg-white/10">
+                        <a href="{% login_url_with_next %}" class="inline-flex items-center gap-2 rounded-xl border border-white/25 px-4 py-3 text-sm font-black text-white transition hover:bg-white/10">
                             <i class="fas fa-right-to-bracket"></i>
                             Already registered? Sign in
                         </a>

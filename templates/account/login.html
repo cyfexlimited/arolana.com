@@ -78,6 +78,7 @@
 {% endblock %}
 
 {% block content %}
+{% firstof redirect_field_value next as auth_next %}
 <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-md w-full space-y-8">
         <!-- Logo/Brand -->
@@ -123,6 +124,8 @@
             {% csrf_token %}
             {% if redirect_field_value %}
                 <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}" />
+            {% elif next %}
+                <input type="hidden" name="next" value="{{ next }}" />
             {% endif %}
             
             <div class="rounded-md shadow-sm -space-y-px">
@@ -149,7 +152,7 @@
                     <label for="id_remember" class="ml-2 block text-sm text-gray-900">Remember me</label>
                 </div>
                 <div class="text-sm">
-                    <a href="{% url 'account_reset_password' %}" class="font-medium text-blue-600 hover:text-blue-500 transition-colors">Forgot password?</a>
+                    <a href="{% url 'account_reset_password' %}{% if auth_next %}?next={{ auth_next|urlencode }}{% endif %}" class="font-medium text-blue-600 hover:text-blue-500 transition-colors">Forgot password?</a>
                 </div>
             </div>
             
@@ -183,7 +186,7 @@
                 <div class="mt-6 space-y-3">
                     {% for provider in socialaccount_providers %}
                         {% if provider.id == "google" %}
-                            <a href="{% provider_login_url provider.id process='login' %}" 
+                            <a href="{% provider_login_url provider.id process='login' next=auth_next %}"
                                class="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition-all duration-300 social-btn-hover">
                                 <svg class="w-5 h-5" viewBox="0 0 24 24">
                                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -202,7 +205,7 @@
         <!-- Sign up link -->
         <p class="text-center text-sm text-gray-600">
             Don't have an account? 
-            <a href="{% url 'accounts:register' %}" class="font-medium text-blue-600 hover:text-blue-500 transition-colors">Sign up now</a>
+            <a href="{% url 'accounts:register' %}{% if auth_next %}?next={{ auth_next|urlencode }}{% endif %}" class="font-medium text-blue-600 hover:text-blue-500 transition-colors">Sign up now</a>
         </p>
         
         <!-- Trust badges -->

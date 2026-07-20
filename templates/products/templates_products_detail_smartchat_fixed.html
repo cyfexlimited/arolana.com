@@ -2,7 +2,7 @@
 {% load static optimized_images %}
 {% load currency_filters %}
 {% load products_extras %}
-{% load ad_tags %}
+{% load ad_tags auth_links %}
 
 {% block title %}{{ product.name }} | Arolana.com{% endblock %}
 
@@ -658,7 +658,7 @@
     </div>
 
     <!-- Modern Tabs with Smooth Animations -->
-    <div class="mt-12 bg-white rounded-2xl shadow-2xl overflow-hidden" x-data="{ tab: 'overview' }">
+    <div class="mt-12 bg-white rounded-2xl shadow-2xl overflow-hidden" x-data="{ tab: ['#reviews', '#review-form'].includes(window.location.hash) ? 'reviews' : 'overview' }">
         <div class="border-b flex flex-wrap gap-2 px-6 pt-4 bg-gray-50">
             <button @click="tab='overview'" :class="{'modern-tab active': tab=='overview'}" class="px-6 py-3 font-semibold transition-all">📖 Overview</button>
             <button @click="tab='specs'" :class="{'modern-tab active': tab=='specs'}" class="px-6 py-3 font-semibold transition-all">⚙️ Specifications</button>
@@ -787,7 +787,7 @@
                         <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">Submit Review</button>
                     </form>
                     {% else %}
-                    <p class="text-gray-500">Please <a href="{% url 'accounts:login' %}?next={{ request.path }}" class="text-blue-600">sign in</a> to write a review.</p>
+                    <p class="text-gray-500">Please <a href="{% login_url_with_next 'review-form' %}" class="text-blue-600">sign in</a> to write a review.</p>
                     {% endif %}
                 </div>
             </div>

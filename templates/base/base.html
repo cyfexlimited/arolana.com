@@ -1,5 +1,5 @@
 {% load optimized_images %}
-{% load static hero_banners_tags footer_menu_tags ad_tags media_optimization %}
+{% load static hero_banners_tags footer_menu_tags ad_tags media_optimization auth_links %}
 
 <!DOCTYPE html>
 <html lang="en">
@@ -3002,6 +3002,7 @@
         }, { passive: true });
         updateScrollState();
       ">
+    {% login_url_with_next as current_page_login_url %}
 
     <!-- Arolana Scroll Up Button -->
     <button id="arolanaScrollTop"
@@ -3086,7 +3087,7 @@
                         </div>
                     </div>
                 {% else %}
-                    <a href="{% url 'accounts:login' %}" class="relative hover:text-brand transition notification-badge" aria-label="Notifications">
+                    <a href="{{ current_page_login_url }}" class="relative hover:text-brand transition notification-badge" aria-label="Notifications">
                         <i class="fas fa-bell text-lg"></i>
                     </a>
                 {% endif %}
@@ -3154,7 +3155,7 @@
                         <a href="{% url 'provider_workspace:dashboard' %}" class="hover:text-blue-300 transition text-sm font-medium" title="Open Provider Dashboard"><i class="fas fa-screwdriver-wrench"></i> <span class="hidden 2xl:inline">Provider</span></a>
                     {% endif %}
                 {% else %}
-                    <a href="{% url 'accounts:login' %}" class="hover:text-brand transition text-sm font-medium"><i class="fas fa-sign-in-alt"></i> <span class="hidden sm:inline">Sign In</span></a>
+                    <a href="{{ current_page_login_url }}" class="hover:text-brand transition text-sm font-medium"><i class="fas fa-sign-in-alt"></i> <span class="hidden sm:inline">Sign In</span></a>
                     <a href="{% url 'accounts:register' %}" class="hover:text-brand transition text-sm font-medium"><i class="fas fa-user-plus"></i> <span class="hidden sm:inline">Register</span></a>
                 {% endif %}
             </div>
@@ -3936,7 +3937,7 @@
                         <i class="fas fa-arrow-right mobile-menu-arrow text-xs text-red-400"></i>
                     </a>
                 {% else %}
-                    <a href="{% url 'accounts:login' %}" @click="mobileMenuOpen = false" class="mobile-menu-link">
+                    <a href="{{ current_page_login_url }}" @click="mobileMenuOpen = false" class="mobile-menu-link">
                         <span class="mobile-menu-left">
                             <span class="mobile-menu-icon"><i class="fas fa-sign-in-alt"></i></span>
                             <span class="mobile-menu-label">Sign In</span>

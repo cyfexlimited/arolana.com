@@ -1,7 +1,7 @@
 {% extends 'base/base.html' %}
 {% load static optimized_images %}
 {% load currency_filters %}
-{% load humanize %}
+{% load humanize auth_links %}
 
 {% block title %}{{ vendor.store_name }} Store | Arolana{% endblock %}
 
@@ -1555,7 +1555,7 @@
                                 id="followBtn"
                                 data-vendor-id="{{ vendor.id }}"
                                 data-follow-url="{% url 'vendors:follow' vendor.id %}"
-                                data-login-url="{% url 'accounts:login' %}?next={{ request.path|urlencode }}"
+                                data-login-url="{% login_url_with_next %}"
                                 data-following="{% if is_following %}true{% else %}false{% endif %}"
                                 aria-pressed="{% if is_following %}true{% else %}false{% endif %}"
                             >
@@ -1932,7 +1932,7 @@
             </div>
         </div>
 
-        <aside class="vendor-review-form">
+        <aside id="vendor-review-form" class="vendor-review-form">
             <h3 class="mb-1 text-xl font-black text-gray-900">
                 Rate this vendor
             </h3>
@@ -1946,7 +1946,7 @@
                     <p class="m-0 text-sm text-gray-600">
                         Please
                         <a
-                            href="{% url 'accounts:login' %}?next={{ request.path|urlencode }}"
+                            href="{% login_url_with_next 'vendor-review-form' %}"
                             class="font-bold text-blue-600"
                         >
                             sign in

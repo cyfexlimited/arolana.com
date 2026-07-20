@@ -7,8 +7,22 @@ app_name = 'accounts'
 
 urlpatterns = [
     # Custom views (these will override allauth defaults when accessed directly)
-    path('signup/', RedirectView.as_view(url='/accounts/register/', permanent=False)),
-path('password/reset/', RedirectView.as_view(url='/accounts/forgot-password/', permanent=False)),
+    path(
+        'signup/',
+        RedirectView.as_view(
+            url='/accounts/register/',
+            permanent=False,
+            query_string=True,
+        ),
+    ),
+    path(
+        'password/reset/',
+        RedirectView.as_view(
+            url='/accounts/forgot-password/',
+            permanent=False,
+            query_string=True,
+        ),
+    ),
     path('login/', views.login_view, name='login'),
     path('register/', views.register_view, name='register'),
     path('logout/', views.logout_view, name='logout'),

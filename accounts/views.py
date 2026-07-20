@@ -32,6 +32,15 @@ from .forms import (
     normalize_and_validate_real_email,
     validate_password_strength,
 )
+from .redirects import (
+    capture_login_entry_redirect,
+    capture_request_login_redirect,
+    clear_auth_handoff_session,
+    get_pending_login_redirect,
+    login_url_with_pending_redirect,
+    remember_login_redirect,
+    resolve_post_login_redirect,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -151,9 +160,13 @@ EMAIL_VERIFICATION_USER_SESSION_KEY = 'pending_email_verification_user_id'
 EMAIL_VERIFICATION_NEXT_SESSION_KEY = 'pending_email_verification_next'
 
 
-def set_pending_email_verification(request, user, next_url='home'):
+def set_pending_email_verification(request, user, next_url=None):
     request.session[EMAIL_VERIFICATION_USER_SESSION_KEY] = user.id
-    request.session[EMAIL_VERIFICATION_NEXT_SESSION_KEY] = next_url or 'home'
+    safe_next_url = remember_login_redirect(request, next_url)
+    if safe_next_url:
+        request.session[EMAIL_VERIFICATION_NEXT_SESSION_KEY] = safe_next_url
+    else:
+        request.session.pop(EMAIL_VERIFICATION_NEXT_SESSION_KEY, None)
 
 
 def clear_pending_email_verification(request):
@@ -171,6 +184,13 @@ def get_email_verification_user(request):
         return None
 
     return User.objects.filter(id=user_id, is_active=True).first()
+
+
+def get_login_page_context(request):
+    """Build login context without dropping a validated return destination."""
+    context = get_social_apps_context(request)
+    context["next"] = get_pending_login_redirect(request) or ""
+    return context
 
 # ==================== NEWSLETTER ====================
 
@@ -205,8 +225,10 @@ def newsletter_subscribe(request):
 
 def login_view(request):
     """Enhanced login with email/phone and OTP support"""
+    next_url = capture_login_entry_redirect(request)
+
     if request.user.is_authenticated:
-        return redirect('home')
+        return redirect(resolve_post_login_redirect(request, request.user))
     
     if request.method == 'POST':
         identifier = request.POST.get('identifier', '').strip()
@@ -215,7 +237,7 @@ def login_view(request):
         
         if not identifier or not password:
             messages.error(request, 'Please fill in all fields')
-            return render(request, 'accounts/login.html', get_social_apps_context(request))
+            return render(request, 'accounts/login.html', get_login_page_context(request))
         
         # Try to find user by email or username
         user = None
@@ -237,7 +259,6 @@ def login_view(request):
             ip_address = get_client_ip(request)
 
             if not user.email_verified and not user.is_staff:
-                next_url = request.POST.get('next') or request.GET.get('next') or 'home'
                 email_otp = create_otp(user, user.email, 'email')
                 set_pending_email_verification(request, user, next_url)
                 request.session['email_verification_send_failed'] = not bool(email_otp)
@@ -251,7 +272,6 @@ def login_view(request):
             if otp:
                 request.session['pre_2fa_user_id'] = user.id
                 request.session['pre_2fa_remember'] = remember
-                request.session['pre_2fa_next'] = request.POST.get('next') or request.GET.get('next') or 'home'
                 messages.info(request, f"Please enter the OTP sent to {user.email} before signing in.")
                 return redirect('accounts:verify_2fa')
 
@@ -260,12 +280,14 @@ def login_view(request):
             log_user_activity(None, 'failed_login', request, {'identifier': identifier[:50]})
             messages.error(request, "Invalid email/username or password.")
     
-    return render(request, 'accounts/login.html', get_social_apps_context(request))
+    return render(request, 'accounts/login.html', get_login_page_context(request))
 
 def register_view(request):
     """Enhanced registration with email verification."""
+    next_url = capture_login_entry_redirect(request)
+
     if request.user.is_authenticated:
-        return redirect('home')
+        return redirect(resolve_post_login_redirect(request, request.user))
     
     if request.method == 'POST':
         email = request.POST.get('email', '').strip().lower()
@@ -337,7 +359,8 @@ def register_view(request):
                 'email': email, 'username': username, 'first_name': first_name,
                 'last_name': last_name, 'phone_number': phone_number,
                 'account_type': account_type, 'business_name': business_name,
-                'business_description': business_description
+                'business_description': business_description,
+                'next': next_url or '',
             }
             context.update(get_social_apps_context(request))
             for error in errors:
@@ -386,7 +409,7 @@ def register_view(request):
         
         log_user_activity(user, 'register', request, {'method': 'email'})
 
-        set_pending_email_verification(request, user, 'home')
+        set_pending_email_verification(request, user, next_url)
         request.session['email_verification_send_failed'] = not bool(email_otp)
         
         if not email_otp:
@@ -398,10 +421,13 @@ def register_view(request):
         return redirect('accounts:verify_email')
     
     context = get_social_apps_context(request)
+    context['next'] = next_url or ''
     return render(request, 'accounts/register.html', context)
 
 def logout_view(request):
     """Enhanced logout with activity logging"""
+    clear_auth_handoff_session(request)
+
     if request.user.is_authenticated:
         username = request.user.username
         log_user_activity(request.user, 'logout', request, {})
@@ -902,10 +928,11 @@ def recent_activity_api(request):
 
 def verify_2fa(request):
     """Two-factor authentication verification"""
+    capture_request_login_redirect(request)
     user_id = request.session.get('pre_2fa_user_id')
     if not user_id:
         messages.error(request, 'Session expired. Please login again.')
-        return redirect('accounts:login')
+        return redirect(login_url_with_pending_redirect(request))
     
     user = get_object_or_404(User, id=user_id)
     
@@ -919,7 +946,6 @@ def verify_2fa(request):
             del request.session['pre_2fa_user_id']
 
             remember = request.session.pop('pre_2fa_remember', False)
-            next_url = request.session.pop('pre_2fa_next', request.GET.get('next', 'home')) or 'home'
             if not remember:
                 request.session.set_expiry(0)
             
@@ -927,20 +953,27 @@ def verify_2fa(request):
             log_user_activity(user, 'login_otp', request, {'method': 'email_login_otp'})
             
             messages.success(request, f"Welcome back, {user.get_full_name() or user.email}!")
-            return redirect(next_url)
+            return redirect(resolve_post_login_redirect(request, user))
         else:
             messages.error(request, message)
     
-    return render(request, 'accounts/verify_2fa.html', {'user': user})
+    return render(request, 'accounts/verify_2fa.html', {
+        'user': user,
+        'next': get_pending_login_redirect(request) or '',
+    })
 
 def forgot_password(request):
     """Password reset request page"""
+    next_url = capture_login_entry_redirect(request)
+
     if request.method == 'POST':
         identifier = request.POST.get('identifier', '').strip()
         
         if not identifier:
             messages.error(request, 'Please enter your email address.')
-            return render(request, 'accounts/forgot_password.html')
+            return render(request, 'accounts/forgot_password.html', {
+                'next': next_url or '',
+            })
         
         try:
             user = User.objects.get(email__iexact=identifier)
@@ -953,12 +986,17 @@ def forgot_password(request):
                 messages.error(request, "Failed to send OTP. Please try again.")
         except User.DoesNotExist:
             messages.info(request, "If an account exists with that email, you will receive a password reset link.")
-            return render(request, 'accounts/forgot_password.html')
+            return render(request, 'accounts/forgot_password.html', {
+                'next': next_url or '',
+            })
     
-    return render(request, 'accounts/forgot_password.html')
+    return render(request, 'accounts/forgot_password.html', {
+        'next': next_url or '',
+    })
 
 def reset_password_verify(request):
     """Password reset with OTP verification"""
+    capture_request_login_redirect(request)
     user_id = request.session.get('reset_user_id')
     if not user_id:
         messages.error(request, 'Session expired. Please request a new password reset.')
@@ -985,11 +1023,15 @@ def reset_password_verify(request):
                 del request.session['reset_user_id']
                 create_notification(user, 'system', '🔑 Password Changed', 'Your password has been successfully changed.', '/accounts/login/')
                 messages.success(request, "Password reset successfully! Please login with your new password.")
-                return redirect('accounts:login')
+                return redirect(login_url_with_pending_redirect(request))
             else:
                 messages.error(request, message)
     
-    return render(request, 'accounts/reset_password_verify.html', {'user': user, 'contact_method': user.email})
+    return render(request, 'accounts/reset_password_verify.html', {
+        'user': user,
+        'contact_method': user.email,
+        'next': get_pending_login_redirect(request) or '',
+    })
 
 @login_required
 def enable_2fa(request):
@@ -1048,6 +1090,7 @@ def security_settings(request):
 
 def verify_email_token(request, uidb64, token):
     """Verify email from a signed email link."""
+    capture_request_login_redirect(request)
     try:
         uid = force_str(urlsafe_base64_decode(uidb64))
         user = User.objects.get(pk=uid)
@@ -1071,19 +1114,20 @@ def verify_email_token(request, uidb64, token):
         if request.session.get(EMAIL_VERIFICATION_USER_SESSION_KEY) == user.id:
             clear_pending_email_verification(request)
         messages.success(request, 'Email verified successfully. Please sign in.')
-        return redirect('accounts:login')
+        return redirect(login_url_with_pending_redirect(request))
 
     messages.error(request, 'The email verification link is invalid or expired. Please request a new verification email.')
     if request.user.is_authenticated:
         return redirect('accounts:security_settings')
-    return redirect('accounts:login')
+    return redirect(login_url_with_pending_redirect(request))
 
 def verify_email(request):
     """Verify email address with OTP"""
+    capture_request_login_redirect(request)
     user = get_email_verification_user(request)
     if not user:
         messages.error(request, 'Please register or sign in before verifying your email.')
-        return redirect('accounts:login')
+        return redirect(login_url_with_pending_redirect(request))
 
     if user.email_verified:
         clear_pending_email_verification(request)
@@ -1091,7 +1135,7 @@ def verify_email(request):
             messages.info(request, 'Your email is already verified.')
             return redirect('accounts:security_settings')
         messages.success(request, 'Your email is already verified. Please sign in.')
-        return redirect('accounts:login')
+        return redirect(login_url_with_pending_redirect(request))
 
     if request.method == 'POST':
         otp_code = request.POST.get('otp_code')
@@ -1108,13 +1152,16 @@ def verify_email(request):
                 clear_pending_email_verification(request)
                 return redirect('accounts:security_settings')
 
-            next_url = request.session.get(EMAIL_VERIFICATION_NEXT_SESSION_KEY, 'home')
+            remember_login_redirect(
+                request,
+                request.session.get(EMAIL_VERIFICATION_NEXT_SESSION_KEY),
+            )
             user.backend = 'django.contrib.auth.backends.ModelBackend'
             login(request, user)
             clear_pending_email_verification(request)
             log_user_activity(user, 'login', request, {'method': 'email_otp_verification'})
             messages.success(request, f"Welcome to Arolana, {user.get_full_name() or user.email}!")
-            return redirect(next_url)
+            return redirect(resolve_post_login_redirect(request, user))
         else:
             messages.error(request, message)
     else:
@@ -1129,6 +1176,7 @@ def verify_email(request):
     return render(request, 'accounts/verify_email.html', {
         'user': user,
         'verification_required': not request.user.is_authenticated,
+        'next': get_pending_login_redirect(request) or '',
     })
 
 @login_required

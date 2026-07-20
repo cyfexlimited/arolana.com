@@ -37,7 +37,7 @@
                     <div class="mb-8">
                         <p class="text-sm font-semibold text-yellow-700 uppercase tracking-wide">Account</p>
                         <h2 class="mt-2 text-3xl font-bold text-gray-950">Sign in</h2>
-                        <p class="mt-2 text-sm text-gray-600">New here? <a href="{% url 'accounts:register' %}" class="font-semibold text-blue-700 hover:text-blue-900">Create an account</a></p>
+                        <p class="mt-2 text-sm text-gray-600">New here? <a href="{% url 'accounts:register' %}{% if next %}?next={{ next|urlencode }}{% endif %}" class="font-semibold text-blue-700 hover:text-blue-900">Create an account</a></p>
                     </div>
 
                     {% if messages %}
@@ -52,8 +52,8 @@
 
                     <form method="post" action="{% url 'accounts:login' %}" class="space-y-5">
                         {% csrf_token %}
-                        {% if request.GET.next %}
-                            <input type="hidden" name="next" value="{{ request.GET.next }}">
+                        {% if next %}
+                            <input type="hidden" name="next" value="{{ next }}">
                         {% endif %}
                         <div>
                             <label for="identifier" class="block text-sm font-semibold text-gray-800 mb-2">Email, username, or phone</label>
@@ -65,7 +65,7 @@
                         <div>
                             <div class="flex items-center justify-between mb-2">
                                 <label for="password" class="block text-sm font-semibold text-gray-800">Password</label>
-                                <a href="{% url 'accounts:forgot_password' %}" class="text-sm font-medium text-blue-700 hover:text-blue-900">Forgot password?</a>
+                                <a href="{% url 'accounts:forgot_password' %}{% if next %}?next={{ next|urlencode }}{% endif %}" class="text-sm font-medium text-blue-700 hover:text-blue-900">Forgot password?</a>
                             </div>
                             <div class="relative">
                                 <i class="fas fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
@@ -91,7 +91,7 @@
                         <span class="text-xs font-semibold uppercase tracking-wide text-gray-500">or</span>
                         <div class="h-px flex-1 bg-gray-200"></div>
                     </div>
-                    <a href="{% provider_login_url 'google' process='login' %}" class="w-full inline-flex items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-5 py-3 font-semibold text-gray-800 hover:bg-gray-50">
+                    <a href="{% provider_login_url 'google' process='login' next=next %}" class="w-full inline-flex items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-5 py-3 font-semibold text-gray-800 hover:bg-gray-50">
                         <i class="fab fa-google text-red-500"></i>
                         Continue with Google
                     </a>

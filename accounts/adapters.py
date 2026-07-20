@@ -5,6 +5,12 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 
+from .redirects import (
+    clear_auth_handoff_session,
+    remember_login_redirect,
+    resolve_post_login_redirect,
+    safe_login_redirect_url,
+)
 from .utils.email_subjects import format_arolana_subject
 
 User = get_user_model()
@@ -13,19 +19,52 @@ class CustomAccountAdapter(DefaultAccountAdapter):
     """Custom account adapter for Arolana"""
     
     def get_login_redirect_url(self, request):
-        """Redirect after login"""
-        next_url = request.GET.get('next')
-        if next_url:
-            return next_url
-        return reverse('home')
+        """Use the same safe destination resolver as the custom login flow."""
+        return resolve_post_login_redirect(request)
+
+    def post_login(
+        self,
+        request,
+        user,
+        *,
+        email_verification,
+        signal_kwargs,
+        email,
+        signup,
+        redirect_url,
+    ):
+        """
+        Route allauth/social logins through the shared one-time session state.
+
+        allauth normally gives its OAuth state URL directly to ``post_login``.
+        Promoting it into our safe session value lets the shared resolver clear
+        that temporary state after the callback.
+        """
+        remember_login_redirect(request, redirect_url)
+        destination = resolve_post_login_redirect(request, user)
+        return super().post_login(
+            request,
+            user,
+            email_verification=email_verification,
+            signal_kwargs=signal_kwargs,
+            email=email,
+            signup=signup,
+            redirect_url=destination,
+        )
+
+    def is_safe_url(self, url):
+        """Restrict allauth return URLs to the current/approved internal host."""
+        request = getattr(self, "request", None)
+        return bool(request and safe_login_redirect_url(request, url))
     
     def get_logout_redirect_url(self, request):
         """Redirect after logout"""
+        clear_auth_handoff_session(request)
         return reverse('home')
     
     def get_signup_redirect_url(self, request):
         """Redirect after signup"""
-        return reverse('home')
+        return resolve_post_login_redirect(request)
     
     def is_open_for_signup(self, request):
         """Allow signups"""
@@ -73,8 +112,8 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
         return filtered_apps
     
     def pre_social_login(self, request, sociallogin):
-        """Handle pre-social login"""
-        pass
+        """Retain a validated destination through the provider callback."""
+        remember_login_redirect(request, sociallogin.get_redirect_url(request))
     
     def is_open_for_signup(self, request, sociallogin):
         """Allow social signups"""

@@ -319,9 +319,22 @@ AUTHENTICATION_BACKENDS = [
     'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
-LOGIN_URL = '/accounts/login/'
-LOGIN_REDIRECT_URL = '/'
-LOGOUT_REDIRECT_URL = '/'
+LOGIN_URL = 'accounts:login'
+LOGIN_REDIRECT_URL = 'home'
+LOGOUT_REDIRECT_URL = 'home'
+
+# Same-host return URLs are always considered. This short allowlist is only
+# for intentional redirects between Arolana's canonical public hosts; unlike
+# ALLOWED_HOSTS it must not contain wildcards.
+LOGIN_REDIRECT_ALLOWED_HOSTS = csv_config(
+    'LOGIN_REDIRECT_ALLOWED_HOSTS',
+    default='arolana.com,www.arolana.com',
+)
+LOGIN_REDIRECT_SESSION_TTL = config(
+    'LOGIN_REDIRECT_SESSION_TTL',
+    default=1800,
+    cast=int,
+)
 
 ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
 ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
@@ -465,7 +478,7 @@ MEDIA_PROXY_PUBLIC_PREFIXES = tuple(csv_config(
 PROJECT_NETWORK_ENABLED = config("PROJECT_NETWORK_ENABLED", default=True, cast=bool)
 LOCAL_PROJECT_VIDEO_UPLOADS_ENABLED = config(
     "LOCAL_PROJECT_VIDEO_UPLOADS_ENABLED",
-    default=False,
+    default=True,
     cast=bool,
 )
 PROJECT_PUBLICATION_REQUIRES_APPROVAL = config(

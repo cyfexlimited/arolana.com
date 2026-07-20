@@ -127,11 +127,12 @@
                     >
                         Submit message
                     </button>
+                    {% load auth_links %}
                     <p class="text-center text-[11px] leading-relaxed text-gray-500">
                         For faster shopping, order tracking, saved carts, and better support,
                         <a href="{% url 'accounts:register' %}" class="font-bold text-blue-600 hover:text-blue-700">register</a>
                         or
-                        <a href="{% url 'account_login' %}" class="font-bold text-blue-600 hover:text-blue-700">sign in</a>.
+                        <a href="{% login_url_with_next %}" class="font-bold text-blue-600 hover:text-blue-700">sign in</a>.
                     </p>
                 </form>
             </div>

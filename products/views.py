@@ -1,5 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.views import redirect_to_login
 from django.contrib import messages
 from django.db.models import Q, Avg, Count, Sum, Prefetch, F
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
@@ -3722,8 +3723,10 @@ def checkout(request):
     """Checkout page"""
     if not request.user.is_authenticated:
         messages.info(request, 'Please sign in or create an account to continue checkout.')
-        login_url = f"{reverse('account_login')}?next={request.get_full_path()}"
-        return redirect(login_url)
+        return redirect_to_login(
+            request.get_full_path(),
+            login_url=reverse('accounts:login'),
+        )
     
     if not Cart or not CartItem:
         messages.error(request, 'Checkout feature not available')

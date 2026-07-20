@@ -4,7 +4,7 @@
 {% load products_extras %}
 {% load ad_tags %}
 {% load arolana_seo %}
-{% load media_optimization %}
+{% load media_optimization auth_links %}
 
 {% product_seo_title product as seo_title %}
 {% product_seo_description product as seo_description %}
@@ -3783,7 +3783,7 @@
     </div>
 
     <!-- Modern Tabs with Smooth Animations -->
-    <div class="mt-12 overflow-visible apd-tabs-clean" x-data="{ tab: 'overview' }">
+    <div class="mt-12 overflow-visible apd-tabs-clean" x-data="{ tab: ['#reviews', '#review-form'].includes(window.location.hash) ? 'reviews' : 'overview' }">
         <div class="border-b flex flex-wrap gap-2 px-0 pt-4 bg-transparent">
             <button id="product-overview-tab-button" @click="tab='overview'" :class="{'modern-tab active': tab=='overview'}" class="px-6 py-3 font-semibold transition-all">Overview</button>
             <button @click="tab='specs'" :class="{'modern-tab active': tab=='specs'}" class="px-6 py-3 font-semibold transition-all">Specifications</button>
@@ -4080,7 +4080,7 @@
 </div>
 
             <!-- Reviews Tab -->
-            <div x-show="tab=='reviews'" x-transition.duration.300ms>
+            <div id="reviews" x-show="tab=='reviews'" x-transition.duration.300ms>
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div class="lg:col-span-1 bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl p-6 text-center">
                         {% if review_count %}
@@ -4529,7 +4529,7 @@
                                 </p>
 
                                 <a
-                                    href="{% url 'accounts:login' %}?next={{ request.path|urlencode }}"
+                                    href="{% login_url_with_next 'review-form' %}"
                                     class="mt-3 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-black text-white hover:bg-blue-700"
                                 >
                                     <i class="fas fa-sign-in-alt"></i>

@@ -1,7 +1,7 @@
 {% extends 'base/base.html' %}
 {% load static %}
 {% load ad_tags %}
-{% load media_optimization %}
+{% load media_optimization auth_links %}
 
 {% block title %}{{ post.title }} | Arolana Blog{% endblock %}
 
@@ -445,7 +445,7 @@
                         {% else %}
                         <div class="rounded-3xl border border-blue-200 bg-blue-50 p-5">
                             <p class="text-sm font-semibold text-blue-900">
-                                Please <a href="{% url 'accounts:login' %}?next={{ request.path }}" class="font-black underline">sign in</a> to leave a comment.
+                                Please <a href="{% login_url_with_next 'comments' %}" class="font-black underline">sign in</a> to leave a comment.
                             </p>
                         </div>
                         {% endif %}

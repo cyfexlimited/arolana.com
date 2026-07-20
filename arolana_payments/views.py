@@ -5,6 +5,7 @@ from decimal import Decimal, InvalidOperation
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.db import transaction
@@ -1402,7 +1403,10 @@ def manual_crypto(
             request,
             "Sign in before accessing this payment.",
         )
-        return redirect("arolana_payments:checkout")
+        return redirect_to_login(
+            request.get_full_path(),
+            login_url=reverse("accounts:login"),
+        )
 
     payment = get_object_or_404(
         PaymentTransaction,

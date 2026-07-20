@@ -5,6 +5,7 @@
 {% block title %}Sign In with Google | Arolana{% endblock %}
 
 {% block content %}
+{% firstof redirect_field_value next as auth_next %}
 <div class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-md mx-auto">
         <div class="text-center mb-8">
@@ -21,7 +22,7 @@
                 </p>
 
                 <!-- This is the key part - the actual clickable link -->
-                <a href="{% provider_login_url 'google' %}" 
+                <a href="{% provider_login_url 'google' next=auth_next %}"
                    class="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
                     <svg class="w-5 h-5" viewBox="0 0 24 24">
                         <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="white"/>
@@ -35,7 +36,7 @@
                 <div class="mt-6 text-center border-t pt-6">
                     <p class="text-sm text-gray-600">
                         Changed your mind?
-                        <a href="{% url 'accounts:login' %}" class="text-blue-600 font-medium hover:underline">
+                        <a href="{% url 'accounts:login' %}?cancel_auth=1{% if auth_next %}&amp;next={{ auth_next|urlencode }}{% endif %}" class="text-blue-600 font-medium hover:underline">
                             Sign in another way
                         </a>
                     </p>
@@ -44,7 +45,7 @@
                 <div class="mt-4 text-center">
                     <p class="text-sm text-gray-600">
                         Don't have an account?
-                        <a href="{% url 'accounts:register' %}" class="text-blue-600 font-medium hover:underline">
+                        <a href="{% url 'accounts:register' %}{% if auth_next %}?next={{ auth_next|urlencode }}{% endif %}" class="text-blue-600 font-medium hover:underline">
                             Create one now
                         </a>
                     </p>

@@ -1,5 +1,6 @@
 import json
 from decimal import Decimal
+from urllib.parse import parse_qs, urlsplit
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -26,6 +27,24 @@ def capture_event(event_id="WH-CAPTURE-1"):
             },
         },
     }
+
+
+class PaymentLoginRedirectTests(TestCase):
+    def test_manual_crypto_preserves_full_path_for_guest_login(self):
+        payment_url = (
+            f"{reverse('arolana_payments:manual_crypto', args=['payment-ref'])}"
+            "?source=checkout"
+        )
+
+        response = self.client.get(payment_url)
+        parsed = urlsplit(response.url)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(parsed.path, reverse("accounts:login"))
+        self.assertEqual(
+            parse_qs(parsed.query)["next"],
+            ["/payments/manual-crypto/payment-ref/?source=checkout"],
+        )
 
 
 class PayPalWebhookTests(TestCase):

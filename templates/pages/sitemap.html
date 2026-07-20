@@ -1,4 +1,5 @@
 {% extends 'base/base.html' %}
+{% load auth_links %}
 
 {% block title %}Sitemap | {{ site_settings.site_name|default:"Arolana" }}{% endblock %}
 
@@ -159,7 +160,7 @@
                         <li><a href="/wishlist/" class="block rounded-xl px-3 py-2 transition hover:bg-slate-50 hover:text-blue-700">My Wishlist</a></li>
                         <li><a href="{% url 'accounts:logout' %}" class="block rounded-xl px-3 py-2 transition hover:bg-slate-50 hover:text-blue-700">Logout</a></li>
                     {% else %}
-                        <li><a href="{% url 'accounts:login' %}" class="block rounded-xl px-3 py-2 transition hover:bg-slate-50 hover:text-blue-700">Sign In</a></li>
+                        <li><a href="{% login_url_with_next %}" class="block rounded-xl px-3 py-2 transition hover:bg-slate-50 hover:text-blue-700">Sign In</a></li>
                         <li><a href="{% url 'accounts:register' %}" class="block rounded-xl px-3 py-2 transition hover:bg-slate-50 hover:text-blue-700">Register</a></li>
                     {% endif %}
                 </ul>
