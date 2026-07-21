@@ -1554,7 +1554,7 @@
                                 class="vendor-btn follow {% if is_following %}is-following{% endif %}"
                                 id="followBtn"
                                 data-vendor-id="{{ vendor.id }}"
-                                data-follow-url="{% url 'vendors:follow' vendor.id %}"
+                                data-follow-url="{% url 'vendors:follow_vendor' vendor.id %}"
                                 data-login-url="{% login_url_with_next %}"
                                 data-following="{% if is_following %}true{% else %}false{% endif %}"
                                 aria-pressed="{% if is_following %}true{% else %}false{% endif %}"
@@ -1562,7 +1562,7 @@
                                 <i class="fas {% if is_following %}fa-bell-slash{% else %}fa-bell{% endif %}"></i>
                                 <span id="followText">
                                     {% if is_following %}
-                                        Following
+                                        safeFollowing
                                     {% else %}
                                         Follow Store
                                     {% endif %}
@@ -2950,3 +2950,4 @@
 })();
 </script>
 {% endblock %}
+
