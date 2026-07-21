@@ -8,6 +8,7 @@ from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
+from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods, require_POST, require_GET
@@ -941,18 +942,20 @@ def verify_2fa(request):
         success, message = verify_otp(user, otp_code, 'login')
         
         if success:
-            user.backend = 'django.contrib.auth.backends.ModelBackend'
+            user.backend = "django.contrib.auth.backends.ModelBackend"
             login(request, user)
-            del request.session['pre_2fa_user_id']
 
-            remember = request.session.pop('pre_2fa_remember', False)
-            if not remember:
+            remember = request.session.pop("pre_2fa_remember", False)
+
+            if remember:
+                request.session.set_expiry(settings.REMEMBER_ME_SESSION_AGE)
+            else:
                 request.session.set_expiry(0)
-            
-            create_notification(user, 'success', '🔐 Login Verified', 'You logged in using email OTP verification.', '/accounts/profile/')
-            log_user_activity(user, 'login_otp', request, {'method': 'email_login_otp'})
-            
-            messages.success(request, f"Welcome back, {user.get_full_name() or user.email}!")
+
+            create_notification(...)
+            log_user_activity(...)
+            messages.success(...)
+
             return redirect(resolve_post_login_redirect(request, user))
         else:
             messages.error(request, message)
@@ -1158,6 +1161,13 @@ def verify_email(request):
             )
             user.backend = 'django.contrib.auth.backends.ModelBackend'
             login(request, user)
+
+            remember = request.session.pop("pre_2fa_remember", False)
+
+            if remember:
+                request.session.set_expiry(settings.REMEMBER_ME_SESSION_AGE)
+            else:
+                request.session.set_expiry(0)
             clear_pending_email_verification(request)
             log_user_activity(user, 'login', request, {'method': 'email_otp_verification'})
             messages.success(request, f"Welcome to Arolana, {user.get_full_name() or user.email}!")
