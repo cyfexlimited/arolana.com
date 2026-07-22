@@ -44,6 +44,7 @@ from .topic_resolver import (
     explicit_route_reply,
     resolve_topic,
 )
+from .orchestration import smart_shopping_reply
 from .text_normalizer import resolve_contextual_text
 
 
@@ -444,6 +445,24 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
             "confidence": 0.94 if location else 0.3,
             "intent": "vendor_inquiry",
         }
+
+    smart_shopping_result = smart_shopping_reply(
+        conversation,
+        resolved_message,
+        actor_user=actor_user,
+        application_source=conversation.channel or "smartchat",
+    )
+    if smart_shopping_result:
+        reply, source = smart_shopping_result
+        update_conversation_context(
+            conversation,
+            source.get("intent", "smart_shopping"),
+            reply,
+            source,
+        )
+        if source.get("structured_response", {}).get("handoff_required"):
+            request_human_takeover(conversation, actor_user, user_message)
+        return reply, source
 
     intent, routed_reply, routed_source, needs_handoff = route_chat_response(
         conversation,
