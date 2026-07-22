@@ -19,10 +19,45 @@ to `subscriptions.lifecycle.get_effective_subscription(...,
 role_context="provider").can_receive_serious_jobs`, preserving the shared
 subscription and limited-job exception rules.
 
-Run `python manage.py seed_smart_shopping_v1 --inactive` to synchronize the
-draft prompt and inactive tool records. Use `--dry-run` to inspect counts. An
-active staff-edited prompt is a conflict and is preserved unless
-`--override-active-prompt` is supplied.
+## Reproducible staging configuration
+
+Run `python manage.py seed_smart_shopping_v1 --inactive --dry-run` to inspect
+the planned synchronization, then run
+`python manage.py seed_smart_shopping_v1 --inactive` in staging. The command
+creates or synchronizes all of the following from code:
+
+- inactive OpenAI provider `Smart Shopping OpenAI`, which stores only the
+  credential environment-variable name `OPENAI_API_KEY`;
+- non-default `smart_shopping` model using `AROLANA_AI_MODEL` (default
+  `gpt-5.5`), structured outputs, tool calls, 16,000 input tokens and 2,048
+  output tokens;
+- draft prompt `smart_shopping_assistant` version 1, restricted to `customer`
+  and `guest`;
+- five inactive Smart Shopping tool definitions.
+
+No API key or other credential is copied into the database. Configure
+`OPENAI_API_KEY` only in the staging secret manager/runtime environment and set
+`AROLANA_AI_MODEL` to the staging-approved model before seeding. The command
+does not change any feature flag.
+
+After seeding, run `python manage.py verify_smart_shopping_v1`. Activate in this
+order only after staging review: provider, model default, prompt, the approved
+tools, then `AI_CORE_ENABLED`, `AI_TOOL_EXECUTION_ENABLED`,
+`AI_SMART_SHOPPING_ENABLED`, and finally `AI_EXTERNAL_PROVIDER_ENABLED` when an
+external provider test is authorized. Keep production flags false throughout
+this staging rollout.
+
+Inactive records are synchronized idempotently. Active staff-edited provider,
+model, and prompt records are reported as conflicts and preserved. The
+explicit `--override-active-provider`, `--override-active-model`, and
+`--override-active-prompt` options may replace the corresponding active record;
+use them only after staff review and never as part of routine staging seeding.
+
+Rollback by setting all four AI flags false, deactivating the five tools and
+prompt, clearing the model's default marker, and deactivating the provider.
+Retain audit records. Do not delete quote requests or other customer records as
+part of configuration rollback. Production activation and deployment are out
+of scope for this staging-only procedure.
 
 ## Confirmed customer quote handoff
 

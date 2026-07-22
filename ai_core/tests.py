@@ -30,6 +30,14 @@ from .feature_flags import (
     tool_execution_enabled,
 )
 from .intent import UNSUPPORTED_INTENT, validate_single_primary_intent
+from .management.commands.seed_smart_shopping_v1 import (
+    PROMPT_KEY,
+    PROMPT_VERSION,
+    PROVIDER_API_KEY_ENV,
+    PROVIDER_NAME,
+    SMART_SHOPPING_OUTPUT_SCHEMA,
+    SYSTEM_PROMPT,
+)
 from .models import AIAuditLog, AIModelConfig, AIProviderConfig, AIPromptTemplate, AIQuota, AIToolDefinition, AIUsageEvent
 from .permissions import ROLE_ADMIN, ROLE_CUSTOMER, ROLE_GUEST, require_role, role_for_user
 from .providers import AIProviderError, OpenAIProvider
@@ -80,23 +88,152 @@ class StrictToolSchemaTests(SimpleTestCase):
 
 
 class SmartShoppingCommandTests(TestCase):
-    def test_seed_dry_run_and_idempotency(self):
+    @override_settings(AROLANA_AI_MODEL="gpt-staging-test")
+    def test_seed_creates_complete_inactive_idempotent_configuration(self):
         output = StringIO()
-        call_command("seed_smart_shopping_v1", "--dry-run", stdout=output)
-        self.assertFalse(AIToolDefinition.objects.exists())
-        call_command("seed_smart_shopping_v1", stdout=output)
-        call_command("seed_smart_shopping_v1", stdout=output)
-        self.assertEqual(AIToolDefinition.objects.filter(name__in=TOOL_CONTRACTS).count(), 5)
+        call_command("seed_smart_shopping_v1", "--inactive", stdout=output)
+        call_command("seed_smart_shopping_v1", "--inactive", stdout=output)
 
-    def test_seed_preserves_active_prompt_without_override(self):
-        prompt = AIPromptTemplate.objects.create(
-            key="smart_shopping_assistant", version=1, title="Staff title", feature="smart_shopping",
-            system_prompt="Staff edited", status=AIPromptTemplate.STATUS_ACTIVE,
+        self.assertEqual(AIProviderConfig.objects.count(), 1)
+        provider = AIProviderConfig.objects.get(name=PROVIDER_NAME)
+        self.assertEqual(provider.provider, AIProviderConfig.PROVIDER_OPENAI)
+        self.assertFalse(provider.is_active)
+        self.assertEqual(provider.api_key_env_var, PROVIDER_API_KEY_ENV)
+        self.assertNotIn("api_key", provider.settings)
+        self.assertNotIn("secret", provider.settings)
+
+        self.assertEqual(AIModelConfig.objects.count(), 1)
+        model = AIModelConfig.objects.get(feature="smart_shopping")
+        self.assertEqual(model.provider, provider)
+        self.assertEqual(model.model_name, "gpt-staging-test")
+        self.assertFalse(model.is_default)
+        self.assertTrue(model.supports_structured_outputs)
+        self.assertTrue(model.supports_tool_calls)
+
+        prompt = AIPromptTemplate.objects.get(key=PROMPT_KEY, version=PROMPT_VERSION)
+        self.assertEqual(prompt.status, AIPromptTemplate.STATUS_DRAFT)
+        self.assertEqual(prompt.allowed_roles, [ROLE_CUSTOMER, ROLE_GUEST])
+        self.assertEqual(prompt.output_schema, SMART_SHOPPING_OUTPUT_SCHEMA)
+        self.assertFalse(prompt.output_schema["additionalProperties"])
+        self.assertNotIn("safe_fallback", prompt.output_schema["properties"])
+        expected_response_fields = {
+            "answer", "primary_intent", "structured_requirements",
+            "clarifying_question", "products", "comparison_points",
+            "missing_information", "assumptions", "warnings",
+            "provider_suggestions", "next_actions", "source_references",
+            "confidence", "handoff_required", "quote_request_ready",
+            "quote_request",
+        }
+        self.assertEqual(set(prompt.output_schema["properties"]), expected_response_fields)
+        self.assertEqual(set(prompt.output_schema["required"]), expected_response_fields)
+        validate_schema({
+            "answer": "Please provide your location.",
+            "primary_intent": "quotes.create_quote_request",
+            "structured_requirements": {"summary": "Customer needs an installation quotation."},
+            "clarifying_question": "Which city is the installation in?",
+            "products": [], "comparison_points": [],
+            "missing_information": ["Provide the service or delivery location."],
+            "assumptions": [], "warnings": [], "provider_suggestions": [],
+            "next_actions": ["provide_missing_information"],
+            "source_references": [], "confidence": 0.84,
+            "handoff_required": False, "quote_request_ready": False,
+            "quote_request": {},
+        }, prompt.output_schema)
+
+        self.assertEqual(AIToolDefinition.objects.filter(name__in=TOOL_CONTRACTS).count(), 5)
+        quote_tool = AIToolDefinition.objects.get(name=TOOL_QUOTES_CREATE_QUOTE_REQUEST)
+        self.assertTrue(quote_tool.requires_human_approval)
+        self.assertFalse(
+            AIToolDefinition.objects.exclude(name=TOOL_QUOTES_CREATE_QUOTE_REQUEST)
+            .filter(requires_human_approval=True).exists()
         )
+        self.assertFalse(AIToolDefinition.objects.filter(is_active=True).exists())
+        self.assertFalse(AIToolDefinition.objects.exclude(safe_serializer="ai_core.commerce_tools").exists())
+        self.assertEqual(AIAuditLog.objects.filter(object_label="smart_shopping_v1_seed").count(), 1)
+        self.assertIn("created=8", output.getvalue())
+        self.assertIn("unchanged=8", output.getvalue())
+
+    def test_seed_dry_run_performs_no_writes(self):
+        output = StringIO()
+        call_command("seed_smart_shopping_v1", "--inactive", "--dry-run", stdout=output)
+        self.assertIn("created=8", output.getvalue())
+        self.assertFalse(AIProviderConfig.objects.exists())
+        self.assertFalse(AIModelConfig.objects.exists())
+        self.assertFalse(AIPromptTemplate.objects.exists())
+        self.assertFalse(AIToolDefinition.objects.exists())
+        self.assertFalse(AIAuditLog.objects.exists())
+
+    def test_seed_synchronizes_inactive_records(self):
         call_command("seed_smart_shopping_v1", stdout=StringIO())
+        provider = AIProviderConfig.objects.get(name=PROVIDER_NAME)
+        model = AIModelConfig.objects.get(feature="smart_shopping")
+        prompt = AIPromptTemplate.objects.get(key=PROMPT_KEY, version=PROMPT_VERSION)
+        provider.timeout_seconds = 99
+        provider.save(update_fields=["timeout_seconds"])
+        model.max_output_tokens = 99
+        model.save(update_fields=["max_output_tokens"])
+        prompt.system_prompt = "Outdated inactive prompt"
+        prompt.save(update_fields=["system_prompt"])
+        call_command("seed_smart_shopping_v1", stdout=StringIO())
+        provider.refresh_from_db()
+        model.refresh_from_db()
         prompt.refresh_from_db()
+        self.assertEqual(provider.timeout_seconds, 30)
+        self.assertEqual(model.max_output_tokens, 2048)
+        self.assertEqual(prompt.system_prompt, SYSTEM_PROMPT)
+        self.assertEqual(AIAuditLog.objects.filter(object_label="smart_shopping_v1_seed").count(), 2)
+
+    def test_seed_preserves_active_staff_records_and_reports_conflicts(self):
+        call_command("seed_smart_shopping_v1", stdout=StringIO())
+        provider = AIProviderConfig.objects.get(name=PROVIDER_NAME)
+        model = AIModelConfig.objects.get(feature="smart_shopping")
+        prompt = AIPromptTemplate.objects.get(key=PROMPT_KEY, version=PROMPT_VERSION)
+        provider.is_active = True
+        provider.settings = {"staff": "provider"}
+        provider.save(update_fields=["is_active", "settings"])
+        model.is_default = True
+        model.settings = {"staff": "model"}
+        model.save(update_fields=["is_default", "settings"])
+        prompt.status = AIPromptTemplate.STATUS_ACTIVE
+        prompt.system_prompt = "Staff edited"
+        prompt.save(update_fields=["status", "system_prompt"])
+        output = StringIO()
+        call_command("seed_smart_shopping_v1", stdout=output)
+        provider.refresh_from_db()
+        model.refresh_from_db()
+        prompt.refresh_from_db()
+        self.assertEqual(provider.settings, {"staff": "provider"})
+        self.assertEqual(model.settings, {"staff": "model"})
         self.assertEqual(prompt.system_prompt, "Staff edited")
         self.assertEqual(prompt.status, AIPromptTemplate.STATUS_ACTIVE)
+        self.assertIn("conflict=3", output.getvalue())
+        self.assertIn("--override-active-provider", output.getvalue())
+        self.assertIn("--override-active-model", output.getvalue())
+        self.assertIn("--override-active-prompt", output.getvalue())
+        self.assertEqual(AIAuditLog.objects.filter(object_label="smart_shopping_v1_seed").count(), 1)
+
+    def test_override_flags_synchronize_only_explicitly_overridden_active_records(self):
+        call_command("seed_smart_shopping_v1", stdout=StringIO())
+        provider = AIProviderConfig.objects.get(name=PROVIDER_NAME)
+        model = AIModelConfig.objects.get(feature="smart_shopping")
+        prompt = AIPromptTemplate.objects.get(key=PROMPT_KEY, version=PROMPT_VERSION)
+        AIProviderConfig.objects.filter(pk=provider.pk).update(is_active=True, settings={"staff": True})
+        AIModelConfig.objects.filter(pk=model.pk).update(is_default=True, settings={"staff": True})
+        AIPromptTemplate.objects.filter(pk=prompt.pk).update(
+            status=AIPromptTemplate.STATUS_ACTIVE, system_prompt="Staff edited",
+        )
+        call_command(
+            "seed_smart_shopping_v1",
+            "--override-active-provider", "--override-active-model", "--override-active-prompt",
+            stdout=StringIO(),
+        )
+        provider.refresh_from_db()
+        model.refresh_from_db()
+        prompt.refresh_from_db()
+        self.assertFalse(provider.is_active)
+        self.assertFalse(model.is_default)
+        self.assertEqual(prompt.status, AIPromptTemplate.STATUS_DRAFT)
+        self.assertEqual(prompt.system_prompt, SYSTEM_PROMPT)
 
     def test_verification_dry_run_creates_no_usage_or_audit_rows(self):
         call_command("verify_smart_shopping_v1", "--dry-run", stdout=StringIO())
