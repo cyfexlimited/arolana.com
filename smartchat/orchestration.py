@@ -231,10 +231,9 @@ def smart_shopping_reply(conversation, user_message, *, actor_user=None, applica
             answer = _products_reply(products)
             if products:
                 state["current_product_ref"] = products[0]["public_ref"]
-                source["source_object_id"] = products[0]["id"]
                 source["product_cards"] = [
                     {
-                        "id": item["id"],
+                        "id": item["public_ref"],
                         "name": item["name"],
                         "slug": item["slug"],
                         "price": item["displayed_price"],
@@ -257,4 +256,3 @@ def smart_shopping_reply(conversation, user_message, *, actor_user=None, applica
     conversation.current_intent = intent
     conversation.save(update_fields=["context", "current_intent", "updated_at"])
     return source["structured_response"]["answer"], source
-

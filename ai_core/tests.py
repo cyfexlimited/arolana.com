@@ -1,6 +1,8 @@
 from decimal import Decimal
 
-from django.test import TestCase, override_settings
+from django.core.management import call_command
+from django.test import SimpleTestCase, TestCase, override_settings
+from io import StringIO
 
 from accounts.models import User
 from installers.models import ProviderService, ServiceCategory, ServiceProviderProfile, ServiceQuoteRequest
@@ -23,6 +25,7 @@ from .providers import AIProviderError, OpenAIProvider
 from .quota import assert_quota_available
 from .redaction import REDACTION_LABEL, redact_mapping
 from .serializers import serialize_ai_safe
+from .schema_validation import SchemaValidationError, validate_schema, validate_source_references
 from .tool_contracts import (
     TOOL_CATALOG_SEARCH_PRODUCTS,
     TOOL_QUOTES_CREATE_QUOTE_REQUEST,
@@ -30,6 +33,64 @@ from .tool_contracts import (
     TOOL_CONTRACTS,
 )
 from .tools import QUOTE_CREATE_TOOL, ensure_default_tool_definitions, execute_ai_tool, execute_registered_tool
+
+
+class StrictToolSchemaTests(SimpleTestCase):
+    def test_nested_types_extra_fields_enums_and_limits_are_rejected(self):
+        schema = {
+            "type": "object", "additionalProperties": False,
+            "properties": {
+                "mode": {"type": "string", "enum": ["safe"]},
+                "items": {"type": "array", "minItems": 1, "maxItems": 2, "items": {
+                    "type": "object", "additionalProperties": False,
+                    "properties": {"count": {"type": "integer", "minimum": 1, "maximum": 3}},
+                    "required": ["count"],
+                }},
+            }, "required": ["mode", "items"],
+        }
+        validate_schema({"mode": "safe", "items": [{"count": 2}]}, schema)
+        invalid = (
+            {"mode": "unsafe", "items": [{"count": 2}]},
+            {"mode": "safe", "items": [{"count": "2"}]},
+            {"mode": "safe", "items": [{"count": 4}]},
+            {"mode": "safe", "items": [{"count": 2, "secret": True}]},
+            {"mode": "safe", "items": []},
+        )
+        for value in invalid:
+            with self.subTest(value=value), self.assertRaises(SchemaValidationError):
+                validate_schema(value, schema)
+
+    def test_invalid_source_references_are_rejected(self):
+        good = {"source_references": [{"label": "Product price", "type": "product", "ref": "projector", "url": "/products/projector/"}]}
+        validate_source_references(good)
+        for url in ("/admin/products/1/", "/media/private/invoice.pdf", "https://evil.example/item"):
+            with self.subTest(url=url), self.assertRaises(SchemaValidationError):
+                validate_source_references({"source_references": [{"label": "x", "type": "product", "ref": "x", "url": url}]})
+
+
+class SmartShoppingCommandTests(TestCase):
+    def test_seed_dry_run_and_idempotency(self):
+        output = StringIO()
+        call_command("seed_smart_shopping_v1", "--dry-run", stdout=output)
+        self.assertFalse(AIToolDefinition.objects.exists())
+        call_command("seed_smart_shopping_v1", stdout=output)
+        call_command("seed_smart_shopping_v1", stdout=output)
+        self.assertEqual(AIToolDefinition.objects.filter(name__in=TOOL_CONTRACTS).count(), 5)
+
+    def test_seed_preserves_active_prompt_without_override(self):
+        prompt = AIPromptTemplate.objects.create(
+            key="smart_shopping_assistant", version=1, title="Staff title", feature="smart_shopping",
+            system_prompt="Staff edited", status=AIPromptTemplate.STATUS_ACTIVE,
+        )
+        call_command("seed_smart_shopping_v1", stdout=StringIO())
+        prompt.refresh_from_db()
+        self.assertEqual(prompt.system_prompt, "Staff edited")
+        self.assertEqual(prompt.status, AIPromptTemplate.STATUS_ACTIVE)
+
+    def test_verification_dry_run_creates_no_usage_or_audit_rows(self):
+        call_command("verify_smart_shopping_v1", "--dry-run", stdout=StringIO())
+        self.assertFalse(AIUsageEvent.objects.exists())
+        self.assertFalse(AIAuditLog.objects.exists())
 
 
 class AICoreFoundationTests(TestCase):
@@ -291,6 +352,8 @@ class SmartShoppingToolTests(TestCase):
             description="Projector installation specialist",
             verification_status=ServiceProviderProfile.STATUS_APPROVED,
             kyc_status=ServiceProviderProfile.KYC_APPROVED,
+            subscription_plan="Pro",
+            subscription_status="active",
             is_active=True,
         )
         ProviderService.objects.create(
@@ -358,7 +421,7 @@ class SmartShoppingToolTests(TestCase):
             "idempotency_key": "idem-quote-1",
             "product_refs": [self.product.slug],
             "provider_ref": self.provider.slug,
-            "source_references": [{"type": "product", "ref": self.product.slug}],
+            "source_references": [{"label": self.product.name, "type": "product", "ref": self.product.slug, "url": self.product.get_absolute_url()}],
         }
         with self.assertRaises(Exception):
             execute_ai_tool(

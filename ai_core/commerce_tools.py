@@ -1,6 +1,8 @@
 from decimal import Decimal, InvalidOperation
+import hashlib
 import re
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.urls import reverse
@@ -76,6 +78,15 @@ def _source(label, obj_type, ref, url=""):
     return {"label": label, "type": obj_type, "ref": str(ref), "url": url}
 
 
+def _public_media_url(field):
+    try:
+        url = str(field.url if field else "")
+    except Exception:
+        return ""
+    lowered = url.lower()
+    return "" if any(marker in lowered for marker in ("/private/", "/media/private/", "/admin/")) else url
+
+
 def _public_offers(product, limit=4):
     offers = []
     queryset = (
@@ -107,7 +118,6 @@ def product_facts(product):
     description = _plain(getattr(product, "description", ""), 1400)
     facts = {
         "public_ref": product.slug,
-        "id": product.id,
         "name": _plain(product.name, 240),
         "slug": product.slug,
         "public_url": url,
@@ -117,6 +127,10 @@ def product_facts(product):
         "condition": product.condition,
         "description_summary": f"{UNTRUSTED_PREFIX}{description}" if description else "",
         "normalised_specifications": f"{UNTRUSTED_PREFIX}{specs}" if specs else "",
+        "base_amount": str(product.price),
+        "base_currency": str(getattr(settings, "AROLANA_BASE_CURRENCY", "NGN")).upper(),
+        "display_amount": None,
+        "display_currency": None,
         "displayed_price": str(product.price),
         "compare_price": str(product.compare_price or ""),
         "stock_status": "in_stock" if getattr(product, "is_in_stock", False) and int(getattr(product, "stock_quantity", 0) or 0) > 0 else "out_of_stock",
@@ -130,7 +144,7 @@ def product_facts(product):
         },
         "approved_public_offers": _public_offers(product),
         "public_media": {
-            "manual": product.manual_pdf.url if getattr(product, "manual_pdf", None) else "",
+            "manual": _public_media_url(getattr(product, "manual_pdf", None)),
             "video": product.get_video_embed_url() if hasattr(product, "get_video_embed_url") else "",
         },
         "source_references": [_source(product.name, "product", product.slug, url)],
@@ -246,7 +260,6 @@ def _provider_payload(provider):
     ]
     return {
         "public_ref": provider.slug,
-        "id": provider.id,
         "business_name": _plain(provider.business_name, 180),
         "provider_type": provider.provider_type,
         "location": provider.location_label,
@@ -266,7 +279,7 @@ def match_providers(payload, context=None):
     payload = payload or {}
     product = _product_lookup(payload.get("product_ref")) if payload.get("product_ref") else None
     if product:
-        queryset = suggested_providers_for_product(product, limit=_limit(payload.get("result_limit")))
+        queryset = suggested_providers_for_product(product, limit=50)
     else:
         params = {
             "q": payload.get("query", ""),
@@ -277,7 +290,14 @@ def match_providers(payload, context=None):
             "provider_type": payload.get("provider_type", ""),
         }
         queryset = filter_public_providers(params).filter(kyc_status=ServiceProviderProfile.KYC_APPROVED)
-    providers = [_provider_payload(provider) for provider in queryset[:_limit(payload.get("result_limit"))]]
+    # Reuse the authoritative subscription lifecycle property, including its
+    # limited-job allowance, rather than duplicating billing rules here.
+    eligible = (
+        provider for provider in queryset
+        if provider.kyc_status == ServiceProviderProfile.KYC_APPROVED
+        and provider.can_receive_serious_jobs
+    )
+    providers = [_provider_payload(provider) for provider in list(eligible)[:_limit(payload.get("result_limit"))]]
     return {
         "providers": providers,
         "source_references": [source for provider in providers for source in provider["source_references"]],
@@ -296,15 +316,16 @@ def _quote_duplicate(payload):
 def _quote_payload(quote, created):
     if not quote:
         return {}
+    opaque_ref = "quote-" + hashlib.sha256(f"arolana-quote:{quote.pk}".encode()).hexdigest()[:20]
     return {
         "quote_request": {
-            "id": quote.id,
+            "public_ref": opaque_ref,
             "status": quote.status,
             "service_needed": quote.service_needed,
             "human_review_required": True,
         },
         "created": created,
-        "source_references": [_source("Service quote request", "service_quote_request", quote.id)],
+        "source_references": [_source("Service quote request", "service_quote_request", opaque_ref)],
         "warnings": ["Draft request only. No final quotation, order, payment or inventory reservation was created."],
     }
 
@@ -364,6 +385,9 @@ def create_quote_request(payload, context=None):
             f"request_id={payload.get('request_id')}; "
             f"idempotency_key={payload.get('idempotency_key')}; "
             f"source_refs={payload.get('source_references') or []}; "
+            f"currency_provenance={requirements.get('amount')} {requirements.get('currency')}; "
+            f"base={requirements.get('base_amount')} {requirements.get('base_currency')}; "
+            f"conversion_rate={requirements.get('conversion_rate')}; "
             "human_review_required=true"
         )[:2000],
     )

@@ -131,27 +131,25 @@ except ImportError:
 # ================================
 
 def get_user_currency(request):
-    """Get user's active currency with fallback to base currency"""
+    """Resolve active currency without depending on middleware side effects."""
     if not Currency:
         return None
-    
-    user_currency = getattr(request, 'user_currency', None)
-    
-    if user_currency and isinstance(user_currency, str):
-        currency_code = user_currency.upper()
-        user_currency = local_get_or_set(
-            f"currency:active:{currency_code}",
-            lambda: Currency.objects.filter(
-                code=currency_code,
-                is_active=True,
-            ).first(),
-            300,
-        )
-    
-    if not user_currency:
-        user_currency = get_base_currency()
-    
-    return user_currency
+
+    current = getattr(request, 'user_currency', None)
+    if isinstance(current, Currency) and current.is_active:
+        return current
+    session = getattr(request, 'session', {}) or {}
+    cookies = getattr(request, 'COOKIES', {}) or {}
+    code = current if isinstance(current, str) else session.get('user_currency') or cookies.get('user_currency')
+    if not code:
+        language = (getattr(request, 'META', {}) or {}).get('HTTP_ACCEPT_LANGUAGE', '').split(',')[0].strip()
+        language_map = {'en-US': 'USD', 'en-GB': 'GBP', 'en-NG': 'NGN', 'en-GH': 'GHS', 'en-ZA': 'ZAR'}
+        code = language_map.get(language)
+    if code:
+        resolved = Currency.objects.filter(code=str(code).upper(), is_active=True).first()
+        if resolved:
+            return resolved
+    return get_base_currency()
 
 
 def get_base_currency():
@@ -165,15 +163,13 @@ def get_base_currency():
         or getattr(settings, 'CURRENCY_DEFAULT', None)
         or 'NGN'
     )
-    return local_get_or_set(
-        f"currency:base:{base_code.upper()}",
-        lambda: (
-            Currency.objects.filter(code=base_code.upper(), is_active=True).first()
-            or Currency.objects.filter(is_base=True, is_active=True).first()
-            or Currency.objects.filter(code='NGN', is_active=True).first()
-            or Currency.objects.filter(code='USD', is_active=True).first()
-        ),
-        300,
+    # Deliberately uncached: settings overrides, migrations and request/test
+    # contexts must never inherit another context's catalogue currency.
+    return (
+        Currency.objects.filter(code=base_code.upper(), is_active=True).first()
+        or Currency.objects.filter(is_base=True, is_active=True).first()
+        or Currency.objects.filter(code='NGN', is_active=True).first()
+        or Currency.objects.filter(code='USD', is_active=True).first()
     )
 
 

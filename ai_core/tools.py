@@ -7,6 +7,7 @@ from .feature_flags import require_tool_execution_enabled
 from .models import AIAuditLog, AIUsageEvent
 from .permissions import require_role
 from .registry import active_tool
+from .schema_validation import SchemaValidationError, validate_schema, validate_source_references
 from .tool_contracts import TOOL_CONTRACTS, TOOL_QUOTES_CREATE_QUOTE_REQUEST
 
 
@@ -104,19 +105,10 @@ def execute_registered_tool(
 
 
 def _validate_payload_schema(contract, payload):
-    payload = payload or {}
-    if not isinstance(payload, dict):
-        raise AIToolValidationError("Tool input must be an object.")
-    allowed = set((contract.get("input_schema") or {}).get("properties") or {})
-    required = set(contract.get("required") or (contract.get("input_schema") or {}).get("required") or [])
-    missing = [field for field in required if payload.get(field) in (None, "")]
-    if missing:
-        raise AIToolValidationError(f"Missing required tool input: {', '.join(missing)}.")
-    if not (contract.get("input_schema") or {}).get("additionalProperties", True):
-        extra = sorted(set(payload) - allowed)
-        if extra:
-            raise AIToolValidationError(f"Unsupported tool input: {', '.join(extra)}.")
-    return True
+    try:
+        return validate_schema(payload, contract.get("input_schema"), path="tool input")
+    except SchemaValidationError as exc:
+        raise AIToolValidationError(str(exc)) from None
 
 
 class _Timeout:
@@ -229,6 +221,11 @@ def execute_ai_tool(tool_name, payload, *, context=None):
 
         with _Timeout(contract.get("timeout_seconds")):
             result = TOOL_HANDLERS[tool_name](payload or {}, {**context, "tool_call_id": tool_call_id})
+        try:
+            validate_schema(result, contract.get("output_schema"), path="tool output")
+            validate_source_references(result, path="tool output")
+        except SchemaValidationError as exc:
+            raise AIToolValidationError("Tool output failed its public contract.") from None
 
         latency_ms = int((time.monotonic() - started) * 1000)
         _usage_event(
