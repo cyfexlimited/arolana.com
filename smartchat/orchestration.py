@@ -143,15 +143,36 @@ def quote_request_readiness(conversation, requirements, intent, *, actor_user=No
     return not missing, missing
 
 
-def _products_reply(products):
+def _products_reply(products, query=""):
     if not products:
-        return "I could not find an active approved Arolana product matching that request yet."
-    lines = ["Here are active approved Arolana products I found:"]
+        cleaned_query = str(query or "").strip()
+
+        if cleaned_query:
+            return (
+                f"I couldn’t find an active approved product matching "
+                f"“{cleaned_query}” on Arolana yet. "
+                "Try another product name or ask me to connect you "
+                "with Arolana support."
+            )
+
+        return (
+            "I couldn’t find an active approved product matching "
+            "your request on Arolana yet. Try another product name "
+            "or ask me to connect you with Arolana support."
+        )
+
+    lines = ["Matching approved Arolana products:"]
     for product in products[:5]:
         price = product.get("displayed_price") or ""
         stock = product.get("stock_status") or "stock status unavailable"
-        lines.append(f"• {product.get('name')} — {price} ({stock})")
-    lines.append("These are grounded in public catalog records; marketplace descriptions are treated as untrusted source content.")
+        lines.append(
+            f"• {product.get('name')} — {price} ({stock})"
+        )
+
+    lines.append(
+        "These results come from active approved Arolana "
+        "catalog records."
+    )
     return "\n".join(lines)
 
 
@@ -294,7 +315,7 @@ def smart_shopping_reply(conversation, user_message, *, actor_user=None, applica
         else:
             result = execute_ai_tool(TOOL_CATALOG_SEARCH_PRODUCTS, {"query": user_message, "result_limit": 5}, context=tool_context)
             products = result.payload["products"]
-            answer = _products_reply(products)
+            answer = _products_reply(products, user_message)
             if products:
                 state["current_product_ref"] = products[0]["public_ref"]
                 source["product_cards"] = [

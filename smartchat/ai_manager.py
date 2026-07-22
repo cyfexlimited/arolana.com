@@ -599,17 +599,44 @@ def create_managed_ai_message(conversation, user_message, actor_user=None):
     same_source = not source.get("source_object_id") or (
         latest_ai and latest_ai.source_object_id == source.get("source_object_id")
     )
+    structured_response = source.get("structured_response") or {}
+    primary_intent = (
+        structured_response.get("primary_intent")
+        or source.get("intent")
+        or ""
+    )
+
+    products = structured_response.get("products")
+
+    is_empty_product_search = (
+        primary_intent == "catalog.search_products"
+        and isinstance(products, list)
+        and not products
+    )
+
+    is_safe_fallback = (
+        source.get("source_type") == "ai_core_safe_fallback"
+        or bool(source.get("fallback_reason"))
+    )
+
     if (
-        not source.get("recommendation_mode")
+        not is_empty_product_search
+        and not is_safe_fallback
+        and not source.get("recommendation_mode")
         and same_source
         and is_duplicate_reply(conversation, reply)
     ):
-        reply = advance_reply((conversation.context or {}).get("state") or {})
+        reply = advance_reply(
+            (conversation.context or {}).get("state") or {}
+        )
         source = {
             **source,
             "source_type": "duplicate_response_prevention",
             "source_label": "Conversation state",
-            "confidence": max(float(source.get("confidence") or 0), 0.75),
+            "confidence": max(
+                float(source.get("confidence") or 0),
+                0.75,
+            ),
         }
     ai_message = SmartChatMessage.objects.create(
         conversation=conversation,
