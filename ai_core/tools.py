@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import signal
+import threading
 import time
 import uuid
 
@@ -115,20 +116,34 @@ class _Timeout:
     def __init__(self, seconds):
         self.seconds = int(seconds or 0)
         self.previous = None
+        self.installed = False
 
     def __enter__(self):
         if self.seconds <= 0:
             return self
+
+        if not hasattr(signal, "SIGALRM"):
+            return self
+
+        if threading.current_thread() is not threading.main_thread():
+            return self
+
         self.previous = signal.getsignal(signal.SIGALRM)
         signal.signal(signal.SIGALRM, self._raise)
         signal.alarm(self.seconds)
+        self.installed = True
         return self
 
     def __exit__(self, exc_type, exc, tb):
-        if self.seconds > 0:
-            signal.alarm(0)
-            if self.previous is not None:
-                signal.signal(signal.SIGALRM, self.previous)
+        if not self.installed:
+            return False
+
+        signal.alarm(0)
+
+        if self.previous is not None:
+            signal.signal(signal.SIGALRM, self.previous)
+
+        self.installed = False
         return False
 
     def _raise(self, signum, frame):
