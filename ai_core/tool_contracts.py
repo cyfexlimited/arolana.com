@@ -191,12 +191,15 @@ TOOL_CONTRACTS = {
                     "currency": {"type": "string", "enum": ["NGN", "USD", "GBP", "EUR", "GHS", "ZAR"]},
                     "amount": {"type": "number", "minimum": 0}, "base_amount": {"type": ["number", "null"], "minimum": 0},
                     "base_currency": {"type": ["string", "null"], "enum": ["NGN", "USD", "GBP", "EUR", "GHS", "ZAR", None]},
-                    "conversion_rate": {"type": ["number", "null"], "minimum": 0}
+                    "conversion_rate": {"type": ["number", "null"], "minimum": 0},
+                    "exchange_rate_timestamp": {"type": ["string", "null"], "maxLength": 80},
+                    "conversion_warning": {"type": "string", "maxLength": 500}
                 }, "required": ["summary"]},
                 "conversation_id": {"type": ["string", "integer"]},
                 "request_id": {"type": "string"},
                 "idempotency_key": {"type": "string", "minLength": 8, "maxLength": 160},
                 "product_refs": {"type": "array", "maxItems": 10, "items": {"type": ["string", "integer"]}},
+                "service_refs": {"type": "array", "maxItems": 10, "items": {"type": "string", "minLength": 1, "maxLength": 180}},
                 "provider_ref": {"type": ["string", "integer"]},
                 "source_references": {"type": "array", "maxItems": 20, "items": SOURCE_REFERENCE_SCHEMA},
                 "guest_contact": {"type": "object", "additionalProperties": False, "properties": {"name": {"type": "string", "maxLength": 150}, "phone": {"type": "string", "maxLength": 30}, "whatsapp": {"type": "string", "maxLength": 30}, "email": {"type": "string", "maxLength": 254}}}

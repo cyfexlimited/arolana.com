@@ -19,6 +19,7 @@ from ai_core.tool_contracts import (
     TOOL_SERVICES_MATCH_PROVIDERS,
 )
 from ai_core.tools import ensure_default_tool_definitions, execute_ai_tool
+from installers.models import ServiceQuoteRequest
 
 
 PROMPT_KEY = "smart_shopping_assistant"
@@ -47,6 +48,12 @@ def _merge_requirements(state, message):
     for marker in ("lagos", "abuja", "ibadan", "port harcourt"):
         if marker in text and not requirements.get("location"):
             requirements["location"] = marker.title()
+    quote_words = ("quote", "quotation", "proposal", "professional estimate")
+    if any(word in text for word in quote_words):
+        declined = any(phrase in text for phrase in (
+            "no quote", "don't create", "do not create", "not now", "decline",
+        ))
+        state["quote_creation_declined"] = declined
     state["requirements"] = requirements
     return requirements
 
@@ -58,10 +65,10 @@ def _classify(message, state):
         return UNSUPPORTED_INTENT
     if any(term in text for term in ("compare", "versus", " vs ")):
         return "catalog.compare_products"
+    if any(term in text for term in ("quote", "quotation", "proposal", "professional estimate", "send request")):
+        return "quotes.create_quote_request"
     if any(term in text for term in ("install", "installer", "installation", "service provider", "technician")):
         return "services.match_providers"
-    if any(term in text for term in ("quote", "quotation", "request a quote", "send request")):
-        return "quotes.create_quote_request"
     if state.get("current_product_ref") and any(term in text for term in ("spec", "facts", "warranty", "manual", "video", "details")):
         return "catalog.get_product_facts"
     return "catalog.search_products"
@@ -96,6 +103,44 @@ def _public_error_reply():
         "I could not complete that Smart Shopping lookup safely, so I’ll keep using the regular "
         "Arolana chat flow. You can also ask for human support."
     )
+
+
+def quote_request_readiness(conversation, requirements, intent, *, actor_user=None, state=None):
+    """Pure readiness calculation. It never creates or mutates a quote."""
+    state = state or {}
+    missing = []
+    if intent != TOOL_QUOTES_CREATE_QUOTE_REQUEST:
+        missing.append("Ask for a professional quotation or proposal.")
+    summary = _text(requirements.get("summary"))
+    if len(summary) < 20:
+        missing.append("Describe the required product, service or technical solution.")
+    has_solution = bool(
+        conversation.product_id
+        or state.get("current_product_ref")
+        or requirements.get("service_needed")
+        or requirements.get("service_category")
+        or requirements.get("technical_solution")
+        or requirements.get("installation_required")
+    )
+    if not has_solution:
+        missing.append("Select a product, service category or technical solution.")
+    phone = _text(
+        requirements.get("phone")
+        or conversation.customer_phone
+        or getattr(actor_user, "phone_number", "")
+    )
+    if not phone:
+        missing.append("Provide a contact phone number for human review.")
+    if not _text(requirements.get("location") or requirements.get("state") or requirements.get("city")):
+        missing.append("Provide the service or delivery location.")
+    if state.get("quote_creation_declined"):
+        missing.append("Quote creation was declined in this conversation.")
+    existing = ServiceQuoteRequest.objects.filter(
+        admin_note__icontains=f"conversation_id={conversation.pk};",
+    ).exists()
+    if existing or state.get("quote_request_submitted"):
+        missing.append("A quotation request has already been submitted for this conversation.")
+    return not missing, missing
 
 
 def _products_reply(products):
@@ -219,11 +264,19 @@ def smart_shopping_reply(conversation, user_message, *, actor_user=None, applica
             answer = _providers_reply(result.payload["providers"])
             source["structured_response"].update({"answer": answer, "provider_suggestions": result.payload["providers"], "source_references": result.payload["source_references"], "warnings": result.payload["warnings"]})
         elif intent == TOOL_QUOTES_CREATE_QUOTE_REQUEST:
-            answer = "I can prepare a draft quote request after you confirm consent, contact details, location and service requirements."
+            ready, missing = quote_request_readiness(
+                conversation, requirements, intent, actor_user=actor_user, state=state,
+            )
+            answer = (
+                "Your requirements are ready for review. Confirm if you want me to submit a draft quotation request."
+                if ready else
+                "I can prepare a draft quotation request after the missing details are provided."
+            )
             source["structured_response"].update({
                 "answer": answer,
-                "quote_request_ready": False,
-                "missing_information": ["consent/contact/location/service requirements may still be needed"],
+                "quote_request_ready": ready,
+                "missing_information": missing,
+                "next_actions": ["confirm_quote_request"] if ready else ["provide_missing_information"],
             })
         else:
             result = execute_ai_tool(TOOL_CATALOG_SEARCH_PRODUCTS, {"query": user_message, "result_limit": 5}, context=tool_context)
@@ -242,9 +295,10 @@ def smart_shopping_reply(conversation, user_message, *, actor_user=None, applica
                     for item in products
                 ]
             source["structured_response"].update({"answer": answer, "products": products, "source_references": result.payload["source_references"], "warnings": result.payload["warnings"]})
-        source["tool_calls"].append(intent if intent in {
-            TOOL_CATALOG_GET_PRODUCT_FACTS, TOOL_CATALOG_COMPARE_PRODUCTS, TOOL_SERVICES_MATCH_PROVIDERS
-        } else TOOL_CATALOG_SEARCH_PRODUCTS)
+        if intent != TOOL_QUOTES_CREATE_QUOTE_REQUEST:
+            source["tool_calls"].append(intent if intent in {
+                TOOL_CATALOG_GET_PRODUCT_FACTS, TOOL_CATALOG_COMPARE_PRODUCTS, TOOL_SERVICES_MATCH_PROVIDERS
+            } else TOOL_CATALOG_SEARCH_PRODUCTS)
         source["structured_response"]["answer"] = source["structured_response"].get("answer") or answer
     except Exception as exc:
         if external_provider_enabled():

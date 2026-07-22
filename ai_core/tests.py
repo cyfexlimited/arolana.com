@@ -1,11 +1,22 @@
 from decimal import Decimal
+from datetime import timedelta
+import json
 
 from django.core.management import call_command
+from django.test import Client
 from django.test import SimpleTestCase, TestCase, override_settings
+from django.urls import reverse
+from django.utils import timezone
 from io import StringIO
 
 from accounts.models import User
+from arolana_payments.models import PaymentTransaction
+from currency.models import Currency
 from installers.models import ProviderService, ServiceCategory, ServiceProviderProfile, ServiceQuoteRequest
+from mobile_customers.models import MobileCustomer
+from mobile_customers.token_auth import issue_mobile_customer_token
+from notifications.models import Notification
+from orders.models import Order
 from products.models import Category, Product, VendorProductOffer
 from smartchat.models import SmartChatConversation
 from smartchat.orchestration import smart_shopping_reply
@@ -91,6 +102,228 @@ class SmartShoppingCommandTests(TestCase):
         call_command("verify_smart_shopping_v1", "--dry-run", stdout=StringIO())
         self.assertFalse(AIUsageEvent.objects.exists())
         self.assertFalse(AIAuditLog.objects.exists())
+
+
+@override_settings(
+    AI_CORE_ENABLED=True,
+    AI_TOOL_EXECUTION_ENABLED=True,
+    AI_SMART_SHOPPING_ENABLED=True,
+    AI_EXTERNAL_PROVIDER_ENABLED=False,
+    SECURE_SSL_REDIRECT=False,
+)
+class SmartShoppingQuoteEndpointTests(TestCase):
+    def setUp(self):
+        self.customer = User.objects.create_user(
+            email="quote-mobile@example.com", username="quote-mobile",
+            password="StrongPassword123!", phone_number="+2348012345678",
+        )
+        self.other = User.objects.create_user(
+            email="other-quote@example.com", username="other-quote",
+            password="StrongPassword123!", phone_number="+2348099999999",
+        )
+        self.staff = User.objects.create_user(
+            email="quote-staff@example.com", username="quote-staff",
+            password="StrongPassword123!", is_staff=True,
+        )
+        vendor = User.objects.create_user(
+            email="quote-vendor@example.com", username="quote-vendor",
+            password="StrongPassword123!", user_type="vendor",
+        )
+        category = Category.objects.create(name="Quote projectors", slug="quote-projectors")
+        self.product = Product.objects.create(
+            vendor=vendor, category=category, sku="QUOTE-PROJ-1",
+            name="Quote Projector", slug="quote-projector",
+            description="Approved quote product", price=Decimal("500000.00"),
+            stock_quantity=7, approval_status="approved", is_active=True,
+        )
+        self.service = ServiceCategory.objects.create(
+            name="Quote installation", slug="quote-installation", matching_keywords="install",
+        )
+        self.ngn = Currency.objects.create(
+            code="NGN", symbol="N", name="Naira", exchange_rate=Decimal("1500"),
+            is_base=True, is_active=True,
+        )
+        self.usd = Currency.objects.create(
+            code="USD", symbol="$", name="Dollar", exchange_rate=Decimal("1"), is_active=True,
+        )
+        self.conversation = SmartChatConversation.objects.create(
+            user=self.customer, channel="mobile", audience=SmartChatConversation.AUDIENCE_CUSTOMER,
+            customer_name="Quote Customer", customer_phone=self.customer.phone_number,
+            customer_email=self.customer.email, title="Quotation",
+        )
+        ensure_default_tool_definitions()
+        self.url = reverse("smartchat_api:quote_request")
+        self.payload = {
+            "conversation_id": self.conversation.id,
+            "request_id": "mobile-request-001",
+            "idempotency_key": "mobile-idempotency-001",
+            "consent": True,
+            "requirements": {
+                "summary": "Install a ceiling-mounted projector in our Lagos conference room.",
+                "service_needed": "Projector installation",
+            },
+            "product_refs": [self.product.slug],
+            "service_refs": [self.service.slug],
+            "location": {"state": "Lagos", "city": "Ikeja"},
+            "budget": {"amount": "1000.00", "currency": "USD"},
+            "source_references": [{
+                "label": self.product.name, "type": "product", "ref": self.product.slug,
+                "url": self.product.get_absolute_url(),
+            }],
+        }
+
+    def post(self, payload=None, *, client=None, **headers):
+        return (client or self.client).post(
+            self.url, data=json.dumps(payload or self.payload),
+            content_type="application/json", **headers,
+        )
+
+    def test_readiness_false_then_true_without_creating_quote(self):
+        sparse = SmartChatConversation.objects.create(
+            user=self.customer, customer_phone="", channel="web",
+            audience=SmartChatConversation.AUDIENCE_CUSTOMER,
+        )
+        _, source = smart_shopping_reply(sparse, "I need a quote", actor_user=self.customer)
+        self.assertFalse(source["structured_response"]["quote_request_ready"])
+        self.assertTrue(source["structured_response"]["missing_information"])
+        self.assertFalse(ServiceQuoteRequest.objects.exists())
+
+        _, source = smart_shopping_reply(
+            self.conversation,
+            "I need a professional quotation for projector installation in Lagos",
+            actor_user=self.customer,
+        )
+        self.assertTrue(source["structured_response"]["quote_request_ready"])
+        self.assertEqual(source["structured_response"]["missing_information"], [])
+        self.assertFalse(ServiceQuoteRequest.objects.exists())
+
+    def test_authenticated_customer_success_is_idempotent_and_non_commercial(self):
+        self.client.force_login(self.customer)
+        stock = self.product.stock_quantity
+        first = self.post().json()
+        second = self.post().json()
+        self.assertTrue(first["success"])
+        self.assertTrue(first["quote_request"]["created"])
+        self.assertFalse(second["quote_request"]["created"])
+        self.assertNotIn("id", first["quote_request"])
+        self.assertEqual(ServiceQuoteRequest.objects.count(), 1)
+        quote = ServiceQuoteRequest.objects.get()
+        self.assertEqual(quote.status, "new")
+        self.assertEqual(quote.budget, Decimal("1000.00"))
+        self.assertIn("currency_provenance=1000.00 USD", quote.admin_note)
+        self.assertIn("base=1500000.000 NGN", quote.admin_note)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.stock_quantity, stock)
+        self.assertFalse(Order.objects.exists())
+        self.assertFalse(PaymentTransaction.objects.exists())
+        self.assertEqual(Notification.objects.filter(title="Draft quotation request submitted").count(), 1)
+        self.assertEqual(AIUsageEvent.objects.filter(prompt_key=TOOL_QUOTES_CREATE_QUOTE_REQUEST).count(), 2)
+        self.assertEqual(AIAuditLog.objects.filter(object_label=TOOL_QUOTES_CREATE_QUOTE_REQUEST).count(), 2)
+
+    def test_mobile_bearer_authentication_and_ownership(self):
+        mobile = MobileCustomer.objects.create(
+            user=self.customer, full_name="Mobile Quote", phone_number=self.customer.phone_number,
+            email=self.customer.email,
+        )
+        raw_token, token = issue_mobile_customer_token(mobile)
+        response = self.post(
+            {**self.payload, "phone_number": str(mobile.phone_number)},
+            HTTP_AUTHORIZATION=f"Bearer {raw_token}",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["success"])
+        token.revoked_at = timezone.now()
+        token.save(update_fields=["revoked_at", "updated_at"])
+        rejected = self.post(
+            {**self.payload, "phone_number": str(mobile.phone_number), "idempotency_key": "mobile-revoked-002"},
+            HTTP_AUTHORIZATION=f"Bearer {raw_token}",
+        )
+        self.assertEqual(rejected.status_code, 403)
+        self.assertEqual(rejected.json()["error"]["code"], "authentication_failed")
+
+    def test_missing_exchange_rate_preserves_original_budget_for_review(self):
+        self.client.force_login(self.customer)
+        self.usd.delete()
+        response = self.post()
+        self.assertEqual(response.status_code, 200)
+        quote = ServiceQuoteRequest.objects.get()
+        self.assertEqual(quote.budget, Decimal("1000.00"))
+        self.assertIn("currency_provenance=1000.00 USD", quote.admin_note)
+        self.assertIn("Currency conversion is unavailable", quote.admin_note)
+
+    def test_stale_exchange_rate_preserves_original_budget_for_review(self):
+        self.client.force_login(self.customer)
+        Currency.objects.filter(pk=self.usd.pk).update(updated_at=timezone.now() - timedelta(days=8))
+        response = self.post()
+        self.assertEqual(response.status_code, 200)
+        quote = ServiceQuoteRequest.objects.get()
+        self.assertEqual(quote.budget, Decimal("1000.00"))
+        self.assertIn("available exchange rate is stale", quote.admin_note)
+
+    def test_unrelated_customer_and_missing_consent_are_denied(self):
+        self.client.force_login(self.other)
+        self.assertEqual(self.post().status_code, 404)
+        self.client.force_login(self.customer)
+        response = self.post({**self.payload, "consent": False})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error"]["code"], "consent_required")
+
+    def test_approved_guest_requires_matching_device_session_and_contact(self):
+        guest = Client()
+        session = guest.session
+        session["quote_guest"] = True
+        session.save()
+        conversation = SmartChatConversation.objects.create(
+            user=None, session_key=session.session_key, device_id="guest-device-1",
+            channel="mobile", audience=SmartChatConversation.AUDIENCE_GUEST,
+            customer_name="Guest Quote", customer_phone="+2348011111111",
+        )
+        payload = {**self.payload, "conversation_id": conversation.id, "device_id": "guest-device-1"}
+        response = self.post(payload, client=guest)
+        self.assertEqual(response.status_code, 200)
+        mismatch = {**payload, "idempotency_key": "guest-mismatch-002", "device_id": "wrong-device"}
+        self.assertEqual(self.post(mismatch, client=guest).status_code, 404)
+
+        bad_contact = Client()
+        bad_session = bad_contact.session
+        bad_session["quote_guest"] = True
+        bad_session.save()
+        bad_conversation = SmartChatConversation.objects.create(
+            session_key=bad_session.session_key, device_id="guest-device-2",
+            channel="mobile", audience=SmartChatConversation.AUDIENCE_GUEST,
+        )
+        bad_payload = {**self.payload, "conversation_id": bad_conversation.id, "device_id": "guest-device-2"}
+        result = self.post(bad_payload, client=bad_contact)
+        self.assertEqual(result.json()["error"]["code"], "contact_invalid")
+
+    def test_invalid_public_and_private_source_references_are_rejected(self):
+        self.client.force_login(self.customer)
+        invalid_product = self.post({**self.payload, "product_refs": [str(self.product.id)]})
+        self.assertEqual(invalid_product.json()["error"]["code"], "public_reference_invalid")
+        invalid_source = self.post({
+            **self.payload,
+            "source_references": [{"label": "private", "type": "product", "ref": "x", "url": "/admin/products/1/"}],
+        })
+        self.assertEqual(invalid_source.json()["error"]["code"], "request_validation_failed")
+
+    def test_missing_identifiers_malformed_request_and_disabled_controls(self):
+        self.client.force_login(self.customer)
+        cases = (
+            ("conversation_id", "conversation_id_required"),
+            ("request_id", "request_id_required"),
+            ("idempotency_key", "idempotency_key_required"),
+        )
+        for field, code in cases:
+            value = {**self.payload}
+            value.pop(field)
+            with self.subTest(field=field):
+                self.assertEqual(self.post(value).json()["error"]["code"], code)
+        malformed = self.client.post(self.url, data="{", content_type="application/json")
+        self.assertEqual(malformed.json()["error"]["code"], "malformed_request")
+        with override_settings(AI_SMART_SHOPPING_ENABLED=False):
+            self.assertEqual(self.post().json()["error"]["code"], "smart_shopping_disabled")
+        AIToolDefinition.objects.filter(name=TOOL_QUOTES_CREATE_QUOTE_REQUEST).update(is_active=False)
+        self.assertEqual(self.post().json()["error"]["code"], "tool_unavailable")
 
 
 class AICoreFoundationTests(TestCase):

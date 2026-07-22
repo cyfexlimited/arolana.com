@@ -23,3 +23,20 @@ Run `python manage.py seed_smart_shopping_v1 --inactive` to synchronize the
 draft prompt and inactive tool records. Use `--dry-run` to inspect counts. An
 active staff-edited prompt is a conflict and is preserved unless
 `--override-active-prompt` is supplied.
+
+## Confirmed customer quote handoff
+
+`POST /api/smartchat/quote-request/` is the shared web/mobile confirmation
+endpoint. It verifies the authenticated customer or the guest conversation's
+device and session ownership before executing
+`ai_core.tools.execute_ai_tool("quotes.create_quote_request", ...)`. It never
+calls the commerce handler directly. `AI_CORE_ENABLED`,
+`AI_TOOL_EXECUTION_ENABLED`, `AI_SMART_SHOPPING_ENABLED`, and an active tool
+record are required. `AI_EXTERNAL_PROVIDER_ENABLED` is deliberately not
+required: confirmed quote submission is a deterministic first-party handoff
+and remains available when the external model provider is unavailable.
+
+Currency conversion is optional and backend-only. The supplied amount and
+currency are always preserved. A valid current rate adds base amount, base
+currency, rate, and timestamp provenance; a missing or stale rate adds a human
+review warning and does not reject the draft request.

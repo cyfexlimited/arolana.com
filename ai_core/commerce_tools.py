@@ -8,7 +8,7 @@ from django.db.models import Q
 from django.urls import reverse
 from django.utils.html import strip_tags
 
-from installers.models import ServiceProviderProfile, ServiceQuoteRequest
+from installers.models import ServiceCategory, ServiceProviderProfile, ServiceQuoteRequest
 from installers.services import filter_public_providers, suggested_providers_for_product
 from notifications.models import Notification
 from products.models import Product, VendorProductOffer
@@ -309,7 +309,12 @@ def _quote_duplicate(payload):
     marker = str(payload.get("idempotency_key") or "").strip()
     if not marker:
         return None
-    quote = ServiceQuoteRequest.objects.filter(admin_note__icontains=f"idempotency_key={marker}").first()
+    conversation_id = str(payload.get("conversation_id") or "").strip()
+    quote = ServiceQuoteRequest.objects.filter(
+        admin_note__icontains=f"idempotency_key={marker};",
+    ).filter(
+        admin_note__icontains=f"conversation_id={conversation_id};",
+    ).first()
     return _quote_payload(quote, created=False) if quote else None
 
 
@@ -343,6 +348,12 @@ def create_quote_request(payload, context=None):
     requirements = payload.get("requirements") or {}
     summary = _plain(requirements.get("summary") or payload.get("requirements_summary"), 1200)
     product = _product_lookup((payload.get("product_refs") or [""])[0]) if payload.get("product_refs") else None
+    category = None
+    service_refs = payload.get("service_refs") or []
+    if service_refs:
+        category = ServiceCategory.objects.filter(
+            slug=service_refs[0], is_active=True,
+        ).first()
     provider = None
     if payload.get("provider_ref"):
         ref = str(payload.get("provider_ref")).strip()
@@ -362,6 +373,7 @@ def create_quote_request(payload, context=None):
     quote = ServiceQuoteRequest.objects.create(
         customer=user if user is not None and getattr(user, "is_authenticated", False) else None,
         provider=provider,
+        category=category,
         product=product,
         name=_plain(guest.get("name") or getattr(user, "get_full_name", lambda: "")() or "Arolana customer", 150),
         phone=phone,
@@ -371,6 +383,7 @@ def create_quote_request(payload, context=None):
         city=_plain(requirements.get("city") or requirements.get("location") or "Not supplied", 100),
         address=_plain(requirements.get("address") or "To be confirmed by human review.", 500),
         service_needed=_plain(requirements.get("service_needed") or "Smart Shopping draft service quote request", 220),
+        budget=_decimal(requirements.get("amount")),
         message=(
             f"{summary}\n\nAssumptions: {_plain(requirements.get('assumptions'), 500)}\n"
             f"Missing information: {_plain(requirements.get('missing_information'), 500)}\n"
@@ -388,6 +401,9 @@ def create_quote_request(payload, context=None):
             f"currency_provenance={requirements.get('amount')} {requirements.get('currency')}; "
             f"base={requirements.get('base_amount')} {requirements.get('base_currency')}; "
             f"conversion_rate={requirements.get('conversion_rate')}; "
+            f"exchange_rate_timestamp={requirements.get('exchange_rate_timestamp')}; "
+            f"conversion_warning={requirements.get('conversion_warning')}; "
+            f"service_refs={service_refs}; "
             "human_review_required=true"
         )[:2000],
     )

@@ -9,6 +9,7 @@ urlpatterns = [
     path("conversations/", api_views.conversations, name="conversations"),
     path("conversation/<int:conversation_id>/", api_views.conversation_detail, name="conversation"),
     path("message/", api_views.message, name="message"),
+    path("quote-request/", api_views.quote_request, name="quote_request"),
     path("feedback/", api_views.feedback, name="feedback"),
     path("request-human/", api_views.request_human, name="request_human"),
     path("unread-count/", api_views.unread_count, name="unread_count"),
