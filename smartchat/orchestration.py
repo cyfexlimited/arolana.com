@@ -217,9 +217,22 @@ def smart_shopping_reply(conversation, user_message, *, actor_user=None, applica
 
     try:
         prompt = active_prompt(PROMPT_KEY, role=role)
-        source["prompt"] = {"key": prompt.key, "version": prompt.version, "feature": prompt.feature}
-    except Exception:
-        source["fallback_reason"] = "active_prompt_missing"
+        source["prompt"] = {
+            "key": prompt.key,
+            "version": prompt.version,
+            "feature": prompt.feature,
+        }
+
+    except Exception as exc:
+        import traceback
+
+        traceback.print_exc()
+
+        source["fallback_reason"] = (
+            f"active_prompt_error_{exc.__class__.__name__}"
+        )
+
+        source["prompt_error"] = str(exc)
 
     if intent == UNSUPPORTED_INTENT:
         response = unsupported_marketplace_response()
