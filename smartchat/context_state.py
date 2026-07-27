@@ -467,8 +467,6 @@ def _catalog_entities(text):
         if any(re.search(rf"\b{re.escape(name)}\b", lowered) for name in names):
             category = item
             break
-    if not category:
-        category = _find_category_for_product_type(lowered)
     return brand, category
 
 
