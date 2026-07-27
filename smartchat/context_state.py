@@ -547,6 +547,7 @@ def is_slot_only_followup(message, state):
     return bool(
         has_locked_shopping_category(state)
         and updates
+        and not facts.get("subject")
         and not explicit_category
         and not is_explicit_category_change(message)
         and not is_flow_reset(message)

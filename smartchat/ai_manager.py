@@ -1,11 +1,12 @@
 import re
 from decimal import Decimal
 
-from django.db.models import F
+from django.db.models import F, Q
 from django.urls import reverse
 from django.utils import timezone
 
 from core.content_i18n import translated_field, translated_key
+from products.models import Product
 from .models import (
     AICustomerMemory,
     AICategoryRouterLog,
@@ -25,7 +26,6 @@ from .brain import (
     update_conversation_context,
 )
 from .context_state import (
-    has_locked_shopping_category,
     is_slot_only_followup,
     persist_state,
     prepare_context,
@@ -272,6 +272,218 @@ def record_learning_candidate(conversation, user_message, answer, source_message
     return learned
 
 
+def _marketplace_money_label(requirements):
+    amount = requirements.get("budget_max") or requirements.get("budget_amount")
+    if not amount:
+        return ""
+    currency = requirements.get("currency") or "NGN"
+    symbol = "₦" if currency == "NGN" else f"{currency} "
+    try:
+        return f"{symbol}{int(amount):,}"
+    except (TypeError, ValueError):
+        return f"{symbol}{amount}"
+
+
+def _stateful_marketplace_fallback(conversation, state, user_message):
+    """Flag-safe marketplace response used when Smart Shopping is disabled."""
+    requirements = state.get("requirements") or {}
+    subject = (
+        state.get("active_subject")
+        or state.get("locked_category")
+        or state.get("category")
+        or state.get("search_query")
+        or str(user_message or "").strip()
+        or "your request"
+    )
+    entity_type = state.get("entity_type") or "product"
+    transaction = state.get("transaction_type") or "buy"
+    location = (
+        requirements.get("service_location")
+        or requirements.get("delivery_location")
+        or requirements.get("location")
+        or ""
+    )
+    budget_label = _marketplace_money_label(requirements)
+    service_transactions = {"repair", "install", "maintain", "inspect", "consult", "find_provider"}
+
+    product_cards = []
+    result_count = 0
+    tool_name = None
+    if entity_type in {"property", "vehicle"} and transaction in {"rent", "lease", "short_let", "find_property", "find_vehicle"}:
+        details = ", ".join(
+            item for item in (
+                f"location: {location}" if location else "",
+                f"budget: {budget_label}" if budget_label else "",
+            ) if item
+        )
+        reply = (
+            f"I’ll keep this as a {subject} {transaction.replace('_', ' ')} request"
+            f"{(' (' + details + ')') if details else ''}. "
+            "I couldn’t find a matching live listing in this response, so the next useful step "
+            "is to refine the location or connect you with Arolana support."
+        )
+        source_type = "marketplace_state_property"
+    elif transaction in service_transactions or entity_type == "service_provider":
+        reply = (
+            f"I’ll keep this as a {subject} service-provider request"
+            f"{(' in ' + location) if location else ''}. "
+            "I couldn’t confirm a matching provider in this response yet, but I can help refine "
+            "the service details or connect you with Arolana support."
+        )
+        source_type = "marketplace_state_provider"
+    else:
+        queryset = Product.objects.filter(is_active=True, approval_status="approved")
+        if state.get("catalog_category_id"):
+            queryset = queryset.filter(category_id=state["catalog_category_id"])
+        query_text = " ".join(
+            part for part in (
+                subject,
+                state.get("brand"),
+                requirements.get("brand"),
+                str(requirements.get("resolution") or "").replace("_", " "),
+                str(requirements.get("brightness_requirement") or ""),
+            ) if part
+        )
+        terms = [term for term in re.findall(r"[a-zA-Z0-9]+", query_text.lower()) if len(term) > 2][:8]
+        if terms:
+            q = Q()
+            for term in terms:
+                q |= (
+                    Q(name__icontains=term)
+                    | Q(description__icontains=term)
+                    | Q(specifications__icontains=term)
+                    | Q(category__name__icontains=term)
+                    | Q(brand__name__icontains=term)
+                )
+            queryset = queryset.filter(q)
+        exact_queryset = queryset
+        if requirements.get("budget_max"):
+            exact_queryset = exact_queryset.filter(price__lte=requirements["budget_max"])
+        products = list(
+            exact_queryset.select_related("brand", "category").order_by("price", "name")[:4]
+        )
+        relaxed = False
+        if not products and requirements.get("budget_max"):
+            products = list(queryset.select_related("brand", "category").order_by("price", "name")[:4])
+            relaxed = True
+        product_cards = [
+            {
+                "id": product.id,
+                "slug": product.slug,
+                "name": product.name,
+                "title": product.name,
+                "price": f"₦{product.price:,.2f}",
+                "url": product.get_absolute_url(),
+                "add_to_cart_url": reverse("products:add_to_cart", args=[product.slug]),
+                "rating": float(product.rating_avg or 0),
+                "rating_count": product.rating_count,
+                "popular_qa": [
+                    {
+                        "question": item.question,
+                        "answer": item.answer,
+                    }
+                    for item in product.questions.filter(is_public=True).exclude(answer="")[:3]
+                ],
+            }
+            for product in products
+        ]
+        result_count = len(products)
+        tool_name = "django.approved_catalog_lookup"
+        if products:
+            conversation.product = products[0]
+            conversation.save(update_fields=["product", "updated_at"])
+            intro = (
+                f"I couldn’t find an exact {subject} match at or below {budget_label}, "
+                "but these are the closest relevant live options:"
+                if relaxed and budget_label else
+                f"Here are relevant live {subject} options I found:"
+            )
+            reply = "\n".join(
+                [intro]
+                + [f"- {product.name} — ₦{product.price:,.2f}" for product in products]
+            )
+        else:
+            details = []
+            if requirements.get("brightness_requirement"):
+                details.append(f"{requirements['brightness_requirement']} lumens")
+            if budget_label:
+                details.append(f"budget {budget_label}")
+            if location:
+                details.append(f"location {location}")
+            qualifier = f" with {', '.join(details)}" if details else ""
+            reply = (
+                f"I couldn’t find an active approved {subject} match{qualifier} in the live Arolana catalogue. "
+                "I can try a wider search, look for a verified supplier, or connect you with support."
+            )
+        source_type = "product_database"
+
+    source = {
+        "source_type": source_type,
+        "source_label": "Arolana marketplace state",
+        "confidence": 0.82,
+        "intent": "product_search" if source_type == "product_database" else "marketplace_state",
+        "marketplace_category": state.get("category") or subject,
+        "category_confidence": 0.95 if state.get("catalog_category_id") else 0.72,
+        "category_matched_terms": [subject],
+        "category_route_source": "active_category_database" if state.get("catalog_category_id") else source_type,
+        "catalog_category_id": state.get("catalog_category_id"),
+        "result_count": result_count,
+        "product_cards": product_cards,
+        "product_ids": [card["id"] for card in product_cards],
+        "source_object_id": product_cards[0]["id"] if product_cards else None,
+        "active_subject": subject,
+        "search_query": subject,
+        "tool_name": tool_name,
+        "structured_response": {
+            "answer": reply,
+            "products": product_cards,
+            "structured_requirements": requirements,
+        },
+    }
+    update_conversation_context(conversation, source["intent"], reply, source)
+    return reply, source
+
+
+def _should_use_marketplace_workflow(conversation, message, state, deterministic_intent):
+    text = str(message or "").lower()
+    direct_request = bool(
+        re.search(
+            r"\b(?:do you have|show me|find(?: me)?|search for|i need|i want|"
+            r"i am looking for|i'm looking for|looking for)\b",
+            text,
+        )
+    )
+    if is_slot_only_followup(message, state):
+        return not bool(getattr(conversation, "product_id", None))
+    if deterministic_intent not in {
+        "catalog.search_products",
+        "shopping_requirements",
+        "services.match_providers",
+    }:
+        return False
+    entity_type = state.get("entity_type")
+    transaction = state.get("transaction_type")
+    if entity_type in {
+        "property", "vehicle", "medical_equipment", "farm_equipment",
+        "software", "service_provider",
+    }:
+        if (
+            entity_type == "property"
+            and not re.search(r"\b(?:rent|lease|short-let|short let|buy|purchase|sale|yearly|per year)\b", text)
+        ):
+            return False
+        return direct_request or transaction in {
+            "rent", "lease", "short_let", "repair", "install", "maintain",
+            "inspect", "consult", "find_provider", "find_property",
+            "find_vehicle",
+        }
+    return (
+        direct_request
+        and bool(state.get("catalog_category_id"))
+        and not bool(getattr(conversation, "product_id", None))
+    )
+
+
 def request_human_takeover(conversation, requested_by=None, reason="", priority="high"):
     conversation.mark_admin_requested()
     context = dict(conversation.context or {})
@@ -377,17 +589,7 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
         return reply, source
 
     state = prepare_context(conversation, resolved_message)
-    if (
-        is_slot_only_followup(resolved_message, state)
-        or (
-            has_locked_shopping_category(state)
-            and deterministic_intent in {
-                "catalog.search_products",
-                "shopping_requirements",
-                "clarification",
-            }
-        )
-    ):
+    if _should_use_marketplace_workflow(conversation, resolved_message, state, deterministic_intent):
         smart_shopping_result = smart_shopping_reply(
             conversation,
             resolved_message,
@@ -403,6 +605,7 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
                 source,
             )
             return reply, source
+        return _stateful_marketplace_fallback(conversation, state, resolved_message)
 
     topic_resolution = resolve_topic(conversation, resolved_message)
     state = apply_topic_resolution(conversation, topic_resolution)
@@ -420,17 +623,7 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
         return reply, source
 
     state = prepare_context(conversation, resolved_message)
-    if (
-        is_slot_only_followup(resolved_message, state)
-        or (
-            has_locked_shopping_category(state)
-            and deterministic_intent in {
-                "catalog.search_products",
-                "shopping_requirements",
-                "clarification",
-            }
-        )
-    ):
+    if _should_use_marketplace_workflow(conversation, resolved_message, state, deterministic_intent):
         smart_shopping_result = smart_shopping_reply(
             conversation,
             resolved_message,
@@ -446,6 +639,7 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
                 source,
             )
             return reply, source
+        return _stateful_marketplace_fallback(conversation, state, resolved_message)
 
     followup_type = resolve_followup(resolved_message, state)
     if followup_type == PRICE_REQUEST:
@@ -549,7 +743,6 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
         if source.get("structured_response", {}).get("handoff_required"):
             request_human_takeover(conversation, actor_user, user_message)
         return reply, source
-
     intent, routed_reply, routed_source, needs_handoff = route_chat_response(
         conversation,
         resolved_message,
