@@ -11,6 +11,7 @@
     data-request-admin-url="{% url 'smartchat:api_request_admin' %}"
     data-admin-inbox-url="{% url 'smartchat:admin_inbox' %}"
     data-authenticated="{% if request.user.is_authenticated %}true{% else %}false{% endif %}"
+    data-csrf-cookie-name="{{ csrf_cookie_name|default:'arolana_csrftoken' }}"
     data-product-id="{% if product %}{{ product.id }}{% endif %}"
     data-product-name="{% if product %}{{ product.name|escape }}{% endif %}"
     data-product-sku="{% if product %}{{ product.sku|escape }}{% endif %}"
@@ -718,15 +719,34 @@
     }
 
     function getCookie(name) {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) return parts.pop().split(";").shift();
-        return "";
+        if (!name || !document.cookie) return "";
+
+        const prefix = `${name}=`;
+        const cookie = document.cookie
+            .split(";")
+            .map((item) => item.trim())
+            .find((item) => item.startsWith(prefix));
+
+        if (!cookie) return "";
+
+        const rawValue = cookie.slice(prefix.length);
+
+        try {
+            return decodeURIComponent(rawValue);
+        } catch (error) {
+            return rawValue;
+        }
+    }
+
+    function csrfCookieName() {
+        return widget()?.dataset.csrfCookieName || "arolana_csrftoken";
     }
 
     function csrfToken() {
-        return getCookie("csrftoken")
-            || getEl("arolana-smartchat-guest-form")?.querySelector("[name='csrfmiddlewaretoken']")?.value
+        return getCookie(csrfCookieName())
+            || getEl("arolana-smartchat-guest-form")
+                ?.querySelector("[name='csrfmiddlewaretoken']")
+                ?.value
             || "";
     }
 
@@ -1011,15 +1031,12 @@
             if (addButton) {
                 event.preventDefault();
                 const url = addButton.dataset.smartchatAddUrl;
-                const csrfToken = document.cookie
-                    .split("; ")
-                    .find((row) => row.startsWith("csrftoken="))
-                    ?.split("=")[1] || "";
+                const token = csrfToken();
                 addButton.disabled = true;
                 fetch(url, {
                     method: "POST",
                     headers: {
-                        "X-CSRFToken": decodeURIComponent(csrfToken),
+                        "X-CSRFToken": token,
                         "X-Requested-With": "XMLHttpRequest",
                         "Content-Type": "application/x-www-form-urlencoded",
                     },
