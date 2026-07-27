@@ -399,6 +399,83 @@ def _providers_reply(providers):
     return "\n".join(lines)
 
 
+def _catalog_search_allowed_for_state(state):
+    """Return True only when a marketplace state can safely hit Product search.
+
+    Rental, property, repair, installer/provider and uncategorised software
+    workflows must not fall through to a generic product catalogue search. That
+    fallback is useful for real merchandise, but dangerous for non-catalog
+    domains because broad text terms can pull unrelated Arolana products.
+    """
+    transaction = state.get("transaction_type") or ""
+    entity_type = state.get("entity_type") or ""
+    if transaction in {
+        "rent",
+        "lease",
+        "short_let",
+        "hire",
+        "repair",
+        "install",
+        "maintain",
+        "inspect",
+        "consult",
+        "book_service",
+        "find_provider",
+        "find_property",
+        "find_vehicle",
+    }:
+        return False
+    if entity_type in {"property", "service_provider"}:
+        return False
+    if entity_type == "software" and not state.get("catalog_category_id"):
+        return False
+    return True
+
+
+def _domain_preserving_marketplace_reply(state, requirements):
+    subject = shopping_category_label(state) or state.get("active_subject") or "your request"
+    transaction = (state.get("transaction_type") or "").replace("_", " ")
+    entity_type = state.get("entity_type") or "marketplace"
+    location = (
+        requirements.get("service_location")
+        or requirements.get("delivery_location")
+        or requirements.get("location")
+        or (state.get("location") or {}).get("delivery_location")
+        or (state.get("location") or {}).get("service_location")
+        or ""
+    )
+    location_phrase = f" in {location}" if location else ""
+    if entity_type == "property":
+        return (
+            f"I’ll keep this as a {subject} property request{location_phrase}. "
+            "I could not confirm a matching live property listing in this response yet, "
+            "so the useful next step is to refine the location, budget or listing type."
+        )
+    if entity_type == "service_provider" or state.get("intent_family") == "service":
+        return (
+            f"I’ll keep this as a {subject} service-provider request{location_phrase}. "
+            "I could not confirm an approved provider match in this response yet, "
+            "but I can refine the service details or connect you with Arolana support."
+        )
+    if state.get("transaction_type") in {"rent", "lease", "short_let", "hire"}:
+        return (
+            f"I’ll keep this as a {subject} {transaction or 'rental'} request{location_phrase}. "
+            "I could not confirm matching rental inventory in this response yet. "
+            "I can refine the date, location, capacity or budget."
+        )
+    if entity_type == "software":
+        return (
+            f"I’ll keep this as a {subject} software request. "
+            "I could not confirm a matching live software listing in this response yet, "
+            "but I can refine users, platform, licence model or budget."
+        )
+    return (
+        f"I’ll keep this as a {subject} marketplace request{location_phrase}. "
+        "I could not confirm a matching live listing in this response yet, "
+        "but I will keep the subject and requirements together."
+    )
+
+
 def _comparison_reply(points):
     if not points:
         return "I could not compare those products because approved product references were not available."
@@ -618,6 +695,33 @@ def smart_shopping_reply(conversation, user_message, *, actor_user=None, applica
         conversation.current_intent = intent
         conversation.save(update_fields=["context", "current_intent", "updated_at"])
         return response["message"], source
+
+    if intent == TOOL_CATALOG_SEARCH_PRODUCTS and not _catalog_search_allowed_for_state(state):
+        answer = _domain_preserving_marketplace_reply(state, requirements)
+        source.update({
+            "source_type": "marketplace_state",
+            "source_label": "Arolana marketplace state",
+            "confidence": 0.84,
+            "selected_route": "marketplace_state_preserved",
+            "tool_name": "none",
+            "result_count": 0,
+            "fallback_reason": "catalog_search_not_allowed_for_active_workflow",
+        })
+        source["structured_response"].update({
+            "answer": answer,
+            "products": [],
+            "provider_suggestions": [],
+            "source_references": [],
+            "warnings": [],
+            "missing_information": _missing_shopping_slots(state),
+            "structured_requirements": requirements,
+        })
+        context["smart_shopping"] = state
+        context["state"] = {**(context.get("state") or {}), **state}
+        conversation.context = context
+        conversation.current_intent = "marketplace_state"
+        conversation.save(update_fields=["context", "current_intent", "updated_at"])
+        return answer, source
 
     tool_context = _tool_context(conversation, actor_user, role, request_id, application_source)
     try:

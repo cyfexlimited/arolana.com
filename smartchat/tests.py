@@ -213,6 +213,46 @@ class SmartChatEndToEndRoutingTests(TestCase):
         self.assertEqual(second.metadata["duplicate_check"], "skipped")
         self.assertEqual(second.metadata["duplicate_skip_reason"], "source_type:catalog_empty_result")
 
+    def test_non_catalog_marketplace_domains_do_not_fall_back_to_random_products(self):
+        vendor = User.objects.create_user(
+            username="route-av-vendor",
+            email="route-av-vendor@example.com",
+            password="password123",
+        )
+        category = Category.objects.create(name="Projectors", slug="route-projectors")
+        Product.objects.create(
+            vendor=vendor,
+            category=category,
+            sku="ROUTE-PROJECTOR",
+            name="Bright Room Projector",
+            slug="bright-room-projector-route",
+            description="A projector for meeting rooms.",
+            price="410000.00",
+            stock_quantity=3,
+            approval_status="approved",
+            is_active=True,
+        )
+
+        cases = (
+            ("I need a two-bedroom apartment in Ikeja under ₦4 million yearly.", "property"),
+            ("I want to rent a bus for twenty people next Saturday.", "rental"),
+            ("I need accounting software for fifteen staff members.", "software"),
+        )
+        for message, expected_word in cases:
+            with self.subTest(message=message):
+                conversation = SmartChatConversation.objects.create()
+                reply = self.send(conversation, message)
+
+                self.assertNotIn("Matching approved Arolana products", reply.message)
+                self.assertNotIn("Bright Room Projector", reply.message)
+                self.assertNotIn("Projectors", reply.message)
+                self.assertIn(expected_word, reply.message.lower())
+                self.assertEqual(reply.metadata.get("tool_name"), "none")
+                self.assertEqual(
+                    reply.metadata.get("fallback_reason"),
+                    "catalog_search_not_allowed_for_active_workflow",
+                )
+
     def test_product_query_returns_only_active_approved_product(self):
         vendor = User.objects.create_user(
             username="route-vendor",
