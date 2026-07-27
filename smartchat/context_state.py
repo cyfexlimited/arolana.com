@@ -295,7 +295,7 @@ def _money_matches(text):
         suffix = (match.group("word") or "").lower()
         tail = text[match.end():match.end() + 16]
         window = text[max(0, match.start() - 32):match.end() + 32]
-        if re.match(r"\s*(?:ansi\s*)?(?:lumens?|inch|inches|people|participants|users|students|staff|beds?|units?|hectares?|horsepower|hp|sqm|square)\b", tail):
+        if re.match(r"[-\s]*(?:ansi\s*)?(?:lumens?|inch|inches|people|participants|users|students|staff|beds?|units?|hectares?|horsepower|hp|sqm|square)\b", tail):
             continue
         has_budget_context = re.search(
             r"\b(?:budget|price|cost|under|below|around|about|up to|for about|not more than|between)\b",
@@ -376,7 +376,7 @@ def _subject_from_text(text):
         return ""
     explicit_new = re.search(
         r"\b(?:actually|instead|rather|forget .+?\.?|forget .+?;)?\s*"
-        r"(?:i need|i want|show me|find me|search for)\s+(?:a|an|some|the)?\s*"
+        r"(?:i need|i want|show me|find me|search for)\s+(?:(?:a|an|some|the)\s+)?"
         r"(.+?)(?:\s+(?:under|below|around|about|in|for|with|delivered|next|this week)\b|[.!?]|$)",
         cleaned,
     )
@@ -387,8 +387,8 @@ def _subject_from_text(text):
         return subject[:120]
     for pattern in (
         r"\b(?:forget|no longer need)\s+(?:the\s+)?(.+?)(?:;|,|\band\b|\.)",
-        r"\b(?:do you have|show me|find me|search for)\s+(?:a|an|some)?\s*(.+?)(?:\s+(?:under|below|around|about|in|for|with|delivered|next|this week)\b|[.!?]|$)",
-        r"\b(?:i need|i want|i am looking for|i'm looking for|looking for)\s+(?:someone to\s+)?(?:a|an|some)?\s*(.+?)(?:\s+(?:under|below|around|about|in|for|with|delivered|next|this week)\b|[.!?]|$)",
+        r"\b(?:do you have|show me|find me|search for)\s+(?:(?:a|an|some)\s+)?(.+?)(?:\s+(?:under|below|around|about|in|for|with|delivered|next|this week)\b|[.!?]|$)",
+        r"\b(?:i need|i want|i am looking for|i'm looking for|looking for)\s+(?:someone to\s+)?(?:(?:a|an|some)\s+)?(.+?)(?:\s+(?:under|below|around|about|in|for|with|delivered|next|this week)\b|[.!?]|$)",
     ):
         match = re.search(pattern, cleaned)
         if match:

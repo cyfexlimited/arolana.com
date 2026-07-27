@@ -376,6 +376,34 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
         update_conversation_context(conversation, deterministic_intent, reply, source)
         return reply, source
 
+    state = prepare_context(conversation, resolved_message)
+    if (
+        is_slot_only_followup(resolved_message, state)
+        or (
+            has_locked_shopping_category(state)
+            and deterministic_intent in {
+                "catalog.search_products",
+                "shopping_requirements",
+                "clarification",
+            }
+        )
+    ):
+        smart_shopping_result = smart_shopping_reply(
+            conversation,
+            resolved_message,
+            actor_user=actor_user,
+            application_source=conversation.channel or "smartchat",
+        )
+        if smart_shopping_result:
+            reply, source = smart_shopping_result
+            update_conversation_context(
+                conversation,
+                source.get("intent", "smart_shopping"),
+                reply,
+                source,
+            )
+            return reply, source
+
     topic_resolution = resolve_topic(conversation, resolved_message)
     state = apply_topic_resolution(conversation, topic_resolution)
     explicit_result = explicit_route_reply(topic_resolution, conversation)
@@ -392,7 +420,6 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
         return reply, source
 
     state = prepare_context(conversation, resolved_message)
-    deterministic_intent = resolve_customer_intent(resolved_message)
     if (
         is_slot_only_followup(resolved_message, state)
         or (
