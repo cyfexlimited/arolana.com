@@ -357,7 +357,7 @@ def _subject_from_text(text):
     has_subject_intent = bool(
         re.search(
             r"\b(?:do you have|show me|find me|search for|i need|i want|"
-            r"i am looking for|i'm looking for|looking for)\b",
+            r"find|i am looking for|i'm looking for|looking for)\b",
             cleaned,
         )
     )
@@ -387,7 +387,7 @@ def _subject_from_text(text):
         return subject[:120]
     for pattern in (
         r"\b(?:forget|no longer need)\s+(?:the\s+)?(.+?)(?:;|,|\band\b|\.)",
-        r"\b(?:do you have|show me|find me|search for)\s+(?:(?:a|an|some)\s+)?(.+?)(?:\s+(?:under|below|around|about|in|for|with|delivered|next|this week)\b|[.!?]|$)",
+        r"\b(?:do you have|show me|find me|find|search for)\s+(?:(?:a|an|some)\s+)?(.+?)(?:\s+(?:under|below|around|about|in|for|with|delivered|next|this week)\b|[.!?]|$)",
         r"\b(?:i need|i want|i am looking for|i'm looking for|looking for)\s+(?:someone to\s+)?(?:(?:a|an|some)\s+)?(.+?)(?:\s+(?:under|below|around|about|in|for|with|delivered|next|this week)\b|[.!?]|$)",
     ):
         match = re.search(pattern, cleaned)

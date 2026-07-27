@@ -79,10 +79,12 @@ REQUIREMENTS_PATTERNS = (
 ORDER_PATTERNS = (r"\btrack (?:my |an? )?order\b", r"\bwhere is my order\b")
 INSTALLER_PATTERNS = (
     r"\bi need (?:an? )?(?:installer|engineer|technician)\b",
+    r"\bi need (?:an? )?(?:[a-z0-9-]+\s+){1,6}(?:installer|engineer|technician)\b",
     r"\bi need someone to (?:repair|install|maintain|inspect|service)\b",
     r"\bfind (?:someone|a|an) to (?:repair|install|maintain|inspect|service)\b",
     r"\b(?:repair|installation|maintenance|inspection) (?:technician|provider|service)\b",
     r"\bfind (?:an? )?(?:installer|engineer|service provider)\b",
+    r"\bfind (?:an? )?(?:[a-z0-9-]+\s+){1,6}(?:installer|engineer|technician|service provider)\b",
 )
 SUPPORT_PATTERNS = (r"\bcontact support\b", r"\bconnect me (?:to|with) support\b")
 COMPARISON_PATTERNS = (r"\bcompare\b", r"\bversus\b", r"\bvs\b")

@@ -269,6 +269,27 @@ class SmartChatEndToEndRoutingTests(TestCase):
         self.assertNotIn("live Arolana catalogue", help_reply.message)
         self.assertIn("service", help_reply.message.lower())
 
+    def test_asset_specific_installer_request_stays_in_provider_workflow(self):
+        conversation = SmartChatConversation.objects.create()
+
+        reply = self.send(conversation, "Find a CCTV installer in Abuja.")
+        conversation.refresh_from_db()
+        state = (conversation.context or {}).get("state") or {}
+
+        self.assertEqual(reply.metadata.get("intent"), "services.match_providers")
+        self.assertNotEqual(reply.metadata.get("source_type"), "conversation_router")
+        self.assertNotIn("small room", reply.message.lower())
+        self.assertNotIn("boardroom", reply.message.lower())
+        self.assertNotIn("what is your budget", reply.message.lower())
+        self.assertIn("provider", reply.message.lower())
+        self.assertEqual(state.get("intent_family"), "service")
+        self.assertEqual(state.get("transaction_type"), "find_provider")
+        self.assertIn("cctv", state.get("active_subject", "").lower())
+        self.assertEqual(
+            (state.get("requirements") or {}).get("service_location"),
+            "Abuja",
+        )
+
     def test_product_query_returns_only_active_approved_product(self):
         vendor = User.objects.create_user(
             username="route-vendor",
