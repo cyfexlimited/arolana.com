@@ -660,6 +660,21 @@ def update_conversation_context(conversation, intent, reply, metadata=None):
 
     context = dict(conversation.context or {})
     product = getattr(conversation, "product", None)
+    if not getattr(product, "id", None) and metadata:
+        product_ref = metadata.get("source_object_id")
+        if not product_ref:
+            product_cards = metadata.get("product_cards") or []
+            if product_cards:
+                product_ref = product_cards[0].get("id")
+        if product_ref:
+            product = Product.objects.filter(
+                Q(slug=str(product_ref)) | Q(sku=str(product_ref)),
+                approval_status="approved",
+                is_active=True,
+            ).select_related("brand", "category").first()
+            if product:
+                conversation.product = product
+                conversation.save(update_fields=["product", "updated_at"])
     recent_user_message = (
         conversation.messages.filter(
             sender_type="user",
@@ -681,7 +696,8 @@ def update_conversation_context(conversation, intent, reply, metadata=None):
         message_text,
     )
     use_case_match = re.search(
-        r"\b(?:for|use it for|need it for)\s+([a-z][a-z\s-]{2,80})",
+        r"\b(?:for|use it for|need it for)\s+"
+        r"(church|school|office|home|gaming|medical|business|training|boardroom|classroom)\b",
         message_text,
     )
     marketplace_category = (metadata or {}).get(

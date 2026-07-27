@@ -59,6 +59,7 @@ CONVERSATIONAL_PATTERNS = (
 )
 
 PRODUCT_SEARCH_PATTERNS = (
+    r"\bi (?:need|want|am looking for|m looking for)\b",
     r"\bdo you have\b",
     r"\bshow me\b",
     r"\bhow much (?:is|for|are)\b",
@@ -78,6 +79,9 @@ REQUIREMENTS_PATTERNS = (
 ORDER_PATTERNS = (r"\btrack (?:my |an? )?order\b", r"\bwhere is my order\b")
 INSTALLER_PATTERNS = (
     r"\bi need (?:an? )?(?:installer|engineer|technician)\b",
+    r"\bi need someone to (?:repair|install|maintain|inspect|service)\b",
+    r"\bfind (?:someone|a|an) to (?:repair|install|maintain|inspect|service)\b",
+    r"\b(?:repair|installation|maintenance|inspection) (?:technician|provider|service)\b",
     r"\bfind (?:an? )?(?:installer|engineer|service provider)\b",
 )
 SUPPORT_PATTERNS = (r"\bcontact support\b", r"\bconnect me (?:to|with) support\b")

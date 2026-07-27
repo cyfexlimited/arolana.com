@@ -8,6 +8,7 @@ from django.urls import reverse
 from notifications.models import Notification
 from products.models import Brand, Category, Product, ProductQuestion, ProductReview
 from .ai_manager import create_managed_ai_message
+from .context_state import extract_facts, prepare_context
 from .intent_guards import (
     CONVERSATIONAL_GOODBYE,
     CONVERSATIONAL_GRATITUDE,
@@ -284,6 +285,299 @@ class SmartChatEndToEndRoutingTests(TestCase):
         self.assertEqual(search.source_type, "catalog_empty_result")
         self.assertEqual(conversation.context["state"]["active_subject"], "Logitech Group")
         self.assertEqual(conversation.context["state"].get("requirements"), {})
+
+    def test_projector_shopping_session_freezes_category_through_slot_filling(self):
+        vendor = User.objects.create_user(
+            username="projector-vendor",
+            email="projector-vendor@example.com",
+            password="password123",
+        )
+        projector_category = Category.objects.create(name="Projectors", slug="projectors")
+        artwork_category = Category.objects.create(name="Artwork", slug="artwork")
+        epson = Brand.objects.create(name="Epson", slug="epson")
+        Brand.objects.create(name="Artwork House", slug="artwork-house")
+        projector = Product.objects.create(
+            vendor=vendor,
+            category=projector_category,
+            brand=epson,
+            sku="EPSON-4000-LUMENS",
+            name="Epson 4000 Lumens Full HD Projector",
+            slug="epson-4000-lumens-full-hd-projector",
+            description="A bright projector for boardrooms, schools and churches.",
+            specifications="4000 lumens Full HD 1080p HDMI projector.",
+            price="390000.00",
+            stock_quantity=6,
+            approval_status="approved",
+            is_active=True,
+            condition=Product.CONDITION_BRAND_NEW,
+        )
+        Product.objects.create(
+            vendor=vendor,
+            category=artwork_category,
+            brand=None,
+            sku="ARTWORK-001",
+            name="Wall Artwork Canvas",
+            slug="wall-artwork-canvas",
+            description="Decorative wall art and canvas artwork.",
+            specifications="Painting, sculpture and wall artwork.",
+            price="200000.00",
+            stock_quantity=4,
+            approval_status="approved",
+            is_active=True,
+        )
+        conversation = SmartChatConversation.objects.create()
+
+        greeting = self.send(conversation, "hello")
+        self.assertEqual(greeting.source_type, "deterministic_conversation")
+
+        messages = [
+            "do you have projector",
+            "I'm looking for a 4000 lumens projector for about ₦300,000",
+            "My budget is ₦400,000",
+            "Lagos",
+            "brand new",
+            "Epson",
+        ]
+        replies = [self.send(conversation, message) for message in messages]
+
+        conversation.refresh_from_db()
+        state = conversation.context["state"]
+        smart_state = conversation.context["smart_shopping"]
+        requirements = state["requirements"]
+
+        self.assertEqual(state["category"], "Projectors")
+        self.assertEqual(state["product_type"], "Projectors")
+        self.assertEqual(state["locked_category"], "Projectors")
+        self.assertTrue(state["shopping_category_locked"])
+        self.assertEqual(smart_state["category"], "Projectors")
+        self.assertEqual(requirements["budget_max"], 400000)
+        self.assertEqual(requirements["brightness_requirement"], 4000)
+        self.assertEqual(requirements["delivery_location"], "Lagos")
+        self.assertEqual(requirements["condition"], Product.CONDITION_BRAND_NEW)
+        self.assertEqual(requirements["brand"], "Epson")
+        self.assertEqual(state["brand"], "Epson")
+        self.assertNotEqual(state["category"], "Artwork")
+
+        transcript = "\n".join(reply.message for reply in replies)
+        self.assertNotIn("artwork", transcript.lower())
+        self.assertNotIn("ai", transcript.lower())
+        self.assertIn(projector.name, replies[-1].message)
+        self.assertEqual(replies[-1].metadata["result_count"], 1)
+        self.assertEqual(
+            replies[-1].metadata["structured_response"]["products"][0]["public_ref"],
+            projector.slug,
+        )
+        for reply in replies:
+            session_debug = reply.metadata.get("shopping_session", {})
+            if session_debug:
+                self.assertNotEqual(session_debug["new_category"], "Artwork")
+                self.assertIn("previous_category", session_debug)
+                self.assertIn("reason_for_change", session_debug)
+                self.assertIn("slot_updates", session_debug)
+                self.assertIn("shopping_state_before", session_debug)
+                self.assertIn("shopping_state_after", session_debug)
+
+    def test_budget_only_followup_never_changes_locked_projector_category(self):
+        projector_category = Category.objects.create(name="Projectors", slug="projectors-budget")
+        Category.objects.create(name="Artwork", slug="artwork-budget")
+        conversation = SmartChatConversation.objects.create(context={
+            "state": {
+                "category": projector_category.name,
+                "product_type": projector_category.name,
+                "locked_category": projector_category.name,
+                "shopping_category_locked": True,
+                "active_subject": projector_category.name,
+                "requirements": {},
+            },
+            "smart_shopping": {
+                "category": projector_category.name,
+                "product_type": projector_category.name,
+                "locked_category": projector_category.name,
+                "shopping_category_locked": True,
+                "active_subject": projector_category.name,
+                "requirements": {},
+            },
+        })
+
+        reply = self.send(conversation, "₦400,000")
+
+        conversation.refresh_from_db()
+        state = conversation.context["state"]
+        self.assertEqual(state["category"], "Projectors")
+        self.assertEqual(state["locked_category"], "Projectors")
+        self.assertEqual(state["requirements"]["budget_max"], 400000)
+        self.assertNotIn("artwork", reply.message.lower())
+        self.assertEqual(
+            reply.metadata["shopping_session"]["reason_for_change"],
+            "no_new_category",
+        )
+
+
+class UniversalMarketplaceConversationStateTests(TestCase):
+    DOMAIN_CASES = (
+        ("Audio-visual equipment", "projector", "commerce", "product"),
+        ("Consumer electronics", "television", "commerce", "product"),
+        ("Computers", "laptop", "commerce", "product"),
+        ("Phones", "smartphone", "commerce", "product"),
+        ("Home appliances", "commercial freezer", "commerce", "product"),
+        ("Furniture", "office chair", "commerce", "product"),
+        ("Fashion", "leather bag", "commerce", "product"),
+        ("Beauty products", "skincare kit", "commerce", "product"),
+        ("Office equipment", "photocopier", "commerce", "product"),
+        ("Industrial equipment", "diesel generator", "commerce", "product"),
+        ("Construction equipment", "concrete mixer", "commerce", "product"),
+        ("Hospital equipment", "patient monitor", "commerce", "medical_equipment"),
+        ("Laboratory equipment", "laboratory equipment", "commerce", "medical_equipment"),
+        ("Farm equipment", "tractor", "commerce", "farm_equipment"),
+        ("Vehicles", "Toyota Camry", "vehicle", "vehicle"),
+        ("Vehicle spare parts", "Toyota gearbox spare part", "vehicle", "vehicle"),
+        ("Real estate", "apartment", "real_estate", "property"),
+        ("Rentals", "bus rental", "vehicle", "vehicle"),
+        ("Software", "school management software", "software", "software"),
+        ("Digital services", "e-commerce app developer", "service", "service_provider"),
+        ("Installers", "CCTV installer", "service", "service_provider"),
+        ("Repair providers", "projector repair technician", "service", "service_provider"),
+        ("Consultants", "property valuer", "service", "service_provider"),
+        ("Logistics providers", "logistics provider", "service", "service_provider"),
+        ("Manufacturers", "manufacturer for custom furniture", "commerce", "product"),
+        ("Wholesale sourcing", "wholesale laptops", "commerce", "product"),
+    )
+
+    def test_representative_domain_matrix_preserves_subject_through_slot_followups(self):
+        for label, subject, intent_family, entity_type in self.DOMAIN_CASES:
+            with self.subTest(domain=label):
+                Category.objects.create(name=subject.title(), slug=f"{label.lower().replace(' ', '-')}-category")
+                conversation = SmartChatConversation.objects.create()
+
+                state = prepare_context(conversation, f"I need {subject}")
+                locked_subject = state["active_subject"]
+                self.assertTrue(locked_subject)
+
+                for message in ("₦400,000", "Lagos", "brand new", "3 units"):
+                    state = prepare_context(conversation, message)
+                    self.assertEqual(state["active_subject"], locked_subject)
+                    self.assertEqual(state["locked_category"], locked_subject)
+                    self.assertNotEqual(state["active_subject"].lower(), "artwork")
+                    self.assertNotEqual(state["active_subject"].lower(), "general_marketplace")
+
+                self.assertEqual(state["requirements"]["budget_max"], 400000)
+                self.assertEqual(state["requirements"]["currency"], "NGN")
+                self.assertEqual(state["requirements"]["delivery_location"], "Lagos")
+                self.assertEqual(state["requirements"]["condition"], Product.CONDITION_BRAND_NEW)
+                self.assertEqual(state["requirements"]["quantity"], 3)
+                self.assertEqual(state["intent_family"], intent_family)
+                self.assertEqual(state["entity_type"], entity_type)
+
+    def test_required_projector_conversation_extracts_slots_without_subject_drift(self):
+        Category.objects.create(name="Projector", slug="state-projector")
+        conversation = SmartChatConversation.objects.create()
+
+        for message in (
+            "I need a projector.",
+            "4000 lumens.",
+            "My budget is ₦400,000.",
+            "I need it in Lagos.",
+        ):
+            state = prepare_context(conversation, message)
+
+        self.assertEqual(state["active_subject"], "Projector")
+        self.assertEqual(state["requirements"]["brightness_requirement"], 4000)
+        self.assertEqual(state["requirements"]["budget_amount"], 400000)
+        self.assertEqual(state["requirements"]["currency"], "NGN")
+        self.assertEqual(state["requirements"]["delivery_location"], "Lagos")
+
+    def test_vehicle_purchase_conversation_preserves_vehicle_subject(self):
+        conversation = SmartChatConversation.objects.create()
+        for message in (
+            "I need a Toyota Camry.",
+            "2018 or newer.",
+            "My budget is ₦18 million.",
+            "Used is fine.",
+            "Lagos.",
+        ):
+            state = prepare_context(conversation, message)
+
+        self.assertEqual(state["active_subject"], "toyota camry")
+        self.assertEqual(state["entity_type"], "vehicle")
+        self.assertEqual(state["transaction_type"], "buy")
+        self.assertEqual(state["requirements"]["year_min"], 2018)
+        self.assertEqual(state["requirements"]["budget_amount"], 18000000)
+        self.assertEqual(state["requirements"]["condition"], Product.CONDITION_FOREIGN_USED)
+        self.assertEqual(state["requirements"]["delivery_location"], "Lagos")
+
+    def test_vehicle_repair_conversation_routes_to_service_provider_state(self):
+        conversation = SmartChatConversation.objects.create()
+        for message in (
+            "I need someone to repair my Toyota Hilux.",
+            "It has a gearbox problem.",
+            "I’m in Abuja.",
+            "I need it this week.",
+        ):
+            state = prepare_context(conversation, message)
+
+        self.assertEqual(state["transaction_type"], "repair")
+        self.assertEqual(state["intent_family"], "service")
+        self.assertEqual(state["entity_type"], "vehicle")
+        self.assertIn("toyota hilux", state["active_subject"])
+        self.assertEqual(state["requirements"]["fault_description"], "gearbox problem")
+        self.assertEqual(state["requirements"]["service_location"], "Abuja")
+        self.assertEqual(state["requirements"]["urgency"], "this week")
+
+    def test_real_estate_rental_conversation_preserves_property_state(self):
+        conversation = SmartChatConversation.objects.create()
+        for message in (
+            "I need an apartment.",
+            "Two bedrooms.",
+            "Lekki.",
+            "Not more than ₦5 million per year.",
+        ):
+            state = prepare_context(conversation, message)
+
+        self.assertEqual(state["entity_type"], "property")
+        self.assertEqual(state["transaction_type"], "rent")
+        self.assertEqual(state["requirements"]["bedrooms"], 2)
+        self.assertEqual(state["requirements"]["delivery_location"], "Lekki")
+        self.assertEqual(state["requirements"]["budget_max"], 5000000)
+
+    def test_explicit_subject_change_clears_old_specific_slots(self):
+        Category.objects.create(name="Projector", slug="change-projector")
+        Category.objects.create(name="Television", slug="change-television")
+        conversation = SmartChatConversation.objects.create()
+
+        prepare_context(conversation, "I need a projector.")
+        prepare_context(conversation, "My budget is ₦400,000.")
+        state = prepare_context(conversation, "Actually, forget the projector. I need a television.")
+
+        self.assertEqual(state["active_subject"], "Television")
+        self.assertEqual(state["locked_category"], "Television")
+        self.assertTrue(state["explicit_subject_change"])
+        self.assertNotEqual(state["active_subject"], "Projector")
+
+    def test_slot_only_messages_do_not_change_active_category_property_style(self):
+        conversation = SmartChatConversation.objects.create()
+        state = prepare_context(conversation, "I want land in Owerri.")
+        subject = state["active_subject"]
+        for message in ("About 600 square metres.", "For commercial use.", "My budget is ₦40 million."):
+            state = prepare_context(conversation, message)
+            self.assertEqual(state["active_subject"], subject)
+
+        self.assertEqual(state["requirements"]["land_size"], "600 square metres")
+        self.assertEqual(state["requirements"]["budget_max"], 40000000)
+
+    def test_budget_location_quantity_condition_and_specs_never_change_active_category(self):
+        conversation = SmartChatConversation.objects.create()
+        state = prepare_context(conversation, "I need a patient monitor.")
+        subject = state["active_subject"]
+        for message in ("Five units.", "Brand new.", "For a hospital in Enugu.", "Budget is ₦12 million."):
+            state = prepare_context(conversation, message)
+            self.assertEqual(state["active_subject"], subject)
+            self.assertNotIn(state["active_subject"].lower(), {"wall art", "paintings", "sculptures", "general_marketplace"})
+
+        self.assertEqual(state["entity_type"], "medical_equipment")
+        self.assertEqual(state["requirements"]["quantity"], 5)
+        self.assertEqual(state["requirements"]["condition"], Product.CONDITION_BRAND_NEW)
+        self.assertEqual(state["requirements"]["delivery_location"], "Enugu")
+        self.assertEqual(state["requirements"]["budget_max"], 12000000)
 
 
 @override_settings(OPENAI_API_KEY="", SECURE_SSL_REDIRECT=False)

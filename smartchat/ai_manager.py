@@ -24,7 +24,12 @@ from .brain import (
     route_chat_response,
     update_conversation_context,
 )
-from .context_state import persist_state, prepare_context
+from .context_state import (
+    has_locked_shopping_category,
+    is_slot_only_followup,
+    persist_state,
+    prepare_context,
+)
 from .followup_resolver import (
     ALTERNATIVE_REQUEST,
     BETTER_REQUEST,
@@ -387,6 +392,34 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
         return reply, source
 
     state = prepare_context(conversation, resolved_message)
+    deterministic_intent = resolve_customer_intent(resolved_message)
+    if (
+        is_slot_only_followup(resolved_message, state)
+        or (
+            has_locked_shopping_category(state)
+            and deterministic_intent in {
+                "catalog.search_products",
+                "shopping_requirements",
+                "clarification",
+            }
+        )
+    ):
+        smart_shopping_result = smart_shopping_reply(
+            conversation,
+            resolved_message,
+            actor_user=actor_user,
+            application_source=conversation.channel or "smartchat",
+        )
+        if smart_shopping_result:
+            reply, source = smart_shopping_result
+            update_conversation_context(
+                conversation,
+                source.get("intent", "smart_shopping"),
+                reply,
+                source,
+            )
+            return reply, source
+
     followup_type = resolve_followup(resolved_message, state)
     if followup_type == PRICE_REQUEST:
         result = current_price_reply(state)
