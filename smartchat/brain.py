@@ -749,13 +749,36 @@ def update_conversation_context(conversation, intent, reply, metadata=None):
     state["previous_intent"] = state.get("intent") or context.get("last_intent", "")
     state["intent"] = intent
     state["last_topic"] = topic_label
-    state["active_subject"] = (
-        getattr(product, "name", "")
-        or state.get("active_subject")
-        or " ".join(
-            value for value in (state.get("brand"), state.get("product_type")) if value
+    metadata_subject = (metadata or {}).get("active_subject") or (metadata or {}).get("search_query")
+    previous_subject = state.get("active_subject", "")
+    if metadata_subject:
+        state["active_subject"] = metadata_subject
+    elif (metadata or {}).get("source_type") == "deterministic_conversation":
+        state["active_subject"] = previous_subject
+    else:
+        state["active_subject"] = (
+            getattr(product, "name", "")
+            or state.get("active_subject")
+            or " ".join(
+                value for value in (state.get("brand"), state.get("product_type")) if value
+            )
         )
-    )
+    if (metadata or {}).get("topic_changed"):
+        state["requirements"] = {}
+        for key in (
+            "room_size",
+            "use_case",
+            "delivery_location",
+            "user_location",
+            "user_budget",
+        ):
+            context.pop(key, None)
+    if (metadata or {}).get("route") in {"shopping_requirements", "recommendation", "quote_request"}:
+        state["flow"] = (metadata or {}).get("route")
+    elif (metadata or {}).get("source_type") == "catalog_empty_result":
+        state["flow"] = "catalog_search"
+    if (metadata or {}).get("search_query"):
+        state["last_search_query"] = (metadata or {}).get("search_query")
     state["current_product_id"] = context.get("current_product_id")
     state["current_product_name"] = context.get("current_product_name", "")
     state["brand"] = context.get("current_brand", "") or state.get("brand", "")

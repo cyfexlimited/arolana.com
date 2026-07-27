@@ -37,7 +37,21 @@ from .followup_resolver import (
     resolve_followup,
 )
 from .recommendation_engine import current_price_reply, recommend
-from .response_validator import advance_reply, is_duplicate_reply, validate_customer_reply
+from .intent_guards import (
+    CLARIFICATION_REPLY,
+    CONVERSATIONAL_GOODBYE,
+    CONVERSATIONAL_GRATITUDE,
+    CONVERSATIONAL_GREETING,
+    CONVERSATIONAL_IDENTITY,
+    conversational_reply,
+    deterministic_conversation_source,
+    resolve_customer_intent,
+)
+from .response_validator import (
+    advance_reply,
+    should_advance_duplicate_reply,
+    validate_customer_reply,
+)
 from .topic_resolver import (
     SUPPORT_OVERRIDE,
     apply_topic_resolution,
@@ -345,6 +359,18 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
             "text_resolution": text_resolution,
         }
 
+    deterministic_intent = resolve_customer_intent(resolved_message)
+    if deterministic_intent in {
+        CONVERSATIONAL_GREETING,
+        CONVERSATIONAL_GRATITUDE,
+        CONVERSATIONAL_IDENTITY,
+        CONVERSATIONAL_GOODBYE,
+    }:
+        reply = conversational_reply(deterministic_intent)
+        source = deterministic_conversation_source(deterministic_intent)
+        update_conversation_context(conversation, deterministic_intent, reply, source)
+        return reply, source
+
     topic_resolution = resolve_topic(conversation, resolved_message)
     state = apply_topic_resolution(conversation, topic_resolution)
     explicit_result = explicit_route_reply(topic_resolution, conversation)
@@ -592,6 +618,12 @@ def create_managed_ai_message(conversation, user_message, actor_user=None):
     if text_resolution.get("applied") or text_resolution.get("clarification"):
         source = {**source, "text_resolution": text_resolution}
     reply, source = validate_customer_reply(reply, source)
+    structured_response = source.get("structured_response") or {}
+    if (
+        "result_count" not in source
+        and isinstance(structured_response.get("products"), list)
+    ):
+        source = {**source, "result_count": len(structured_response["products"])}
     latest_ai = conversation.messages.filter(
         sender_type=SmartChatMessage.SENDER_AI,
         is_private_note=False,
@@ -599,36 +631,20 @@ def create_managed_ai_message(conversation, user_message, actor_user=None):
     same_source = not source.get("source_object_id") or (
         latest_ai and latest_ai.source_object_id == source.get("source_object_id")
     )
-    structured_response = source.get("structured_response") or {}
-    primary_intent = (
-        structured_response.get("primary_intent")
-        or source.get("intent")
-        or ""
+    should_advance, duplicate_reason = should_advance_duplicate_reply(
+        conversation=conversation,
+        reply=reply,
+        source=source,
+        same_source=bool(same_source),
     )
-
-    products = structured_response.get("products")
-
-    is_empty_product_search = (
-        primary_intent == "catalog.search_products"
-        and isinstance(products, list)
-        and not products
-    )
-
-    is_safe_fallback = (
-        source.get("source_type") == "ai_core_safe_fallback"
-        or bool(source.get("fallback_reason"))
-    )
-
-    if (
-        not is_empty_product_search
-        and not is_safe_fallback
-        and not source.get("recommendation_mode")
-        and same_source
-        and is_duplicate_reply(conversation, reply)
-    ):
-        reply = advance_reply(
-            (conversation.context or {}).get("state") or {}
-        )
+    source = {
+        **source,
+        "duplicate_check": "advance" if should_advance else "skipped",
+        "duplicate_skip_reason": "" if should_advance else duplicate_reason,
+    }
+    if should_advance:
+        advanced_reply = advance_reply((conversation.context or {}).get("state") or {})
+        reply = advanced_reply or CLARIFICATION_REPLY
         source = {
             **source,
             "source_type": "duplicate_response_prevention",
@@ -637,6 +653,7 @@ def create_managed_ai_message(conversation, user_message, actor_user=None):
                 float(source.get("confidence") or 0),
                 0.75,
             ),
+            "duplicate_advance_reason": duplicate_reason,
         }
     ai_message = SmartChatMessage.objects.create(
         conversation=conversation,
@@ -684,6 +701,17 @@ def create_managed_ai_message(conversation, user_message, actor_user=None):
         metadata={
             "source_type": source.get("source_type", ""),
             "source_label": source.get("source_label", ""),
+            "resolved_intent": source.get("intent", ""),
+            "selected_route": source.get("route") or source.get("intent", ""),
+            "tool_name": (
+                (source.get("tool_calls") or [""])[0]
+                if isinstance(source.get("tool_calls"), list)
+                else source.get("tool_name", "")
+            ),
+            "tool_result_count": source.get("result_count"),
+            "duplicate_check": source.get("duplicate_check", ""),
+            "duplicate_skip_reason": source.get("duplicate_skip_reason", ""),
+            "request_id": source.get("request_id", ""),
         },
     )
     AICategoryRouterLog.objects.create(

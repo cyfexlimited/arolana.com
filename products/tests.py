@@ -1,6 +1,8 @@
 from decimal import Decimal
+from io import StringIO
 
 from django.contrib.auth import get_user_model
+from django.core.management import call_command
 from django.test import RequestFactory, SimpleTestCase, TestCase
 from django.urls import reverse, resolve
 
@@ -8,6 +10,48 @@ from currency.models import Currency
 from orders.models import Cart, CartItem
 from products import views
 from products.models import Category, Product
+
+User = get_user_model()
+
+
+class MarketplaceCatalogDiagnosticCommandTests(TestCase):
+    def test_empty_catalog_exits_one_without_secret_output(self):
+        output = StringIO()
+        with self.assertRaises(SystemExit) as exc:
+            call_command("diagnose_marketplace_catalog", stdout=output)
+        self.assertEqual(exc.exception.code, 1)
+        text = output.getvalue()
+        self.assertIn("Product=0", text)
+        self.assertIn("catalog_status=empty_or_no_active_approved_products", text)
+        self.assertNotIn("PASSWORD", text.upper())
+        self.assertNotIn("DATABASE_URL", text)
+        self.assertNotIn("SECRET_KEY", text)
+
+    def test_usable_catalog_exits_zero(self):
+        vendor = User.objects.create_user(
+            username="diag-vendor",
+            email="diag-vendor@example.com",
+            password="password123",
+        )
+        category = Category.objects.create(name="Diagnostic Products", slug="diagnostic-products")
+        Product.objects.create(
+            vendor=vendor,
+            category=category,
+            sku="DIAG-001",
+            name="Diagnostic Product",
+            slug="diagnostic-product",
+            description="Approved diagnostic product.",
+            price="1000.00",
+            stock_quantity=1,
+            approval_status="approved",
+            is_active=True,
+        )
+        output = StringIO()
+        with self.assertRaises(SystemExit) as exc:
+            call_command("diagnose_marketplace_catalog", stdout=output)
+        self.assertEqual(exc.exception.code, 0)
+        self.assertIn("catalog_status=usable", output.getvalue())
+
 
 class TestUrls(SimpleTestCase):
     """Test URL patterns are working correctly"""

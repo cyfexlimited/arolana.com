@@ -101,10 +101,7 @@ def global_context(request):
     """Global context for all templates"""
 
     def build_site_settings():
-        site_settings = SiteSettings.objects.first()
-        if not site_settings:
-            site_settings = SiteSettings.objects.create()
-        return site_settings
+        return SiteSettings.load(create=False)
 
     site_settings = _safe_cached(
         "global_context:site_settings",
@@ -114,7 +111,7 @@ def global_context(request):
 
     homepage_appearance = _safe_cached(
         "global_context:homepage_appearance",
-        lambda: HomePageAppearance.load(),
+        lambda: HomePageAppearance.load(create=False),
         _fallback_homepage_appearance(),
         3600,
     )

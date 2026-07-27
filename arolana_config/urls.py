@@ -22,6 +22,7 @@ from django.views.generic import TemplateView
 
 from accounts import views as accounts_views
 from core import admin_views as core_admin_views
+from core.deployment_health import readiness_status
 from core import views as core_views
 from core.private_media import authorize_private_media_request
 from core.private_media_audit import record_private_media_access
@@ -570,6 +571,17 @@ def health_check(request):
     return JsonResponse({"status": "ok"})
 
 
+@require_safe
+def health_live(request):
+    return JsonResponse({"status": "ok", "check": "live"})
+
+
+@require_safe
+def health_ready(request):
+    ready, payload = readiness_status()
+    return JsonResponse(payload, status=200 if ready else 503)
+
+
 def sitemap_page(request):
     # Local imports avoid circular imports while Django loads the root URLconf.
     from products.models import Category, Product
@@ -760,6 +772,8 @@ urlpatterns = [
     path("", include("core.urls")),
 
     path("health/", health_check, name="health"),
+    path("health/live/", health_live, name="health_live"),
+    path("health/ready/", health_ready, name="health_ready"),
 
     path(
         "manifest.webmanifest",

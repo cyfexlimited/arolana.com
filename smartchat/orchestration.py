@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from django.conf import settings
@@ -20,10 +21,26 @@ from ai_core.tool_contracts import (
 )
 from ai_core.tools import ensure_default_tool_definitions, execute_ai_tool
 from installers.models import ServiceQuoteRequest
+from .intent_guards import (
+    CLARIFICATION_INTENT,
+    CLARIFICATION_REPLY,
+    CONVERSATIONAL_GOODBYE,
+    CONVERSATIONAL_GRATITUDE,
+    CONVERSATIONAL_GREETING,
+    CONVERSATIONAL_IDENTITY,
+    ORDER_INTENT,
+    REQUIREMENTS_INTENT,
+    REQUIREMENTS_REPLY,
+    SUPPORT_INTENT,
+    clean_product_search_query,
+    conversational_reply,
+    resolve_customer_intent,
+)
 
 
 PROMPT_KEY = "smart_shopping_assistant"
 PROMPT_FEATURE = FEATURE_SMART_SHOPPING
+logger = logging.getLogger(__name__)
 
 
 def _text(value):
@@ -59,10 +76,22 @@ def _merge_requirements(state, message):
 
 
 def _classify(message, state):
+    routed = resolve_customer_intent(message)
+    if routed in {
+        CONVERSATIONAL_GREETING,
+        CONVERSATIONAL_GRATITUDE,
+        CONVERSATIONAL_IDENTITY,
+        CONVERSATIONAL_GOODBYE,
+        REQUIREMENTS_INTENT,
+        SUPPORT_INTENT,
+    }:
+        return routed
     text = message.lower()
     unsupported_terms = {"vehicle", "vehicles", "car", "cars", "property", "real estate", "rental", "rentals", "land"}
     if any(term in text for term in unsupported_terms):
         return UNSUPPORTED_INTENT
+    if routed and routed != CLARIFICATION_INTENT:
+        return routed
     if any(term in text for term in ("compare", "versus", " vs ")):
         return "catalog.compare_products"
     if any(term in text for term in ("quote", "quotation", "proposal", "professional estimate", "send request")):
@@ -71,7 +100,7 @@ def _classify(message, state):
         return "services.match_providers"
     if state.get("current_product_ref") and any(term in text for term in ("spec", "facts", "warranty", "manual", "video", "details")):
         return "catalog.get_product_facts"
-    return "catalog.search_products"
+    return CLARIFICATION_INTENT
 
 
 def _extract_product_refs(conversation, state, message):
@@ -205,16 +234,51 @@ def smart_shopping_reply(conversation, user_message, *, actor_user=None, applica
 
     ensure_default_tool_definitions()
     context, state = _conversation_state(conversation)
-    requirements = _merge_requirements(state, user_message)
+    previous_subject = state.get("active_subject") or (context.get("state") or {}).get("active_subject", "")
     request_id = str(uuid.uuid4())
     role = role_for_user(actor_user)
     intent = normalize_primary_intent(_classify(user_message, state))
+    search_query = clean_product_search_query(user_message)
+    topic_changed = False
+    if intent == TOOL_CATALOG_SEARCH_PRODUCTS:
+        previous_query = state.get("last_search_query", "")
+        context_state = context.get("state") or {}
+        context_requirements = context_state.get("requirements") or {}
+        has_previous_requirements = any(
+            value not in (None, "") for value in {
+                **(state.get("requirements") or {}),
+                **context_requirements,
+            }.values()
+        )
+        topic_changed = bool(
+            (previous_query and previous_query.lower() != search_query.lower())
+            or has_previous_requirements
+        )
+        state["active_subject"] = search_query
+        state["last_search_query"] = search_query
+        state["flow"] = "catalog_search"
+        state["requirements"] = {}
+        requirements = {}
+    elif intent == REQUIREMENTS_INTENT:
+        state["flow"] = "shopping_requirements"
+        requirements = _merge_requirements(state, user_message)
+        state["active_subject"] = requirements.get("summary", "")[:160]
+    elif intent == TOOL_QUOTES_CREATE_QUOTE_REQUEST:
+        state["flow"] = "quote_request"
+        requirements = _merge_requirements(state, user_message)
+    else:
+        requirements = dict(state.get("requirements") or {})
     source = {
         "source_type": "ai_core_smart_shopping",
         "source_label": "Smart Shopping V1",
         "intent": intent,
         "confidence": 0.84,
         "request_id": request_id,
+        "resolved_intent": intent,
+        "selected_route": intent,
+        "previous_subject": previous_subject,
+        "active_subject": state.get("active_subject", ""),
+        "topic_changed": topic_changed,
         "tool_calls": [],
         "structured_response": {
             "answer": "",
@@ -236,6 +300,65 @@ def smart_shopping_reply(conversation, user_message, *, actor_user=None, applica
         },
     }
 
+    if intent in {
+        CONVERSATIONAL_GREETING,
+        CONVERSATIONAL_GRATITUDE,
+        CONVERSATIONAL_IDENTITY,
+        CONVERSATIONAL_GOODBYE,
+    }:
+        reply = conversational_reply(intent)
+        source.update({
+            "source_type": "deterministic_conversation",
+            "source_label": "Arolana conversation",
+            "confidence": 1.0,
+            "route": intent,
+        })
+        source["structured_response"].update({"answer": reply, "confidence": 1.0})
+        context["smart_shopping"] = state
+        conversation.context = context
+        conversation.current_intent = intent
+        conversation.save(update_fields=["context", "current_intent", "updated_at"])
+        return reply, source
+
+    if intent == REQUIREMENTS_INTENT:
+        source.update({
+            "source_type": "clarification",
+            "source_label": "Shopping requirements",
+            "confidence": 0.86,
+            "route": REQUIREMENTS_INTENT,
+        })
+        source["structured_response"].update({
+            "answer": REQUIREMENTS_REPLY,
+            "clarifying_question": REQUIREMENTS_REPLY,
+            "next_actions": ["provide_missing_information"],
+        })
+        context["smart_shopping"] = state
+        conversation.context = context
+        conversation.current_intent = REQUIREMENTS_INTENT
+        conversation.save(update_fields=["context", "current_intent", "updated_at"])
+        return REQUIREMENTS_REPLY, source
+
+    if intent == CLARIFICATION_INTENT:
+        source.update({
+            "source_type": "clarification",
+            "source_label": "Arolana clarification",
+            "confidence": 0.72,
+            "route": CLARIFICATION_INTENT,
+        })
+        source["structured_response"].update({
+            "answer": CLARIFICATION_REPLY,
+            "clarifying_question": CLARIFICATION_REPLY,
+            "next_actions": ["provide_missing_information"],
+        })
+        context["smart_shopping"] = state
+        conversation.context = context
+        conversation.current_intent = CLARIFICATION_INTENT
+        conversation.save(update_fields=["context", "current_intent", "updated_at"])
+        return CLARIFICATION_REPLY, source
+
+    if intent in {ORDER_INTENT, SUPPORT_INTENT}:
+        return None
+
     try:
         prompt = active_prompt(PROMPT_KEY, role=role)
         source["prompt"] = {
@@ -243,17 +366,11 @@ def smart_shopping_reply(conversation, user_message, *, actor_user=None, applica
             "version": prompt.version,
             "feature": prompt.feature,
         }
-
     except Exception as exc:
-        import traceback
-
-        traceback.print_exc()
-
         source["fallback_reason"] = (
             f"active_prompt_error_{exc.__class__.__name__}"
         )
-
-        source["prompt_error"] = str(exc)
+        logger.info("Smart Shopping prompt unavailable: %s", exc.__class__.__name__)
 
     if intent == UNSUPPORTED_INTENT:
         response = unsupported_marketplace_response()
@@ -313,9 +430,9 @@ def smart_shopping_reply(conversation, user_message, *, actor_user=None, applica
                 "next_actions": ["confirm_quote_request"] if ready else ["provide_missing_information"],
             })
         else:
-            result = execute_ai_tool(TOOL_CATALOG_SEARCH_PRODUCTS, {"query": user_message, "result_limit": 5}, context=tool_context)
+            result = execute_ai_tool(TOOL_CATALOG_SEARCH_PRODUCTS, {"query": search_query, "result_limit": 5}, context=tool_context)
             products = result.payload["products"]
-            answer = _products_reply(products, user_message)
+            answer = _products_reply(products, search_query)
             if products:
                 state["current_product_ref"] = products[0]["public_ref"]
                 source["product_cards"] = [
@@ -328,6 +445,18 @@ def smart_shopping_reply(conversation, user_message, *, actor_user=None, applica
                     }
                     for item in products
                 ]
+            result_count = len(products)
+            source.update({
+                "result_count": result_count,
+                "search_query": search_query,
+                "tool_name": TOOL_CATALOG_SEARCH_PRODUCTS,
+            })
+            if not products:
+                source.update({
+                    "source_type": "catalog_empty_result",
+                    "source_label": "Arolana catalog",
+                    "confidence": 1.0,
+                })
             source["structured_response"].update({"answer": answer, "products": products, "source_references": result.payload["source_references"], "warnings": result.payload["warnings"]})
         if intent != TOOL_QUOTES_CREATE_QUOTE_REQUEST:
             source["tool_calls"].append(intent if intent in {
@@ -337,6 +466,7 @@ def smart_shopping_reply(conversation, user_message, *, actor_user=None, applica
     except Exception as exc:
         if external_provider_enabled():
             source["fallback_reason"] = f"tool_failed_{exc.__class__.__name__}"
+        logger.info("Smart Shopping tool failed safely: %s", exc.__class__.__name__)
         return _public_error_reply(), {**source, "confidence": 0.2, "source_type": "ai_core_safe_fallback"}
 
     context["smart_shopping"] = state

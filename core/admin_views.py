@@ -7,7 +7,7 @@ from core.models import SiteSettings
 
 @staff_member_required
 def upload_logo(request):
-    site_settings = SiteSettings.objects.first() or SiteSettings.objects.create()
+    site_settings = SiteSettings.load(create=True)
 
     if request.method == 'POST' and request.FILES.get('logo'):
         logo_file = request.FILES['logo']

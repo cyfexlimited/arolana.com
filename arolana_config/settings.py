@@ -596,6 +596,29 @@ RUNNING_ON_RAILWAY = any(
     config(name, default='')
     for name in ('RAILWAY_ENVIRONMENT', 'RAILWAY_PROJECT_ID', 'RAILWAY_SERVICE_ID')
 )
+AROLANA_DEPLOYMENT_ENVIRONMENT = config(
+    'AROLANA_DEPLOYMENT_ENVIRONMENT',
+    default=config('RAILWAY_ENVIRONMENT', default='production' if not DEBUG else 'local'),
+)
+AROLANA_CACHE_REQUIRED = config(
+    'AROLANA_CACHE_REQUIRED',
+    default=bool(REDIS_URL and not DEBUG),
+    cast=bool,
+)
+AROLANA_CACHE_KEY_PREFIX = config(
+    'AROLANA_CACHE_KEY_PREFIX',
+    default=f"arolana:{AROLANA_DEPLOYMENT_ENVIRONMENT}",
+)
+AROLANA_MEDIA_STORAGE_REQUIRED = config(
+    'AROLANA_MEDIA_STORAGE_REQUIRED',
+    default=bool((AWS_STORAGE_BUCKET_NAME and AWS_S3_ENDPOINT_URL) or RUNNING_ON_RAILWAY),
+    cast=bool,
+)
+AROLANA_ALLOW_SHARED_MEDIA_STORAGE = config(
+    'AROLANA_ALLOW_SHARED_MEDIA_STORAGE',
+    default=False,
+    cast=bool,
+)
 RAILWAY_SMTP_ENABLED = config('RAILWAY_SMTP_ENABLED', default=False, cast=bool)
 DEFAULT_EMAIL_BACKEND = (
     'django.core.mail.backends.console.EmailBackend'
@@ -693,7 +716,7 @@ else:
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
-SECURE_REDIRECT_EXEMPT = [r'^health/$']
+SECURE_REDIRECT_EXEMPT = [r'^health/$', r'^health/live/$', r'^health/ready/$']
 SESSION_COOKIE_AGE = 86400           # default site session
 REMEMBER_ME_SESSION_AGE = 2592000    # 30-day remembered login
 SESSION_COOKIE_HTTPONLY = True
@@ -1004,7 +1027,7 @@ if REDIS_URL:
                 'SOCKET_TIMEOUT': 2,
                 'IGNORE_EXCEPTIONS': True,
             },
-            'KEY_PREFIX': 'arolana',
+            'KEY_PREFIX': AROLANA_CACHE_KEY_PREFIX,
             'TIMEOUT': 300,
         }
     }

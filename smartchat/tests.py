@@ -2,12 +2,23 @@ import json
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
 from notifications.models import Notification
 from products.models import Brand, Category, Product, ProductQuestion, ProductReview
 from .ai_manager import create_managed_ai_message
+from .intent_guards import (
+    CONVERSATIONAL_GOODBYE,
+    CONVERSATIONAL_GRATITUDE,
+    CONVERSATIONAL_GREETING,
+    CONVERSATIONAL_IDENTITY,
+    ORDER_INTENT,
+    REQUIREMENTS_INTENT,
+    SUPPORT_INTENT,
+    clean_product_search_query,
+    resolve_customer_intent,
+)
 from .models import (
     AICategoryRouterLog,
     AICustomerMemory,
@@ -21,6 +32,53 @@ from .models import (
 
 
 User = get_user_model()
+
+
+class SmartChatIntentGuardTests(SimpleTestCase):
+    def test_conversational_messages_are_not_product_searches(self):
+        cases = {
+            "hello": CONVERSATIONAL_GREETING,
+            "Hi!": CONVERSATIONAL_GREETING,
+            "good morning": CONVERSATIONAL_GREETING,
+            "who are you?": CONVERSATIONAL_IDENTITY,
+            "what can you do?": CONVERSATIONAL_IDENTITY,
+            "thank you": CONVERSATIONAL_GRATITUDE,
+            "bye": CONVERSATIONAL_GOODBYE,
+        }
+        for message, expected in cases.items():
+            with self.subTest(message=message):
+                self.assertEqual(resolve_customer_intent(message), expected)
+
+    def test_shopping_and_operational_intents_are_distinct(self):
+        cases = {
+            "do you have Logitech Group?": "catalog.search_products",
+            "Logitech Rally Bar price": "catalog.search_products",
+            "show me projectors": "catalog.search_products",
+            "I need a projector for a church": REQUIREMENTS_INTENT,
+            "track my order": ORDER_INTENT,
+            "I need an installer": "services.match_providers",
+            "contact support": SUPPORT_INTENT,
+        }
+        for message, expected in cases.items():
+            with self.subTest(message=message):
+                self.assertEqual(resolve_customer_intent(message), expected)
+
+    def test_short_substrings_do_not_trigger_greetings(self):
+        for message in (
+            "shipping price",
+            "white projector",
+            "this product",
+            "high-quality speaker",
+        ):
+            with self.subTest(message=message):
+                self.assertNotEqual(resolve_customer_intent(message), CONVERSATIONAL_GREETING)
+
+    def test_product_query_cleaning_preserves_model_terms(self):
+        self.assertEqual(clean_product_search_query("Do you have Logitech Group?"), "Logitech Group")
+        self.assertEqual(clean_product_search_query("How much is Logitech C920?"), "Logitech C920")
+        self.assertEqual(clean_product_search_query("Epson EB-L630U"), "Epson EB-L630U")
+        self.assertEqual(clean_product_search_query("Jabra Speak 810 MS"), "Jabra Speak 810 MS")
+        self.assertEqual(clean_product_search_query("120-inch motorised screen"), "120-inch motorised screen")
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)
@@ -100,6 +158,132 @@ class SmartChatAdminNotificationTests(TestCase):
         self.assertEqual(notification.metadata["smartchat_conversation_id"], conversation.id)
         self.assertEqual(notification.metadata["event"], "customer_message")
         self.assertFalse(Notification.objects.filter(user=other_staff).exists())
+
+
+@override_settings(
+    AI_CORE_ENABLED=True,
+    AI_TOOL_EXECUTION_ENABLED=True,
+    AI_SMART_SHOPPING_ENABLED=True,
+    AI_EXTERNAL_PROVIDER_ENABLED=False,
+    OPENAI_API_KEY="",
+    SECURE_SSL_REDIRECT=False,
+)
+class SmartChatEndToEndRoutingTests(TestCase):
+    def send(self, conversation, text, user=None):
+        message = SmartChatMessage.objects.create(
+            conversation=conversation,
+            sender_type=SmartChatMessage.SENDER_USER,
+            user=user,
+            message=text,
+        )
+        return create_managed_ai_message(conversation, message, user)
+
+    def test_greeting_is_deterministic_for_guest_and_does_not_search(self):
+        conversation = SmartChatConversation.objects.create()
+
+        reply = self.send(conversation, "Hello")
+
+        self.assertEqual(
+            reply.message,
+            "Hello! Welcome to Arolana. I can help you find and compare products, "
+            "track an order, locate an installer or connect you with Arolana support. "
+            "What are you looking for today?",
+        )
+        self.assertEqual(reply.source_type, "deterministic_conversation")
+        self.assertEqual(reply.metadata["intent"], CONVERSATIONAL_GREETING)
+        self.assertNotIn("product_cards", reply.metadata)
+        conversation.refresh_from_db()
+        state = conversation.context.get("state", {})
+        self.assertNotIn(state.get("active_subject"), {"hello", "general_marketplace"})
+
+    def test_empty_catalog_response_and_duplicate_repeat_stay_honest(self):
+        conversation = SmartChatConversation.objects.create()
+
+        first = self.send(conversation, "Do you have Logitech Group?")
+        second = self.send(conversation, "Do you have Logitech Group?")
+
+        for reply in (first, second):
+            self.assertEqual(reply.source_type, "catalog_empty_result")
+            self.assertEqual(reply.metadata["result_count"], 0)
+            self.assertEqual(reply.metadata["search_query"], "Logitech Group")
+            self.assertIn("Logitech Group", reply.message)
+            self.assertNotIn("general_marketplace", reply.message)
+            self.assertNotIn("I’ve kept your requirements", reply.message)
+        self.assertEqual(second.metadata["duplicate_check"], "skipped")
+        self.assertEqual(second.metadata["duplicate_skip_reason"], "source_type:catalog_empty_result")
+
+    def test_product_query_returns_only_active_approved_product(self):
+        vendor = User.objects.create_user(
+            username="route-vendor",
+            email="route-vendor@example.com",
+            password="password123",
+        )
+        category = Category.objects.create(name="Conference Cameras", slug="conference-cameras")
+        brand = Brand.objects.create(name="Logitech", slug="logitech-route")
+        product = Product.objects.create(
+            vendor=vendor,
+            category=category,
+            brand=brand,
+            sku="LOGI-GROUP-ROUTE",
+            name="Logitech Group",
+            slug="logitech-group-route",
+            description="Video conferencing camera and speakerphone.",
+            price="980000.00",
+            stock_quantity=3,
+            approval_status="approved",
+            is_active=True,
+        )
+        Product.objects.create(
+            vendor=vendor,
+            category=category,
+            brand=brand,
+            sku="LOGI-GROUP-PENDING",
+            name="Logitech Group Pending",
+            slug="logitech-group-pending",
+            description="Pending product.",
+            price="1.00",
+            stock_quantity=3,
+            approval_status="pending",
+            is_active=True,
+        )
+        Product.objects.create(
+            vendor=vendor,
+            category=category,
+            brand=brand,
+            sku="LOGI-GROUP-INACTIVE",
+            name="Logitech Group Inactive",
+            slug="logitech-group-inactive",
+            description="Inactive product.",
+            price="1.00",
+            stock_quantity=3,
+            approval_status="approved",
+            is_active=False,
+        )
+        conversation = SmartChatConversation.objects.create()
+
+        reply = self.send(conversation, "Do you have Logitech Group?")
+
+        self.assertEqual(reply.metadata["intent"], "catalog.search_products")
+        self.assertEqual(reply.metadata["result_count"], 1)
+        self.assertIn(product.name, reply.message)
+        self.assertIn(product.slug, reply.metadata["structured_response"]["products"][0]["public_url"])
+        self.assertEqual(reply.metadata["structured_response"]["products"][0]["public_ref"], product.slug)
+
+    def test_requirement_continuation_and_topic_change_are_isolated(self):
+        conversation = SmartChatConversation.objects.create()
+
+        first = self.send(conversation, "I need a projector for a church")
+        self.assertEqual(first.source_type, "clarification")
+        self.assertIn("budget", first.message.lower())
+
+        budget = self.send(conversation, "My budget is ₦1.5 million")
+        self.assertNotEqual(budget.source_type, "catalog_empty_result")
+
+        search = self.send(conversation, "Do you have Logitech Group?")
+        conversation.refresh_from_db()
+        self.assertEqual(search.source_type, "catalog_empty_result")
+        self.assertEqual(conversation.context["state"]["active_subject"], "Logitech Group")
+        self.assertEqual(conversation.context["state"].get("requirements"), {})
 
 
 @override_settings(OPENAI_API_KEY="", SECURE_SSL_REDIRECT=False)
@@ -442,7 +626,7 @@ class SmartChatProductIntelligenceTests(TestCase):
         conversation = SmartChatConversation.objects.create(user=self.customer)
 
         greeting = self.ask(conversation, "Hello")
-        self.assertIn("I’m here", greeting.message)
+        self.assertIn("Welcome to Arolana", greeting.message)
 
         availability = self.ask(conversation, "Do you have Optoma projectors?")
         self.assertEqual(availability.source_type, "product_database")

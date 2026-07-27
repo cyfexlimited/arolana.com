@@ -203,12 +203,15 @@ def prepare_context(conversation, message):
         if value not in (None, ""):
             state["requirements"][key] = value
     state["previous_intent"] = state.get("intent") or conversation.current_intent or context.get("last_intent", "")
-    state["active_subject"] = (
+    derived_subject = (
         state.get("current_product_name")
         or " ".join(part for part in (state.get("brand"), state.get("product_type")) if part)
         or state.get("category")
         or state.get("last_topic")
     )
+    if str(derived_subject or "").strip().lower() in {"", "general_marketplace"}:
+        derived_subject = ""
+    state["active_subject"] = derived_subject
     context["state"] = state
     conversation.context = context
     conversation.save(update_fields=["context", "updated_at"])

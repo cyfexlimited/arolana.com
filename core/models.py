@@ -401,11 +401,13 @@ class SiteSettings(BaseModel):
     meta_robots = models.CharField(max_length=100, default='index, follow', blank=True)
     
     @classmethod
-    def load(cls):
+    def load(cls, *, create=False):
         obj = cls.objects.first()
         if obj:
             return obj
-        return cls.objects.create()
+        if create:
+            return cls.objects.create()
+        return cls()
 
     class Meta:
         verbose_name = 'Site Setting'
@@ -544,9 +546,14 @@ class HomePageAppearance(BaseModel):
         local_delete("global_context:homepage_appearance")
 
     @classmethod
-    def load(cls):
-        obj, _created = cls.objects.get_or_create(pk=1)
-        return obj
+    def load(cls, *, create=False):
+        obj = cls.objects.filter(pk=1).first()
+        if obj:
+            return obj
+        if create:
+            obj, _created = cls.objects.get_or_create(pk=1)
+            return obj
+        return cls(pk=1)
 
 
 class PrivateMediaAccessLog(models.Model):

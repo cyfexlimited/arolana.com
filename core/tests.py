@@ -1,14 +1,18 @@
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from django.contrib.auth.models import AnonymousUser
 from django.core.cache import cache
 from django.http import HttpResponse
 from django.template import Context, Template
 from django.test import Client, RequestFactory, SimpleTestCase, TestCase, override_settings
 
 from . import local_cache
+from .context_processors import global_context
+from .deployment_health import readiness_status
 from .media_optimization import PRESETS, get_optimized_image_url, get_safe_background_image_url
 from .middleware import ArolanaRateLimitMiddleware, ArolanaSecurityHeadersMiddleware
+from .models import HomePageAppearance, SiteSettings
 
 
 class ArolanaSecurityMiddlewareTests(TestCase):
@@ -57,13 +61,160 @@ class ArolanaSecurityMiddlewareTests(TestCase):
     @override_settings(
         DEBUG=False,
         SECURE_SSL_REDIRECT=True,
-        SECURE_REDIRECT_EXEMPT=[r"^health/$"],
+        SECURE_REDIRECT_EXEMPT=[r"^health/$", r"^health/live/$", r"^health/ready/$"],
     )
     def test_health_check_is_not_redirected_by_https_enforcement(self):
         response = Client().get("/health/")
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "ok")
+
+    @override_settings(
+        DEBUG=False,
+        SECURE_SSL_REDIRECT=True,
+        SECURE_REDIRECT_EXEMPT=[r"^health/$", r"^health/live/$", r"^health/ready/$"],
+    )
+    def test_liveness_and_readiness_checks_are_not_redirected(self):
+        client = Client()
+
+        live_response = client.get("/health/live/")
+        self.assertEqual(live_response.status_code, 200)
+        self.assertEqual(live_response.json()["check"], "live")
+
+        with patch("arolana_config.urls.readiness_status", return_value=(True, {"status": "ready"})):
+            ready_response = client.get("/health/ready/")
+
+        self.assertEqual(ready_response.status_code, 200)
+        self.assertEqual(ready_response.json()["status"], "ready")
+
+
+class DeploymentReadinessTests(TestCase):
+    def setUp(self):
+        SiteSettings.objects.create(site_name="Arolana Production")
+        HomePageAppearance.objects.create(
+            title="Production Homepage",
+            desktop_position="top center",
+            mobile_position="center top",
+        )
+
+    @override_settings(
+        AROLANA_CACHE_REQUIRED=False,
+        AROLANA_MEDIA_STORAGE_REQUIRED=False,
+        AROLANA_DEPLOYMENT_ENVIRONMENT="test",
+        AROLANA_CACHE_KEY_PREFIX="arolana:test",
+        AWS_STORAGE_BUCKET_NAME="",
+        AROLANA_PUBLIC_MEDIA_BASE_URL="http://testserver/media/",
+    )
+    def test_readiness_returns_ready_when_database_migrations_config_cache_and_media_pass(self):
+        with patch("core.deployment_health._check_migrations") as migrations_check:
+            ready, payload = readiness_status()
+
+        self.assertTrue(ready)
+        self.assertEqual(payload["status"], "ready")
+        migrations_check.assert_called_once()
+        self.assertTrue(payload["checks"]["critical_configuration"]["ok"])
+
+    @override_settings(
+        AROLANA_CACHE_REQUIRED=False,
+        AROLANA_MEDIA_STORAGE_REQUIRED=False,
+        AROLANA_DEPLOYMENT_ENVIRONMENT="test",
+        AROLANA_CACHE_KEY_PREFIX="arolana:test",
+        AWS_STORAGE_BUCKET_NAME="",
+        AROLANA_PUBLIC_MEDIA_BASE_URL="http://testserver/media/",
+    )
+    def test_readiness_returns_not_ready_when_required_migrations_are_pending(self):
+        with patch(
+            "core.deployment_health._check_migrations",
+            side_effect=RuntimeError("required migrations are not applied"),
+        ):
+            ready, payload = readiness_status()
+
+        self.assertFalse(ready)
+        self.assertEqual(payload["status"], "not_ready")
+        self.assertEqual(payload["message"], "required migrations are not applied")
+
+    @override_settings(
+        AROLANA_CACHE_REQUIRED=False,
+        AROLANA_MEDIA_STORAGE_REQUIRED=False,
+        AROLANA_DEPLOYMENT_ENVIRONMENT="staging",
+        AROLANA_CACHE_KEY_PREFIX="arolana",
+        AWS_STORAGE_BUCKET_NAME="shared-bucket",
+        AROLANA_PUBLIC_MEDIA_BASE_URL="https://arolana.com/media/",
+    )
+    def test_readiness_blocks_non_production_environment_with_production_resource_hints(self):
+        with patch("core.deployment_health._check_migrations"):
+            ready, payload = readiness_status()
+
+        self.assertFalse(ready)
+        self.assertEqual(payload["status"], "not_ready")
+        self.assertEqual(payload["message"], "deployment environment isolation is not ready")
+        problems = payload["checks"]["environment_isolation"]["problems"]
+        self.assertIn("cache key prefix does not include deployment environment", problems)
+
+
+class ConfigurationFallbackReadPathTests(TestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+
+    def tearDown(self):
+        cache.clear()
+        local_cache._CACHE.clear()
+
+    def _request(self):
+        request = self.factory.get("/")
+        request.user = AnonymousUser()
+        request.session = {}
+        return request
+
+    def test_singleton_loaders_do_not_create_defaults_unless_explicitly_requested(self):
+        self.assertEqual(SiteSettings.objects.count(), 0)
+        self.assertEqual(HomePageAppearance.objects.count(), 0)
+
+        site_settings = SiteSettings.load(create=False)
+        homepage_appearance = HomePageAppearance.load(create=False)
+
+        self.assertIsNone(site_settings.pk)
+        self.assertEqual(homepage_appearance.pk, 1)
+        self.assertEqual(SiteSettings.objects.count(), 0)
+        self.assertEqual(HomePageAppearance.objects.count(), 0)
+
+    def test_global_context_cache_miss_reads_existing_authoritative_records(self):
+        site_settings = SiteSettings.objects.create(
+            site_name="Production Arolana",
+            site_tagline="Real production content",
+            primary_color="#123456",
+        )
+        homepage_appearance = HomePageAppearance.objects.create(
+            title="Production Hero",
+            desktop_position="top center",
+            mobile_position="center top",
+            make_sections_glass=False,
+        )
+        cache.clear()
+        local_cache._CACHE.clear()
+
+        context = global_context(self._request())
+
+        self.assertEqual(context["site_settings"].pk, site_settings.pk)
+        self.assertEqual(context["site_settings"].site_name, "Production Arolana")
+        self.assertEqual(context["site_settings"].primary_color, "#123456")
+        self.assertEqual(context["homepage_appearance"].pk, homepage_appearance.pk)
+        self.assertEqual(context["homepage_appearance"].desktop_position, "top center")
+        self.assertFalse(context["homepage_appearance"].make_sections_glass)
+        self.assertEqual(SiteSettings.objects.count(), 1)
+        self.assertEqual(HomePageAppearance.objects.count(), 1)
+
+    def test_global_context_cache_miss_does_not_create_default_records(self):
+        cache.clear()
+        local_cache._CACHE.clear()
+
+        context = global_context(self._request())
+
+        self.assertEqual(context["site_settings"].site_name, "Arolana")
+        self.assertIsNone(context["site_settings"].pk)
+        self.assertEqual(context["homepage_appearance"].pk, 1)
+        self.assertEqual(SiteSettings.objects.count(), 0)
+        self.assertEqual(HomePageAppearance.objects.count(), 0)
 
 
 class PerformanceHelperTests(SimpleTestCase):

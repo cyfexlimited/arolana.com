@@ -39,7 +39,15 @@ from .management.commands.seed_smart_shopping_v1 import (
     SYSTEM_PROMPT,
 )
 from .models import AIAuditLog, AIModelConfig, AIProviderConfig, AIPromptTemplate, AIQuota, AIToolDefinition, AIUsageEvent
-from .permissions import ROLE_ADMIN, ROLE_CUSTOMER, ROLE_GUEST, require_role, role_for_user
+from .permissions import (
+    ROLE_ADMIN,
+    ROLE_CUSTOMER,
+    ROLE_GUEST,
+    ROLE_PROVIDER,
+    ROLE_VENDOR,
+    require_role,
+    role_for_user,
+)
 from .providers import AIProviderError, OpenAIProvider
 from .quota import assert_quota_available
 from .redaction import REDACTION_LABEL, redact_mapping
@@ -739,6 +747,28 @@ class SmartShoppingToolTests(TestCase):
         names = set(AIToolDefinition.objects.values_list("name", flat=True))
         self.assertTrue(set(TOOL_CONTRACTS).issubset(names))
         self.assertIn(TOOL_QUOTES_CREATE_QUOTE_REQUEST, names)
+
+    @override_settings(AI_CORE_ENABLED=True, AI_TOOL_EXECUTION_ENABLED=True)
+    def test_catalog_tool_accepts_canonical_roles_and_rejects_empty_role(self):
+        ensure_default_tool_definitions()
+        for role in (ROLE_GUEST, ROLE_CUSTOMER, ROLE_VENDOR, ROLE_PROVIDER, ROLE_ADMIN):
+            with self.subTest(role=role):
+                result = execute_ai_tool(
+                    TOOL_CATALOG_SEARCH_PRODUCTS,
+                    {"query": "projector", "result_limit": 1},
+                    context={
+                        "role": role,
+                        "request_id": f"role-{role}",
+                        "conversation_id": "conv-role",
+                    },
+                )
+                self.assertEqual(result.status, "success")
+        with self.assertRaises(PermissionError):
+            execute_ai_tool(
+                TOOL_CATALOG_SEARCH_PRODUCTS,
+                {"query": "projector", "result_limit": 1},
+                context={"role": "", "request_id": "role-empty"},
+            )
 
     @override_settings(AI_CORE_ENABLED=True, AI_TOOL_EXECUTION_ENABLED=True)
     def test_product_search_filters_to_active_approved_and_logs(self):
