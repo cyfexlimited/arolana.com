@@ -387,9 +387,53 @@ def _products_reply(products, query=""):
     return "\n".join(lines)
 
 
-def _providers_reply(providers):
+def _requirement_acknowledgement(requirements):
+    details = []
+    if requirements.get("participant_count"):
+        details.append(f"{requirements['participant_count']} people")
+    if requirements.get("brightness_requirement"):
+        details.append(f"{requirements['brightness_requirement']} lumens")
+    if requirements.get("budget_max"):
+        currency = requirements.get("currency") or "NGN"
+        symbol = "₦" if currency == "NGN" else f"{currency} "
+        details.append(f"budget up to {symbol}{requirements['budget_max']:,}")
+    if requirements.get("delivery_location"):
+        details.append(f"delivery in {requirements['delivery_location']}")
+    if requirements.get("condition"):
+        details.append(str(requirements["condition"]).replace("_", " "))
+    if not details:
+        return ""
+    return "I used your requirement for " + ", ".join(details[:4]) + "."
+
+
+def _providers_reply(providers, *, query="", state=None, requirements=None):
     if not providers:
-        return "I could not find an approved eligible service provider for that request yet. I can help you contact Arolana support."
+        requirements = requirements or {}
+        state = state or {}
+        subject = shopping_category_label(state) or state.get("active_subject") or str(query or "").strip()
+        location = (
+            requirements.get("service_location")
+            or requirements.get("delivery_location")
+            or requirements.get("location")
+            or ""
+        )
+        needs_asset = not subject or subject.lower() in {"an installer", "a installer", "installer", "service provider"}
+        needs_location = not location
+        if needs_asset or needs_location:
+            missing = []
+            if needs_asset:
+                missing.append("what you need installed, repaired, maintained or inspected")
+            if needs_location:
+                missing.append("the job location")
+            return (
+                "Yes — I can help you find an approved Arolana service provider. "
+                f"Tell me {' and '.join(missing)} so I can match the request properly."
+            )
+        return (
+            f"I could not find an approved eligible service provider for {subject}"
+            f"{(' in ' + location) if location else ''} yet. "
+            "I can refine the service details or connect you with Arolana support."
+        )
     lines = ["Approved service providers that may match:"]
     for provider in providers[:5]:
         lines.append(
@@ -650,6 +694,32 @@ def smart_shopping_reply(conversation, user_message, *, actor_user=None, applica
         return REQUIREMENTS_REPLY, source
 
     if intent == CLARIFICATION_INTENT:
+        if has_locked_shopping_category(state):
+            answer = _domain_preserving_marketplace_reply(state, requirements)
+            source.update({
+                "source_type": "marketplace_state",
+                "source_label": "Arolana marketplace state",
+                "confidence": 0.82,
+                "route": "active_marketplace_context",
+                "selected_route": "active_marketplace_context",
+                "tool_name": "none",
+                "result_count": 0,
+                "fallback_reason": "clarification_kept_in_active_workflow",
+            })
+            source["structured_response"].update({
+                "answer": answer,
+                "products": [],
+                "provider_suggestions": [],
+                "source_references": [],
+                "missing_information": _missing_shopping_slots(state),
+                "structured_requirements": requirements,
+            })
+            context["smart_shopping"] = state
+            context["state"] = {**(context.get("state") or {}), **state}
+            conversation.context = context
+            conversation.current_intent = "marketplace_state"
+            conversation.save(update_fields=["context", "current_intent", "updated_at"])
+            return answer, source
         source.update({
             "source_type": "clarification",
             "source_label": "Arolana clarification",
@@ -751,7 +821,12 @@ def smart_shopping_reply(conversation, user_message, *, actor_user=None, applica
                 "result_limit": 5,
             }
             result = execute_ai_tool(TOOL_SERVICES_MATCH_PROVIDERS, payload, context=tool_context)
-            answer = _providers_reply(result.payload["providers"])
+            answer = _providers_reply(
+                result.payload["providers"],
+                query=user_message,
+                state=state,
+                requirements=requirements,
+            )
             source["structured_response"].update({"answer": answer, "provider_suggestions": result.payload["providers"], "source_references": result.payload["source_references"], "warnings": result.payload["warnings"]})
         elif intent == TOOL_QUOTES_CREATE_QUOTE_REQUEST:
             ready, missing = quote_request_readiness(
@@ -778,6 +853,9 @@ def smart_shopping_reply(conversation, user_message, *, actor_user=None, applica
             products = result.payload["products"]
             if products and has_locked_shopping_category(state):
                 answer = _products_reply(products, shopping_category_label(state))
+                acknowledgement = _requirement_acknowledgement(requirements)
+                if acknowledgement:
+                    answer = f"{answer}\n{acknowledgement}"
             elif has_locked_shopping_category(state):
                 answer = _empty_result_reply(state, products, payload.get("query", search_query))
             else:
@@ -823,6 +901,54 @@ def smart_shopping_reply(conversation, user_message, *, actor_user=None, applica
     except Exception as exc:
         source["fallback_reason"] = f"tool_failed_{exc.__class__.__name__}"
         logger.info("Smart Shopping tool failed safely: %s", exc.__class__.__name__)
+        if intent == TOOL_SERVICES_MATCH_PROVIDERS:
+            answer = _providers_reply(
+                [],
+                query=user_message,
+                state=state,
+                requirements=requirements,
+            )
+            source.update({
+                "confidence": 0.72,
+                "source_type": "marketplace_state_provider",
+                "source_label": "Arolana marketplace state",
+                "tool_name": TOOL_SERVICES_MATCH_PROVIDERS,
+                "result_count": 0,
+            })
+            source["structured_response"].update({
+                "answer": answer,
+                "provider_suggestions": [],
+                "products": [],
+                "source_references": [],
+                "warnings": ["Provider lookup could not be completed, so no availability or price is promised."],
+            })
+            context["smart_shopping"] = state
+            context["state"] = {**(context.get("state") or {}), **state}
+            conversation.context = context
+            conversation.current_intent = intent
+            conversation.save(update_fields=["context", "current_intent", "updated_at"])
+            return answer, source
+        if intent == TOOL_CATALOG_SEARCH_PRODUCTS and has_locked_shopping_category(state):
+            answer = _empty_result_reply(state, [], search_query)
+            source.update({
+                "confidence": 0.72,
+                "source_type": "catalog_empty_result",
+                "source_label": "Arolana catalog",
+                "tool_name": TOOL_CATALOG_SEARCH_PRODUCTS,
+                "result_count": 0,
+            })
+            source["structured_response"].update({
+                "answer": answer,
+                "products": [],
+                "source_references": [],
+                "warnings": ["Catalog lookup could not be completed for this turn."],
+            })
+            context["smart_shopping"] = state
+            context["state"] = {**(context.get("state") or {}), **state}
+            conversation.context = context
+            conversation.current_intent = intent
+            conversation.save(update_fields=["context", "current_intent", "updated_at"])
+            return answer, source
         return _public_error_reply(), {**source, "confidence": 0.2, "source_type": "ai_core_safe_fallback"}
 
     context["smart_shopping"] = state

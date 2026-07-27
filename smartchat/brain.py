@@ -447,6 +447,7 @@ def detect_chat_intent(message, conversation=None):
         return SUPPORT_REQUEST
     if has_product and (
         " it" in f" {text}"
+        or text in {"it", "this", "that", "the product", "this product", "that product"}
         or "this product" in text
         or _contains(text, ("i love it", "i like it", "looks good", "great choice"))
         or text.startswith(("what about", "how about", "does it", "is it", "can it"))

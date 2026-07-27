@@ -284,6 +284,15 @@ def _marketplace_money_label(requirements):
         return f"{symbol}{amount}"
 
 
+def _safe_product_image_url(product):
+    if not getattr(product, "main_image", None):
+        return ""
+    try:
+        return product.main_image.url
+    except Exception:
+        return ""
+
+
 def _stateful_marketplace_fallback(conversation, state, user_message):
     """Flag-safe marketplace response used when Smart Shopping is disabled."""
     requirements = state.get("requirements") or {}
@@ -373,10 +382,15 @@ def _stateful_marketplace_fallback(conversation, state, user_message):
                 "name": product.name,
                 "title": product.name,
                 "price": f"₦{product.price:,.2f}",
+                "price_display": f"₦{product.price:,.2f}",
                 "url": product.get_absolute_url(),
+                "product_url": product.get_absolute_url(),
+                "image_url": _safe_product_image_url(product),
                 "add_to_cart_url": reverse("products:add_to_cart", args=[product.slug]),
                 "rating": float(product.rating_avg or 0),
                 "rating_count": product.rating_count,
+                "review_count": product.rating_count,
+                "in_stock": product.available_stock > 0 or product.allow_backorder,
                 "popular_qa": [
                     {
                         "question": item.question,
@@ -402,6 +416,17 @@ def _stateful_marketplace_fallback(conversation, state, user_message):
                 [intro]
                 + [f"- {product.name} — ₦{product.price:,.2f}" for product in products]
             )
+            details = []
+            if requirements.get("participant_count"):
+                details.append(f"{requirements['participant_count']} people")
+            if requirements.get("brightness_requirement"):
+                details.append(f"{requirements['brightness_requirement']} lumens")
+            if requirements.get("delivery_location"):
+                details.append(f"delivery in {requirements['delivery_location']}")
+            if budget_label:
+                details.append(f"budget {budget_label}")
+            if details:
+                reply = f"{reply}\nI used your requirement for {', '.join(details[:4])}."
         else:
             details = []
             if requirements.get("brightness_requirement"):
@@ -454,6 +479,8 @@ def _should_use_marketplace_workflow(conversation, message, state, deterministic
         )
     )
     if is_slot_only_followup(message, state):
+        return True
+    if _is_contextual_marketplace_help_followup(message, state):
         return not bool(getattr(conversation, "product_id", None))
     if deterministic_intent not in {
         "catalog.search_products",
@@ -481,6 +508,29 @@ def _should_use_marketplace_workflow(conversation, message, state, deterministic
         direct_request
         and bool(state.get("catalog_category_id"))
         and not bool(getattr(conversation, "product_id", None))
+    )
+
+
+def _is_contextual_marketplace_help_followup(message, state):
+    if not state or not state.get("active_subject"):
+        return False
+    text = re.sub(r"\s+", " ", str(message or "").strip().lower())
+    if not text:
+        return False
+    return bool(
+        re.search(
+            r"\b(?:help me|please help|yes|ok|okay|go ahead|continue|proceed|what next|next step)\b",
+            text,
+        )
+        and (
+            state.get("entity_type") in {"property", "vehicle", "software", "service_provider"}
+            or state.get("intent_family") in {"service", "real_estate", "vehicle", "software"}
+            or state.get("transaction_type") in {
+                "rent", "lease", "short_let", "hire", "repair", "install",
+                "maintain", "inspect", "consult", "find_provider",
+                "find_property", "find_vehicle",
+            }
+        )
     )
 
 
@@ -726,23 +776,27 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
             "intent": "vendor_inquiry",
         }
 
-    smart_shopping_result = smart_shopping_reply(
-        conversation,
-        resolved_message,
-        actor_user=actor_user,
-        application_source=conversation.channel or "smartchat",
-    )
-    if smart_shopping_result:
-        reply, source = smart_shopping_result
-        update_conversation_context(
+    if (
+        deterministic_intent != "clarification"
+        or _is_contextual_marketplace_help_followup(resolved_message, state)
+    ):
+        smart_shopping_result = smart_shopping_reply(
             conversation,
-            source.get("intent", "smart_shopping"),
-            reply,
-            source,
+            resolved_message,
+            actor_user=actor_user,
+            application_source=conversation.channel or "smartchat",
         )
-        if source.get("structured_response", {}).get("handoff_required"):
-            request_human_takeover(conversation, actor_user, user_message)
-        return reply, source
+        if smart_shopping_result:
+            reply, source = smart_shopping_result
+            update_conversation_context(
+                conversation,
+                source.get("intent", "smart_shopping"),
+                reply,
+                source,
+            )
+            if source.get("structured_response", {}).get("handoff_required"):
+                request_human_takeover(conversation, actor_user, user_message)
+            return reply, source
     intent, routed_reply, routed_source, needs_handoff = route_chat_response(
         conversation,
         resolved_message,

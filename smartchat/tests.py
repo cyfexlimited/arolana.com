@@ -253,6 +253,22 @@ class SmartChatEndToEndRoutingTests(TestCase):
                     "catalog_search_not_allowed_for_active_workflow",
                 )
 
+    def test_installer_request_and_help_followup_stay_in_service_workflow(self):
+        conversation = SmartChatConversation.objects.create()
+
+        installer = self.send(conversation, "i need an installer")
+
+        self.assertNotIn("active approved an installer match", installer.message)
+        self.assertNotIn("live Arolana catalogue", installer.message)
+        self.assertIn("service provider", installer.message.lower())
+        self.assertIn("what you need installed", installer.message.lower())
+
+        help_reply = self.send(conversation, "please do help me")
+
+        self.assertNotIn("What would you like help with", help_reply.message)
+        self.assertNotIn("live Arolana catalogue", help_reply.message)
+        self.assertIn("service", help_reply.message.lower())
+
     def test_product_query_returns_only_active_approved_product(self):
         vendor = User.objects.create_user(
             username="route-vendor",
@@ -756,6 +772,19 @@ class SmartChatProductIntelligenceTests(TestCase):
         conversation.refresh_from_db()
         self.assertEqual(conversation.context["current_product_id"], self.product.id)
         self.assertEqual(conversation.context["last_intent"], "delivery_question")
+
+    def test_plain_product_reference_uses_current_product_context(self):
+        conversation = SmartChatConversation.objects.create(user=self.customer)
+        self.ask(conversation, "Tell me about Logitech")
+        conversation.refresh_from_db()
+        self.assertEqual(conversation.product_id, self.product.id)
+
+        reply = self.ask(conversation, "the product")
+
+        self.assertIn(self.product.name, reply.message)
+        self.assertNotIn("What would you like help with", reply.message)
+        self.assertNotIn("general_marketplace", reply.message)
+        self.assertNotIn("product_cards", reply.metadata)
 
     def test_presence_and_complaint_replies_are_contextual(self):
         conversation = SmartChatConversation.objects.create(

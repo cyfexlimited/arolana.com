@@ -763,7 +763,9 @@
         }
 
         if (response.status === 403 && /csrf/i.test(raw)) {
-            throw new Error("Your secure chat session expired. Refresh this page and submit the form again.");
+            const error = new Error("Your secure chat session was refreshed. Please send that again.");
+            error.code = "csrf_expired";
+            throw error;
         }
 
         throw new Error(
@@ -771,6 +773,38 @@
                 ? "Arolana Chat is temporarily unavailable. Please try again shortly."
                 : (fallbackMessage || "Arolana Chat could not complete that request.")
         );
+    }
+
+    async function refreshCsrfToken() {
+        try {
+            await fetch(window.location.href, {
+                method: "GET",
+                credentials: "same-origin",
+                cache: "no-store",
+                headers: {"X-Requested-With": "XMLHttpRequest"}
+            });
+        } catch (error) {
+            console.warn("Arolana SmartChat CSRF refresh failed:", error);
+        }
+    }
+
+    async function requestJsonWithCsrfRetry(url, buildOptions, fallbackMessage) {
+        const firstResponse = await fetch(url, buildOptions());
+        try {
+            return {
+                response: firstResponse,
+                data: await readJsonResponse(firstResponse, fallbackMessage)
+            };
+        } catch (error) {
+            if (error.code !== "csrf_expired") throw error;
+        }
+
+        await refreshCsrfToken();
+        const secondResponse = await fetch(url, buildOptions());
+        return {
+            response: secondResponse,
+            data: await readJsonResponse(secondResponse, fallbackMessage)
+        };
     }
 
     function installScrollContainment() {
@@ -830,21 +864,30 @@
 
         return `<div class="arolana-chat-product-grid">${cards.slice(0, 4).map(function (card) {
             const rating = Number(card.rating || 0).toFixed(1);
+            const title = card.title || card.name || "Arolana product";
+            const productUrl = card.product_url || card.url || card.public_url || "/products/";
+            const compareUrl = card.compare_url || productUrl;
+            const rawPrice = card.price_display || card.displayed_price || card.price || "";
+            const price = (
+                typeof rawPrice === "number"
+                    ? `₦${rawPrice.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
+                    : String(rawPrice || "").replace(/^NGN\s*/i, "₦")
+            );
             const image = card.image_url
-                ? `<img src="${escapeHtml(card.image_url)}" alt="${escapeHtml(card.title)}" loading="lazy" decoding="async">`
+                ? `<img src="${escapeHtml(card.image_url)}" alt="${escapeHtml(title)}" loading="lazy" decoding="async">`
                 : `<i class="fas fa-box-open text-xl text-gray-400"></i>`;
             return `
                 <article class="arolana-chat-product-card">
-                    <a class="arolana-chat-product-image" href="${escapeHtml(card.product_url)}">${image}</a>
+                    <a class="arolana-chat-product-image" href="${escapeHtml(productUrl)}">${image}</a>
                     <div>
-                        <a class="arolana-chat-product-title" href="${escapeHtml(card.product_url)}">${escapeHtml(card.title)}</a>
+                        <a class="arolana-chat-product-title" href="${escapeHtml(productUrl)}">${escapeHtml(title)}</a>
                         <div class="arolana-chat-product-meta">${escapeHtml(card.brand || card.category || "")}</div>
                         <div class="arolana-chat-product-meta"><i class="fas fa-star text-yellow-500"></i> ${rating} (${Number(card.review_count || 0)}) · ${card.in_stock ? "In stock" : "Out of stock"}</div>
-                        <div class="arolana-chat-product-price">${escapeHtml(card.price_display || card.price || "")}</div>
+                        <div class="arolana-chat-product-price">${escapeHtml(price)}</div>
                     </div>
                     <div class="arolana-chat-product-actions">
-                        <a class="arolana-chat-product-action" href="${escapeHtml(card.product_url)}">View product</a>
-                        <a class="arolana-chat-product-action" href="${escapeHtml(card.compare_url || card.product_url)}">Compare</a>
+                        <a class="arolana-chat-product-action" href="${escapeHtml(productUrl)}">View product</a>
+                        <a class="arolana-chat-product-action" href="${escapeHtml(compareUrl)}">Compare</a>
                         ${card.in_stock ? `<button type="button" class="arolana-chat-product-action is-primary" data-smartchat-add-url="${escapeHtml(card.add_to_cart_url)}">Add to cart</button>` : ""}
                     </div>
                 </article>`;
@@ -1317,21 +1360,27 @@
         setBusy(true);
 
         try {
-            const response = await fetch(w.dataset.guestContactUrl || "/smartchat/api/guest-contact/", {
-                method: "POST",
-                credentials: "same-origin",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": csrfToken(),
-                    "X-Requested-With": "XMLHttpRequest"
+            const request = await requestJsonWithCsrfRetry(
+                w.dataset.guestContactUrl || "/smartchat/api/guest-contact/",
+                function () {
+                    return {
+                        method: "POST",
+                        credentials: "same-origin",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": csrfToken(),
+                            "X-Requested-With": "XMLHttpRequest"
+                        },
+                        body: JSON.stringify({
+                            ...payload,
+                            ...productContext()
+                        })
+                    };
                 },
-                body: JSON.stringify({
-                    ...payload,
-                    ...productContext()
-                })
-            });
-
-            const data = await readJsonResponse(response, "We could not submit your message. Please try again.");
+                "We could not submit your message. Please try again."
+            );
+            const response = request.response;
+            const data = request.data;
 
             if (!response.ok || !data.success) {
                 const errors = data.errors || {};
@@ -1410,22 +1459,28 @@
         setBusy(true);
 
         try {
-            const response = await fetch(w.dataset.messageUrl || "/smartchat/api/message/", {
-                method: "POST",
-                credentials: "same-origin",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": csrfToken(),
-                    "X-Requested-With": "XMLHttpRequest"
+            const request = await requestJsonWithCsrfRetry(
+                w.dataset.messageUrl || "/smartchat/api/message/",
+                function () {
+                    return {
+                        method: "POST",
+                        credentials: "same-origin",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": csrfToken(),
+                            "X-Requested-With": "XMLHttpRequest"
+                        },
+                        body: JSON.stringify({
+                            conversation_id: state.conversationId || "",
+                            message: text,
+                            ...productContext()
+                        })
+                    };
                 },
-                body: JSON.stringify({
-                    conversation_id: state.conversationId || "",
-                    message: text,
-                    ...productContext()
-                })
-            });
-
-            const data = await readJsonResponse(response, "Message could not be sent.");
+                "Message could not be sent."
+            );
+            const response = request.response;
+            const data = request.data;
 
             if (!response.ok || !data.success) {
                 if (data.requires_guest_contact) {
@@ -1519,17 +1574,23 @@
         setBusy(true);
 
         try {
-            const response = await fetch(w.dataset.uploadImageUrl || "/smartchat/api/upload-image/", {
-                method: "POST",
-                credentials: "same-origin",
-                headers: {
-                    "X-CSRFToken": csrfToken(),
-                    "X-Requested-With": "XMLHttpRequest"
+            const request = await requestJsonWithCsrfRetry(
+                w.dataset.uploadImageUrl || "/smartchat/api/upload-image/",
+                function () {
+                    return {
+                        method: "POST",
+                        credentials: "same-origin",
+                        headers: {
+                            "X-CSRFToken": csrfToken(),
+                            "X-Requested-With": "XMLHttpRequest"
+                        },
+                        body: formData
+                    };
                 },
-                body: formData
-            });
-
-            const data = await readJsonResponse(response, "Image could not be uploaded.");
+                "Image could not be uploaded."
+            );
+            const response = request.response;
+            const data = request.data;
 
             if (!response.ok || !data.success) {
                 if (data.requires_guest_contact) {
@@ -1578,22 +1639,28 @@
         setBusy(true);
 
         try {
-            const response = await fetch(w.dataset.requestAdminUrl || "/smartchat/api/request-admin/", {
-                method: "POST",
-                credentials: "same-origin",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": csrfToken(),
-                    "X-Requested-With": "XMLHttpRequest"
+            const request = await requestJsonWithCsrfRetry(
+                w.dataset.requestAdminUrl || "/smartchat/api/request-admin/",
+                function () {
+                    return {
+                        method: "POST",
+                        credentials: "same-origin",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": csrfToken(),
+                            "X-Requested-With": "XMLHttpRequest"
+                        },
+                        body: JSON.stringify({
+                            conversation_id: state.conversationId || "",
+                            message: "Customer requested admin support.",
+                            ...productContext()
+                        })
+                    };
                 },
-                body: JSON.stringify({
-                    conversation_id: state.conversationId || "",
-                    message: "Customer requested admin support.",
-                    ...productContext()
-                })
-            });
-
-            const data = await readJsonResponse(response, "Could not request admin support.");
+                "Could not request admin support."
+            );
+            const response = request.response;
+            const data = request.data;
 
             if (!response.ok || !data.success) {
                 if (data.requires_guest_contact) {
