@@ -62,7 +62,7 @@ for host in REQUIRED_ALLOWED_HOSTS:
         ALLOWED_HOSTS.append(host)
 
 
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+OPENAI_API_KEY = config("OPENAI_API_KEY", default="")
 AROLANA_AI_MODEL = os.environ.get("AROLANA_AI_MODEL", "gpt-5.5")
 AI_CORE_ENABLED = config("AI_CORE_ENABLED", default=False, cast=bool)
 AI_EXTERNAL_PROVIDER_ENABLED = config("AI_EXTERNAL_PROVIDER_ENABLED", default=False, cast=bool)

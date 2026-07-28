@@ -243,7 +243,19 @@ def _merge_defaults(existing, defaults):
 
 def normalized_state(conversation):
     context = dict(conversation.context or {})
-    state = _merge_defaults(context.get("state"), DEFAULT_STATE)
+    stored_state = dict(context.get("state") or {})
+    requirements_were_explicitly_cleared = (
+        "requirements" in stored_state
+        and stored_state.get("requirements") == {}
+    )
+    state = _merge_defaults(stored_state, DEFAULT_STATE)
+
+    # An empty requirements dictionary is meaningful: it marks a deliberate
+    # topic reset. Do not expand it back into DEFAULT_STATE's None-filled
+    # requirement template.
+    if requirements_were_explicitly_cleared:
+        state["requirements"] = {}
+
     product = getattr(conversation, "product", None)
     if product:
         state["current_product_id"] = product.id
@@ -265,20 +277,21 @@ def normalized_state(conversation):
     state["active_category"] = state.get("active_category") or state.get("category", "")
     state["active_subcategory"] = state.get("active_subcategory") or state.get("subcategory", "")
     state["active_service"] = state.get("active_service") or context.get("active_service", "")
-    requirements = state["requirements"]
-    requirements["room_type"] = requirements["room_type"] or context.get("room_size")
-    requirements["use_case"] = requirements["use_case"] or context.get("use_case")
-    requirements["delivery_location"] = (
-        requirements["delivery_location"]
-        or context.get("delivery_location")
-        or context.get("user_location")
-    )
-    budget = str(context.get("user_budget") or "")
-    if budget and requirements["budget_max"] is None:
-        values = [int(value.replace(",", "")) for value in re.findall(r"\d[\d,]*", budget)]
-        if values:
-            requirements["budget_min"] = min(values) if len(values) > 1 else None
-            requirements["budget_max"] = max(values)
+    requirements = state.get("requirements") or {}
+    if not requirements_were_explicitly_cleared:
+        requirements["room_type"] = requirements.get("room_type") or context.get("room_size")
+        requirements["use_case"] = requirements.get("use_case") or context.get("use_case")
+        requirements["delivery_location"] = (
+            requirements.get("delivery_location")
+            or context.get("delivery_location")
+            or context.get("user_location")
+        )
+        budget = str(context.get("user_budget") or "")
+        if budget and requirements.get("budget_max") is None:
+            values = [int(value.replace(",", "")) for value in re.findall(r"\d[\d,]*", budget)]
+            if values:
+                requirements["budget_min"] = min(values) if len(values) > 1 else None
+                requirements["budget_max"] = max(values)
     return state
 
 
@@ -319,6 +332,36 @@ def _money_matches(text):
 
 def _money_values(text):
     return [item["value"] for item in _money_matches(text)]
+
+
+def _contextual_budget_values(text):
+    comparable = re.sub(r"\s+", " ", str(text or "").strip().lower()).strip(" .,!?:;")
+    if not re.fullmatch(
+        r"(?:₦|ngn|naira|n|\$|usd)?\s*[\d,.]+\s*[km]?"
+        r"(?:\s*-\s*(?:₦|ngn|naira|n|\$|usd)?\s*[\d,.]+\s*[km]?)?",
+        comparable,
+    ):
+        return []
+
+    values = []
+    for match in re.finditer(
+        r"(?P<prefix>₦|ngn|naira|n|\$|usd)?\s*"
+        r"(?P<number>\d[\d,]*(?:\.\d+)?)\s*"
+        r"(?P<suffix>[km])?",
+        comparable,
+    ):
+        try:
+            value = Decimal(match.group("number").replace(",", ""))
+        except InvalidOperation:
+            continue
+        suffix = (match.group("suffix") or "").lower()
+        if suffix == "k":
+            value *= 1000
+        elif suffix == "m":
+            value *= 1000000
+        if value >= 1000:
+            values.append(int(value))
+    return values
 
 
 def _category_name_variants(category):
@@ -740,6 +783,18 @@ def prepare_context(conversation, message):
     context = dict(conversation.context or {})
     state = normalized_state(conversation)
     facts = extract_facts(message)
+    contextual_budget_values = (
+        _contextual_budget_values(message)
+        if has_locked_shopping_category(state)
+        else []
+    )
+    if contextual_budget_values and not facts["requirements"].get("budget_max"):
+        if len(contextual_budget_values) > 1:
+            facts["requirements"]["budget_min"] = min(contextual_budget_values)
+            facts["requirements"]["minimum_budget"] = min(contextual_budget_values)
+        facts["requirements"]["budget_max"] = max(contextual_budget_values)
+        facts["requirements"]["maximum_budget"] = max(contextual_budget_values)
+        facts["requirements"]["budget_amount"] = max(contextual_budget_values)
     previous_category = shopping_category_label(state)
     explicit_change = is_explicit_category_change(message)
     reset_flow = is_flow_reset(message)

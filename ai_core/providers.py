@@ -1,3 +1,4 @@
+import json
 import os
 import time
 
@@ -69,11 +70,26 @@ class OpenAIProvider(BaseAIProvider):
             response = client.responses.create(
                 model=model_config.model_name,
                 instructions="\n\n".join(
-                    item for item in [prompt.system_prompt, prompt.developer_prompt] if item
+                    item
+                    for item in [
+                        prompt.system_prompt,
+                        prompt.developer_prompt,
+                    ]
+                    if item
                 ),
-                input=safe_input,
+                input=json.dumps(
+                    safe_input,
+                    ensure_ascii=False,
+                    default=str,
+                ),
                 text=(
-                    {"format": {"type": "json_schema", "name": prompt.key, "schema": prompt.output_schema}}
+                    {
+                        "format": {
+                            "type": "json_schema",
+                            "name": prompt.key,
+                            "schema": prompt.output_schema,
+                        }
+                    }
                     if prompt.output_schema
                     else None
                 ),

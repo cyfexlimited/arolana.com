@@ -311,7 +311,10 @@ class Command(BaseCommand):
         if provider_action == "create" and not dry_run:
             provider = AIProviderConfig.objects.create(name=PROVIDER_NAME, **provider_values)
 
-        model_name = str(getattr(settings, "AROLANA_AI_MODEL", "gpt-5.5") or "gpt-5.5").strip()
+        model_name = str(
+            getattr(settings, "AROLANA_AI_MODEL", "gpt-5.2")
+            or "gpt-5.2"
+        ).strip()
         model_values = {
             "model_name": model_name,
             "is_default": False,

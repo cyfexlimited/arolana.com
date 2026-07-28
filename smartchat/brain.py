@@ -358,6 +358,22 @@ def detect_chat_intent(message, conversation=None):
     text = _text(message)
     has_product = bool(getattr(conversation, "product_id", None))
     context = dict(getattr(conversation, "context", {}) or {})
+    state = dict(context.get("state") or {})
+
+    active_service_workflow = (
+        state.get("entity_type") == "service_provider"
+        or state.get("intent_family") == "service"
+        or state.get("transaction_type") in {
+            "repair", "install", "maintain", "inspect", "consult", "find_provider",
+        }
+        or context.get("marketplace_category") == "service"
+    )
+    generic_help_followup = bool(re.fullmatch(
+        r"(?:please\s+)?(?:do\s+)?(?:help|help me|assist|assist me)(?:\s+please)?[.!?]*",
+        text,
+    ))
+    if active_service_workflow and generic_help_followup:
+        return SERVICE_INQUIRY
 
     if _contains(text, (
         "you are not helping", "you're not helping", "you are not saying anything",
@@ -613,6 +629,35 @@ def route_chat_response(conversation, message):
         )
         return intent, reply, route_metadata, True
     if intent in PRODUCT_CARD_INTENTS:
+        catalog_label = " ".join(
+            str(value or "").lower()
+            for value in (
+                route_metadata.get("catalog_category_name"),
+                route_metadata.get("marketplace_category"),
+                route_metadata.get("marketplace_style"),
+            )
+        )
+        under_specified_projector_use_case = (
+            (
+                "projector" in catalog_label
+                or "projector" in _text(message).lower()
+            )
+            and not re.search(r"\b(?:budget|under|below|around|about|₦|ngn|naira|n\s*\d|\d[\d,]*\s*(?:k|m|million|thousand))\b", _text(message))
+            and _contains(
+                _text(message),
+                ("church", "hall", "classroom", "boardroom", "meeting room", "conference room"),
+            )
+        )
+        if under_specified_projector_use_case:
+            metadata = {
+                **route_metadata,
+                "source_type": "clarification",
+                "source_label": "Projector requirement clarification",
+            }
+            return intent, (
+                "Sure. What budget should I work with for the projector?"
+            ), metadata, False
+
         if (
             route_metadata["marketplace_style"] == "video_conferencing"
             and not conversation.product_id
@@ -640,7 +685,12 @@ def route_chat_response(conversation, message):
 
         qualifier_replies = {
             PROPERTY_INQUIRY: "Sure. Are you looking to rent or buy, what location do you prefer, and what is your budget?",
-            CAR_INQUIRY: "Sure. What year range, budget, condition, and location do you prefer?",
+            CAR_INQUIRY: (
+                "Sure. For the vehicle rental, what passenger capacity, pickup location, "
+                "rental date, and budget do you have?"
+                if re.search(r"\b(?:rent|rental|hire)\b", _text(message))
+                else "Sure. What year range, budget, condition, and location do you prefer?"
+            ),
             FOOD_INQUIRY: "Sure. Are you looking for groceries, restaurant meals, bulk food supply, or packaged food?",
             KITCHEN_ITEM_INQUIRY: "What kitchen item do you need, what size or capacity, and what budget should I work with?",
             ART_INQUIRY: "Nice. Do you prefer wall art, paintings, sculptures, prints, or custom artwork, and what is your budget?",
@@ -661,21 +711,43 @@ def update_conversation_context(conversation, intent, reply, metadata=None):
 
     context = dict(conversation.context or {})
     product = getattr(conversation, "product", None)
+
     if not getattr(product, "id", None) and metadata:
         product_ref = metadata.get("source_object_id")
+
         if not product_ref:
             product_cards = metadata.get("product_cards") or []
             if product_cards:
                 product_ref = product_cards[0].get("id")
+
         if product_ref:
-            product = Product.objects.filter(
-                Q(slug=str(product_ref)) | Q(sku=str(product_ref)),
-                approval_status="approved",
-                is_active=True,
-            ).select_related("brand", "category").first()
+            product_query = (
+                Q(slug=str(product_ref))
+                | Q(sku=str(product_ref))
+            )
+
+            if (
+                isinstance(product_ref, int)
+                or str(product_ref).strip().isdigit()
+            ):
+                product_query |= Q(pk=int(product_ref))
+
+            product = (
+                Product.objects
+                .filter(
+                    product_query,
+                    approval_status="approved",
+                    is_active=True,
+                )
+                .select_related("brand", "category")
+                .first()
+            )
+
             if product:
                 conversation.product = product
-                conversation.save(update_fields=["product", "updated_at"])
+                conversation.save(
+                    update_fields=["product", "updated_at"]
+                )
     recent_user_message = (
         conversation.messages.filter(
             sender_type="user",
@@ -706,6 +778,25 @@ def update_conversation_context(conversation, intent, reply, metadata=None):
         context.get("marketplace_category", "general_marketplace"),
     )
     marketplace_style = (metadata or {}).get("marketplace_style", "")
+
+    # Prefer a canonical marketplace style. Compatibility metadata may carry a
+    # free-text label such as "conferencing device"; the strong-signal router
+    # converts that back to "video_conferencing".
+    explicit_style, _explicit_terms = _strong_category_signal(
+        " ".join(
+            str(value or "")
+            for value in (
+                message_text,
+                marketplace_style,
+                marketplace_category,
+                (metadata or {}).get("active_subject"),
+                (metadata or {}).get("search_query"),
+            )
+        )
+    )
+    if explicit_style:
+        marketplace_style = explicit_style
+
     if marketplace_style in {
         "property", "vehicle", "food", "home_kitchen", "art", "fashion",
         "industrial", "service", "vendor", "technology",
@@ -722,7 +813,11 @@ def update_conversation_context(conversation, intent, reply, metadata=None):
         "current_property_id": context.get("current_property_id"),
         "current_vehicle_id": context.get("current_vehicle_id"),
         "current_brand": getattr(getattr(product, "brand", None), "name", ""),
-        "current_category": getattr(getattr(product, "category", None), "name", ""),
+        "current_category": (
+            (metadata or {}).get("catalog_category_name")
+            or context.get("current_category", "")
+            or getattr(getattr(product, "category", None), "name", "")
+        ),
         "marketplace_category": marketplace_category,
         "last_intent": intent,
         "last_topic": topic_label,
@@ -731,7 +826,15 @@ def update_conversation_context(conversation, intent, reply, metadata=None):
         "support_status": conversation.status,
     })
     category_confidence = Decimal(str((metadata or {}).get("category_confidence") or 0))
-    if marketplace_style and category_confidence >= Decimal("0.90"):
+    should_lock_category = (
+        marketplace_style == "video_conferencing"
+        or (
+            marketplace_style
+            and marketplace_style != "general_marketplace"
+            and category_confidence >= Decimal("0.90")
+        )
+    )
+    if should_lock_category:
         context["current_category_locked"] = marketplace_style
         context["locked_category_label"] = marketplace_category
         context["locked_catalog_category_id"] = (metadata or {}).get("catalog_category_id")
@@ -763,6 +866,17 @@ def update_conversation_context(conversation, intent, reply, metadata=None):
     ):
         context["current_product_id"] = metadata["source_object_id"]
     state = normalized_state(conversation)
+    structured_requirements = (
+        (metadata or {}).get("structured_requirements")
+        or ((metadata or {}).get("structured_response") or {}).get("structured_requirements")
+        or {}
+    )
+    if isinstance(structured_requirements, dict):
+        requirements = dict(state.get("requirements") or {})
+        for key, value in structured_requirements.items():
+            if value not in (None, ""):
+                requirements[key] = value
+        state["requirements"] = requirements
     state["previous_intent"] = state.get("intent") or context.get("last_intent", "")
     state["intent"] = intent
     state["last_topic"] = topic_label
@@ -780,7 +894,30 @@ def update_conversation_context(conversation, intent, reply, metadata=None):
                 value for value in (state.get("brand"), state.get("product_type")) if value
             )
         )
-    if (metadata or {}).get("topic_changed"):
+    compatibility_state = (
+        (metadata or {}).get("shopping_session")
+        or (metadata or {}).get("state")
+        or {}
+    )
+    clear_requirements = bool(
+        (metadata or {}).get("topic_changed")
+        or (metadata or {}).get("_clear_legacy_requirements")
+        or (
+            isinstance(compatibility_state, dict)
+            and compatibility_state.get("_clear_legacy_requirements")
+        )
+    )
+    explicit_new_subject = bool(
+        metadata_subject
+        and previous_subject
+        and _text(metadata_subject) != _text(previous_subject)
+        and re.search(
+            r"^(?:do you have|show me|find me|search for|i need|i want|"
+            r"i am looking for|i'm looking for|looking for)\b",
+            message_text,
+        )
+    )
+    if clear_requirements or explicit_new_subject:
         state["requirements"] = {}
         for key in (
             "room_size",
@@ -799,7 +936,12 @@ def update_conversation_context(conversation, intent, reply, metadata=None):
     state["current_product_id"] = context.get("current_product_id")
     state["current_product_name"] = context.get("current_product_name", "")
     state["brand"] = context.get("current_brand", "") or state.get("brand", "")
-    state["category"] = context.get("current_category", "") or state.get("category", "")
+    routed_category_name = (metadata or {}).get("catalog_category_name") or ""
+    state["category"] = (
+        routed_category_name
+        or state.get("category", "")
+        or context.get("current_category", "")
+    )
     product_ids = list((metadata or {}).get("product_ids") or [])
     if product_ids:
         state["recommendation"]["candidate_product_ids"] = product_ids

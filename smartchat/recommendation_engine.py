@@ -25,9 +25,40 @@ def _candidate_queryset(state):
     brand = state.get("brand")
     category = state.get("category")
     product_type = state.get("product_type")
+
+    locked_category = str(
+        state.get("current_category_locked")
+        or state.get("locked_category")
+        or ""
+    ).strip().lower()
+    active_subject = str(state.get("active_subject") or "").strip().lower()
+    is_video_conferencing_flow = (
+        locked_category == "video_conferencing"
+        or category == "video_conferencing"
+        or product_type == "video_conferencing"
+        or "video conferencing" in active_subject
+        or "conferencing" in active_subject
+    )
+
     if brand:
         queryset = queryset.filter(brand__name__iexact=brand)
-    if category:
+
+    if is_video_conferencing_flow:
+        queryset = queryset.filter(
+            Q(name__icontains="conference")
+            | Q(name__icontains="conferencing")
+            | Q(name__icontains="webcam")
+            | Q(description__icontains="conference")
+            | Q(description__icontains="conferencing")
+            | Q(description__icontains="meeting room")
+            | Q(specifications__icontains="conference")
+            | Q(specifications__icontains="conferencing")
+            | Q(specifications__icontains="meeting room")
+            | Q(category__name__icontains="conference")
+            | Q(category__name__icontains="webcam")
+            | Q(category__parent__name__icontains="conference")
+        )
+    elif category:
         queryset = queryset.filter(
             Q(category__name__iexact=category)
             | Q(category__parent__name__iexact=category)
@@ -195,6 +226,7 @@ def recommend(state, mode="recommendation_decision"):
         "product_cards": [product_card(item) for item in products[:2]],
         "recommendation_mode": mode,
         "limitations": limitations,
+        "structured_requirements": dict(state.get("requirements") or {}),
     }, state, product
 
 

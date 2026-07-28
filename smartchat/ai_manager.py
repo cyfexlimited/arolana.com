@@ -650,10 +650,17 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
             reply, source = smart_shopping_result
             update_conversation_context(
                 conversation,
-                source.get("intent", "smart_shopping"),
+                source.get("conversation_intent")
+                or source.get("intent", "smart_shopping"),
                 reply,
                 source,
             )
+            if source.get("structured_response", {}).get("handoff_required"):
+                request_human_takeover(
+                    conversation,
+                    actor_user,
+                    user_message,
+                )
             return reply, source
         return _stateful_marketplace_fallback(conversation, state, resolved_message)
 
@@ -684,10 +691,17 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
             reply, source = smart_shopping_result
             update_conversation_context(
                 conversation,
-                source.get("intent", "smart_shopping"),
+                source.get("conversation_intent")
+                or source.get("intent", "smart_shopping"),
                 reply,
                 source,
             )
+            if source.get("structured_response", {}).get("handoff_required"):
+                request_human_takeover(
+                    conversation,
+                    actor_user,
+                    user_message,
+                )
             return reply, source
         return _stateful_marketplace_fallback(conversation, state, resolved_message)
 
@@ -790,7 +804,8 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
             reply, source = smart_shopping_result
             update_conversation_context(
                 conversation,
-                source.get("intent", "smart_shopping"),
+                source.get("conversation_intent")
+                or source.get("intent", "smart_shopping"),
                 reply,
                 source,
             )

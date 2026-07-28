@@ -154,6 +154,8 @@ def product_facts(product):
 
 def search_products(payload, context=None):
     payload = payload or {}
+
+
     queryset = _public_product_queryset()
     query = str(payload.get("query") or "").strip()
     if query:
