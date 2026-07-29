@@ -1,7 +1,9 @@
 import json
+from pathlib import Path
 from decimal import Decimal
 from unittest.mock import patch
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
@@ -99,6 +101,38 @@ class SmartChatIntentGuardTests(SimpleTestCase):
         self.assertEqual(clean_product_search_query("Epson EB-L630U"), "Epson EB-L630U")
         self.assertEqual(clean_product_search_query("Jabra Speak 810 MS"), "Jabra Speak 810 MS")
         self.assertEqual(clean_product_search_query("120-inch motorised screen"), "120-inch motorised screen")
+
+
+class SmartChatWidgetDedupTests(SimpleTestCase):
+    def widget_template(self):
+        return Path("templates/partials/arolana_smart_chat_widget.html").read_text()
+
+    def test_widget_tags_optimistic_messages_with_client_message_id(self):
+        template = self.widget_template()
+
+        self.assertIn("renderedClientMessageIds: new Set()", template)
+        self.assertIn("client_message_id: clientMessageId", template)
+        self.assertIn("data-arolana-client-message-id", template)
+        self.assertIn("state.renderedClientMessageIds.has(responseClientMessageId)", template)
+
+    def test_widget_event_handlers_are_bound_once(self):
+        template = self.widget_template()
+
+        self.assertIn("sendButton.dataset.arolanaSmartchatBound", template)
+        self.assertIn("input.dataset.arolanaSmartchatInputBound", template)
+        self.assertIn("uploadButton.dataset.arolanaSmartchatBound", template)
+        self.assertIn("guestForm.dataset.arolanaSmartchatBound", template)
+        self.assertIn("button.dataset.arolanaSmartchatBound", template)
+        self.assertIn("adminBtn.dataset.arolanaSmartchatBound", template)
+
+    def test_smartchat_rate_limit_message_is_customer_friendly(self):
+        smartchat_limit = next(
+            item for item in settings.AROLANA_RATE_LIMIT_RULES
+            if item.get("name") == "smartchat"
+        )
+
+        self.assertIn("still sending", smartchat_limit["message"])
+        self.assertNotIn("previous message may still be processing", smartchat_limit["message"].lower())
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)

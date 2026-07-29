@@ -700,6 +700,7 @@
         typingActive: false,
         busy: false,
         pendingClientMessageId: "",
+        renderedClientMessageIds: new Set(),
         lastSubmittedText: "",
         lastSubmittedAt: 0
     };
@@ -748,6 +749,13 @@
                 ?.querySelector("[name='csrfmiddlewaretoken']")
                 ?.value
             || "";
+    }
+
+    function cssEscape(value) {
+        if (window.CSS && typeof window.CSS.escape === "function") {
+            return window.CSS.escape(value);
+        }
+        return String(value).replace(/["\\]/g, "\\$&");
     }
 
     function makeClientMessageId() {
@@ -1020,10 +1028,30 @@
 
         const numericId = Number(message.id);
         const hasNumericId = Number.isFinite(numericId) && numericId > 0;
+        const metadata = message.metadata || {};
+        const clientMessageId = String(
+            metadata.client_message_id
+            || message.client_message_id
+            || ""
+        ).trim();
 
         if (hasNumericId && document.querySelector(`[data-arolana-message-id="${numericId}"]`)) {
             updateLastMessageId(numericId);
             return;
+        }
+
+        if (clientMessageId) {
+            const existingClientMessage = document.querySelector(
+                `[data-arolana-client-message-id="${cssEscape(clientMessageId)}"]`
+            );
+            if (existingClientMessage) {
+                if (hasNumericId) {
+                    existingClientMessage.dataset.arolanaMessageId = String(numericId);
+                    updateLastMessageId(numericId);
+                }
+                state.renderedClientMessageIds.add(clientMessageId);
+                return;
+            }
         }
 
         if (options.updateOnly) {
@@ -1051,6 +1079,10 @@
 
         if (hasNumericId) {
             bubble.dataset.arolanaMessageId = String(numericId);
+        }
+        if (clientMessageId) {
+            bubble.dataset.arolanaClientMessageId = clientMessageId;
+            state.renderedClientMessageIds.add(clientMessageId);
         }
 
         const text = renderMessageText(message.message || message.reply || "");
@@ -1475,14 +1507,17 @@
         state.pendingClientMessageId = clientMessageId;
         state.lastSubmittedText = normalisedText.toLowerCase();
         state.lastSubmittedAt = now;
+        setBusy(true);
 
         renderMessage({
             sender_type: "user",
             sender_name: "You",
-            message: normalisedText
+            message: normalisedText,
+            metadata: {
+                client_message_id: clientMessageId,
+                optimistic: true
+            }
         });
-
-        setBusy(true);
 
         try {
             const request = await requestJsonWithCsrfRetry(
@@ -1531,7 +1566,16 @@
 
             if (Array.isArray(data.messages)) {
                 data.messages.forEach(function (msg) {
-                    if (msg.sender_type === "user") {
+                    const responseClientMessageId = String(
+                        msg?.metadata?.client_message_id
+                        || msg?.client_message_id
+                        || ""
+                    ).trim();
+                    if (
+                        msg.sender_type === "user"
+                        && responseClientMessageId
+                        && state.renderedClientMessageIds.has(responseClientMessageId)
+                    ) {
                         renderMessage(msg, { updateOnly: true });
                     } else {
                         renderMessage(msg);
@@ -1800,52 +1844,69 @@
         const guestForm = getEl("arolana-smartchat-guest-form");
 
         if (sendButton) {
-            sendButton.addEventListener("click", function (event) {
-                event.preventDefault();
-                event.stopPropagation();
-                sendFromInput();
-            }, true);
-        }
-
-        if (input) {
-            input.addEventListener("input", noteCustomerTyping);
-            input.addEventListener("keydown", function (event) {
-                if (event.key === "Enter") {
+            if (sendButton.dataset.arolanaSmartchatBound !== "true") {
+                sendButton.dataset.arolanaSmartchatBound = "true";
+                sendButton.addEventListener("click", function (event) {
                     event.preventDefault();
                     event.stopPropagation();
                     sendFromInput();
-                }
-            }, true);
+                }, true);
+            }
+        }
+
+        if (input) {
+            if (input.dataset.arolanaSmartchatInputBound !== "true") {
+                input.dataset.arolanaSmartchatInputBound = "true";
+                input.addEventListener("input", noteCustomerTyping);
+                input.addEventListener("keydown", function (event) {
+                    if (event.key === "Enter") {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        sendFromInput();
+                    }
+                }, true);
+            }
         }
 
         if (uploadButton && imageInput) {
-            uploadButton.addEventListener("click", function (event) {
-                event.preventDefault();
-                event.stopPropagation();
-                if (isGuestIntakeRequired()) {
-                    syncChatMode();
-                    promptGuestContact(GUEST_CONTACT_PROMPT);
-                    return;
-                }
-                imageInput.click();
-            }, true);
+            if (uploadButton.dataset.arolanaSmartchatBound !== "true") {
+                uploadButton.dataset.arolanaSmartchatBound = "true";
+                uploadButton.addEventListener("click", function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (isGuestIntakeRequired()) {
+                        syncChatMode();
+                        promptGuestContact(GUEST_CONTACT_PROMPT);
+                        return;
+                    }
+                    imageInput.click();
+                }, true);
+            }
 
-            imageInput.addEventListener("change", function () {
-                const file = imageInput.files && imageInput.files[0];
-                if (file) uploadImage(file);
-                imageInput.value = "";
-            });
+            if (imageInput.dataset.arolanaSmartchatBound !== "true") {
+                imageInput.dataset.arolanaSmartchatBound = "true";
+                imageInput.addEventListener("change", function () {
+                    const file = imageInput.files && imageInput.files[0];
+                    if (file) uploadImage(file);
+                    imageInput.value = "";
+                });
+            }
         }
 
         if (guestForm) {
-            guestForm.addEventListener("submit", function (event) {
-                event.preventDefault();
-                event.stopPropagation();
-                submitGuestContact();
-            }, true);
+            if (guestForm.dataset.arolanaSmartchatBound !== "true") {
+                guestForm.dataset.arolanaSmartchatBound = "true";
+                guestForm.addEventListener("submit", function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    submitGuestContact();
+                }, true);
+            }
         }
 
         document.querySelectorAll(".arolana-smartchat-quick").forEach(function (button) {
+            if (button.dataset.arolanaSmartchatBound === "true") return;
+            button.dataset.arolanaSmartchatBound = "true";
             button.addEventListener("click", function (event) {
                 event.preventDefault();
                 event.stopPropagation();
@@ -1859,12 +1920,15 @@
         });
 
         if (adminBtn) {
-            adminBtn.addEventListener("click", function (event) {
-                event.preventDefault();
-                event.stopPropagation();
-                open();
-                requestAdmin();
-            }, true);
+            if (adminBtn.dataset.arolanaSmartchatBound !== "true") {
+                adminBtn.dataset.arolanaSmartchatBound = "true";
+                adminBtn.addEventListener("click", function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    open();
+                    requestAdmin();
+                }, true);
+            }
         }
 
         document.addEventListener("click", function (event) {
