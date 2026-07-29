@@ -13,6 +13,7 @@ CONVERSATIONAL_GRATITUDE = "conversational_gratitude"
 CONVERSATIONAL_IDENTITY = "conversational_identity"
 CONVERSATIONAL_GOODBYE = "conversational_goodbye"
 CONVERSATIONAL_WELLBEING = "conversational_wellbeing"
+PLATFORM_INFORMATION = "platform_information"
 ORDER_INTENT = "order_tracking"
 SUPPORT_INTENT = "support_request"
 REQUIREMENTS_INTENT = "shopping_requirements"
@@ -31,6 +32,15 @@ IDENTITY_REPLY = (
 GRATITUDE_REPLY = "You’re welcome. Is there anything else you would like help with?"
 GOODBYE_REPLY = "Thank you for visiting Arolana. Have a great day!"
 WELLBEING_REPLY = "I’m doing well, thank you. How can I help you today?"
+PLATFORM_INFORMATION_REPLY = (
+    "Arolana is a multi-category marketplace for products and professional services. "
+    "You can discover and compare products from approved sellers, buy products, "
+    "request quotes, arrange delivery, track orders, and connect with installers, "
+    "technicians, engineers and other service providers. Sellers and service "
+    "providers can also register to offer products or services on Arolana. "
+    "When you are ready, tell me what you want to buy or the service you need, "
+    "and I’ll guide you."
+)
 CLARIFICATION_REPLY = (
     "What would you like help with—finding a product, tracking an order, "
     "locating an installer or contacting support?"
@@ -48,6 +58,7 @@ CONVERSATIONAL_PATTERNS = (
     (CONVERSATIONAL_WELLBEING, (
         r"^how are you(?: today)?$",
         r"^how are you doing(?: today)?$",
+        r"^(?:hello|hi|hey)\s+(?:and\s+)?how (?:are you|you doing)(?: today)?$",
     )),
     (CONVERSATIONAL_GREETING, (
         r"^(hello|hi|hey|hello there|hi there)$",
@@ -64,9 +75,33 @@ CONVERSATIONAL_PATTERNS = (
     )),
 )
 
+PLATFORM_INFORMATION_PATTERNS = (
+    r"\bwhat (?:is|s)?\s*(?:arolana|this platform|your platform|this website|this site)\b",
+    r"\bwhat (?:is|s)?\s*(?:arolana|this platform|your platform|this website|this site)\s+"
+    r"(?:all\s+)?about\b",
+    r"\b(?:arolana|this platform|your platform|this website|this site)\s+"
+    r"(?:is\s+)?(?:all\s+)?about\b",
+    r"\btell me about (?:arolana|this platform|your platform|this website|this site)\b",
+    r"\bexplain (?:arolana|this platform|your platform|this website|this site)\b",
+    r"\bhow does (?:arolana|this platform|your platform|this website|this site)\s+work\b",
+    r"\bwhat can i do here\b",
+    r"\bi want to (?:know|understand|learn) (?:about\s+)?"
+    r"(?:arolana|this platform|your platform|this website|this site)\b",
+    r"\bbefore i (?:start|begin) (?:shopping|shop|buying)\b",
+    r"\bis (?:arolana|this platform|your platform|this website|this site)\s+"
+    r"(?:a\s+)?marketplace\b",
+    r"\bwhat services (?:does|do) (?:arolana|you|this platform|your platform)\s+offer\b",
+    r"\bhow does shopping work here\b",
+    r"\btell me about (?:the\s+)?platform before i (?:shop|start shopping|buy)\b",
+    r"\bi want to understand (?:the\s+)?(?:website|site|platform) first\b",
+)
+
 PRODUCT_SEARCH_PATTERNS = (
-    r"\bi (?:need|want|am looking for|m looking for)\b",
+    r"\bi (?:need|want|am looking for|m looking for)\s+"
+    r"(?!to\s+(?:know|understand|learn|ask|see how)\b)"
+    r"(?:a|an|some|the)?\s*[a-z0-9-]+",
     r"\bdo you have\b",
+    r"\bdo you sell\b",
     r"\bshow me\b",
     r"\bhow much (?:is|for|are)\b",
     r"\b(?:price|cost) (?:of|for)\b",
@@ -133,6 +168,7 @@ QUERY_CLEANERS = (
     r"^(?:do you have|have you got|is there|is the|are there)\s+",
     r"^(?:how much is|how much are|how much for)\s+",
     r"^(?:show me|find me|search for|i need|i want|looking for)\s+",
+    r"^(?:do you sell)\s+",
     r"\s+(?:available|in stock|on arolana)$",
     r"\s+(?:price|cost)$",
 )
@@ -141,7 +177,21 @@ QUERY_CLEANERS = (
 def normalize_message(value: str) -> str:
     text = str(value or "").replace("’", "'").lower()
     text = _NOISE_PATTERN.sub(" ", text)
-    return re.sub(r"\s+", " ", text).strip()
+    text = re.sub(r"\s+", " ", text).strip()
+    replacements = {
+        "al abotut": "all about",
+        "abotut": "about",
+        "aboutut": "about",
+        "stttart": "start",
+        "sttart": "start",
+        "shoping": "shopping",
+        "platfrom": "platform",
+        "arolanna": "arolana",
+        "ttoday": "today",
+    }
+    for wrong, right in replacements.items():
+        text = re.sub(rf"\b{re.escape(wrong)}\b", right, text)
+    return text
 
 
 def _matches(text: str, patterns: tuple[str, ...]) -> bool:
@@ -166,6 +216,15 @@ def conversational_reply(intent: str) -> str:
     }.get(intent, "")
 
 
+def is_platform_information_question(message: str) -> bool:
+    text = normalize_message(message)
+    return _matches(text, PLATFORM_INFORMATION_PATTERNS)
+
+
+def platform_information_reply() -> str:
+    return PLATFORM_INFORMATION_REPLY
+
+
 def resolve_customer_intent(message: str) -> str:
     text = normalize_message(message)
 
@@ -178,6 +237,9 @@ def resolve_customer_intent(message: str) -> str:
     conversational = detect_conversational_intent(text)
     if conversational:
         return conversational
+
+    if is_platform_information_question(text):
+        return PLATFORM_INFORMATION
 
     if _matches(text, ORDER_PATTERNS):
         return ORDER_INTENT

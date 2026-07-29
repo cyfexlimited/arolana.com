@@ -12,6 +12,7 @@ NON_ADVANCEABLE_SOURCE_TYPES = {
     "permission_fallback",
     "feature_disabled",
     "deterministic_conversation",
+    "platform_information",
     "clarification",
     "support_route",
     "purchase_guidance",

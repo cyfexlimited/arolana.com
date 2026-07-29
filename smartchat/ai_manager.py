@@ -49,8 +49,10 @@ from .intent_guards import (
     CONVERSATIONAL_GREETING,
     CONVERSATIONAL_IDENTITY,
     CONVERSATIONAL_WELLBEING,
+    PLATFORM_INFORMATION,
     conversational_reply,
     deterministic_conversation_source,
+    platform_information_reply,
     resolve_customer_intent,
 )
 from .response_validator import (
@@ -178,6 +180,18 @@ def _product_installation_guidance(conversation, state):
             },
         ],
     }
+
+
+def _record_informational_detour(conversation, intent, reply):
+    context = dict(conversation.context or {})
+    context["last_intent"] = intent
+    context["last_topic"] = intent
+    context["last_bot_response_summary"] = re.sub(r"\s+", " ", reply or "")[:500]
+    context["customer_name"] = conversation.customer_display
+    context["support_status"] = conversation.status
+    conversation.current_intent = intent
+    conversation.context = context
+    conversation.save(update_fields=["current_intent", "context", "updated_at"])
 
 
 PII_PATTERNS = [
@@ -874,6 +888,25 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
         reply = conversational_reply(deterministic_intent)
         source = deterministic_conversation_source(deterministic_intent)
         update_conversation_context(conversation, deterministic_intent, reply, source)
+        return reply, source
+
+    if deterministic_intent == PLATFORM_INFORMATION:
+        reply = platform_information_reply()
+        source = {
+            **deterministic_conversation_source(PLATFORM_INFORMATION),
+            "source_type": "platform_information",
+            "source_label": "Arolana platform information",
+            "marketplace_category": "platform_information",
+            "product_cards": [],
+            "product_ids": [],
+            "result_count": 0,
+            "actions": [
+                {"type": "browse_products", "label": "Browse products"},
+                {"type": "find_service_provider", "label": "Find service providers"},
+                {"type": "contact_support", "label": "Contact support"},
+            ],
+        }
+        _record_informational_detour(conversation, PLATFORM_INFORMATION, reply)
         return reply, source
 
     state = prepare_context(conversation, resolved_message)

@@ -1,5 +1,6 @@
 import json
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import SimpleTestCase, TestCase, override_settings
@@ -17,6 +18,7 @@ from .intent_guards import (
     CONVERSATIONAL_IDENTITY,
     CONVERSATIONAL_WELLBEING,
     ORDER_INTENT,
+    PLATFORM_INFORMATION,
     REQUIREMENTS_INTENT,
     SUPPORT_INTENT,
     clean_product_search_query,
@@ -58,10 +60,24 @@ class SmartChatIntentGuardTests(SimpleTestCase):
             "do you have Logitech Group?": "catalog.search_products",
             "Logitech Rally Bar price": "catalog.search_products",
             "show me projectors": "catalog.search_products",
+            "do you sell Plantronics headsets?": "catalog.search_products",
             "I need a projector for a church": REQUIREMENTS_INTENT,
             "track my order": ORDER_INTENT,
             "I need an installer": "services.match_providers",
             "contact support": SUPPORT_INTENT,
+        }
+        for message, expected in cases.items():
+            with self.subTest(message=message):
+                self.assertEqual(resolve_customer_intent(message), expected)
+
+    def test_platform_information_intent_precedes_product_search(self):
+        cases = {
+            "please what arolana all about?": PLATFORM_INFORMATION,
+            "what is your platform about?": PLATFORM_INFORMATION,
+            "tell me about the platform before I shop": PLATFORM_INFORMATION,
+            "how does shopping work here?": PLATFORM_INFORMATION,
+            "is Arolana a marketplace?": PLATFORM_INFORMATION,
+            "i want to know what your platform is al abotut before i can stttart shoping": PLATFORM_INFORMATION,
         }
         for message, expected in cases.items():
             with self.subTest(message=message):
@@ -833,6 +849,160 @@ class SmartChatProductIntelligenceTests(TestCase):
         self.assertEqual(cards[0]["rating_count"], 24)
         self.assertTrue(cards[0]["popular_qa"])
         self.assertTrue(cards[0]["add_to_cart_url"])
+
+    def assertPlatformInformationReply(self, reply):
+        self.assertEqual(reply.metadata.get("intent"), "platform_information")
+        self.assertFalse(reply.metadata.get("product_cards"))
+        self.assertFalse(reply.metadata.get("product_ids"))
+        self.assertNotIn("Approved Arolana products found", reply.message)
+        self.assertIn("marketplace", reply.message.lower())
+        self.assertIn("products", reply.message.lower())
+        self.assertIn("service providers", reply.message.lower())
+
+    def test_platform_information_question_does_not_trigger_product_search(self):
+        conversation = SmartChatConversation.objects.create(user=self.customer)
+        with patch("smartchat.ai_manager.smart_shopping_reply") as smart_shopping:
+            reply = self.ask(conversation, "please what arolana all about?")
+
+        smart_shopping.assert_not_called()
+        self.assertPlatformInformationReply(reply)
+
+    def test_typo_heavy_platform_question_routes_to_platform_information(self):
+        conversation = SmartChatConversation.objects.create(user=self.customer)
+        with patch("smartchat.ai_manager.smart_shopping_reply") as smart_shopping:
+            reply = self.ask(
+                conversation,
+                "i want to know what your platform is al abotut before i can stttart shoping",
+            )
+
+        smart_shopping.assert_not_called()
+        self.assertPlatformInformationReply(reply)
+
+    def test_fresh_greeting_does_not_surface_stale_context(self):
+        conversation = SmartChatConversation.objects.create(
+            user=self.customer,
+            product=self.product,
+            context={
+                "last_intent": "delivery_question",
+                "current_product_name": "Plantronics Blackwire C3225",
+                "cart_summary": "Plantronics Blackwire C3225",
+                "payment_provider": "Flutterwave",
+                "delivery_location": "Lagos",
+                "state": {
+                    "entity_type": "service_provider",
+                    "active_subject": "installer",
+                },
+            },
+        )
+
+        reply = self.ask(conversation, "hello and how you doing ttoday?")
+
+        self.assertEqual(reply.metadata.get("intent"), CONVERSATIONAL_WELLBEING)
+        self.assertFalse(reply.metadata.get("product_cards"))
+        lower_reply = reply.message.lower()
+        for forbidden in (
+            "plantronics",
+            "flutterwave",
+            "paypal",
+            "cart",
+            "delivery",
+            "payment",
+            "installer",
+        ):
+            self.assertNotIn(forbidden, lower_reply)
+
+    def test_word_shopping_alone_does_not_trigger_catalogue_search(self):
+        conversation = SmartChatConversation.objects.create(user=self.customer)
+        with patch("smartchat.ai_manager.smart_shopping_reply") as smart_shopping:
+            reply = self.ask(conversation, "How does shopping work here?")
+
+        smart_shopping.assert_not_called()
+        self.assertPlatformInformationReply(reply)
+
+    def test_platform_information_response_explains_products_and_services(self):
+        conversation = SmartChatConversation.objects.create(user=self.customer)
+
+        reply = self.ask(conversation, "What services does Arolana offer?")
+
+        self.assertPlatformInformationReply(reply)
+        self.assertIn("approved sellers", reply.message.lower())
+        self.assertIn("request quotes", reply.message.lower())
+        self.assertIn("track orders", reply.message.lower())
+        self.assertIn("register", reply.message.lower())
+
+    def test_concrete_product_request_still_triggers_catalogue_search(self):
+        headset_category = Category.objects.create(
+            name="Headsets",
+            slug="headsets-concrete-search",
+        )
+        plantronics = Brand.objects.create(
+            name="Plantronics",
+            slug="plantronics-concrete-search",
+        )
+        product = Product.objects.create(
+            vendor=self.vendor,
+            category=headset_category,
+            brand=plantronics,
+            sku="PLAN-C3225-SEARCH",
+            name="Plantronics Blackwire C3225 Corded Stereo UC Headset",
+            slug="plantronics-blackwire-c3225-search",
+            description="USB-A business headset for calls.",
+            price="75000.00",
+            stock_quantity=6,
+            approval_status="approved",
+        )
+        conversation = SmartChatConversation.objects.create(user=self.customer)
+
+        reply = self.ask(conversation, "Do you sell Plantronics headsets?")
+
+        self.assertNotEqual(reply.metadata.get("intent"), "platform_information")
+        self.assertTrue(reply.metadata.get("product_cards"))
+        self.assertEqual(reply.metadata["product_cards"][0]["id"], product.id)
+
+    def test_platform_information_clears_product_cards_from_response_only(self):
+        conversation = SmartChatConversation.objects.create(
+            user=self.customer,
+            product=self.product,
+            context={
+                "state": {
+                    "active_subject": "projector",
+                    "entity_type": "product",
+                    "requirements": {"budget_max": 400000},
+                },
+                "current_product_name": self.product.name,
+            },
+        )
+
+        reply = self.ask(conversation, "Tell me about the platform before I shop.")
+
+        self.assertPlatformInformationReply(reply)
+        conversation.refresh_from_db()
+        self.assertEqual(conversation.product_id, self.product.id)
+
+    def test_platform_information_does_not_destroy_saved_conversation_state(self):
+        conversation = SmartChatConversation.objects.create(
+            user=self.customer,
+            product=self.product,
+            context={
+                "state": {
+                    "active_subject": "projector",
+                    "entity_type": "product",
+                    "requirements": {"brightness_requirement": 4000},
+                },
+                "current_product_name": self.product.name,
+            },
+        )
+
+        reply = self.ask(conversation, "I want to understand the website first.")
+
+        self.assertPlatformInformationReply(reply)
+        conversation.refresh_from_db()
+        state = (conversation.context or {}).get("state") or {}
+        self.assertEqual(state.get("active_subject"), "projector")
+        self.assertEqual(
+            state.get("requirements", {}).get("brightness_requirement"),
+            4000,
+        )
 
     def test_catalog_search_ranks_main_rally_bar_before_accessories(self):
         conference_category = Category.objects.create(
