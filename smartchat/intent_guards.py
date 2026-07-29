@@ -88,6 +88,7 @@ REQUIREMENTS_PATTERNS = (
 ORDER_PATTERNS = (r"\btrack (?:my |an? )?order\b", r"\bwhere is my order\b")
 INSTALLER_PATTERNS = (
     r"\bi need (?:an? )?(?:installer|engineer|technician)\b",
+    r"\bi(?:'m| am|m)? looking for (?:an? )?(?:installer|engineer|technician|service provider)\b",
     r"\bi need (?:an? )?(?:[a-z0-9-]+\s+){1,6}(?:installer|engineer|technician)\b",
     r"\bi need someone to (?:repair|install|maintain|inspect|service)\b",
     r"\bfind (?:someone|a|an) to (?:repair|install|maintain|inspect|service)\b",

@@ -813,8 +813,8 @@ AROLANA_RATE_LIMIT_RULES = [
         'name': 'smartchat',
         'paths': ['/smartchat/api/', '/api/smartchat/'],
         'methods': ['POST'],
-        'limit': config('RATE_LIMIT_SMARTCHAT_LIMIT', default=60, cast=int),
-        'window': config('RATE_LIMIT_SMARTCHAT_WINDOW', default=300, cast=int),
+        'limit': config('RATE_LIMIT_SMARTCHAT_LIMIT', default=15, cast=int),
+        'window': config('RATE_LIMIT_SMARTCHAT_WINDOW', default=60, cast=int),
         'message': 'Too many chat requests. Please wait a moment before sending more messages.',
     },
     {

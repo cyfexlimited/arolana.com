@@ -155,6 +155,21 @@ def _contextual_budget_values(message):
 def _apply_shopping_session_update(state, message):
     before = _state_debug_snapshot(state)
     facts = extract_facts(message)
+    if _active_service_flow(state) and not _explicit_product_request(message):
+        facts["entity_type"] = "service_provider"
+        facts["intent_family"] = "service"
+        facts["transaction_type"] = (
+            "install"
+            if re.search(r"\binstall(?:er|ation|ing)?|setup|set up\b", str(message or "").lower())
+            else facts.get("transaction_type") or state.get("transaction_type") or "find_provider"
+        )
+        facts.pop("category", None)
+        facts.pop("subcategory", None)
+        facts.pop("product_type", None)
+        facts.pop("catalog_category_id", None)
+        fact_requirements = facts.setdefault("requirements", {})
+        if fact_requirements.get("delivery_location") and not fact_requirements.get("service_location"):
+            fact_requirements["service_location"] = fact_requirements["delivery_location"]
     contextual_budget_values = (
         _contextual_budget_values(message)
         if has_locked_shopping_category(state)
@@ -424,10 +439,8 @@ def _merge_requirements(state, message):
     return requirements
 
 
-def _classify(message, state):
-    text = message.lower().strip()
-
-    active_service_flow = (
+def _active_service_flow(state):
+    return (
         state.get("entity_type") == "service_provider"
         or state.get("intent_family") == "service"
         or state.get("transaction_type") in {
@@ -440,6 +453,44 @@ def _classify(message, state):
             "find_provider",
         }
     )
+
+
+def _explicit_product_request(message):
+    text = re.sub(r"\s+", " ", str(message or "").strip().lower())
+    return bool(
+        re.search(
+            r"\b(?:show me|find|search for|compare|price of|how much|"
+            r"buy|purchase|do you have|what equipment|which equipment|"
+            r"products?|devices?|catalogue|catalog)\b",
+            text,
+        )
+        and not re.search(
+            r"\b(?:installer|install it|installing|installation|technician|"
+            r"provider|engineer|repair|setup|set up|service)\b",
+            text,
+        )
+    )
+
+
+def _service_requirement_update(message):
+    text = re.sub(r"\s+", " ", str(message or "").strip().lower())
+    return bool(
+        re.search(
+            r"\b(?:conference room|conferencing|boardroom|setup|set up|"
+            r"install(?:er|ation|ing)?|repair|technician|provider|engineer|"
+            r"location|in\s+[a-z][a-z\s-]+|urgent|urgently|asap|"
+            r"as soon as possible|immediately|today|tomorrow|this week|"
+            r"next week|sitters?|seaters?|people|participants|supply and installation|"
+            r"installation only)\b",
+            text,
+        )
+    )
+
+
+def _classify(message, state):
+    text = message.lower().strip()
+
+    active_service_flow = _active_service_flow(state)
     generic_help_followup = any(
         phrase in text
         for phrase in (
@@ -452,7 +503,15 @@ def _classify(message, state):
         )
     )
 
-    if active_service_flow and generic_help_followup:
+    if (
+        active_service_flow
+        and not _explicit_product_request(message)
+        and (
+            generic_help_followup
+            or _service_requirement_update(message)
+            or slot_updates_from_facts(extract_facts(message))
+        )
+    ):
         return TOOL_SERVICES_MATCH_PROVIDERS
 
     routed = resolve_customer_intent(message)
@@ -636,6 +695,34 @@ def _providers_reply(providers, *, query="", state=None, requirements=None):
         )
     lines.append("I’m not promising schedule, availability or price until a provider confirms.")
     return "\n".join(lines)
+
+
+def _provider_search_query(state, requirements, user_message):
+    """Build a provider query without letting generic service labels replace the asset."""
+    requirements = requirements or {}
+    state = state or {}
+
+    generic_service_labels = {
+        "installation/service support",
+        "service provider",
+        "installer",
+        "installation",
+        "install",
+    }
+    service_needed = _text(requirements.get("service_needed"))
+    service_type = _text(requirements.get("service_type"))
+    active_subject = _text(state.get("active_subject"))
+    search_query = _text(state.get("search_query"))
+
+    if service_type and service_type.lower() not in generic_service_labels:
+        return service_needed or service_type
+    if service_needed and service_needed.lower() not in generic_service_labels:
+        return service_needed
+    if active_subject and active_subject.lower() not in generic_service_labels:
+        return active_subject
+    if search_query and search_query.lower() not in generic_service_labels:
+        return search_query
+    return service_needed or service_type or active_subject or search_query or user_message
 
 
 def _catalog_search_allowed_for_state(state):
@@ -1481,6 +1568,25 @@ def smart_shopping_reply(
         user_message,
     )
     requirements = _merge_requirements(state, user_message)
+    if _active_service_flow(state):
+        previous_service_requirements = {
+            **dict(((context.get("state") or {}).get("requirements")) or {}),
+            **dict(((context.get("smart_shopping") or {}).get("requirements")) or {}),
+        }
+        requirements = {
+            **{
+                key: value
+                for key, value in previous_service_requirements.items()
+                if value not in (None, "")
+            },
+            **{
+                key: value
+                for key, value in (requirements or {}).items()
+                if value not in (None, "")
+            },
+        }
+        state["requirements"] = requirements
+    deterministic_requirements = dict(requirements or {})
 
     if guarded_intent == "property_inquiry":
         state["entity_type"] = "property"
@@ -1520,6 +1626,16 @@ def smart_shopping_reply(
             state["transaction_type"] = "find_provider"
 
         state["catalog_category_id"] = None
+        state["category"] = ""
+        state["product_type"] = ""
+        state["shopping_category_locked"] = False
+        state["locked_category"] = ""
+        state["active_subject"] = (
+            (state.get("requirements") or {}).get("service_type")
+            or state.get("active_subject")
+            or facts.get("subject")
+            or "service provider"
+        )
 
     context["state"] = state
     conversation.context = context
@@ -1619,6 +1735,16 @@ def smart_shopping_reply(
                 interpretation,
                 user_message,
             )
+            if deterministic_requirements:
+                requirements = {
+                    **deterministic_requirements,
+                    **{
+                        key: value
+                        for key, value in (requirements or {}).items()
+                        if value not in (None, "")
+                    },
+                }
+                state["requirements"] = requirements
 
             source.update(
                 {
@@ -2195,8 +2321,15 @@ def smart_shopping_reply(
             tool_result = dict(result.payload or {})
 
         elif intent == TOOL_SERVICES_MATCH_PROVIDERS:
+            provider_location = (
+                requirements.get("service_location")
+                or requirements.get("delivery_location")
+                or requirements.get("location")
+                or ""
+            )
+            provider_query = _provider_search_query(state, requirements, user_message)
             tool_payload = {
-                "query": user_message,
+                "query": provider_query,
                 "product_ref": (
                     state.get("current_product_ref")
                     or (
@@ -2205,8 +2338,8 @@ def smart_shopping_reply(
                         else ""
                     )
                 ),
-                "city": requirements.get("city") or "",
-                "state": requirements.get("state") or "",
+                "city": requirements.get("city") or provider_location,
+                "state": requirements.get("state") or provider_location,
                 "result_limit": 5,
             }
             tool_payload = {
@@ -2451,6 +2584,8 @@ def smart_shopping_reply(
         )
         else raw_search_query
     )
+    if intent == TOOL_SERVICES_MATCH_PROVIDERS:
+        source["active_subject"] = state.get("active_subject") or source["search_query"]
     source["source_type"] = _legacy_source_type(intent, tool_result)
     if (
         intent == TOOL_CATALOG_SEARCH_PRODUCTS

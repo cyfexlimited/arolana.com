@@ -7,6 +7,7 @@ from django.urls import reverse
 
 from notifications.models import Notification
 from products.models import Brand, Category, Product, ProductQuestion, ProductReview
+from ai_core.commerce_tools import search_products
 from .ai_manager import create_managed_ai_message
 from .context_state import extract_facts, prepare_context
 from .intent_guards import (
@@ -289,6 +290,54 @@ class SmartChatEndToEndRoutingTests(TestCase):
             (state.get("requirements") or {}).get("service_location"),
             "Abuja",
         )
+
+    def test_installer_conference_room_followups_never_switch_to_products(self):
+        conversation = SmartChatConversation.objects.create()
+
+        reply_1 = self.send(conversation, "I'm looking for an installer in Lagos")
+        reply_2 = self.send(
+            conversation,
+            "I want to do a setup for a conference room of 20 sitters",
+        )
+        conversation.refresh_from_db()
+        state = (conversation.context or {}).get("state") or {}
+        requirements = state.get("requirements") or {}
+
+        self.assertEqual(state.get("entity_type"), "service_provider")
+        self.assertEqual(state.get("intent_family"), "service")
+        self.assertEqual(requirements.get("service_location"), "Lagos")
+        self.assertEqual(requirements.get("capacity"), 20)
+        self.assertFalse((reply_2.metadata or {}).get("product_cards"))
+        self.assertNotIn("Approved Arolana products found", reply_2.message)
+
+        reply_3 = self.send(
+            conversation,
+            "I mean I need an installer that would install it for me",
+        )
+        reply_4 = self.send(
+            conversation,
+            "conferencing and location is in Lekki",
+        )
+        conversation.refresh_from_db()
+        state = (conversation.context or {}).get("state") or {}
+        requirements = state.get("requirements") or {}
+
+        self.assertEqual(state.get("entity_type"), "service_provider")
+        self.assertEqual(state.get("intent_family"), "service")
+        self.assertIn("conference", str(requirements.get("service_type", "")))
+        self.assertEqual(requirements.get("service_location"), "Lekki")
+        self.assertFalse((reply_3.metadata or {}).get("product_cards"))
+        self.assertFalse((reply_4.metadata or {}).get("product_cards"))
+
+        reply_5 = self.send(conversation, "but I need it urgently")
+        conversation.refresh_from_db()
+        state = (conversation.context or {}).get("state") or {}
+        requirements = state.get("requirements") or {}
+
+        self.assertEqual(state.get("entity_type"), "service_provider")
+        self.assertEqual(requirements.get("urgency"), "urgent")
+        self.assertFalse((reply_5.metadata or {}).get("product_cards"))
+        self.assertNotIn("Approved Arolana products found", reply_5.message)
 
     def test_product_query_returns_only_active_approved_product(self):
         vendor = User.objects.create_user(
@@ -739,6 +788,65 @@ class SmartChatProductIntelligenceTests(TestCase):
         self.assertEqual(cards[0]["rating_count"], 24)
         self.assertTrue(cards[0]["popular_qa"])
         self.assertTrue(cards[0]["add_to_cart_url"])
+
+    def test_catalog_search_ranks_main_rally_bar_before_accessories(self):
+        conference_category = Category.objects.create(
+            name="Video Conferencing",
+            slug="video-conferencing-ranking",
+            description="Video bars, conferencing systems and accessories.",
+        )
+        rally_bar = Product.objects.create(
+            vendor=self.vendor,
+            category=conference_category,
+            brand=self.brand,
+            sku="LOGI-RALLY-BAR",
+            name="Logitech Rally Bar (Graphite) All-in-One Video Conferencing System",
+            slug="logitech-rally-bar-graphite-ranking",
+            description="Main all-in-one Rally Bar for conference rooms.",
+            specifications="Video bar with camera, speakers and microphone array.",
+            price="2500000.00",
+            stock_quantity=3,
+            approval_status="approved",
+            is_active=True,
+        )
+        Product.objects.create(
+            vendor=self.vendor,
+            category=conference_category,
+            brand=self.brand,
+            sku="LOGI-RALLY-MOUNT",
+            name="Logitech Rally Mounting Kit for Camera, Speakers, Table Hub & Display Hub",
+            slug="logitech-rally-mounting-kit-ranking",
+            description="Accessory mounting kit for Rally systems.",
+            price="200000.00",
+            stock_quantity=3,
+            approval_status="approved",
+            is_active=True,
+        )
+        Product.objects.create(
+            vendor=self.vendor,
+            category=conference_category,
+            brand=self.brand,
+            sku="LOGI-RALLY-WALL",
+            name="Logitech Wall Mount for Video Bars – Rally Bar & Rally Bar Mini",
+            slug="logitech-wall-mount-rally-bar-ranking",
+            description="Wall mount accessory for Rally Bar.",
+            price="260500.00",
+            stock_quantity=3,
+            approval_status="approved",
+            is_active=True,
+        )
+
+        result = search_products({
+            "query": "Logitech Rally Bar",
+            "result_limit": 5,
+        })
+        typo_result = search_products({
+            "query": "logitect rally bar",
+            "result_limit": 5,
+        })
+
+        self.assertEqual(result["products"][0]["name"], rally_bar.name)
+        self.assertEqual(typo_result["products"][0]["name"], rally_bar.name)
 
     def test_message_api_exposes_safe_structured_product_cards(self):
         conversation = SmartChatConversation.objects.create(user=self.customer)

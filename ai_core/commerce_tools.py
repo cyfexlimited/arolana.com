@@ -4,7 +4,7 @@ import re
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Case, IntegerField, Q, Value, When
 from django.urls import reverse
 from django.utils.html import strip_tags
 
@@ -48,6 +48,18 @@ def _query_tokens(value):
         for token in re.sub(r"[^a-zA-Z0-9\s-]", " ", str(value or "").lower()).split()
         if len(token) > 2 and token not in stop
     ][:6]
+
+
+def _normalise_search_query(value):
+    query = re.sub(r"\s+", " ", str(value or "").strip())
+    replacements = {
+        "logitect": "logitech",
+        "logitec": "logitech",
+        "logitek": "logitech",
+    }
+    for wrong, right in replacements.items():
+        query = re.sub(rf"\b{wrong}\b", right, query, flags=re.I)
+    return query
 
 
 def _public_product_queryset():
@@ -157,7 +169,7 @@ def search_products(payload, context=None):
 
 
     queryset = _public_product_queryset()
-    query = str(payload.get("query") or "").strip()
+    query = _normalise_search_query(payload.get("query"))
     if query:
         query_filter = (
             Q(name__icontains=query)
@@ -197,7 +209,53 @@ def search_products(payload, context=None):
         if text:
             queryset = queryset.filter(Q(description__icontains=text) | Q(specifications__icontains=text))
     limit = _limit(payload.get("result_limit"))
-    products = [product_facts(product) for product in queryset.order_by("-is_featured", "price")[:limit]]
+    if query:
+        query_tokens = [token for token in _query_tokens(query.lower()) if token]
+        exact_name_condition = Q(name__iexact=query)
+        starts_with_condition = Q(name__istartswith=query)
+        all_name_tokens_condition = Q(pk__isnull=True)
+        if query_tokens:
+            all_name_tokens_condition = Q()
+            for token in query_tokens:
+                all_name_tokens_condition &= Q(name__icontains=token)
+
+        brand_and_name_condition = Q()
+        if query_tokens:
+            brand_and_name_condition = (
+                Q(brand__name__icontains=query_tokens[0])
+                & all_name_tokens_condition
+            )
+
+        model_phrase_condition = Q(pk__isnull=True)
+        if len(query_tokens) >= 2:
+            model_phrase = " ".join(query_tokens[-2:])
+            model_phrase_condition = (
+                Q(name__icontains=model_phrase)
+                | Q(sku__icontains=model_phrase)
+                | Q(manufacturer_sku__icontains=model_phrase)
+            )
+
+        queryset = queryset.annotate(
+            search_rank=Case(
+                When(exact_name_condition, then=Value(1000)),
+                When(starts_with_condition, then=Value(900)),
+                When(brand_and_name_condition, then=Value(850)),
+                When(all_name_tokens_condition, then=Value(800)),
+                When(model_phrase_condition, then=Value(780)),
+                When(name__icontains=query, then=Value(700)),
+                When(manufacturer_sku__iexact=query, then=Value(650)),
+                When(sku__iexact=query, then=Value(650)),
+                When(brand__name__icontains=query, then=Value(400)),
+                When(category__name__icontains=query, then=Value(300)),
+                When(description__icontains=query, then=Value(200)),
+                When(specifications__icontains=query, then=Value(100)),
+                default=Value(0),
+                output_field=IntegerField(),
+            )
+        ).order_by("-search_rank", "-is_featured", "price")
+    else:
+        queryset = queryset.order_by("-is_featured", "price")
+    products = [product_facts(product) for product in queryset[:limit]]
     return {
         "products": products,
         "source_references": [source for product in products for source in product["source_references"]],

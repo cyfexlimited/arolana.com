@@ -58,7 +58,11 @@ MARKETPLACE_ROUTES = {
     "art": ("art", "painting", "sculpture", "wall art", "artwork", "canvas"),
     "fashion": ("fashion", "clothing", "dress", "shirt", "shoe", "bag", "jewelry"),
     "industrial": ("industrial", "machinery", "equipment", "factory", "generator", "tool"),
-    "service": ("service", "installation", "repair", "maintenance", "consulting"),
+    "service": (
+        "service", "installation", "installer", "installers", "install",
+        "repair", "maintenance", "consulting", "technician", "provider",
+        "engineer", "setup", "set up",
+    ),
     "vendor": ("vendor", "manufacturer", "supplier", "wholesaler", "distributor"),
     "technology": (
         "technology", "electronics", "electrical", "smart home", "networking",
@@ -911,6 +915,7 @@ def update_conversation_context(conversation, intent, reply, metadata=None):
         metadata_subject
         and previous_subject
         and _text(metadata_subject) != _text(previous_subject)
+        and (metadata or {}).get("intent") != "services.match_providers"
         and re.search(
             r"^(?:do you have|show me|find me|search for|i need|i want|"
             r"i am looking for|i'm looking for|looking for)\b",

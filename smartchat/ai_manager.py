@@ -480,6 +480,20 @@ def _should_use_marketplace_workflow(conversation, message, state, deterministic
     )
     if is_slot_only_followup(message, state):
         return True
+    if (
+        state.get("entity_type") == "service_provider"
+        or state.get("intent_family") == "service"
+        or state.get("transaction_type") in {
+            "install", "repair", "maintain", "inspect", "consult",
+            "book_service", "find_provider",
+        }
+    ):
+        if not re.search(
+            r"\b(?:show me|find products?|search products?|compare|price of|"
+            r"how much|buy|purchase|do you have)\b",
+            text,
+        ):
+            return True
     if _is_contextual_marketplace_help_followup(message, state):
         return not bool(getattr(conversation, "product_id", None))
     if deterministic_intent not in {

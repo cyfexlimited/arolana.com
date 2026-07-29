@@ -64,6 +64,8 @@ DEFAULT_STATE = {
         "fault_description": None,
         "urgency": None,
         "preferred_date": None,
+        "service_type": None,
+        "service_needed": None,
         "license_users": None,
         "platform": None,
     },
@@ -159,6 +161,8 @@ SLOT_KEYS = {
     "fault_description",
     "urgency",
     "preferred_date",
+    "service_type",
+    "service_needed",
     "license_users",
     "platform",
 }
@@ -565,6 +569,39 @@ def has_locked_shopping_category(state):
     )
 
 
+def _active_service_flow(state):
+    return (
+        state.get("entity_type") == "service_provider"
+        or state.get("intent_family") == "service"
+        or state.get("transaction_type") in {
+            "install",
+            "repair",
+            "maintain",
+            "inspect",
+            "consult",
+            "book_service",
+            "find_provider",
+        }
+    )
+
+
+def _explicit_product_request(message):
+    text = re.sub(r"\s+", " ", str(message or "").strip().lower())
+    return bool(
+        re.search(
+            r"\b(?:show me|find|search for|compare|price of|how much|"
+            r"buy|purchase|do you have|what equipment|which equipment|"
+            r"products?|devices?|catalogue|catalog)\b",
+            text,
+        )
+        and not re.search(
+            r"\b(?:installer|install it|installing|installation|technician|"
+            r"provider|engineer|repair|setup|set up|service)\b",
+            text,
+        )
+    )
+
+
 def slot_updates_from_facts(facts):
     updates = {}
     requirements = facts.get("requirements") or {}
@@ -628,9 +665,10 @@ def extract_facts(message):
     screen = re.search(r"\b(\d{2,3}(?:\.\d+)?)\s*(?:inch|inches|in|”|\")\b", text)
     if screen:
         facts["requirements"]["screen_size_inches"] = float(screen.group(1))
-    participants = re.search(r"\b(?:for\s+)?(\d{1,3})\s*(?:people|persons|participants|users|seats)\b", text)
+    participants = re.search(r"\b(?:for\s+)?(\d{1,3})\s*(?:people|persons|participants|users|seats|seaters|sitters)\b", text)
     if participants:
         facts["requirements"]["participant_count"] = int(participants.group(1))
+        facts["requirements"]["capacity"] = int(participants.group(1))
     quantity = re.search(r"\b(?:quantity|qty|need|order)\s*(?:of|:|is)?\s*(\d{1,6})\s*(?:units?|items?|pieces?)?\b", text)
     if not quantity:
         quantity = re.search(r"\b(\d{1,6})\s*(?:units?|items?|pieces?|beds?|cameras?)\b", text)
@@ -679,9 +717,12 @@ def extract_facts(message):
         facts["requirements"]["location"] = location
         if transaction_type in {"repair", "install", "maintain", "inspect", "consult", "find_provider"}:
             facts["requirements"]["service_location"] = location
-    use_case = re.search(r"\b(?:for|use it for|need it for)\s+(church|school|office|home|gaming|medical|business|training)\b", text)
+    use_case = re.search(r"\b(?:for|use it for|need it for)\s+(church|school|office|home|gaming|medical|business|training|conference room|boardroom)\b", text)
     if use_case:
         facts["requirements"]["use_case"] = use_case.group(1)
+    if re.search(r"\b(?:conference room|conferencing|video conferencing|boardroom)\b", text):
+        facts["requirements"]["service_type"] = "conference_room_setup"
+        facts["requirements"]["service_needed"] = "Conference room setup"
     bedrooms = re.search(r"\b(?:two|2|three|3|four|4|five|5)\s*-?\s*bed(?:room)?s?\b", text)
     if bedrooms:
         word = bedrooms.group(0).split("-")[0].split()[0]
@@ -699,8 +740,15 @@ def extract_facts(message):
         facts["requirements"]["fault_description"] = "gearbox problem"
     elif re.search(r"\bnot powering on\b", text):
         facts["requirements"]["fault_description"] = "not powering on"
-    if re.search(r"\b(this week|next week|today|tomorrow|urgent|emergency)\b", text):
-        facts["requirements"]["urgency"] = re.search(r"\b(this week|next week|today|tomorrow|urgent|emergency)\b", text).group(1)
+    urgency_match = re.search(
+        r"\b(this week|next week|today|tomorrow|urgent|urgently|emergency|asap|as soon as possible|immediately|very soon)\b",
+        text,
+    )
+    if urgency_match:
+        urgency = urgency_match.group(1)
+        if urgency in {"urgent", "urgently", "emergency", "asap", "as soon as possible", "immediately", "very soon"}:
+            urgency = "urgent"
+        facts["requirements"]["urgency"] = urgency
         facts["requirements"]["preferred_date"] = facts["requirements"]["urgency"]
     fuel = re.search(r"\b(diesel|petrol|gasoline|electric|hybrid)\b", text)
     if fuel:
@@ -783,6 +831,21 @@ def prepare_context(conversation, message):
     context = dict(conversation.context or {})
     state = normalized_state(conversation)
     facts = extract_facts(message)
+    if _active_service_flow(state) and not _explicit_product_request(message):
+        facts["entity_type"] = "service_provider"
+        facts["intent_family"] = "service"
+        facts["transaction_type"] = (
+            "install"
+            if re.search(r"\binstall(?:er|ation|ing)?|setup|set up\b", str(message or "").lower())
+            else facts.get("transaction_type") or state.get("transaction_type") or "find_provider"
+        )
+        facts.pop("category", None)
+        facts.pop("subcategory", None)
+        facts.pop("product_type", None)
+        facts.pop("catalog_category_id", None)
+        fact_requirements = facts.setdefault("requirements", {})
+        if fact_requirements.get("delivery_location") and not fact_requirements.get("service_location"):
+            fact_requirements["service_location"] = fact_requirements["delivery_location"]
     contextual_budget_values = (
         _contextual_budget_values(message)
         if has_locked_shopping_category(state)
