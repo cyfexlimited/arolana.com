@@ -1,4 +1,5 @@
 import json
+import re
 
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import get_user_model
@@ -466,6 +467,61 @@ def _message_payload(message):
         "created_at": (
             message.created_at
             .isoformat()
+        ),
+    }
+
+
+def _clean_client_message_id(value):
+    cleaned = str(value or "").strip()
+    if not cleaned:
+        return ""
+    cleaned = re.sub(r"[^a-zA-Z0-9_.:-]", "", cleaned)
+    return cleaned[:120]
+
+
+def _idempotent_message_pair(conversation, client_message_id):
+    if not client_message_id:
+        return None
+
+    user_message = (
+        conversation.messages
+        .filter(
+            sender_type=SmartChatMessage.SENDER_USER,
+            metadata__client_message_id=client_message_id,
+        )
+        .order_by("id")
+        .first()
+    )
+    if not user_message:
+        return None
+
+    ai_message = (
+        conversation.messages
+        .filter(
+            sender_type__in=[
+                SmartChatMessage.SENDER_AI,
+                SmartChatMessage.SENDER_ADMIN,
+                SmartChatMessage.SENDER_SYSTEM,
+            ],
+            id__gt=user_message.id,
+        )
+        .order_by("id")
+        .first()
+    )
+    messages = [_message_payload(user_message)]
+    if ai_message:
+        messages.append(_message_payload(ai_message))
+
+    return {
+        "success": True,
+        "conversation_id": conversation.id,
+        "status": conversation.status,
+        "idempotent": True,
+        "reply": ai_message.message if ai_message else "",
+        "messages": messages,
+        "handoff_requested": (
+            conversation.status
+            == SmartChatConversation.STATUS_ADMIN_REQUESTED
         ),
     }
 
@@ -1193,6 +1249,17 @@ def api_message(request):
         ]
     )
 
+    client_message_id = _clean_client_message_id(
+        data.get("client_message_id")
+        or data.get("idempotency_key")
+    )
+    replay_payload = _idempotent_message_pair(
+        conversation,
+        client_message_id,
+    )
+    if replay_payload:
+        return JsonResponse(replay_payload)
+
     try:
         user_message = (
             _create_smartchat_message(
@@ -1221,6 +1288,9 @@ def api_message(request):
                     ),
                     "preferred_language": (
                         preferred_language
+                    ),
+                    "client_message_id": (
+                        client_message_id
                     ),
                 },
             )
@@ -3187,6 +3257,29 @@ def mobile_smartchat_send_api(request):
         conversation
     )
 
+    client_message_id = _clean_client_message_id(
+        payload.get("client_message_id")
+        or payload.get("idempotency_key")
+    )
+    replay_payload = _idempotent_message_pair(
+        conversation,
+        client_message_id,
+    )
+    if replay_payload:
+        conversation_payload = (
+            _mobile_conversation_payload(
+                conversation
+            )
+        )
+        return JsonResponse(
+            {
+                **replay_payload,
+                "message": "Message already received.",
+                "conversation": conversation_payload,
+                "messages": replay_payload.get("messages") or conversation_payload["messages"],
+            }
+        )
+
     try:
         user_message = (
             _create_smartchat_message(
@@ -3206,6 +3299,9 @@ def mobile_smartchat_send_api(request):
                     ),
                     "phone_number": (
                         customer.phone_number
+                    ),
+                    "client_message_id": (
+                        client_message_id
                     ),
                 },
             )

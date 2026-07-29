@@ -163,7 +163,6 @@
                     autocomplete="off"
                     placeholder="Ask Arolana Chat..."
                     class="min-w-0 flex-1 rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                    onkeydown="if(event.key === 'Enter'){event.preventDefault(); window.ArolanaSmartChatNoRefresh.sendFromInput();}"
                 >
                 <input
                     id="arolana-smartchat-image-input"
@@ -183,7 +182,6 @@
                 <button
                     type="button"
                     id="arolana-smartchat-send"
-                    onclick="window.ArolanaSmartChatNoRefresh.sendFromInput()"
                     class="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg hover:scale-105 transition shrink-0"
                     aria-label="Send Arolana Chat message"
                 >
@@ -208,7 +206,6 @@
         <button
             id="arolana-smartchat-toggle"
             type="button"
-            onclick="window.ArolanaSmartChatNoRefresh.open()"
             aria-label="Open Arolana Chat"
             aria-expanded="false"
             class="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-white/20 text-white shadow-2xl backdrop-blur-md transition-all duration-300 hover:scale-110 hover:shadow-orange-500/40 active:scale-95"
@@ -701,7 +698,10 @@
         typingStopTimer: null,
         typingPingTimer: null,
         typingActive: false,
-        busy: false
+        busy: false,
+        pendingClientMessageId: "",
+        lastSubmittedText: "",
+        lastSubmittedAt: 0
     };
     const GUEST_CONTACT_PROMPT = "Please submit your first name, last name, email, and message first so an Arolana admin can help you properly.";
 
@@ -748,6 +748,18 @@
                 ?.querySelector("[name='csrfmiddlewaretoken']")
                 ?.value
             || "";
+    }
+
+    function makeClientMessageId() {
+        if (window.crypto && typeof window.crypto.randomUUID === "function") {
+            return window.crypto.randomUUID();
+        }
+
+        return [
+            "web",
+            Date.now().toString(36),
+            Math.random().toString(36).slice(2, 12)
+        ].join("-");
     }
 
     async function readJsonResponse(response, fallbackMessage) {
@@ -1444,16 +1456,30 @@
 
         if (!w || !text || state.busy) return;
 
+        const normalisedText = text.trim().replace(/\s+/g, " ");
+        const now = Date.now();
+        if (
+            state.lastSubmittedText === normalisedText.toLowerCase()
+            && now - state.lastSubmittedAt < 1800
+        ) {
+            return;
+        }
+
         if (isGuestIntakeRequired()) {
             syncChatMode();
             promptGuestContact(GUEST_CONTACT_PROMPT);
             return;
         }
 
+        const clientMessageId = makeClientMessageId();
+        state.pendingClientMessageId = clientMessageId;
+        state.lastSubmittedText = normalisedText.toLowerCase();
+        state.lastSubmittedAt = now;
+
         renderMessage({
             sender_type: "user",
             sender_name: "You",
-            message: text
+            message: normalisedText
         });
 
         setBusy(true);
@@ -1472,7 +1498,8 @@
                         },
                         body: JSON.stringify({
                             conversation_id: state.conversationId || "",
-                            message: text,
+                            message: normalisedText,
+                            client_message_id: clientMessageId,
                             ...productContext()
                         })
                     };
@@ -1528,6 +1555,9 @@
                 message: error.message || "I could not send that message. Please try again."
             });
         } finally {
+            if (state.pendingClientMessageId === clientMessageId) {
+                state.pendingClientMessageId = "";
+            }
             setBusy(false);
         }
     }

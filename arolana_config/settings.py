@@ -815,7 +815,7 @@ AROLANA_RATE_LIMIT_RULES = [
         'methods': ['POST'],
         'limit': config('RATE_LIMIT_SMARTCHAT_LIMIT', default=15, cast=int),
         'window': config('RATE_LIMIT_SMARTCHAT_WINDOW', default=60, cast=int),
-        'message': 'Too many chat requests. Please wait a moment before sending more messages.',
+        'message': 'Your previous message may still be processing. Please wait a few seconds and try again.',
     },
     {
         'name': 'ai-search',

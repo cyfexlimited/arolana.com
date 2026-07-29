@@ -15,6 +15,7 @@ from .intent_guards import (
     CONVERSATIONAL_GRATITUDE,
     CONVERSATIONAL_GREETING,
     CONVERSATIONAL_IDENTITY,
+    CONVERSATIONAL_WELLBEING,
     ORDER_INTENT,
     REQUIREMENTS_INTENT,
     SUPPORT_INTENT,
@@ -42,6 +43,7 @@ class SmartChatIntentGuardTests(SimpleTestCase):
             "hello": CONVERSATIONAL_GREETING,
             "Hi!": CONVERSATIONAL_GREETING,
             "good morning": CONVERSATIONAL_GREETING,
+            "how are you today?": CONVERSATIONAL_WELLBEING,
             "who are you?": CONVERSATIONAL_IDENTITY,
             "what can you do?": CONVERSATIONAL_IDENTITY,
             "thank you": CONVERSATIONAL_GRATITUDE,
@@ -338,6 +340,49 @@ class SmartChatEndToEndRoutingTests(TestCase):
         self.assertEqual(requirements.get("urgency"), "urgent")
         self.assertFalse((reply_5.metadata or {}).get("product_cards"))
         self.assertNotIn("Approved Arolana products found", reply_5.message)
+
+    def test_installer_equipment_date_and_casual_followups_do_not_switch_to_products(self):
+        conversation = SmartChatConversation.objects.create()
+
+        self.send(conversation, "I'm looking for an installer in Lagos")
+
+        casual = self.send(conversation, "how are you today?")
+        self.assertEqual(casual.source_type, "deterministic_conversation")
+        self.assertEqual(casual.metadata.get("intent"), CONVERSATIONAL_WELLBEING)
+        self.assertNotIn("installer", casual.message.lower())
+        self.assertNotIn("conference room", casual.message.lower())
+
+        self.send(conversation, "ikeja")
+        install_request = self.send(
+            conversation,
+            "tomorrow, and i need to install logitech rally bar",
+        )
+        conversation.refresh_from_db()
+        state = (conversation.context or {}).get("state") or {}
+        requirements = state.get("requirements") or {}
+
+        self.assertEqual(state.get("entity_type"), "service_provider")
+        self.assertEqual(state.get("intent_family"), "service")
+        self.assertEqual(requirements.get("service_location"), "Ikeja")
+        self.assertEqual(requirements.get("preferred_date"), "tomorrow")
+        self.assertIn("logitech rally bar", str(requirements.get("equipment_to_install", "")).lower())
+        self.assertFalse((install_request.metadata or {}).get("product_cards"))
+        self.assertNotIn("Approved Arolana products found", install_request.message)
+
+        bare_equipment = self.send(conversation, "logitech rally bar")
+        room_size = self.send(conversation, "for a 20 sitters conference room")
+        conversation.refresh_from_db()
+        state = (conversation.context or {}).get("state") or {}
+        requirements = state.get("requirements") or {}
+
+        self.assertEqual(state.get("entity_type"), "service_provider")
+        self.assertEqual(requirements.get("capacity"), 20)
+        self.assertIn("conference", str(requirements.get("service_type", "")))
+        self.assertIn("logitech rally bar", str(requirements.get("equipment_to_install", "")).lower())
+        self.assertFalse((bare_equipment.metadata or {}).get("product_cards"))
+        self.assertFalse((room_size.metadata or {}).get("product_cards"))
+        self.assertNotIn("Approved Arolana products found", bare_equipment.message)
+        self.assertNotIn("Approved Arolana products found", room_size.message)
 
     def test_product_query_returns_only_active_approved_product(self):
         vendor = User.objects.create_user(
@@ -868,6 +913,40 @@ class SmartChatProductIntelligenceTests(TestCase):
             response.json()["messages"][0]["metadata"]["product_cards"][0]["title"],
             self.product.name,
         )
+
+    def test_message_api_replays_duplicate_client_message_id_without_new_messages(self):
+        conversation = SmartChatConversation.objects.create(user=self.customer)
+        self.client.force_login(self.customer)
+        payload = {
+            "conversation_id": conversation.id,
+            "message": "hello",
+            "client_message_id": "web-test-duplicate-001",
+        }
+
+        first = self.client.post(
+            reverse("smartchat:api_message"),
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        second = self.client.post(
+            reverse("smartchat:api_message"),
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        self.assertFalse(first.json().get("idempotent", False))
+        self.assertTrue(second.json().get("idempotent"))
+        self.assertEqual(
+            SmartChatMessage.objects.filter(
+                conversation=conversation,
+                sender_type=SmartChatMessage.SENDER_USER,
+                metadata__client_message_id="web-test-duplicate-001",
+            ).count(),
+            1,
+        )
+        self.assertEqual(conversation.messages.count(), 2)
 
     def ask(self, conversation, text):
         user_message = SmartChatMessage.objects.create(

@@ -12,6 +12,7 @@ CONVERSATIONAL_GREETING = "conversational_greeting"
 CONVERSATIONAL_GRATITUDE = "conversational_gratitude"
 CONVERSATIONAL_IDENTITY = "conversational_identity"
 CONVERSATIONAL_GOODBYE = "conversational_goodbye"
+CONVERSATIONAL_WELLBEING = "conversational_wellbeing"
 ORDER_INTENT = "order_tracking"
 SUPPORT_INTENT = "support_request"
 REQUIREMENTS_INTENT = "shopping_requirements"
@@ -29,6 +30,7 @@ IDENTITY_REPLY = (
 )
 GRATITUDE_REPLY = "You’re welcome. Is there anything else you would like help with?"
 GOODBYE_REPLY = "Thank you for visiting Arolana. Have a great day!"
+WELLBEING_REPLY = "I’m doing well, thank you. How can I help you today?"
 CLARIFICATION_REPLY = (
     "What would you like help with—finding a product, tracking an order, "
     "locating an installer or contacting support?"
@@ -43,10 +45,13 @@ REQUIREMENTS_REPLY = (
 _NOISE_PATTERN = re.compile(r"[^a-z0-9\s'-]+")
 
 CONVERSATIONAL_PATTERNS = (
+    (CONVERSATIONAL_WELLBEING, (
+        r"^how are you(?: today)?$",
+        r"^how are you doing(?: today)?$",
+    )),
     (CONVERSATIONAL_GREETING, (
         r"^(hello|hi|hey|hello there|hi there)$",
         r"^good (morning|afternoon|evening)$",
-        r"^how are you$",
     )),
     (CONVERSATIONAL_GRATITUDE, (
         r"^(thanks|thank you|many thanks|okay|ok|alright)$",
@@ -157,6 +162,7 @@ def conversational_reply(intent: str) -> str:
         CONVERSATIONAL_GRATITUDE: GRATITUDE_REPLY,
         CONVERSATIONAL_IDENTITY: IDENTITY_REPLY,
         CONVERSATIONAL_GOODBYE: GOODBYE_REPLY,
+        CONVERSATIONAL_WELLBEING: WELLBEING_REPLY,
     }.get(intent, "")
 
 

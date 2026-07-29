@@ -48,6 +48,7 @@ from .intent_guards import (
     CONVERSATIONAL_GRATITUDE,
     CONVERSATIONAL_GREETING,
     CONVERSATIONAL_IDENTITY,
+    CONVERSATIONAL_WELLBEING,
     conversational_reply,
     deterministic_conversation_source,
     resolve_customer_intent,
@@ -646,6 +647,7 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
         CONVERSATIONAL_GRATITUDE,
         CONVERSATIONAL_IDENTITY,
         CONVERSATIONAL_GOODBYE,
+        CONVERSATIONAL_WELLBEING,
     }:
         reply = conversational_reply(deterministic_intent)
         source = deterministic_conversation_source(deterministic_intent)

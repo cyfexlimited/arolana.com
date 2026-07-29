@@ -43,6 +43,7 @@ from .intent_guards import (
     CONVERSATIONAL_GRATITUDE,
     CONVERSATIONAL_GREETING,
     CONVERSATIONAL_IDENTITY,
+    CONVERSATIONAL_WELLBEING,
     ORDER_INTENT,
     REQUIREMENTS_INTENT,
     REQUIREMENTS_REPLY,
@@ -156,6 +157,7 @@ def _apply_shopping_session_update(state, message):
     before = _state_debug_snapshot(state)
     facts = extract_facts(message)
     if _active_service_flow(state) and not _explicit_product_request(message):
+        service_subject = _text(facts.get("subject"))
         facts["entity_type"] = "service_provider"
         facts["intent_family"] = "service"
         facts["transaction_type"] = (
@@ -168,6 +170,16 @@ def _apply_shopping_session_update(state, message):
         facts.pop("product_type", None)
         facts.pop("catalog_category_id", None)
         fact_requirements = facts.setdefault("requirements", {})
+        if service_subject and service_subject.lower() not in {
+            "installer",
+            "service provider",
+            "technician",
+            "engineer",
+        }:
+            fact_requirements["equipment"] = service_subject
+            fact_requirements["equipment_to_install"] = service_subject
+            fact_requirements["asset_involved"] = service_subject
+        facts.pop("subject", None)
         if fact_requirements.get("delivery_location") and not fact_requirements.get("service_location"):
             fact_requirements["service_location"] = fact_requirements["delivery_location"]
     contextual_budget_values = (
@@ -472,6 +484,24 @@ def _explicit_product_request(message):
     )
 
 
+def _service_equipment_reference(message):
+    text = re.sub(r"\s+", " ", str(message or "").strip().lower()).strip(" .,!?:;")
+    if not text:
+        return False
+    if re.search(
+        r"\b(?:logitech|rally|jabra|epson|sony|samsung|lg|panasonic|cisco|poly|yealink|cctv|camera|projector|screen|mic|microphone|speaker|bar)\b",
+        text,
+    ):
+        return True
+    return bool(
+        len(text.split()) <= 8
+        and not re.search(
+            r"\b(?:show|find|search|buy|purchase|compare|price|cost|how much|do you have)\b",
+            text,
+        )
+    )
+
+
 def _service_requirement_update(message):
     text = re.sub(r"\s+", " ", str(message or "").strip().lower())
     return bool(
@@ -509,6 +539,7 @@ def _classify(message, state):
         and (
             generic_help_followup
             or _service_requirement_update(message)
+            or _service_equipment_reference(message)
             or slot_updates_from_facts(extract_facts(message))
         )
     ):
@@ -520,6 +551,7 @@ def _classify(message, state):
         CONVERSATIONAL_GRATITUDE,
         CONVERSATIONAL_IDENTITY,
         CONVERSATIONAL_GOODBYE,
+        CONVERSATIONAL_WELLBEING,
         REQUIREMENTS_INTENT,
         SUPPORT_INTENT,
     }:
@@ -1541,6 +1573,7 @@ def smart_shopping_reply(
         CONVERSATIONAL_GRATITUDE,
         CONVERSATIONAL_IDENTITY,
         CONVERSATIONAL_GOODBYE,
+        CONVERSATIONAL_WELLBEING,
     }:
         reply = conversational_reply(guarded_intent)
         source.update(

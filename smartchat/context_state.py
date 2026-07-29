@@ -66,6 +66,9 @@ DEFAULT_STATE = {
         "preferred_date": None,
         "service_type": None,
         "service_needed": None,
+        "equipment": None,
+        "equipment_to_install": None,
+        "asset_involved": None,
         "license_users": None,
         "platform": None,
     },
@@ -163,6 +166,9 @@ SLOT_KEYS = {
     "preferred_date",
     "service_type",
     "service_needed",
+    "equipment",
+    "equipment_to_install",
+    "asset_involved",
     "license_users",
     "platform",
 }
@@ -832,6 +838,7 @@ def prepare_context(conversation, message):
     state = normalized_state(conversation)
     facts = extract_facts(message)
     if _active_service_flow(state) and not _explicit_product_request(message):
+        service_subject = str(facts.get("subject") or "").strip()
         facts["entity_type"] = "service_provider"
         facts["intent_family"] = "service"
         facts["transaction_type"] = (
@@ -844,6 +851,16 @@ def prepare_context(conversation, message):
         facts.pop("product_type", None)
         facts.pop("catalog_category_id", None)
         fact_requirements = facts.setdefault("requirements", {})
+        if service_subject and service_subject.lower() not in {
+            "installer",
+            "service provider",
+            "technician",
+            "engineer",
+        }:
+            fact_requirements["equipment"] = service_subject
+            fact_requirements["equipment_to_install"] = service_subject
+            fact_requirements["asset_involved"] = service_subject
+        facts.pop("subject", None)
         if fact_requirements.get("delivery_location") and not fact_requirements.get("service_location"):
             fact_requirements["service_location"] = fact_requirements["delivery_location"]
     contextual_budget_values = (
