@@ -92,10 +92,116 @@ def _haystack(product):
     )
 
 
+def _is_video_conferencing_state(state):
+    category = str(state.get("category") or "").strip().lower()
+    product_type = str(state.get("product_type") or "").strip().lower()
+    locked_category = str(
+        state.get("current_category_locked")
+        or state.get("locked_category")
+        or ""
+    ).strip().lower()
+    active_subject = str(state.get("active_subject") or "").strip().lower()
+    requirements = state.get("requirements", {}) or {}
+    requirement_text = " ".join(
+        str(value or "").replace("_", " ").lower()
+        for value in requirements.values()
+        if not isinstance(value, (dict, list, tuple, set))
+    )
+    return any(
+        marker in " ".join(
+            [
+                category,
+                product_type,
+                locked_category,
+                active_subject,
+                requirement_text,
+            ]
+        )
+        for marker in (
+            "video conferencing",
+            "conferencing",
+            "conference room",
+            "meeting room",
+            "boardroom",
+        )
+    )
+
+
+def _is_complete_room_conferencing_request(state):
+    if not _is_video_conferencing_state(state):
+        return False
+    requirements = state.get("requirements", {}) or {}
+    return bool(
+        requirements.get("participant_count")
+        or requirements.get("capacity")
+        or requirements.get("room_type")
+        or requirements.get("budget_max")
+        or requirements.get("budget_min")
+        or state.get("user_budget")
+        or state.get("budget")
+    )
+
+
+def _product_role(product):
+    text = _haystack(product)
+    if re.search(
+        r"\b(?:mounting kit|wall mount|mount|mic pod|accessory|"
+        r"cable|bracket|adapter|hub|display hub|table hub)\b",
+        text,
+    ):
+        return "accessory"
+    if re.search(r"\b(?:webcam|stream webcam)\b", text):
+        return "webcam"
+    if re.search(
+        r"\b(?:all-in-one|video conferencing system|conferencing system|"
+        r"conference system|rally bar|logitech group|meetup)\b",
+        text,
+    ):
+        return "complete_system"
+    return "main_device"
+
+
+def _split_primary_conferencing_products(products, state):
+    product_text = " ".join(_haystack(product) for product in products[:8])
+    product_based_conferencing = any(
+        marker in product_text
+        for marker in (
+            "video conferencing",
+            "conferencing system",
+            "conference room",
+            "meeting room",
+            "rally bar",
+            "logitech group",
+            "meetup",
+        )
+    )
+    if not (_is_complete_room_conferencing_request(state) or product_based_conferencing):
+        return products, []
+    primary = []
+    accessories = []
+    for product in products:
+        role = _product_role(product)
+        if role in {"accessory", "webcam"}:
+            accessories.append(product)
+        else:
+            primary.append(product)
+    return (primary or products), accessories
+
+
 def _score(product, state):
     text = _haystack(product)
     requirements = state.get("requirements", {})
     score = Decimal("0")
+    if _is_complete_room_conferencing_request(state):
+        role = _product_role(product)
+        if role == "complete_system":
+            score += Decimal("40")
+        elif role == "main_device":
+            score += Decimal("20")
+        elif role == "webcam":
+            score -= Decimal("30")
+        elif role == "accessory":
+            score -= Decimal("60")
     verified = getattr(product.vendor, "vendor_profile", None)
     if product.available_stock > 0:
         score += Decimal("20")
@@ -168,6 +274,11 @@ def recommend(state, mode="recommendation_decision"):
     products = ranked_products(state, mode=mode)
     if not products:
         return None
+    visible_products, compatible_accessories = _split_primary_conferencing_products(
+        products,
+        state,
+    )
+    products = visible_products
     product = products[0]
     facts = product_facts(product)
     recommendation = state["recommendation"]
@@ -212,10 +323,16 @@ def recommend(state, mode="recommendation_decision"):
         "cheaper_request": "A cheaper suitable option is",
         "better_request": "A stronger premium option is",
     }.get(mode, "My best live Arolana match is")
+    accessory_note = ""
+    if compatible_accessories:
+        accessory_note = (
+            " I kept accessories out of the main recommendation cards; they can be "
+            "considered later as add-ons if you choose this setup."
+        )
     reply = (
         f"{prefix} {product.name} at ₦{product.price:,.2f}. "
         f"For {requirement_summary or 'your request'}, I chose it because {reason}."
-        f"{limitation} Stock: {facts['stock_quantity']} available."
+        f"{limitation}{accessory_note} Stock: {facts['stock_quantity']} available."
     )
     return reply, {
         "source_type": "live_catalog_recommendation",
@@ -224,6 +341,7 @@ def recommend(state, mode="recommendation_decision"):
         "confidence": 0.88 if not limitations else 0.72,
         "product_ids": [item.id for item in products],
         "product_cards": [product_card(item) for item in products[:2]],
+        "compatible_accessories": [product_card(item) for item in compatible_accessories[:4]],
         "recommendation_mode": mode,
         "limitations": limitations,
         "structured_requirements": dict(state.get("requirements") or {}),

@@ -14,6 +14,8 @@ NON_ADVANCEABLE_SOURCE_TYPES = {
     "deterministic_conversation",
     "clarification",
     "support_route",
+    "purchase_guidance",
+    "service_marketplace_route",
 }
 REQUIREMENT_FLOWS = {
     "shopping_requirements",

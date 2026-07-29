@@ -71,6 +71,109 @@ def _budget_range(message):
     return None
 
 
+def _product_role(product):
+    text = re.sub(
+        r"\s+",
+        " ",
+        " ".join(
+            [
+                str(getattr(product, "name", "") or ""),
+                str(getattr(product, "description", "") or ""),
+                str(getattr(product, "specifications", "") or ""),
+                str(getattr(getattr(product, "category", None), "name", "") or ""),
+                str(getattr(getattr(product, "brand", None), "name", "") or ""),
+            ]
+        ).lower(),
+    )
+    if re.search(
+        r"\b(?:mounting kit|wall mount|mount|mic pod|accessory|"
+        r"cable|bracket|adapter|hub|display hub|table hub)\b",
+        text,
+    ):
+        return "accessory"
+    if re.search(r"\b(?:webcam|stream webcam)\b", text):
+        return "webcam"
+    if re.search(
+        r"\b(?:all-in-one|video conferencing system|conferencing system|"
+        r"conference system|rally bar|logitech group|meetup)\b",
+        text,
+    ):
+        return "complete_system"
+    return "main_device"
+
+
+def _is_room_conferencing_context(message, conversation=None, products=None):
+    context = dict(getattr(conversation, "context", {}) or {})
+    requirements = dict(context.get("requirements") or {})
+    text = " ".join(
+        str(part or "").replace("_", " ").lower()
+        for part in (
+            message,
+            context.get("current_category_locked"),
+            context.get("locked_category"),
+            context.get("active_subject"),
+            context.get("category"),
+            context.get("product_type"),
+            context.get("user_budget"),
+            requirements.get("participant_count"),
+            requirements.get("capacity"),
+            requirements.get("room_type"),
+            requirements.get("budget_max"),
+        )
+    )
+    product_text = ""
+    if products:
+        product_text = " ".join(
+            " ".join(
+                str(part or "").lower()
+                for part in (
+                    product.name,
+                    getattr(product.category, "name", ""),
+                    product.description,
+                    product.specifications,
+                )
+            )
+            for product in products[:8]
+        )
+    return bool(
+        any(
+            marker in f"{text} {product_text}"
+            for marker in (
+                "video conferencing",
+                "conferencing",
+                "conference room",
+                "meeting room",
+                "boardroom",
+                "rally bar",
+                "logitech group",
+                "meetup",
+            )
+        )
+        and (
+            re.search(r"\b\d+\s*(?:people|persons?|sitters?|seats?)\b", text)
+            or context.get("user_budget")
+            or requirements.get("participant_count")
+            or requirements.get("capacity")
+            or requirements.get("budget_max")
+            or _budget_range(message)
+        )
+    )
+
+
+def _split_room_conferencing_products(products, message, conversation=None):
+    if not _is_room_conferencing_context(message, conversation, products):
+        return products, []
+    primary = []
+    accessories = []
+    for product in products:
+        role = _product_role(product)
+        if role in {"accessory", "webcam"}:
+            accessories.append(product)
+        else:
+            primary.append(product)
+    return (primary or products), accessories
+
+
 def find_products(message, conversation=None, limit=4, use_current_product=True):
     queryset = Product.objects.filter(
         is_active=True,
@@ -399,6 +502,11 @@ def product_intelligence_reply(conversation, message, use_current_product=True):
     )
     if not products:
         return None
+    products, compatible_accessories = _split_room_conferencing_products(
+        products,
+        message,
+        conversation,
+    )
     facts = product_facts(products[0])
     cards = [product_card(product) for product in products]
     missing = _requested_missing_specs(message, facts)
@@ -441,6 +549,11 @@ def product_intelligence_reply(conversation, message, use_current_product=True):
             reply = ""
     if not reply:
         reply = _deterministic_reply(message, products, facts)
+    if compatible_accessories:
+        reply = (
+            f"{reply}\nI kept accessories out of the main product cards; they can be "
+            "reviewed later as add-ons for the room setup."
+        )
     return reply, {
         "source_type": "product_database",
         "source_label": products[0].name,
@@ -448,6 +561,9 @@ def product_intelligence_reply(conversation, message, use_current_product=True):
         "confidence": 0.9,
         "product_ids": [item.id for item in products],
         "product_cards": cards,
+        "compatible_accessories": [
+            product_card(product) for product in compatible_accessories[:4]
+        ],
         "facts_checked": [
             "description", "specifications", "accessories", "media", "reviews",
             "ratings", "questions_and_answers", "category", "brand", "manufacturer",

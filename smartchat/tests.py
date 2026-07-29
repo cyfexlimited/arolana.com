@@ -981,6 +981,51 @@ class SmartChatProductIntelligenceTests(TestCase):
         self.assertEqual(conversation.context["current_product_id"], self.product.id)
         self.assertEqual(conversation.context["last_intent"], "delivery_question")
 
+    def test_repeated_purchase_wording_preserves_selected_product(self):
+        conversation = SmartChatConversation.objects.create(user=self.customer)
+        self.ask(conversation, "Tell me about Logitech")
+        conversation.refresh_from_db()
+        self.assertEqual(conversation.product_id, self.product.id)
+
+        for message in ("how do i purchase it", "how do i buy it", "how do i get it"):
+            with self.subTest(message=message):
+                reply = self.ask(conversation, message)
+                conversation.refresh_from_db()
+                self.assertEqual(reply.metadata.get("intent"), "purchase_guidance")
+                self.assertEqual(conversation.product_id, self.product.id)
+                self.assertIn("Add to Cart", reply.message)
+                self.assertNotIn("product_cards", reply.metadata)
+                self.assertEqual(reply.metadata["actions"][0]["type"], "view_product")
+                self.assertEqual(reply.metadata["actions"][1]["type"], "add_to_cart")
+
+    def test_installation_question_transitions_from_product_to_provider_workflow(self):
+        conversation = SmartChatConversation.objects.create(user=self.customer)
+        conversation.product = self.product
+        conversation.save(update_fields=["product"])
+        state = prepare_context(conversation, "for 20 people")
+        state["requirements"]["participant_count"] = 20
+        state["requirements"]["budget_max"] = 1000000
+        conversation.context = {"state": state}
+        conversation.save(update_fields=["context"])
+
+        reply = self.ask(
+            conversation,
+            "if i buy it or purchase it who will install it for me",
+        )
+        conversation.refresh_from_db()
+        state = (conversation.context or {}).get("state") or {}
+        requirements = state.get("requirements") or {}
+
+        self.assertEqual(reply.metadata.get("intent"), "service_provider_request")
+        self.assertEqual(conversation.product_id, self.product.id)
+        self.assertEqual(state.get("entity_type"), "service_provider")
+        self.assertEqual(state.get("transaction_type"), "install")
+        self.assertEqual(requirements.get("participant_count"), 20)
+        self.assertEqual(requirements.get("budget_max"), 1000000)
+        self.assertEqual(requirements.get("equipment_to_install"), self.product.name)
+        self.assertIn("installation location", reply.message.lower())
+        self.assertNotIn("product_cards", reply.metadata)
+
     def test_plain_product_reference_uses_current_product_context(self):
         conversation = SmartChatConversation.objects.create(user=self.customer)
         self.ask(conversation, "Tell me about Logitech")
@@ -1115,6 +1160,81 @@ class SmartChatProductIntelligenceTests(TestCase):
         self.assertIn("see, hear, and speak", function.message.lower())
         self.assertNotIn("wall art", function.message.lower())
         self.assertNotIn("product_cards", function.metadata)
+
+    def test_budget_recommendation_excludes_accessories_from_primary_results(self):
+        conference_category = Category.objects.create(
+            name="Video Conferencing Systems",
+            slug="video-conferencing-systems-primary",
+        )
+        group = Product.objects.create(
+            vendor=self.vendor,
+            category=conference_category,
+            brand=self.brand,
+            sku="LOGI-GROUP-BUDGET",
+            name="Logitech GROUP Video Conferencing System",
+            slug="logitech-group-video-conferencing-system-budget",
+            description="Complete video conferencing system for meeting rooms.",
+            specifications="Camera, speakerphone and microphone system for 14 to 20 people.",
+            price="989550.00",
+            stock_quantity=5,
+            approval_status="approved",
+        )
+        Product.objects.create(
+            vendor=self.vendor,
+            category=conference_category,
+            brand=self.brand,
+            sku="LOGI-RALLY-MOUNT-BUDGET",
+            name="Logitech Rally Mounting Kit for Camera, Speakers, Table Hub & Display Hub",
+            slug="logitech-rally-mounting-kit-budget",
+            description="Accessory mounting kit for Rally systems.",
+            specifications="Mounting accessory, not a standalone conferencing system.",
+            price="200000.00",
+            stock_quantity=5,
+            approval_status="approved",
+        )
+        Product.objects.create(
+            vendor=self.vendor,
+            category=conference_category,
+            brand=self.brand,
+            sku="LOGI-RALLY-MIC-BUDGET",
+            name="Logitech Rally Mic Pod Boundary Microphone for Rally Bar",
+            slug="logitech-rally-mic-pod-budget",
+            description="Accessory microphone for Rally systems.",
+            specifications="Microphone accessory, not a standalone conferencing system.",
+            price="580550.00",
+            stock_quantity=5,
+            approval_status="approved",
+        )
+        Product.objects.create(
+            vendor=self.vendor,
+            category=conference_category,
+            brand=self.brand,
+            sku="LOGI-C920-BUDGET",
+            name="Logitech C920 1080p HD Pro Stream Webcam",
+            slug="logitech-c920-budget",
+            description="Standalone webcam for personal streaming.",
+            specifications="Webcam only.",
+            price="75500.00",
+            stock_quantity=5,
+            approval_status="approved",
+        )
+        conversation = SmartChatConversation.objects.create(user=self.customer)
+
+        self.ask(conversation, "i want to purchase a conferencing device, can you help with a good choice?")
+        self.ask(conversation, "its for a meeting room of 20 people")
+        reply = self.ask(conversation, "please give me device of less then 1,000,000")
+        conversation.refresh_from_db()
+        card_titles = [
+            card["title"]
+            for card in reply.metadata.get("product_cards", [])
+        ]
+
+        self.assertEqual(conversation.product_id, group.id)
+        self.assertIn(group.name, card_titles)
+        self.assertFalse(any("Mounting Kit" in title for title in card_titles))
+        self.assertFalse(any("Mic Pod" in title for title in card_titles))
+        self.assertFalse(any("C920" in title for title in card_titles))
+        self.assertIn("accessories", reply.message.lower())
 
     def test_bulk_quote_escalates_with_preserved_context(self):
         conversation = SmartChatConversation.objects.create(

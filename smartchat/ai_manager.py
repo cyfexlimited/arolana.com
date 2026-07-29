@@ -68,6 +68,118 @@ from .orchestration import smart_shopping_reply
 from .text_normalizer import resolve_contextual_text
 
 
+def _is_purchase_followup(message):
+    text = re.sub(r"\s+", " ", str(message or "").strip().lower())
+    return bool(
+        re.search(
+            r"\b(?:how do i|how can i|where can i|can i)\s+"
+            r"(?:buy|purchase|order|get)\s+(?:it|this|this one|the item|the product)\b",
+            text,
+        )
+        or re.search(
+            r"\b(?:add it to cart|add to cart|checkout|place (?:my )?order|"
+            r"i want this one|i'll take it|i will take it)\b",
+            text,
+        )
+    )
+
+
+def _is_installation_after_product_followup(message):
+    text = re.sub(r"\s+", " ", str(message or "").strip().lower())
+    return bool(
+        re.search(r"\b(?:install|installer|installation|set it up|setup)\b", text)
+        and re.search(
+            r"\b(?:if i buy|if i purchase|after i buy|after purchase|who will|who can|can.*install)\b",
+            text,
+        )
+    )
+
+
+def _product_purchase_guidance(conversation):
+    product = getattr(conversation, "product", None)
+    if not product:
+        return None
+
+    try:
+        product_url = product.get_absolute_url()
+    except Exception:
+        product_url = reverse("products:product_detail", kwargs={"slug": product.slug})
+    add_to_cart_url = reverse("products:add_to_cart", args=[product.slug])
+    in_stock = bool(
+        getattr(product, "available_stock", 0) > 0
+        or getattr(product, "allow_backorder", False)
+    )
+    price = f"₦{product.price:,.2f}"
+    stock_phrase = "currently in stock" if in_stock else "not currently listed as in stock"
+    reply = (
+        f"{product.name} is {stock_phrase} at {price}. "
+        "Select View product, choose Add to Cart, then complete delivery and payment at checkout."
+    )
+    return reply, {
+        "source_type": "purchase_guidance",
+        "source_label": product.name,
+        "source_object_id": product.id,
+        "confidence": 0.98,
+        "intent": "purchase_guidance",
+        "product_ids": [product.id],
+        "actions": [
+            {
+                "type": "view_product",
+                "label": f"View {product.name}",
+                "url": product_url,
+            },
+            {
+                "type": "add_to_cart",
+                "label": "Add to Cart",
+                "url": add_to_cart_url,
+                "product_id": product.id,
+            },
+        ],
+    }
+
+
+def _product_installation_guidance(conversation, state):
+    product = getattr(conversation, "product", None)
+    if not product:
+        return None
+
+    requirements = dict((state or {}).get("requirements") or {})
+    requirements["equipment"] = product.name
+    requirements["equipment_to_install"] = product.name
+    requirements["asset_involved"] = product.name
+    requirements["installation_required"] = True
+    state["requirements"] = requirements
+    state["entity_type"] = "service_provider"
+    state["intent_family"] = "service"
+    state["transaction_type"] = "install"
+    state["active_subject"] = f"{product.name} installation"
+    state["active_service"] = "install"
+    state["intent"] = "service_provider_request"
+    persist_state(conversation, state)
+
+    reply = (
+        f"A verified Arolana conference-room installer can install {product.name} for you. "
+        "I can help create an installation request using this product as the equipment. "
+        "Please tell me your installation location, preferred date, and whether you need "
+        "installation only or supply plus installation."
+    )
+    return reply, {
+        "source_type": "service_marketplace_route",
+        "source_label": "Installation service",
+        "source_object_id": product.id,
+        "confidence": 0.94,
+        "intent": "service_provider_request",
+        "marketplace_category": "service",
+        "product_ids": [product.id],
+        "actions": [
+            {
+                "type": "find_provider",
+                "label": "Find installer",
+            },
+        ],
+    }
+
+
 PII_PATTERNS = [
     re.compile(r"\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b", re.I),
     re.compile(r"(?:\+?\d[\d\s().-]{7,}\d)"),
@@ -294,6 +406,125 @@ def _safe_product_image_url(product):
         return ""
 
 
+def _marketplace_product_text(product):
+    return re.sub(
+        r"\s+",
+        " ",
+        " ".join(
+            str(part or "").lower()
+            for part in (
+                getattr(product, "name", ""),
+                getattr(product, "description", ""),
+                getattr(product, "specifications", ""),
+                getattr(getattr(product, "category", None), "name", ""),
+                getattr(getattr(product, "brand", None), "name", ""),
+            )
+        ),
+    )
+
+
+def _marketplace_product_role(product):
+    text = _marketplace_product_text(product)
+    if re.search(
+        r"\b(?:mounting kit|wall mount|mount|mic pod|accessory|"
+        r"cable|bracket|adapter|hub|display hub|table hub)\b",
+        text,
+    ):
+        return "accessory"
+    if re.search(r"\b(?:webcam|stream webcam)\b", text):
+        return "webcam"
+    if re.search(
+        r"\b(?:all-in-one|video conferencing system|conferencing system|"
+        r"conference system|rally bar|logitech group|meetup)\b",
+        text,
+    ):
+        return "complete_system"
+    return "main_device"
+
+
+def _is_room_conferencing_marketplace_state(state, products):
+    requirements = state.get("requirements") or {}
+    text = " ".join(
+        str(part or "").replace("_", " ").lower()
+        for part in (
+            state.get("active_subject"),
+            state.get("locked_category"),
+            state.get("current_category_locked"),
+            state.get("category"),
+            state.get("product_type"),
+            state.get("user_budget"),
+            requirements.get("participant_count"),
+            requirements.get("capacity"),
+            requirements.get("room_type"),
+            requirements.get("budget_max"),
+        )
+    )
+    product_text = " ".join(_marketplace_product_text(product) for product in products[:8])
+    combined = f"{text} {product_text}"
+    return bool(
+        any(
+            marker in combined
+            for marker in (
+                "video conferencing",
+                "conferencing",
+                "conference room",
+                "meeting room",
+                "boardroom",
+                "rally bar",
+                "logitech group",
+                "meetup",
+            )
+        )
+        and (
+            requirements.get("participant_count")
+            or requirements.get("capacity")
+            or requirements.get("budget_max")
+            or state.get("user_budget")
+            or re.search(r"\b\d+\s*(?:people|persons?|sitters?|seats?)\b", combined)
+        )
+    )
+
+
+def _split_marketplace_primary_products(state, products):
+    if not _is_room_conferencing_marketplace_state(state, products):
+        return products, []
+    primary = []
+    accessories = []
+    for product in products:
+        role = _marketplace_product_role(product)
+        if role in {"accessory", "webcam"}:
+            accessories.append(product)
+        else:
+            primary.append(product)
+    return (primary or products), accessories
+
+
+def _marketplace_card(product):
+    return {
+        "id": product.id,
+        "slug": product.slug,
+        "name": product.name,
+        "title": product.name,
+        "price": f"₦{product.price:,.2f}",
+        "price_display": f"₦{product.price:,.2f}",
+        "url": product.get_absolute_url(),
+        "product_url": product.get_absolute_url(),
+        "image_url": _safe_product_image_url(product),
+        "add_to_cart_url": reverse("products:add_to_cart", args=[product.slug]),
+        "rating": float(product.rating_avg or 0),
+        "rating_count": product.rating_count,
+        "review_count": product.rating_count,
+        "in_stock": product.available_stock > 0 or product.allow_backorder,
+        "popular_qa": [
+            {
+                "question": item.question,
+                "answer": item.answer,
+            }
+            for item in product.questions.filter(is_public=True).exclude(answer="")[:3]
+        ],
+    }
+
+
 def _stateful_marketplace_fallback(conversation, state, user_message):
     """Flag-safe marketplace response used when Smart Shopping is disabled."""
     requirements = state.get("requirements") or {}
@@ -317,6 +548,7 @@ def _stateful_marketplace_fallback(conversation, state, user_message):
     service_transactions = {"repair", "install", "maintain", "inspect", "consult", "find_provider"}
 
     product_cards = []
+    compatible_accessories = []
     result_count = 0
     tool_name = None
     if entity_type in {"property", "vehicle"} and transaction in {"rent", "lease", "short_let", "find_property", "find_vehicle"}:
@@ -376,32 +608,11 @@ def _stateful_marketplace_fallback(conversation, state, user_message):
         if not products and requirements.get("budget_max"):
             products = list(queryset.select_related("brand", "category").order_by("price", "name")[:4])
             relaxed = True
-        product_cards = [
-            {
-                "id": product.id,
-                "slug": product.slug,
-                "name": product.name,
-                "title": product.name,
-                "price": f"₦{product.price:,.2f}",
-                "price_display": f"₦{product.price:,.2f}",
-                "url": product.get_absolute_url(),
-                "product_url": product.get_absolute_url(),
-                "image_url": _safe_product_image_url(product),
-                "add_to_cart_url": reverse("products:add_to_cart", args=[product.slug]),
-                "rating": float(product.rating_avg or 0),
-                "rating_count": product.rating_count,
-                "review_count": product.rating_count,
-                "in_stock": product.available_stock > 0 or product.allow_backorder,
-                "popular_qa": [
-                    {
-                        "question": item.question,
-                        "answer": item.answer,
-                    }
-                    for item in product.questions.filter(is_public=True).exclude(answer="")[:3]
-                ],
-            }
-            for product in products
-        ]
+        products, compatible_accessories = _split_marketplace_primary_products(
+            state,
+            products,
+        )
+        product_cards = [_marketplace_card(product) for product in products]
         result_count = len(products)
         tool_name = "django.approved_catalog_lookup"
         if products:
@@ -417,6 +628,11 @@ def _stateful_marketplace_fallback(conversation, state, user_message):
                 [intro]
                 + [f"- {product.name} — ₦{product.price:,.2f}" for product in products]
             )
+            if compatible_accessories:
+                reply = (
+                    f"{reply}\nI kept accessories out of the main product cards; "
+                    "they can be reviewed later as add-ons for the room setup."
+                )
             details = []
             if requirements.get("participant_count"):
                 details.append(f"{requirements['participant_count']} people")
@@ -456,6 +672,9 @@ def _stateful_marketplace_fallback(conversation, state, user_message):
         "result_count": result_count,
         "product_cards": product_cards,
         "product_ids": [card["id"] for card in product_cards],
+        "compatible_accessories": [
+            _marketplace_card(product) for product in compatible_accessories[:4]
+        ],
         "source_object_id": product_cards[0]["id"] if product_cards else None,
         "active_subject": subject,
         "search_query": subject,
@@ -463,6 +682,9 @@ def _stateful_marketplace_fallback(conversation, state, user_message):
         "structured_response": {
             "answer": reply,
             "products": product_cards,
+            "compatible_accessories": [
+                _marketplace_card(product) for product in compatible_accessories[:4]
+            ],
             "structured_requirements": requirements,
         },
     }
@@ -655,6 +877,20 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
         return reply, source
 
     state = prepare_context(conversation, resolved_message)
+    if conversation.product_id and _is_installation_after_product_followup(resolved_message):
+        install_result = _product_installation_guidance(conversation, state)
+        if install_result:
+            reply, source = install_result
+            update_conversation_context(conversation, source["intent"], reply, source)
+            return reply, source
+
+    if conversation.product_id and _is_purchase_followup(resolved_message):
+        purchase_result = _product_purchase_guidance(conversation)
+        if purchase_result:
+            reply, source = purchase_result
+            update_conversation_context(conversation, source["intent"], reply, source)
+            return reply, source
+
     if _should_use_marketplace_workflow(conversation, resolved_message, state, deterministic_intent):
         smart_shopping_result = smart_shopping_reply(
             conversation,
@@ -696,6 +932,20 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
         return reply, source
 
     state = prepare_context(conversation, resolved_message)
+    if conversation.product_id and _is_installation_after_product_followup(resolved_message):
+        install_result = _product_installation_guidance(conversation, state)
+        if install_result:
+            reply, source = install_result
+            update_conversation_context(conversation, source["intent"], reply, source)
+            return reply, source
+
+    if conversation.product_id and _is_purchase_followup(resolved_message):
+        purchase_result = _product_purchase_guidance(conversation)
+        if purchase_result:
+            reply, source = purchase_result
+            update_conversation_context(conversation, source["intent"], reply, source)
+            return reply, source
+
     if _should_use_marketplace_workflow(conversation, resolved_message, state, deterministic_intent):
         smart_shopping_result = smart_shopping_reply(
             conversation,

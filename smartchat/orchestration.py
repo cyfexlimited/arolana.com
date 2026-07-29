@@ -489,7 +489,7 @@ def _service_equipment_reference(message):
     if not text:
         return False
     if re.search(
-        r"\b(?:logitech|rally|jabra|epson|sony|samsung|lg|panasonic|cisco|poly|yealink|cctv|camera|projector|screen|mic|microphone|speaker|bar)\b",
+        r"\b(?:logitech|rally|jabra|epson|sony|samsung|lg|panasonic|cisco|poly|yealink|cctv|camera|projector|screen|mic|speaker|bar)\b",
         text,
     ):
         return True
@@ -1139,6 +1139,63 @@ def _fallback_answer_for_tool(intent, tool_payload, tool_result, state):
         )
 
     return _public_error_reply()
+
+
+def _product_role(item):
+    text = " ".join(
+        str(value or "").lower()
+        for value in (
+            item.get("name"),
+            item.get("category"),
+            item.get("description_summary"),
+            item.get("normalised_specifications"),
+        )
+    )
+    if re.search(r"\b(?:mount|mounting kit|wall mount|mic pod|accessory|cable|bracket|adapter)\b", text):
+        return "accessory"
+    if re.search(r"\b(?:webcam|stream webcam)\b", text):
+        return "main_device"
+    if re.search(r"\b(?:all-in-one|video conferencing system|conferencing system|rally bar|logitech group|meetup)\b", text):
+        return "complete_system"
+    return "main_device"
+
+
+def _is_complete_conferencing_request(state, requirements, tool_payload):
+    haystack = " ".join(
+        str(value or "").lower()
+        for value in (
+            state.get("active_subject"),
+            state.get("category"),
+            state.get("product_type"),
+            state.get("locked_category"),
+            tool_payload.get("query") if isinstance(tool_payload, dict) else "",
+        )
+    )
+    return bool(
+        re.search(r"\b(?:conferencing|conference|meeting room|boardroom|video conferencing)\b", haystack)
+        and (
+            requirements.get("participant_count")
+            or requirements.get("capacity")
+            or requirements.get("budget_max")
+            or requirements.get("budget_amount")
+        )
+    )
+
+
+def _prioritise_primary_conferencing_products(products, state, requirements, tool_payload):
+    if not products or not _is_complete_conferencing_request(state, requirements, tool_payload):
+        return products, []
+
+    primary = [
+        product for product in products
+        if _product_role(product) in {"complete_system", "main_device"}
+        and not re.search(r"\b(?:webcam|stream webcam)\b", str(product.get("name") or "").lower())
+    ]
+    accessories = [
+        product for product in products
+        if product not in primary
+    ]
+    return (primary or products), accessories
 
 
 def _product_cards(products):
@@ -2510,6 +2567,24 @@ def smart_shopping_reply(
     if product and not products:
         products = [product]
 
+    accessories = []
+    if intent == TOOL_CATALOG_SEARCH_PRODUCTS:
+        products, accessories = _prioritise_primary_conferencing_products(
+            products,
+            state,
+            requirements,
+            tool_payload if isinstance(tool_payload, dict) else {},
+        )
+        if accessories:
+            tool_result = {
+                **tool_result,
+                "products": products,
+                "compatible_accessories": accessories,
+                "warnings": list(tool_result.get("warnings") or []) + [
+                    "Some lower-priced matches were accessories, not standalone conferencing systems."
+                ],
+            }
+
     deterministic_answer = _fallback_answer_for_tool(
         intent,
         tool_payload,
@@ -2527,6 +2602,12 @@ def smart_shopping_reply(
     requirement_acknowledgement = _requirement_acknowledgement(requirements)
     if requirement_acknowledgement and intent == TOOL_CATALOG_SEARCH_PRODUCTS:
         deterministic_answer = requirement_acknowledgement + "\n" + deterministic_answer
+    if accessories and products and intent == TOOL_CATALOG_SEARCH_PRODUCTS:
+        deterministic_answer = (
+            "I kept the primary results to standalone conferencing systems. "
+            "Some lower-priced matches are accessories and are not complete room devices.\n"
+            + deterministic_answer
+        )
 
     final_response = None
 
@@ -2587,6 +2668,7 @@ def smart_shopping_reply(
             "source_references": (
                 tool_result.get("source_references") or []
             ),
+            "compatible_accessories": accessories,
             "warnings": list(
                 dict.fromkeys(
                     (
