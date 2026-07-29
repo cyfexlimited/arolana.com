@@ -395,6 +395,33 @@ class LoginRedirectFlowTests(TestCase):
             destination,
         )
 
+    def test_successful_2fa_post_redirects_without_server_error(self):
+        user = self.create_user(
+            username="otp-success-user",
+            email="otp-success@example.org",
+        )
+        destination = "/dashboard/vendor/quote-requests/"
+        session = self.client.session
+        session["pre_2fa_user_id"] = user.pk
+        session["pre_2fa_remember"] = False
+        session[PENDING_LOGIN_REDIRECT_SESSION_KEY] = destination
+        session.save()
+
+        with patch("accounts.views.verify_otp", return_value=(True, "Verified")):
+            response = self.client.post(
+                reverse("accounts:verify_2fa"),
+                {"otp_code": "123456"},
+                secure=True,
+            )
+
+        self.assertRedirects(
+            response,
+            destination,
+            fetch_redirect_response=False,
+        )
+        self.assertNotIn("pre_2fa_user_id", self.client.session)
+        self.assertNotIn("pre_2fa_remember", self.client.session)
+
     def test_standalone_login_clears_an_abandoned_destination(self):
         user = self.create_user()
         session = self.client.session

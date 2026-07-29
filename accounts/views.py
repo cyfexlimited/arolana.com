@@ -952,9 +952,20 @@ def verify_2fa(request):
             else:
                 request.session.set_expiry(0)
 
-            create_notification(...)
-            log_user_activity(...)
-            messages.success(...)
+            create_notification(
+                user,
+                'system',
+                '🔐 Login Verified',
+                'You signed in successfully with two-factor verification.',
+                '/accounts/security/',
+            )
+            log_user_activity(
+                user,
+                'login',
+                request,
+                {'method': 'password_otp_verification'},
+            )
+            messages.success(request, 'Signed in successfully.')
 
             return redirect(resolve_post_login_redirect(request, user))
         else:
