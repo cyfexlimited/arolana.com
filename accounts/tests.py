@@ -1,6 +1,8 @@
 from unittest.mock import patch
+from pathlib import Path
 
-from django.test import TestCase, override_settings
+from django.conf import settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
 from accounts.adapters import CustomAccountAdapter
@@ -12,6 +14,22 @@ from accounts.views import (
     EMAIL_VERIFICATION_NEXT_SESSION_KEY,
     EMAIL_VERIFICATION_USER_SESSION_KEY,
 )
+
+
+class SocialAccountTemplateTests(SimpleTestCase):
+    def test_google_signup_completion_uses_arolana_branded_template(self):
+        template = (
+            Path(settings.BASE_DIR)
+            / "templates"
+            / "socialaccount"
+            / "signup.html"
+        ).read_text()
+
+        self.assertIn("Complete your Google sign in", template)
+        self.assertIn("Arolana", template)
+        self.assertIn("{% url 'socialaccount_signup' %}", template)
+        self.assertIn("Complete sign in", template)
+        self.assertNotIn("Menu:", template)
 
 
 class EmailSubjectTests(TestCase):

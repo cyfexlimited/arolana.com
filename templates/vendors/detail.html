@@ -229,15 +229,20 @@
 
     .vendor-actions {
         display: flex;
-        flex: 0 0 auto;
+        flex: 1 1 100%;
         flex-wrap: wrap;
         align-items: center;
-        justify-content: flex-end;
+        justify-content: flex-start;
         gap: 0.65rem;
+        min-width: 0;
+        max-width: 100%;
     }
 
     .vendor-btn {
         min-height: 46px;
+        flex: 1 1 10.75rem;
+        min-width: 0;
+        max-width: 14rem;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -250,6 +255,8 @@
         text-decoration: none;
         cursor: pointer;
         white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
         box-shadow: 0 14px 32px rgba(0, 0, 0, 0.14);
         transition:
             transform 0.18s ease,
@@ -1562,7 +1569,7 @@
                                 <i class="fas {% if is_following %}fa-bell-slash{% else %}fa-bell{% endif %}"></i>
                                 <span id="followText">
                                     {% if is_following %}
-                                        safeFollowing
+                                        Following
                                     {% else %}
                                         Follow Store
                                     {% endif %}
@@ -2950,4 +2957,3 @@
 })();
 </script>
 {% endblock %}
-
