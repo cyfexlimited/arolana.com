@@ -20,6 +20,7 @@ from .intent_guards import (
     CONVERSATIONAL_IDENTITY,
     CONVERSATIONAL_WELLBEING,
     ORDER_INTENT,
+    GENERAL_ENQUIRY,
     PLATFORM_INFORMATION,
     REQUIREMENTS_INTENT,
     SUPPORT_INTENT,
@@ -84,6 +85,35 @@ class SmartChatIntentGuardTests(SimpleTestCase):
         for message, expected in cases.items():
             with self.subTest(message=message):
                 self.assertEqual(resolve_customer_intent(message), expected)
+
+    def test_general_enquiry_intent_precedes_product_search(self):
+        cases = {
+            "I want to make an enquiry": GENERAL_ENQUIRY,
+            "I have a question": GENERAL_ENQUIRY,
+            "I need some information": GENERAL_ENQUIRY,
+            "Can you help me?": GENERAL_ENQUIRY,
+            "I want to ask something": GENERAL_ENQUIRY,
+            "I need assistance": GENERAL_ENQUIRY,
+            "I want to speak to someone": GENERAL_ENQUIRY,
+            "Please help me with something": GENERAL_ENQUIRY,
+        }
+        for message, expected in cases.items():
+            with self.subTest(message=message):
+                self.assertEqual(resolve_customer_intent(message), expected)
+
+    def test_general_enquiry_with_concrete_product_still_searches_catalogue(self):
+        self.assertEqual(
+            resolve_customer_intent("I want to make an enquiry about Logitech Rally Bar"),
+            "catalog.search_products",
+        )
+        self.assertEqual(
+            resolve_customer_intent("Do you have Epson projectors?"),
+            "catalog.search_products",
+        )
+        self.assertEqual(
+            resolve_customer_intent("Show me headsets below ₦100,000"),
+            "catalog.search_products",
+        )
 
     def test_short_substrings_do_not_trigger_greetings(self):
         for message in (
@@ -892,6 +922,65 @@ class SmartChatProductIntelligenceTests(TestCase):
         self.assertIn("marketplace", reply.message.lower())
         self.assertIn("products", reply.message.lower())
         self.assertIn("service providers", reply.message.lower())
+
+    def assertGeneralEnquiryReply(self, reply):
+        self.assertEqual(reply.metadata.get("intent"), "general_enquiry")
+        self.assertFalse(reply.metadata.get("product_cards"))
+        self.assertFalse(reply.metadata.get("product_ids"))
+        self.assertNotIn("Approved Arolana products found", reply.message)
+        self.assertIn("what would you like", reply.message.lower())
+        self.assertIn("product", reply.message.lower())
+        self.assertIn("order", reply.message.lower())
+        self.assertIn("support", reply.message.lower())
+
+    def test_general_enquiry_does_not_trigger_catalogue_search(self):
+        conversation = SmartChatConversation.objects.create(user=self.customer)
+        with patch("smartchat.ai_manager.smart_shopping_reply") as smart_shopping:
+            reply = self.ask(conversation, "I want to make an enquiry")
+
+        smart_shopping.assert_not_called()
+        self.assertGeneralEnquiryReply(reply)
+
+    def test_general_enquiry_returns_clarifying_question(self):
+        conversation = SmartChatConversation.objects.create(user=self.customer)
+
+        reply = self.ask(conversation, "I have a question")
+
+        self.assertGeneralEnquiryReply(reply)
+
+    def test_vague_help_request_returns_no_product_cards(self):
+        conversation = SmartChatConversation.objects.create(user=self.customer)
+
+        reply = self.ask(conversation, "I need assistance")
+
+        self.assertGeneralEnquiryReply(reply)
+
+    def test_enquiry_with_concrete_product_still_searches_catalogue(self):
+        conference_category = Category.objects.create(
+            name="Video Conferencing",
+            slug="video-conferencing-enquiry",
+            description="Video bars and conferencing systems.",
+        )
+        rally_bar = Product.objects.create(
+            vendor=self.vendor,
+            category=conference_category,
+            brand=self.brand,
+            sku="LOGI-RALLY-ENQUIRY",
+            name="Logitech Rally Bar (Graphite) All-in-One Video Conferencing System",
+            slug="logitech-rally-bar-graphite-enquiry",
+            description="Main Rally Bar for conference rooms.",
+            price="2500000.00",
+            stock_quantity=3,
+            approval_status="approved",
+            is_active=True,
+        )
+        conversation = SmartChatConversation.objects.create(user=self.customer)
+
+        reply = self.ask(conversation, "I want to make an enquiry about Logitech Rally Bar")
+
+        self.assertNotEqual(reply.metadata.get("intent"), "general_enquiry")
+        self.assertTrue(reply.metadata.get("product_cards"))
+        self.assertEqual(reply.metadata["product_cards"][0]["id"], rally_bar.id)
 
     def test_platform_information_question_does_not_trigger_product_search(self):
         conversation = SmartChatConversation.objects.create(user=self.customer)

@@ -14,6 +14,7 @@ CONVERSATIONAL_IDENTITY = "conversational_identity"
 CONVERSATIONAL_GOODBYE = "conversational_goodbye"
 CONVERSATIONAL_WELLBEING = "conversational_wellbeing"
 PLATFORM_INFORMATION = "platform_information"
+GENERAL_ENQUIRY = "general_enquiry"
 ORDER_INTENT = "order_tracking"
 SUPPORT_INTENT = "support_request"
 REQUIREMENTS_INTENT = "shopping_requirements"
@@ -40,6 +41,12 @@ PLATFORM_INFORMATION_REPLY = (
     "providers can also register to offer products or services on Arolana. "
     "When you are ready, tell me what you want to buy or the service you need, "
     "and I’ll guide you."
+)
+GENERAL_ENQUIRY_REPLY = (
+    "Of course. What would you like to make an enquiry about? "
+    "You can ask about a product, an order, delivery, payment, installation "
+    "or technical services, becoming a seller or service provider, or general "
+    "Arolana support."
 )
 CLARIFICATION_REPLY = (
     "What would you like help with—finding a product, tracking an order, "
@@ -96,6 +103,17 @@ PLATFORM_INFORMATION_PATTERNS = (
     r"\bi want to understand (?:the\s+)?(?:website|site|platform) first\b",
 )
 
+GENERAL_ENQUIRY_PATTERNS = (
+    r"\bi (?:want|would like|need)\s+to (?:make\s+an?\s+)?(?:enquiry|inquiry)\b",
+    r"\bi (?:have|got)\s+(?:a\s+)?question\b",
+    r"\bi need (?:some\s+)?information\b",
+    r"\bcan you help me(?:\s+with\s+(?:something|an?\s+enquiry|an?\s+inquiry))?\b",
+    r"\bi want to ask (?:something|a question)\b",
+    r"\bi need assistance\b",
+    r"\bi want to speak to someone\b",
+    r"\bplease help me with something\b",
+)
+
 PRODUCT_SEARCH_PATTERNS = (
     r"\bi (?:need|want|am looking for|m looking for)\s+"
     r"(?!to\s+(?:know|understand|learn|ask|see how)\b)"
@@ -109,6 +127,16 @@ PRODUCT_SEARCH_PATTERNS = (
     r"\b(?:buy|purchase|order)\b",
     r"\b(?:projector|screen|webcam|camera|speaker|microphone|laptop|monitor|conference-room cameras?)\b",
     r"\b(?:logitech|epson|jabra|rally|c920|group|optoma)\b",
+)
+
+CATALOGUE_SIGNAL_PATTERNS = (
+    r"\b(?:projectors?|screen|webcam|camera|speaker|microphone|laptop|monitor|headsets?|"
+    r"conference-room cameras?|conferencing devices?|interactive displays?)\b",
+    r"\b(?:logitech|epson|jabra|plantronics|rally|c920|group|optoma)\b",
+    r"\b(?:show me|do you have|do you sell|find|search for)\s+"
+    r"(?:[a-z0-9-]+\s+){0,6}"
+    r"(?:projectors?|screen|webcam|camera|speaker|microphone|laptop|monitor|headsets?|"
+    r"device|product|display)\b",
 )
 
 REQUIREMENTS_PATTERNS = (
@@ -145,7 +173,6 @@ QUOTE_PATTERNS = (
 CONTEXTUAL_FOLLOWUP_PATTERNS = (
     r"^(?:please\s+)?(?:do\s+)?help(?:\s+me)?(?:\s+please)?$",
     r"^(?:please\s+)?assist(?:\s+me)?(?:\s+please)?$",
-    r"^can you help(?:\s+me)?$",
 )
 
 PROPERTY_PATTERNS = (
@@ -167,6 +194,9 @@ SOFTWARE_INTENT = "software_inquiry"
 QUERY_CLEANERS = (
     r"^(?:do you have|have you got|is there|is the|are there)\s+",
     r"^(?:how much is|how much are|how much for)\s+",
+    r"^(?:i want to make an? (?:enquiry|inquiry) about)\s+",
+    r"^(?:i would like to make an? (?:enquiry|inquiry) about)\s+",
+    r"^(?:i need to make an? (?:enquiry|inquiry) about)\s+",
     r"^(?:show me|find me|search for|i need|i want|looking for)\s+",
     r"^(?:do you sell)\s+",
     r"\s+(?:available|in stock|on arolana)$",
@@ -225,6 +255,20 @@ def platform_information_reply() -> str:
     return PLATFORM_INFORMATION_REPLY
 
 
+def is_general_enquiry(message: str) -> bool:
+    text = normalize_message(message)
+    return _matches(text, GENERAL_ENQUIRY_PATTERNS) and not has_concrete_catalogue_signal(text)
+
+
+def general_enquiry_reply() -> str:
+    return GENERAL_ENQUIRY_REPLY
+
+
+def has_concrete_catalogue_signal(message: str) -> bool:
+    text = normalize_message(message)
+    return _matches(text, CATALOGUE_SIGNAL_PATTERNS)
+
+
 def resolve_customer_intent(message: str) -> str:
     text = normalize_message(message)
 
@@ -240,6 +284,9 @@ def resolve_customer_intent(message: str) -> str:
 
     if is_platform_information_question(text):
         return PLATFORM_INFORMATION
+
+    if is_general_enquiry(text):
+        return GENERAL_ENQUIRY
 
     if _matches(text, ORDER_PATTERNS):
         return ORDER_INTENT
@@ -270,7 +317,7 @@ def resolve_customer_intent(message: str) -> str:
     if _matches(text, REQUIREMENTS_PATTERNS):
         return REQUIREMENTS_INTENT
 
-    if _matches(text, PRODUCT_SEARCH_PATTERNS):
+    if _matches(text, PRODUCT_SEARCH_PATTERNS) and has_concrete_catalogue_signal(text):
         return TOOL_CATALOG_SEARCH_PRODUCTS
 
     return CLARIFICATION_INTENT

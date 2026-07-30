@@ -49,9 +49,11 @@ from .intent_guards import (
     CONVERSATIONAL_GREETING,
     CONVERSATIONAL_IDENTITY,
     CONVERSATIONAL_WELLBEING,
+    GENERAL_ENQUIRY,
     PLATFORM_INFORMATION,
     conversational_reply,
     deterministic_conversation_source,
+    general_enquiry_reply,
     platform_information_reply,
     resolve_customer_intent,
 )
@@ -907,6 +909,26 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
             ],
         }
         _record_informational_detour(conversation, PLATFORM_INFORMATION, reply)
+        return reply, source
+
+    if deterministic_intent == GENERAL_ENQUIRY:
+        reply = general_enquiry_reply()
+        source = {
+            **deterministic_conversation_source(GENERAL_ENQUIRY),
+            "source_type": "general_enquiry",
+            "source_label": "General enquiry clarification",
+            "marketplace_category": "general_enquiry",
+            "product_cards": [],
+            "product_ids": [],
+            "result_count": 0,
+            "actions": [
+                {"type": "browse_products", "label": "Ask about a product"},
+                {"type": "track_order", "label": "Track an order"},
+                {"type": "find_service_provider", "label": "Find services"},
+                {"type": "contact_support", "label": "Contact support"},
+            ],
+        }
+        _record_informational_detour(conversation, GENERAL_ENQUIRY, reply)
         return reply, source
 
     state = prepare_context(conversation, resolved_message)
