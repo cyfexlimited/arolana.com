@@ -811,11 +811,15 @@ AROLANA_RATE_LIMIT_RULES = [
     },
     {
         'name': 'smartchat',
-        'paths': ['/smartchat/api/', '/api/smartchat/'],
+        'paths': [
+            '/smartchat/api/message/',
+            '/smartchat/api/mobile/send/',
+            '/api/smartchat/message/',
+        ],
         'methods': ['POST'],
         'limit': config('RATE_LIMIT_SMARTCHAT_LIMIT', default=15, cast=int),
         'window': config('RATE_LIMIT_SMARTCHAT_WINDOW', default=60, cast=int),
-        'message': 'I’m still sending that chat message. Please wait a moment before sending another one.',
+        'message': 'I’m receiving too many chat messages too quickly. Please wait a few seconds and try again.',
     },
     {
         'name': 'ai-search',

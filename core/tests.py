@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
 from django.core.cache import cache
 from django.http import HttpResponse
@@ -57,6 +58,43 @@ class ArolanaSecurityMiddlewareTests(TestCase):
         self.assertEqual(first.status_code, 200)
         self.assertEqual(second.status_code, 429)
         self.assertEqual(second["Retry-After"], "60")
+
+    @override_settings(
+        AROLANA_RATE_LIMIT_ENABLED=True,
+        AROLANA_RATE_LIMIT_RULES=[
+            {
+                "name": "smartchat",
+                "paths": ["/smartchat/api/message/"],
+                "methods": ["POST"],
+                "limit": 1,
+                "window": 60,
+                "message": "SmartChat limited.",
+            }
+        ],
+    )
+    def test_smartchat_typing_endpoint_does_not_consume_message_limit(self):
+        cache.clear()
+        middleware = ArolanaRateLimitMiddleware(lambda request: HttpResponse("ok"))
+
+        typing = middleware(self.factory.post("/smartchat/api/typing/", HTTP_USER_AGENT="chat-agent"))
+        first_message = middleware(self.factory.post("/smartchat/api/message/", HTTP_USER_AGENT="chat-agent"))
+        second_message = middleware(self.factory.post("/smartchat/api/message/", HTTP_USER_AGENT="chat-agent"))
+
+        self.assertEqual(typing.status_code, 200)
+        self.assertEqual(first_message.status_code, 200)
+        self.assertEqual(second_message.status_code, 429)
+
+    def test_default_smartchat_rate_limit_rule_does_not_match_typing_endpoint(self):
+        smartchat_rule = next(
+            item for item in settings.AROLANA_RATE_LIMIT_RULES
+            if item.get("name") == "smartchat"
+        )
+        middleware = ArolanaRateLimitMiddleware(lambda request: HttpResponse("ok"))
+        typing_request = self.factory.post("/smartchat/api/typing/")
+        message_request = self.factory.post("/smartchat/api/message/")
+
+        self.assertIsNone(middleware._matching_rule(typing_request))
+        self.assertEqual(middleware._matching_rule(message_request), smartchat_rule)
 
     @override_settings(
         DEBUG=False,

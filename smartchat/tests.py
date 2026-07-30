@@ -161,7 +161,8 @@ class SmartChatWidgetDedupTests(SimpleTestCase):
             if item.get("name") == "smartchat"
         )
 
-        self.assertIn("still sending", smartchat_limit["message"])
+        self.assertIn("too many chat messages", smartchat_limit["message"].lower())
+        self.assertNotIn("still sending", smartchat_limit["message"].lower())
         self.assertNotIn("previous message may still be processing", smartchat_limit["message"].lower())
 
 
