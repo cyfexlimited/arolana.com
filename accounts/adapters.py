@@ -1,4 +1,8 @@
 from allauth.account.adapter import DefaultAccountAdapter
+from allauth.account import app_settings as account_app_settings
+from allauth.account.utils import perform_login
+from allauth.core.exceptions import ImmediateHttpResponse
+from allauth.socialaccount import signals as socialaccount_signals
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from django import forms
 from django.conf import settings
@@ -92,6 +96,26 @@ class CustomAccountAdapter(DefaultAccountAdapter):
 class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
     """Custom social account adapter for Arolana"""
 
+    def _verified_social_email(self, sociallogin):
+        """Return the provider-verified email address, if one is available."""
+        account = getattr(sociallogin, 'account', None)
+        provider = getattr(account, 'provider', '')
+        extra_data = getattr(account, 'extra_data', {}) or {}
+
+        for address in getattr(sociallogin, 'email_addresses', []):
+            email = getattr(address, 'email', '')
+            if email and getattr(address, 'verified', False):
+                return email
+
+        email = (
+            extra_data.get('email')
+            or getattr(getattr(sociallogin, 'user', None), 'email', '')
+        )
+        email_verified = extra_data.get('email_verified')
+        if provider == 'google' and email and email_verified is True:
+            return email
+        return ''
+
     def list_apps(self, request, provider=None, client_id=None):
         """Prefer Railway/env Google credentials over stale database SocialApps."""
         apps = super().list_apps(request, provider=provider, client_id=client_id)
@@ -112,8 +136,57 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
         return filtered_apps
     
     def pre_social_login(self, request, sociallogin):
-        """Retain a validated destination through the provider callback."""
+        """
+        Retain the callback destination and safely attach verified Google
+        logins to existing Arolana accounts with the same email.
+
+        Without this hook, allauth sends an existing email through the social
+        signup form where our unique-email validation rejects it as
+        "already registered" even though the user has just authenticated with
+        Google.
+        """
         remember_login_redirect(request, sociallogin.get_redirect_url(request))
+
+        if sociallogin.is_existing:
+            return
+
+        verified_email = self._verified_social_email(sociallogin)
+        if not verified_email:
+            return
+
+        existing_user = (
+            User.objects.filter(email__iexact=verified_email, is_active=True)
+            .order_by('pk')
+            .first()
+        )
+        if not existing_user:
+            return
+
+        sociallogin.user = existing_user
+        sociallogin.save(request, connect=True)
+        socialaccount_signals.social_account_added.send(
+            sender=sociallogin.__class__,
+            request=request,
+            sociallogin=sociallogin,
+        )
+
+        provider = getattr(sociallogin.account, 'provider', '')
+        if provider == 'google' and hasattr(existing_user, 'google_id'):
+            existing_user.google_id = sociallogin.account.uid
+            if hasattr(existing_user, 'email_verified'):
+                existing_user.email_verified = True
+            existing_user.save(
+                update_fields=['google_id', 'email_verified', 'updated_at']
+            )
+
+        response = perform_login(
+            request,
+            existing_user,
+            email_verification=account_app_settings.EmailVerificationMethod.NONE,
+            signup=False,
+            email=verified_email,
+        )
+        raise ImmediateHttpResponse(response)
     
     def is_open_for_signup(self, request, sociallogin):
         """Allow social signups"""

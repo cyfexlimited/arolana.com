@@ -3,10 +3,13 @@ from types import SimpleNamespace
 from unittest.mock import patch
 from urllib.parse import urlencode
 
+from allauth.account.models import EmailAddress
 from allauth.core import context as allauth_context
+from allauth.core.exceptions import ImmediateHttpResponse
+from allauth.socialaccount.models import SocialAccount, SocialLogin
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.contrib.sessions.middleware import SessionMiddleware
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
 from django.template.defaultfilters import urlencode as template_urlencode
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
@@ -666,6 +669,27 @@ class SocialLoginRedirectTests(TestCase):
         request.user = self.user
         return request
 
+    def google_sociallogin(self, email=None, verified=True, uid="google-uid-1"):
+        email = email or self.user.email
+        return SocialLogin(
+            user=User(email=email, username="google-social-user"),
+            account=SocialAccount(
+                provider="google",
+                uid=uid,
+                extra_data={
+                    "email": email,
+                    "email_verified": verified,
+                },
+            ),
+            email_addresses=[
+                EmailAddress(
+                    email=email,
+                    verified=verified,
+                    primary=True,
+                )
+            ],
+        )
+
     @patch("accounts.adapters.CustomAccountAdapter.add_message")
     @patch("allauth.account.adapter.signals.user_logged_in.send")
     def test_social_state_next_is_restored_and_session_value_is_cleared(
@@ -757,4 +781,53 @@ class SocialLoginRedirectTests(TestCase):
         self.assertNotIn(
             "pending_email_verification_user_id",
             request.session,
+        )
+
+    @patch("accounts.adapters.perform_login")
+    def test_verified_google_email_connects_existing_account_instead_of_signup(
+        self,
+        perform_login_mock,
+    ):
+        destination = "/dashboard/vendor/quote-requests/"
+        request = self.request_with_session(destination)
+        sociallogin = self.google_sociallogin(uid="google-existing-user")
+        perform_login_mock.return_value = HttpResponseRedirect(destination)
+
+        with self.assertRaises(ImmediateHttpResponse) as captured:
+            CustomSocialAccountAdapter().pre_social_login(request, sociallogin)
+
+        self.assertEqual(captured.exception.response.url, destination)
+        perform_login_mock.assert_called_once()
+
+        social_account = SocialAccount.objects.get(
+            user=self.user,
+            provider="google",
+            uid="google-existing-user",
+        )
+        self.assertEqual(social_account.user, self.user)
+
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.google_id, "google-existing-user")
+        self.assertTrue(self.user.email_verified)
+
+    @patch("accounts.adapters.perform_login")
+    def test_unverified_google_email_does_not_auto_connect_existing_account(
+        self,
+        perform_login_mock,
+    ):
+        request = self.request_with_session("/accounts/profile/")
+        sociallogin = self.google_sociallogin(
+            verified=False,
+            uid="google-unverified-user",
+        )
+
+        CustomSocialAccountAdapter().pre_social_login(request, sociallogin)
+
+        perform_login_mock.assert_not_called()
+        self.assertFalse(
+            SocialAccount.objects.filter(
+                user=self.user,
+                provider="google",
+                uid="google-unverified-user",
+            ).exists()
         )
