@@ -64,6 +64,13 @@ DEFAULT_STATE = {
         "fault_description": None,
         "urgency": None,
         "preferred_date": None,
+        "delivery_date": None,
+        "delivery_window": None,
+        "delivery_type": None,
+        "delivery_address": None,
+        "recipient_phone": None,
+        "recipient_name": None,
+        "payment_method": None,
         "service_type": None,
         "service_needed": None,
         "equipment": None,
@@ -164,6 +171,13 @@ SLOT_KEYS = {
     "fault_description",
     "urgency",
     "preferred_date",
+    "delivery_date",
+    "delivery_window",
+    "delivery_type",
+    "delivery_address",
+    "recipient_phone",
+    "recipient_name",
+    "payment_method",
     "service_type",
     "service_needed",
     "equipment",
@@ -233,7 +247,7 @@ TRANSACTION_TERMS = {
 
 ENTITY_HINTS = (
     ("vehicle", ("car", "cars", "suv", "bus", "buses", "truck", "van", "motorcycle", "tricycle", "hilux", "camry", "corolla", "toyota", "gearbox")),
-    ("property", ("apartment", "land", "office space", "warehouse", "short-let", "short let", "bedroom", "bedrooms", "lekki", "ikeja")),
+    ("property", ("apartment", "land", "office space", "warehouse", "short-let", "short let", "bedroom", "bedrooms", "real estate")),
     ("medical_equipment", ("hospital", "patient monitor", "ultrasound", "x-ray", "xray", "hospital bed", "laboratory")),
     ("farm_equipment", ("tractor", "harvester", "poultry", "irrigation", "farm", "hectare", "horsepower")),
     ("service_provider", ("installer", "technician", "repair", "maintenance", "consultant", "logistics", "electrician", "mechanic")),
@@ -407,6 +421,14 @@ def _find_category_for_product_type(text):
 
 def _subject_from_text(text):
     cleaned = re.sub(r"\s+", " ", str(text or "").lower()).strip(" .,!?:;")
+    if re.fullmatch(
+        r"(?:bank transfer|card|paypal|flutterwave|payment|checkout|"
+        r"delivery|shipping|ship it|deliver it|door delivery|pickup|"
+        r"what do i do|what do i do from here now|what next|next step|"
+        r"yes this is it|yes please do|go ahead|proceed)",
+        cleaned,
+    ):
+        return ""
     has_subject_intent = bool(
         re.search(
             r"\b(?:do you have|show me|find me|search for|i need|i want|"
@@ -456,12 +478,20 @@ def _subject_from_text(text):
 
 def _entity_type_from_text(text, subject=""):
     haystack = f"{text} {subject}".lower()
+    if _looks_like_delivery_or_shipping_text(haystack):
+        return "product"
     if re.search(r"\bdeveloper|designer|consultant|provider|installer|technician|valuer|mechanic\b", haystack):
         return "service_provider"
     for entity_type, terms in ENTITY_HINTS:
         if any(re.search(rf"\b{re.escape(term)}s?\b", haystack) for term in terms):
             return entity_type
     return "service_provider" if any(term in haystack for term in SERVICE_TRANSACTION_TERMS) else "product"
+
+
+def _looks_like_delivery_or_shipping_text(text):
+    return bool(
+        re.search(r"\b(?:ship|shipping|deliver|delivery|dispatch|door delivery|pickup)\b", text)
+    )
 
 
 def _transaction_type_from_text(text, entity_type=""):
@@ -541,6 +571,14 @@ def _location_from_text(text):
             if alias in candidate:
                 return label
         return candidate.title()
+    alias_matches = []
+    for alias, label in LOCATION_ALIASES.items():
+        match = re.search(rf"\b{re.escape(alias)}\b", text)
+        if match:
+            alias_matches.append((match.start(), -len(alias), label))
+    if alias_matches:
+        alias_matches.sort()
+        return alias_matches[0][2]
     comparable = text.strip(" .,!?:;")
     for alias, label in LOCATION_ALIASES.items():
         if comparable == alias or comparable == label.lower():
@@ -756,6 +794,39 @@ def extract_facts(message):
             urgency = "urgent"
         facts["requirements"]["urgency"] = urgency
         facts["requirements"]["preferred_date"] = facts["requirements"]["urgency"]
+    date_match = re.search(r"\b(\d{1,2}/\d{1,2}/\d{4})\b", text)
+    if date_match:
+        facts["requirements"]["delivery_date"] = date_match.group(1)
+        facts["requirements"]["preferred_date"] = date_match.group(1)
+    window_match = re.search(
+        r"\b(\d{1,2}\s*(?:am|pm)?\s*[-–]\s*\d{1,2}\s*(?:am|pm))\b",
+        text,
+    )
+    if window_match:
+        facts["requirements"]["delivery_window"] = re.sub(r"\s+", " ", window_match.group(1)).strip()
+    if re.search(r"\bdoor delivery\b", text):
+        facts["requirements"]["delivery_type"] = "door_delivery"
+    elif re.search(r"\bpickup\b", text):
+        facts["requirements"]["delivery_type"] = "pickup"
+    phone_match = re.search(r"\b(?:\+?234|0)\d{10}\b", text)
+    if phone_match:
+        facts["requirements"]["recipient_phone"] = phone_match.group(0)
+    address_match = re.search(
+        r"\b(\d{1,6}\s+[a-z0-9\s.,'-]{3,120}?"
+        r"(?:close|street|road|avenue|crescent|drive|lane|way)"
+        r"[a-z0-9\s.,'-]{0,80})",
+        text,
+    )
+    if address_match:
+        facts["requirements"]["delivery_address"] = re.sub(
+            r"\s+",
+            " ",
+            address_match.group(1).strip(" .,!?:;"),
+        ).title()
+    if re.search(r"\bbank transfer\b", text):
+        facts["requirements"]["payment_method"] = "bank_transfer"
+    elif re.search(r"\b(?:card|flutterwave|paypal)\b", text):
+        facts["requirements"]["payment_method"] = re.search(r"\b(?:card|flutterwave|paypal)\b", text).group(0)
     fuel = re.search(r"\b(diesel|petrol|gasoline|electric|hybrid)\b", text)
     if fuel:
         facts["requirements"]["fuel_type"] = fuel.group(1)

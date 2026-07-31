@@ -5,6 +5,7 @@ from django.db.models import F, Q
 from django.urls import reverse
 from django.utils import timezone
 
+from ai_core.feature_flags import smart_shopping_enabled
 from core.content_i18n import translated_field, translated_key
 from products.models import Product
 from .models import (
@@ -51,11 +52,13 @@ from .intent_guards import (
     CONVERSATIONAL_WELLBEING,
     GENERAL_ENQUIRY,
     PLATFORM_INFORMATION,
+    SHIPPING_ENQUIRY,
     conversational_reply,
     deterministic_conversation_source,
     general_enquiry_reply,
     platform_information_reply,
     resolve_customer_intent,
+    shipping_enquiry_reply,
 )
 from .response_validator import (
     advance_reply,
@@ -83,6 +86,24 @@ def _is_purchase_followup(message):
         or re.search(
             r"\b(?:add it to cart|add to cart|checkout|place (?:my )?order|"
             r"i want this one|i'll take it|i will take it)\b",
+            text,
+        )
+    )
+
+
+def _is_checkout_stage_followup(message):
+    text = re.sub(r"\s+", " ", str(message or "").strip().lower())
+    if re.search(
+        r"^(?:where|what|how|can|could|should|do|does|is|are)\b.*\buse (?:that|this|it)\b",
+        text,
+    ):
+        return False
+    return bool(
+        re.search(
+            r"\b(?:yes this is it|yes please do|this is it|that's it|that is it|"
+            r"what do i do|what next|next step|checkout|bank transfer|"
+            r"card|paypal|flutterwave|payment|https?://|sku|recipient|"
+            r"delivery window|use that|use this|use it as|use him|use her)\b",
             text,
         )
     )
@@ -739,6 +760,7 @@ def _should_use_marketplace_workflow(conversation, message, state, deterministic
         "catalog.search_products",
         "shopping_requirements",
         "services.match_providers",
+        SHIPPING_ENQUIRY,
     }:
         return False
     entity_type = state.get("entity_type")
@@ -931,12 +953,53 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
         _record_informational_detour(conversation, GENERAL_ENQUIRY, reply)
         return reply, source
 
+    if deterministic_intent == SHIPPING_ENQUIRY and not smart_shopping_enabled():
+        reply = shipping_enquiry_reply()
+        source = {
+            **deterministic_conversation_source(SHIPPING_ENQUIRY),
+            "source_type": "shipping_enquiry",
+            "source_label": "Shipping enquiry",
+            "marketplace_category": "delivery",
+            "product_cards": [],
+            "product_ids": [],
+            "result_count": 0,
+            "actions": [
+                {"type": "open_cart", "label": "Open cart"},
+                {"type": "checkout", "label": "Proceed to checkout"},
+                {"type": "contact_support", "label": "Contact support"},
+            ],
+        }
+        _record_informational_detour(conversation, SHIPPING_ENQUIRY, reply)
+        return reply, source
+
     state = prepare_context(conversation, resolved_message)
     if conversation.product_id and _is_installation_after_product_followup(resolved_message):
         install_result = _product_installation_guidance(conversation, state)
         if install_result:
             reply, source = install_result
             update_conversation_context(conversation, source["intent"], reply, source)
+            return reply, source
+
+    if (
+        conversation.product_id
+        and _is_checkout_stage_followup(resolved_message)
+        and smart_shopping_enabled()
+    ):
+        smart_shopping_result = smart_shopping_reply(
+            conversation,
+            resolved_message,
+            actor_user=actor_user,
+            application_source=conversation.channel or "smartchat",
+        )
+        if smart_shopping_result:
+            reply, source = smart_shopping_result
+            update_conversation_context(
+                conversation,
+                source.get("conversation_intent")
+                or source.get("intent", "purchase_preparation"),
+                reply,
+                source,
+            )
             return reply, source
 
     if conversation.product_id and _is_purchase_followup(resolved_message):
@@ -992,6 +1055,28 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
         if install_result:
             reply, source = install_result
             update_conversation_context(conversation, source["intent"], reply, source)
+            return reply, source
+
+    if (
+        conversation.product_id
+        and _is_checkout_stage_followup(resolved_message)
+        and smart_shopping_enabled()
+    ):
+        smart_shopping_result = smart_shopping_reply(
+            conversation,
+            resolved_message,
+            actor_user=actor_user,
+            application_source=conversation.channel or "smartchat",
+        )
+        if smart_shopping_result:
+            reply, source = smart_shopping_result
+            update_conversation_context(
+                conversation,
+                source.get("conversation_intent")
+                or source.get("intent", "purchase_preparation"),
+                reply,
+                source,
+            )
             return reply, source
 
     if conversation.product_id and _is_purchase_followup(resolved_message):

@@ -47,10 +47,12 @@ from .intent_guards import (
     ORDER_INTENT,
     REQUIREMENTS_INTENT,
     REQUIREMENTS_REPLY,
+    SHIPPING_ENQUIRY,
     SUPPORT_INTENT,
     clean_product_search_query,
     conversational_reply,
     resolve_customer_intent,
+    shipping_enquiry_reply,
 )
 
 
@@ -205,6 +207,7 @@ def _apply_shopping_session_update(state, message):
     entity_type_changed = bool(
         previous_entity_type
         and incoming_entity_type
+        and incoming_entity_type not in {"commerce", "general_marketplace"}
         and previous_entity_type != incoming_entity_type
     )
 
@@ -854,6 +857,221 @@ def _domain_preserving_marketplace_reply(state, requirements):
         "I could not confirm a matching live listing in this response yet, "
         "but I will keep the subject and requirements together."
     )
+
+
+def _purchase_subject(conversation, state):
+    product = getattr(conversation, "product", None)
+    if product:
+        return product.name
+    return (
+        state.get("current_product_name")
+        or state.get("active_subject")
+        or shopping_category_label(state)
+        or "the product"
+    )
+
+
+def _anchor_purchase_product(conversation, state):
+    product = getattr(conversation, "product", None)
+    if not product:
+        return state
+
+    category_name = ""
+    try:
+        category_name = product.category.name if product.category_id else ""
+    except Exception:
+        category_name = ""
+
+    state["current_product_id"] = product.id
+    state["current_product_name"] = product.name
+    state["active_subject"] = product.name
+    state["entity_type"] = "product"
+    state["intent_family"] = "commerce"
+    state["transaction_type"] = state.get("transaction_type") or "buy"
+    if category_name:
+        state["category"] = state.get("category") or category_name
+        state["product_type"] = state.get("product_type") or category_name
+        state["locked_category"] = state.get("locked_category") or category_name
+    state["shopping_category_locked"] = True
+    return state
+
+
+def _money_label(requirements):
+    amount = requirements.get("budget_amount") or requirements.get("budget_max")
+    if not amount:
+        return ""
+    currency = requirements.get("currency") or "NGN"
+    symbol = "₦" if currency == "NGN" else f"{currency} "
+    try:
+        return f"{symbol}{int(amount):,}"
+    except (TypeError, ValueError):
+        return f"{symbol}{amount}"
+
+
+def _delivery_location_label(requirements):
+    return (
+        requirements.get("delivery_address")
+        or requirements.get("delivery_location")
+        or requirements.get("location")
+        or ""
+    )
+
+
+def _looks_like_purchase_stage_message(message):
+    text = re.sub(r"\s+", " ", str(message or "").strip().lower())
+    if not text:
+        return False
+    return bool(
+        re.search(
+            r"\b(?:yes this is it|yes please do|this is it|that's it|that is it|"
+            r"go ahead|proceed|what do i do|what next|next step|checkout|"
+            r"payment|bank transfer|card|paypal|flutterwave|add to cart|"
+            r"product link|sku|https?://|phone|delivery window|recipient)\b",
+            text,
+        )
+    )
+
+
+def _looks_like_recipient_name_update(message):
+    text = re.sub(r"\s+", " ", str(message or "").strip()).strip(" .,!?:;")
+    lowered = text.lower()
+    if re.search(
+        r"^(?:where|what|how|can|could|should|do|does|is|are)\b.*\buse (?:that|this|it)\b",
+        lowered,
+    ):
+        return False
+    return bool(
+        text
+        and len(text.split()) <= 5
+        and re.search(r"\b(?:use that|use this|recipient|name)\b", lowered)
+        and not re.search(r"\b(?:product|projector|delivery|payment|budget|ship|checkout|cart)\b", lowered)
+    )
+
+
+def _apply_purchase_stage_details(state, message):
+    requirements = dict(state.get("requirements") or {})
+    text = re.sub(r"\s+", " ", str(message or "").strip())
+    lowered = text.lower()
+    if _looks_like_recipient_name_update(message):
+        name = re.sub(r"\b(?:use|that|this|as|the|recipient|name|for|delivery)\b", " ", lowered)
+        name = re.sub(r"[.,]+", " ", name)
+        name = re.sub(r"\s+", " ", name).strip(" .,!?:;")
+        if name:
+            requirements["recipient_name"] = name.title()
+    if "bank transfer" in lowered:
+        requirements["payment_method"] = "bank_transfer"
+    state["requirements"] = requirements
+    return requirements
+
+
+def _purchase_stage_reply(conversation, state, requirements, *, reason):
+    subject = _purchase_subject(conversation, state)
+    quantity = requirements.get("quantity")
+    budget = _money_label(requirements)
+    location = _delivery_location_label(requirements)
+    phone = requirements.get("recipient_phone")
+    delivery_date = requirements.get("delivery_date") or requirements.get("preferred_date")
+    delivery_window = requirements.get("delivery_window")
+    recipient = requirements.get("recipient_name")
+    payment_method = requirements.get("payment_method")
+
+    state["conversation_stage"] = "purchase_preparation"
+    state["intent"] = "purchase_preparation"
+
+    lines = []
+    if reason == "shipping":
+        lines.append(
+            "I can help with the shipping cost. I can’t give an exact fee yet because "
+            "Arolana calculates delivery from the seller’s dispatch location, item size/weight, "
+            "quantity, courier option and your checkout address."
+        )
+    elif reason == "payment":
+        payment_text = "bank transfer" if payment_method == "bank_transfer" else str(payment_method or "your payment method").replace("_", " ")
+        lines.append(
+            f"Noted — I’ll keep {payment_text} as your preferred payment method. "
+            "The exact available payment options still need to be selected inside Arolana checkout."
+        )
+    else:
+        lines.append("Excellent. I’ll keep this purchase request together instead of restarting the search.")
+
+    summary = [
+        f"Product: {subject}" if subject and subject != "the product" else "",
+        f"Quantity: {quantity} units" if quantity else "",
+        f"Budget/unit price: {budget}" if budget else "",
+        f"Delivery: {location}" if location else "",
+        f"Recipient: {recipient}" if recipient else "",
+        f"Phone: {phone}" if phone else "",
+        f"Delivery date: {delivery_date}" if delivery_date else "",
+        f"Delivery window: {delivery_window}" if delivery_window else "",
+    ]
+    summary = [item for item in summary if item]
+    if summary:
+        lines.append("\nHere’s what I have:")
+        lines.extend(f"• {item}" for item in summary)
+
+    missing = []
+    if not subject or subject == "the product":
+        missing.append("the exact product link or SKU")
+    if not quantity:
+        missing.append("quantity")
+    if not location:
+        missing.append("delivery address or city")
+    if not phone:
+        missing.append("recipient phone number")
+    if not delivery_date:
+        missing.append("delivery date")
+
+    if missing:
+        lines.append(
+            "\nTo get the exact shipping/checkout figure, I still need: "
+            + ", ".join(missing)
+            + "."
+        )
+    else:
+        lines.append(
+            "\nNext step: open the product, add it to cart, set the quantity, and continue to checkout. "
+            "Arolana will calculate the exact shipping fee for the saved address before payment. "
+            "If the shipping fee or payment option looks wrong at checkout, tell me what you see and I’ll guide the next click."
+        )
+
+    return "\n".join(lines)
+
+
+def _purchase_stage_source(source, state, requirements, answer, *, reason):
+    source["source_type"] = "purchase_preparation"
+    source["intent"] = "purchase_preparation"
+    source["conversation_intent"] = "purchase_preparation"
+    source["marketplace_category"] = (
+        state.get("category")
+        or state.get("product_type")
+        or state.get("locked_category")
+        or shopping_category_label(state)
+        or "commerce"
+    )
+    source["category_route_source"] = f"deterministic_{reason}_stage"
+    source["fallback_reason"] = "purchase_stage_preserved"
+    source["confidence"] = max(float(source.get("confidence") or 0), 0.95)
+    source.pop("product_cards", None)
+    source.pop("product_ids", None)
+    source["actions"] = [
+        {"type": "view_product", "label": "Open product"},
+        {"type": "open_cart", "label": "Open cart"},
+        {"type": "checkout", "label": "Proceed to checkout"},
+    ]
+    source["structured_response"].update(
+        {
+            "answer": answer,
+            "primary_intent": "purchase_preparation",
+            "structured_requirements": requirements,
+            "products": [],
+            "next_actions": ["open_product", "open_cart", "checkout"],
+            "confidence": 0.95,
+        }
+    )
+    source["structured_requirements"] = requirements
+    source["state"] = state
+    source["active_subject"] = state.get("active_subject") or _text(requirements.get("product_name"))
+    return source
 
 
 def _comparison_reply(points):
@@ -1653,6 +1871,8 @@ def smart_shopping_reply(
     if guarded_intent == SUPPORT_INTENT:
         return None
 
+    purchase_stage_existing_requirements = dict(state.get("requirements") or {})
+
     facts, slot_updates, state_debug = _apply_shopping_session_update(
         state,
         user_message,
@@ -1677,6 +1897,79 @@ def smart_shopping_reply(
         }
         state["requirements"] = requirements
     deterministic_requirements = dict(requirements or {})
+
+    active_purchase_stage = (
+        conversation.product_id
+        or state.get("current_product_id")
+        or state.get("current_product_name")
+        or state.get("conversation_stage") in {
+            "purchase_preparation",
+            "checkout_guidance",
+        }
+    )
+    purchase_stage_reason = ""
+    if guarded_intent == SHIPPING_ENQUIRY:
+        purchase_stage_reason = "shipping"
+    elif active_purchase_stage and (
+        _looks_like_purchase_stage_message(user_message)
+        or _looks_like_recipient_name_update(user_message)
+    ):
+        purchase_stage_reason = (
+            "payment"
+            if re.search(
+                r"\b(?:bank transfer|card|paypal|flutterwave|payment)\b",
+                str(user_message or "").lower(),
+            )
+            else "checkout"
+        )
+
+    if purchase_stage_reason:
+        state = _anchor_purchase_product(conversation, state)
+        state["_clear_legacy_requirements"] = False
+        if isinstance(state_debug, dict):
+            state_debug["_clear_legacy_requirements"] = False
+        merged_purchase_requirements = {
+            key: value
+            for key, value in purchase_stage_existing_requirements.items()
+            if value not in (None, "")
+        }
+        merged_purchase_requirements.update(
+            {
+                key: value
+                for key, value in dict(state.get("requirements") or {}).items()
+                if value not in (None, "")
+            }
+        )
+        state["requirements"] = merged_purchase_requirements
+        requirements = _apply_purchase_stage_details(
+            state,
+            user_message,
+        )
+        answer = _purchase_stage_reply(
+            conversation,
+            state,
+            requirements,
+            reason=purchase_stage_reason,
+        )
+        source = _purchase_stage_source(
+            source,
+            state,
+            requirements,
+            answer,
+            reason=purchase_stage_reason,
+        )
+        _attach_compatibility_metadata(
+            source,
+            state_debug=state_debug,
+            tool_name="none",
+        )
+        _persist_smart_shopping_state(
+            conversation,
+            context,
+            state,
+            public_intent="purchase_preparation",
+        )
+        return answer, source
 
     if guarded_intent == "property_inquiry":
         state["entity_type"] = "property"

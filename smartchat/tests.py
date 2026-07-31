@@ -23,6 +23,7 @@ from .intent_guards import (
     GENERAL_ENQUIRY,
     PLATFORM_INFORMATION,
     REQUIREMENTS_INTENT,
+    SHIPPING_ENQUIRY,
     SUPPORT_INTENT,
     clean_product_search_query,
     resolve_customer_intent,
@@ -67,6 +68,7 @@ class SmartChatIntentGuardTests(SimpleTestCase):
             "I need a projector for a church": REQUIREMENTS_INTENT,
             "track my order": ORDER_INTENT,
             "I need an installer": "services.match_providers",
+            "what will it cost to ship to my location?": SHIPPING_ENQUIRY,
             "contact support": SUPPORT_INTENT,
         }
         for message, expected in cases.items():
@@ -1274,6 +1276,134 @@ class SmartChatProductIntelligenceTests(TestCase):
         conversation.refresh_from_db()
         self.assertEqual(conversation.context["current_product_id"], self.product.id)
         self.assertEqual(conversation.context["last_intent"], "delivery_question")
+
+    def test_shipping_enquiry_enters_purchase_preparation_not_recommendation(self):
+        conversation = SmartChatConversation.objects.create(user=self.customer)
+
+        reply = self.ask(conversation, "what will it cost to ship to my location?")
+
+        self.assertEqual(reply.metadata.get("intent"), "purchase_preparation")
+        self.assertFalse(reply.metadata.get("product_cards"))
+        lower_reply = reply.message.lower()
+        self.assertIn("shipping cost", lower_reply)
+        self.assertIn("exact product", lower_reply)
+        self.assertIn("quantity", lower_reply)
+        self.assertIn("delivery", lower_reply)
+        self.assertNotIn("small room", lower_reply)
+        self.assertNotIn("boardroom", lower_reply)
+        self.assertNotIn("property request", lower_reply)
+
+    def test_delivery_location_followup_does_not_turn_product_flow_into_property(self):
+        projector_category = Category.objects.create(
+            name="Projectors",
+            slug="projectors-shipping-flow",
+        )
+        optoma = Brand.objects.create(name="Optoma", slug="optoma-shipping-flow")
+        conversation = SmartChatConversation.objects.create(user=self.customer)
+        Product.objects.create(
+            vendor=self.vendor,
+            category=projector_category,
+            brand=optoma,
+            sku="OPT-S336-SHIP",
+            name="Optoma S336 SVGA DLP Projector",
+            slug="optoma-s336-shipping-flow",
+            description="4000 lumen projector.",
+            specifications="4000 lumens. SVGA. HDMI.",
+            price="410000.00",
+            stock_quantity=50,
+            approval_status="approved",
+            is_active=True,
+        )
+
+        self.ask(conversation, "what will it cost to ship to my location?")
+        reply = self.ask(conversation, "ikeja lagos. a projector of 10 unit and its an urgent delivery")
+        conversation.refresh_from_db()
+        state = conversation.context["state"]
+        requirements = state["requirements"]
+
+        self.assertNotEqual(state.get("entity_type"), "property")
+        self.assertNotEqual(state.get("category"), "property")
+        self.assertNotIn("property request", reply.message.lower())
+        self.assertEqual(requirements.get("delivery_location"), "Ikeja")
+        self.assertEqual(requirements.get("quantity"), 10)
+        self.assertEqual(requirements.get("urgency"), "urgent")
+
+    def test_product_link_and_payment_followups_preserve_checkout_state(self):
+        projector_category = Category.objects.create(
+            name="Projectors",
+            slug="projectors-checkout-flow",
+        )
+        optoma = Brand.objects.create(name="Optoma", slug="optoma-checkout-flow")
+        product = Product.objects.create(
+            vendor=self.vendor,
+            category=projector_category,
+            brand=optoma,
+            sku="OPT-S336-CHECKOUT",
+            name="Optoma S336 SVGA DLP Projector – 4000 Lumens, HDMI, VGA, USB Power, 10W Speaker",
+            slug="optoma-s336-svga-dlp-projector-4000-lumens-hdmi-vga-usb-power-10w-speaker-checkout",
+            description="4000 lumen projector.",
+            specifications="4000 lumens. SVGA. HDMI.",
+            price="410000.00",
+            stock_quantity=50,
+            approval_status="approved",
+            is_active=True,
+        )
+        conversation = SmartChatConversation.objects.create(
+            user=self.customer,
+            product=product,
+            context={
+                "state": {
+                    "current_product_id": product.id,
+                    "current_product_name": product.name,
+                    "active_subject": product.name,
+                    "category": projector_category.name,
+                    "product_type": projector_category.name,
+                    "locked_category": projector_category.name,
+                    "shopping_category_locked": True,
+                    "entity_type": "product",
+                    "intent_family": "commerce",
+                    "transaction_type": "buy",
+                    "conversation_stage": "purchase_preparation",
+                    "requirements": {
+                        "quantity": 10,
+                        "budget_max": 410000,
+                        "budget_amount": 410000,
+                        "currency": "NGN",
+                        "delivery_address": "10 Esomo Close, Toyin Street, Ikeja, Lagos",
+                        "delivery_location": "Ikeja",
+                        "delivery_date": "31/07/2026",
+                    },
+                }
+            },
+        )
+
+        link_reply = self.ask(
+            conversation,
+            "https://www.arolana.com/products/optoma-s336-svga-dlp-projector-4000-lumens-hdmi-vga-usb-power-10w-speaker/ 09132924620",
+        )
+        name_reply = self.ask(conversation, "Okeke. Ifeanyi use that")
+        payment_reply = self.ask(conversation, "bank transfer")
+        next_reply = self.ask(conversation, "what do i do from here now")
+        conversation.refresh_from_db()
+        state = conversation.context["state"]
+        requirements = state["requirements"]
+        transcript = "\n".join(
+            reply.message
+            for reply in (link_reply, name_reply, payment_reply, next_reply)
+        ).lower()
+
+        self.assertEqual(state.get("conversation_stage"), "purchase_preparation")
+        self.assertEqual(state.get("entity_type"), "product")
+        self.assertEqual(state.get("category"), projector_category.name)
+        self.assertEqual(requirements.get("quantity"), 10)
+        self.assertEqual(requirements.get("budget_max"), 410000)
+        self.assertEqual(requirements.get("recipient_phone"), "09132924620")
+        self.assertEqual(requirements.get("recipient_name"), "Okeke Ifeanyi")
+        self.assertEqual(requirements.get("payment_method"), "bank_transfer")
+        self.assertNotIn("what is your budget", transcript)
+        self.assertNotIn("property request", transcript)
+        self.assertNotIn("small room", transcript)
+        self.assertIn("checkout", transcript)
 
     def test_repeated_purchase_wording_preserves_selected_product(self):
         conversation = SmartChatConversation.objects.create(user=self.customer)

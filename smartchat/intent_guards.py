@@ -15,6 +15,7 @@ CONVERSATIONAL_GOODBYE = "conversational_goodbye"
 CONVERSATIONAL_WELLBEING = "conversational_wellbeing"
 PLATFORM_INFORMATION = "platform_information"
 GENERAL_ENQUIRY = "general_enquiry"
+SHIPPING_ENQUIRY = "shipping_enquiry"
 ORDER_INTENT = "order_tracking"
 SUPPORT_INTENT = "support_request"
 REQUIREMENTS_INTENT = "shopping_requirements"
@@ -47,6 +48,12 @@ GENERAL_ENQUIRY_REPLY = (
     "You can ask about a product, an order, delivery, payment, installation "
     "or technical services, becoming a seller or service provider, or general "
     "Arolana support."
+)
+SHIPPING_ENQUIRY_REPLY = (
+    "I can help with that. Shipping cost depends on the exact product, "
+    "quantity, seller dispatch location, delivery address and courier option. "
+    "Tell me the product, quantity and delivery city or address, and I’ll "
+    "guide you to the exact checkout or quote step."
 )
 CLARIFICATION_REPLY = (
     "What would you like help with—finding a product, tracking an order, "
@@ -112,6 +119,15 @@ GENERAL_ENQUIRY_PATTERNS = (
     r"\bi need assistance\b",
     r"\bi want to speak to someone\b",
     r"\bplease help me with something\b",
+)
+
+SHIPPING_ENQUIRY_PATTERNS = (
+    r"\bwhat (?:will|would|does|is).*\b(?:cost|fee|price).*\b(?:ship|shipping|deliver|delivery)\b",
+    r"\b(?:ship|shipping|deliver|delivery).*\b(?:cost|fee|price)\b",
+    r"\b(?:cost|fee|price).*\b(?:ship|shipping|deliver|delivery)\b",
+    r"\bhow much.*\b(?:ship|shipping|deliver|delivery)\b",
+    r"\b(?:ship|deliver) (?:it|this|the product|to my location|to me)\b",
+    r"\bdelivery quote\b",
 )
 
 PRODUCT_SEARCH_PATTERNS = (
@@ -264,6 +280,15 @@ def general_enquiry_reply() -> str:
     return GENERAL_ENQUIRY_REPLY
 
 
+def is_shipping_enquiry(message: str) -> bool:
+    text = normalize_message(message)
+    return _matches(text, SHIPPING_ENQUIRY_PATTERNS)
+
+
+def shipping_enquiry_reply() -> str:
+    return SHIPPING_ENQUIRY_REPLY
+
+
 def has_concrete_catalogue_signal(message: str) -> bool:
     text = normalize_message(message)
     return _matches(text, CATALOGUE_SIGNAL_PATTERNS)
@@ -287,6 +312,9 @@ def resolve_customer_intent(message: str) -> str:
 
     if is_general_enquiry(text):
         return GENERAL_ENQUIRY
+
+    if is_shipping_enquiry(text):
+        return SHIPPING_ENQUIRY
 
     if _matches(text, ORDER_PATTERNS):
         return ORDER_INTENT
