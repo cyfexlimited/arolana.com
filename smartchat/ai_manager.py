@@ -145,12 +145,134 @@ def _is_installation_after_product_followup(message):
     )
 
 
+_SHARED_PRODUCT_REQUIREMENT_FIELDS = {
+    "budget_amount",
+    "budget_max",
+    "budget_min",
+    "currency",
+    "delivery_address",
+    "delivery_date",
+    "delivery_location",
+    "delivery_type",
+    "delivery_window",
+    "location",
+    "maximum_budget",
+    "minimum_budget",
+    "payment_method",
+    "preferred_date",
+    "quantity",
+    "recipient_name",
+    "recipient_phone",
+    "urgency",
+}
+
+_PROJECTOR_EVALUATION_FIELDS = {
+    "ambient_light",
+    "branch_count",
+    "brightness_requirement",
+    "capacity",
+    "installation_count",
+    "participant_count",
+    "resolution",
+    "room_type",
+    "screen_size",
+    "screen_size_inches",
+    "throw_distance",
+    "use_case",
+}
+
+_CONFERENCE_AUDIO_EVALUATION_FIELDS = {
+    "capacity",
+    "connectivity",
+    "meeting_platform",
+    "microphone_coverage",
+    "participant_count",
+    "room_acoustics",
+    "room_size",
+    "room_type",
+    "use_case",
+}
+
+
+def _product_evaluation_kind(product):
+    category = getattr(product, "category", None)
+    brand = getattr(product, "brand", None)
+    combined = " ".join(
+        str(value or "")
+        for value in (
+            getattr(product, "name", ""),
+            getattr(category, "name", ""),
+            getattr(category, "description", ""),
+            getattr(brand, "name", ""),
+            getattr(product, "description", ""),
+            getattr(product, "specifications", ""),
+        )
+    ).lower()
+    if re.search(r"\b(?:projector|lumens?|ansi|svga|xga|wxga|dlp|throw)\b", combined):
+        return "projector"
+    if re.search(
+        r"\b(?:speakerphone|jabra speak|conference audio|speakerphones?|microphones?|"
+        r"conference room audio|uc wireless|bluetooth speakerphone)\b",
+        combined,
+    ):
+        return "conference_audio"
+    return "generic"
+
+
+def _evaluation_fields_for_kind(kind):
+    if kind == "projector":
+        return _PROJECTOR_EVALUATION_FIELDS
+    if kind == "conference_audio":
+        return _CONFERENCE_AUDIO_EVALUATION_FIELDS
+    return {"capacity", "participant_count", "room_type", "use_case"}
+
+
+def _scoped_product_evaluation_requirements(state, product, kind):
+    requirements = dict((state or {}).get("requirements") or {})
+    allowed = _SHARED_PRODUCT_REQUIREMENT_FIELDS | _evaluation_fields_for_kind(kind)
+    workspaces = dict((state or {}).get("product_evaluation_workspaces") or {})
+    current_key = str(product.id)
+    previous_key = str((state or {}).get("product_evaluation_product_id") or "")
+
+    if previous_key and previous_key != current_key:
+        previous_kind = (state or {}).get("product_evaluation_kind") or "generic"
+        previous_allowed = (
+            _evaluation_fields_for_kind(previous_kind)
+            | _SHARED_PRODUCT_REQUIREMENT_FIELDS
+        )
+        workspaces[previous_key] = {
+            key: value
+            for key, value in requirements.items()
+            if key in previous_allowed and value not in (None, "")
+        }
+
+    shared = {
+        key: value
+        for key, value in requirements.items()
+        if key in _SHARED_PRODUCT_REQUIREMENT_FIELDS and value not in (None, "")
+    }
+    active = dict(workspaces.get(current_key) or {})
+    if not active:
+        active = {
+            key: value
+            for key, value in requirements.items()
+            if key in allowed and value not in (None, "")
+        }
+
+    requirements = {**shared, **active}
+    state["product_evaluation_workspaces"] = workspaces
+    state["product_evaluation_product_id"] = product.id
+    state["product_evaluation_kind"] = kind
+    return requirements
+
+
 def _product_evaluation_guidance(conversation, state, message):
     product = getattr(conversation, "product", None)
     if not product:
         return None
 
-    requirements = dict((state or {}).get("requirements") or {})
+    kind = _product_evaluation_kind(product)
+    requirements = _scoped_product_evaluation_requirements(state, product, kind)
     text = re.sub(r"\s+", " ", str(message or "").strip().lower())
 
     if re.search(r"\bpresentation|presentations|powerpoint|slides?\b", text):
@@ -159,20 +281,23 @@ def _product_evaluation_guidance(conversation, state, message):
     if audience:
         requirements["participant_count"] = int(audience.group(1))
         requirements["capacity"] = int(audience.group(1))
-    branches = re.search(r"\b(\d{1,4})\s*(?:branch|branches|locations?|sites?)\b", text)
-    if branches:
-        requirements["branch_count"] = int(branches.group(1))
-        requirements["installation_count"] = int(branches.group(1))
-    screen = re.search(r"\b(\d{2,4})\s*x\s*(\d{2,4})\s*(?:inch|inches|in|\"|”)?\b", text)
-    if screen:
-        requirements["screen_size"] = f"{screen.group(1)}x{screen.group(2)} inches"
-    if re.search(r"\b(?:light|lights|bright|lit)\b", text) or re.search(
-        r"(?:there'?s|there\s+is)?\s*light(?:s)?\s+in\s+the\s+(?:hall|room|auditorium|venue)",
-        text,
-    ):
-        requirements["ambient_light"] = "lights_on"
-    if re.search(r"\b(?:dim|dark|controlled light|lights off)\b", text):
-        requirements["ambient_light"] = "controlled"
+    if kind == "projector":
+        branches = re.search(r"\b(\d{1,4})\s*(?:branch|branches|locations?|sites?)\b", text)
+        if branches:
+            requirements["branch_count"] = int(branches.group(1))
+            requirements["installation_count"] = int(branches.group(1))
+        screen = re.search(r"\b(\d{2,4})\s*x\s*(\d{2,4})\s*(?:inch|inches|in|\"|”)?\b", text)
+        if screen:
+            requirements["screen_size"] = f"{screen.group(1)}x{screen.group(2)} inches"
+        if re.search(r"\b(?:light|lights|bright|lit)\b", text) or re.search(
+            r"(?:there'?s|there\s+is)?\s*light(?:s)?\s+in\s+the\s+(?:hall|room|auditorium|venue)",
+            text,
+        ):
+            requirements["ambient_light"] = "lights_on"
+        if re.search(r"\b(?:dim|dark|controlled light|lights off)\b", text):
+            requirements["ambient_light"] = "controlled"
+    if requirements.get("participant_count") and not requirements.get("capacity"):
+        requirements["capacity"] = requirements["participant_count"]
 
     state["requirements"] = requirements
     state["conversation_stage"] = "product_evaluation"
@@ -180,6 +305,14 @@ def _product_evaluation_guidance(conversation, state, message):
     state["entity_type"] = "product"
     state["intent_family"] = "commerce"
     state["active_subject"] = product.name
+    state["_clear_legacy_requirements"] = False
+
+    state["product_evaluation_workspaces"][str(product.id)] = {
+        key: value
+        for key, value in requirements.items()
+        if key in (_evaluation_fields_for_kind(kind) | _SHARED_PRODUCT_REQUIREMENT_FIELDS)
+        and value not in (None, "")
+    }
     persist_state(conversation, state)
 
     specs = f"{getattr(product, 'description', '')} {getattr(product, 'specifications', '')}".lower()
@@ -206,34 +339,60 @@ def _product_evaluation_guidance(conversation, state, message):
         lines.append("For your use case — " + ", ".join(details) + " — here’s the plain advice:")
 
     caution = []
-    if lumens:
-        if audience_count and audience_count >= 300:
+    if kind == "projector":
+        if lumens:
+            if audience_count and audience_count >= 300:
+                caution.append(
+                    f"{lumens} lumens can work better when the hall lights are controlled, but it may look weak in a bright {audience_count}-person hall."
+                )
+            else:
+                caution.append(f"{lumens} lumens is reasonable for controlled-light presentation spaces.")
+        if resolution:
             caution.append(
-                f"{lumens} lumens can work better when the hall lights are controlled, but it may look weak in a bright {audience_count}-person hall."
+                f"{resolution} is the main limitation: text-heavy presentations may not look sharp from the back of a large hall."
             )
+        if light_label == "lights_on":
+            caution.append("Because there is light in the hall, I would prefer a brighter Full HD model if sharp slides are important.")
+        if branch_count and branch_count >= 2:
+            caution.append(f"10 units makes sense if you are installing one projector in each of your {branch_count} branches.")
+
+        if caution:
+            lines.extend(f"• {item}" for item in caution)
         else:
-            caution.append(f"{lumens} lumens is reasonable for controlled-light presentation spaces.")
-    if resolution:
-        caution.append(
-            f"{resolution} is the main limitation: text-heavy presentations may not look sharp from the back of a large hall."
+            lines.append("It may fit, but I need the hall brightness, screen size and content type to judge properly.")
+
+        lines.append(
+            f"My honest recommendation: {product.name} is acceptable for basic presentations, "
+            "but for a large, lit hall I would rather compare it with a brighter Full HD projector before you buy all the units."
         )
-    if light_label == "lights_on":
-        caution.append("Because there is light in the hall, I would prefer a brighter Full HD model if sharp slides are important.")
-    if branch_count and branch_count >= 2:
-        caution.append(f"10 units makes sense if you are installing one projector in each of your {branch_count} branches.")
-
-    if caution:
+        lines.append("If you want, I can compare it with stronger projector options for the room.")
+    elif kind == "conference_audio":
+        if audience_count:
+            if int(audience_count) <= 15:
+                caution.append(
+                    f"It can work for a conference room of around {audience_count} people, especially when everyone is seated reasonably close to the speakerphone."
+                )
+            else:
+                caution.append(
+                    f"For {audience_count} people, confirm the room is not too large or echo-prone; you may need an expandable conferencing system or extra microphones."
+                )
+        else:
+            caution.append("It can work well for small to medium meeting rooms when placed centrally on the table.")
+        caution.append("For best results, place it centrally and avoid rooms with heavy echo or very long tables.")
+        caution.append("Please confirm whether you use Microsoft Teams, Zoom, Google Meet or another meeting platform.")
         lines.extend(f"• {item}" for item in caution)
+        lines.append(
+            f"My honest recommendation: {product.name} is a reasonable conference-audio choice if the room layout is compact; "
+            "for a longer boardroom table, compare it with an expandable room system before buying."
+        )
     else:
-        lines.append("It may fit, but I need the hall brightness, screen size and content type to judge properly.")
-
-    lines.append(
-        "My honest recommendation: the Optoma S336 is acceptable for basic presentations, "
-        "but for a large, lit hall I would rather compare it with a brighter Full HD projector before you buy all 10 units."
-    )
-    lines.append(
-        "If you want, I can compare the S336 against the Optoma EH412 and tell you which is safer for the branches."
-    )
+        if audience_count:
+            lines.append(f"It may fit a {audience_count}-person use case, but I need the room layout and main use to judge properly.")
+        else:
+            lines.append("It may fit, but I need the room layout and main use to judge properly.")
+        lines.append(
+            f"My honest recommendation: confirm the exact use case for {product.name}, then compare it with nearby alternatives before buying."
+        )
 
     reply = "\n".join(lines)
     return reply, {
@@ -1119,6 +1278,7 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
         if evaluation_result:
             reply, source = evaluation_result
             update_conversation_context(conversation, source["intent"], reply, source)
+            persist_state(conversation, source["state"])
             return reply, source
 
     if conversation.product_id and _is_installation_after_product_followup(resolved_message):
@@ -1203,6 +1363,7 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
         if evaluation_result:
             reply, source = evaluation_result
             update_conversation_context(conversation, source["intent"], reply, source)
+            persist_state(conversation, source["state"])
             return reply, source
 
     if conversation.product_id and _is_installation_after_product_followup(resolved_message):

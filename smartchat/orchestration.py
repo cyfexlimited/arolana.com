@@ -26,6 +26,7 @@ from ai_core.tool_contracts import (
 )
 from ai_core.tools import ensure_default_tool_definitions, execute_ai_tool
 from installers.models import ServiceQuoteRequest
+from products.models import Product
 from .context_state import (
     _apply_universal_state_fields,
     extract_facts,
@@ -112,6 +113,8 @@ def _category_change_reason(message, state, facts):
     new_category = facts.get("category") or facts.get("product_type") or facts.get("subject") or ""
     if is_flow_reset(message):
         return "flow_reset"
+    if facts.get("_explicit_product_match"):
+        return "explicit_category_change"
     if not new_category:
         return "no_new_category"
     if not previous_category:
@@ -121,6 +124,59 @@ def _category_change_reason(message, state, facts):
     if is_explicit_category_change(message):
         return "explicit_category_change"
     return "category_frozen"
+
+
+def _direct_approved_product_match(message):
+    query = _text(clean_product_search_query(message))
+    if not query:
+        return None
+    tokens = [
+        token
+        for token in re.findall(r"[a-z0-9]+", query.lower())
+        if len(token) > 1 and token not in {
+            "about",
+            "buy",
+            "catalog",
+            "catalogue",
+            "do",
+            "find",
+            "get",
+            "have",
+            "need",
+            "one",
+            "order",
+            "purchase",
+            "search",
+            "show",
+            "that",
+            "the",
+            "this",
+            "to",
+            "want",
+        }
+    ]
+    if len(tokens) < 2:
+        return None
+
+    queryset = Product.objects.filter(
+        approval_status="approved",
+        is_active=True,
+    ).select_related("brand", "category")
+    for token in tokens[:8]:
+        queryset = queryset.filter(name__icontains=token)
+    product = queryset.order_by("-is_featured", "price").first()
+    if not product:
+        return None
+
+    brand = getattr(product, "brand", None)
+    brand_tokens = {
+        token
+        for token in re.findall(r"[a-z0-9]+", str(getattr(brand, "name", "") or "").lower())
+        if len(token) > 1
+    }
+    if brand_tokens and not brand_tokens.intersection(tokens):
+        return None
+    return product
 
 
 def _contextual_budget_values(message):
@@ -160,6 +216,38 @@ def _contextual_budget_values(message):
 def _apply_shopping_session_update(state, message):
     before = _state_debug_snapshot(state)
     facts = extract_facts(message)
+    direct_product = _direct_approved_product_match(message)
+    if direct_product:
+        previous_product_key = str(
+            state.get("product_evaluation_product_id")
+            or state.get("current_product_id")
+            or ""
+        )
+        if previous_product_key and previous_product_key != str(direct_product.id):
+            previous_requirements = dict(state.get("requirements") or {})
+            previous_workspaces = dict(state.get("product_evaluation_workspaces") or {})
+            previous_workspaces[previous_product_key] = {
+                key: value
+                for key, value in previous_requirements.items()
+                if value not in (None, "")
+            }
+            state["product_evaluation_workspaces"] = previous_workspaces
+        product_category = getattr(direct_product, "category", None)
+        product_brand = getattr(direct_product, "brand", None)
+        facts["_explicit_product_match"] = True
+        facts["_direct_product_id"] = direct_product.id
+        facts["subject"] = direct_product.name
+        if product_brand:
+            facts["brand"] = product_brand.name
+        if product_category:
+            facts["category"] = product_category.name
+            facts["product_type"] = product_category.name
+            facts["subcategory"] = product_category.name if product_category.parent_id else ""
+            facts["catalog_category_id"] = product_category.id
+        state["current_product_id"] = direct_product.id
+        state["current_product_name"] = direct_product.name
+        state["active_subject"] = direct_product.name
+        state["direct_product_search_query"] = direct_product.name
     if _active_service_flow(state) and not _explicit_product_request(message):
         service_subject = _text(facts.get("subject"))
         facts["entity_type"] = "service_provider"
@@ -311,7 +399,10 @@ def _apply_shopping_session_update(state, message):
     ):
         state["_clear_legacy_requirements"] = True
 
-    if locked_category:
+    if facts.get("_direct_product_id"):
+        state["active_subject"] = facts.get("subject") or state.get("current_product_name")
+        state["last_search_query"] = state["active_subject"]
+    elif locked_category:
         state["active_subject"] = locked_category
         state["last_search_query"] = locked_category
     state["flow"] = "shopping_requirements" if slot_updates else state.get("flow") or "catalog_search"
@@ -407,7 +498,7 @@ def _catalog_payload_for_state(state, fallback_query):
     # must remain search text; treating them as categories can zero out valid
     # catalogue matches and make follow-up state drift into unrelated domains.
     real_category = state.get("category") if state.get("catalog_category_id") else ""
-    query = real_category or fallback_query
+    query = state.get("direct_product_search_query") or real_category or fallback_query
     payload = {
         "query": query,
         "category": real_category,
@@ -1894,6 +1985,9 @@ def smart_shopping_reply(
         state,
         user_message,
     )
+    if facts.get("_direct_product_id") and conversation.product_id != facts["_direct_product_id"]:
+        conversation.product_id = facts["_direct_product_id"]
+        conversation.save(update_fields=["product", "updated_at"])
     requirements = _merge_requirements(state, user_message)
     if _active_service_flow(state):
         previous_service_requirements = {

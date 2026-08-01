@@ -1501,6 +1501,97 @@ class SmartChatProductIntelligenceTests(TestCase):
         self.assertIn("10 units makes sense", branches_reply.message.lower())
         self.assertNotIn("approved service providers", branches_reply.message.lower())
 
+    def test_speakerphone_evaluation_does_not_reuse_old_projector_requirements(self):
+        projector_category = Category.objects.create(
+            name="Projector Evaluation Leak",
+            slug="projector-evaluation-leak",
+        )
+        audio_category = Category.objects.create(
+            name="Conference Audio",
+            slug="conference-audio-jabra-evaluation",
+            description="Speakerphones and meeting room audio.",
+        )
+        optoma = Brand.objects.create(name="Optoma Leak", slug="optoma-leak")
+        jabra = Brand.objects.create(name="Jabra", slug="jabra-evaluation")
+        projector = Product.objects.create(
+            vendor=self.vendor,
+            category=projector_category,
+            brand=optoma,
+            sku="OPT-S336-LEAK",
+            name="Optoma S336 SVGA DLP Projector – 4000 Lumens",
+            slug="optoma-s336-evaluation-leak",
+            description="SVGA projector for lit halls.",
+            specifications="4000 lumens. SVGA. HDMI.",
+            price="410000.00",
+            stock_quantity=10,
+            approval_status="approved",
+            is_active=True,
+        )
+        jabra_speak = Product.objects.create(
+            vendor=self.vendor,
+            category=audio_category,
+            brand=jabra,
+            sku="JABRA-SPEAK-810-UC",
+            name="Jabra Speak 810 UC Wireless Bluetooth Speakerphone",
+            slug="jabra-speak-810-uc-wireless-bluetooth-speakerphone-test",
+            description="Conference room speakerphone for UC meetings.",
+            specifications="Bluetooth speakerphone for conference rooms and meeting calls.",
+            price="800520.00",
+            stock_quantity=8,
+            approval_status="approved",
+            is_active=True,
+        )
+        conversation = SmartChatConversation.objects.create(
+            user=self.customer,
+            product=projector,
+            context={
+                "state": {
+                    "current_product_id": projector.id,
+                    "current_product_name": projector.name,
+                    "active_subject": projector.name,
+                    "conversation_stage": "product_evaluation",
+                    "intent": "product_evaluation",
+                    "product_evaluation_product_id": projector.id,
+                    "product_evaluation_kind": "projector",
+                    "requirements": {
+                        "participant_count": 400,
+                        "capacity": 400,
+                        "screen_size": "96x96 inches",
+                        "ambient_light": "lights_on",
+                        "branch_count": 10,
+                        "installation_count": 10,
+                        "use_case": "presentation",
+                    },
+                },
+            },
+        )
+
+        self.ask(conversation, "i want to purchase jabra speak 810")
+        conversation.refresh_from_db()
+        self.assertEqual(conversation.product_id, jabra_speak.id)
+
+        reply = self.ask(conversation, "can it serve for a conference room of 15 people?")
+        conversation.refresh_from_db()
+        state = conversation.context["state"]
+        requirements = state["requirements"]
+
+        self.assertEqual(reply.metadata.get("intent"), "product_evaluation")
+        self.assertEqual(conversation.product_id, jabra_speak.id)
+        self.assertEqual(requirements.get("participant_count"), 15)
+        self.assertEqual(requirements.get("capacity"), 15)
+        self.assertNotIn("screen_size", requirements)
+        self.assertNotIn("ambient_light", requirements)
+        self.assertNotIn("branch_count", requirements)
+        self.assertIn(str(projector.id), state.get("product_evaluation_workspaces", {}))
+        self.assertIn(str(jabra_speak.id), state.get("product_evaluation_workspaces", {}))
+
+        lower_reply = reply.message.lower()
+        self.assertIn("jabra speak 810", lower_reply)
+        self.assertIn("15 people", lower_reply)
+        self.assertIn("speakerphone", lower_reply)
+        for forbidden in ("optoma", "projector", "screen size", "brightness", "lumens", "10 units"):
+            self.assertNotIn(forbidden, lower_reply)
+
     def test_repeated_purchase_wording_preserves_selected_product(self):
         conversation = SmartChatConversation.objects.create(user=self.customer)
         self.ask(conversation, "Tell me about Logitech")
