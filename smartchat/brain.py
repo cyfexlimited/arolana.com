@@ -760,6 +760,9 @@ def update_conversation_context(conversation, intent, reply, metadata=None):
         or ""
     )
     message_text = _text(recent_user_message)
+    message_is_phone_number = bool(
+        re.fullmatch(r"(?:\+?234|0)\d{10}", message_text.strip())
+    )
     budget_match = re.search(
         r"\b(?:budget|under|below|around)\s*(?:is\s*)?[₦n$]?\s*([\d,]+(?:\.\d+)?)",
         message_text,
@@ -845,9 +848,9 @@ def update_conversation_context(conversation, intent, reply, metadata=None):
         context["locked_catalog_category_name"] = (metadata or {}).get(
             "catalog_category_name", "",
         )
-    if budget_match:
+    if budget_match and not message_is_phone_number:
         context["user_budget"] = budget_match.group(1).replace(",", "")
-    elif context.get("current_category_locked") and re.fullmatch(
+    elif not message_is_phone_number and context.get("current_category_locked") and re.fullmatch(
         r"[\s₦n$,\d.-]+", message_text,
     ):
         budget_values = re.findall(r"\d[\d,]{3,}", message_text)

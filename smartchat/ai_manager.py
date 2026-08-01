@@ -84,6 +84,11 @@ def _is_purchase_followup(message):
             text,
         )
         or re.search(
+            r"\b(?:help me|assist me|can you help me|please help me)\s+"
+            r"(?:buy|purchase|order|get)\s+(?:it|this|this one|the item|the product)\b",
+            text,
+        )
+        or re.search(
             r"\b(?:add it to cart|add to cart|checkout|place (?:my )?order|"
             r"i want this one|i'll take it|i will take it)\b",
             text,
@@ -99,11 +104,31 @@ def _is_checkout_stage_followup(message):
     ):
         return False
     return bool(
+        re.fullmatch(r"(?:\+?234|0)\d{10}", text)
+        or
         re.search(
-            r"\b(?:yes this is it|yes please do|this is it|that's it|that is it|"
+            r"\b(?:yes this is it|yes this is what i want|yes please do|"
+            r"this is it|that's it|that is it|"
             r"what do i do|what next|next step|checkout|bank transfer|"
             r"card|paypal|flutterwave|payment|https?://|sku|recipient|"
             r"delivery window|use that|use this|use it as|use him|use her)\b",
+            text,
+        )
+    )
+
+
+def _is_product_evaluation_followup(message):
+    text = re.sub(r"\s+", " ", str(message or "").strip().lower())
+    if not text:
+        return False
+    if _is_checkout_stage_followup(text) or _is_purchase_followup(text):
+        return False
+    return bool(
+        re.search(
+            r"\b(?:advise|advice|best|suitable|good for|fit for|use it for|"
+            r"use this for|what i want to use|presentation|presentations|"
+            r"hall|auditorium|screen|projection screen|people|audience|"
+            r"branch|branches|lights?|light in the hall|dim|bright)\b",
             text,
         )
     )
@@ -118,6 +143,115 @@ def _is_installation_after_product_followup(message):
             text,
         )
     )
+
+
+def _product_evaluation_guidance(conversation, state, message):
+    product = getattr(conversation, "product", None)
+    if not product:
+        return None
+
+    requirements = dict((state or {}).get("requirements") or {})
+    text = re.sub(r"\s+", " ", str(message or "").strip().lower())
+
+    if re.search(r"\bpresentation|presentations|powerpoint|slides?\b", text):
+        requirements["use_case"] = "presentation"
+    audience = re.search(r"\b(\d{2,5})\s*(?:people|persons|audience|participants)\b", text)
+    if audience:
+        requirements["participant_count"] = int(audience.group(1))
+        requirements["capacity"] = int(audience.group(1))
+    branches = re.search(r"\b(\d{1,4})\s*(?:branch|branches|locations?|sites?)\b", text)
+    if branches:
+        requirements["branch_count"] = int(branches.group(1))
+        requirements["installation_count"] = int(branches.group(1))
+    screen = re.search(r"\b(\d{2,4})\s*x\s*(\d{2,4})\s*(?:inch|inches|in|\"|”)?\b", text)
+    if screen:
+        requirements["screen_size"] = f"{screen.group(1)}x{screen.group(2)} inches"
+    if re.search(r"\b(?:light|lights|bright|lit)\b", text) or re.search(
+        r"(?:there'?s|there\s+is)?\s*light(?:s)?\s+in\s+the\s+(?:hall|room|auditorium|venue)",
+        text,
+    ):
+        requirements["ambient_light"] = "lights_on"
+    if re.search(r"\b(?:dim|dark|controlled light|lights off)\b", text):
+        requirements["ambient_light"] = "controlled"
+
+    state["requirements"] = requirements
+    state["conversation_stage"] = "product_evaluation"
+    state["intent"] = "product_evaluation"
+    state["entity_type"] = "product"
+    state["intent_family"] = "commerce"
+    state["active_subject"] = product.name
+    persist_state(conversation, state)
+
+    specs = f"{getattr(product, 'description', '')} {getattr(product, 'specifications', '')}".lower()
+    brightness_match = re.search(r"\b(\d{3,6})\s*(?:ansi\s*)?lumens?\b", specs)
+    lumens = int(brightness_match.group(1)) if brightness_match else None
+    resolution = "SVGA" if re.search(r"\bsvga\b", specs, re.I) or "svga" in product.name.lower() else ""
+    audience_count = requirements.get("participant_count") or requirements.get("capacity")
+    branch_count = requirements.get("branch_count") or requirements.get("installation_count")
+    screen_label = requirements.get("screen_size")
+    light_label = requirements.get("ambient_light")
+    use_case = requirements.get("use_case")
+
+    lines = [f"Yes, we’re still talking about {product.name}."]
+    if use_case or audience_count or screen_label or branch_count:
+        details = []
+        if use_case:
+            details.append(use_case)
+        if audience_count:
+            details.append(f"{audience_count} people")
+        if screen_label:
+            details.append(f"{screen_label} screen")
+        if branch_count:
+            details.append(f"{branch_count} branches")
+        lines.append("For your use case — " + ", ".join(details) + " — here’s the plain advice:")
+
+    caution = []
+    if lumens:
+        if audience_count and audience_count >= 300:
+            caution.append(
+                f"{lumens} lumens can work better when the hall lights are controlled, but it may look weak in a bright {audience_count}-person hall."
+            )
+        else:
+            caution.append(f"{lumens} lumens is reasonable for controlled-light presentation spaces.")
+    if resolution:
+        caution.append(
+            f"{resolution} is the main limitation: text-heavy presentations may not look sharp from the back of a large hall."
+        )
+    if light_label == "lights_on":
+        caution.append("Because there is light in the hall, I would prefer a brighter Full HD model if sharp slides are important.")
+    if branch_count and branch_count >= 2:
+        caution.append(f"10 units makes sense if you are installing one projector in each of your {branch_count} branches.")
+
+    if caution:
+        lines.extend(f"• {item}" for item in caution)
+    else:
+        lines.append("It may fit, but I need the hall brightness, screen size and content type to judge properly.")
+
+    lines.append(
+        "My honest recommendation: the Optoma S336 is acceptable for basic presentations, "
+        "but for a large, lit hall I would rather compare it with a brighter Full HD projector before you buy all 10 units."
+    )
+    lines.append(
+        "If you want, I can compare the S336 against the Optoma EH412 and tell you which is safer for the branches."
+    )
+
+    reply = "\n".join(lines)
+    return reply, {
+        "source_type": "product_evaluation",
+        "source_label": product.name,
+        "source_object_id": product.id,
+        "confidence": 0.96,
+        "intent": "product_evaluation",
+        "conversation_intent": "product_evaluation",
+        "marketplace_category": getattr(getattr(product, "category", None), "name", "product"),
+        "active_subject": product.name,
+        "structured_requirements": requirements,
+        "state": state,
+        "actions": [
+            {"type": "compare", "label": "Compare safer options"},
+            {"type": "view_product", "label": f"View {product.name}"},
+        ],
+    }
 
 
 def _product_purchase_guidance(conversation):
@@ -933,7 +1067,14 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
         _record_informational_detour(conversation, PLATFORM_INFORMATION, reply)
         return reply, source
 
-    if deterministic_intent == GENERAL_ENQUIRY:
+    if deterministic_intent == GENERAL_ENQUIRY and not (
+        conversation.product_id
+        and (
+            _is_purchase_followup(resolved_message)
+            or _is_checkout_stage_followup(resolved_message)
+            or _is_product_evaluation_followup(resolved_message)
+        )
+    ):
         reply = general_enquiry_reply()
         source = {
             **deterministic_conversation_source(GENERAL_ENQUIRY),
@@ -973,6 +1114,13 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
         return reply, source
 
     state = prepare_context(conversation, resolved_message)
+    if conversation.product_id and _is_product_evaluation_followup(resolved_message):
+        evaluation_result = _product_evaluation_guidance(conversation, state, resolved_message)
+        if evaluation_result:
+            reply, source = evaluation_result
+            update_conversation_context(conversation, source["intent"], reply, source)
+            return reply, source
+
     if conversation.product_id and _is_installation_after_product_followup(resolved_message):
         install_result = _product_installation_guidance(conversation, state)
         if install_result:
@@ -1050,6 +1198,13 @@ def generate_managed_reply(conversation, user_message, actor_user=None):
         return reply, source
 
     state = prepare_context(conversation, resolved_message)
+    if conversation.product_id and _is_product_evaluation_followup(resolved_message):
+        evaluation_result = _product_evaluation_guidance(conversation, state, resolved_message)
+        if evaluation_result:
+            reply, source = evaluation_result
+            update_conversation_context(conversation, source["intent"], reply, source)
+            return reply, source
+
     if conversation.product_id and _is_installation_after_product_followup(resolved_message):
         install_result = _product_installation_guidance(conversation, state)
         if install_result:

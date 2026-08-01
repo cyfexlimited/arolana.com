@@ -1405,6 +1405,102 @@ class SmartChatProductIntelligenceTests(TestCase):
         self.assertNotIn("small room", transcript)
         self.assertIn("checkout", transcript)
 
+    def test_projector_checkout_phone_and_use_case_do_not_reset_or_switch_to_provider(self):
+        projector_category = Category.objects.create(
+            name="Projectors Transcript",
+            slug="projectors-transcript-flow",
+        )
+        optoma = Brand.objects.create(name="Optoma Transcript", slug="optoma-transcript-flow")
+        s336 = Product.objects.create(
+            vendor=self.vendor,
+            category=projector_category,
+            brand=optoma,
+            sku="OPT-S336-TRANSCRIPT",
+            name="Optoma S336 SVGA DLP Projector – 4000 Lumens, HDMI, VGA, USB Power, 10W Speaker",
+            slug="optoma-s336-transcript-flow",
+            description="SVGA projector for presentations with 4000 lumens.",
+            specifications="4000 lumens. SVGA. HDMI.",
+            price="410000.00",
+            stock_quantity=50,
+            approval_status="approved",
+            is_active=True,
+        )
+        Product.objects.create(
+            vendor=self.vendor,
+            category=projector_category,
+            brand=optoma,
+            sku="OPT-EH412-TRANSCRIPT",
+            name="Optoma EH412 Full HD 1080p DLP Projector – 4500 Lumens, 4K HDR Compatible",
+            slug="optoma-eh412-transcript-flow",
+            description="Full HD projector for brighter presentation spaces.",
+            specifications="4500 lumens. Full HD 1080p.",
+            price="690500.00",
+            stock_quantity=12,
+            approval_status="approved",
+            is_active=True,
+        )
+        conversation = SmartChatConversation.objects.create(user=self.customer)
+
+        self.ask(conversation, "i want to make an enquiry")
+        shipping_reply = self.ask(conversation, "what will it cost to ship to my location?")
+        self.assertNotIn("Product: Orders", shipping_reply.message)
+
+        self.ask(conversation, "ikeja lagos. a projector of 10 unit and its an urgent delivery")
+        self.ask(conversation, "Optoma S336 SVGA DLP Projector – 4000 Lumens")
+        self.ask(conversation, "yes this is what i want 10 unit of it")
+        self.ask(conversation, "yes please do")
+        phone_reply = self.ask(conversation, "09132924620")
+        conversation.refresh_from_db()
+        requirements = conversation.context["state"]["requirements"]
+
+        self.assertEqual(conversation.product_id, s336.id)
+        self.assertEqual(requirements.get("recipient_phone"), "09132924620")
+        self.assertEqual(requirements.get("quantity"), 10)
+        self.assertNotEqual(requirements.get("budget_max"), 9132924620)
+        self.assertNotIn("budget up to ₦9,132,924,620", phone_reply.message)
+        self.assertNotIn("product_cards", phone_reply.metadata)
+
+        buy_reply = self.ask(conversation, "alrightt can you help me buy it")
+        self.assertNotIn("what would you like to make an enquiry about", buy_reply.message.lower())
+        self.assertTrue(
+            "add" in buy_reply.message.lower()
+            or "checkout" in buy_reply.message.lower()
+        )
+
+        advice_reply = self.ask(
+            conversation,
+            "i mean tthe 10 unit, please advise if it bestt for what i want to use i for",
+        )
+        self.assertEqual(advice_reply.metadata.get("intent"), "product_evaluation")
+        self.assertNotIn("product_cards", advice_reply.metadata)
+        self.assertNotIn("approved service providers", advice_reply.message.lower())
+
+        hall_reply = self.ask(
+            conversation,
+            "so i want to use it in a hall of 400 people, with a projection screen of 96x96 inch",
+        )
+        conversation.refresh_from_db()
+        requirements = conversation.context["state"]["requirements"]
+        self.assertEqual(hall_reply.metadata.get("intent"), "product_evaluation")
+        self.assertEqual(requirements.get("participant_count"), 400)
+        self.assertEqual(requirements.get("screen_size"), "96x96 inches")
+        self.assertNotEqual(requirements.get("delivery_location"), "A Hall Of")
+        self.assertIn("400", hall_reply.message)
+        self.assertIn("svga", hall_reply.message.lower())
+        self.assertNotIn("approved service providers", hall_reply.message.lower())
+
+        branches_reply = self.ask(
+            conversation,
+            "its for a presentation, and we have 10 branch to install all, and thereslight in the hall",
+        )
+        conversation.refresh_from_db()
+        requirements = conversation.context["state"]["requirements"]
+        self.assertEqual(branches_reply.metadata.get("intent"), "product_evaluation")
+        self.assertEqual(requirements.get("branch_count"), 10)
+        self.assertEqual(requirements.get("ambient_light"), "lights_on")
+        self.assertIn("10 units makes sense", branches_reply.message.lower())
+        self.assertNotIn("approved service providers", branches_reply.message.lower())
+
     def test_repeated_purchase_wording_preserves_selected_product(self):
         conversation = SmartChatConversation.objects.create(user=self.customer)
         self.ask(conversation, "Tell me about Logitech")

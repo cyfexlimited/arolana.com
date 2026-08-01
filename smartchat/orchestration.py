@@ -129,6 +129,8 @@ def _contextual_budget_values(message):
         " ",
         str(message or "").strip().lower(),
     ).strip(" .,!?:;")
+    if re.fullmatch(r"(?:\+?234|0)\d{10}", comparable):
+        return []
     if not re.fullmatch(
         r"(?:₦|ngn|naira|n|\$|usd)?\s*[\d,.]+\s*[km]?"
         r"(?:\s*-\s*(?:₦|ngn|naira|n|\$|usd)?\s*[\d,.]+\s*[km]?)?",
@@ -863,9 +865,21 @@ def _purchase_subject(conversation, state):
     product = getattr(conversation, "product", None)
     if product:
         return product.name
+    if not (state.get("current_product_id") or state.get("current_product_name")):
+        return "the product"
+    active_subject = state.get("active_subject")
+    if str(active_subject or "").strip().lower() in {
+        "orders",
+        "order",
+        "delivery",
+        "payment",
+        "support",
+        "general_enquiry",
+    }:
+        active_subject = ""
     return (
         state.get("current_product_name")
-        or state.get("active_subject")
+        or active_subject
         or shopping_category_label(state)
         or "the product"
     )
@@ -922,8 +936,11 @@ def _looks_like_purchase_stage_message(message):
     if not text:
         return False
     return bool(
+        re.fullmatch(r"(?:\+?234|0)\d{10}", text)
+        or
         re.search(
-            r"\b(?:yes this is it|yes please do|this is it|that's it|that is it|"
+            r"\b(?:yes this is it|yes this is what i want|yes please do|"
+            r"this is it|that's it|that is it|"
             r"go ahead|proceed|what do i do|what next|next step|checkout|"
             r"payment|bank transfer|card|paypal|flutterwave|add to cart|"
             r"product link|sku|https?://|phone|delivery window|recipient)\b",

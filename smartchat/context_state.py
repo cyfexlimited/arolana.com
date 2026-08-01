@@ -321,6 +321,10 @@ def normalized_state(conversation):
 
 def _money_matches(text):
     matches = []
+    phone_like_values = {
+        match.group(0).replace(" ", "").replace("-", "").replace(".", "")
+        for match in re.finditer(r"\b(?:\+?234|0)\d{10}\b", text)
+    }
     for match in re.finditer(
         r"(?P<prefix>₦|ngn|naira|n|\$|usd|dollars?)?\s*"
         r"(?P<number>\d[\d,]*(?:\.\d+)?)\s*"
@@ -329,6 +333,9 @@ def _money_matches(text):
     ):
         prefix = (match.group("prefix") or "").lower()
         number = match.group("number")
+        normalized_number = number.replace(",", "").replace(".", "")
+        if normalized_number in phone_like_values:
+            continue
         suffix = (match.group("word") or "").lower()
         tail = text[match.end():match.end() + 16]
         window = text[max(0, match.start() - 32):match.end() + 32]
@@ -360,6 +367,8 @@ def _money_values(text):
 
 def _contextual_budget_values(text):
     comparable = re.sub(r"\s+", " ", str(text or "").strip().lower()).strip(" .,!?:;")
+    if re.fullmatch(r"(?:\+?234|0)\d{10}", comparable):
+        return []
     if not re.fullmatch(
         r"(?:₦|ngn|naira|n|\$|usd)?\s*[\d,.]+\s*[km]?"
         r"(?:\s*-\s*(?:₦|ngn|naira|n|\$|usd)?\s*[\d,.]+\s*[km]?)?",
@@ -567,6 +576,8 @@ def _location_from_text(text):
     )
     if location:
         candidate = location.group(1).strip(" .,!?:;")
+        if re.match(r"^(?:a\s+)?(?:hall|room|church|classroom|boardroom|auditorium)\b", candidate):
+            return ""
         for alias, label in LOCATION_ALIASES.items():
             if alias in candidate:
                 return label
