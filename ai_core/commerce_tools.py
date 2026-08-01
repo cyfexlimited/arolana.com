@@ -296,7 +296,7 @@ def compare_products(payload, context=None):
                 value = ", ".join(f"{k}: {v}" for k, v in value.items() if v not in ("", None))
             points.append({
                 "label": label,
-                "product": product["public_ref"],
+                "product": product["name"],
                 "confirmed_value": value or "",
                 "status": "confirmed" if value else "unavailable",
                 "source_references": product["source_references"],

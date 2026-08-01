@@ -121,6 +121,17 @@ def _is_product_evaluation_followup(message):
     text = re.sub(r"\s+", " ", str(message or "").strip().lower())
     if not text:
         return False
+    if (
+        re.search(
+            r"\b(?:compare|comparing|versus|vs|what about|which (?:one )?(?:is|would serve) better|which would serve better)\b",
+            text,
+        )
+        and re.search(
+            r"\b(?:logitech|jabra|epson|optoma|plantronics|rally|group|c920|speak|projector|speakerphone|camera|system)\b",
+            text,
+        )
+    ):
+        return False
     if _is_checkout_stage_followup(text) or _is_purchase_followup(text):
         return False
     return bool(
@@ -1047,6 +1058,11 @@ def _should_use_marketplace_workflow(conversation, message, state, deterministic
             text,
         ):
             return True
+    if (
+        getattr(conversation, "product_id", None)
+        and deterministic_intent == "catalog.compare_products"
+    ):
+        return True
     if _is_contextual_marketplace_help_followup(message, state):
         return not bool(getattr(conversation, "product_id", None))
     if deterministic_intent not in {

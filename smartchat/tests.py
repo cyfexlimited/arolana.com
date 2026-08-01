@@ -278,7 +278,7 @@ class SmartChatEndToEndRoutingTests(TestCase):
         )
         self.assertEqual(reply.source_type, "deterministic_conversation")
         self.assertEqual(reply.metadata["intent"], CONVERSATIONAL_GREETING)
-        self.assertNotIn("product_cards", reply.metadata)
+        self.assertFalse(reply.metadata.get("product_cards"))
         conversation.refresh_from_db()
         state = conversation.context.get("state", {})
         self.assertNotIn(state.get("active_subject"), {"hello", "general_marketplace"})
@@ -1590,6 +1590,231 @@ class SmartChatProductIntelligenceTests(TestCase):
         self.assertIn("15 people", lower_reply)
         self.assertIn("speakerphone", lower_reply)
         for forbidden in ("optoma", "projector", "screen size", "brightness", "lumens", "10 units"):
+            self.assertNotIn(forbidden, lower_reply)
+
+    def _jabra_group_comparison_fixture(self, *, ambiguous_group=False):
+        audio_category = Category.objects.create(
+            name="Conference Audio Comparison",
+            slug="conference-audio-comparison",
+            description="Speakerphones and conferencing systems.",
+        )
+        jabra_brand = Brand.objects.create(name="Jabra", slug="jabra-comparison")
+        jabra = Product.objects.create(
+            vendor=self.vendor,
+            category=audio_category,
+            brand=jabra_brand,
+            sku="JABRA-SPEAK-810-COMPARE",
+            name="Jabra Speak 810 UC Wireless Bluetooth Speakerphone",
+            slug="jabra-speak-810-uc-comparison",
+            description="Audio-conferencing speakerphone for meeting rooms.",
+            specifications="Speakerphone with microphone and audio capability for conference calls.",
+            price="800520.00",
+            stock_quantity=8,
+            approval_status="approved",
+            is_active=True,
+        )
+        group = Product.objects.create(
+            vendor=self.vendor,
+            category=audio_category,
+            brand=self.brand,
+            sku="LOGI-GROUP-COMPARE",
+            name="Logitech GROUP Video Conferencing System",
+            slug="logitech-group-video-conferencing-system-comparison",
+            description="Complete video conferencing system for meeting rooms.",
+            specifications="Camera, speakerphone and microphones for rooms with approximately 14 to 20 people.",
+            price="989550.00",
+            stock_quantity=5,
+            approval_status="approved",
+            is_active=True,
+        )
+        Product.objects.create(
+            vendor=self.vendor,
+            category=audio_category,
+            brand=self.brand,
+            sku="LOGI-RALLY-MOUNT-COMPARE",
+            name="Logitech Rally Mounting Kit for Camera, Speakers, Table Hub & Display Hub",
+            slug="logitech-rally-mounting-kit-comparison",
+            description="Accessory mounting kit for Rally systems.",
+            specifications="Mounting accessory, not a standalone conferencing system.",
+            price="200000.00",
+            stock_quantity=5,
+            approval_status="approved",
+            is_active=True,
+        )
+        if ambiguous_group:
+            Product.objects.create(
+                vendor=self.vendor,
+                category=audio_category,
+                brand=self.brand,
+                sku="LOGI-GROUP-PLUS-COMPARE",
+                name="Logitech GROUP Plus Video Conferencing System",
+                slug="logitech-group-plus-video-conferencing-system-comparison",
+                description="Another approved Logitech GROUP model.",
+                specifications="Video conferencing system with camera and audio.",
+                price="1200000.00",
+                stock_quantity=4,
+                approval_status="approved",
+                is_active=True,
+            )
+        conversation = SmartChatConversation.objects.create(
+            user=self.customer,
+            product=jabra,
+            context={
+                "state": {
+                    "current_product_id": jabra.id,
+                    "current_product_ref": jabra.slug,
+                    "current_product_name": jabra.name,
+                    "active_subject": jabra.name,
+                    "category": audio_category.name,
+                    "product_type": audio_category.name,
+                    "conversation_stage": "product_evaluation",
+                    "intent": "product_evaluation",
+                    "product_evaluation_product_id": jabra.id,
+                    "product_evaluation_kind": "conference_audio",
+                    "requirements": {
+                        "participant_count": 15,
+                        "capacity": 15,
+                        "use_case": "conference room",
+                    },
+                },
+            },
+        )
+        return conversation, jabra, group
+
+    def _assert_jabra_group_comparison(self, reply, conversation, jabra, group):
+        conversation.refresh_from_db()
+        lower_reply = reply.message.lower()
+        state = conversation.context["state"]
+        comparison = state.get("comparison") or {}
+
+        self.assertEqual(reply.metadata.get("intent"), "catalog.compare_products")
+        self.assertEqual(conversation.product_id, jabra.id)
+        self.assertEqual(state.get("current_product_id"), jabra.id)
+        self.assertEqual(comparison.get("left_product_ref"), jabra.slug)
+        self.assertEqual(comparison.get("right_product_ref"), group.slug)
+        self.assertEqual(
+            reply.metadata.get("tool_arguments", {}).get("product_refs")[:2],
+            [jabra.slug, group.slug],
+        )
+        self.assertFalse(reply.metadata.get("product_cards"))
+        self.assertIn("jabra speak 810", lower_reply)
+        self.assertIn("logitech group", lower_reply)
+        self.assertIn("15", lower_reply)
+        self.assertNotIn("mounting kit", lower_reply)
+        self.assertNotIn("mic pod", lower_reply)
+
+    def test_selected_product_and_new_product_route_to_comparison(self):
+        conversation, jabra, group = self._jabra_group_comparison_fixture()
+
+        reply = self.ask(
+            conversation,
+            "What about Logitech GROUP, comparing both of them, which would serve better?",
+        )
+
+        self._assert_jabra_group_comparison(reply, conversation, jabra, group)
+
+    def test_what_about_second_product_compares_against_current_product(self):
+        conversation, jabra, group = self._jabra_group_comparison_fixture()
+
+        reply = self.ask(conversation, "what about Logitech GROUP?")
+
+        self._assert_jabra_group_comparison(reply, conversation, jabra, group)
+
+    def test_comparison_does_not_restart_general_catalogue_search(self):
+        conversation, jabra, group = self._jabra_group_comparison_fixture()
+
+        reply = self.ask(
+            conversation,
+            "What about Logitech GROUP, comparing both of them, which would serve better?",
+        )
+
+        self.assertEqual(reply.metadata.get("tool_calls"), ["catalog.compare_products"])
+        self.assertNotIn("Approved Arolana products found", reply.message)
+        self._assert_jabra_group_comparison(reply, conversation, jabra, group)
+
+    def test_comparison_returns_no_unrelated_product_cards(self):
+        conversation, jabra, group = self._jabra_group_comparison_fixture()
+
+        reply = self.ask(conversation, "compare it with Logitech GROUP")
+
+        self._assert_jabra_group_comparison(reply, conversation, jabra, group)
+        self.assertFalse(reply.metadata.get("product_cards"))
+
+    def test_ambiguous_second_product_requests_clarification(self):
+        conversation, jabra, _group = self._jabra_group_comparison_fixture(
+            ambiguous_group=True,
+        )
+
+        reply = self.ask(conversation, "compare it with Logitech GROUP")
+
+        conversation.refresh_from_db()
+        self.assertEqual(reply.metadata.get("intent"), "catalog.compare_products")
+        self.assertEqual(conversation.product_id, jabra.id)
+        self.assertIn("which one do you mean", reply.message.lower())
+        self.assertIn("Logitech GROUP Video Conferencing System", reply.message)
+        self.assertIn("Logitech GROUP Plus Video Conferencing System", reply.message)
+        self.assertFalse(reply.metadata.get("product_cards"))
+
+    def test_comparison_preserves_active_product_context(self):
+        conversation, jabra, group = self._jabra_group_comparison_fixture()
+
+        self.ask(conversation, "what about Logitech GROUP, compare them")
+        conversation.refresh_from_db()
+
+        self.assertEqual(conversation.product_id, jabra.id)
+        self.assertEqual(conversation.context["state"]["current_product_id"], jabra.id)
+        self.assertEqual(
+            conversation.context["state"]["comparison"]["right_product_ref"],
+            group.slug,
+        )
+
+    def test_jabra_vs_logitech_group_uses_15_person_requirement(self):
+        conversation, jabra, group = self._jabra_group_comparison_fixture()
+
+        reply = self.ask(
+            conversation,
+            "What about Logitech GROUP, comparing both of them, which would serve better?",
+        )
+
+        self._assert_jabra_group_comparison(reply, conversation, jabra, group)
+        self.assertIn("15-person", reply.message)
+
+    def test_comparison_never_uses_old_projector_requirements(self):
+        projector_category = Category.objects.create(
+            name="Projector Comparison Leak",
+            slug="projector-comparison-leak",
+        )
+        optoma = Brand.objects.create(name="Optoma Compare Leak", slug="optoma-compare-leak")
+        projector = Product.objects.create(
+            vendor=self.vendor,
+            category=projector_category,
+            brand=optoma,
+            sku="OPT-S336-COMPARE-LEAK",
+            name="Optoma S336 SVGA DLP Projector – 4000 Lumens",
+            slug="optoma-s336-comparison-leak",
+            description="SVGA projector for lit halls.",
+            specifications="4000 lumens. SVGA. HDMI.",
+            price="410000.00",
+            stock_quantity=10,
+            approval_status="approved",
+            is_active=True,
+        )
+        conversation, jabra, group = self._jabra_group_comparison_fixture()
+        conversation.context["state"]["product_evaluation_workspaces"] = {
+            str(projector.id): {
+                "screen_size": "96x96 inches",
+                "ambient_light": "lights_on",
+                "brightness_lumens": 4000,
+                "branch_count": 10,
+            }
+        }
+        conversation.save(update_fields=["context"])
+
+        reply = self.ask(conversation, "compare it with Logitech GROUP for the 15 people")
+
+        self._assert_jabra_group_comparison(reply, conversation, jabra, group)
+        lower_reply = reply.message.lower()
+        for forbidden in ("optoma", "projector", "screen", "lumens", "branch"):
             self.assertNotIn(forbidden, lower_reply)
 
     def test_repeated_purchase_wording_preserves_selected_product(self):

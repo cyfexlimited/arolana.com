@@ -181,7 +181,18 @@ INSTALLER_PATTERNS = (
     r"\bfind (?:an? )?(?:[a-z0-9-]+\s+){1,6}(?:installer|engineer|technician|service provider)\b",
 )
 SUPPORT_PATTERNS = (r"\bcontact support\b", r"\bconnect me (?:to|with) support\b")
-COMPARISON_PATTERNS = (r"\bcompare\b", r"\bversus\b", r"\bvs\b")
+COMPARISON_PATTERNS = (
+    r"\bcompare\b",
+    r"\bcomparing\b",
+    r"\bversus\b",
+    r"\bvs\b",
+    r"\bdifference between\b",
+    r"\bwhat about\b",
+    r"\bwhich (?:one )?(?:is|would serve) better\b",
+    r"\bwhich would serve better\b",
+    r"\bshould i choose\b",
+    r"\bis .+ better\b",
+)
 QUOTE_PATTERNS = (
     r"\b(?:quote|quotation|proposal|professional estimate|send request)\b",
 )

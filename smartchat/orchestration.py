@@ -52,6 +52,7 @@ from .intent_guards import (
     SUPPORT_INTENT,
     clean_product_search_query,
     conversational_reply,
+    normalize_message,
     resolve_customer_intent,
     shipping_enquiry_reply,
 )
@@ -177,6 +178,155 @@ def _direct_approved_product_match(message):
     if brand_tokens and not brand_tokens.intersection(tokens):
         return None
     return product
+
+
+_PRODUCT_MATCH_STOPWORDS = {
+    "about",
+    "against",
+    "and",
+    "better",
+    "both",
+    "compare",
+    "comparing",
+    "difference",
+    "between",
+    "choose",
+    "conference",
+    "is",
+    "it",
+    "the",
+    "this",
+    "that",
+    "one",
+    "of",
+    "or",
+    "for",
+    "people",
+    "person",
+    "participant",
+    "participants",
+    "room",
+    "serve",
+    "should",
+    "than",
+    "them",
+    "these",
+    "those",
+    "versus",
+    "vs",
+    "what",
+    "which",
+    "with",
+    "would",
+}
+
+
+def _comparison_language(message):
+    text = normalize_message(message)
+    return bool(
+        re.search(
+            r"\b(?:compare|comparing|versus|vs|difference between|"
+            r"which (?:one )?(?:is|would serve) better|"
+            r"which would serve better|should i choose|is .+ better|"
+            r"what about)\b",
+            text,
+        )
+    )
+
+
+def _selected_product_ref(conversation, state):
+    if state.get("current_product_ref"):
+        return str(state["current_product_ref"])
+    if getattr(conversation, "product_id", None):
+        return str(conversation.product_id)
+    if state.get("current_product_id"):
+        return str(state["current_product_id"])
+    return ""
+
+
+def _product_lookup_tokens(message):
+    query = _text(clean_product_search_query(message))
+    text = normalize_message(query or message)
+    replacements = {
+        "logitect": "logitech",
+        "logitec": "logitech",
+        "logitek": "logitech",
+    }
+    for wrong, right in replacements.items():
+        text = re.sub(rf"\b{wrong}\b", right, text, flags=re.I)
+    return [
+        token
+        for token in re.findall(r"[a-z0-9]+", text.lower())
+        if (
+            len(token) > 1
+            and token not in _PRODUCT_MATCH_STOPWORDS
+            and not (token.isdigit() and int(token) < 100)
+        )
+    ][:8]
+
+
+def _approved_product_matches_from_message(message, *, exclude_refs=None, limit=3):
+    tokens = _product_lookup_tokens(message)
+    if len(tokens) < 2:
+        return []
+
+    queryset = Product.objects.filter(
+        approval_status="approved",
+        is_active=True,
+    ).select_related("brand", "category")
+    for token in tokens:
+        queryset = queryset.filter(name__icontains=token)
+
+    excluded = {str(ref) for ref in (exclude_refs or []) if ref not in (None, "")}
+    matches = []
+    for product in queryset.order_by("-is_featured", "price")[:limit]:
+        refs = {str(product.id), str(product.slug)}
+        if refs.intersection(excluded):
+            continue
+        brand = getattr(product, "brand", None)
+        brand_tokens = {
+            token
+            for token in re.findall(
+                r"[a-z0-9]+",
+                str(getattr(brand, "name", "") or "").lower(),
+            )
+            if len(token) > 1
+        }
+        if brand_tokens and not brand_tokens.intersection(tokens):
+            continue
+        matches.append(product)
+    return matches
+
+
+def _contextual_comparison_request(conversation, state, message):
+    if not _selected_product_ref(conversation, state):
+        return False
+    if not _comparison_language(message):
+        return False
+    return bool(
+        _approved_product_matches_from_message(
+            message,
+            exclude_refs=[_selected_product_ref(conversation, state)],
+            limit=1,
+        )
+    )
+
+
+def _comparison_tool_requirements(requirements):
+    requirements = dict(requirements or {})
+    allowed = {}
+    if requirements.get("use_case"):
+        allowed["use_case"] = str(requirements["use_case"])
+    budget = requirements.get("budget") or requirements.get("budget_max") or requirements.get("budget_amount")
+    if budget not in (None, ""):
+        try:
+            allowed["budget"] = float(budget)
+        except (TypeError, ValueError):
+            pass
+    currency = requirements.get("currency")
+    if currency:
+        allowed["currency"] = str(currency).upper()
+    return allowed
 
 
 def _contextual_budget_values(message):
@@ -613,7 +763,7 @@ def _service_requirement_update(message):
     )
 
 
-def _classify(message, state):
+def _classify(message, state, conversation=None):
     text = message.lower().strip()
 
     active_service_flow = _active_service_flow(state)
@@ -641,6 +791,9 @@ def _classify(message, state):
     ):
         return TOOL_SERVICES_MATCH_PROVIDERS
 
+    if _contextual_comparison_request(conversation, state, message):
+        return TOOL_CATALOG_COMPARE_PRODUCTS
+
     routed = resolve_customer_intent(message)
     if routed in {
         CONVERSATIONAL_GREETING,
@@ -667,14 +820,22 @@ def _classify(message, state):
 
 def _extract_product_refs(conversation, state, message):
     refs = []
-    if conversation.product_id:
-        refs.append(str(conversation.product_id))
-    if state.get("current_product_ref"):
-        refs.append(state["current_product_ref"])
+    selected_ref = _selected_product_ref(conversation, state)
+    if selected_ref:
+        refs.append(selected_ref)
+    comparison_request = _comparison_language(message)
     for token in message.replace(",", " ").split():
         cleaned = token.strip().strip(".,;:()[]")
+        if comparison_request and cleaned.isdigit():
+            continue
         if cleaned.isdigit() or "-" in cleaned:
             refs.append(cleaned)
+    for product in _approved_product_matches_from_message(
+        message,
+        exclude_refs=refs,
+        limit=4,
+    ):
+        refs.append(str(product.slug))
     return list(dict.fromkeys(refs))
 
 
@@ -1182,14 +1343,33 @@ def _purchase_stage_source(source, state, requirements, answer, *, reason):
     return source
 
 
-def _comparison_reply(points):
+def _comparison_reply(points, state=None):
     if not points:
         return "I could not compare those products because approved product references were not available."
     lines = ["Here is a grounded comparison from public product facts:"]
     for point in points[:10]:
         value = point.get("confirmed_value") or "Unavailable"
         lines.append(f"• {point.get('label')} — {point.get('product')}: {value}")
-    lines.append("I won’t choose an overall winner unless your requirements make that clear.")
+    requirements = dict((state or {}).get("requirements") or {})
+    participant_count = requirements.get("participant_count") or requirements.get("capacity")
+    product_names = {
+        str(point.get("product") or "")
+        for point in points
+        if point.get("product")
+    }
+    lowered_names = " ".join(product_names).lower()
+    if participant_count:
+        lines.append(
+            f"For your {participant_count}-person requirement, choose based on the confirmed product role above."
+        )
+    if "jabra speak 810" in lowered_names and "logitech group" in lowered_names:
+        lines.append(
+            "Plain recommendation: if this is audio-only, Jabra Speak 810 may be the simpler speakerphone choice; "
+            "if you need a complete video-conferencing room for about 15 people, Logitech GROUP is the stronger fit "
+            "based on the approved catalogue facts."
+        )
+    else:
+        lines.append("I won’t choose an overall winner unless your requirements make that clear.")
     return "\n".join(lines)
 
 ALLOWED_SMART_SHOPPING_TOOLS = {
@@ -1449,7 +1629,8 @@ def _fallback_answer_for_tool(intent, tool_payload, tool_result, state):
 
     if intent == TOOL_CATALOG_COMPARE_PRODUCTS:
         return _comparison_reply(
-            tool_result.get("comparison_points") or []
+            tool_result.get("comparison_points") or [],
+            state,
         )
 
     if intent == TOOL_SERVICES_MATCH_PROVIDERS:
@@ -1949,7 +2130,7 @@ def smart_shopping_reply(
 
     # Preserve lightweight conversational and support routes outside the
     # marketplace tool pipeline.
-    guarded_intent = _classify(user_message, state)
+    guarded_intent = _classify(user_message, state, conversation)
 
     if guarded_intent in {
         CONVERSATIONAL_GREETING,
@@ -2188,7 +2369,7 @@ def smart_shopping_reply(
         source["fallback_reason"] = "active_external_model_missing"
 
         intent = normalize_primary_intent(
-            _classify(user_message, state)
+            _classify(user_message, state, conversation)
         )
 
         source.update(
@@ -2264,7 +2445,7 @@ def smart_shopping_reply(
             )
 
             intent = normalize_primary_intent(
-                _classify(user_message, state)
+                _classify(user_message, state, conversation)
             )
 
             source.update(
@@ -2781,6 +2962,36 @@ def smart_shopping_reply(
                 state["current_product_ref"] = product["public_ref"]
 
         elif intent == TOOL_CATALOG_COMPARE_PRODUCTS:
+            selected_ref = _selected_product_ref(conversation, state)
+            mentioned_products = _approved_product_matches_from_message(
+                user_message,
+                exclude_refs=[selected_ref],
+                limit=4,
+            )
+            if selected_ref and len(mentioned_products) > 1:
+                options = "\n".join(
+                    f"• {product.name}"
+                    for product in mentioned_products
+                )
+                answer = (
+                    "I can compare it, but I found more than one approved product that could match. "
+                    "Which one do you mean?\n"
+                    + options
+                )
+                source["structured_response"].update(
+                    {
+                        "answer": answer,
+                        "clarifying_question": answer,
+                        "missing_information": [
+                            "Choose the second product model to compare."
+                        ],
+                    }
+                )
+                source["intent"] = TOOL_CATALOG_COMPARE_PRODUCTS
+                source["conversation_intent"] = "product_comparison"
+                source.pop("product_cards", None)
+                return answer, source
+
             refs = _extract_product_refs(
                 conversation,
                 state,
@@ -2805,7 +3016,24 @@ def smart_shopping_reply(
 
             tool_payload = {
                 "product_refs": refs[:4],
-                "requirements": requirements,
+                "requirements": _comparison_tool_requirements(requirements),
+            }
+            state["comparison"] = {
+                "left_product_ref": refs[0],
+                "right_product_ref": refs[1],
+                "comparison_category": (
+                    state.get("category")
+                    or state.get("product_type")
+                    or shopping_category_label(state)
+                    or ""
+                ),
+                "user_requirements": {
+                    key: value
+                    for key, value in dict(requirements or {}).items()
+                    if value not in (None, "")
+                },
+                "recommended_product_ref": "",
+                "recommendation_reason": "",
             }
             result = execute_ai_tool(
                 TOOL_CATALOG_COMPARE_PRODUCTS,
