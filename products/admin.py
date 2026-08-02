@@ -39,6 +39,14 @@ class ProductAdminForm(forms.ModelForm):
             'specifications': CKEditor5Widget(config_name='default'),
         }
 
+    def clean_certifications(self):
+        certifications = self.cleaned_data.get("certifications")
+
+        if certifications in (None, "", "null"):
+            return []
+
+        return certifications
+
     class Media:
         css = {
             'all': ('css/ckeditor-custom.css',)

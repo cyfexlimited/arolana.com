@@ -1661,6 +1661,9 @@ class Product(BaseModel):
         *args,
         **kwargs,
     ):
+        if self.certifications in (None, "", "null"):
+            self.certifications = []
+
         self.clean()
 
         protect_uploaded_image(
