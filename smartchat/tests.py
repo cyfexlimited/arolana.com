@@ -1817,6 +1817,68 @@ class SmartChatProductIntelligenceTests(TestCase):
         for forbidden in ("optoma", "projector", "screen", "lumens", "branch"):
             self.assertNotIn(forbidden, lower_reply)
 
+    def test_comparison_response_starts_with_recommendation_before_specs(self):
+        conversation, _jabra, _group = self._jabra_group_comparison_fixture()
+
+        reply = self.ask(
+            conversation,
+            "What about Logitech GROUP, comparing both of them, which would serve better?",
+        )
+
+        self.assertTrue(reply.message.startswith("Recommendation"))
+        self.assertLess(reply.message.find("Recommendation"), reply.message.find("Jabra Speak 810"))
+        self.assertLess(reply.message.find("Recommendation"), reply.message.find("Logitech GROUP"))
+        self.assertGreater(reply.message.find("Listed price"), reply.message.find("Recommendation"))
+
+    def test_comparison_response_does_not_begin_with_database_fields(self):
+        conversation, _jabra, _group = self._jabra_group_comparison_fixture()
+
+        reply = self.ask(conversation, "compare it with Logitech GROUP")
+        first_line = reply.message.splitlines()[0].lower()
+
+        for forbidden_start in ("price", "brand", "category", "stock", "warranty", "specifications"):
+            self.assertFalse(first_line.startswith(forbidden_start))
+
+    def test_comparison_response_hides_internal_catalogue_wording(self):
+        conversation, _jabra, _group = self._jabra_group_comparison_fixture()
+
+        reply = self.ask(conversation, "what about Logitech GROUP, compare both")
+        lower_reply = reply.message.lower()
+
+        for forbidden in (
+            "grounded product facts",
+            "approved catalogue facts",
+            "confirmed product role",
+            "public product facts",
+            "untrusted marketplace source content",
+        ):
+            self.assertNotIn(forbidden, lower_reply)
+
+    def test_comparison_response_includes_natural_next_step(self):
+        conversation, _jabra, _group = self._jabra_group_comparison_fixture()
+
+        reply = self.ask(conversation, "what about Logitech GROUP, compare both")
+        lower_reply = reply.message.lower()
+
+        self.assertIn("suggested next step", lower_reply)
+        self.assertTrue(
+            "help you buy" in lower_reply
+            or "compare it with rally bar" in lower_reply
+        )
+
+    def test_comparison_recommendation_remains_tied_to_saved_requirements(self):
+        conversation, _jabra, _group = self._jabra_group_comparison_fixture()
+
+        reply = self.ask(
+            conversation,
+            "What about Logitech GROUP, comparing both of them, which would serve better?",
+        )
+        lower_reply = reply.message.lower()
+
+        self.assertIn("15-person conference room", lower_reply)
+        self.assertIn("logitech group", lower_reply)
+        self.assertIn("better", lower_reply)
+
     def test_repeated_purchase_wording_preserves_selected_product(self):
         conversation = SmartChatConversation.objects.create(user=self.customer)
         self.ask(conversation, "Tell me about Logitech")

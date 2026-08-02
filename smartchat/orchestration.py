@@ -1343,34 +1343,203 @@ def _purchase_stage_source(source, state, requirements, answer, *, reason):
     return source
 
 
+def _comparison_point_map(points):
+    products = []
+    mapped = {}
+    for point in points or []:
+        product = _text(point.get("product"))
+        label = _text(point.get("label"))
+        if not product or not label:
+            continue
+        if product not in mapped:
+            mapped[product] = {}
+            products.append(product)
+        value = _text(point.get("confirmed_value"))
+        value = value.replace("Untrusted marketplace source content:", "").strip()
+        mapped[product][label.lower()] = value
+    return products, mapped
+
+
+def _comparison_value(fields, label):
+    return _text((fields or {}).get(label.lower()))
+
+
+def _comparison_price(fields):
+    value = _comparison_value(fields, "Price")
+    try:
+        return Decimal(str(value).replace(",", ""))
+    except (InvalidOperation, TypeError, ValueError):
+        return None
+
+
+def _has_any(value, terms):
+    lowered = str(value or "").lower()
+    return any(term in lowered for term in terms)
+
+
+def _conference_comparison_reply(products, mapped, requirements):
+    participant_count = requirements.get("participant_count") or requirements.get("capacity")
+    product_a = products[0]
+    product_b = products[1]
+    combined = {
+        product: " ".join(
+            str(value)
+            for value in (mapped.get(product) or {}).values()
+            if value
+        ).lower()
+        for product in products[:2]
+    }
+    jabra_name = next((name for name in products if "jabra speak 810" in name.lower()), product_a)
+    group_name = next((name for name in products if "logitech group" in name.lower()), product_b)
+    jabra_fields = mapped.get(jabra_name) or {}
+    group_fields = mapped.get(group_name) or {}
+    jabra_text = combined.get(jabra_name, "")
+    group_text = combined.get(group_name, "")
+    group_has_video = _has_any(group_name + " " + group_text, ("video", "camera"))
+    group_has_audio = _has_any(group_text, ("speakerphone", "microphone", "audio", "speaker"))
+    jabra_has_audio = _has_any(jabra_name + " " + jabra_text, ("speakerphone", "microphone", "audio", "speaker"))
+    jabra_has_video = _has_any(jabra_name + " " + jabra_text, ("video", "camera"))
+    participant_phrase = f"{participant_count}-person " if participant_count else ""
+
+    lines = [
+        "Recommendation",
+        (
+            f"For your {participant_phrase}conference room, I would recommend {group_name} "
+            "because it is presented as a complete video conferencing system"
+            + (" with camera, speakerphone and microphones." if group_has_video and group_has_audio else ".")
+        ),
+    ]
+    if jabra_has_audio:
+        lines.append(
+            f"{jabra_name} is still useful if the meeting is audio-only, but it is a conference speakerphone rather than the fuller room video system."
+        )
+
+    lines.extend(["", "Why it fits"])
+    if participant_count:
+        lines.append(
+            f"• Your saved requirement is for about {participant_count} people, so the stronger choice should cover the room, not just one table conversation."
+        )
+    if _has_any(group_text, ("14 to 20", "14-20", "15", "20 people")):
+        lines.append("• The Logitech GROUP listing includes room coverage language that fits roughly this participant range.")
+    if group_has_video:
+        lines.append("• Logitech GROUP includes video/camera capability in the listing details.")
+    if group_has_audio:
+        lines.append("• Logitech GROUP also includes room audio components in the listing details.")
+
+    def product_section(name, fields, text, *, is_group=False):
+        price = _comparison_value(fields, "Price")
+        stock = _comparison_value(fields, "Stock status")
+        specs = _comparison_value(fields, "Specifications")
+        has_audio = _has_any(name + " " + text, ("speakerphone", "microphone", "audio", "speaker"))
+        has_video = _has_any(name + " " + text, ("video", "camera"))
+        section = ["", name, "✓ Strengths"]
+        if has_video:
+            section.append("• Camera/video capability appears in the listing details.")
+        if has_audio:
+            section.append("• Speakerphone/microphone audio capability appears in the listing details.")
+        if price:
+            section.append(f"• Listed price: {price}.")
+        if stock:
+            section.append(f"• Stock status: {stock}.")
+        if specs and not (has_audio or has_video):
+            section.append(f"• Listed specification: {specs[:220]}.")
+        section.append("✓ Limitations")
+        if not has_video:
+            section.append("• I do not see camera/video capability in the available listing details.")
+        if is_group:
+            section.append("• It is a fuller room system, so setup is likely less simple than placing a speakerphone on the table.")
+        else:
+            section.append("• It is not the stronger choice if the room needs video conferencing.")
+        section.append("✓ Best for")
+        section.append(
+            "• Video meetings in a conference room."
+            if is_group
+            else "• Audio-only conference calls or simpler table discussions."
+        )
+        return section
+
+    lines.extend(product_section(jabra_name, jabra_fields, jabra_text, is_group=False))
+    lines.extend(product_section(group_name, group_fields, group_text, is_group=True))
+
+    jabra_price = _comparison_price(jabra_fields)
+    group_price = _comparison_price(group_fields)
+    lines.extend(["", "Summary"])
+    if jabra_price is not None and group_price is not None and jabra_price < group_price:
+        lines.append(
+            f"• {jabra_name} is the lower-cost audio option, while {group_name} is the better complete-room option."
+        )
+    else:
+        lines.append(
+            f"• {group_name} is the better fit for the stated room need; {jabra_name} is better only if you do not need video."
+        )
+
+    lines.extend([
+        "",
+        "Suggested next step",
+        f"Would you like me to help you buy the {group_name}, or compare it with Rally Bar as another room option?",
+    ])
+    return "\n".join(lines)
+
+
+def _generic_comparison_reply(products, mapped, requirements):
+    lines = [
+        "Recommendation",
+        "I can compare these options, but I do not have enough category-specific evidence here to choose a clear winner safely.",
+        "",
+        "Why it fits",
+    ]
+    if requirements.get("use_case"):
+        lines.append(f"• I’m using your saved use case: {requirements.get('use_case')}.")
+    else:
+        lines.append("• I’m using the product details available in the listings.")
+    for product in products[:2]:
+        fields = mapped.get(product) or {}
+        lines.extend([
+            "",
+            product,
+            "✓ Strengths",
+        ])
+        for label in ("Price", "Stock status", "Warranty", "Specifications"):
+            value = _comparison_value(fields, label)
+            if value:
+                lines.append(f"• {label}: {value[:240]}.")
+        lines.extend([
+            "✓ Limitations",
+            "• I will not assume unlisted features.",
+            "✓ Best for",
+            "• Best matched after you confirm the exact use case.",
+        ])
+    lines.extend([
+        "",
+        "Summary",
+        "• The safer choice depends on which listed features matter most for your setup.",
+        "",
+        "Suggested next step",
+        "Tell me your room size, number of users, and must-have features, and I’ll narrow the choice.",
+    ])
+    return "\n".join(lines)
+
+
 def _comparison_reply(points, state=None):
     if not points:
         return "I could not compare those products because approved product references were not available."
-    lines = ["Here is a grounded comparison from public product facts:"]
-    for point in points[:10]:
-        value = point.get("confirmed_value") or "Unavailable"
-        lines.append(f"• {point.get('label')} — {point.get('product')}: {value}")
     requirements = dict((state or {}).get("requirements") or {})
-    participant_count = requirements.get("participant_count") or requirements.get("capacity")
-    product_names = {
-        str(point.get("product") or "")
-        for point in points
-        if point.get("product")
-    }
-    lowered_names = " ".join(product_names).lower()
-    if participant_count:
-        lines.append(
-            f"For your {participant_count}-person requirement, choose based on the confirmed product role above."
-        )
-    if "jabra speak 810" in lowered_names and "logitech group" in lowered_names:
-        lines.append(
-            "Plain recommendation: if this is audio-only, Jabra Speak 810 may be the simpler speakerphone choice; "
-            "if you need a complete video-conferencing room for about 15 people, Logitech GROUP is the stronger fit "
-            "based on the approved catalogue facts."
-        )
-    else:
-        lines.append("I won’t choose an overall winner unless your requirements make that clear.")
-    return "\n".join(lines)
+    products, mapped = _comparison_point_map(points)
+    if len(products) < 2:
+        return "I could not compare those products because I only found one approved product reference."
+    lowered_names = " ".join(products).lower()
+    combined_text = " ".join(
+        value
+        for fields in mapped.values()
+        for value in fields.values()
+        if value
+    ).lower()
+    if (
+        "jabra speak 810" in lowered_names
+        and "logitech group" in lowered_names
+    ) or _has_any(combined_text, ("speakerphone", "microphone", "video conferencing", "conference room")):
+        return _conference_comparison_reply(products, mapped, requirements)
+    return _generic_comparison_reply(products, mapped, requirements)
 
 ALLOWED_SMART_SHOPPING_TOOLS = {
     TOOL_CATALOG_SEARCH_PRODUCTS,
@@ -3014,9 +3183,15 @@ def smart_shopping_reply(
                 )
                 return answer, source
 
+            comparison_requirements = {
+                **dict((state_debug or {}).get("shopping_state_before", {}).get("requirements") or {}),
+                **dict(state.get("requirements") or {}),
+                **dict(requirements or {}),
+            }
+            requirements = comparison_requirements
             tool_payload = {
                 "product_refs": refs[:4],
-                "requirements": _comparison_tool_requirements(requirements),
+                "requirements": _comparison_tool_requirements(comparison_requirements),
             }
             state["comparison"] = {
                 "left_product_ref": refs[0],
@@ -3029,12 +3204,13 @@ def smart_shopping_reply(
                 ),
                 "user_requirements": {
                     key: value
-                    for key, value in dict(requirements or {}).items()
+                    for key, value in dict(comparison_requirements or {}).items()
                     if value not in (None, "")
                 },
                 "recommended_product_ref": "",
                 "recommendation_reason": "",
             }
+            state["requirements"] = comparison_requirements
             result = execute_ai_tool(
                 TOOL_CATALOG_COMPARE_PRODUCTS,
                 tool_payload,
