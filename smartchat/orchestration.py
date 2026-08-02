@@ -25,6 +25,7 @@ from ai_core.tool_contracts import (
     TOOL_SERVICES_MATCH_PROVIDERS,
 )
 from ai_core.tools import ensure_default_tool_definitions, execute_ai_tool
+from currency.models import format_currency_amount
 from installers.models import ServiceQuoteRequest
 from products.models import Product
 from .context_state import (
@@ -1372,6 +1373,21 @@ def _comparison_price(fields):
         return None
 
 
+def _comparison_price_label(fields):
+    value = _comparison_price(fields)
+    if value is None:
+        return ""
+    decimal_places = 0 if value == value.to_integral_value() else 2
+    return format_currency_amount(
+        value,
+        symbol="₦",
+        decimal_places=decimal_places,
+        thousands_separator=",",
+        decimal_separator=".",
+        symbol_position="left",
+    )
+
+
 def _has_any(value, terms):
     lowered = str(value or "").lower()
     return any(term in lowered for term in terms)
@@ -1404,14 +1420,18 @@ def _conference_comparison_reply(products, mapped, requirements):
     lines = [
         "Recommendation",
         (
-            f"For your {participant_phrase}conference room, I would recommend {group_name} "
-            "because it is presented as a complete video conferencing system"
-            + (" with camera, speakerphone and microphones." if group_has_video and group_has_audio else ".")
+            f"For your {participant_phrase}conference room, I recommend {group_name} "
+            "because it provides the stronger complete-room video conferencing option"
+            + (
+                ", while Jabra Speak 810 is designed primarily for conference audio."
+                if jabra_has_audio
+                else "."
+            )
         ),
     ]
     if jabra_has_audio:
         lines.append(
-            f"{jabra_name} is still useful if the meeting is audio-only, but it is a conference speakerphone rather than the fuller room video system."
+            f"{jabra_name} can still be useful for audio-only meetings, but it is not the better match if the room needs both video and audio."
         )
 
     lines.extend(["", "Why it fits"])
@@ -1420,32 +1440,32 @@ def _conference_comparison_reply(products, mapped, requirements):
             f"• Your saved requirement is for about {participant_count} people, so the stronger choice should cover the room, not just one table conversation."
         )
     if _has_any(group_text, ("14 to 20", "14-20", "15", "20 people")):
-        lines.append("• The Logitech GROUP listing includes room coverage language that fits roughly this participant range.")
+        lines.append("• The Logitech GROUP product information includes room coverage language that fits roughly this participant range.")
     if group_has_video:
-        lines.append("• Logitech GROUP includes video/camera capability in the listing details.")
+        lines.append("• Logitech GROUP includes video/camera capability in the approved product information.")
     if group_has_audio:
-        lines.append("• Logitech GROUP also includes room audio components in the listing details.")
+        lines.append("• Logitech GROUP also includes room audio components in the approved product information.")
 
     def product_section(name, fields, text, *, is_group=False):
-        price = _comparison_value(fields, "Price")
+        price = _comparison_price_label(fields)
         stock = _comparison_value(fields, "Stock status")
         specs = _comparison_value(fields, "Specifications")
         has_audio = _has_any(name + " " + text, ("speakerphone", "microphone", "audio", "speaker"))
         has_video = _has_any(name + " " + text, ("video", "camera"))
         section = ["", name, "✓ Strengths"]
         if has_video:
-            section.append("• Camera/video capability appears in the listing details.")
+            section.append("• Includes camera/video capability in the approved product information.")
         if has_audio:
-            section.append("• Speakerphone/microphone audio capability appears in the listing details.")
+            section.append("• Includes speakerphone/microphone audio capability in the approved product information.")
         if price:
-            section.append(f"• Listed price: {price}.")
+            section.append(f"• Current price: {price}.")
         if stock:
             section.append(f"• Stock status: {stock}.")
         if specs and not (has_audio or has_video):
-            section.append(f"• Listed specification: {specs[:220]}.")
+            section.append(f"• Product specification: {specs[:220]}.")
         section.append("✓ Limitations")
         if not has_video:
-            section.append("• I do not see camera/video capability in the available listing details.")
+            section.append("• Based on the approved product information, this model is designed primarily for conference audio rather than a complete video conferencing setup.")
         if is_group:
             section.append("• It is a fuller room system, so setup is likely less simple than placing a speakerphone on the table.")
         else:
@@ -1476,7 +1496,12 @@ def _conference_comparison_reply(products, mapped, requirements):
     lines.extend([
         "",
         "Suggested next step",
-        f"Would you like me to help you buy the {group_name}, or compare it with Rally Bar as another room option?",
+        "What would you like to do next?",
+        f"• Buy {group_name}",
+        "• Compare it with another room system",
+        "• Recommend a display for the room",
+        "• Recommend installation accessories",
+        "• Build a complete conference-room solution",
     ])
     return "\n".join(lines)
 
@@ -1491,7 +1516,7 @@ def _generic_comparison_reply(products, mapped, requirements):
     if requirements.get("use_case"):
         lines.append(f"• I’m using your saved use case: {requirements.get('use_case')}.")
     else:
-        lines.append("• I’m using the product details available in the listings.")
+        lines.append("• I’m using the available product information.")
     for product in products[:2]:
         fields = mapped.get(product) or {}
         lines.extend([
@@ -1500,7 +1525,7 @@ def _generic_comparison_reply(products, mapped, requirements):
             "✓ Strengths",
         ])
         for label in ("Price", "Stock status", "Warranty", "Specifications"):
-            value = _comparison_value(fields, label)
+            value = _comparison_price_label(fields) if label == "Price" else _comparison_value(fields, label)
             if value:
                 lines.append(f"• {label}: {value[:240]}.")
         lines.extend([
