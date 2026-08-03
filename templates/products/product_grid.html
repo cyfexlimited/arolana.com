@@ -3,7 +3,7 @@
 
 <style>
     .arolana-product-grid {
-        align-items: stretch;
+        align-items: start;
     }
 
     .arolana-product-grid .product-card {
@@ -12,8 +12,9 @@
         contain-intrinsic-size: 390px;
         display: flex;
         flex-direction: column;
-        height: 100%;
+        height: auto;
         min-width: 0;
+        align-self: start;
     }
 
     .arolana-product-grid .product-card .p-4 {
@@ -172,6 +173,15 @@
                     BESTSELLER
                 </div>
                 {% endif %}
+
+                <button type="button"
+                        class="absolute bottom-3 right-3 z-10 inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-bold text-blue-700 shadow-lg transition hover:bg-blue-600 hover:text-white"
+                        data-quick-view
+                        data-product-slug="{{ product.slug }}"
+                        aria-label="Quick view {{ product.name }}">
+                    <i class="fas fa-eye"></i>
+                    <span class="hidden sm:inline">Quick View</span>
+                </button>
             </div>
         </a>
 
@@ -259,48 +269,105 @@
 </div>
 
 <script>
+(function () {
+    async function openQuickView(slug) {
+        const modal = document.getElementById('quick-view-modal');
+        const content = document.getElementById('quick-view-content');
+        if (!modal || !content || !slug) return;
+
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        content.innerHTML = '<div class="py-16 text-center"><i class="fas fa-spinner fa-spin text-3xl text-blue-600"></i><p class="mt-3 font-bold text-slate-600">Loading product...</p></div>';
+
+        try {
+            const response = await fetch(`/products/${encodeURIComponent(slug)}/quick-view/`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            content.innerHTML = await response.text();
+        } catch (error) {
+            console.error(error);
+            content.innerHTML = '<div class="py-16 text-center"><i class="fas fa-exclamation-circle text-4xl text-red-500"></i><p class="mt-3 font-bold text-slate-800">Unable to load Quick View.</p></div>';
+        }
+    }
+
+    function closeQuickView() {
+        const modal = document.getElementById('quick-view-modal');
+        const content = document.getElementById('quick-view-content');
+        if (!modal) return;
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
+        if (content) content.innerHTML = '';
+    }
+
+    document.addEventListener('click', function (event) {
+        const trigger = event.target.closest('[data-quick-view]');
+        if (trigger) {
+            event.preventDefault();
+            event.stopPropagation();
+            openQuickView(trigger.dataset.productSlug);
+            return;
+        }
+
+        if (event.target.id === 'quick-view-modal' || event.target.closest('#close-modal')) {
+            closeQuickView();
+        }
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') closeQuickView();
+    });
+
+    window.openQuickView = openQuickView;
+    window.closeQuickView = closeQuickView;
+})();
+
 function addToCartViaAjax(form) {
     const formData = new FormData(form);
+    const button = form.querySelector('[data-cart-button]');
+    const originalHtml = button ? button.innerHTML : '';
+
+    if (button) {
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Adding...';
+    }
 
     fetch(form.action, {
         method: 'POST',
         body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
     .then(response => response.json())
     .then(data => {
-        if (data.success) {
-            showToast(data.message, 'success');
-            updateCartCount();
-        } else {
-            showToast('Error adding to cart', 'error');
-        }
+        if (!data.success) throw new Error(data.message || 'Error adding to cart');
+        showToast(data.message || 'Added to cart', 'success');
+        updateCartCount();
+        if (button) button.innerHTML = '<i class="fas fa-check mr-2"></i> Added';
     })
-    .catch(() => {
-        showToast('Network error', 'error');
+    .catch(error => {
+        showToast(error.message || 'Network error', 'error');
+        if (button) {
+            button.disabled = false;
+            button.innerHTML = originalHtml;
+        }
     });
 }
 
 function showToast(message, type) {
     const toast = document.createElement('div');
-    toast.className = `fixed top-4 right-4 px-6 py-3 rounded-lg text-white z-50 ${
-        type === 'success' ? 'bg-green-500' : 'bg-red-500'
-    }`;
+    toast.className = `fixed top-4 right-4 z-[99999] rounded-lg px-6 py-3 text-white shadow-xl ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`;
     toast.textContent = message;
     document.body.appendChild(toast);
-
     setTimeout(() => toast.remove(), 3000);
 }
 
 function updateCartCount() {
     fetch('{% url "products:cart_count" %}')
-    .then(response => response.json())
-    .then(data => {
-        const cartCountEl = document.getElementById('cart-count');
-        if (cartCountEl) cartCountEl.innerText = data.count || 0;
-    })
-    .catch(error => console.error('Cart count error:', error));
+        .then(response => response.json())
+        .then(data => {
+            const cartCountEl = document.getElementById('cart-count');
+            if (cartCountEl) cartCountEl.innerText = data.count || 0;
+        })
+        .catch(error => console.error('Cart count error:', error));
 }
 </script>

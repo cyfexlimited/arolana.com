@@ -1,126 +1,405 @@
 {% load static optimized_images %}
 {% load currency_filters %}
 
-<div class="quick-view-content">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Product Image -->
-        <div class="flex items-center justify-center bg-gray-100 rounded-lg p-4">
+<div class="premium-quick-view">
+    <div class="quick-view-grid">
+
+        <section class="quick-view-media">
             {% if product.main_image %}
-                <img src="{{ product.main_image|optimized_image_url:'product_detail' }}" alt="{{ product.name }}" class="max-h-96 w-full object-contain rounded-lg bg-white p-3">
+                <img
+                    src="{{ product.main_image|optimized_image_url:'product_detail' }}"
+                    alt="{{ product.name }}"
+                    loading="eager"
+                    decoding="async">
             {% else %}
-                <div class="text-gray-500 text-center py-12">
-                    <i class="fas fa-image text-4xl mb-2"></i>
-                    <p>No image available</p>
+                <div class="quick-view-placeholder">
+                    <i class="fas fa-image"></i>
+                    <span>No image available</span>
                 </div>
             {% endif %}
-        </div>
 
-        <!-- Product Info -->
-        <div class="p-4">
-            <!-- Brand/Category -->
-            <div class="text-xs text-gray-500 mb-1">
+            <div class="quick-view-badges">
+                {% if product.is_new %}
+                    <span class="qv-badge qv-new">New</span>
+                {% endif %}
+
+                {% if product.is_bestseller %}
+                    <span class="qv-badge qv-best">Bestseller</span>
+                {% endif %}
+
+                {% if product.condition != "brand_new" %}
+                    <span class="qv-badge qv-condition">
+                        {{ product.get_condition_display }}
+                    </span>
+                {% endif %}
+            </div>
+        </section>
+
+        <section class="quick-view-info">
+            <div class="quick-view-category">
                 {{ product.brand.name|default:product.category.name }}
             </div>
-            
-            <!-- Product Name -->
-            <h2 class="text-2xl font-bold mb-2">{{ product.name }}</h2>
-            <div class="text-sm text-gray-500 mb-4">SKU: {{ product.sku }}</div>
-            
-            <!-- Rating -->
-            <div class="flex items-center gap-2 mb-4">
-                <div class="flex text-yellow-400">
+
+            <h2>{{ product.name }}</h2>
+
+            {% if product.sku %}
+                <div class="quick-view-sku">SKU: {{ product.sku }}</div>
+            {% endif %}
+
+            <div class="quick-view-rating">
+                <div class="quick-view-stars">
                     {% for i in "12345"|make_list %}
                         {% if forloop.counter <= product.rating_avg|add:"0" %}
                             <i class="fas fa-star"></i>
-                        {% elif forloop.counter <= product.rating_avg|add:"0.5" %}
-                            <i class="fas fa-star-half-alt"></i>
                         {% else %}
                             <i class="far fa-star"></i>
                         {% endif %}
                     {% endfor %}
                 </div>
-                <span class="text-sm text-gray-500">({{ product.rating_count }} reviews)</span>
+
+                <span>{{ product.rating_count|default:0 }} reviews</span>
             </div>
 
-            <!-- Price -->
-            <div class="mb-4">
-                <span class="text-3xl font-bold text-blue-600">{{ product.price|currency:request }}</span>
+            <div class="quick-view-price">
+                <strong>{{ product.price|currency:request }}</strong>
+
                 {% if product.compare_price and product.compare_price > product.price %}
-                    <span class="text-gray-400 line-through ml-2">{{ product.compare_price|currency:request }}</span>
-                    <span class="text-green-600 text-sm ml-2">-{{ product.discount_percent }}%</span>
+                    <del>{{ product.compare_price|currency:request }}</del>
+
+                    {% if product.discount_percent %}
+                        <span>Save {{ product.discount_percent }}%</span>
+                    {% endif %}
                 {% endif %}
             </div>
 
-            <!-- Description -->
-            <div class="text-sm text-gray-600 mb-4">
-                {{ product.description|striptags|truncatewords:30 }}
-            </div>
+            {% if product.description %}
+                <p class="quick-view-description">
+                    {{ product.description|striptags|truncatewords:32 }}
+                </p>
+            {% endif %}
 
-            <!-- Stock Status -->
-            <div class="mb-4">
+            <div class="quick-view-stock">
                 {% if product.is_in_stock %}
-                    <span class="text-green-600 font-semibold"><i class="fas fa-check-circle"></i> In Stock ({{ product.stock_quantity }} available)</span>
+                    <span class="in-stock">
+                        <i class="fas fa-check-circle"></i>
+                        In stock
+                    </span>
+
+                    {% if product.stock_quantity %}
+                        <small>{{ product.stock_quantity }} available</small>
+                    {% endif %}
                 {% else %}
-                    <span class="text-red-600 font-semibold"><i class="fas fa-times-circle"></i> Out of Stock</span>
+                    <span class="out-stock">
+                        <i class="fas fa-times-circle"></i>
+                        Out of stock
+                    </span>
                 {% endif %}
             </div>
 
-            <!-- Action Buttons -->
-            <div class="flex gap-3">
-                <a href="{{ product.get_absolute_url }}" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-center">
-                    <i class="fas fa-eye"></i> View Details
+            <div class="quick-view-actions">
+                <a href="{{ product.get_absolute_url }}" class="qv-details-btn">
+                    View full details
+                    <i class="fas fa-arrow-right"></i>
                 </a>
-                <button type="button" onclick="addToCartFromQuickView('{{ product.slug|escapejs }}', this)" class="flex-1 border border-blue-600 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50 transition">
-                    <i class="fas fa-cart-plus"></i> Add to Cart
+
+                <button
+                    type="button"
+                    class="qv-cart-btn"
+                    {% if not product.is_in_stock %}disabled{% endif %}
+                    onclick="addToCartFromQuickView(
+                        '{{ product.slug|escapejs }}',
+                        this
+                    )">
+                    <i class="fas fa-cart-plus"></i>
+                    {% if product.is_in_stock %}
+                        Add to cart
+                    {% else %}
+                        Out of stock
+                    {% endif %}
                 </button>
             </div>
-        </div>
+        </section>
     </div>
 </div>
 
 <style>
-    .quick-view-content {
-        max-width: 800px;
+.premium-quick-view{
+    width:min(980px,100%);
+    padding:1.25rem;
+}
+
+.quick-view-grid{
+    display:grid;
+    grid-template-columns:minmax(0,1.08fr) minmax(320px,.92fr);
+    gap:2rem;
+    align-items:center;
+}
+
+.quick-view-media{
+    position:relative;
+    min-height:480px;
+    display:grid;
+    place-items:center;
+    overflow:hidden;
+    border-radius:1.5rem;
+    background:
+        radial-gradient(circle at 50% 10%,rgba(0,102,204,.12),transparent 55%),
+        linear-gradient(180deg,#f8fafc,#fff);
+}
+
+.quick-view-media img{
+    width:100%;
+    height:480px;
+    padding:1rem;
+    object-fit:contain;
+    transition:transform .35s ease;
+}
+
+.quick-view-media:hover img{
+    transform:scale(1.04);
+}
+
+.quick-view-placeholder{
+    display:grid;
+    place-items:center;
+    gap:.6rem;
+    color:#94a3b8;
+}
+
+.quick-view-placeholder i{
+    font-size:4rem;
+}
+
+.quick-view-badges{
+    position:absolute;
+    top:1rem;
+    left:1rem;
+    display:flex;
+    flex-wrap:wrap;
+    gap:.4rem;
+}
+
+.qv-badge{
+    padding:.35rem .65rem;
+    border-radius:999px;
+    color:#fff;
+    font-size:.7rem;
+    font-weight:900;
+    text-transform:uppercase;
+}
+
+.qv-new{background:#16a34a;}
+.qv-best{background:#f59e0b;}
+.qv-condition{background:#0f172a;}
+
+.quick-view-info{
+    padding:.5rem;
+}
+
+.quick-view-category{
+    color:#0066cc;
+    font-size:.78rem;
+    font-weight:900;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+}
+
+.quick-view-info h2{
+    margin:.55rem 0 .35rem;
+    color:#071a44;
+    font-size:clamp(1.7rem,3vw,2.5rem);
+    font-weight:950;
+    line-height:1.08;
+    letter-spacing:-.035em;
+}
+
+.quick-view-sku{
+    color:#94a3b8;
+    font-size:.78rem;
+}
+
+.quick-view-rating{
+    display:flex;
+    align-items:center;
+    gap:.6rem;
+    margin-top:1rem;
+    color:#64748b;
+    font-size:.82rem;
+}
+
+.quick-view-stars{
+    display:flex;
+    gap:.12rem;
+    color:#f59e0b;
+}
+
+.quick-view-price{
+    display:flex;
+    align-items:baseline;
+    flex-wrap:wrap;
+    gap:.65rem;
+    margin-top:1.15rem;
+}
+
+.quick-view-price strong{
+    color:#0066cc;
+    font-size:2rem;
+    font-weight:950;
+    letter-spacing:-.04em;
+}
+
+.quick-view-price del{
+    color:#94a3b8;
+    font-weight:700;
+}
+
+.quick-view-price span{
+    color:#15803d;
+    font-size:.78rem;
+    font-weight:900;
+}
+
+.quick-view-description{
+    margin-top:1rem;
+    color:#475569;
+    font-size:.92rem;
+    line-height:1.7;
+}
+
+.quick-view-stock{
+    display:flex;
+    align-items:center;
+    gap:.6rem;
+    margin-top:1rem;
+}
+
+.quick-view-stock span{
+    font-weight:900;
+}
+
+.quick-view-stock small{
+    color:#64748b;
+}
+
+.in-stock{color:#15803d;}
+.out-stock{color:#dc2626;}
+
+.quick-view-actions{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:.75rem;
+    margin-top:1.5rem;
+}
+
+.qv-details-btn,
+.qv-cart-btn{
+    min-height:48px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:.5rem;
+    border-radius:1rem;
+    font-weight:900;
+    transition:.2s ease;
+}
+
+.qv-details-btn{
+    color:#fff;
+    background:linear-gradient(135deg,#0066cc,#071a44);
+}
+
+.qv-cart-btn{
+    color:#0066cc;
+    border:1px solid #0066cc;
+    background:#fff;
+}
+
+.qv-details-btn:hover,
+.qv-cart-btn:hover:not(:disabled){
+    transform:translateY(-2px);
+    box-shadow:0 16px 35px rgba(0,102,204,.2);
+}
+
+.qv-cart-btn:hover:not(:disabled){
+    color:#fff;
+    background:#f58220;
+    border-color:#f58220;
+}
+
+.qv-cart-btn:disabled{
+    cursor:not-allowed;
+    opacity:.55;
+}
+
+@media(max-width:767px){
+    .premium-quick-view{
+        padding:.75rem;
     }
-    .quick-view-content img {
-        max-height: 300px;
-        width: auto;
+
+    .quick-view-grid{
+        grid-template-columns:1fr;
+        gap:1rem;
     }
+
+    .quick-view-media{
+        min-height:300px;
+    }
+
+    .quick-view-media img{
+        height:300px;
+    }
+
+    .quick-view-actions{
+        grid-template-columns:1fr;
+    }
+}
 </style>
 
 <script>
-	function addToCartFromQuickView(productSlug, button) {
-	    if (window.ArolanaCartUI && typeof window.ArolanaCartUI.addProductBySlug === 'function') {
-	        window.ArolanaCartUI.addProductBySlug(productSlug, button);
-	        return;
-	    }
+function addToCartFromQuickView(slug, button){
+    if (
+        window.ArolanaCartUI &&
+        typeof window.ArolanaCartUI.addProductBySlug === 'function'
+    ){
+        window.ArolanaCartUI.addProductBySlug(slug, button);
+        return;
+    }
 
-	    fetch(`/products/${encodeURIComponent(productSlug)}/add-to-cart/`, {
-	        method: 'POST',
-	        headers: {
-	            'X-CSRFToken': '{{ csrf_token }}',
-	            'Content-Type': 'application/x-www-form-urlencoded',
-	            'X-Requested-With': 'XMLHttpRequest'
-	        },
-	        body: 'quantity=1'
-	    })
-	    .then(response => response.json())
-	    .then(data => {
-	        if (!data.success) throw new Error(data.message || 'Failed to add to cart');
-	        const cartCount = document.getElementById('cart-count');
-	        if (cartCount && typeof data.cart_count !== 'undefined') {
-	            cartCount.innerText = data.cart_count || 0;
-	        }
-	        if (button) {
-	            button.dataset.cartState = 'view-cart';
-	            button.innerHTML = '<i class="fas fa-shopping-cart"></i> View Cart';
-	        }
-	    })
-	    .catch(error => {
-	        console.error('Error:', error);
-	        if (typeof window.showArolanaToast === 'function') {
-	            window.showArolanaToast(error.message || 'Failed to add to cart', 'error');
-	        }
-	    });
-	}
-	</script>
+    const original = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML =
+        '<i class="fas fa-spinner fa-spin"></i> Adding...';
+
+    fetch(`/products/${encodeURIComponent(slug)}/add-to-cart/`,{
+        method:'POST',
+        headers:{
+            'X-CSRFToken':'{{ csrf_token }}',
+            'Content-Type':'application/x-www-form-urlencoded',
+            'X-Requested-With':'XMLHttpRequest'
+        },
+        body:'quantity=1'
+    })
+    .then(response=>response.json())
+    .then(data=>{
+        if(!data.success){
+            throw new Error(data.message || 'Unable to add product');
+        }
+
+        const count=document.getElementById('cart-count');
+        if(count && data.cart_count !== undefined){
+            count.textContent=data.cart_count || 0;
+        }
+
+        button.innerHTML =
+            '<i class="fas fa-check"></i> Added to cart';
+    })
+    .catch(error=>{
+        button.disabled=false;
+        button.innerHTML=original;
+
+        if(typeof window.showArolanaToast==='function'){
+            window.showArolanaToast(error.message,'error');
+        }
+    });
+}
+</script>

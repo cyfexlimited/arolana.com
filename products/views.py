@@ -1267,7 +1267,7 @@ def product_list(request):
     products = order_storefront_products(products, *sort_fields)
 
     # ====== Pagination ======
-    paginator = Paginator(products, 24)
+    paginator = Paginator(products, 12)
     page = request.GET.get("page", 1)
 
     try:
