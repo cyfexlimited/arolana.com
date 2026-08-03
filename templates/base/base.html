@@ -5161,6 +5161,14 @@
                 rail.addEventListener('pointerdown', function (event) {
                     if (event.button !== 0 || event.pointerType === 'touch') return;
 
+                    if (event.target.closest(
+                        'a, button, input, select, textarea, label, .mega-menu-dropdown'
+                    )) {
+                        dragState = null;
+                        suppressClick = false;
+                        return;
+                    }
+
                     dragState = {
                         pointerId: event.pointerId,
                         startX: event.clientX,
@@ -5201,6 +5209,12 @@
 
                 rail.addEventListener('click', function (event) {
                     if (!suppressClick) return;
+
+                    if (event.target.closest('.mega-menu-dropdown')) {
+                        suppressClick = false;
+                        return;
+                    }
+
                     event.preventDefault();
                     event.stopPropagation();
                 }, true);
