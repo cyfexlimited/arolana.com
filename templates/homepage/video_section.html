@@ -2,47 +2,75 @@
 {% load static media_optimization %}
 
 {% if video_section and video_section.is_active %}
-<section class="homepage-video-section mb-12" style="background-color: {{ video_section.background_color }};">
+<section class="homepage-video-section mb-12">
     <style>
+        .homepage-video-section {
+            width: 100%;
+            background: transparent;
+        }
+
         .homepage-video-shell {
             width: 100%;
             max-width: {{ video_section.video_width_css }};
+            margin-inline: auto;
+            background: transparent;
+            border: 0;
+            border-radius: 0;
+            padding: 0;
+            box-shadow: none;
         }
+
         .homepage-video-layout {
             display: grid;
-            gap: 2rem;
+            grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+            gap: clamp(1.5rem, 3vw, 3rem);
             align-items: center;
+            width: 100%;
+            min-width: 0;
         }
+
         .homepage-video-layout--hidden,
         .homepage-video-layout--top,
         .homepage-video-layout--bottom {
             grid-template-columns: minmax(0, 1fr);
         }
+
         .homepage-video-player {
             order: 1;
+            min-width: 0;
         }
+
         .homepage-video-copy {
             order: 2;
+            min-width: 0;
             color: {{ video_section.text_color }};
         }
+
         .homepage-video-layout--left .homepage-video-copy,
         .homepage-video-layout--top .homepage-video-copy {
             order: 1;
         }
+
         .homepage-video-layout--left .homepage-video-player,
         .homepage-video-layout--top .homepage-video-player {
             order: 2;
         }
+
+        .homepage-video-layout--top .homepage-video-copy,
+        .homepage-video-layout--bottom .homepage-video-copy {
+            text-align: center;
+        }
+
         .homepage-video-frame {
             position: relative;
-            overflow: hidden;
             width: 100%;
             aspect-ratio: 16 / 9;
-            max-height: {{ video_section.video_height }}px;
-            border-radius: 0.75rem;
+            overflow: hidden;
+            border-radius: 0.9rem;
             background: #000;
             box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
         }
+
         .homepage-video-frame iframe,
         .homepage-video-frame video {
             position: absolute;
@@ -51,42 +79,161 @@
             height: 100%;
             border: 0;
         }
+
         .homepage-video-frame video {
             object-fit: contain;
             background: #000;
         }
+
+        .homepage-video-empty {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 23, 42, 0.92);
+            color: #fff;
+        }
+
+        .homepage-video-empty-inner {
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .homepage-video-copy h2 {
+            margin: 0;
+            font-size: clamp(1.8rem, 3vw, 3rem);
+            line-height: 1.08;
+            font-weight: 900;
+        }
+
+        .homepage-video-copy p {
+            margin-top: 0.85rem;
+            font-size: clamp(1rem, 1.3vw, 1.2rem);
+            line-height: 1.6;
+            opacity: 0.82;
+        }
+
+        .homepage-video-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.55rem;
+            margin-top: 1.5rem;
+            padding: 0.8rem 1.4rem;
+            border-radius: 0.75rem;
+            color: #fff;
+            font-weight: 700;
+            text-decoration: none;
+            transition:
+                opacity 0.2s ease,
+                transform 0.2s ease;
+        }
+
+        .homepage-video-button:hover {
+            opacity: 0.92;
+            transform: translateY(-1px);
+        }
+
+        .homepage-video-button:focus-visible {
+            outline: 3px solid rgba(37, 99, 235, 0.35);
+            outline-offset: 3px;
+        }
+
         @media (min-width: 1024px) {
-            .homepage-video-layout--left,
-            .homepage-video-layout--right {
-                grid-template-columns: minmax(280px, 0.85fr) minmax(0, 1.35fr);
+            .homepage-video-layout--left {
+                grid-template-columns:
+                    minmax(280px, 0.65fr)
+                    minmax(0, 1.35fr);
             }
+
             .homepage-video-layout--right {
-                grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.85fr);
+                grid-template-columns:
+                    minmax(0, 1.35fr)
+                    minmax(280px, 0.65fr);
             }
         }
-        @media (max-width: 767px) {
-            .homepage-video-section .container {
-                padding-top: 2rem;
-                padding-bottom: 2rem;
+
+        @media (max-width: 1023px) {
+            .homepage-video-layout,
+            .homepage-video-layout--left,
+            .homepage-video-layout--right {
+                grid-template-columns: minmax(0, 1fr);
             }
-            .homepage-video-layout {
-                gap: 1.25rem;
+
+            .homepage-video-layout--left .homepage-video-copy,
+            .homepage-video-layout--right .homepage-video-copy,
+            .homepage-video-layout--top .homepage-video-copy,
+            .homepage-video-layout--bottom .homepage-video-copy {
+                order: 2;
             }
+
+            .homepage-video-layout--left .homepage-video-player,
+            .homepage-video-layout--right .homepage-video-player,
+            .homepage-video-layout--top .homepage-video-player,
+            .homepage-video-layout--bottom .homepage-video-player {
+                order: 1;
+            }
+
             .homepage-video-copy {
                 text-align: center;
             }
         }
+
+        @media (max-width: 767px) {
+            .homepage-video-section {
+                margin-bottom: 2rem;
+            }
+
+            .homepage-video-section .container {
+                padding-top: 1.25rem;
+                padding-bottom: 1.25rem;
+            }
+
+            .homepage-video-layout {
+                gap: 1.25rem;
+            }
+
+            .homepage-video-frame {
+                border-radius: 0.75rem;
+            }
+
+            .homepage-video-button {
+                width: 100%;
+                max-width: 22rem;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .homepage-video-button {
+                transition: none;
+            }
+
+            .homepage-video-button:hover {
+                transform: none;
+            }
+        }
     </style>
 
-    <div class="container mx-auto px-4 py-12">
-        <div class="homepage-video-shell {% if video_section.position == 'left' %}mr-auto{% elif video_section.position == 'right' %}ml-auto{% else %}mx-auto{% endif %}">
+    <div class="container mx-auto px-4 py-6">
+        <div class="homepage-video-shell
+            {% if video_section.position == 'left' %}
+                mr-auto
+            {% elif video_section.position == 'right' %}
+                ml-auto
+            {% else %}
+                mx-auto
+            {% endif %}">
+
             <div class="homepage-video-layout homepage-video-layout--{{ video_section.info_position }}">
+
                 <div class="homepage-video-player">
                     <div class="homepage-video-frame">
+
                         {% if video_section.video_source == 'youtube' and video_section.youtube_id %}
                             <iframe
                                 src="{{ video_section.get_embed_url }}"
-                                title="{{ video_section.title }}"
+                                title="{{ video_section.title|default:'Arolana featured video' }}"
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                                 allowfullscreen
                                 referrerpolicy="strict-origin-when-cross-origin"
@@ -96,7 +243,7 @@
                         {% elif video_section.video_source == 'vimeo' and video_section.vimeo_id %}
                             <iframe
                                 src="{{ video_section.get_embed_url }}"
-                                title="{{ video_section.title }}"
+                                title="{{ video_section.title|default:'Arolana featured video' }}"
                                 allow="autoplay; fullscreen; picture-in-picture"
                                 allowfullscreen
                                 referrerpolicy="strict-origin-when-cross-origin"
@@ -107,47 +254,75 @@
                             {% if video_section.poster_image %}
                                 {% optimized_image_url video_section.poster_image 'hero' as video_poster_url %}
                             {% endif %}
+
                             <video
-                                {% if video_section.autoplay %}autoplay muted playsinline{% endif %}
-                                {% if video_section.loop %}loop{% endif %}
-                                {% if video_section.show_controls %}controls{% endif %}
-                                {% if video_poster_url %}poster="{{ video_poster_url }}"{% endif %}
+                                {% if video_section.autoplay %}
+                                    autoplay
+                                    muted
+                                    playsinline
+                                {% endif %}
+                                {% if video_section.loop %}
+                                    loop
+                                {% endif %}
+                                {% if video_section.show_controls %}
+                                    controls
+                                {% endif %}
+                                {% if video_poster_url %}
+                                    poster="{{ video_poster_url }}"
+                                {% endif %}
                                 preload="metadata">
-                                <source src="{{ video_section.local_video.url }}" type="video/mp4">
+
+                                <source
+                                    src="{{ video_section.local_video.url }}"
+                                    type="video/mp4">
+
                                 Your browser does not support the video tag.
                             </video>
 
                         {% else %}
-                            <div class="absolute inset-0 flex items-center justify-center bg-gray-100">
-                                <div class="text-center px-6">
-                                    <i class="fas fa-video-slash text-4xl text-gray-400 mb-2"></i>
-                                    <p class="text-gray-500">No video configured.</p>
+                            <div class="homepage-video-empty">
+                                <div class="homepage-video-empty-inner">
+                                    <i class="fas fa-video-slash mb-3 text-4xl text-slate-400" aria-hidden="true"></i>
+                                    <p class="m-0 text-sm text-slate-300">
+                                        No video is currently configured.
+                                    </p>
                                 </div>
                             </div>
                         {% endif %}
+
                     </div>
                 </div>
 
                 {% if video_section.info_position != 'hidden' %}
-                <div class="homepage-video-copy">
-                    <h2 class="text-3xl md:text-4xl font-bold leading-tight">
-                        {{ video_section.title }}
-                    </h2>
-                    {% if video_section.subtitle %}
-                    <p class="mt-3 text-lg opacity-80">
-                        {{ video_section.subtitle }}
-                    </p>
-                    {% endif %}
-                    {% if video_section.button_text and video_section.button_url %}
-                    <a href="{{ video_section.button_url }}"
-                       class="inline-flex items-center justify-center mt-6 px-8 py-3 rounded-lg text-white font-semibold hover:opacity-90 transition-all duration-300"
-                       style="background-color: {{ video_section.button_color }};">
-                        {{ video_section.button_text }}
-                        <i class="fas fa-arrow-right ml-2"></i>
-                    </a>
-                    {% endif %}
-                </div>
+                    <div class="homepage-video-copy">
+
+                        {% if video_section.title %}
+                            <h2>
+                                {{ video_section.title }}
+                            </h2>
+                        {% endif %}
+
+                        {% if video_section.subtitle %}
+                            <p>
+                                {{ video_section.subtitle }}
+                            </p>
+                        {% endif %}
+
+                        {% if video_section.button_text and video_section.button_url %}
+                            <a
+                                href="{{ video_section.button_url }}"
+                                class="homepage-video-button"
+                                style="background-color: {{ video_section.button_color }};">
+
+                                <span>{{ video_section.button_text }}</span>
+
+                                <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                            </a>
+                        {% endif %}
+
+                    </div>
                 {% endif %}
+
             </div>
         </div>
     </div>

@@ -359,6 +359,43 @@
             z-index: 30;
         }
 
+
+        /* Homepage full-width shopping layout */
+        body.homepage-content-first .site-main-wrap {
+            width: min(calc(100% - 32px), 1700px);
+            max-width: 1700px;
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        body.homepage-content-first .arolana-content-rail {
+            display: block;
+            width: 100%;
+            min-width: 0;
+        }
+
+        body.homepage-content-first .arolana-content-rail > main {
+            width: 100%;
+            max-width: none;
+            min-width: 0;
+        }
+
+        body.homepage-content-first .arolana-following-ad,
+        body.homepage-content-first .arolana-ad-placeholder {
+            display: none !important;
+        }
+
+        body.homepage-content-first .arolana-homepage {
+            width: 100%;
+            min-width: 0;
+        }
+
+        @media (max-width: 767px) {
+            body.homepage-content-first .site-main-wrap {
+                width: min(calc(100% - 16px), 1700px);
+            }
+        }
+
         .arolana-content-rail {
             align-items: stretch !important;
             overflow: visible !important;
@@ -3981,7 +4018,7 @@
                 {% endblock %}
             </main>
 
-            {% if request.path != '/products/cart/' and request.path != '/products/checkout/' and not is_landing_page %}
+            {% if request.path != '/' and request.path != '' and request.path != '/products/cart/' and request.path != '/products/checkout/' and not is_landing_page %}
 <aside
     class="arolana-following-ad hidden lg:block lg:w-72 xl:w-80 shrink-0"
     data-arolana-floating-ad

@@ -22,14 +22,21 @@
         color: var(--ah-section-accent);
     }
 
+    /* ==========================================================
+   TRENDING DEALS — EQUAL HEIGHT PRODUCT CARDS
+   ========================================================== */
+
     .ah-trending-section {
         position: relative;
+        width: 100%;
         margin: 1.15rem 0 1.8rem;
         padding: 1rem 0 1.25rem;
+        overflow: hidden;
+
         background: transparent;
         border: 0;
+        border-radius: 0;
         box-shadow: none;
-        overflow: hidden;
     }
 
     .ah-trending-heading {
@@ -46,86 +53,169 @@
 
     .ah-trending-title {
         margin: 0;
+
         color: #111827;
         font-family: Arial, Helvetica, sans-serif;
         font-size: clamp(1.25rem, 2.2vw, 1.7rem);
-        line-height: 1.15;
         font-weight: 750;
-        letter-spacing: -.025em;
+        line-height: 1.15;
+        letter-spacing: -0.025em;
     }
 
     .ah-trending-subtitle {
-        margin: .35rem 0 0;
+        margin: 0.35rem 0 0;
+
         color: #64748b;
-        font-size: .92rem;
-        line-height: 1.4;
+        font-size: 0.92rem;
         font-weight: 500;
+        line-height: 1.4;
     }
 
     .ah-trending-view-all {
-        flex: 0 0 auto;
         display: inline-flex;
+        flex: 0 0 auto;
         align-items: center;
-        gap: .45rem;
+        gap: 0.45rem;
+
         color: #007185;
-        font-size: .88rem;
+        font-size: 0.88rem;
         font-weight: 700;
         text-decoration: none;
+
+        transition:
+            color 0.18s ease,
+            transform 0.18s ease;
     }
 
     .ah-trending-view-all:hover {
         color: #c45500;
         text-decoration: underline;
+        transform: translateX(2px);
     }
+
+    .ah-trending-view-all:focus-visible {
+        border-radius: 0.35rem;
+        outline: 3px solid rgba(37, 99, 235, 0.3);
+        outline-offset: 3px;
+    }
+
+    /* ----------------------------------------------------------
+    Slider
+    ---------------------------------------------------------- */
 
     .ah-trending-shell {
         position: relative;
+        width: 100%;
+        min-width: 0;
     }
 
     .ah-trending-slider {
         display: grid;
         grid-auto-flow: column;
         grid-auto-columns: minmax(255px, 310px);
-        gap: clamp(1rem, 2.7vw, 2.4rem);
-        align-items: start;
+        grid-auto-rows: 1fr;
+
+        align-items: stretch;
+        gap: clamp(1rem, 2.2vw, 2rem);
+
+        width: 100%;
+        min-width: 0;
+        padding: 0.25rem 0.1rem 0.85rem;
+
         overflow-x: auto;
         overflow-y: hidden;
+
         scroll-behavior: smooth;
         scroll-snap-type: inline mandatory;
+        scroll-padding-inline: 0.1rem;
+
         overscroll-behavior-inline: contain;
         scrollbar-width: none;
-        padding: .25rem .1rem .85rem;
+        -webkit-overflow-scrolling: touch;
     }
 
     .ah-trending-slider::-webkit-scrollbar {
         display: none;
     }
 
+    /* ----------------------------------------------------------
+    Equal-height card
+    ---------------------------------------------------------- */
+
     .ah-trending-card {
-        display: block;
+        display: flex;
+        flex-direction: column;
+
+        width: 100%;
         min-width: 0;
+        height: 100%;
+        min-height: 445px;
+
+        overflow: hidden;
         scroll-snap-align: start;
-        background: transparent;
-        text-decoration: none;
+
         color: inherit;
+        text-decoration: none;
+
+        background: rgba(255, 255, 255, 0.97);
+        border: 1px solid rgba(226, 232, 240, 0.9);
+        border-radius: 14px;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.07);
+
+        transition:
+            transform 0.2s ease,
+            box-shadow 0.2s ease,
+            border-color 0.2s ease,
+            background-color 0.2s ease;
     }
+
+    .ah-trending-card:hover {
+        transform: translateY(-3px);
+
+        background: #ffffff;
+        border-color: rgba(37, 99, 235, 0.3);
+        box-shadow: 0 20px 42px rgba(15, 23, 42, 0.14);
+    }
+
+    .ah-trending-card:focus-visible {
+        outline: 3px solid rgba(37, 99, 235, 0.35);
+        outline-offset: 3px;
+    }
+
+    /* ----------------------------------------------------------
+    Equal image area
+    ---------------------------------------------------------- */
 
     .ah-trending-media {
         position: relative;
+
+        display: flex;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: center;
+
         width: 100%;
         aspect-ratio: 1 / 1;
+
         overflow: hidden;
-        background: #f3f4f6;
+        background: #ffffff;
     }
 
     .ah-trending-media img {
+        display: block;
+
         width: 100%;
         height: 100%;
+        padding: 0.75rem;
+
         object-fit: contain;
-        padding: .55rem;
+        object-position: center;
+
         background: #ffffff;
-        display: block;
-        transition: transform .32s ease, filter .32s ease;
+
+        transition:
+            transform 0.32s ease,
+            filter 0.32s ease;
     }
 
     .ah-trending-card:hover .ah-trending-media img {
@@ -134,81 +224,175 @@
     }
 
     .ah-trending-placeholder {
-        width: 100%;
-        height: 100%;
         display: grid;
         place-items: center;
+
+        width: 100%;
+        height: 100%;
+
         color: #94a3b8;
-        background: rgba(248, 250, 252, .75);
+        background: #f8fafc;
         font-size: 3rem;
     }
 
+    /* ----------------------------------------------------------
+    Product content
+    ---------------------------------------------------------- */
+
+    .ah-trending-content {
+        display: flex;
+        flex: 1 1 auto;
+        flex-direction: column;
+
+        min-width: 0;
+        padding: 0.85rem;
+    }
+
     .ah-trending-card-title {
-        margin: .72rem 0 0;
-        color: #111827;
         display: -webkit-box;
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: clamp(.98rem, 1.35vw, 1.16rem);
-        line-height: 1.18;
-        font-weight: 700;
-        letter-spacing: -.015em;
+
+        min-height: 2.7rem;
+        margin: 0;
+
         overflow: hidden;
+
+        color: #111827;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: clamp(0.98rem, 1.25vw, 1.12rem);
+        font-weight: 700;
+        line-height: 1.22;
+        letter-spacing: -0.015em;
+
         -webkit-box-orient: vertical;
-        -webkit-line-clamp: 3;
-        transition: color .18s ease;
+        -webkit-line-clamp: 2;
+
+        transition: color 0.18s ease;
     }
 
     .ah-trending-card:hover .ah-trending-card-title {
         color: #0f2d6b;
     }
 
+    /*
+    * Product vendor metadata is rendered by:
+    * products/partials/product_vendor_meta.html
+    */
+    .ah-trending-vendor-meta {
+        min-height: 4.6rem;
+        margin-top: 0.55rem;
+    }
+
+    .ah-trending-vendor-meta > * {
+        max-width: 100%;
+    }
+
+    /* ----------------------------------------------------------
+    Rating, vendor and price row
+    ---------------------------------------------------------- */
+
     .ah-trending-card-meta {
         display: flex;
         align-items: center;
         flex-wrap: wrap;
-        gap: .35rem .65rem;
-        margin-top: .5rem;
+        gap: 0.35rem 0.65rem;
+
+        min-height: 2.6rem;
+        margin-top: auto;
+        padding-top: 0.65rem;
+
         color: #64748b;
-        font-size: .78rem;
+        font-size: 0.78rem;
         font-weight: 650;
+        line-height: 1.3;
+    }
+
+    .ah-trending-card-meta > span {
+        min-width: 0;
+    }
+
+    .ah-trending-card-meta > span:first-child {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .ah-trending-card-price {
+        margin-left: auto;
+
         color: var(--ah-section-accent);
-        font-size: .95rem;
+        font-size: 1rem;
         font-weight: 850;
+        line-height: 1.1;
+
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
     }
+
+    /* ----------------------------------------------------------
+    Empty state
+    ---------------------------------------------------------- */
+
+    .ah-trending-slider > .ah-empty-products {
+        grid-row: 1;
+        width: min(90vw, 700px);
+        min-height: 300px;
+    }
+
+    /* ----------------------------------------------------------
+    Navigation buttons
+    ---------------------------------------------------------- */
 
     .ah-trending-nav {
         position: absolute;
-        top: 43%;
+        top: 50%;
         z-index: 8;
-        width: 44px;
-        height: 78px;
-        border: 1px solid rgba(213, 217, 217, .85);
-        background: rgba(255, 255, 255, .96);
-        color: #111827;
-        box-shadow: 0 12px 28px rgba(15, 23, 42, .14);
+
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        transform: translateY(-50%);
+
+        width: 44px;
+        height: 78px;
+
+        color: #111827;
+        background: rgba(255, 255, 255, 0.97);
+        border: 1px solid rgba(213, 217, 217, 0.9);
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+
         cursor: pointer;
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
-        transition: opacity .18s ease, visibility .18s ease, background .18s ease, color .18s ease;
+
+        transform: translateY(-50%);
+
+        transition:
+            opacity 0.18s ease,
+            visibility 0.18s ease,
+            background-color 0.18s ease,
+            color 0.18s ease,
+            transform 0.18s ease;
     }
 
-    .ah-trending-shell:hover .ah-trending-nav {
+    .ah-trending-shell:hover .ah-trending-nav,
+    .ah-trending-shell:focus-within .ah-trending-nav {
         opacity: 1;
         visibility: visible;
         pointer-events: auto;
     }
 
     .ah-trending-nav:hover {
-        background: #ffffff;
-        color: #0f2d6b;
+        color: #ffffff;
+        background: #0f2d6b;
+    }
+
+    .ah-trending-nav:focus-visible {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+
+        outline: 3px solid rgba(37, 99, 235, 0.35);
+        outline-offset: 3px;
     }
 
     .ah-trending-prev {
@@ -219,6 +403,151 @@
     .ah-trending-next {
         right: 0;
         border-radius: 8px 0 0 8px;
+    }
+
+    /* ----------------------------------------------------------
+    Large desktop
+    ---------------------------------------------------------- */
+
+    @media (min-width: 1440px) {
+        .ah-trending-slider {
+            grid-auto-columns: minmax(270px, 310px);
+        }
+
+        .ah-trending-card {
+            min-height: 455px;
+        }
+    }
+
+    /* ----------------------------------------------------------
+    Tablet
+    ---------------------------------------------------------- */
+
+    @media (min-width: 769px) and (max-width: 1100px) {
+        .ah-trending-slider {
+            grid-auto-columns: minmax(235px, 285px);
+            gap: 1rem;
+        }
+
+        .ah-trending-card {
+            min-height: 425px;
+        }
+    }
+
+    /* ----------------------------------------------------------
+    Mobile
+    ---------------------------------------------------------- */
+
+    @media (max-width: 768px) {
+        .ah-trending-section {
+            margin-bottom: 0.85rem;
+            padding: 0.9rem 0 1rem;
+        }
+
+        .ah-trending-heading {
+            align-items: flex-start;
+            margin-bottom: 0.85rem;
+        }
+
+        .ah-trending-title {
+            font-size: 1.15rem;
+        }
+
+        .ah-trending-subtitle {
+            font-size: 0.8rem;
+        }
+
+        .ah-trending-view-all {
+            font-size: 0.75rem;
+        }
+
+        .ah-trending-slider {
+            grid-auto-columns: minmax(190px, 76vw);
+            grid-auto-rows: 1fr;
+
+            align-items: stretch;
+            gap: 0.8rem;
+
+            padding-bottom: 0.65rem;
+        }
+
+        .ah-trending-card {
+            min-height: 365px;
+            border-radius: 12px;
+        }
+
+        .ah-trending-media img {
+            padding: 0.55rem;
+        }
+
+        .ah-trending-content {
+            padding: 0.7rem;
+        }
+
+        .ah-trending-card-title {
+            min-height: 2.45rem;
+
+            font-size: 0.9rem;
+            line-height: 1.22;
+
+            -webkit-line-clamp: 2;
+        }
+
+        .ah-trending-vendor-meta {
+            min-height: 4.2rem;
+            margin-top: 0.45rem;
+        }
+
+        .ah-trending-card-meta {
+            min-height: 2.4rem;
+            padding-top: 0.55rem;
+
+            font-size: 0.72rem;
+        }
+
+        .ah-trending-card-price {
+            font-size: 0.9rem;
+        }
+
+        .ah-trending-nav {
+            display: none;
+        }
+    }
+
+    /* ----------------------------------------------------------
+    Very small mobile
+    ---------------------------------------------------------- */
+
+    @media (max-width: 390px) {
+        .ah-trending-slider {
+            grid-auto-columns: minmax(180px, 82vw);
+        }
+
+        .ah-trending-card {
+            min-height: 355px;
+        }
+    }
+
+    /* ----------------------------------------------------------
+    Reduced motion
+    ---------------------------------------------------------- */
+
+    @media (prefers-reduced-motion: reduce) {
+        .ah-trending-slider {
+            scroll-behavior: auto;
+        }
+
+        .ah-trending-card,
+        .ah-trending-media img,
+        .ah-trending-view-all,
+        .ah-trending-nav {
+            transition: none;
+        }
+
+        .ah-trending-card:hover,
+        .ah-trending-card:hover .ah-trending-media img {
+            transform: none;
+        }
     }
 
     .ah-featured-deals {
@@ -1514,6 +1843,547 @@
             display: none;
         }
     }
+
+
+    /* ==========================================================
+       FINAL HOMEPAGE PRODUCT-SECTIONS POLISH
+       Applies after all base rules so every admin layout remains
+       functional while cards, spacing and typography stay aligned.
+       ========================================================== */
+
+    .ah-product-sections {
+        width: min(calc(100% - 32px), 1700px);
+        margin-inline: auto;
+        padding-bottom: clamp(2rem, 4vw, 4rem);
+    }
+
+    .ah-admin-product-section {
+        width: 100%;
+        min-width: 0;
+        margin-block: clamp(1.6rem, 3.2vw, 3rem);
+        padding: clamp(1rem, 1.8vw, 1.5rem);
+        border-radius: 20px;
+        background: color-mix(in srgb, var(--ah-section-background) 88%, transparent);
+    }
+
+    .ah-trending-heading,
+    .ah-featured-header,
+    .ah-new-arrivals-header,
+    .ah-product-header {
+        align-items: flex-end;
+        gap: 1rem;
+        margin-bottom: 1.15rem;
+    }
+
+    .ah-trending-title,
+    .ah-featured-title,
+    .ah-new-arrivals-title,
+    .ah-product-title-main {
+        font-size: clamp(1.45rem, 2.2vw, 2rem);
+        line-height: 1.1;
+        font-weight: 800;
+        letter-spacing: -.03em;
+    }
+
+    .ah-trending-subtitle,
+    .ah-featured-subtitle,
+    .ah-new-arrivals-subtitle,
+    .ah-product-subtitle {
+        max-width: 68ch;
+        margin-top: .4rem;
+        font-size: clamp(.88rem, 1vw, 1rem);
+        line-height: 1.5;
+    }
+
+    .ah-trending-view-all,
+    .ah-featured-view-all,
+    .ah-new-arrivals-view-all,
+    .ah-product-view-all {
+        min-height: 42px;
+        padding: .55rem .75rem;
+        border-radius: 999px;
+        font-size: .86rem;
+        white-space: nowrap;
+    }
+
+    /* ---------- Editorial / Trending ---------- */
+    .ah-trending-slider {
+        grid-auto-columns: clamp(245px, 20vw, 310px);
+        grid-auto-rows: 1fr;
+        align-items: stretch;
+        gap: clamp(.9rem, 1.5vw, 1.35rem);
+        padding: .3rem .15rem 1rem;
+    }
+
+    .ah-trending-card {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-height: 430px;
+        border-radius: 16px;
+        background: rgba(255,255,255,.97);
+    }
+
+    .ah-trending-media {
+        aspect-ratio: 4 / 3;
+        min-height: 205px;
+        background: #fff;
+    }
+
+    .ah-trending-media img {
+        padding: .8rem;
+    }
+
+    .ah-trending-content {
+        display: flex;
+        flex: 1 1 auto;
+        flex-direction: column;
+        padding: .9rem;
+    }
+
+    .ah-trending-card-title {
+        min-height: 2.8rem;
+        font-size: 1rem;
+        line-height: 1.25;
+        -webkit-line-clamp: 2;
+    }
+
+    .ah-trending-vendor-meta {
+        min-height: 4.8rem;
+        margin-top: .55rem;
+        overflow: hidden;
+    }
+
+    .ah-trending-card-meta {
+        min-height: 2.75rem;
+        margin-top: auto;
+        padding-top: .7rem;
+        border-top: 1px solid rgba(226,232,240,.72);
+    }
+
+    .ah-trending-card-price {
+        margin-left: auto;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* ---------- Compact / Featured Products ---------- */
+    .ah-featured-shell {
+        border-radius: 16px;
+        background: rgba(255,255,255,.92);
+        box-shadow: 0 16px 40px rgba(15,23,42,.08);
+    }
+
+    .ah-featured-slider {
+        grid-template-rows: repeat(2, minmax(205px, 205px));
+        grid-auto-columns: clamp(390px, 31vw, 500px);
+        align-items: stretch;
+    }
+
+    .ah-featured-card {
+        height: 205px;
+        min-height: 205px;
+        grid-template-columns: 142px minmax(0, 1fr);
+        gap: 1rem;
+        align-items: center;
+        padding: 1rem;
+        background: rgba(255,255,255,.86);
+    }
+
+    .ah-featured-image-wrap {
+        width: 142px;
+        height: 142px;
+        border-radius: 12px;
+        background: #fff;
+    }
+
+    .ah-featured-info {
+        display: flex;
+        min-width: 0;
+        height: 100%;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .ah-featured-name {
+        min-height: 2.2rem;
+        font-size: .96rem;
+        line-height: 1.2;
+    }
+
+    .ah-featured-price {
+        min-height: 1.6rem;
+        margin-top: auto;
+        padding-top: .4rem;
+    }
+
+    .ah-featured-current {
+        white-space: nowrap;
+        overflow-wrap: normal;
+        font-size: clamp(1.12rem, 1.5vw, 1.35rem);
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* ---------- Market Grid / New Arrivals ---------- */
+    .ah-new-arrivals-shell {
+        max-height: 790px;
+        padding: .4rem;
+        border-radius: 18px;
+        background: rgba(248,250,252,.56);
+    }
+
+    .ah-new-arrivals-grid {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: clamp(.75rem, 1.2vw, 1rem);
+        align-items: stretch;
+    }
+
+    .ah-new-arrivals-card {
+        height: 100%;
+        min-height: 390px;
+        border-radius: 14px;
+    }
+
+    .ah-new-arrivals-media {
+        aspect-ratio: 4 / 3;
+        min-height: 165px;
+    }
+
+    .ah-new-arrivals-body {
+        padding: .85rem;
+    }
+
+    .ah-new-arrivals-name {
+        min-height: 2.55rem;
+        font-size: .9rem;
+        line-height: 1.25;
+    }
+
+    .ah-new-arrivals-price {
+        white-space: nowrap;
+        overflow-wrap: normal;
+        font-size: clamp(1rem, 1.25vw, 1.2rem);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .ah-new-arrivals-vendor {
+        min-height: 3rem;
+        align-content: flex-end;
+    }
+
+    /* ---------- Standard horizontal product rows ---------- */
+    .ah-product-slider {
+        grid-auto-columns: clamp(210px, 16vw, 260px);
+        grid-auto-rows: 1fr;
+        align-items: stretch;
+        gap: clamp(.75rem, 1vw, 1rem);
+        padding: .25rem .15rem 1rem;
+    }
+
+    .ah-product-card {
+        height: 100%;
+        min-height: 430px;
+        border-radius: 16px;
+    }
+
+    .ah-product-media-box {
+        aspect-ratio: 4 / 3;
+        min-height: 180px;
+        padding: .8rem;
+        background: #fff;
+    }
+
+    .ah-product-body {
+        padding: .85rem;
+    }
+
+    .ah-product-brand {
+        min-height: 1rem;
+    }
+
+    .ah-product-title {
+        min-height: 2.55rem;
+        font-size: .88rem;
+        line-height: 1.28;
+        -webkit-line-clamp: 2;
+    }
+
+    .ah-product-vendor {
+        min-height: 3rem;
+        align-content: flex-start;
+    }
+
+    .ah-product-rating {
+        min-height: 1.25rem;
+    }
+
+    .ah-product-price {
+        min-height: 2.35rem;
+        flex-wrap: nowrap;
+        overflow: hidden;
+    }
+
+    .ah-product-price-current {
+        white-space: nowrap;
+        overflow-wrap: normal;
+        font-size: clamp(.94rem, 1.1vw, 1.08rem);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .ah-product-price-old {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .ah-product-form {
+        margin-top: auto;
+    }
+
+    .ah-product-button {
+        min-height: 44px;
+        border-radius: 12px;
+        font-size: .8rem;
+    }
+
+    /* ---------- Shared controls ---------- */
+    .ah-trending-nav,
+    .ah-featured-nav,
+    .ah-row-nav {
+        width: 46px;
+        border-radius: 12px;
+        backdrop-filter: blur(10px);
+    }
+
+    .ah-new-arrivals-nav {
+        min-width: 82px;
+        min-height: 44px;
+    }
+
+    @media (min-width: 1600px) {
+        .ah-new-arrivals-grid {
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+        }
+
+        .ah-trending-slider {
+            grid-auto-columns: 300px;
+        }
+
+        .ah-product-slider {
+            grid-auto-columns: 245px;
+        }
+    }
+
+    @media (max-width: 1280px) {
+        .ah-product-sections {
+            width: min(calc(100% - 24px), 1480px);
+        }
+
+        .ah-new-arrivals-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
+        .ah-featured-slider {
+            grid-auto-columns: minmax(360px, 46vw);
+        }
+    }
+
+    @media (max-width: 1024px) {
+        .ah-admin-product-section {
+            padding: 1rem;
+        }
+
+        .ah-new-arrivals-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .ah-trending-slider {
+            grid-auto-columns: minmax(235px, 42vw);
+        }
+
+        .ah-product-slider {
+            grid-auto-columns: minmax(200px, 30vw);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .ah-product-sections {
+            width: min(calc(100% - 16px), 1480px);
+            padding-bottom: 1.5rem;
+        }
+
+        .ah-admin-product-section {
+            margin-block: 1.2rem;
+            padding: .75rem;
+            border-radius: 14px;
+        }
+
+        .ah-trending-heading,
+        .ah-featured-header,
+        .ah-new-arrivals-header,
+        .ah-product-header {
+            align-items: flex-start;
+            margin-bottom: .85rem;
+        }
+
+        .ah-trending-title,
+        .ah-featured-title,
+        .ah-new-arrivals-title,
+        .ah-product-title-main {
+            font-size: 1.2rem;
+        }
+
+        .ah-trending-view-all,
+        .ah-featured-view-all,
+        .ah-new-arrivals-view-all,
+        .ah-product-view-all {
+            min-height: 38px;
+            padding: .45rem .55rem;
+            font-size: .72rem;
+        }
+
+        .ah-trending-slider {
+            grid-auto-columns: minmax(210px, 78vw);
+            gap: .75rem;
+        }
+
+        .ah-trending-card {
+            min-height: 375px;
+        }
+
+        .ah-trending-media {
+            min-height: 170px;
+        }
+
+        .ah-featured-slider {
+            grid-template-rows: repeat(2, 165px);
+            grid-auto-columns: minmax(305px, 88vw);
+        }
+
+        .ah-featured-card {
+            height: 165px;
+            min-height: 165px;
+            grid-template-columns: 100px minmax(0, 1fr);
+            gap: .7rem;
+            padding: .75rem;
+        }
+
+        .ah-featured-image-wrap {
+            width: 100px;
+            height: 100px;
+        }
+
+        .ah-new-arrivals-shell {
+            max-height: 720px;
+        }
+
+        .ah-new-arrivals-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: .65rem;
+        }
+
+        .ah-new-arrivals-card {
+            min-height: 320px;
+        }
+
+        .ah-new-arrivals-media {
+            min-height: 130px;
+        }
+
+        .ah-new-arrivals-body {
+            padding: .7rem;
+        }
+
+        .ah-new-arrivals-price {
+            font-size: .96rem;
+        }
+
+        .ah-product-slider {
+            grid-auto-columns: minmax(168px, 48vw);
+            gap: .65rem;
+        }
+
+        .ah-product-card {
+            min-height: 370px;
+        }
+
+        .ah-product-media-box {
+            min-height: 145px;
+            padding: .55rem;
+        }
+
+        .ah-product-body {
+            padding: .7rem;
+        }
+
+        .ah-product-title {
+            font-size: .8rem;
+            min-height: 2.15rem;
+        }
+
+        .ah-product-vendor {
+            min-height: 2.6rem;
+        }
+
+        .ah-product-price-current {
+            font-size: .9rem;
+        }
+
+        .ah-product-button {
+            min-height: 42px;
+            font-size: .73rem;
+        }
+
+        .ah-trending-nav,
+        .ah-featured-nav,
+        .ah-row-nav,
+        .ah-new-arrivals-nav {
+            display: none;
+        }
+    }
+
+    @media (max-width: 390px) {
+        .ah-product-sections {
+            width: min(calc(100% - 12px), 1480px);
+        }
+
+        .ah-new-arrivals-grid {
+            gap: .5rem;
+        }
+
+        .ah-new-arrivals-card {
+            min-height: 305px;
+        }
+
+        .ah-product-slider {
+            grid-auto-columns: minmax(160px, 74vw);
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .ah-trending-card,
+        .ah-featured-card,
+        .ah-new-arrivals-card,
+        .ah-product-card,
+        .ah-trending-media img,
+        .ah-featured-image-wrap img,
+        .ah-new-arrivals-media img,
+        .ah-product-media img {
+            transition: none !important;
+        }
+
+        .ah-trending-card:hover,
+        .ah-new-arrivals-card:hover,
+        .ah-product-card:hover,
+        .ah-trending-card:hover img,
+        .ah-featured-card:hover img,
+        .ah-new-arrivals-card:hover img,
+        .ah-product-card:hover img {
+            transform: none !important;
+        }
+    }
+
 </style>
 
 <div class="ah-product-sections">
@@ -1521,110 +2391,185 @@
         {% if section.is_active %}
 
             {% if section.layout_style == "editorial" %}
-            <section class="ah-trending-section ah-admin-product-section"
-                     style="--ah-section-accent: {{ section.accent_color }}; --ah-section-background: {{ section.background_color }};"
-                     data-aos="fade-up"
-                     aria-labelledby="ah-trending-title-{{ section.id }}">
+            <section
+                class="ah-trending-section ah-admin-product-section"
+                style="
+                    --ah-section-accent: {{ section.accent_color }};
+                    --ah-section-background: {{ section.background_color }};
+                "
+                data-aos="fade-up"
+                data-homepage-product-section
+                aria-labelledby="ah-trending-title-{{ section.id }}">
+
                 <div class="ah-trending-heading">
                     <div class="ah-trending-title-wrap">
-                        <h2 class="ah-trending-title" id="ah-trending-title-{{ section.id }}">
+
+                        <h2
+                            class="ah-trending-title"
+                            id="ah-trending-title-{{ section.id }}">
                             {{ section.title|default:"Trending Deals" }}
                         </h2>
 
                         {% if section.subtitle %}
-                        <p class="ah-trending-subtitle">
-                            {{ section.subtitle }}
-                        </p>
+                            <p class="ah-trending-subtitle">
+                                {{ section.subtitle }}
+                            </p>
                         {% endif %}
+
                     </div>
 
                     {% if section.show_view_all and section.resolved_view_all_url %}
-                    <a href="{{ section.resolved_view_all_url }}"
-                       class="ah-trending-view-all"
-                       data-track-click="true"
-                       data-event-type="link"
-                       data-click-text="View All - {{ section.title|default:'Trending Deals' }}">
-                        {{ section.view_all_text|default:"View All" }}
-                        <i class="fas fa-arrow-right"></i>
-                    </a>
+                        <a
+                            href="{{ section.resolved_view_all_url }}"
+                            class="ah-trending-view-all"
+                            data-track-click="true"
+                            data-event-type="link"
+                            data-click-text="View All - {{ section.title|default:'Trending Deals' }}">
+
+                            <span>
+                                {{ section.view_all_text|default:"View All" }}
+                            </span>
+
+                            <i
+                                class="fas fa-arrow-right"
+                                aria-hidden="true">
+                            </i>
+                        </a>
                     {% endif %}
                 </div>
 
                 <div class="ah-trending-shell">
-                    <button type="button"
-                            class="ah-trending-nav ah-trending-prev"
-                            data-ah-trending-prev
-                            aria-label="Previous trending products"
-                            data-track-click="true"
-                            data-event-type="button"
-                            data-click-text="Previous Trending Products - {{ section.title|default:'Trending Deals' }}">
-                        <i class="fas fa-chevron-left"></i>
+
+                    <button
+                        type="button"
+                        class="ah-trending-nav ah-trending-prev"
+                        data-ah-trending-prev
+                        aria-label="Previous trending products"
+                        data-track-click="true"
+                        data-event-type="button"
+                        data-click-text="Previous Trending Products - {{ section.title|default:'Trending Deals' }}">
+
+                        <i
+                            class="fas fa-chevron-left"
+                            aria-hidden="true">
+                        </i>
                     </button>
 
-                    <div class="ah-trending-slider" data-ah-trending-slider>
+                    <div
+                        class="ah-trending-slider"
+                        data-ah-trending-slider>
+
                         {% for product in section.products %}
-                        <a href="{{ product.get_absolute_url }}"
-                           class="ah-trending-card product-card"
-                           aria-label="{{ product.name }}"
-                           data-track-click="true"
-                           data-event-type="product"
-                           data-product-id="{{ product.id }}"
-                           data-category-id="{{ product.category.id }}"
-                           data-vendor-id="{{ product.vendor.id }}"
-                           data-click-text="{{ product.name }}">
-                            <div class="ah-trending-media">
-                                {% if product.main_image %}
-                                    {% optimized_image_url product.main_image 'product_card' as product_image_url %}
-                                    <img src="{{ product_image_url }}" alt="{{ product.name }}" loading="lazy" decoding="async">
-                                {% elif product.display_image %}
-                                    {% optimized_image_url product.display_image 'product_card' as product_image_url %}
-                                    <img src="{{ product_image_url }}" alt="{{ product.name }}" loading="lazy" decoding="async">
-                                {% else %}
-                                    <div class="ah-trending-placeholder">
-                                        <i class="fas fa-image"></i>
+                            <a
+                                href="{{ product.get_absolute_url }}"
+                                class="ah-trending-card product-card"
+                                aria-label="{{ product.name }}"
+                                data-track-click="true"
+                                data-event-type="product"
+                                data-product-id="{{ product.id }}"
+                                data-category-id="{{ product.category.id }}"
+                                data-vendor-id="{{ product.vendor.id }}"
+                                data-click-text="{{ product.name }}">
+
+                                <div class="ah-trending-media">
+
+                                    {% if product.main_image %}
+                                        {% optimized_image_url product.main_image 'product_card' as product_image_url %}
+
+                                        <img
+                                            src="{{ product_image_url }}"
+                                            alt="{{ product.name }}"
+                                            loading="lazy"
+                                            decoding="async">
+
+                                    {% elif product.display_image %}
+                                        {% optimized_image_url product.display_image 'product_card' as product_image_url %}
+
+                                        <img
+                                            src="{{ product_image_url }}"
+                                            alt="{{ product.name }}"
+                                            loading="lazy"
+                                            decoding="async">
+
+                                    {% else %}
+                                        <div class="ah-trending-placeholder">
+                                            <i
+                                                class="fas fa-image"
+                                                aria-hidden="true">
+                                            </i>
+                                        </div>
+                                    {% endif %}
+
+                                </div>
+
+                                <div class="ah-trending-content">
+
+                                    <h3 class="ah-trending-card-title">
+                                        {{ product.name }}
+                                    </h3>
+
+                                    <div class="ah-trending-vendor-meta">
+                                        {% include "products/partials/product_vendor_meta.html" with product=product %}
                                     </div>
-                                {% endif %}
-                            </div>
 
-                            <h3 class="ah-trending-card-title">
-                                {{ product.name }}
-                            </h3>
+                                    {% if section.show_vendor or section.show_rating or section.show_price %}
+                                        <div class="ah-trending-card-meta">
 
-                            {% include "products/partials/product_vendor_meta.html" with product=product %}
+                                            {% if section.show_vendor and product.vendor.vendor_profile %}
+                                                <span>
+                                                    {{ product.vendor.vendor_profile.store_name }}
+                                                </span>
+                                            {% endif %}
 
-                            {% if section.show_vendor or section.show_rating or section.show_price %}
-                            <div class="ah-trending-card-meta">
-                                {% if section.show_vendor and product.vendor.vendor_profile %}
-                                <span>{{ product.vendor.vendor_profile.store_name }}</span>
-                                {% endif %}
+                                            {% if section.show_rating %}
+                                                <span
+                                                    aria-label="{{ product.rating_avg|default:0 }} out of 5 stars">
+                                                    {{ product.rating_avg|default:0|rating_stars|safe }}
+                                                </span>
+                                            {% endif %}
 
-                                {% if section.show_rating %}
-                                <span>{{ product.rating_avg|default:0|rating_stars|safe }}</span>
-                                {% endif %}
+                                            {% if section.show_price %}
+                                                <span class="ah-trending-card-price">
+                                                    {{ product.price|currency:request }}
+                                                </span>
+                                            {% endif %}
 
-                                {% if section.show_price %}
-                                <span class="ah-trending-card-price">{{ product.price|currency:request }}</span>
-                                {% endif %}
-                            </div>
-                            {% endif %}
-                        </a>
+                                        </div>
+                                    {% endif %}
+
+                                </div>
+                            </a>
+
                         {% empty %}
-                        <div class="ah-empty-products">
-                            <i class="fas fa-box-open"></i>
-                            <p>{{ section.empty_state_text|default:"No products available in this section yet." }}</p>
-                        </div>
+                            <div class="ah-empty-products">
+                                <i
+                                    class="fas fa-box-open"
+                                    aria-hidden="true">
+                                </i>
+
+                                <p>
+                                    {{ section.empty_state_text|default:"No products available in this section yet." }}
+                                </p>
+                            </div>
                         {% endfor %}
+
                     </div>
 
-                    <button type="button"
-                            class="ah-trending-nav ah-trending-next"
-                            data-ah-trending-next
-                            aria-label="Next trending products"
-                            data-track-click="true"
-                            data-event-type="button"
-                            data-click-text="Next Trending Products - {{ section.title|default:'Trending Deals' }}">
-                        <i class="fas fa-chevron-right"></i>
+                    <button
+                        type="button"
+                        class="ah-trending-nav ah-trending-next"
+                        data-ah-trending-next
+                        aria-label="Next trending products"
+                        data-track-click="true"
+                        data-event-type="button"
+                        data-click-text="Next Trending Products - {{ section.title|default:'Trending Deals' }}">
+
+                        <i
+                            class="fas fa-chevron-right"
+                            aria-hidden="true">
+                        </i>
                     </button>
+
                 </div>
             </section>
 

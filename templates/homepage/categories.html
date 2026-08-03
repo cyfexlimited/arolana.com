@@ -1,58 +1,439 @@
 {% load static media_optimization optimized_images %}
 
 {% if categories %}
-<section class="mb-10 sm:mb-14 homepage-deferred-section" data-aos="fade-up" aria-labelledby="homepage-category-title">
-    <div class="mb-5 flex items-end justify-between gap-4 sm:mb-7">
-        <div>
-            <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.16em] text-orange-500">
+<section
+    class="homepage-category-section homepage-deferred-section mb-10 sm:mb-14"
+    data-homepage-category-section
+    data-aos="fade-up"
+    aria-labelledby="homepage-category-title">
+
+    <style>
+        .homepage-category-section {
+            width: 100%;
+            min-width: 0;
+        }
+
+        .homepage-category-header {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: clamp(1.25rem, 2vw, 1.75rem);
+        }
+
+        .homepage-category-header-copy {
+            min-width: 0;
+        }
+
+        .homepage-category-eyebrow {
+            display: block;
+            margin-bottom: 0.35rem;
+
+            color: #f97316;
+            font-size: 0.75rem;
+            font-weight: 800;
+            line-height: 1.2;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+        }
+
+        .homepage-category-title {
+            margin: 0;
+
+            color: #0f172a;
+            font-size: clamp(1.65rem, 2.4vw, 2.35rem);
+            font-weight: 850;
+            line-height: 1.08;
+            letter-spacing: -0.035em;
+        }
+
+        .homepage-category-subtitle {
+            max-width: 42rem;
+            margin: 0.55rem 0 0;
+
+            color: #64748b;
+            font-size: clamp(0.88rem, 1vw, 1rem);
+            line-height: 1.55;
+        }
+
+        .homepage-category-view-all {
+            display: inline-flex;
+            flex: 0 0 auto;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+
+            min-height: 44px;
+            padding: 0.6rem 0.85rem;
+
+            color: #1d4ed8;
+            font-size: 0.88rem;
+            font-weight: 750;
+            line-height: 1;
+            text-decoration: none;
+
+            border-radius: 0.75rem;
+
+            transition:
+                color 0.2s ease,
+                background-color 0.2s ease,
+                transform 0.2s ease;
+        }
+
+        .homepage-category-view-all:hover {
+            color: #ea580c;
+            background: rgba(255, 247, 237, 0.85);
+            transform: translateX(2px);
+        }
+
+        .homepage-category-view-all:focus-visible {
+            outline: 3px solid rgba(37, 99, 235, 0.32);
+            outline-offset: 3px;
+        }
+
+        .homepage-category-grid {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: clamp(0.9rem, 1.4vw, 1.35rem);
+
+            width: 100%;
+            min-width: 0;
+        }
+
+        .homepage-category-card {
+            position: relative;
+
+            display: flex;
+            flex-direction: column;
+
+            min-width: 0;
+            height: 100%;
+
+            overflow: hidden;
+
+            color: inherit;
+            text-decoration: none;
+
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid rgba(226, 232, 240, 0.92);
+            border-radius: 1rem;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+
+            transition:
+                transform 0.25s ease,
+                border-color 0.25s ease,
+                box-shadow 0.25s ease,
+                background-color 0.25s ease;
+        }
+
+        .homepage-category-card:hover {
+            transform: translateY(-4px);
+
+            background: #ffffff;
+            border-color: rgba(37, 99, 235, 0.28);
+            box-shadow: 0 20px 42px rgba(15, 23, 42, 0.13);
+        }
+
+        .homepage-category-card:focus-visible {
+            outline: 3px solid rgba(37, 99, 235, 0.35);
+            outline-offset: 3px;
+        }
+
+        .homepage-category-media {
+            position: relative;
+
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            flex: 0 0 auto;
+
+            overflow: hidden;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    rgba(241, 245, 249, 0.95),
+                    rgba(239, 246, 255, 0.95)
+                );
+        }
+
+        .homepage-category-media::after {
+            content: "";
+
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+
+            pointer-events: none;
+
+            background:
+                linear-gradient(
+                    to bottom,
+                    transparent 60%,
+                    rgba(15, 23, 42, 0.08)
+                );
+
+            opacity: 0;
+
+            transition: opacity 0.3s ease;
+        }
+
+        .homepage-category-card:hover .homepage-category-media::after {
+            opacity: 1;
+        }
+
+        .homepage-category-image {
+            display: block;
+
+            width: 100%;
+            height: 100%;
+
+            object-fit: cover;
+            object-position: center;
+
+            transition:
+                transform 0.45s ease,
+                filter 0.45s ease;
+        }
+
+        .homepage-category-card:hover .homepage-category-image {
+            transform: scale(1.05);
+            filter: saturate(1.04) contrast(1.02);
+        }
+
+        .homepage-category-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            width: 100%;
+            height: 100%;
+
+            color: #2563eb;
+            background:
+                radial-gradient(
+                    circle at center,
+                    rgba(219, 234, 254, 0.95),
+                    rgba(241, 245, 249, 0.95)
+                );
+        }
+
+        .homepage-category-placeholder i {
+            font-size: clamp(2.5rem, 4vw, 4rem);
+        }
+
+        .homepage-category-content {
+            display: flex;
+            flex: 1 1 auto;
+            align-items: center;
+            justify-content: center;
+
+            min-height: 4.35rem;
+            padding: 0.85rem 0.8rem 0.95rem;
+
+            text-align: center;
+        }
+
+        .homepage-category-name {
+            display: -webkit-box;
+
+            min-height: 2.5rem;
+            margin: 0;
+
+            overflow: hidden;
+
+            color: #1e293b;
+            font-size: clamp(0.88rem, 1vw, 1rem);
+            font-weight: 750;
+            line-height: 1.25;
+
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+
+            transition: color 0.2s ease;
+        }
+
+        .homepage-category-card:hover .homepage-category-name {
+            color: #1d4ed8;
+        }
+
+        @media (max-width: 1279px) {
+            .homepage-category-grid {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 1023px) {
+            .homepage-category-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 639px) {
+            .homepage-category-section {
+                margin-bottom: 2.25rem;
+            }
+
+            .homepage-category-header {
+                align-items: flex-start;
+                margin-bottom: 1rem;
+            }
+
+            .homepage-category-subtitle {
+                display: none;
+            }
+
+            .homepage-category-view-all {
+                min-height: 40px;
+                padding: 0.5rem 0.35rem;
+                font-size: 0.78rem;
+            }
+
+            .homepage-category-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 0.75rem;
+            }
+
+            .homepage-category-card {
+                border-radius: 0.85rem;
+            }
+
+            .homepage-category-content {
+                min-height: 3.8rem;
+                padding: 0.7rem 0.55rem 0.8rem;
+            }
+
+            .homepage-category-name {
+                min-height: 2.2rem;
+                font-size: 0.82rem;
+            }
+        }
+
+        @media (max-width: 374px) {
+            .homepage-category-grid {
+                gap: 0.6rem;
+            }
+
+            .homepage-category-title {
+                font-size: 1.4rem;
+            }
+
+            .homepage-category-view-all span {
+                display: none;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .homepage-category-card,
+            .homepage-category-image,
+            .homepage-category-view-all,
+            .homepage-category-media::after {
+                transition: none;
+            }
+
+            .homepage-category-card:hover,
+            .homepage-category-card:hover .homepage-category-image,
+            .homepage-category-view-all:hover {
+                transform: none;
+            }
+        }
+    </style>
+
+    <div class="homepage-category-header">
+        <div class="homepage-category-header-copy">
+            <span class="homepage-category-eyebrow">
                 Browse Arolana
             </span>
 
-            <h2 id="homepage-category-title" class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            <h2
+                id="homepage-category-title"
+                class="homepage-category-title">
                 Shop by Category
             </h2>
+
+            <p class="homepage-category-subtitle">
+                Explore products and solutions for your home, business, office and professional projects.
+            </p>
         </div>
 
-        <a href="{% url 'products:list' %}" class="inline-flex shrink-0 items-center gap-2 text-sm font-semibold text-blue-700 transition hover:text-orange-600">
-            View All <i class="fas fa-arrow-right text-xs" aria-hidden="true"></i>
+        <a
+            href="{% url 'products:list' %}"
+            class="homepage-category-view-all"
+            data-track-click="true"
+            data-event-type="link"
+            data-click-text="View All Categories">
+
+            <span>View All</span>
+
+            <i
+                class="fas fa-arrow-right"
+                aria-hidden="true">
+            </i>
         </a>
     </div>
 
-    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-        {% for hp_category in categories %}
-        <a href="{% url 'products:category' hp_category.category.slug %}"
-           class="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl"
-           aria-label="Browse {{ hp_category.category.name }}">
+    <div
+        class="homepage-category-grid"
+        data-homepage-category-grid>
 
-            <div class="relative aspect-square overflow-hidden bg-gradient-to-br from-slate-100 to-blue-50">
-                {% if hp_category.category.image or hp_category.image_url %}
-                    {% if hp_category.category.image %}
-                        {% optimized_image_url hp_category.category.image 'category_card' as hp_category_image_url %}
+        {% for hp_category in categories %}
+            <a
+                href="{% url 'products:category' hp_category.category.slug %}"
+                class="homepage-category-card"
+                aria-label="Browse {{ hp_category.category.name }}"
+                data-track-click="true"
+                data-event-type="category"
+                data-category-id="{{ hp_category.category.id }}"
+                data-click-text="{{ hp_category.category.name }}">
+
+                <div class="homepage-category-media">
+
+                    {% if hp_category.category.image or hp_category.image_url %}
+
+                        {% if hp_category.category.image %}
+                            {% optimized_image_url hp_category.category.image 'category_card' as hp_category_image_url %}
+                        {% else %}
+                            {% optimized_image_url hp_category.image_url 'category_card' as hp_category_image_url %}
+                        {% endif %}
+
+                        <img
+                            src="{{ hp_category_image_url }}"
+                            data-fallback-src="{% if hp_category.category.image %}{{ hp_category.category.image|optimized_image_url:'category_card' }}{% else %}{{ hp_category.image_url }}{% endif %}"
+                            alt="{{ hp_category.category.name }}"
+                            class="homepage-category-image"
+                            loading="lazy"
+                            decoding="async"
+                            onerror="
+                                if (
+                                    this.dataset.fallbackSrc &&
+                                    this.src !== this.dataset.fallbackSrc
+                                ) {
+                                    this.src = this.dataset.fallbackSrc;
+                                } else {
+                                    this.onerror = null;
+                                    this.src = 'https://placehold.co/640x480/eaf2ff/1d4ed8?text={{ hp_category.category.name|urlencode }}';
+                                }
+                            ">
+
                     {% else %}
-                        {% optimized_image_url hp_category.image_url 'category_card' as hp_category_image_url %}
+                        <div class="homepage-category-placeholder">
+                            <i
+                                class="{{ hp_category.icon|default:'fas fa-folder-open' }}"
+                                aria-hidden="true">
+                            </i>
+                        </div>
                     {% endif %}
 
-                    <img src="{{ hp_category_image_url }}"
-                         data-fallback-src="{% if hp_category.category.image %}{{ hp_category.category.image|optimized_image_url:'category_card' }}{% else %}{{ hp_category.image_url }}{% endif %}"
-                         alt="{{ hp_category.category.name }}"
-                         class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                         loading="lazy"
-                         decoding="async"
-                         onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}else{this.onerror=null;this.src='https://placehold.co/400x400/3b82f6/white?text={{ hp_category.category.name|urlencode }}';}">
-                {% else %}
-                    <div class="flex h-full w-full items-center justify-center">
-                        <i class="{{ hp_category.icon|default:'fas fa-folder-open' }} text-5xl text-blue-500" aria-hidden="true"></i>
-                    </div>
-                {% endif %}
-            </div>
+                </div>
 
-            <div class="p-3 text-center">
-                <h3 class="truncate text-sm font-semibold text-slate-800 transition-colors group-hover:text-blue-700">
-                    {{ hp_category.category.name }}
-                </h3>
-            </div>
-        </a>
+                <div class="homepage-category-content">
+                    <h3 class="homepage-category-name">
+                        {{ hp_category.category.name }}
+                    </h3>
+                </div>
+
+            </a>
         {% endfor %}
+
     </div>
 </section>
 {% endif %}
