@@ -1,0 +1,140 @@
+{% load optimized_images %}
+
+{% if section.items %}
+<section
+    class="arolana-section"
+    aria-labelledby="verified-providers-title">
+
+    <div class="arolana-section-head">
+        <div>
+            <h2
+                id="verified-providers-title"
+                class="arolana-section-title">
+                {{ section.title }}
+            </h2>
+
+            {% if section.subtitle %}
+                <p class="section-subtitle">
+                    {{ section.subtitle }}
+                </p>
+            {% endif %}
+        </div>
+
+        <a
+            href="{{ section.view_all_url|default:'/installers/' }}"
+            class="arolana-view-all">
+            {{ section.view_all_text|default:"View All" }}
+            <i class="fas fa-arrow-right"></i>
+        </a>
+    </div>
+
+    <div class="arolana-carousel-wrap">
+        <button
+            type="button"
+            class="arolana-carousel-arrow is-left"
+            data-carousel-prev="verified-providers-track"
+            aria-label="Previous providers">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+
+        <div
+            id="verified-providers-track"
+            class="arolana-provider-track"
+            style="
+                --desktop-count: {{ section.desktop_visible_count|default:8 }};
+                --tablet-count: {{ section.tablet_visible_count|default:4 }};
+                --mobile-count: {{ section.mobile_visible_count|default:2 }};
+            ">
+
+            {% for provider in section.items %}
+            <a
+                href="{% url 'installers:provider_detail' provider.slug %}"
+                class="arolana-provider-card"
+                aria-label="View {{ provider.business_name }}">
+
+                <div class="arolana-provider-media">
+                    {% if provider.business_logo %}
+                        {% optimized_image_url provider.business_logo 'provider_logo' as provider_image_url %}
+                        <img
+                            src="{{ provider_image_url }}"
+                            alt="{{ provider.business_name }}"
+                            loading="lazy"
+                            decoding="async">
+                    {% elif provider.profile_image %}
+                        {% optimized_image_url provider.profile_image 'provider_profile' as provider_image_url %}
+                        <img
+                            src="{{ provider_image_url }}"
+                            alt="{{ provider.business_name }}"
+                            loading="lazy"
+                            decoding="async">
+                    {% else %}
+                        <span class="arolana-provider-fallback">
+                            {{ provider.business_name|first|upper }}
+                        </span>
+                    {% endif %}
+
+                    {% if provider.is_verified %}
+                    <span
+                        class="arolana-provider-verified"
+                        title="Verified provider">
+                        <i class="fas fa-check"></i>
+                    </span>
+                    {% endif %}
+                </div>
+
+                <div class="arolana-provider-body">
+                    <h3>{{ provider.business_name }}</h3>
+
+                    <p class="arolana-provider-service">
+                        {% with service=provider.featured_services.0 %}
+                            {% if service %}
+                                {{ service.service_name }}
+                            {% else %}
+                                {{ provider.get_provider_type_display }}
+                            {% endif %}
+                        {% endwith %}
+                    </p>
+
+                    <p class="arolana-provider-location">
+                        <i class="fas fa-map-marker-alt"></i>
+                        {% if provider.city %}{{ provider.city }}, {% endif %}
+                        {{ provider.state }}
+                    </p>
+
+                    <div class="arolana-provider-rating">
+                        <span>
+                            <i class="fas fa-star"></i>
+                            {{ provider.average_rating|floatformat:1 }}
+                        </span>
+
+                        <small>
+                            ({{ provider.total_reviews }})
+                        </small>
+                    </div>
+
+                    {% if provider.total_completed_jobs %}
+                    <p class="arolana-provider-jobs">
+                        {{ provider.total_completed_jobs }}
+                        completed job{{ provider.total_completed_jobs|pluralize }}
+                    </p>
+                    {% endif %}
+
+                    <span class="arolana-provider-link">
+                        View Profile
+                        <i class="fas fa-arrow-right"></i>
+                    </span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+
+        <button
+            type="button"
+            class="arolana-carousel-arrow is-right"
+            data-carousel-next="verified-providers-track"
+            aria-label="Next providers">
+            <i class="fas fa-chevron-right"></i>
+        </button>
+    </div>
+</section>
+{% endif %}

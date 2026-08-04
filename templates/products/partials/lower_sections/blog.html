@@ -1,0 +1,89 @@
+{% load optimized_images %}
+
+{% if section.items %}
+<section
+    class="arolana-section arolana-blog-section"
+    aria-labelledby="from-blog-title">
+
+    <div class="arolana-blog-heading">
+        <h2
+            id="from-blog-title"
+            class="arolana-section-title-small">
+            {{ section.title }}
+        </h2>
+
+        {% if section.subtitle %}
+            <p class="section-subtitle">
+                {{ section.subtitle }}
+            </p>
+        {% endif %}
+
+        <a
+            href="{{ section.view_all_url|default:'/blog/' }}"
+            class="arolana-blog-view-all">
+            {{ section.view_all_text|default:"View All" }}
+            <i class="fas fa-arrow-right"></i>
+        </a>
+    </div>
+
+    <div class="arolana-carousel-wrap">
+        <button
+            type="button"
+            class="arolana-carousel-arrow is-left"
+            data-carousel-prev="blog-posts-track"
+            aria-label="Previous articles">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+
+        <div
+            id="blog-posts-track"
+            class="arolana-blog-track"
+            style="
+                --desktop-count: {{ section.desktop_visible_count|default:4 }};
+                --tablet-count: {{ section.tablet_visible_count|default:3 }};
+                --mobile-count: {{ section.mobile_visible_count|default:2 }};
+            ">
+
+            {% for post in section.items %}
+            <a
+                href="{{ post.get_absolute_url }}"
+                class="arolana-blog-card"
+                aria-label="{{ post.title }}">
+
+                <div class="arolana-blog-image">
+                    {% if post.featured_image %}
+                        {% optimized_image_url post.featured_image 'blog_card' as blog_image_url %}
+                        <img
+                            src="{{ blog_image_url }}"
+                            alt="{{ post.title }}"
+                            loading="lazy"
+                            decoding="async">
+                    {% elif post.thumbnail_image %}
+                        {% optimized_image_url post.thumbnail_image 'blog_card' as blog_image_url %}
+                        <img
+                            src="{{ blog_image_url }}"
+                            alt="{{ post.title }}"
+                            loading="lazy"
+                            decoding="async">
+                    {% else %}
+                        <div class="arolana-blog-placeholder">
+                            <i class="fas fa-newspaper"></i>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <h3>{{ post.title }}</h3>
+            </a>
+            {% endfor %}
+        </div>
+
+        <button
+            type="button"
+            class="arolana-carousel-arrow is-right"
+            data-carousel-next="blog-posts-track"
+            aria-label="Next articles">
+            <i class="fas fa-chevron-right"></i>
+        </button>
+    </div>
+</section>
+{% endif %}

@@ -13,7 +13,12 @@ from django.views.decorators.http import require_http_methods, require_GET
 from django.views.decorators.csrf import csrf_exempt
 from django.db import IntegrityError, transaction
 from django.contrib.admin.views.decorators import staff_member_required
-
+from products.services.recommendation_engine import (
+    RecommendationEngine,
+)
+from products.services.product_list_sections import (
+    get_product_list_sections,
+)
 import json
 import re
 
@@ -1370,7 +1375,7 @@ def product_list(request):
         })
 
     # ====== Regular Page Load ======
-    return render(request, "products/list.html", {
+    context = {
         "products": products_page,
         "categories": categories_list,
         "brands": brands_list,
@@ -1383,7 +1388,15 @@ def product_list(request):
         "shop_banner": shop_banner,
         "current_collection": collection,
         "collection_info": collection_info,
-    })
+    }
+
+    context.update(get_product_list_sections(request))
+
+    return render(
+        request,
+        "products/list.html",
+        context,
+    )
 
 
 def product_detail(request, slug):
@@ -2035,16 +2048,16 @@ def product_detail(request, slug):
     # Recently viewed
     # ============================================================
 
-    recently_viewed = []
+    recently_viewed = RecommendationEngine.recent_products(
+        request=request,
+        limit=12,
+    )
 
-    if request.user.is_authenticated:
-        recently_viewed = (
-            RecentlyViewed.objects
-            .filter(user=request.user)
-            .exclude(product=product)
-            .select_related("product")
-            .order_by("-viewed_at")[:12]
-        )
+    recently_viewed = [
+        recent_product
+        for recent_product in recently_viewed
+        if recent_product.pk != product.pk
+    ][:12]
 
     # ============================================================
     # AI recommendations

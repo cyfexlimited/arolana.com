@@ -1,0 +1,94 @@
+{% load optimized_images currency_filters %}
+
+{% if section.items %}
+<section
+    class="arolana-section"
+    aria-labelledby="recently-viewed-title">
+
+    <div class="arolana-section-head">
+        <div>
+            <h2
+                id="recently-viewed-title"
+                class="arolana-section-title-small">
+                {% if section.is_fallback %}
+                    Recommended For You
+                {% else %}
+                    {{ section.title }}
+                {% endif %}
+            </h2>
+
+            {% if section.subtitle %}
+                <p class="section-subtitle">
+                    {{ section.subtitle }}
+                </p>
+            {% endif %}
+        </div>
+
+        {% if section.view_all_url %}
+        <a
+            href="{{ section.view_all_url }}"
+            class="arolana-view-all">
+            {{ section.view_all_text|default:"View All" }}
+            <i class="fas fa-arrow-right"></i>
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="arolana-carousel-wrap">
+        <button
+            type="button"
+            class="arolana-carousel-arrow is-left"
+            data-carousel-prev="recently-viewed-track"
+            aria-label="Previous products">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+
+        <div
+            id="recently-viewed-track"
+            class="arolana-compact-product-track"
+            style="
+                --desktop-count: {{ section.desktop_visible_count|default:10 }};
+                --tablet-count: {{ section.tablet_visible_count|default:5 }};
+                --mobile-count: {{ section.mobile_visible_count|default:2 }};
+            ">
+
+            {% for product in section.items %}
+            <a
+                href="{{ product.get_absolute_url }}"
+                class="arolana-compact-product-card"
+                aria-label="{{ product.name }}">
+
+                <div class="arolana-compact-product-image">
+                    {% if product.main_image %}
+                        {% optimized_image_url product.main_image 'product_card' as recent_image_url %}
+                        <img
+                            src="{{ recent_image_url }}"
+                            alt="{{ product.name }}"
+                            loading="lazy"
+                            decoding="async">
+                    {% else %}
+                        <i class="fas fa-image"></i>
+                    {% endif %}
+                </div>
+
+                <div class="arolana-compact-product-info">
+                    <h3>{{ product.name }}</h3>
+
+                    <strong>
+                        {{ product.price|currency:request }}
+                    </strong>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+
+        <button
+            type="button"
+            class="arolana-carousel-arrow is-right"
+            data-carousel-next="recently-viewed-track"
+            aria-label="Next products">
+            <i class="fas fa-chevron-right"></i>
+        </button>
+    </div>
+</section>
+{% endif %}

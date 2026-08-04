@@ -6,13 +6,13 @@ from django_ckeditor_5.widgets import CKEditor5Widget
 from django.db.models import Count, F, Q
 
 from .models import (
-    Category, Brand, Product, ProductImage, ProductVariant, 
+    Category, Brand, Product, ProductImage, ProductVariant,
     ProductVariantImage, ProductVariantSpecification, VendorProductOffer, ProductCatalogRequest,
-    ProductReview, RecentlyViewed, 
+    ProductReview, RecentlyViewed,
     Wishlist, ProductVideo, ReviewVideo, ProductQnA,
     Accessory, AccessoryProduct, ManufacturerWarranty, ShippingInfo, ProductListingBanner,
     ProductArticleLink, CategoryArticleLink, ProductWholesaleTier, ProductDetailSection,
-    ProductDetailFieldConfig, ProductVariantTypeConfig
+    ProductDetailFieldConfig, ProductVariantTypeConfig, ProductListLowerSection, ProductListTrustBenefit
 )
 
 from django.utils.timezone import now
@@ -128,7 +128,7 @@ class ProductReviewAdminForm(forms.ModelForm):
     The browser file picker permits the same video formats accepted by the
     backend validator, including iPhone MOV videos.
     """
-    
+
     class Meta:
         model = ProductReview
         fields = "__all__"
@@ -173,7 +173,7 @@ class ReviewVideoAdminForm(forms.ModelForm):
                 }
             ),
         }
-        
+
 class InventoryStatusFilter(admin.SimpleListFilter):
     title = 'inventory status'
     parameter_name = 'inventory_status'
@@ -246,11 +246,11 @@ class ProductImageInline(admin.TabularInline):
     extra = 5
     fields = ['image', 'alt_text', 'is_main', 'order', 'image_preview']
     readonly_fields = ['image_preview']
-    
+
     def image_preview(self, obj):
         if obj.image:
             return format_html(
-                '<img src="{}" width="80" height="80" style="object-fit: cover; border-radius: 4px;" />', 
+                '<img src="{}" width="80" height="80" style="object-fit: cover; border-radius: 4px;" />',
                 obj.image.url
             )
         return mark_safe('<span style="color: #9ca3af;">No Image</span>')
@@ -481,7 +481,7 @@ class ProductAdmin(admin.ModelAdmin):
                 if getattr(instance, field_name, None):
                     set_protected_image_uploader(instance, field_name, request.user)
                     _message_image_duplicate_review(self, request, instance, field_name)
-    
+
     fieldsets = (
         ('Basic Information', {
             'fields': ('sku', 'manufacturer_sku', 'name', 'slug', 'condition', 'category', 'brand', 'vendor')
@@ -561,16 +561,16 @@ class ProductAdmin(admin.ModelAdmin):
                 ),
             )
         )
-    
+
     def image_preview(self, obj):
         if obj.main_image:
             return format_html(
-                '<img src="{}" width="80" height="80" style="object-fit: cover; border-radius: 4px;" />', 
+                '<img src="{}" width="80" height="80" style="object-fit: cover; border-radius: 4px;" />',
                 obj.main_image.url
             )
         return mark_safe('<span style="color: #9ca3af;">No Image</span>')
     image_preview.short_description = 'Preview'
-    
+
     def approval_status_badge(self, obj):
         """Display approval status with colored badge"""
         status_colors = {
@@ -608,10 +608,10 @@ class ProductAdmin(admin.ModelAdmin):
             label
         )
     stock_status_badge.short_description = 'Stock'
-    
+
     def get_search_results(self, request, queryset, search_term):
         queryset, use_distinct = super().get_search_results(request, queryset, search_term)
-        
+
         if search_term:
             try:
                 from vendors.models import Vendor
@@ -620,9 +620,9 @@ class ProductAdmin(admin.ModelAdmin):
                 use_distinct = True
             except Exception:
                 pass
-        
+
         return queryset, use_distinct
-    
+
     actions = [
         'mark_as_featured',
         'mark_as_unfeatured',
@@ -636,34 +636,34 @@ class ProductAdmin(admin.ModelAdmin):
         'disable_backorders',
         'rebuild_review_statistics',
     ]
-    
+
     def mark_as_featured(self, request, queryset):
         queryset.update(is_featured=True)
         self.message_user(request, f"⭐ {queryset.count()} products marked as featured.")
     mark_as_featured.short_description = "⭐ Mark as featured"
-    
+
     def mark_as_unfeatured(self, request, queryset):
         queryset.update(is_featured=False)
         self.message_user(request, f"☆ {queryset.count()} products unmarked as featured.")
     mark_as_unfeatured.short_description = "☆ Unmark as featured"
-    
+
     def activate_products(self, request, queryset):
         queryset.update(is_active=True)
         self.message_user(request, f"✅ {queryset.count()} products activated.")
     activate_products.short_description = "✅ Activate selected products"
-    
+
     def deactivate_products(self, request, queryset):
         queryset.update(is_active=False)
         self.message_user(request, f"❌ {queryset.count()} products deactivated.")
     deactivate_products.short_description = "❌ Deactivate selected products"
-    
+
     # ========== APPROVAL ACTIONS ==========
     def approve_products(self, request, queryset):
         from django.utils import timezone
         updated = queryset.update(approval_status='approved', approved_by=request.user, approved_at=timezone.now(), is_active=True)
         self.message_user(request, f"✅ {updated} product(s) approved and are now live on the site.")
     approve_products.short_description = "✅ Approve selected products"
-    
+
     def reject_products(self, request, queryset):
         updated = queryset.update(approval_status='rejected', is_active=False)
         self.message_user(request, f"❌ {updated} product(s) rejected.")
@@ -736,7 +736,7 @@ class CategoryAdmin(OptionalColorFieldAdminMixin, admin.ModelAdmin):
     prepopulated_fields = {'slug': ['name']}
     list_editable = ['order', 'is_navigation_featured', 'is_active']
     inlines = [CategoryArticleLinkInline]
-    
+
     fieldsets = (
         ('Basic Information', {
             'fields': (
@@ -774,19 +774,19 @@ class CategoryAdmin(OptionalColorFieldAdminMixin, admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
-    
+
     def image_preview(self, obj):
         if obj.image:
             return format_html('<img src="{}" width="50" height="50" style="object-fit: cover; border-radius: 4px;" />', obj.image.url)
         return mark_safe('<span style="color: #9ca3af;">No Image</span>')
     image_preview.short_description = 'Thumbnail'
-    
+
     def has_background_status(self, obj):
         if obj.background_image:
             return mark_safe('<span style="color: #10b981; font-weight: bold;">✓ Has Background</span>')
         return mark_safe('<span style="color: #9ca3af;">— No Background —</span>')
     has_background_status.short_description = 'Hero Background'
-    
+
     def product_count_display(self, obj):
         count = obj.product_count if hasattr(obj, 'product_count') else 0
         if count > 0:
@@ -822,7 +822,7 @@ class BrandAdmin(admin.ModelAdmin):
     prepopulated_fields = {'slug': ['name']}
     list_filter = ['is_active', 'featured', 'created_at']
     list_editable = ['is_active', 'featured']
-    
+
     fieldsets = (
         ('Basic Information', {
             'fields': ('name', 'slug', 'description', 'is_active', 'featured')
@@ -832,11 +832,11 @@ class BrandAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
-    
+
     def logo_preview(self, obj):
         if obj.logo:
             return format_html(
-                '<img src="{}" width="50" height="50" style="border-radius: 50%; object-fit: cover;" />', 
+                '<img src="{}" width="50" height="50" style="border-radius: 50%; object-fit: cover;" />',
                 obj.logo.url
             )
         return mark_safe('<span style="color: #9ca3af;">No Logo</span>')
@@ -856,7 +856,7 @@ class AccessoryAdmin(admin.ModelAdmin):
     list_editable = ['price', 'compare_price', 'stock_quantity', 'is_active']
     list_per_page = 20
     prepopulated_fields = {'slug': ['name']}
-    
+
     fieldsets = (
         ('Basic Information', {
             'fields': ('name', 'slug', 'description', 'is_active')
@@ -876,24 +876,24 @@ class AccessoryAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
-    
+
     def image_preview(self, obj):
         if obj.image:
             return format_html(
-                '<img src="{}" width="50" height="50" style="object-fit: cover; border-radius: 4px;" />', 
+                '<img src="{}" width="50" height="50" style="object-fit: cover; border-radius: 4px;" />',
                 obj.image.url
             )
         return mark_safe('<span style="color: #9ca3af;">No Image</span>')
     image_preview.short_description = 'Preview'
-    
+
     def discount_display(self, obj):
         if obj.compare_price and obj.compare_price > obj.price:
             return format_html('<span style="color: #10b981; font-weight: bold;">Save {}%</span>', obj.discount_percent)
         return "-"
     discount_display.short_description = 'Discount'
-    
+
     actions = ['activate_accessories', 'deactivate_accessories']
-    
+
     def activate_accessories(self, request, queryset):
         queryset.update(is_active=True)
         self.message_user(request, f"✅ {queryset.count()} accessories activated.")
@@ -912,11 +912,11 @@ class AccessoryProductAdmin(admin.ModelAdmin):
     autocomplete_fields = ['product', 'accessory']
     list_editable = ['required', 'discount_when_bought_together', 'display_order']
     list_select_related = ['product', 'accessory']
-    
+
     def product_name(self, obj):
         return obj.product.name
     product_name.short_description = 'Product'
-    
+
     def accessory_name(self, obj):
         return obj.accessory.name
     accessory_name.short_description = 'Accessory'
@@ -933,15 +933,15 @@ class ProductImageAdmin(admin.ModelAdmin):
     list_editable = ['order', 'is_main']
     search_fields = ['product__name', 'alt_text']
     list_select_related = ['product']
-    
+
     def product_name(self, obj):
         return obj.product.name
     product_name.short_description = 'Product'
-    
+
     def image_preview(self, obj):
         if obj.image:
             return format_html(
-                '<img src="{}" width="50" height="50" style="object-fit: cover; border-radius: 4px;" />', 
+                '<img src="{}" width="50" height="50" style="object-fit: cover; border-radius: 4px;" />',
                 obj.image.url
             )
         return mark_safe('<span style="color: #9ca3af;">No Image</span>')
@@ -1090,15 +1090,15 @@ class ProductVariantImageAdmin(admin.ModelAdmin):
     autocomplete_fields = ['variant']
     list_select_related = ['variant', 'variant__product']
     list_per_page = 50
-    
+
     def variant_display(self, obj):
         return f"{obj.variant.product.name} - {obj.variant.value}"
     variant_display.short_description = 'Variant'
-    
+
     def image_preview(self, obj):
         if obj.image:
             return format_html(
-                '<img src="{}" width="50" height="50" style="object-fit: cover; border-radius: 4px;" />', 
+                '<img src="{}" width="50" height="50" style="object-fit: cover; border-radius: 4px;" />',
                 obj.image.url
             )
         return mark_safe('<span style="color: #9ca3af;">No Image</span>')
@@ -1212,7 +1212,7 @@ class ProductVideoAdmin(admin.ModelAdmin):
     list_editable = ['display_order', 'is_main']
     search_fields = ['product__name', 'title']
     list_select_related = ['product']
-    
+
     fieldsets = (
         ('Basic Information', {
             'fields': ('product', 'title', 'description', 'source')
@@ -1229,7 +1229,7 @@ class ProductVideoAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
-    
+
     def product_name(self, obj):
         return obj.product.name
     product_name.short_description = 'Product'
@@ -1507,7 +1507,7 @@ class ProductQnAAdmin(admin.ModelAdmin):
     readonly_fields = ['answered_at', 'created_at', 'updated_at']
     list_select_related = ['product', 'user', 'answered_by']
     list_per_page = 25
-    
+
     fieldsets = (
         ('Question', {
             'fields': ('product', 'user', 'question', 'is_public')
@@ -1524,19 +1524,19 @@ class ProductQnAAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
-    
+
     def product_name(self, obj):
         return obj.product.name
     product_name.short_description = 'Product'
-    
+
     def user_name(self, obj):
         return obj.user.username
     user_name.short_description = 'User'
-    
+
     def question_preview(self, obj):
         return obj.question[:50] + "..." if len(obj.question) > 50 else obj.question
     question_preview.short_description = 'Question'
-    
+
     def has_answer(self, obj):
         return bool(obj.answer and obj.answered_at)
     has_answer.boolean = True
@@ -1727,7 +1727,7 @@ class ManufacturerWarrantyAdmin(admin.ModelAdmin):
     search_fields = ['product__name', 'provider', 'customer_support_email']
     raw_id_fields = ['product']
     list_select_related = ['product']
-    
+
     fieldsets = (
         ('Warranty Information', {
             'fields': ('product', 'provider', 'duration_years', 'duration_months', 'coverage_details', 'exclusions')
@@ -1739,11 +1739,11 @@ class ManufacturerWarrantyAdmin(admin.ModelAdmin):
             'fields': ('terms_url', 'customer_support_phone', 'customer_support_email'),
         }),
     )
-    
+
     def product_name(self, obj):
         return obj.product.name
     product_name.short_description = 'Product'
-    
+
     def duration_text(self, obj):
         years = obj.duration_years or 0
         months = obj.duration_months or 0
@@ -1768,7 +1768,7 @@ class ShippingInfoAdmin(admin.ModelAdmin):
     search_fields = ['product__name']
     raw_id_fields = ['product']
     list_select_related = ['product']
-    
+
     fieldsets = (
         ('Product', {
             'fields': ('product',)
@@ -1787,11 +1787,11 @@ class ShippingInfoAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
-    
+
     def product_name(self, obj):
         return obj.product.name
     product_name.short_description = 'Product'
-    
+
     def estimated_delivery_range(self, obj):
         if obj.estimated_delivery_days_min and obj.estimated_delivery_days_max:
             return f"{obj.estimated_delivery_days_min}-{obj.estimated_delivery_days_max} days"
@@ -1811,11 +1811,11 @@ class WishlistAdmin(admin.ModelAdmin):
     readonly_fields = ['added_at', 'created_at', 'updated_at']
     list_select_related = ['user', 'product']
     list_per_page = 50
-    
+
     def user_name(self, obj):
         return obj.user.username
     user_name.short_description = 'User'
-    
+
     def product_name(self, obj):
         return obj.product.name
     product_name.short_description = 'Product'
@@ -1833,11 +1833,11 @@ class RecentlyViewedAdmin(admin.ModelAdmin):
     readonly_fields = ['viewed_at', 'created_at', 'updated_at']
     list_select_related = ['user', 'product']
     list_per_page = 50
-    
+
     def user_name(self, obj):
         return obj.user.username
     user_name.short_description = 'User'
-    
+
     def product_name(self, obj):
         return obj.product.name
     product_name.short_description = 'Product'
@@ -1912,6 +1912,88 @@ class ProductListingBannerAdmin(OptionalColorFieldAdminMixin, admin.ModelAdmin):
 
     banner_preview.short_description = "Preview"
 
+class ProductListTrustBenefitInline(admin.TabularInline):
+    model = ProductListTrustBenefit
+    extra = 0
+    fields = (
+        "title",
+        "description",
+        "icon",
+        "display_order",
+        "is_active",
+    )
+
+
+@admin.register(ProductListLowerSection)
+class ProductListLowerSectionAdmin(admin.ModelAdmin):
+    list_display = (
+        "title",
+        "section_type",
+        "is_active",
+        "display_order",
+        "maximum_items",
+        "desktop_visible_count",
+        "tablet_visible_count",
+        "mobile_visible_count",
+    )
+    list_editable = (
+        "is_active",
+        "display_order",
+    )
+    list_filter = (
+        "section_type",
+        "is_active",
+        "selection_mode",
+        "shuffle_on_refresh",
+    )
+    search_fields = ("title", "subtitle")
+    ordering = ("display_order",)
+    inlines = (ProductListTrustBenefitInline,)
+
+    fieldsets = (
+        (
+            "Section",
+            {
+                "fields": (
+                    "section_type",
+                    "title",
+                    "subtitle",
+                    "is_active",
+                    "display_order",
+                )
+            },
+        ),
+        (
+            "Content Selection",
+            {
+                "fields": (
+                    "selection_mode",
+                    "maximum_items",
+                    "shuffle_on_refresh",
+                    "show_when_empty",
+                )
+            },
+        ),
+        (
+            "Responsive Counts",
+            {
+                "fields": (
+                    "desktop_visible_count",
+                    "tablet_visible_count",
+                    "mobile_visible_count",
+                )
+            },
+        ),
+        (
+            "View All",
+            {
+                "fields": (
+                    "view_all_text",
+                    "view_all_url",
+                )
+            },
+        ),
+    )
 
 # =================================
 # 🔥 ADMIN SITE CONFIGURATION

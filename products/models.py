@@ -5971,6 +5971,84 @@ class ProductListingBanner(BaseModel):
     def __str__(self):
         return self.title
 
+class ProductListLowerSection(BaseModel):
+    SECTION_CHOICES = [
+        ("why_buy", "Why Buy From Arolana"),
+        ("buying_guides", "Buying Guides"),
+        ("recently_viewed", "Recently Viewed"),
+        ("recommendations", "You May Also Like"),
+        ("verified_providers", "See Verified Service Providers"),
+        ("blog", "From Our Blog"),
+    ]
+
+    SELECTION_CHOICES = [
+        ("automatic", "Automatic"),
+        ("manual", "Manual"),
+        ("mixed", "Mixed"),
+    ]
+
+    section_type = models.CharField(
+        max_length=40,
+        choices=SECTION_CHOICES,
+        unique=True,
+    )
+    title = models.CharField(max_length=160)
+    subtitle = models.CharField(max_length=300, blank=True)
+
+    is_active = models.BooleanField(default=True)
+    display_order = models.PositiveSmallIntegerField(default=0)
+
+    maximum_items = models.PositiveSmallIntegerField(default=40)
+    desktop_visible_count = models.PositiveSmallIntegerField(default=4)
+    tablet_visible_count = models.PositiveSmallIntegerField(default=3)
+    mobile_visible_count = models.PositiveSmallIntegerField(default=2)
+
+    selection_mode = models.CharField(
+        max_length=20,
+        choices=SELECTION_CHOICES,
+        default="automatic",
+    )
+
+    view_all_text = models.CharField(
+        max_length=50,
+        default="View All",
+    )
+    view_all_url = models.CharField(max_length=300, blank=True)
+
+    shuffle_on_refresh = models.BooleanField(default=False)
+    show_when_empty = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["display_order", "id"]
+        verbose_name = "Product List Lower Section"
+        verbose_name_plural = "Product List Lower Sections"
+
+    def __str__(self):
+        return self.title
+
+
+class ProductListTrustBenefit(BaseModel):
+    section = models.ForeignKey(
+        ProductListLowerSection,
+        on_delete=models.CASCADE,
+        related_name="trust_benefits",
+        limit_choices_to={"section_type": "why_buy"},
+    )
+    title = models.CharField(max_length=100)
+    description = models.CharField(max_length=220, blank=True)
+    icon = models.CharField(
+        max_length=80,
+        default="fas fa-shield-alt",
+        help_text="Font Awesome class, e.g. fas fa-shield-alt",
+    )
+    display_order = models.PositiveSmallIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["display_order", "id"]
+
+    def __str__(self):
+        return self.title
 
 # =============================================================================
 # BACKWARD COMPATIBILITY ALIAS

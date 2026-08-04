@@ -1,0 +1,90 @@
+{% load optimized_images %}
+
+{% if section.items %}
+<section
+    class="arolana-section"
+    aria-labelledby="buying-guides-title">
+
+    <div class="arolana-section-head">
+        <div>
+            <h2 class="arolana-section-title">
+                {{ section.title }}
+            </h2>
+
+            {% if section.subtitle %}
+                <p class="section-subtitle">
+                    {{ section.subtitle }}
+                </p>
+            {% endif %}
+        </div>
+
+        <a
+            href="{{ section.view_all_url|default:'/blog/' }}"
+            class="arolana-view-all">
+            {{ section.view_all_text|default:"View All" }}
+            <i class="fas fa-arrow-right"></i>
+        </a>
+    </div>
+
+    <div class="arolana-carousel-wrap">
+        <button
+            type="button"
+            class="arolana-carousel-arrow is-left"
+            data-carousel-prev="buying-guides-track"
+            aria-label="Previous buying guides">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+
+        <div
+            id="buying-guides-track"
+            class="arolana-guide-track"
+            style="
+                --desktop-count: {{ section.desktop_visible_count|default:6 }};
+                --tablet-count: {{ section.tablet_visible_count|default:3 }};
+                --mobile-count: {{ section.mobile_visible_count|default:2 }};
+            ">
+
+            {% for link in section.items %}
+            <a
+                href="{{ link.article_url }}"
+                class="arolana-guide-card"
+                {% if link.opens_in_new_page %}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                {% endif %}>
+
+                <div class="arolana-guide-image">
+                    {% if link.article.featured_image %}
+                        <img
+                            src="{{ link.article.featured_image|optimized_image_url:'blog_card' }}"
+                            alt="{{ link.display_label }}"
+                            loading="lazy"
+                            decoding="async">
+                    {% elif link.article.thumbnail_image %}
+                        <img
+                            src="{{ link.article.thumbnail_image|optimized_image_url:'blog_card' }}"
+                            alt="{{ link.display_label }}"
+                            loading="lazy"
+                            decoding="async">
+                    {% else %}
+                        <div class="arolana-guide-placeholder">
+                            <i class="fas fa-book-open"></i>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <h3>{{ link.display_label }}</h3>
+            </a>
+            {% endfor %}
+        </div>
+
+        <button
+            type="button"
+            class="arolana-carousel-arrow is-right"
+            data-carousel-next="buying-guides-track"
+            aria-label="Next buying guides">
+            <i class="fas fa-chevron-right"></i>
+        </button>
+    </div>
+</section>
+{% endif %}

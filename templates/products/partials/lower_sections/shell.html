@@ -1,0 +1,22 @@
+<div class="arolana-lower-sections">
+    {% for section in product_lower_sections %}
+        {% if section.section_type == "why_buy" %}
+            {% include "products/partials/lower_sections/why_buy.html" with section=section %}
+
+        {% elif section.section_type == "buying_guides" %}
+            {% include "products/partials/lower_sections/buying_guides.html" with section=section %}
+
+        {% elif section.section_type == "recently_viewed" %}
+            {% include "products/partials/lower_sections/recently_viewed.html" with section=section %}
+
+        {% elif section.section_type == "recommendations" %}
+            {% include "products/partials/lower_sections/recommendations.html" with section=section %}
+
+        {% elif section.section_type == "verified_providers" %}
+            {% include "products/partials/lower_sections/verified_providers.html" with section=section %}
+
+        {% elif section.section_type == "blog" %}
+            {% include "products/partials/lower_sections/blog.html" with section=section %}
+        {% endif %}
+    {% endfor %}
+</div>
