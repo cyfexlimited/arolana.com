@@ -6386,45 +6386,96 @@ def mobile_product_detail_api(request, slug):
         extra_frequently_bought = related_queryset.filter(brand=brand).exclude(id__in=[item.id for item in frequently_bought]) if brand else related_queryset.exclude(id__in=[item.id for item in frequently_bought])
         frequently_bought.extend(list(extra_frequently_bought[: 8 - len(frequently_bought)]))
 
-    recommended_ids = []
-    if mobile_customer:
-        try:
-            from arolana_ops.views import _build_recommendation_scores
+    recommended = RecommendationEngine.similar_products(
+        product=product,
+        limit=12,
+    )
 
-            recommended_ids = [
-                product_id
-                for product_id, _meta in sorted(
-                    _build_recommendation_scores(mobile_customer).items(),
-                    key=lambda item: item[1]["score"],
-                    reverse=True,
-                )
-                if product_id != product.id
-            ][:12]
-        except Exception:
-            recommended_ids = []
+    supplier_products = (
+        list(
+            related_queryset.filter(
+                vendor=vendor,
+            )[:8]
+        )
+        if vendor
+        else []
+    )
 
-    recommended = list(related_queryset.filter(id__in=recommended_ids[:8]))
-    if recommended_ids:
-        recommended.sort(key=lambda item: recommended_ids.index(item.id))
-    if len(recommended) < 8:
-        extra_recommended = related_queryset.filter(category=category).exclude(id__in=[item.id for item in recommended]) if category else related_queryset.exclude(id__in=[item.id for item in recommended])
-        recommended.extend(list(extra_recommended[: 8 - len(recommended)]))
-
-    supplier_products = list(related_queryset.filter(vendor=vendor)[:8]) if vendor else []
     recently_viewed = []
+
     if mobile_customer:
         try:
             interactions = (
-                mobile_customer.product_interactions.select_related("product", "product__category", "product__brand")
-                .filter(product__is_active=True, product__approval_status="approved")
+                mobile_customer
+                .product_interactions
+                .select_related(
+                    "product",
+                    "product__category",
+                    "product__brand",
+                )
+                .filter(
+                    product__is_active=True,
+                    product__approval_status="approved",
+                )
                 .exclude(product=product)
                 .order_by("-last_viewed_at")[:8]
             )
-            recently_viewed = [interaction.product for interaction in interactions]
+
+            recently_viewed = [
+                interaction.product
+                for interaction in interactions
+            ]
+
         except Exception:
             recently_viewed = []
+
     if len(recently_viewed) < 8:
-        recently_viewed.extend(list(related_queryset.exclude(id__in=[item.id for item in recently_viewed])[: 8 - len(recently_viewed)]))
+        existing_ids = {
+            item.id
+            for item in recently_viewed
+        }
+
+        request_recent = RecommendationEngine.recent_products(
+            request=request,
+            limit=16,
+        )
+
+        for recent_product in request_recent:
+            if recent_product.id == product.id:
+                continue
+
+            if recent_product.id in existing_ids:
+                continue
+
+            recently_viewed.append(recent_product)
+            existing_ids.add(recent_product.id)
+
+            if len(recently_viewed) >= 8:
+                break
+
+    if len(recently_viewed) < 8:
+        existing_ids = {
+            item.id
+            for item in recently_viewed
+        }
+
+        fallback = (
+            related_queryset
+            .exclude(
+                id__in=existing_ids,
+            )
+            .order_by(
+                "-is_featured",
+                "-rating_avg",
+                "-created_at",
+            )[
+                :8 - len(recently_viewed)
+            ]
+        )
+
+        recently_viewed.extend(
+            list(fallback)
+        )
 
     reviews = []
 
