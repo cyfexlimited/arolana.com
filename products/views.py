@@ -187,10 +187,10 @@ def convert_price(price, from_currency, to_currency):
 
     if not from_currency or not to_currency or not CurrencyConverter:
         return price_decimal
-    
+
     if from_currency.code == to_currency.code:
         return price_decimal
-    
+
     try:
         return Decimal(str(CurrencyConverter.convert(price_decimal, from_currency, to_currency)))
     except Exception:
@@ -313,7 +313,7 @@ def apply_filters(queryset, request):
     query = request.GET.get('q', '').strip()
     if query:
         queryset = apply_product_search(queryset, query)
-    
+
     # ====== Category Filter ======
     categories = request.GET.getlist('categories')
     if categories:
@@ -322,7 +322,7 @@ def apply_filters(queryset, request):
             category_slugs.extend([c.strip() for c in cat.split(',') if c.strip()])
         if category_slugs:
             queryset = queryset.filter(category__slug__in=category_slugs)
-    
+
     # ====== Price Range Filter ======
     min_price = request.GET.get('min_price')
     max_price = request.GET.get('max_price')
@@ -331,19 +331,19 @@ def apply_filters(queryset, request):
 
     def price_in_catalog_currency(value):
         return convert_price(Decimal(value), user_currency, base_currency)
-    
+
     if min_price:
         try:
             queryset = queryset.filter(price__gte=price_in_catalog_currency(min_price))
         except (InvalidOperation, ValueError, TypeError):
             pass
-    
+
     if max_price:
         try:
             queryset = queryset.filter(price__lte=price_in_catalog_currency(max_price))
         except (InvalidOperation, ValueError, TypeError):
             pass
-    
+
     # ====== Brand Filter ======
     brands = request.GET.getlist('brands')
     if brands:
@@ -367,7 +367,7 @@ def apply_filters(queryset, request):
         ])
     if condition_values:
         queryset = queryset.filter(condition__in=condition_values)
-    
+
     # ====== Rating Filter ======
     min_rating = request.GET.get('rating')
     if min_rating:
@@ -375,17 +375,17 @@ def apply_filters(queryset, request):
             queryset = queryset.filter(rating_avg__gte=int(min_rating))
         except (ValueError, TypeError):
             pass
-    
+
     # ====== Stock Filter ======
     in_stock = request.GET.get('in_stock')
     if in_stock == 'true':
         queryset = queryset.filter(stock_quantity__gt=0)
-    
+
     # ====== Free Shipping Filter ======
     free_shipping = request.GET.get('free_shipping')
     if free_shipping == 'true':
         queryset = queryset.filter(shipping_info__free_shipping=True)
-    
+
     return queryset
 
 
@@ -393,17 +393,17 @@ def get_filter_counts(queryset):
     """Get count of products for each filter option (from filtered results)"""
     categories = Category.objects.filter(is_active=True, parent=None)
     brands = Brand.objects.filter(is_active=True)
-    
+
     category_counts = {}
     for category in categories:
         count = queryset.filter(category=category).count()
         category_counts[category.slug] = count
-    
+
     brand_counts = {}
     for brand in brands:
         count = queryset.filter(brand=brand).count()
         brand_counts[brand.slug] = count
-    
+
     return {
         'categories': category_counts,
         'brands': brand_counts,
@@ -820,15 +820,15 @@ def add_to_cart(request, slug):
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({'success': False, 'message': 'Cart feature is not available.'}, status=400)
         return redirect('products:detail', slug=slug)
-    
+
     product = get_object_or_404(Product, slug=slug, is_active=True, approval_status='approved')
-    
+
     # Get parameters
     quantity = _safe_quantity(request.POST.get('quantity', request.GET.get('quantity', 1)))
     variant_id = request.POST.get('variant_id') or request.GET.get('variant_id')
     vendor_offer_id = request.POST.get('vendor_offer_id') or request.POST.get('offer_id') or request.GET.get('vendor_offer_id') or request.GET.get('offer_id')
     accessory_ids = request.POST.getlist('accessories') or request.GET.getlist('accessories')
-    
+
     # ====== Handle Product ======
     price = product.price
     variant = None
@@ -857,7 +857,7 @@ def add_to_cart(request, slug):
                 return JsonResponse({'success': False, 'message': message}, status=400)
             messages.error(request, message)
             return redirect('products:detail', slug=product.slug)
-    
+
     if variant_id and not vendor_offer:
         try:
             variant = ProductVariant.objects.get(
@@ -866,7 +866,7 @@ def add_to_cart(request, slug):
                 is_active=True
             )
             price = variant.final_price
-            
+
             # Check variant stock
             if variant.stock_quantity < quantity:
                 message = f"Only {variant.stock_quantity} {variant.value} available!"
@@ -1006,7 +1006,7 @@ def add_to_cart(request, slug):
 
     messages.success(request, message)
     request.session['cart_count'] = cart_count
-    
+
     # ====== AJAX Response ======
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({
@@ -1015,12 +1015,12 @@ def add_to_cart(request, slug):
             'cart_count': cart_count,
             'variant_selected': variant.value if variant else None
         })
-    
+
     # ====== Redirect ======
     next_url = request.POST.get('next') or request.GET.get('next')
     if next_url:
         return redirect(next_url)
-    
+
     return redirect('products:cart')
 
 
@@ -1071,34 +1071,53 @@ def cart_view(request):
         cart = _build_guest_cart(request)
 
     request.session['cart_count'] = getattr(cart, 'total_items', 0)
-    
+
     # Get currencies
     user_currency = get_user_currency(request)
     base_currency = get_base_currency()
-    
+
     # Calculate converted totals
     subtotal_converted = Decimal('0.00')
-    
+
     for item in cart.items.all():
         converted_price = convert_price(
             item.price_at_add,
             base_currency,
             user_currency
         )
-        
+
         item.converted_price = converted_price
         item.converted_subtotal = converted_price * item.quantity
         subtotal_converted += item.converted_subtotal
-    
+
     total_converted = subtotal_converted
-    
+
+    cart_product_ids = {
+        item.product_id
+        for item in cart.items.all()
+        if getattr(item, "product_id", None)
+    }
+
+    recently_viewed_products = [
+        product
+        for product in RecommendationEngine.recent_products(
+            request=request,
+            limit=20,
+        )
+        if product.id not in cart_product_ids
+    ][:12]
+
     return render(request, 'products/cart.html', {
         'cart': cart,
         'subtotal_converted': subtotal_converted,
         'total_converted': total_converted,
         'user_currency': user_currency,
         'base_currency': base_currency,
-        'recently_viewed_products': _recently_viewed_for_cart(request, cart),
+        'recently_viewed_products': recently_viewed_products,
+        'recommended_products': RecommendationEngine.for_cart(
+            cart=cart,
+            limit=10,
+        ),
         **_support_contact_context(),
     })
 
@@ -1108,7 +1127,7 @@ def update_cart(request):
     """Update cart item quantity"""
     if request.user.is_authenticated and not CartItem:
         return JsonResponse({'success': False, 'error': 'Cart feature not available'}, status=400)
-    
+
     try:
         item_id = request.POST.get('item_id')
         quantity = int(request.POST.get('quantity', 1))
@@ -1140,7 +1159,7 @@ def update_cart(request):
             return JsonResponse(payload)
 
         cart_item = get_object_or_404(CartItem, id=item_id, cart__user=request.user)
-        
+
         if quantity <= 0:
             cart = cart_item.cart
             cart_item.delete()
@@ -1148,7 +1167,7 @@ def update_cart(request):
             payload = _cart_ajax_payload(request, cart, deleted=True)
             request.session['cart_count'] = payload['cart_count']
             return JsonResponse(payload)
-        
+
         cart_item.quantity = quantity
         cart_item.save(update_fields=['quantity'])
 
@@ -1179,11 +1198,11 @@ def remove_from_cart(request, item_id):
 
     request.session['cart_count'] = cart_count
     messages.success(request, 'Item removed from cart')
-    
+
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         cart = _prefetch_cart_items(cart) if request.user.is_authenticated else _build_guest_cart(request)
         return JsonResponse(_cart_ajax_payload(request, cart, deleted=True))
-    
+
     return redirect('products:cart')
 
 
@@ -2064,25 +2083,17 @@ def product_detail(request, slug):
     # ============================================================
 
     ai_recommendations = (
-        Product.objects
-        .filter(
-            is_active=True,
-            approval_status="approved",
-        )
-        .exclude(pk=product.pk)
-        .select_related(
-            "vendor",
-            "vendor__vendor_profile",
+        RecommendationEngine.similar_products(
+            product=product,
+            limit=8,
         )
     )
 
     ai_recommendations = (
-        order_storefront_products(
-            ai_recommendations,
-            "-views_count",
-            "-rating_avg",
-            "-sales_count",
-        )[:8]
+        RecommendationEngine.similar_products(
+            product=product,
+            limit=8,
+        )
     )
 
     # ============================================================
@@ -2330,7 +2341,7 @@ def product_detail(request, slug):
         suggested_service_providers = []
         real_projects_using_product = []
 
-        
+
     context = {
         "product": product,
 
@@ -2507,25 +2518,25 @@ def category_view(request, slug):
         slug=slug,
         is_active=True,
     )
-    
+
     # ====== Get All Subcategories ======
     category_ids = [category.id]
     subcategories = list(category.children.filter(is_active=True).order_by('order', 'name'))
-    
+
     # Also collect products from subcategories
     for child in subcategories:
         category_ids.append(child.id)
         child.approved_product_count = _mobile_category_product_count(child)
         for grandchild in child.children.filter(is_active=True):
             category_ids.append(grandchild.id)
-    
+
     # ====== Only show approved products ======
     products = Product.objects.filter(
         category_id__in=category_ids,
         is_active=True,
         approval_status='approved'
     ).select_related('brand', 'vendor', 'vendor__vendor_profile')
-    
+
     # ====== Sorting ======
     sort_param = request.GET.get('sort', 'featured')
     sort_mapping = {
@@ -2538,20 +2549,20 @@ def category_view(request, slug):
         'name_asc': ('name',),
         'name_desc': ('-name',),
     }
-    
+
     sort_fields = sort_mapping.get(sort_param, sort_mapping['featured'])
     products = order_storefront_products(products, *sort_fields)
-    
+
     # ====== Vendor Count ======
     vendors_count = products.values('vendor').distinct().count()
-    
+
     # ====== Pagination ======
     page = request.GET.get('page', 1)
     products_page = get_paginated_items(products, page, per_page=24)
-    
+
     # ====== Currency ======
     user_currency = get_user_currency(request)
-    
+
     # ====== Breadcrumb for better navigation ======
     breadcrumbs = []
     current = category
@@ -2560,7 +2571,7 @@ def category_view(request, slug):
         current = current.parent
 
     category_hero_image = _category_hero_image(category)
-    
+
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         html = render_to_string(
             "products/product_grid.html",
@@ -2639,7 +2650,7 @@ def _mobile_authenticated_customer(request, payload=None):
     return _auth_mobile_customer_from_request_data(
         auth_data
     )
-    
+
 # ================================
 # 🔥 REVIEW VIEWS
 # ================================
@@ -3208,9 +3219,9 @@ def toggle_wishlist(request, slug):
         request.session[GUEST_WISHLIST_SESSION_KEY] = wishlist_ids
         request.session.modified = True
         wishlist_count = len(wishlist_ids)
-    
+
     messages.success(request, message)
-    
+
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({
             'success': True,
@@ -3218,7 +3229,7 @@ def toggle_wishlist(request, slug):
             'message': message,
             'wishlist_count': wishlist_count,
         })
-    
+
     return redirect('products:detail', slug=product.slug)
 
 
@@ -3231,32 +3242,32 @@ def toggle_wishlist(request, slug):
 def ask_question(request, slug):
     """Ask product question with validation and rate limiting"""
     product = get_object_or_404(Product, slug=slug, is_active=True, approval_status='approved')
-    
+
     question_text = request.POST.get('question', '').strip()
-    
+
     # ====== Validate ======
     if not question_text:
         messages.error(request, 'Please enter a question.')
         return redirect('products:detail', slug=product.slug)
-    
+
     if len(question_text) < 10:
         messages.error(request, 'Question must be at least 10 characters.')
         return redirect('products:detail', slug=product.slug)
-    
+
     if len(question_text) > 500:
         messages.error(request, 'Question must be less than 500 characters.')
         return redirect('products:detail', slug=product.slug)
-    
+
     # ====== Rate Limiting ======
     recent_question = ProductQuestion.objects.filter(
         user=request.user,
         created_at__gte=timezone.now() - timezone.timedelta(minutes=5)
     ).exists()
-    
+
     if recent_question:
         messages.error(request, 'Please wait 5 minutes before asking another question.')
         return redirect('products:detail', slug=product.slug)
-    
+
     # ====== Create Question ======
     qna = ProductQuestion.objects.create(
         product=product,
@@ -3264,9 +3275,9 @@ def ask_question(request, slug):
         question=question_text,
         is_public=True
     )
-    
+
     messages.success(request, 'Your question has been submitted successfully!')
-    
+
     # ====== AJAX Response ======
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({
@@ -3277,7 +3288,7 @@ def ask_question(request, slug):
             'date': qna.created_at.strftime('%b %d, %Y'),
             'message': 'Question submitted successfully!'
         })
-    
+
     return redirect('products:detail', slug=product.slug)
 
 
@@ -3352,17 +3363,17 @@ def answer_question(request, qna_id):
 def helpful_question(request, qna_id):
     """Mark question as helpful"""
     qna = get_object_or_404(ProductQuestion, id=qna_id)
-    
+
     qna.helpful_count = F('helpful_count') + 1
     qna.save(update_fields=['helpful_count'])
     qna.refresh_from_db()
-    
+
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({
             'success': True,
             'helpful_count': qna.helpful_count
         })
-    
+
     return redirect('products:detail', slug=qna.product.slug)
 
 
@@ -3375,30 +3386,30 @@ def helpful_question(request, qna_id):
 def edit_question(request, qna_id):
     """Edit user's own question"""
     qna = get_object_or_404(ProductQuestion, id=qna_id)
-    
+
     # Check permissions - only question owner can edit
     if qna.user != request.user:
         return JsonResponse({'success': False, 'error': 'You can only edit your own questions'}, status=403)
-    
+
     # Check if already answered (can't edit answered questions)
     if qna.answer:
         messages.error(request, 'Cannot edit questions that have already been answered.')
         return redirect('products:detail', slug=qna.product.slug)
-    
+
     question_text = request.POST.get('question', '').strip()
-    
+
     if not question_text or len(question_text) < 10:
         messages.error(request, 'Question must be at least 10 characters.')
         return redirect('products:detail', slug=qna.product.slug)
-    
+
     qna.question = question_text
     qna.save(update_fields=['question'])
-    
+
     messages.success(request, 'Question updated successfully!')
-    
+
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({'success': True, 'question': question_text})
-    
+
     return redirect('products:detail', slug=qna.product.slug)
 
 
@@ -3407,19 +3418,19 @@ def edit_question(request, qna_id):
 def delete_question(request, qna_id):
     """Delete user's own question"""
     qna = get_object_or_404(ProductQuestion, id=qna_id)
-    
+
     # Check permissions
     if qna.user != request.user and not request.user.is_staff:
         return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
-    
+
     product_slug = qna.product.slug
     qna.delete()
-    
+
     messages.success(request, 'Question deleted successfully!')
-    
+
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({'success': True})
-    
+
     return redirect('products:detail', slug=product_slug)
 
 
@@ -3605,18 +3616,18 @@ def get_variant_details(request, variant_id):
 def get_question_api(request, product_id):
     """API: Get product questions with pagination"""
     product = get_object_or_404(Product, id=product_id, is_active=True, approval_status='approved')
-    
+
     page = int(request.GET.get('page', 1))
     questions = product.questions.filter(
         is_public=True
     ).select_related('user', 'answered_by').order_by('-created_at')
-    
+
     paginator = Paginator(questions, 10)
     try:
         questions_page = paginator.page(page)
     except (PageNotAnInteger, EmptyPage):
         questions_page = paginator.page(1)
-    
+
     return JsonResponse({
         'questions': [
             {
@@ -3654,25 +3665,25 @@ def quick_view_api(request, product_id):
         is_active=True,
         approval_status='approved'
     )
-    
+
     # ====== Currency ======
     user_currency = get_user_currency(request)
     base_currency = get_base_currency()
-    
+
     converted_price = convert_price(
         product.price,
         base_currency,
         user_currency
     )
-    
+
     # ====== Get Related Data ======
     accessories = AccessoryProduct.objects.filter(
         product=product,
         accessory__is_active=True
     ).select_related('accessory')[:5]
-    
+
     variants = product.variants.filter(is_active=True)[:10]
-    
+
     return JsonResponse({
         'id': product.id,
         'name': product.name,
@@ -3721,10 +3732,10 @@ def cart_count(request):
 
     if _guest_cart_data(request):
         _merge_guest_cart_into_user_cart(request)
-    
+
     cart = Cart.objects.filter(user=request.user, is_active=True).first()
     count = getattr(cart, 'total_items', 0) if cart else 0
-    
+
     return JsonResponse({'count': count})
 
 
@@ -3736,13 +3747,13 @@ def checkout(request):
             request.get_full_path(),
             login_url=reverse('accounts:login'),
         )
-    
+
     if not Cart or not CartItem:
         messages.error(request, 'Checkout feature not available')
         return redirect('products:list')
-    
+
     cart = _merge_guest_cart_into_user_cart(request) or Cart.objects.filter(user=request.user, is_active=True).first()
-    
+
     if not cart or cart.items.count() == 0:
         messages.info(request, 'Your cart is empty.')
         return redirect('products:list')
@@ -3762,7 +3773,7 @@ def checkout(request):
                 )
     except Exception:
         pass
-    
+
     # Checkout now exposes only service levels. Arolana chooses the matching
     # delivery provider behind the scenes so customers do not see confusing
     # pickup/dispatch provider choices.
@@ -3808,7 +3819,7 @@ def add_accessory_to_cart(request, accessory_id):
     """Add accessory directly to cart"""
     if not Cart or not CartItem:
         return redirect('products:list')
-    
+
     accessory = get_object_or_404(Accessory, id=accessory_id, is_active=True)
     quantity = _safe_quantity(request.POST.get('quantity', 1))
 
@@ -3838,16 +3849,16 @@ def add_accessory_to_cart(request, accessory_id):
         }
         cart_data = _save_guest_cart(request, cart_data)
         cart_count = _guest_cart_count(cart_data)
-    
+
     messages.success(request, f'{accessory.name} added to cart!')
-    
+
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse({
             'success': True,
             'cart_count': cart_count,
             'message': f'{accessory.name} added to cart'
         })
-    
+
     return redirect('products:cart')
 
 
@@ -6231,7 +6242,7 @@ def mobile_product_detail_api(request, slug):
                     "variants__structured_specs",
                     "variants__vendor_offers",
                     "vendor_offers",
-        
+
                     Prefetch(
                         "reviews",
                         queryset=(
@@ -6255,12 +6266,12 @@ def mobile_product_detail_api(request, slug):
                         ),
                         to_attr="mobile_visible_reviews",
                     ),
-        
+
                     "questions__user",
                     "additional_videos",
                     "wholesale_tiers",
                     "product_accessories__accessory",
-        
+
                     Prefetch(
                         "article_links",
                         queryset=ProductArticleLink.objects.filter(
