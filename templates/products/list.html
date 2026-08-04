@@ -1938,28 +1938,10 @@
             }
         }
 
-document.addEventListener('click', function(event) {
-    const previous = event.target.closest('[data-carousel-prev]');
-    const next = event.target.closest('[data-carousel-next]');
-    const button = previous || next;
-
-    if (!button) return;
-
-    const trackId = previous
-        ? previous.dataset.carouselPrev
-        : next.dataset.carouselNext;
-
-    const track = document.getElementById(trackId);
-    if (!track) return;
-
-    track.scrollBy({
-        left: previous ? -track.clientWidth : track.clientWidth,
-        behavior: 'smooth'
-    });
-});
 
 </style>
 {% endblock %}
+
 
 {% block content %}
 <div class="arolana-shop-shell">
@@ -2277,6 +2259,101 @@ document.addEventListener('click', function(event) {
 </div>
 
 <script>
+
+    function updateCarouselArrows(track) {
+    if (!track) return;
+
+    const wrap = track.closest('.arolana-carousel-wrap');
+    if (!wrap) return;
+
+    const previous = wrap.querySelector('[data-carousel-prev]');
+    const next = wrap.querySelector('[data-carousel-next]');
+    const hasOverflow = track.scrollWidth > track.clientWidth + 5;
+
+    if (previous) {
+        previous.hidden = !hasOverflow;
+        previous.disabled = track.scrollLeft <= 5;
+        previous.style.opacity = previous.disabled ? '.45' : '1';
+    }
+
+    if (next) {
+        const atEnd =
+            track.scrollLeft + track.clientWidth >=
+            track.scrollWidth - 5;
+
+        next.hidden = !hasOverflow;
+        next.disabled = atEnd;
+        next.style.opacity = next.disabled ? '.45' : '1';
+    }
+}
+
+function scrollArolanaCarousel(track, direction) {
+    const firstCard = track.firstElementChild;
+
+    if (!firstCard) return;
+
+    const styles = window.getComputedStyle(track);
+    const gap = parseFloat(styles.columnGap || styles.gap || '0');
+    const amount = firstCard.getBoundingClientRect().width + gap;
+
+    track.scrollBy({
+        left: direction * amount,
+        behavior: 'smooth'
+    });
+
+    window.setTimeout(
+        () => updateCarouselArrows(track),
+        450
+    );
+}
+
+document.addEventListener('click', function(event) {
+    const previous = event.target.closest('[data-carousel-prev]');
+    const next = event.target.closest('[data-carousel-next]');
+    const button = previous || next;
+
+    if (!button) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const trackId = previous
+        ? previous.dataset.carouselPrev
+        : next.dataset.carouselNext;
+
+    const track = document.getElementById(trackId);
+
+    if (!track || button.disabled) return;
+
+    scrollArolanaCarousel(
+        track,
+        previous ? -1 : 1
+    );
+});
+
+function initialiseArolanaCarousels() {
+    document.querySelectorAll(
+        '.arolana-guide-track, ' +
+        '.arolana-compact-product-track, ' +
+        '.arolana-provider-track, ' +
+        '.arolana-blog-track'
+    ).forEach(track => {
+        updateCarouselArrows(track);
+
+        if (track.dataset.carouselInitialised === 'true') {
+            return;
+        }
+
+        track.dataset.carouselInitialised = 'true';
+
+        track.addEventListener(
+            'scroll',
+            () => updateCarouselArrows(track),
+            { passive: true }
+        );
+    });
+}
+
 function toggleFilter(element) {
     const content = element.nextElementSibling;
     const icon = element.querySelector('i');
@@ -2516,6 +2593,7 @@ document.addEventListener('keydown', function(event) {
 });
 
 document.addEventListener('DOMContentLoaded', function() {
+    initialiseArolanaCarousels();
     document.querySelectorAll('.category-filter, .brand-filter, .condition-filter, .rating-filter').forEach(filter => {
         filter.addEventListener('change', () => applyFilters());
     });
@@ -2577,6 +2655,11 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('filter-overlay')?.addEventListener('click', closeFilters);
 
 });
+
+    window.addEventListener(
+        'resize',
+        initialiseArolanaCarousels
+    );
 
 	document.addEventListener('submit', async function(event) {
 	    const form = event.target.closest('.arolana-ajax-cart-form');
