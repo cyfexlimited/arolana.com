@@ -31,13 +31,17 @@ class RecommendationEngine:
     DISCOVERY_RATIO = 0.20
 
     REASON_LABELS = {
-        "Same category": "Because you viewed similar products",
-        "Same brand": "From a brand you browse",
-        "Same vendor": "From a seller you've explored",
-        "Similar price": "Matches your usual price range",
-        "Featured": "Editor's choice",
-        "In stock": "Available now",
-    }
+    "Same category": "Similar products",
+    "Same brand": "From a brand you browse",
+    "Same vendor": "From a seller you explored",
+    "Similar price": "Matches your price range",
+    "Featured": "Featured pick",
+    "In stock": "Available now",
+    "Based on your recent searches": "Based on your searches",
+    "Popular in categories you browse": "Based on your browsing",
+    "From brands you are interested in": "From brands you browse",
+    "From sellers you have explored": "From sellers you explored",
+}
 
     @staticmethod
     def _safe_decimal(value):
@@ -513,6 +517,49 @@ class RecommendationEngine:
                 profile=profile,
             )
 
+            reasons = list(
+                scored["reasons"]
+            )
+
+            if not reasons:
+                if getattr(
+                    product,
+                    "is_featured",
+                    False,
+                ):
+                    reasons.append(
+                        "Featured pick"
+                    )
+
+                elif int(
+                    getattr(
+                        product,
+                        "sales_count",
+                        0,
+                    )
+                    or 0
+                ) > 0:
+                    reasons.append(
+                        "Popular on Arolana"
+                    )
+
+                elif float(
+                    getattr(
+                        product,
+                        "rating_avg",
+                        0,
+                    )
+                    or 0
+                ) >= 4:
+                    reasons.append(
+                        "Highly rated"
+                    )
+
+                else:
+                    reasons.append(
+                        "Recommended for you"
+                    )
+
             ranked.append(
                 {
                     "product": candidate,
@@ -717,11 +764,23 @@ class RecommendationEngine:
                 profile=profile,
             )
 
+            reasons = list(scored["reasons"])
+
+            if not reasons:
+                if getattr(product, "is_featured", False):
+                    reasons.append("Featured pick")
+                elif int(getattr(product, "sales_count", 0) or 0) > 0:
+                    reasons.append("Popular on Arolana")
+                elif float(getattr(product, "rating_avg", 0) or 0) >= 4:
+                    reasons.append("Highly rated")
+                else:
+                    reasons.append("Recommended for you")
+
             results.append(
                 {
                     "product": product,
                     "score": scored["score"],
-                    "reasons": scored["reasons"],
+                    "reasons": reasons,
                 }
             )
 

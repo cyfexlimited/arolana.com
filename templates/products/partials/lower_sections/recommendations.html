@@ -41,38 +41,47 @@
             id="recommended-products-track"
             class="arolana-compact-product-track"
             style="
-                --desktop-count: {{ section.desktop_visible_count|default:10 }};
+                --desktop-count: {{ section.desktop_visible_count|default:7 }};
                 --tablet-count: {{ section.tablet_visible_count|default:5 }};
                 --mobile-count: {{ section.mobile_visible_count|default:2 }};
             ">
 
-            {% for product in section.items %}
-            <a
-                href="{{ product.get_absolute_url }}"
-                class="arolana-compact-product-card"
-                aria-label="{{ product.name }}">
+            {% for recommendation in section.items %}
+                {% with product=recommendation.product %}
+                <a
+                    href="{{ product.get_absolute_url }}"
+                    class="arolana-compact-product-card"
+                    aria-label="{{ product.name }}">
 
-                <div class="arolana-compact-product-image">
-                    {% if product.main_image %}
-                        {% optimized_image_url product.main_image 'product_card' as recommended_image_url %}
-                        <img
-                            src="{{ recommended_image_url }}"
-                            alt="{{ product.name }}"
-                            loading="lazy"
-                            decoding="async">
-                    {% else %}
-                        <i class="fas fa-image"></i>
-                    {% endif %}
-                </div>
+                    <div class="arolana-compact-product-image">
+                        {% if product.main_image %}
+                            {% optimized_image_url product.main_image 'product_card' as recommended_image_url %}
+                            <img
+                                src="{{ recommended_image_url }}"
+                                alt="{{ product.name }}"
+                                loading="lazy"
+                                decoding="async">
+                        {% else %}
+                            <i class="fas fa-image"></i>
+                        {% endif %}
+                    </div>
 
-                <div class="arolana-compact-product-info">
-                    <h3>{{ product.name }}</h3>
+                    <div class="arolana-compact-product-info">
+                        <h3>{{ product.name }}</h3>
 
-                    <strong>
-                        {{ product.price|currency:request }}
-                    </strong>
-                </div>
-            </a>
+                        <strong>
+                            {{ product.price|currency:request }}
+                        </strong>
+
+                        {% if recommendation.reasons %}
+                            <p class="arolana-recommendation-reason">
+                                <i class="fas fa-sparkles"></i>
+                                {{ recommendation.reasons.0 }}
+                            </p>
+                        {% endif %}
+                    </div>
+                </a>
+                {% endwith %}
             {% endfor %}
         </div>
 

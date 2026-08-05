@@ -63,9 +63,12 @@ def _recommended_products(
     section,
     recent_products,
 ):
-    return RecommendationEngine.for_user(
+    return RecommendationEngine.for_user_with_reasons(
         request=request,
-        limit=section.maximum_items,
+        limit=min(
+            section.maximum_items,
+            40,
+        ),
         exclude_ids=[
             product.id
             for product in recent_products

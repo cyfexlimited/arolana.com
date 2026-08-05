@@ -1937,7 +1937,42 @@
                 font-size:.82rem;
             }
         }
+            /* ============================================================
+            Recommendation Reason
+            ============================================================ */
 
+            .arolana-compact-product-info{
+                display:flex;
+                flex-direction:column;
+                height:100%;
+            }
+
+            .arolana-recommendation-reason{
+                margin-top:.45rem;
+                color:#2563eb;
+                font-size:.68rem;
+                font-weight:800;
+                line-height:1.35;
+
+                display:-webkit-box;
+                -webkit-box-orient:vertical;
+                -webkit-line-clamp:2;
+
+                overflow:hidden;
+                text-overflow:ellipsis;
+            }
+
+            .arolana-recommendation-reason i{
+                display:none;
+            }
+
+            .arolana-compact-product-card{
+                height:100%;
+            }
+
+            .arolana-compact-product-track{
+                align-items:stretch;
+            }
 
 </style>
 {% endblock %}

@@ -5358,7 +5358,14 @@ def _mobile_variant_payload(request, variant, product=None):
         "value": getattr(variant, "value", "") or "",
         "variant_type": getattr(variant, "variant_type", "") or "",
         "variant_mode": getattr(variant, "variant_mode", ProductVariant.VARIANT_MODE_SIMPLE),
-        "selector_type": getattr(variant, "selector_type", ProductVariant.SELECTOR_TEXT),
+        "selector_type": (
+            getattr(
+                variant,
+                "selector_type",
+                "",
+            )
+            or "text"
+        ),
         "sku": getattr(variant, "sku", "") or "",
         "model_number": getattr(variant, "model_number", "") or "",
         "manufacturer_sku": getattr(variant, "manufacturer_sku", "") or "",
@@ -6480,9 +6487,14 @@ def mobile_product_detail_api(request, slug):
         extra_frequently_bought = related_queryset.filter(brand=brand).exclude(id__in=[item.id for item in frequently_bought]) if brand else related_queryset.exclude(id__in=[item.id for item in frequently_bought])
         frequently_bought.extend(list(extra_frequently_bought[: 8 - len(frequently_bought)]))
 
-    recommended = RecommendationEngine.similar_products(
-        product=product,
-        limit=12,
+    recommended_with_reasons = (
+        RecommendationEngine.for_user_with_reasons(
+            request=request,
+            limit=12,
+            exclude_ids=[
+                product.id,
+            ],
+        )
     )
 
     supplier_products = (
@@ -6978,7 +6990,26 @@ def mobile_product_detail_api(request, slug):
         "videos": videos,
         "reviews": reviews,
         "questions": questions,
-        "recommended_products": [product_card(item) for item in recommended],
+        "recommended_products": [
+            {
+                **product_card(
+                    item["product"],
+                ),
+                "recommendation_score": round(
+                    item["score"],
+                    2,
+                ),
+                "recommendation_reasons": (
+                    item["reasons"][:2]
+                ),
+                "recommendation_reason": (
+                    item["reasons"][0]
+                    if item["reasons"]
+                    else ""
+                ),
+            }
+            for item in recommended_with_reasons
+        ],
         "frequently_bought": [product_card(item) for item in frequently_bought],
         "supplier_products": [product_card(item) for item in supplier_products],
         "recently_viewed": [product_card(item) for item in recently_viewed],
