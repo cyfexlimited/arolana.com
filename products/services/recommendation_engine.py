@@ -1,6 +1,9 @@
 from decimal import Decimal, InvalidOperation
 
 from products.models import Product, RecentlyViewed
+from products.services.behavior_profile import (
+    BehaviorProfileBuilder,
+)
 
 
 GUEST_RECENTLY_VIEWED_KEY = "guest_recently_viewed_products"
@@ -418,76 +421,119 @@ class RecommendationEngine:
         request,
         limit=10,
         exclude_ids=None,
+        exclude_purchased=False,
     ):
+        """
+        Return behavior-ranked product recommendations.
+
+        The return value remains a list of Product objects so existing
+        website templates and mobile API serializers remain compatible.
+        """
+
         limit = cls._normalize_limit(
             limit,
             default=10,
         )
 
-        recent_products = cls.recent_products(
+        profile = BehaviorProfileBuilder.build(
             request=request,
-            limit=cls.MAX_RECENT_ITEMS,
+            exclude_purchased=exclude_purchased,
         )
 
-        excluded = set(exclude_ids or [])
-        excluded.update(
-            product.id
-            for product in recent_products
-        )
-
-        if not recent_products:
-            return list(
-                cls._base_queryset()
-                .exclude(id__in=excluded)
-                .order_by(
-                    "-is_featured",
-                    "-sales_count",
-                    "-rating_avg",
-                    "-rating_count",
-                    "-created_at",
-                )[:limit]
+        excluded = {
+            int(product_id)
+            for product_id in (
+                exclude_ids or []
             )
+            if product_id
+        }
+
+        excluded.update(
+            profile.excluded_product_ids
+        )
+
+        # Do not recommend the exact products currently stored as
+        # recently viewed. Their categories, brands and vendors still
+        # influence the ranking of other products.
+        excluded.update(
+            profile.viewed_product_ids
+        )
 
         candidates = list(
             cls._base_queryset()
-            .exclude(id__in=excluded)
+            .exclude(
+                id__in=excluded,
+            )
             .order_by(
                 "-is_featured",
                 "-sales_count",
                 "-rating_avg",
                 "-rating_count",
                 "-created_at",
-            )[:cls.MAX_CANDIDATES]
+            )[
+                :cls.MAX_CANDIDATES
+            ]
         )
+
+        has_behavior = any(
+            [
+                profile.product_scores,
+                profile.category_scores,
+                profile.brand_scores,
+                profile.vendor_scores,
+                profile.search_terms,
+                profile.wishlist_product_ids,
+                profile.purchased_product_ids,
+            ]
+        )
+
+        if not has_behavior:
+            return candidates[:limit]
 
         ranked = []
 
         for candidate in candidates:
-            total_score = 0
-            reasons = []
-
-            for source_product in recent_products[:10]:
-                scored = cls.score_product(
-                    source_product,
-                    candidate,
-                )
-
-                total_score += scored["score"]
-
-                for reason in scored["reasons"]:
-                    if reason not in reasons:
-                        reasons.append(reason)
+            scored = cls._behavior_profile_score(
+                candidate=candidate,
+                profile=profile,
+            )
 
             ranked.append(
                 {
                     "product": candidate,
-                    "score": total_score,
-                    "reasons": reasons,
+                    "score": scored["score"],
+                    "reasons": scored["reasons"],
                 }
             )
 
         ranked.sort(
-            key=lambda item: item["score"],
+            key=lambda item: (
+                item["score"],
+                int(
+                    getattr(
+                        item["product"],
+                        "sales_count",
+                        0,
+                    )
+                    or 0
+                ),
+                float(
+                    getattr(
+                        item["product"],
+                        "rating_avg",
+                        0,
+                    )
+                    or 0
+                ),
+                int(
+                    getattr(
+                        item["product"],
+                        "rating_count",
+                        0,
+                    )
+                    or 0
+                ),
+            ),
             reverse=True,
         )
 
@@ -506,7 +552,9 @@ class RecommendationEngine:
 
         fallback = list(
             cls._base_queryset()
-            .exclude(id__in=used_ids)
+            .exclude(
+                id__in=used_ids,
+            )
             .order_by(
                 "-is_featured",
                 "-sales_count",
@@ -518,9 +566,265 @@ class RecommendationEngine:
             ]
         )
 
-        recommendations.extend(fallback)
+        recommendations.extend(
+            fallback
+        )
 
         return recommendations
+
+    @classmethod
+    def _behavior_profile_score(
+        cls,
+        candidate,
+        profile,
+    ):
+        """
+        Score one candidate against a customer's behavior profile.
+
+        Returns both the numerical score and human-readable reasons.
+        """
+
+        score = 0.0
+        reasons = []
+
+        direct_product_score = float(
+            profile.product_scores.get(
+                candidate.id,
+                0,
+            )
+        )
+
+        if direct_product_score:
+            score += direct_product_score * 0.35
+            reasons.append(
+                "Based on products you interacted with"
+            )
+
+        if candidate.category_id:
+            category_score = float(
+                profile.category_scores.get(
+                    candidate.category_id,
+                    0,
+                )
+            )
+
+            if category_score:
+                score += category_score * 1.50
+                reasons.append(
+                    "Popular in categories you browse"
+                )
+
+        if candidate.brand_id:
+            brand_score = float(
+                profile.brand_scores.get(
+                    candidate.brand_id,
+                    0,
+                )
+            )
+
+            if brand_score:
+                score += brand_score * 1.20
+                reasons.append(
+                    "From brands you are interested in"
+                )
+
+        if candidate.vendor_id:
+            vendor_score = float(
+                profile.vendor_scores.get(
+                    candidate.vendor_id,
+                    0,
+                )
+            )
+
+            if vendor_score:
+                score += vendor_score * 0.75
+                reasons.append(
+                    "From sellers you have explored"
+                )
+
+        searchable_text = " ".join(
+            [
+                str(
+                    getattr(
+                        candidate,
+                        "name",
+                        "",
+                    )
+                    or ""
+                ),
+                str(
+                    getattr(
+                        candidate,
+                        "short_description",
+                        "",
+                    )
+                    or ""
+                ),
+                str(
+                    getattr(
+                        candidate,
+                        "description",
+                        "",
+                    )
+                    or ""
+                ),
+                str(
+                    getattr(
+                        getattr(
+                            candidate,
+                            "category",
+                            None,
+                        ),
+                        "name",
+                        "",
+                    )
+                    or ""
+                ),
+                str(
+                    getattr(
+                        getattr(
+                            candidate,
+                            "brand",
+                            None,
+                        ),
+                        "name",
+                        "",
+                    )
+                    or ""
+                ),
+            ]
+        ).lower()
+
+        matched_search_terms = []
+
+        for term, term_weight in profile.search_terms.items():
+            normalized_term = str(
+                term or ""
+            ).strip().lower()
+
+            if not normalized_term:
+                continue
+
+            if normalized_term in searchable_text:
+                score += float(term_weight) * 4.0
+                matched_search_terms.append(
+                    normalized_term
+                )
+
+                continue
+
+            term_words = [
+                word
+                for word in normalized_term.split()
+                if len(word) >= 3
+            ]
+
+            matched_words = sum(
+                1
+                for word in term_words
+                if word in searchable_text
+            )
+
+            if term_words and matched_words:
+                match_ratio = (
+                    matched_words
+                    / len(term_words)
+                )
+
+                score += (
+                    float(term_weight)
+                    * 2.0
+                    * match_ratio
+                )
+
+                matched_search_terms.append(
+                    normalized_term
+                )
+
+        if matched_search_terms:
+            reasons.append(
+                "Based on your recent searches"
+            )
+
+        if candidate.id in profile.wishlist_product_ids:
+            score += 8.0
+            reasons.append(
+                "Similar to items in your wishlist"
+            )
+
+        if candidate.is_featured:
+            score += cls.FEATURED_WEIGHT
+
+        stock_quantity = int(
+            getattr(
+                candidate,
+                "stock_quantity",
+                0,
+            )
+            or 0
+        )
+
+        if stock_quantity > 0:
+            score += cls.IN_STOCK_WEIGHT
+        else:
+            score -= 40
+
+        sales_count = int(
+            getattr(
+                candidate,
+                "sales_count",
+                0,
+            )
+            or 0
+        )
+
+        score += min(
+            sales_count,
+            100,
+        ) * 0.35
+
+        rating_avg = float(
+            getattr(
+                candidate,
+                "rating_avg",
+                0,
+            )
+            or 0
+        )
+
+        rating_count = int(
+            getattr(
+                candidate,
+                "rating_count",
+                0,
+            )
+            or 0
+        )
+
+        score += rating_avg * 5.0
+        score += min(
+            rating_count,
+            50,
+        ) * 0.20
+
+        if getattr(
+            candidate,
+            "is_new",
+            False,
+        ):
+            score += cls.NEW_PRODUCT_WEIGHT
+
+        unique_reasons = []
+
+        for reason in reasons:
+            if reason not in unique_reasons:
+                unique_reasons.append(reason)
+
+        return {
+            "score": score,
+            "reasons": unique_reasons,
+        }
+
 
     @classmethod
     def for_cart(
