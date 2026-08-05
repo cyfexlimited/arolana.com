@@ -1600,6 +1600,12 @@ def product_detail(request, slug):
         product=product,
     )
 
+    BehaviorTracker.product_click(
+        request=request,
+        product=product,
+        clicked_text="View Product",
+    )
+
     # ============================================================
     # Currency
     # ============================================================
@@ -2124,10 +2130,10 @@ def product_detail(request, slug):
         )
     )
 
-    ai_recommendations = (
-        RecommendationEngine.similar_products(
+    customers_also_viewed = (
+        RecommendationEngine.customers_also_viewed(
             product=product,
-            limit=8,
+            limit=12,
         )
     )
 
@@ -2377,6 +2383,13 @@ def product_detail(request, slug):
         real_projects_using_product = []
 
 
+    customers_also_viewed = (
+        RecommendationEngine.customers_also_viewed(
+            product=product,
+            limit=12,
+        )
+    )
+
     context = {
         "product": product,
 
@@ -2405,7 +2418,9 @@ def product_detail(request, slug):
         "selected_variant_id": selected_variant_id,
         "default_variant": default_variant,
         "first_variant": first_variant,
-        "has_variants": bool(all_variants),
+        "has_variants": bool(
+            all_variants
+        ),
 
         "current_price": current_price,
         "current_compare_price": (
@@ -2442,7 +2457,9 @@ def product_detail(request, slug):
         "reviews": visible_reviews,
         "review_count": real_total_reviews,
         "review_average": review_average,
-        "verified_review_count": verified_review_count,
+        "verified_review_count": (
+            verified_review_count
+        ),
 
         "product_article_links": (
             product_article_links
@@ -2460,10 +2477,17 @@ def product_detail(request, slug):
         "related_products": related_products,
         "top_rated_similar": top_rated,
         "best_sellers": bestsellers,
+
         "frequently_bought_together": (
             frequently_bought_together
         ),
+
+        "customers_also_viewed": (
+            customers_also_viewed
+        ),
+
         "recently_viewed": recently_viewed,
+
         "ai_recommendations": (
             ai_recommendations
         ),
@@ -2498,7 +2522,9 @@ def product_detail(request, slug):
 
         "product_detail_fields": (
             ProductDetailFieldConfig.objects
-            .filter(is_enabled=True)
+            .filter(
+                is_enabled=True
+            )
             .order_by(
                 "display_order",
                 "label",
@@ -6391,6 +6417,17 @@ def mobile_product_detail_api(request, slug):
         approval_status="approved",
     )
 
+    BehaviorTracker.product_view(
+        request=request,
+        product=product,
+    )
+
+    BehaviorTracker.product_click(
+        request=request,
+        product=product,
+        clicked_text="View Product",
+    )
+
     def safe_url(file_field, preset=None):
         return _mobile_file_url(request, file_field, preset=preset)
 
@@ -6505,6 +6542,13 @@ def mobile_product_detail_api(request, slug):
         )
         if vendor
         else []
+    )
+
+    customers_also_viewed = (
+        RecommendationEngine.customers_also_viewed(
+            product=product,
+            limit=12,
+        )
     )
 
     recently_viewed = []
@@ -7010,8 +7054,18 @@ def mobile_product_detail_api(request, slug):
             }
             for item in recommended_with_reasons
         ],
-        "frequently_bought": [product_card(item) for item in frequently_bought],
-        "supplier_products": [product_card(item) for item in supplier_products],
+        "customers_also_viewed": [
+            product_card(item)
+            for item in customers_also_viewed
+        ],
+        "frequently_bought": [
+            product_card(item)
+            for item in frequently_bought
+        ],
+        "supplier_products": [
+            product_card(item)
+            for item in supplier_products
+        ],
         "recently_viewed": [product_card(item) for item in recently_viewed],
         "service_available": bool(related_service_category_data),
         "related_service_categories": related_service_category_data,

@@ -2321,7 +2321,7 @@
             padding: 0.72rem 0.82rem !important;
         }
     }
-    
+
 .apd-specs-xlsx-content td:empty::after {
     content: "—";
     color: #CBD5E1;
@@ -4128,7 +4128,7 @@
                                                         <h3 class="text-base font-bold text-slate-900">
                                                             {{ review.user.get_full_name|default:review.user.username }}
                                                         </h3>
-                    
+
                                                         {% if review.verified_purchase %}
                                                             <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                                                                 <svg
@@ -4143,12 +4143,12 @@
                                                                         clip-rule="evenodd"
                                                                     />
                                                                 </svg>
-                    
+
                                                                 Verified purchase
                                                             </span>
                                                         {% endif %}
                                                     </div>
-                    
+
                                                     <div
                                                         class="mt-2 flex items-center gap-1"
                                                         aria-label="{{ review.rating }} out of 5 stars"
@@ -4162,7 +4162,7 @@
                                                         {% endfor %}
                                                     </div>
                                                 </div>
-                    
+
                                                 <time
                                                     class="text-sm text-slate-500"
                                                     datetime="{{ review.created_at|date:'c' }}"
@@ -4170,17 +4170,17 @@
                                                     {{ review.created_at|date:"M d, Y" }}
                                                 </time>
                                             </div>
-                    
+
                                             {% if review.title %}
                                                 <h4 class="mt-4 text-lg font-bold text-slate-900">
                                                     {{ review.title }}
                                                 </h4>
                                             {% endif %}
-                    
+
                                             <div class="mt-2 whitespace-pre-line text-sm leading-7 text-slate-700 sm:text-base">
                                                 {{ review.review }}
                                             </div>
-                    
+
                                             {% if review.has_display_video %}
                                             <div class="mt-4 space-y-4">
                                                 {% for video in review.display_video_payloads %}
@@ -4243,12 +4243,12 @@
                                             </div>
                                             {% endif %}
 
-                    
+
                                             <div class="mt-5 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4 text-sm text-slate-500">
                                                 <span id="review-helpful-count-{{ review.id }}">
                                                     Helpful: {{ review.helpful_count|default:0 }}
                                                 </span>
-                    
+
                                                 <button
                                                     type="button"
                                                     onclick="markHelpful({{ review.id }})"
@@ -4267,11 +4267,11 @@
                                 <div class="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-blue-50 text-blue-600">
                                     <i class="fas fa-star text-xl"></i>
                                 </div>
-                    
+
                                 <h3 class="mt-4 text-lg font-bold text-slate-900">
                                     No reviews yet
                                 </h3>
-                    
+
                                 <p class="mt-2 text-sm text-slate-600">
                                     Be the first customer to review this product.
                                 </p>
@@ -4465,7 +4465,7 @@
                                               text-sm
                                               font-semibold
                                               text-slate-600
-                                      
+
                                               file:mr-4
                                               file:cursor-pointer
                                               file:rounded-xl
@@ -4475,7 +4475,7 @@
                                               file:py-2.5
                                               file:font-black
                                               file:text-blue-700
-                                      
+
                                               hover:file:bg-blue-100
                                           "
                                       >
@@ -4566,7 +4566,7 @@
                     </div>
                     {% empty %}<p class="text-gray-500 text-center py-8">No questions yet. Ask our AI assistant!</p>{% endfor %}
                 </div>
- 
+
                 {% if user.is_authenticated %}
                 <form method="POST" action="{% url 'products:ask_question' product.slug %}" class="mt-6">
                     {% csrf_token %}
@@ -4837,15 +4837,15 @@
     </section>
     {% endif %}
 
-    <!-- Frequently Bought Together -->
-    {% if frequently_bought_together %}
+    <!-- Customers Who Viewed This Also Viewed -->
+    {% if customers_also_viewed %}
     <div class="mt-12 arolana-deferred-content">
         <div class="section-header">
             <h2 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent">Frequently Bought Together</h2>
             <a href="#" class="text-blue-600 text-sm hover:underline">View All →</a>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {% for item in frequently_bought_together %}
+            {% for item in customers_also_viewed %}
             <div class="ai-card bg-white rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300">
                 <a href="{{ item.get_absolute_url }}" class="block">
                     <div class="relative h-40 overflow-hidden">
@@ -5435,7 +5435,7 @@
                 }
 
                 if (!contentRoot) throw new Error('Article content could not be found.');
-                
+
                 const sanitizeImportedArticleContent = function (root) {
                     if (!root) return;
 
@@ -7363,9 +7363,9 @@
                 const status = getEl('review-video-file-status');
                 const form = getEl('product-review-form');
                 const submitButton = getEl('product-review-submit');
-            
+
                 if (!input || !form) return;
-            
+
                 const allowedMimeTypes = new Set([
                     'video/mp4',
                     'video/webm',
@@ -7373,26 +7373,26 @@
                     'video/x-m4v',
                     'application/octet-stream'
                 ]);
-            
+
                 const allowedExtensions = new Set([
                     'mp4',
                     'webm',
                     'mov',
                     'm4v'
                 ]);
-            
+
                 const maxBytes = 150 * 1024 * 1024;
-            
+
                 function clearStatus() {
                     if (!status) return;
-            
+
                     status.classList.add('hidden');
                     status.textContent = '';
                 }
-            
+
                 function showStatus(message, isError) {
                     if (!status) return;
-            
+
                     status.classList.remove(
                         'hidden',
                         'border-red-100',
@@ -7402,7 +7402,7 @@
                         'bg-blue-50',
                         'text-blue-700'
                     );
-            
+
                     if (isError) {
                         status.classList.add(
                             'border-red-100',
@@ -7416,35 +7416,35 @@
                             'text-blue-700'
                         );
                     }
-            
+
                     status.textContent = message;
                 }
-            
+
                 function validateSelectedVideo() {
                     clearStatus();
-            
+
                     const file = input.files && input.files[0];
-            
+
                     // Video is optional.
                     if (!file) {
                         return true;
                     }
-            
+
                     const filename = String(file.name || '');
                     const extension = filename.includes('.')
                         ? filename.split('.').pop().toLowerCase()
                         : '';
-            
+
                     if (!allowedExtensions.has(extension)) {
                         showStatus(
                             'Please choose an MP4, WebM, MOV or M4V video.',
                             true
                         );
-            
+
                         input.value = '';
                         return false;
                     }
-            
+
                     /*
                      * Safari and iOS may return an empty MIME type or
                      * application/octet-stream. The extension check above remains
@@ -7458,42 +7458,42 @@
                             `Unsupported video format reported by your browser: ${file.type}`,
                             true
                         );
-            
+
                         input.value = '';
                         return false;
                     }
-            
+
                     if (file.size > maxBytes) {
                         showStatus(
                             'This video is larger than the 150 MB limit.',
                             true
                         );
-            
+
                         input.value = '';
                         return false;
                     }
-            
+
                     const sizeMb = (
                         file.size /
                         (1024 * 1024)
                     ).toFixed(1);
-            
+
                     showStatus(
                         `${file.name} selected · ${sizeMb} MB`,
                         false
                     );
-            
+
                     return true;
                 }
-            
+
                 input.addEventListener('change', validateSelectedVideo);
-            
+
                 form.addEventListener('submit', function (event) {
                     if (!validateSelectedVideo()) {
                         event.preventDefault();
                         return;
                     }
-            
+
                     if (submitButton) {
                         submitButton.disabled = true;
                         submitButton.innerHTML =

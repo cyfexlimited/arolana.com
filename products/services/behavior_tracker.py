@@ -341,6 +341,32 @@ class BehaviorTracker:
         except Exception:
             product_url = ""
 
+        session_key = cls._ensure_session_key(
+            request
+        )
+
+        recent_cutoff = (
+            timezone.now()
+            - timezone.timedelta(
+                minutes=30
+            )
+        )
+
+        duplicate_exists = (
+            ClickEvent.objects.filter(
+                event_type=ClickEvent.EVENT_PRODUCT,
+                clicked_text=clicked_text,
+                product_id=str(product.pk),
+                session_key=session_key,
+                created_at__gte=recent_cutoff,
+                is_bot=False,
+            )
+            .exists()
+        )
+
+        if duplicate_exists:
+            return None
+
         return cls._record_click_event(
             request=request,
             event_type=ClickEvent.EVENT_PRODUCT,

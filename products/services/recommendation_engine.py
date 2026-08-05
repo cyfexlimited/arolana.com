@@ -1,5 +1,9 @@
 from decimal import Decimal, InvalidOperation
+from collections import Counter
 
+from django.utils import timezone
+
+from visitor_analytics.models import ClickEvent
 from products.models import Product, RecentlyViewed
 from products.services.behavior_profile import (
     BehaviorProfileBuilder,
@@ -31,17 +35,17 @@ class RecommendationEngine:
     DISCOVERY_RATIO = 0.20
 
     REASON_LABELS = {
-    "Same category": "Similar products",
-    "Same brand": "From a brand you browse",
-    "Same vendor": "From a seller you explored",
-    "Similar price": "Matches your price range",
-    "Featured": "Featured pick",
-    "In stock": "Available now",
-    "Based on your recent searches": "Based on your searches",
-    "Popular in categories you browse": "Based on your browsing",
-    "From brands you are interested in": "From brands you browse",
-    "From sellers you have explored": "From sellers you explored",
-}
+        "Same category": "Similar products",
+        "Same brand": "From a brand you browse",
+        "Same vendor": "From a seller you explored",
+        "Similar price": "Matches your price range",
+        "Featured": "Featured pick",
+        "In stock": "Available now",
+        "Based on your recent searches": "Based on your searches",
+        "Popular in categories you browse": "Based on your browsing",
+        "From brands you are interested in": "From brands you browse",
+        "From sellers you have explored": "From sellers you explored",
+    }
 
     @staticmethod
     def _safe_decimal(value):
@@ -125,6 +129,195 @@ class RecommendationEngine:
         return cls._guest_recent_ids(
             request,
         )[:limit]
+
+    @classmethod
+    def customers_also_viewed(
+        cls,
+        product,
+        limit=10,
+        days=90,
+    ):
+        """
+        Return products viewed by the same users or guest sessions
+        that viewed the supplied product.
+        """
+
+        if not product:
+            return []
+
+        limit = cls._normalize_limit(
+            limit,
+            default=10,
+        )
+
+        try:
+            days = max(
+                int(days or 90),
+                1,
+            )
+        except (TypeError, ValueError):
+            days = 90
+
+        cutoff = (
+            timezone.now()
+            - timezone.timedelta(
+                days=days,
+            )
+        )
+
+        view_events = (
+            ClickEvent.objects
+            .filter(
+                event_type=ClickEvent.EVENT_PRODUCT,
+                clicked_text="View Product",
+                is_bot=False,
+                created_at__gte=cutoff,
+            )
+            .exclude(product_id="")
+        )
+
+        source_events = view_events.filter(
+            product_id=str(product.pk),
+        )
+
+        session_keys = set(
+            source_events
+            .exclude(session_key="")
+            .values_list(
+                "session_key",
+                flat=True,
+            )
+            .distinct()
+        )
+
+        user_ids = set(
+            source_events
+            .exclude(user_id=None)
+            .values_list(
+                "user_id",
+                flat=True,
+            )
+            .distinct()
+        )
+
+        if not session_keys and not user_ids:
+            return []
+
+        related_events = view_events.exclude(
+            product_id=str(product.pk),
+        )
+
+        if session_keys and user_ids:
+            from django.db.models import Q
+
+            related_events = related_events.filter(
+                Q(session_key__in=session_keys)
+                | Q(user_id__in=user_ids)
+            )
+        elif session_keys:
+            related_events = related_events.filter(
+                session_key__in=session_keys,
+            )
+        else:
+            related_events = related_events.filter(
+                user_id__in=user_ids,
+            )
+
+        identity_product_pairs = set()
+        product_scores = Counter()
+
+        for event in related_events.only(
+            "product_id",
+            "session_key",
+            "user_id",
+            "created_at",
+        ):
+            product_id = str(
+                event.product_id or ""
+            ).strip()
+
+            if not product_id:
+                continue
+
+            identity = (
+                f"user:{event.user_id}"
+                if event.user_id
+                else f"session:{event.session_key}"
+            )
+
+            if identity.endswith(":"):
+                continue
+
+            pair = (
+                identity,
+                product_id,
+            )
+
+            if pair in identity_product_pairs:
+                continue
+
+            identity_product_pairs.add(pair)
+
+            age_days = max(
+                (
+                    timezone.now()
+                    - event.created_at
+                ).days,
+                0,
+            )
+
+            recency_bonus = max(
+                1.0,
+                5.0 - (
+                    age_days / 30
+                ),
+            )
+
+            product_scores[product_id] += (
+                10.0
+                + recency_bonus
+            )
+
+        if not product_scores:
+            return []
+
+        ranked_ids = [
+            product_id
+            for product_id, _score
+            in product_scores.most_common(
+                cls.MAX_CANDIDATES
+            )
+        ]
+
+        valid_product_ids = []
+
+        for product_id in ranked_ids:
+            try:
+                valid_product_ids.append(
+                    int(product_id)
+                )
+            except (TypeError, ValueError):
+                continue
+
+        products = list(
+            cls._base_queryset()
+            .filter(
+                id__in=valid_product_ids,
+            )
+        )
+
+        product_by_id = {
+            str(item.id): item
+            for item in products
+        }
+
+        ordered = [
+            product_by_id[product_id]
+            for product_id in ranked_ids
+            if product_id in product_by_id
+        ]
+
+        return ordered[:limit]
 
     @classmethod
     def recent_products(
@@ -523,7 +716,7 @@ class RecommendationEngine:
 
             if not reasons:
                 if getattr(
-                    product,
+                    candidate,
                     "is_featured",
                     False,
                 ):
@@ -533,7 +726,7 @@ class RecommendationEngine:
 
                 elif int(
                     getattr(
-                        product,
+                        candidate,
                         "sales_count",
                         0,
                     )
@@ -545,7 +738,7 @@ class RecommendationEngine:
 
                 elif float(
                     getattr(
-                        product,
+                        candidate,
                         "rating_avg",
                         0,
                     )
@@ -564,7 +757,7 @@ class RecommendationEngine:
                 {
                     "product": candidate,
                     "score": scored["score"],
-                    "reasons": scored["reasons"],
+                    "reasons": reasons,
                 }
             )
 
