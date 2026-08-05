@@ -1280,6 +1280,7 @@ def product_list(request):
         BehaviorTracker.search(
             request=request,
             query=search_query,
+            context="web-products",
         )
 
     # ====== Sorting ======
@@ -4949,6 +4950,23 @@ def mobile_articles_api(request):
             | Q(content__icontains=search_query)
         )
     articles = list(queryset.distinct()[:50])
+
+    if len(search_query) >= 2:
+        BehaviorTracker.search(
+            request=request,
+            query=search_query,
+            context="mobile-articles",
+            result_count=len(articles),
+        )
+
+    if search_query:
+        BehaviorTracker.search(
+            request=request,
+            query=search_query,
+            context="mobile-articles",
+            result_count=len(articles),
+        )
+
     return JsonResponse({
         "articles": [
             _mobile_article_card_payload(request, article)
@@ -5922,6 +5940,15 @@ def mobile_products_api(request):
         products = order_storefront_products(products, "-is_featured", "-created_at")
 
     product_items = list(products[:120])
+
+    if len(query) >= 2:
+        BehaviorTracker.search(
+            request=request,
+            query=query,
+            context="mobile-products",
+            result_count=len(product_items),
+        )
+
     prime_translations(
         request,
         [
@@ -7426,9 +7453,23 @@ def mobile_vendors_api(request):
         vendors = vendors.filter(Q(is_verified=True) | Q(manufacturer_verified=True))
 
     vendors = vendors.order_by("-manufacturer_verified", "-is_verified", "-priority_score", "-rating_avg")[:80]
+
+    vendor_list = list(vendors)
+
+    if len(query) >= 2:
+        BehaviorTracker.search(
+            request=request,
+            query=query,
+            context="mobile-vendors",
+            result_count=len(vendor_list),
+        )
+
     return JsonResponse({
         "success": True,
-        "vendors": [_mobile_vendor_payload(request, vendor) for vendor in vendors],
+        "vendors": [
+            _mobile_vendor_payload(request, vendor)
+            for vendor in vendor_list
+        ],
     })
 
 

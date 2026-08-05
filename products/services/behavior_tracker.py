@@ -364,6 +364,9 @@ class BehaviorTracker:
         cls,
         request,
         query,
+        *,
+        context="products",
+        result_count=None,
     ):
         query = cls._safe_text(
             query,
@@ -373,12 +376,29 @@ class BehaviorTracker:
         if not query:
             return None
 
+        context = cls._safe_text(
+            context,
+            max_length=50,
+        ) or "products"
+
+        result_text = ""
+
+        if result_count is not None:
+            try:
+                result_text = f"; results={int(result_count)}"
+            except (TypeError, ValueError):
+                result_text = ""
+
         return cls._record_click_event(
             request=request,
             event_type=ClickEvent.EVENT_BUTTON,
-            clicked_text=f"Search: {query}",
+            clicked_text=(
+                f"Search [{context}]: "
+                f"{query}"
+                f"{result_text}"
+            ),
             element_tag="search",
-            element_id="marketplace-search",
+            element_id=f"{context}-search",
         )
 
     @classmethod
