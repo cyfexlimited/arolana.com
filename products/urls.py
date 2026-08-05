@@ -11,7 +11,19 @@ urlpatterns = [
     path('api/quick-view/<int:product_id>/', views.quick_view_api, name='quick_view_api'),
     path('api/questions/<int:product_id>/', views.get_question_api, name='question_api'),
     path('api/accessory/<int:accessory_id>/add/', views.add_accessory_to_cart, name='add_accessory_api'),
-    
+
+
+    path(
+        "brands/",
+        views.brand_directory,
+        name="brand_directory",
+    ),
+
+    path(
+        "brands/<slug:slug>/",
+        views.brand_detail,
+        name="brand_detail",
+    ),
     # ================================
     # Cart Management (static paths, before slug patterns)
     # ================================
@@ -20,7 +32,7 @@ urlpatterns = [
     path('cart/remove/<str:item_id>/', views.remove_from_cart, name='remove_from_cart'),
     path('cart/count/', views.cart_count, name='cart_count'),
     path('checkout/', views.checkout, name='checkout'),
-    
+
     # ================================
     # Q&A Management (integer-based, before slug patterns)
     # ================================
@@ -29,7 +41,7 @@ urlpatterns = [
     path('question/<int:qna_id>/delete/', views.delete_question, name='delete_question'),
     path('answer/<int:qna_id>/edit/', views.edit_answer, name='edit_answer'),
     path('answer-question/<int:qna_id>/', views.answer_question, name='answer_question'),
-    
+
     # ================================
     # Debug (integer-based, before slug patterns)
     # ================================
@@ -56,26 +68,37 @@ urlpatterns = [
     path("mobile/vendors/track-contact/", views.mobile_vendor_track_contact_api, name="mobile_vendor_track_contact_api"),
     path("mobile/vendors/chat/context/", views.mobile_vendor_chat_context_api, name="mobile_vendor_chat_context_api"),
     path("mobile/vendors/chat/<int:room_id>/send/", views.mobile_vendor_chat_send_api, name="mobile_vendor_chat_send_api"),
+    path(
+        "api/mobile/brands/",
+        views.mobile_brand_directory_api,
+        name="mobile_brand_directory_api",
+    ),
+
+    path(
+        "api/mobile/brands/<slug:slug>/",
+        views.mobile_brand_detail_api,
+        name="mobile_brand_detail_api",
+    ),
     path("mobile/rfqs/", views.mobile_rfqs_api, name="mobile_rfqs_api"),
     path("mobile/rfqs/create/", views.mobile_rfq_create_api, name="mobile_rfq_create_api"),
     path("mobile/rfqs/<int:rfq_id>/", views.mobile_rfq_detail_api, name="mobile_rfq_detail_api"),
     path("mobile/rfqs/<int:rfq_id>/<str:action>/", views.mobile_rfq_status_api, name="mobile_rfq_status_api"),
     path('secure-payments/', views.secure_payments, name='secure_payments'),
     path('', views.product_list, name='list'),
-    
+
     # ================================
     # SLUG-BASED PATTERNS (most specific first)
     # ================================
     # Category view
     path('category/<slug:slug>/', views.category_view, name='category'),
-    
+
     # Product interactions (slug + action)
     path('<slug:slug>/add-review/', views.add_review, name='add_review'),
     path('<slug:slug>/add-to-cart/', views.add_to_cart, name='add_to_cart'),
     path('<slug:slug>/toggle-wishlist/', views.toggle_wishlist, name='toggle_wishlist'),
     path('<slug:slug>/ask-question/', views.ask_question, name='ask_question'),
     path('<slug:slug>/quick-view/', views.quick_view, name='quick_view'),
-    
+
     # ================================
     # ⚠️ MUST BE LAST - Generic Product Detail View
     # ================================

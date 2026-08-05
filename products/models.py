@@ -752,7 +752,7 @@ class Brand(BaseModel):
 
     def get_absolute_url(self):
         return reverse(
-            "products:brand",
+            "products:brand_detail",
             kwargs={
                 "slug": self.slug,
             },

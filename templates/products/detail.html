@@ -2944,6 +2944,317 @@
         }
     }
 
+        /* ============================================================
+        AROLANA PRODUCT DETAIL — WIDE PREMIUM LAYOUT V1
+        ============================================================ */
+
+        .apd-page {
+            width: min(100% - 2rem, 1800px) !important;
+            max-width: 1800px !important;
+            margin-inline: auto !important;
+            padding-inline: 0 !important;
+        }
+
+        /*
+        The product-detail sections should use all available storefront width.
+        This overrides narrow max-width rules inherited by internal wrappers.
+        */
+        .apd-page .product-detail-tabs,
+        .apd-page .product-detail-content,
+        .apd-page .product-overview-content,
+        .apd-page .product-personalization-shelf,
+        .apd-page .arolana-deferred-content {
+            width: 100% !important;
+            max-width: none !important;
+        }
+
+        /*
+        Prevent smart recommendations from shrinking around its cards.
+        */
+        .apd-page .product-personalization-shelf {
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+
+        .apd-page .product-personalization-track {
+            width: 100% !important;
+            max-width: 100% !important;
+            display: grid !important;
+            grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+            gap: 1rem !important;
+            overflow: visible !important;
+        }
+
+        .apd-page .product-personalization-card {
+            width: 100% !important;
+            min-width: 0 !important;
+            max-width: none !important;
+        }
+
+        /* ============================================================
+        PRODUCT OVERVIEW — EDITORIAL WIDTH
+        ============================================================ */
+
+        .apd-page #overview,
+        .apd-page [data-tab-content="overview"],
+        .apd-page .product-overview-content {
+            width: 100% !important;
+            max-width: none !important;
+        }
+
+        .apd-page .product-overview-content {
+            color: #0f172a;
+            font-size: 1rem;
+            line-height: 1.75;
+        }
+
+        .apd-page .product-overview-content > * {
+            max-width: none !important;
+        }
+
+        .apd-page .product-overview-content p {
+            max-width: 1050px;
+        }
+
+        .apd-page .product-overview-content h2,
+        .apd-page .product-overview-content h3 {
+            color: #071a44;
+            line-height: 1.2;
+        }
+
+        .apd-page .product-overview-content figure,
+        .apd-page .product-overview-content img {
+            max-width: 100% !important;
+        }
+
+        /* ============================================================
+        TRUSTED BRANDS
+        ============================================================ */
+
+        .apd-trusted-brands {
+            margin-top: 3rem;
+            padding: 1.4rem 1.5rem;
+            border: 1px solid rgba(0, 102, 204, 0.14);
+            border-radius: 1.25rem;
+            background:
+                radial-gradient(
+                    circle at 0% 0%,
+                    rgba(0, 184, 255, 0.08),
+                    transparent 20rem
+                ),
+                #ffffff;
+            box-shadow: 0 20px 55px rgba(7, 26, 68, 0.08);
+        }
+
+        .apd-trusted-brands-heading {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 1.25rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .apd-section-eyebrow {
+            margin: 0 0 0.25rem;
+            color: #f58220;
+            font-size: 0.72rem;
+            font-weight: 900;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .apd-trusted-brands-heading h2 {
+            margin: 0;
+            color: #071a44;
+            font-size: clamp(1.45rem, 2vw, 2rem);
+            font-weight: 900;
+            line-height: 1.15;
+        }
+
+        .apd-trusted-brands-heading p:not(.apd-section-eyebrow) {
+            margin: 0.35rem 0 0;
+            color: #64748b;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .apd-trusted-brands-view-all {
+            display: inline-flex;
+            flex: 0 0 auto;
+            align-items: center;
+            gap: 0.5rem;
+            min-height: 42px;
+            padding: 0.65rem 1rem;
+            border: 1px solid rgba(0, 102, 204, 0.22);
+            border-radius: 0.85rem;
+            color: #0066cc;
+            background: #ffffff;
+            font-size: 0.84rem;
+            font-weight: 900;
+            text-decoration: none;
+            transition:
+                transform 180ms ease,
+                border-color 180ms ease,
+                box-shadow 180ms ease;
+        }
+
+        .apd-trusted-brands-view-all:hover {
+            transform: translateY(-2px);
+            border-color: rgba(245, 130, 32, 0.55);
+            box-shadow: 0 12px 28px rgba(7, 26, 68, 0.1);
+        }
+
+        .apd-trusted-brands-track {
+            display: grid;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            gap: 0.8rem;
+        }
+
+        .apd-trusted-brand {
+            display: flex;
+            min-width: 0;
+            min-height: 108px;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.55rem;
+            padding: 0.9rem;
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            border-radius: 1rem;
+            color: inherit;
+            background: #ffffff;
+            text-align: center;
+            text-decoration: none;
+            transition:
+                transform 180ms ease,
+                border-color 180ms ease,
+                box-shadow 180ms ease;
+        }
+
+        .apd-trusted-brand:hover {
+            transform: translateY(-3px);
+            border-color: rgba(0, 102, 204, 0.28);
+            box-shadow: 0 16px 34px rgba(7, 26, 68, 0.1);
+        }
+
+        .apd-trusted-brand-logo {
+            display: flex;
+            width: 100%;
+            height: 42px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .apd-trusted-brand-logo img {
+            display: block;
+            width: auto;
+            max-width: 125px;
+            height: 38px;
+            object-fit: contain;
+            filter: grayscale(1);
+            opacity: 0.78;
+            transition:
+                filter 180ms ease,
+                opacity 180ms ease,
+                transform 180ms ease;
+        }
+
+        .apd-trusted-brand:hover .apd-trusted-brand-logo img {
+            filter: grayscale(0);
+            opacity: 1;
+            transform: scale(1.04);
+        }
+
+        .apd-trusted-brand-logo span {
+            color: #071a44;
+            font-size: 1.05rem;
+            font-weight: 950;
+            letter-spacing: -0.025em;
+        }
+
+        .apd-trusted-brand-meta {
+            display: flex;
+            min-width: 0;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .apd-trusted-brand-meta strong {
+            max-width: 100%;
+            overflow: hidden;
+            color: #071a44;
+            font-size: 0.85rem;
+            font-weight: 900;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .apd-trusted-brand-meta small {
+            margin-top: 0.15rem;
+            color: #64748b;
+            font-size: 0.68rem;
+            font-weight: 700;
+        }
+
+        /* ============================================================
+        RESPONSIVE
+        ============================================================ */
+
+        @media (max-width: 1280px) {
+            .apd-page .product-personalization-track {
+                grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+            }
+
+            .apd-trusted-brands-track {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 900px) {
+            .apd-page {
+                width: min(100% - 1rem, 1800px) !important;
+            }
+
+            .apd-page .product-personalization-track {
+                display: flex !important;
+                gap: 0.85rem !important;
+                overflow-x: auto !important;
+                scroll-snap-type: x mandatory;
+                padding-bottom: 0.5rem;
+            }
+
+            .apd-page .product-personalization-card {
+                flex: 0 0 min(76vw, 270px) !important;
+                scroll-snap-align: start;
+            }
+
+            .apd-trusted-brands-track {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 640px) {
+            .apd-trusted-brands {
+                margin-top: 2rem;
+                padding: 1rem;
+                border-radius: 1rem;
+            }
+
+            .apd-trusted-brands-heading {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .apd-trusted-brands-track {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .apd-trusted-brand {
+                min-height: 96px;
+                padding: 0.75rem;
+            }
+        }
+
 </style>
 {% endblock %}
 
@@ -2974,10 +3285,6 @@
         </li>
     </ol>
 </nav>
-
-    <div class="mb-8">
-        {% render_ad 'product-detail' %}
-    </div>
 
     <!-- Main Product Section with 3D Gallery -->
     <div class="grid grid-cols-1 {% if product.show_top_gallery and gallery_images %}lg:grid-cols-2{% else %}lg:grid-cols-1{% endif %} gap-8 apd-hero-clean relative">
@@ -4841,7 +5148,7 @@
     {% if customers_also_viewed %}
     <div class="mt-12 arolana-deferred-content">
         <div class="section-header">
-            <h2 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent">Frequently Bought Together</h2>
+            <h2 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent">Customers Who Viewed This Also Viewed</h2>
             <a href="#" class="text-blue-600 text-sm hover:underline">View All →</a>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -5081,27 +5388,76 @@
     </div>
     {% endif %}
 
-    <!-- Explore More from Across the Store -->
-    <div class="mt-12 arolana-deferred-content">
-        <div class="section-header">
-            <h2 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent">Explore More from Across the Store</h2>
+    <!-- ============================================================
+        TRUSTED BRANDS ON AROLANA
+        Replaces broad category exploration on product-detail pages.
+        ============================================================ -->
+
+    {% if trusted_brands %}
+    <section
+        class="apd-trusted-brands arolana-deferred-content"
+        aria-labelledby="trusted-brands-title"
+    >
+        <div class="apd-trusted-brands-heading">
+            <div>
+                <p class="apd-section-eyebrow">
+                    Approved manufacturers
+                </p>
+
+                <h2 id="trusted-brands-title">
+                    Trusted Brands on Arolana
+                </h2>
+
+                <p>
+                    Shop approved products from established global and
+                    regional brands.
+                </p>
+            </div>
+
+            <a
+                href="{% url 'products:brand_directory' %}"
+                class="apd-trusted-brands-view-all"
+            >
+                View All Brands
+                <i class="fas fa-arrow-right"></i>
+            </a>
         </div>
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {% for category in all_categories|slice:":12" %}
-            <a href="{% url 'products:category' category.slug %}" class="group text-center">
-                <div class="bg-gradient-to-br from-blue-100 to-purple-100 rounded-2xl p-4 mb-2 group-hover:scale-105 transition-transform">
-                    {% if category.icon %}
-                        <i class="fas fa-{{ category.icon }} text-3xl text-blue-600"></i>
+
+        <div class="apd-trusted-brands-track">
+            {% for brand in trusted_brands %}
+            <a
+                href="{{ brand.get_absolute_url }}"
+                class="apd-trusted-brand"
+                aria-label="Shop {{ brand.name }}"
+            >
+                <div class="apd-trusted-brand-logo">
+                    {% if brand.logo %}
+                        <img
+                            src="{{ brand.logo.url }}"
+                            alt="{{ brand.name }} logo"
+                            loading="lazy"
+                            decoding="async"
+                        >
                     {% else %}
-                        <i class="fas fa-folder-open text-3xl text-blue-600"></i>
+                        <span>
+                            {{ brand.name }}
+                        </span>
                     {% endif %}
                 </div>
-                <p class="font-semibold text-sm group-hover:text-blue-600">{{ category.name }}</p>
-                <p class="text-xs text-gray-500">{{ category.approved_product_count }} products</p>
+
+                <div class="apd-trusted-brand-meta">
+                    <strong>{{ brand.name }}</strong>
+
+                    <small>
+                        {{ brand.approved_product_count }}
+                        approved product{{ brand.approved_product_count|pluralize }}
+                    </small>
+                </div>
             </a>
             {% endfor %}
         </div>
-    </div>
+    </section>
+    {% endif %}
 
     <!-- AI Smart Recommendations -->
     {% if ai_recommendations %}

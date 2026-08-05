@@ -1,0 +1,432 @@
+{% extends 'base/base.html' %}
+{% load static optimized_images %}
+
+{% block title %}
+Brands on Arolana
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .arolana-brand-directory {
+        width: min(100% - 2rem, 1600px);
+        margin-inline: auto;
+        padding-block: 2rem 4rem;
+    }
+
+    .brand-directory-hero {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 2rem;
+        padding: 2.25rem;
+        border: 1px solid rgba(0, 102, 204, 0.14);
+        border-radius: 1.5rem;
+        background:
+            radial-gradient(
+                circle at 0 0,
+                rgba(0, 184, 255, 0.14),
+                transparent 24rem
+            ),
+            linear-gradient(
+                135deg,
+                #eef7ff,
+                #ffffff,
+                #fff7ed
+            );
+    }
+
+    .brand-directory-eyebrow,
+    .brand-section-heading p {
+        margin: 0 0 0.35rem;
+        color: #f58220;
+        font-size: 0.75rem;
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+
+    .brand-directory-hero h1,
+    .brand-section-heading h2 {
+        margin: 0;
+        color: #071a44;
+        font-weight: 950;
+        letter-spacing: -0.035em;
+    }
+
+    .brand-directory-hero h1 {
+        font-size: clamp(2rem, 4vw, 4rem);
+    }
+
+    .brand-directory-hero > div > p:last-child {
+        max-width: 680px;
+        margin: 0.8rem 0 0;
+        color: #64748b;
+        font-weight: 650;
+    }
+
+    .brand-search-form {
+        display: flex;
+        min-width: min(100%, 450px);
+        gap: 0.65rem;
+    }
+
+    .brand-search-form input {
+        width: 100%;
+        min-height: 50px;
+        padding: 0.75rem 1rem;
+        border: 1px solid rgba(0, 102, 204, 0.18);
+        border-radius: 0.9rem;
+        outline: none;
+    }
+
+    .brand-search-form input:focus {
+        border-color: #0066cc;
+        box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.1);
+    }
+
+    .brand-search-form button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        min-height: 50px;
+        padding: 0.75rem 1.2rem;
+        border: 0;
+        border-radius: 0.9rem;
+        color: #ffffff;
+        background: linear-gradient(
+            135deg,
+            #0066cc,
+            #071a44
+        );
+        font-weight: 900;
+    }
+
+    .brand-section {
+        margin-top: 3rem;
+    }
+
+    .brand-section-heading {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .brand-section-heading h2 {
+        font-size: clamp(1.65rem, 3vw, 2.6rem);
+    }
+
+    .brand-section-heading > span {
+        color: #64748b;
+        font-weight: 800;
+    }
+
+    .brand-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .brand-grid-featured {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .brand-card {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        overflow: hidden;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 1.2rem;
+        color: inherit;
+        background: #ffffff;
+        text-decoration: none;
+        box-shadow: 0 16px 42px rgba(7, 26, 68, 0.06);
+        transition:
+            transform 180ms ease,
+            border-color 180ms ease,
+            box-shadow 180ms ease;
+    }
+
+    .brand-card:hover {
+        transform: translateY(-4px);
+        border-color: rgba(0, 102, 204, 0.3);
+        box-shadow: 0 24px 54px rgba(7, 26, 68, 0.12);
+    }
+
+    .brand-card-logo {
+        display: flex;
+        min-height: 145px;
+        align-items: center;
+        justify-content: center;
+        padding: 1.25rem;
+        background:
+            radial-gradient(
+                circle at 50% 0,
+                rgba(0, 184, 255, 0.08),
+                transparent 12rem
+            ),
+            #f8fbff;
+    }
+
+    .brand-card-logo img {
+        display: block;
+        width: auto;
+        max-width: 150px;
+        height: 70px;
+        object-fit: contain;
+    }
+
+    .brand-card-logo span {
+        color: #071a44;
+        font-size: 1.45rem;
+        font-weight: 950;
+        text-align: center;
+    }
+
+    .brand-card-body {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        padding: 1rem 1.1rem 1.15rem;
+    }
+
+    .brand-card-body h3 {
+        margin: 0;
+        color: #071a44;
+        font-size: 1rem;
+        font-weight: 950;
+    }
+
+    .brand-card-body p {
+        margin: 0.35rem 0 1rem;
+        color: #64748b;
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+
+    .brand-card-body span {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin-top: auto;
+        color: #0066cc;
+        font-size: 0.8rem;
+        font-weight: 900;
+    }
+
+    .brand-empty-state {
+        padding: 4rem 1rem;
+        border: 1px dashed rgba(0, 102, 204, 0.28);
+        border-radius: 1.25rem;
+        text-align: center;
+    }
+
+    .brand-empty-state i {
+        color: #0066cc;
+        font-size: 2.5rem;
+    }
+
+    .brand-empty-state h2 {
+        margin: 1rem 0 0.35rem;
+        color: #071a44;
+    }
+
+    .brand-empty-state p {
+        margin: 0;
+        color: #64748b;
+    }
+
+    @media (max-width: 1200px) {
+        .brand-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
+        .brand-grid-featured {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 900px) {
+        .brand-directory-hero {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .brand-search-form {
+            min-width: 0;
+        }
+
+        .brand-grid,
+        .brand-grid-featured {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 640px) {
+        .arolana-brand-directory {
+            width: min(100% - 1rem, 1600px);
+        }
+
+        .brand-directory-hero {
+            padding: 1.25rem;
+        }
+
+        .brand-search-form {
+            flex-direction: column;
+        }
+
+        .brand-grid,
+        .brand-grid-featured {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="arolana-brand-directory">
+    <section class="brand-directory-hero">
+        <div>
+            <p class="brand-directory-eyebrow">
+                Approved manufacturers
+            </p>
+
+            <h1>
+                Trusted Brands on Arolana
+            </h1>
+
+            <p>
+                Browse approved products from established global
+                and regional brands.
+            </p>
+        </div>
+
+        <form method="get" class="brand-search-form">
+            <label class="sr-only" for="brand-search">
+                Search brands
+            </label>
+
+            <input
+                id="brand-search"
+                type="search"
+                name="q"
+                value="{{ search_query }}"
+                placeholder="Search brands"
+            >
+
+            <button type="submit">
+                <i class="fas fa-search"></i>
+                Search
+            </button>
+        </form>
+    </section>
+
+    {% if featured_brands %}
+    <section class="brand-section">
+        <div class="brand-section-heading">
+            <div>
+                <p>Popular choices</p>
+                <h2>Featured Brands</h2>
+            </div>
+        </div>
+
+        <div class="brand-grid brand-grid-featured">
+            {% for brand in featured_brands %}
+            <a
+                href="{{ brand.get_absolute_url }}"
+                class="brand-card"
+            >
+                <div class="brand-card-logo">
+                    {% if brand.logo %}
+                        <img
+                            src="{{ brand.logo.url }}"
+                            alt="{{ brand.name }} logo"
+                            loading="lazy"
+                        >
+                    {% else %}
+                        <span>{{ brand.name }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="brand-card-body">
+                    <h3>{{ brand.name }}</h3>
+
+                    <p>
+                        {{ brand.approved_product_count }}
+                        approved product{{ brand.approved_product_count|pluralize }}
+                    </p>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <section class="brand-section">
+        <div class="brand-section-heading">
+            <div>
+                <p>Brand directory</p>
+
+                <h2>
+                    All Brands
+                </h2>
+            </div>
+
+            <span>
+                {{ brand_count }} brand{{ brand_count|pluralize }}
+            </span>
+        </div>
+
+        {% if brands %}
+            <div class="brand-grid">
+                {% for brand in brands %}
+                <a
+                    href="{{ brand.get_absolute_url }}"
+                    class="brand-card"
+                >
+                    <div class="brand-card-logo">
+                        {% if brand.logo %}
+                            <img
+                                src="{{ brand.logo.url }}"
+                                alt="{{ brand.name }} logo"
+                                loading="lazy"
+                            >
+                        {% else %}
+                            <span>{{ brand.name }}</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="brand-card-body">
+                        <h3>{{ brand.name }}</h3>
+
+                        <p>
+                            {{ brand.approved_product_count }}
+                            approved product{{ brand.approved_product_count|pluralize }}
+                        </p>
+
+                        <span>
+                            Shop Brand
+                            <i class="fas fa-arrow-right"></i>
+                        </span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="brand-empty-state">
+                <i class="fas fa-tags"></i>
+
+                <h2>No matching brands</h2>
+
+                <p>
+                    Try another brand name.
+                </p>
+            </div>
+        {% endif %}
+    </section>
+</main>
+{% endblock %}

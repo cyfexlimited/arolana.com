@@ -22,6 +22,8 @@ from products.services.behavior_tracker import (
 from products.services.product_list_sections import (
     get_product_list_sections,
 )
+
+from products.models import Brand, Product
 import json
 import re
 
@@ -2211,6 +2213,35 @@ def product_detail(request, slug):
     )
 
     # ============================================================
+    # Trusted brands
+    # ============================================================
+
+    trusted_brands = (
+        Brand.objects
+        .filter(
+            is_active=True,
+        )
+        .annotate(
+            approved_product_count=Count(
+                "products",
+                filter=Q(
+                    products__is_active=True,
+                    products__approval_status="approved",
+                ),
+                distinct=True,
+            )
+        )
+        .filter(
+            approved_product_count__gt=0,
+        )
+        .order_by(
+            "-featured",
+            "-approved_product_count",
+            "name",
+        )[:12]
+    )
+
+    # ============================================================
     # Wishlist
     # ============================================================
 
@@ -2493,6 +2524,7 @@ def product_detail(request, slug):
         ),
 
         "all_categories": all_categories,
+        "trusted_brands": trusted_brands,
         "in_wishlist": in_wishlist,
 
         "five_star_percent": (
@@ -5136,63 +5168,594 @@ def _mobile_home_video_payload(request):
         "button_color": video.button_color,
     }
 
+@require_GET
+def mobile_brand_directory_api(request):
+    search_query = str(
+        request.GET.get("q") or ""
+    ).strip()
+
+    try:
+        limit = int(
+            request.GET.get("limit") or 100
+        )
+    except (TypeError, ValueError):
+        limit = 100
+
+    limit = min(
+        max(limit, 1),
+        200,
+    )
+
+    brands = (
+        Brand.objects
+        .filter(
+            is_active=True,
+        )
+        .annotate(
+            approved_product_count=Count(
+                "products",
+                filter=Q(
+                    products__is_active=True,
+                    products__approval_status="approved",
+                ),
+                distinct=True,
+            )
+        )
+        .filter(
+            approved_product_count__gt=0,
+        )
+    )
+
+    if search_query:
+        brands = brands.filter(
+            Q(name__icontains=search_query)
+            | Q(description__icontains=search_query)
+        )
+
+    brands = brands.order_by(
+        "-featured",
+        "-approved_product_count",
+        "name",
+    )[:limit]
+
+    def brand_logo_url(brand):
+        logo = getattr(
+            brand,
+            "logo",
+            None,
+        )
+
+        if not logo:
+            return ""
+
+        try:
+            return request.build_absolute_uri(
+                logo.url
+            )
+        except Exception:
+            return ""
+
+    payload = []
+
+    for brand in brands:
+        payload.append(
+            {
+                "id": brand.id,
+                "name": brand.name,
+                "slug": brand.slug,
+                "description": (
+                    getattr(
+                        brand,
+                        "description",
+                        "",
+                    )
+                    or ""
+                ),
+                "logo": brand_logo_url(
+                    brand
+                ),
+                "logo_url": brand_logo_url(
+                    brand
+                ),
+                "featured": bool(
+                    getattr(
+                        brand,
+                        "featured",
+                        False,
+                    )
+                ),
+                "product_count": (
+                    brand.approved_product_count
+                ),
+                "web_url": (
+                    request.build_absolute_uri(
+                        brand.get_absolute_url()
+                    )
+                ),
+            }
+        )
+
+    return JsonResponse(
+        {
+            "success": True,
+            "query": search_query,
+            "count": len(payload),
+            "brands": payload,
+            "featured_brands": [
+                item
+                for item in payload
+                if item["featured"]
+            ][:12],
+        }
+    )
+
+
+@require_GET
+def mobile_brand_detail_api(
+    request,
+    slug,
+):
+    brand = get_object_or_404(
+        Brand,
+        slug=slug,
+        is_active=True,
+    )
+
+    search_query = str(
+        request.GET.get("q") or ""
+    ).strip()
+
+    category_slug = str(
+        request.GET.get("category") or ""
+    ).strip()
+
+    try:
+        limit = int(
+            request.GET.get("limit") or 60
+        )
+    except (TypeError, ValueError):
+        limit = 60
+
+    limit = min(
+        max(limit, 1),
+        100,
+    )
+
+    products = (
+        Product.objects
+        .filter(
+            brand=brand,
+            is_active=True,
+            approval_status="approved",
+        )
+        .select_related(
+            "category",
+            "brand",
+            "vendor",
+            "vendor__vendor_profile",
+        )
+    )
+
+    if search_query:
+        products = products.filter(
+            Q(name__icontains=search_query)
+            | Q(
+                short_description__icontains=(
+                    search_query
+                )
+            )
+            | Q(
+                description__icontains=(
+                    search_query
+                )
+            )
+        )
+
+    if category_slug:
+        products = products.filter(
+            category__slug=category_slug,
+        )
+
+    category_rows = (
+        Product.objects
+        .filter(
+            brand=brand,
+            is_active=True,
+            approval_status="approved",
+            category__isnull=False,
+        )
+        .values(
+            "category__name",
+            "category__slug",
+        )
+        .annotate(
+            product_count=Count(
+                "id",
+                distinct=True,
+            )
+        )
+        .order_by(
+            "category__name",
+        )
+    )
+
+    products = products.order_by(
+        "-is_featured",
+        "-sales_count",
+        "-rating_avg",
+        "-rating_count",
+        "-created_at",
+    )[:limit]
+
+    logo_url = ""
+
+    if getattr(
+        brand,
+        "logo",
+        None,
+    ):
+        try:
+            logo_url = (
+                request.build_absolute_uri(
+                    brand.logo.url
+                )
+            )
+        except Exception:
+            logo_url = ""
+
+    product_payloads = [
+        _mobile_product_payload(
+            request,
+            product,
+        )
+        for product in products
+    ]
+
+    return JsonResponse(
+        {
+            "success": True,
+            "brand": {
+                "id": brand.id,
+                "name": brand.name,
+                "slug": brand.slug,
+                "description": (
+                    getattr(
+                        brand,
+                        "description",
+                        "",
+                    )
+                    or ""
+                ),
+                "logo": logo_url,
+                "logo_url": logo_url,
+                "featured": bool(
+                    getattr(
+                        brand,
+                        "featured",
+                        False,
+                    )
+                ),
+                "product_count": len(
+                    product_payloads
+                ),
+                "web_url": (
+                    request.build_absolute_uri(
+                        brand.get_absolute_url()
+                    )
+                ),
+            },
+            "query": search_query,
+            "selected_category": (
+                category_slug
+            ),
+            "categories": [
+                {
+                    "name": (
+                        row[
+                            "category__name"
+                        ]
+                    ),
+                    "slug": (
+                        row[
+                            "category__slug"
+                        ]
+                    ),
+                    "product_count": (
+                        row[
+                            "product_count"
+                        ]
+                    ),
+                }
+                for row in category_rows
+            ],
+            "products": product_payloads,
+            "count": len(
+                product_payloads
+            ),
+        }
+    )
 
 def _mobile_product_payload(request, product):
-    category = _mobile_get_value(product, "category", default=None)
-    brand = _mobile_get_value(product, "brand", default=None)
-    vendor_user = getattr(product, "vendor", None)
-    vendor_profile = getattr(vendor_user, "vendor_profile", None) if vendor_user else None
+    category = _mobile_get_value(
+        product,
+        "category",
+        default=None,
+    )
+    brand = _mobile_get_value(
+        product,
+        "brand",
+        default=None,
+    )
+    vendor_user = getattr(
+        product,
+        "vendor",
+        None,
+    )
+    vendor_profile = (
+        getattr(
+            vendor_user,
+            "vendor_profile",
+            None,
+        )
+        if vendor_user
+        else None
+    )
 
     category_name = (
-        translated_field(category, "name", request=request)
-        if category and hasattr(category, "name")
+        translated_field(
+            category,
+            "name",
+            request=request,
+        )
+        if category
+        and hasattr(
+            category,
+            "name",
+        )
         else "Arolana"
     )
-    brand_name = brand.name if brand and hasattr(brand, "name") else ""
 
-    regular_price = _mobile_get_value(product, "regular_price", "compare_price", "old_price", default="")
-    price = _mobile_get_value(product, "price", "sale_price", "current_price", "amount", default="")
-    rating = getattr(product, "rating_avg", 0) or 0
+    brand_name = (
+        brand.name
+        if brand
+        and hasattr(
+            brand,
+            "name",
+        )
+        else ""
+    )
 
-    minimum_order_quantity = getattr(product, "minimum_order_quantity", 1) or 1
-    wholesale_price = getattr(product, "wholesale_price", None)
-    bulk_price = getattr(product, "bulk_price", None)
-    vendor_type = getattr(vendor_profile, "vendor_type", "") if vendor_profile else ""
-    vendor_type_display = vendor_profile.get_vendor_type_display() if vendor_profile and hasattr(vendor_profile, "get_vendor_type_display") else vendor_type.replace("_", " ").title()
-    manufacturer_verified = bool(vendor_type == "manufacturer" and getattr(vendor_profile, "manufacturer_verified", False)) if vendor_profile else False
-    vendor_verified = bool(getattr(vendor_profile, "is_verified", False)) if vendor_profile else False
-    vendor_name = getattr(product, "vendor_display_name", "") or (getattr(vendor_profile, "store_name", "") if vendor_profile else "")
-    vendor_package = getattr(product, "vendor_package_name", "") or (getattr(vendor_profile, "active_plan_name", "") if vendor_profile else "")
+    brand_slug = (
+        brand.slug
+        if brand
+        and hasattr(
+            brand,
+            "slug",
+        )
+        else ""
+    )
+
+    regular_price = _mobile_get_value(
+        product,
+        "regular_price",
+        "compare_price",
+        "old_price",
+        default="",
+    )
+    price = _mobile_get_value(
+        product,
+        "price",
+        "sale_price",
+        "current_price",
+        "amount",
+        default="",
+    )
+    rating = (
+        getattr(
+            product,
+            "rating_avg",
+            0,
+        )
+        or 0
+    )
+
+    minimum_order_quantity = (
+        getattr(
+            product,
+            "minimum_order_quantity",
+            1,
+        )
+        or 1
+    )
+    wholesale_price = getattr(
+        product,
+        "wholesale_price",
+        None,
+    )
+    bulk_price = getattr(
+        product,
+        "bulk_price",
+        None,
+    )
+
+    vendor_type = (
+        getattr(
+            vendor_profile,
+            "vendor_type",
+            "",
+        )
+        if vendor_profile
+        else ""
+    )
+
+    vendor_type_display = (
+        vendor_profile.get_vendor_type_display()
+        if vendor_profile
+        and hasattr(
+            vendor_profile,
+            "get_vendor_type_display",
+        )
+        else vendor_type.replace(
+            "_",
+            " ",
+        ).title()
+    )
+
+    manufacturer_verified = (
+        bool(
+            vendor_type == "manufacturer"
+            and getattr(
+                vendor_profile,
+                "manufacturer_verified",
+                False,
+            )
+        )
+        if vendor_profile
+        else False
+    )
+
+    vendor_verified = (
+        bool(
+            getattr(
+                vendor_profile,
+                "is_verified",
+                False,
+            )
+        )
+        if vendor_profile
+        else False
+    )
+
+    vendor_name = (
+        getattr(
+            product,
+            "vendor_display_name",
+            "",
+        )
+        or (
+            getattr(
+                vendor_profile,
+                "store_name",
+                "",
+            )
+            if vendor_profile
+            else ""
+        )
+    )
+
+    vendor_package = (
+        getattr(
+            product,
+            "vendor_package_name",
+            "",
+        )
+        or (
+            getattr(
+                vendor_profile,
+                "active_plan_name",
+                "",
+            )
+            if vendor_profile
+            else ""
+        )
+    )
+
     if vendor_profile:
         vendor_package = translated_key(
-            f"subscription.plan.{getattr(vendor_profile, 'subscription_tier', 'free')}",
+            (
+                "subscription.plan."
+                f"{getattr(vendor_profile, 'subscription_tier', 'free')}"
+            ),
             vendor_package,
             request=request,
         )
-    condition_value = getattr(product, "condition", "") or ""
-    default_condition_label = (
-        getattr(product, "condition_label", "")
-        or condition_value.replace("_", " ").title()
+
+    condition_value = (
+        getattr(
+            product,
+            "condition",
+            "",
+        )
+        or ""
     )
+
+    default_condition_label = (
+        getattr(
+            product,
+            "condition_label",
+            "",
+        )
+        or condition_value.replace(
+            "_",
+            " ",
+        ).title()
+    )
+
     condition_label = translated_key(
-        translation_key_for_condition(condition_value),
+        translation_key_for_condition(
+            condition_value
+        ),
         default_condition_label,
         request=request,
     )
-    location_label = getattr(product, "location_label", "") or ""
+
+    location_label = (
+        getattr(
+            product,
+            "location_label",
+            "",
+        )
+        or ""
+    )
 
     badges = []
+
     if vendor_verified:
-        badges.append(f"Verified {vendor_type_display or 'Vendor'}")
+        badges.append(
+            f"Verified {vendor_type_display or 'Vendor'}"
+        )
+
     if manufacturer_verified:
-        badges.append(getattr(vendor_profile, "manufacturer_badge_label", "") or "Verified Manufacturer")
+        badges.append(
+            getattr(
+                vendor_profile,
+                "manufacturer_badge_label",
+                "",
+            )
+            or "Verified Manufacturer"
+        )
+
     if minimum_order_quantity > 1:
-        badges.append(f"MOQ {minimum_order_quantity}")
+        badges.append(
+            f"MOQ {minimum_order_quantity}"
+        )
+
     if wholesale_price or bulk_price:
-        badges.append("Wholesale")
-    subscription_badge = getattr(vendor_profile, "badge_level", "") or getattr(vendor_profile, "subscription_plan_label", "") if vendor_profile else ""
+        badges.append(
+            "Wholesale"
+        )
+
+    subscription_badge = (
+        (
+            getattr(
+                vendor_profile,
+                "badge_level",
+                "",
+            )
+            or getattr(
+                vendor_profile,
+                "subscription_plan_label",
+                "",
+            )
+        )
+        if vendor_profile
+        else ""
+    )
+
     if subscription_badge:
-        badges.append(subscription_badge)
+        badges.append(
+            subscription_badge
+        )
 
     primary_image = _mobile_get_value(
         product,
@@ -5204,13 +5767,44 @@ def _mobile_product_payload(request, product):
         "cover_image",
         default=None,
     )
-    thumbnail_url = _mobile_file_url(request, primary_image, preset="product_card")
-    image_url = _mobile_file_url(request, primary_image, preset="product_detail")
-    original_url = _mobile_original_file_url(request, primary_image)
 
-    approved_offers = _mobile_product_approved_offers(product)
-    default_offer = _mobile_default_vendor_offer(approved_offers)
-    default_offer_payload = _mobile_vendor_offer_payload(request, default_offer) if default_offer else None
+    thumbnail_url = _mobile_file_url(
+        request,
+        primary_image,
+        preset="product_card",
+    )
+    image_url = _mobile_file_url(
+        request,
+        primary_image,
+        preset="product_detail",
+    )
+    original_url = (
+        _mobile_original_file_url(
+            request,
+            primary_image,
+        )
+    )
+
+    approved_offers = (
+        _mobile_product_approved_offers(
+            product
+        )
+    )
+    default_offer = (
+        _mobile_default_vendor_offer(
+            approved_offers
+        )
+    )
+
+    default_offer_payload = (
+        _mobile_vendor_offer_payload(
+            request,
+            default_offer,
+        )
+        if default_offer
+        else None
+    )
+
     if default_offer:
         price = default_offer.final_price
         regular_price = default_offer.price
@@ -5229,64 +5823,257 @@ def _mobile_product_payload(request, product):
                 default="Unnamed product",
             ),
         ),
-        "slug": _mobile_get_value(product, "slug", default=""),
-        "price": str(price or ""),
-        "regular_price": str(regular_price or ""),
-        "compare_price": str(regular_price or ""),
-        "wholesale_price": str(wholesale_price or ""),
-        "bulk_price": str(bulk_price or ""),
-        "minimum_order_quantity": minimum_order_quantity,
+        "slug": _mobile_get_value(
+            product,
+            "slug",
+            default="",
+        ),
+        "price": str(
+            price or ""
+        ),
+        "regular_price": str(
+            regular_price or ""
+        ),
+        "compare_price": str(
+            regular_price or ""
+        ),
+        "wholesale_price": str(
+            wholesale_price or ""
+        ),
+        "bulk_price": str(
+            bulk_price or ""
+        ),
+        "minimum_order_quantity": (
+            minimum_order_quantity
+        ),
         "moq": minimum_order_quantity,
-        "moq_unit": getattr(product, "moq_unit", "") or "unit",
-        "lead_time_days": getattr(product, "lead_time_days", None),
-        "country_of_origin": getattr(product, "country_of_origin", "") or "",
-        "manufacturer_sku": getattr(product, "manufacturer_sku", "") or "",
-        "sample_available": bool(getattr(product, "sample_available", False)),
-        "sample_price": str(getattr(product, "sample_price", "") or ""),
+        "moq_unit": (
+            getattr(
+                product,
+                "moq_unit",
+                "",
+            )
+            or "unit"
+        ),
+        "lead_time_days": getattr(
+            product,
+            "lead_time_days",
+            None,
+        ),
+        "country_of_origin": (
+            getattr(
+                product,
+                "country_of_origin",
+                "",
+            )
+            or ""
+        ),
+        "manufacturer_sku": (
+            getattr(
+                product,
+                "manufacturer_sku",
+                "",
+            )
+            or ""
+        ),
+        "sample_available": bool(
+            getattr(
+                product,
+                "sample_available",
+                False,
+            )
+        ),
+        "sample_price": str(
+            getattr(
+                product,
+                "sample_price",
+                "",
+            )
+            or ""
+        ),
+
         "category_name": category_name,
-        "category_slug": getattr(category, "slug", "") if category else "",
+        "category_slug": (
+            getattr(
+                category,
+                "slug",
+                "",
+            )
+            if category
+            else ""
+        ),
+
         "brand_name": brand_name,
+        "brand_slug": brand_slug,
         "brand": brand_name,
+
         "condition": condition_label,
         "condition_label": condition_label,
         "condition_value": condition_value,
         "product_condition": condition_value,
-        "sku": getattr(product, "sku", "") or "",
-        "arolana_sku": getattr(product, "sku", "") or "",
-        "stock_quantity": getattr(product, "stock_quantity", 0) or 0,
-        "available_stock": default_offer.available_stock if default_offer else (getattr(product, "stock_quantity", 0) or 0),
-        "in_stock": bool(default_offer.is_available if default_offer else (getattr(product, "stock_quantity", 0) or getattr(product, "is_in_stock", False))),
-        "is_featured": bool(getattr(product, "is_featured", False)),
-        "is_new": bool(getattr(product, "is_new", False)),
-        "is_bestseller": bool(getattr(product, "is_bestseller", False)),
-        "rating": str(rating or 0),
-        "rating_count": getattr(product, "rating_count", 0) or 0,
+
+        "sku": (
+            getattr(
+                product,
+                "sku",
+                "",
+            )
+            or ""
+        ),
+        "arolana_sku": (
+            getattr(
+                product,
+                "sku",
+                "",
+            )
+            or ""
+        ),
+        "stock_quantity": (
+            getattr(
+                product,
+                "stock_quantity",
+                0,
+            )
+            or 0
+        ),
+        "available_stock": (
+            default_offer.available_stock
+            if default_offer
+            else (
+                getattr(
+                    product,
+                    "stock_quantity",
+                    0,
+                )
+                or 0
+            )
+        ),
+        "in_stock": bool(
+            default_offer.is_available
+            if default_offer
+            else (
+                getattr(
+                    product,
+                    "stock_quantity",
+                    0,
+                )
+                or getattr(
+                    product,
+                    "is_in_stock",
+                    False,
+                )
+            )
+        ),
+        "is_featured": bool(
+            getattr(
+                product,
+                "is_featured",
+                False,
+            )
+        ),
+        "is_new": bool(
+            getattr(
+                product,
+                "is_new",
+                False,
+            )
+        ),
+        "is_bestseller": bool(
+            getattr(
+                product,
+                "is_bestseller",
+                False,
+            )
+        ),
+        "rating": str(
+            rating or 0
+        ),
+        "rating_count": (
+            getattr(
+                product,
+                "rating_count",
+                0,
+            )
+            or 0
+        ),
+
         "image": thumbnail_url,
         "thumbnail_url": thumbnail_url,
         "image_url": image_url,
         "original_url": original_url,
-        "url": request.build_absolute_uri(reverse("products:detail", args=[product.slug])),
-        "vendor_id": getattr(vendor_profile, "id", None),
-        "vendor_user_id": getattr(vendor_user, "id", None),
+
+        "url": request.build_absolute_uri(
+            reverse(
+                "products:detail",
+                args=[
+                    product.slug,
+                ],
+            )
+        ),
+
+        "vendor_id": getattr(
+            vendor_profile,
+            "id",
+            None,
+        ),
+        "vendor_user_id": getattr(
+            vendor_user,
+            "id",
+            None,
+        ),
         "vendor_name": vendor_name,
         "vendor_package": vendor_package,
-        "vendor_package_name": vendor_package,
+        "vendor_package_name": (
+            vendor_package
+        ),
         "vendor_type": vendor_type,
-        "vendor_type_display": vendor_type_display,
-        "vendor_verified": vendor_verified,
+        "vendor_type_display": (
+            vendor_type_display
+        ),
+        "vendor_verified": (
+            vendor_verified
+        ),
         "location": location_label,
         "location_label": location_label,
-        "manufacturer_verified": manufacturer_verified,
-        "subscription_tier": getattr(vendor_profile, "subscription_tier", "free") if vendor_profile else "free",
-        "subscription_label": subscription_badge,
-        "subscription_badge": subscription_badge,
+        "manufacturer_verified": (
+            manufacturer_verified
+        ),
+        "subscription_tier": (
+            getattr(
+                vendor_profile,
+                "subscription_tier",
+                "free",
+            )
+            if vendor_profile
+            else "free"
+        ),
+        "subscription_label": (
+            subscription_badge
+        ),
+        "subscription_badge": (
+            subscription_badge
+        ),
         "badges": badges,
-        "wholesale_available": bool(wholesale_price or bulk_price),
-        "rfq_available": bool(vendor_profile),
-        "vendor_offer_id": default_offer.id if default_offer else None,
-        "default_vendor_offer": default_offer_payload,
+        "wholesale_available": bool(
+            wholesale_price
+            or bulk_price
+        ),
+        "rfq_available": bool(
+            vendor_profile
+        ),
+        "vendor_offer_id": (
+            default_offer.id
+            if default_offer
+            else None
+        ),
+        "default_vendor_offer": (
+            default_offer_payload
+        ),
         "vendor_offers": [
-            _mobile_vendor_offer_payload(request, offer)
+            _mobile_vendor_offer_payload(
+                request,
+                offer,
+            )
             for offer in approved_offers[:6]
         ],
     }
@@ -7772,3 +8559,138 @@ def mobile_rfq_status_api(request, rfq_id, action):
         )
 
     return JsonResponse({"success": True, "message": f"RFQ {rfq.status}.", "rfq": _rfq_payload(request, rfq)})
+
+def brand_directory(request):
+    search_query = str(
+        request.GET.get("q") or ""
+    ).strip()
+
+    brands = (
+        Brand.objects
+        .filter(
+            is_active=True,
+        )
+        .annotate(
+            approved_product_count=Count(
+                "products",
+                filter=Q(
+                    products__is_active=True,
+                    products__approval_status="approved",
+                ),
+                distinct=True,
+            )
+        )
+        .filter(
+            approved_product_count__gt=0,
+        )
+    )
+
+    if search_query:
+        brands = brands.filter(
+            Q(name__icontains=search_query)
+            | Q(description__icontains=search_query)
+        )
+
+    brands = brands.order_by(
+        "-featured",
+        "-approved_product_count",
+        "name",
+    )
+
+    context = {
+        "brands": brands,
+        "featured_brands": brands.filter(
+            featured=True,
+        )[:12],
+        "search_query": search_query,
+        "brand_count": brands.count(),
+    }
+
+    return render(
+        request,
+        "products/brands/directory.html",
+        context,
+    )
+
+
+def brand_detail(request, slug):
+    brand = get_object_or_404(
+        Brand,
+        slug=slug,
+        is_active=True,
+    )
+
+    products = (
+        Product.objects
+        .filter(
+            brand=brand,
+            is_active=True,
+            approval_status="approved",
+        )
+        .select_related(
+            "category",
+            "brand",
+            "vendor",
+        )
+        .order_by(
+            "-is_featured",
+            "-sales_count",
+            "-rating_avg",
+            "-created_at",
+        )
+    )
+
+    search_query = str(
+        request.GET.get("q") or ""
+    ).strip()
+
+    if search_query:
+        products = products.filter(
+            Q(name__icontains=search_query)
+            | Q(short_description__icontains=search_query)
+            | Q(description__icontains=search_query)
+        )
+
+    category_slug = str(
+        request.GET.get("category") or ""
+    ).strip()
+
+    if category_slug:
+        products = products.filter(
+            category__slug=category_slug,
+        )
+
+    categories = (
+        Product.objects
+        .filter(
+            brand=brand,
+            is_active=True,
+            approval_status="approved",
+            category__isnull=False,
+        )
+        .values(
+            "category__name",
+            "category__slug",
+        )
+        .annotate(
+            product_count=Count("id"),
+        )
+        .order_by(
+            "category__name",
+        )
+    )
+
+    context = {
+        "brand": brand,
+        "products": products,
+        "product_count": products.count(),
+        "categories": categories,
+        "search_query": search_query,
+        "selected_category": category_slug,
+    }
+
+    return render(
+        request,
+        "products/brands/detail.html",
+        context,
+    )
