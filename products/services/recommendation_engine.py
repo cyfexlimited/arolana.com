@@ -24,6 +24,21 @@ class RecommendationEngine:
     MAX_CANDIDATES = 200
     MAX_RESULTS = 40
 
+    MAX_PER_BRAND = 4
+    MAX_PER_CATEGORY = 6
+
+    SEARCH_INTENT_RATIO = 0.20
+    DISCOVERY_RATIO = 0.20
+
+    REASON_LABELS = {
+        "Same category": "Because you viewed similar products",
+        "Same brand": "From a brand you browse",
+        "Same vendor": "From a seller you've explored",
+        "Similar price": "Matches your usual price range",
+        "Featured": "Editor's choice",
+        "In stock": "Available now",
+    }
+
     @staticmethod
     def _safe_decimal(value):
         try:
@@ -537,13 +552,109 @@ class RecommendationEngine:
             reverse=True,
         )
 
-        recommendations = [
-            item["product"]
-            for item in ranked[:limit]
+        search_slots = min(
+            max(
+                round(
+                    limit
+                    * cls.SEARCH_INTENT_RATIO
+                ),
+                1,
+            ),
+            limit,
+        )
+
+        discovery_slots = min(
+            max(
+                round(
+                    limit
+                    * cls.DISCOVERY_RATIO
+                ),
+                1,
+            ),
+            max(
+                limit - search_slots,
+                0,
+            ),
+        )
+
+        personalized_slots = max(
+            limit
+            - search_slots
+            - discovery_slots,
+            0,
+        )
+
+        search_ranked = [
+            {
+                **item,
+                "search_score": cls._candidate_search_score(
+                    item["product"],
+                    profile,
+                ),
+            }
+            for item in ranked
         ]
 
-        if len(recommendations) >= limit:
-            return recommendations
+        search_ranked.sort(
+            key=lambda item: (
+                item["search_score"],
+                item["score"],
+            ),
+            reverse=True,
+        )
+
+        recommendations = []
+
+        if profile.search_terms:
+            recommendations.extend(
+                cls._select_diverse_ranked(
+                    search_ranked,
+                    limit=search_slots,
+                )
+            )
+
+        recommendations.extend(
+            cls._select_diverse_ranked(
+                ranked,
+                limit=personalized_slots,
+                used_ids={
+                    product.id
+                    for product in recommendations
+                },
+            )
+        )
+
+        discovery = cls._discovery_products(
+            limit=discovery_slots,
+            exclude_ids=excluded.union(
+                product.id
+                for product in recommendations
+            ),
+        )
+
+        existing_keys = {
+            cls._normalized_product_key(product)
+            for product in recommendations
+        }
+
+        for product in discovery:
+            product_key = cls._normalized_product_key(
+                product
+            )
+
+            if (
+                product_key
+                and product_key in existing_keys
+            ):
+                continue
+
+            recommendations.append(product)
+
+            if product_key:
+                existing_keys.add(product_key)
+
+            if len(recommendations) >= limit:
+                break
 
         used_ids = excluded.union(
             product.id
@@ -570,7 +681,273 @@ class RecommendationEngine:
             fallback
         )
 
-        return recommendations
+        if len(recommendations) >= limit:
+            return recommendations[:limit]
+
+    @classmethod
+    def for_user_with_reasons(
+        cls,
+        request,
+        limit=10,
+        exclude_ids=None,
+        exclude_purchased=False,
+    ):
+        """
+        Same recommendation engine but returns metadata
+        instead of Product objects.
+        """
+
+        recommendations = cls.for_user(
+            request=request,
+            limit=limit,
+            exclude_ids=exclude_ids,
+            exclude_purchased=exclude_purchased,
+        )
+
+        profile = BehaviorProfileBuilder.build(
+            request=request,
+            exclude_purchased=exclude_purchased,
+        )
+
+        results = []
+
+        for product in recommendations:
+            scored = cls._behavior_profile_score(
+                candidate=product,
+                profile=profile,
+            )
+
+            results.append(
+                {
+                    "product": product,
+                    "score": scored["score"],
+                    "reasons": scored["reasons"],
+                }
+            )
+
+        return results
+
+    @classmethod
+    def human_reasons(cls, reasons):
+        return [
+            cls.REASON_LABELS.get(reason, reason)
+            for reason in reasons[:3]
+        ]
+
+    @classmethod
+    def _candidate_search_score(
+        cls,
+        candidate,
+        profile,
+    ):
+        searchable_text = " ".join(
+            [
+                str(getattr(candidate, "name", "") or ""),
+                str(
+                    getattr(
+                        candidate,
+                        "short_description",
+                        "",
+                    )
+                    or ""
+                ),
+                str(
+                    getattr(
+                        candidate,
+                        "description",
+                        "",
+                    )
+                    or ""
+                ),
+                str(
+                    getattr(
+                        getattr(candidate, "category", None),
+                        "name",
+                        "",
+                    )
+                    or ""
+                ),
+                str(
+                    getattr(
+                        getattr(candidate, "brand", None),
+                        "name",
+                        "",
+                    )
+                    or ""
+                ),
+            ]
+        ).lower()
+
+        score = 0.0
+
+        for term, weight in profile.search_terms.items():
+            normalized_term = str(term or "").strip().lower()
+
+            if not normalized_term:
+                continue
+
+            if normalized_term in searchable_text:
+                score += float(weight) * 8.0
+                continue
+
+            words = [
+                word
+                for word in normalized_term.split()
+                if len(word) >= 3
+            ]
+
+            if not words:
+                continue
+
+            matched_words = sum(
+                1
+                for word in words
+                if word in searchable_text
+            )
+
+            score += (
+                float(weight)
+                * 4.0
+                * (
+                    matched_words
+                    / len(words)
+                )
+            )
+
+        return score
+
+    @staticmethod
+    def _normalized_product_key(product):
+        import re
+
+        name = str(
+            getattr(product, "name", "")
+            or ""
+        ).strip().lower()
+
+        # Ignore specification text appended after a comma.
+        name = name.split(",", 1)[0]
+
+        # Normalize punctuation and spacing.
+        name = name.replace("–", "-")
+        name = name.replace("—", "-")
+        name = re.sub(
+            r"[^a-z0-9]+",
+            " ",
+            name,
+        )
+
+        return " ".join(
+            name.split()
+        )
+
+    @classmethod
+    def _select_diverse_ranked(
+        cls,
+        ranked,
+        *,
+        limit,
+        max_per_brand=None,
+        max_per_category=None,
+        used_ids=None,
+    ):
+        max_per_brand = (
+            max_per_brand
+            or cls.MAX_PER_BRAND
+        )
+
+        max_per_category = (
+            max_per_category
+            or cls.MAX_PER_CATEGORY
+        )
+
+        selected = []
+        selected_ids = set(used_ids or [])
+        selected_product_keys = set()
+        brand_counts = {}
+        category_counts = {}
+
+        for item in ranked:
+            product = item["product"]
+
+            product_key = cls._normalized_product_key(
+                product
+            )
+
+            if (
+                product_key
+                and product_key in selected_product_keys
+            ):
+                continue
+
+            if product.id in selected_ids:
+                continue
+
+            brand_id = product.brand_id
+            category_id = product.category_id
+
+            if (
+                brand_id
+                and brand_counts.get(brand_id, 0)
+                >= max_per_brand
+            ):
+                continue
+
+            if (
+                category_id
+                and category_counts.get(category_id, 0)
+                >= max_per_category
+            ):
+                continue
+
+            selected.append(product)
+            selected_ids.add(product.id)
+
+            if product_key:
+                selected_product_keys.add(
+                    product_key
+                )
+
+            if brand_id:
+                brand_counts[brand_id] = (
+                    brand_counts.get(brand_id, 0)
+                    + 1
+                )
+
+            if category_id:
+                category_counts[category_id] = (
+                    category_counts.get(category_id, 0)
+                    + 1
+                )
+
+            if len(selected) >= limit:
+                break
+
+        return selected
+
+    @classmethod
+    def _discovery_products(
+        cls,
+        *,
+        limit,
+        exclude_ids=None,
+    ):
+        if limit <= 0:
+            return []
+
+        return list(
+            cls._base_queryset()
+            .exclude(
+                id__in=set(exclude_ids or []),
+            )
+            .order_by(
+                "-is_featured",
+                "-sales_count",
+                "-rating_avg",
+                "-rating_count",
+                "-created_at",
+            )[:limit]
+        )
 
     @classmethod
     def _behavior_profile_score(
