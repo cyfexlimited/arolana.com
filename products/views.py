@@ -16,6 +16,9 @@ from django.contrib.admin.views.decorators import staff_member_required
 from products.services.recommendation_engine import (
     RecommendationEngine,
 )
+from products.services.behavior_tracker import (
+    BehaviorTracker,
+)
 from products.services.product_list_sections import (
     get_product_list_sections,
 )
@@ -988,24 +991,48 @@ def add_to_cart(request, slug):
         cart_data = _save_guest_cart(request, cart_data)
         cart_count = _guest_cart_count(cart_data)
 
-    vendor_profile = vendor_offer.vendor if vendor_offer else getattr(getattr(product, 'vendor', None), 'vendor_profile', None)
+    vendor_profile = (
+        vendor_offer.vendor
+        if vendor_offer
+        else getattr(
+            getattr(product, "vendor", None),
+            "vendor_profile",
+            None,
+        )
+    )
+
     if vendor_profile:
         _create_vendor_lead(
             request,
             vendor_profile,
-            'add_to_cart',
+            "add_to_cart",
             product=product,
             payload={
-                'source': request.POST.get('source') or request.GET.get('source') or 'web',
-                'quantity': quantity,
-                'variant_id': variant.id if variant else '',
-                'page_url': request.META.get('HTTP_REFERER', ''),
+                "source": (
+                    request.POST.get("source")
+                    or request.GET.get("source")
+                    or "web"
+                ),
+                "quantity": quantity,
+                "variant_id": variant.id if variant else "",
+                "page_url": request.META.get(
+                    "HTTP_REFERER",
+                    "",
+                ),
             },
-            metadata={'cart_count': cart_count},
+            metadata={
+                "cart_count": cart_count,
+            },
         )
 
+    BehaviorTracker.add_to_cart(
+        request=request,
+        product=product,
+        quantity=quantity,
+    )
+
     messages.success(request, message)
-    request.session['cart_count'] = cart_count
+    request.session["cart_count"] = cart_count
 
     # ====== AJAX Response ======
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -1551,19 +1578,10 @@ def product_detail(request, slug):
     # Recently viewed
     # ============================================================
 
-    if request.user.is_authenticated:
-        RecentlyViewed.objects.update_or_create(
-            user=request.user,
-            product=product,
-            defaults={
-                "viewed_at": timezone.now(),
-            },
-        )
-    else:
-        _save_guest_recently_viewed(
-            request,
-            product,
-        )
+    BehaviorTracker.product_view(
+        request=request,
+        product=product,
+    )
 
     # ============================================================
     # Currency
@@ -3195,12 +3213,28 @@ def toggle_wishlist(request, slug):
 
         if wishlist_item.exists():
             wishlist_item.delete()
+
+            BehaviorTracker.remove_from_wishlist(
+                request=request,
+                product=product,
+            )
+
             in_wishlist = False
-            message = f'{product.name} removed from wishlist'
+            message = f"{product.name} removed from wishlist"
+
         else:
-            Wishlist.objects.create(user=request.user, product=product)
+            Wishlist.objects.create(
+                user=request.user,
+                product=product,
+            )
+
+            BehaviorTracker.add_to_wishlist(
+                request=request,
+                product=product,
+            )
+
             in_wishlist = True
-            message = f'{product.name} added to wishlist'
+            message = f"{product.name} added to wishlist"
 
         wishlist_count = request.user.wishlist_items.count()
     else:
@@ -3208,13 +3242,30 @@ def toggle_wishlist(request, slug):
         product_id = str(product.id)
 
         if product_id in wishlist_ids:
-            wishlist_ids = [saved_id for saved_id in wishlist_ids if saved_id != product_id]
+            wishlist_ids = [
+                saved_id
+                for saved_id in wishlist_ids
+                if saved_id != product_id
+            ]
+
+            BehaviorTracker.remove_from_wishlist(
+                request=request,
+                product=product,
+            )
+
             in_wishlist = False
-            message = f'{product.name} removed from wishlist'
+            message = f"{product.name} removed from wishlist"
+
         else:
             wishlist_ids.append(product_id)
+
+            BehaviorTracker.add_to_wishlist(
+                request=request,
+                product=product,
+            )
+
             in_wishlist = True
-            message = f'{product.name} added to wishlist'
+            message = f"{product.name} added to wishlist"
 
         request.session[GUEST_WISHLIST_SESSION_KEY] = wishlist_ids
         request.session.modified = True
