@@ -1266,6 +1266,22 @@ def product_list(request):
     # ====== Apply Filters ======
     products = apply_filters(products, request)
 
+    search_query = request.GET.get(
+        "q",
+        "",
+    ).strip()
+
+    if (
+        search_query
+        and request.headers.get(
+            "X-Requested-With",
+        ) != "XMLHttpRequest"
+    ):
+        BehaviorTracker.search(
+            request=request,
+            query=search_query,
+        )
+
     # ====== Sorting ======
     collection = request.GET.get("collection", "").strip().lower()
     collection_details = {
