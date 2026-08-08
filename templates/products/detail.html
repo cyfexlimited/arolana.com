@@ -4971,6 +4971,603 @@
             min-width: 0;
         }
     }
+
+
+
+    /* ============================================================
+       AROLANA PRODUCT DETAIL — MOBILE COMPACT V12
+       Built against the exact uploaded product-detail template.
+       Desktop remains unchanged.
+       ============================================================ */
+    @media (max-width: 700px) {
+        html, body {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
+        .apd-page {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding-inline: .65rem !important;
+        }
+
+        /* General mobile rhythm */
+        .apd-page .space-y-6 > :not([hidden]) ~ :not([hidden]) {
+            margin-top: .75rem !important;
+        }
+
+        .apd-page .mb-6 { margin-bottom: .8rem !important; }
+        .apd-page .mt-6 { margin-top: .8rem !important; }
+        .apd-page .py-6 { padding-top: .8rem !important; padding-bottom: .8rem !important; }
+
+        /* Hero gallery */
+        #main-product-image,
+        .gallery-item .w-full.h-96,
+        .gallery-item > div.w-full.h-96 {
+            height: min(72vw, 285px) !important;
+            min-height: 215px !important;
+            padding: .5rem !important;
+        }
+
+        .gallery-item {
+            border-radius: .9rem !important;
+        }
+
+        #product-image-thumbnails {
+            gap: .4rem !important;
+            margin-top: .5rem !important;
+        }
+
+        .thumbnail-img,
+        .thumbnail-item img,
+        .thumbnail-item .w-20.h-20 {
+            width: 50px !important;
+            height: 50px !important;
+            border-radius: .6rem !important;
+        }
+
+        /* Product heading + price */
+        .apd-buybox-shell h1 {
+            font-size: clamp(1.18rem, 5.4vw, 1.48rem) !important;
+            line-height: 1.12 !important;
+            margin: .45rem 0 .5rem !important;
+        }
+
+        #product-price {
+            font-size: clamp(1.55rem, 7vw, 1.92rem) !important;
+            line-height: 1 !important;
+        }
+
+        .apd-buybox-shell .bg-gradient-to-r.from-blue-50.to-purple-50 {
+            padding: .7rem !important;
+            border-radius: .85rem !important;
+        }
+
+        /* Shipping / Warranty */
+        .apd-shipping-info-card,
+        .apd-warranty-info-card {
+            padding: .7rem !important;
+            margin-bottom: .65rem !important;
+            border-radius: .9rem !important;
+        }
+
+        .apd-shipping-info-title,
+        .apd-warranty-info-title {
+            font-size: .9rem !important;
+            margin-bottom: .5rem !important;
+        }
+
+        .apd-shipping-info-grid,
+        .apd-warranty-info-grid {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: .45rem !important;
+        }
+
+        .apd-shipping-info-item,
+        .apd-warranty-info-item {
+            padding: .52rem .58rem !important;
+            border-radius: .7rem !important;
+        }
+
+        .apd-shipping-info-label,
+        .apd-warranty-info-label {
+            font-size: .56rem !important;
+            line-height: 1.15 !important;
+            margin-bottom: .1rem !important;
+        }
+
+        .apd-shipping-info-value,
+        .apd-warranty-info-value {
+            font-size: .72rem !important;
+            line-height: 1.35 !important;
+        }
+
+        .apd-shipping-restrictions,
+        .apd-warranty-info-item[style*="grid-column: 1 / -1"] {
+            grid-column: 1 / -1 !important;
+        }
+
+        .apd-shipping-restrictions .apd-shipping-info-value,
+        .apd-warranty-info-item[style*="grid-column: 1 / -1"] .apd-warranty-info-value {
+            display: -webkit-box !important;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Quantity + cart */
+        .apd-buybox-shell .mb-4:has(#quantity) {
+            padding: .62rem !important;
+            margin-bottom: .6rem !important;
+            border-radius: .8rem !important;
+        }
+
+        .apd-buybox-shell .mb-4:has(#quantity) > label {
+            margin-bottom: .35rem !important;
+            font-size: .78rem !important;
+        }
+
+        .apd-buybox-shell .mb-4:has(#quantity) > div {
+            grid-template-columns: 2.45rem minmax(0,1fr) 2.45rem !important;
+            gap: .4rem !important;
+        }
+
+        .apd-buybox-shell .mb-4:has(#quantity) button,
+        .apd-buybox-shell .mb-4:has(#quantity) input {
+            min-height: 40px !important;
+        }
+
+        #add-to-cart-submit,
+        .apd-page button[onclick="checkoutNow()"] {
+            min-height: 43px !important;
+            padding: .55rem .6rem !important;
+            font-size: .82rem !important;
+        }
+
+        /* Quick overview */
+        .apd-hero-overview-summary {
+            padding: .65rem !important;
+            border-radius: .8rem !important;
+        }
+
+        .apd-hero-overview-summary-title {
+            font-size: .78rem !important;
+            margin-bottom: .25rem !important;
+        }
+
+        .apd-hero-overview-summary-text {
+            font-size: .72rem !important;
+            line-height: 1.4 !important;
+            -webkit-line-clamp: 4 !important;
+            max-height: calc(1.4em * 4) !important;
+        }
+
+        .apd-hero-overview-readmore {
+            margin-top: .3rem !important;
+            font-size: .7rem !important;
+        }
+
+        /* Vendor contact */
+        #product-vendor-chat {
+            padding: .68rem !important;
+            border-radius: .85rem !important;
+        }
+
+        #product-vendor-chat .grid.gap-2.sm\:grid-cols-3 {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: .42rem !important;
+        }
+
+        #product-vendor-chat a,
+        #product-vendor-chat button {
+            min-height: 38px !important;
+            padding: .45rem .5rem !important;
+            font-size: .68rem !important;
+        }
+
+        #product-vendor-chat p {
+            font-size: .64rem !important;
+            line-height: 1.35 !important;
+        }
+
+        /* Price summary */
+        .apd-price-summary-card {
+            padding: .72rem !important;
+            border-radius: .85rem !important;
+        }
+
+        .apd-price-summary-card h2 {
+            font-size: .88rem !important;
+            margin-bottom: .4rem !important;
+        }
+
+        .apd-price-summary-row {
+            padding: .22rem 0 !important;
+            font-size: .7rem !important;
+        }
+
+        .apd-price-summary-total-row strong {
+            font-size: 1.05rem !important;
+        }
+
+        /* Sponsored ad */
+        .apd-sponsored-card {
+            border-radius: .9rem !important;
+        }
+
+        .apd-sponsored-head {
+            padding: .6rem .68rem .45rem !important;
+        }
+
+        .apd-sponsored-body {
+            margin-inline: .5rem !important;
+            border-radius: .7rem !important;
+        }
+
+        .apd-sponsored-body img {
+            max-height: 165px !important;
+            object-fit: contain !important;
+        }
+
+        .apd-sponsored-body h1,
+        .apd-sponsored-body h2,
+        .apd-sponsored-body h3 {
+            font-size: .98rem !important;
+            line-height: 1.15 !important;
+        }
+
+        .apd-sponsored-body p {
+            display: -webkit-box !important;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            font-size: .68rem !important;
+            line-height: 1.35 !important;
+        }
+
+        /* Tabs */
+        .modern-tabs,
+        [role="tablist"] {
+            display: flex !important;
+            overflow-x: auto !important;
+            white-space: nowrap;
+            scrollbar-width: none;
+            scroll-snap-type: x proximity;
+        }
+
+        .modern-tabs::-webkit-scrollbar,
+        [role="tablist"]::-webkit-scrollbar {
+            display: none;
+        }
+
+        .modern-tab,
+        [role="tablist"] button {
+            flex: 0 0 auto !important;
+            padding: .58rem .75rem !important;
+            font-size: .72rem !important;
+            scroll-snap-align: start;
+        }
+
+        /* Overview header */
+        .apd-premium-overview-heading {
+            gap: .5rem !important;
+            margin-bottom: .6rem !important;
+            padding-bottom: .6rem !important;
+        }
+
+        .apd-premium-overview-heading h2 {
+            font-size: 1.28rem !important;
+            line-height: 1.1 !important;
+        }
+
+        .apd-premium-overview-kicker {
+            font-size: .56rem !important;
+        }
+
+        .apd-overview-brand-pill,
+        .apd-overview-condition-pill {
+            min-height: 29px !important;
+            padding: .32rem .52rem !important;
+            font-size: .62rem !important;
+        }
+
+        /* Product description typography */
+        .product-overview-content {
+            font-size: .8rem !important;
+            line-height: 1.55 !important;
+        }
+
+        .product-overview-content h2 {
+            font-size: 1.16rem !important;
+            margin: 1rem 0 .5rem !important;
+        }
+
+        .product-overview-content h3 {
+            font-size: .95rem !important;
+            margin: .9rem 0 .4rem !important;
+        }
+
+        .product-overview-content p {
+            font-size: .8rem !important;
+            line-height: 1.55 !important;
+            margin-bottom: .65rem !important;
+        }
+
+        /* Turn large feature-card lists into swipe rails */
+        .product-overview-content > ul {
+            display: flex !important;
+            gap: .5rem !important;
+            overflow-x: auto !important;
+            scroll-snap-type: x mandatory;
+            scrollbar-width: none;
+            padding: 0 .1rem .3rem 0 !important;
+            margin: .7rem 0 .9rem !important;
+        }
+
+        .product-overview-content > ul::-webkit-scrollbar {
+            display: none;
+        }
+
+        .product-overview-content > ul > li {
+            flex: 0 0 min(74vw, 255px) !important;
+            min-height: 96px !important;
+            padding: .68rem .68rem .68rem 2.45rem !important;
+            border-radius: .78rem !important;
+            font-size: .76rem !important;
+            line-height: 1.42 !important;
+            scroll-snap-align: start;
+        }
+
+        /* Collapse only the long rich description on mobile */
+        .apd-mobile-overview-collapsible {
+            position: relative;
+            max-height: 560px;
+            overflow: hidden;
+        }
+
+        .apd-mobile-overview-collapsible:not(.is-expanded)::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 86px;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), #fff 78%);
+            pointer-events: none;
+        }
+
+        .apd-mobile-overview-collapsible.is-expanded {
+            max-height: none;
+            overflow: visible;
+        }
+
+        .apd-mobile-overview-toggle {
+            width: 100%;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: .4rem;
+            margin: .55rem 0 .9rem;
+            border: 1px solid rgba(0,102,204,.18);
+            border-radius: .72rem;
+            color: #0066CC;
+            background: #F7FBFF;
+            font-size: .72rem;
+            font-weight: 900;
+        }
+
+        /* Shopping highlights: 2 columns */
+        .apd-shopping-highlights {
+            margin: 1rem 0 !important;
+        }
+
+        .apd-shopping-highlights-heading {
+            margin-bottom: .55rem !important;
+        }
+
+        .apd-shopping-highlights-heading h3 {
+            font-size: 1.08rem !important;
+            line-height: 1.15 !important;
+        }
+
+        .apd-shopping-highlight-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: .45rem !important;
+        }
+
+        .apd-shopping-highlight {
+            grid-template-columns: 28px minmax(0,1fr) !important;
+            gap: .45rem !important;
+            min-height: 82px !important;
+            padding: .58rem !important;
+            border-radius: .72rem !important;
+        }
+
+        .apd-shopping-highlight-icon {
+            width: 28px !important;
+            height: 28px !important;
+            border-radius: .56rem !important;
+            font-size: .68rem !important;
+        }
+
+        .apd-shopping-highlight strong {
+            font-size: .69rem !important;
+        }
+
+        .apd-shopping-highlight span:not(.apd-shopping-highlight-icon) {
+            font-size: .58rem !important;
+            line-height: 1.3 !important;
+        }
+
+        /* Uploaded product gallery: horizontal instead of tall stack */
+        .apd-auto-overview-gallery {
+            margin: .95rem 0 !important;
+            padding: .72rem !important;
+            border-radius: .85rem !important;
+        }
+
+        .apd-auto-overview-gallery-header {
+            gap: .25rem !important;
+            margin-bottom: .55rem !important;
+        }
+
+        .apd-auto-overview-gallery-title {
+            font-size: 1.02rem !important;
+            line-height: 1.15 !important;
+        }
+
+        .apd-auto-overview-gallery-note {
+            font-size: .62rem !important;
+            line-height: 1.3 !important;
+        }
+
+        .apd-auto-overview-gallery-grid,
+        .apd-auto-overview-gallery-grid.apd-gallery-count-1,
+        .apd-auto-overview-gallery-grid.apd-gallery-count-2,
+        .apd-auto-overview-gallery-grid.apd-gallery-count-3 {
+            display: flex !important;
+            grid-template-columns: none !important;
+            gap: .5rem !important;
+            overflow-x: auto !important;
+            scroll-snap-type: x mandatory;
+            scrollbar-width: none;
+        }
+
+        .apd-auto-overview-gallery-grid::-webkit-scrollbar {
+            display: none;
+        }
+
+        .apd-auto-overview-gallery-item,
+        .apd-auto-overview-gallery-item:nth-child(1),
+        .apd-auto-overview-gallery-item:nth-child(2),
+        .apd-auto-overview-gallery-item:nth-child(3),
+        .apd-auto-overview-gallery-item:nth-child(n+4),
+        .apd-auto-overview-gallery-grid.apd-gallery-count-1 .apd-auto-overview-gallery-item,
+        .apd-auto-overview-gallery-grid.apd-gallery-count-2 .apd-auto-overview-gallery-item,
+        .apd-auto-overview-gallery-grid.apd-gallery-count-3 .apd-auto-overview-gallery-item {
+            flex: 0 0 min(74vw, 265px) !important;
+            width: auto !important;
+            min-height: 245px !important;
+            height: 245px !important;
+            aspect-ratio: auto !important;
+            scroll-snap-align: start;
+        }
+
+        .apd-auto-overview-gallery-item img,
+        .apd-auto-overview-gallery-grid.apd-gallery-count-1 .apd-auto-overview-gallery-item img {
+            width: 100% !important;
+            height: 100% !important;
+            min-height: 0 !important;
+            padding: .55rem !important;
+            object-fit: contain !important;
+        }
+
+        .apd-auto-overview-gallery-caption {
+            left: .4rem !important;
+            right: .4rem !important;
+            bottom: .4rem !important;
+            padding: .42rem .52rem !important;
+            font-size: .58rem !important;
+            border-radius: .6rem !important;
+        }
+
+        /* Resource cards */
+        .apd-overview-resource-grid,
+        .apd-overview-resource-grid.apd-resource-grid-multiple {
+            grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+            gap: .45rem !important;
+        }
+
+        .apd-overview-resource-card {
+            padding: .58rem !important;
+            border-radius: .72rem !important;
+            gap: .4rem !important;
+        }
+
+        /* Assistant / business / trust */
+        .apd-overview-smartchat-card {
+            padding: .75rem !important;
+            border-radius: .85rem !important;
+        }
+
+        .apd-overview-smartchat-card h3 {
+            font-size: .96rem !important;
+        }
+
+        .apd-overview-smartchat-card > p {
+            margin: .4rem 0 !important;
+            font-size: .68rem !important;
+        }
+
+        .apd-overview-smartchat-button {
+            min-height: 38px !important;
+            padding: .45rem .65rem !important;
+            font-size: .7rem !important;
+        }
+
+        .apd-business-quote-card {
+            padding: .7rem !important;
+            border-radius: .85rem !important;
+        }
+
+        .apd-business-quote-card h3 {
+            font-size: .88rem !important;
+        }
+
+        .apd-business-quote-card p {
+            font-size: .65rem !important;
+            margin-bottom: .45rem !important;
+        }
+
+        .apd-business-quote-button {
+            min-height: 36px !important;
+            padding: .42rem .6rem !important;
+            font-size: .66rem !important;
+        }
+
+        .apd-premium-trust-grid {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+            padding: .3rem !important;
+        }
+
+        .apd-premium-trust-grid .apd-overview-trust-item {
+            min-height: 68px !important;
+            padding: .5rem !important;
+            border: 0 !important;
+        }
+
+        .apd-premium-trust-grid .apd-overview-trust-item strong {
+            font-size: .65rem !important;
+        }
+
+        .apd-premium-trust-grid .apd-overview-trust-item span {
+            font-size: .55rem !important;
+            line-height: 1.25 !important;
+        }
+
+        /* Recommendation rails */
+        .product-personalization-shelf {
+            padding: .75rem !important;
+            border-radius: .85rem !important;
+        }
+
+        .product-personalization-card {
+            flex: 0 0 min(70vw, 235px) !important;
+            width: auto !important;
+        }
+
+        /* Floating actions slightly smaller */
+        #scroll-to-top,
+        .scroll-to-top,
+        #arolana-smartchat-toggle {
+            transform: scale(.84);
+            transform-origin: bottom right;
+        }
+    }
+
 </style>
 {% endblock %}
 
@@ -10917,4 +11514,49 @@
     }
 })();
 </script>
+
+
+
+<script>
+(function () {
+    function mobile() {
+        return window.matchMedia && window.matchMedia('(max-width: 700px)').matches;
+    }
+
+    function addOverviewToggle() {
+        var overview = document.getElementById('product-overview-content');
+        if (!overview || overview.dataset.mobileCompactV12 === '1' || !mobile()) return;
+
+        overview.dataset.mobileCompactV12 = '1';
+        overview.classList.add('apd-mobile-overview-collapsible');
+
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'apd-mobile-overview-toggle';
+        button.setAttribute('aria-expanded', 'false');
+        button.innerHTML = '<i class="fas fa-chevron-down"></i><span>Read full product details</span>';
+
+        overview.insertAdjacentElement('afterend', button);
+
+        button.addEventListener('click', function () {
+            var expanded = overview.classList.toggle('is-expanded');
+            button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+            button.innerHTML = expanded
+                ? '<i class="fas fa-chevron-up"></i><span>Show less</span>'
+                : '<i class="fas fa-chevron-down"></i><span>Read full product details</span>';
+        });
+    }
+
+    function boot() {
+        addOverviewToggle();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', boot, { once: true });
+    } else {
+        boot();
+    }
+})();
+</script>
+
 {% endblock %}
