@@ -2330,21 +2330,90 @@ class RecommendationEngine:
     @classmethod
     def top_rated(
         cls,
+        product=None,
         limit=8,
+        exclude_ids=None,
+        include_scores=False,
     ):
         limit = cls._normalize_limit(
             limit,
             default=8,
         )
 
-        return list(
-            cls._base_queryset()
-            .order_by(
+        excluded = {
+            int(product_id)
+            for product_id in (exclude_ids or [])
+            if product_id
+        }
+
+        if product and getattr(product, "pk", None):
+            excluded.add(product.pk)
+
+        queryset = cls._base_queryset()
+
+        if excluded:
+            queryset = queryset.exclude(id__in=excluded)
+
+        if product and getattr(product, "pk", None):
+            candidates = list(
+                queryset.order_by(
+                    "-rating_avg",
+                    "-rating_count",
+                    "-sales_count",
+                    "-is_featured",
+                )[:cls.MAX_CANDIDATES]
+            )
+
+            ranked = []
+
+            for candidate in candidates:
+                scored = cls.score_product(
+                    product,
+                    candidate,
+                )
+                scored["score"] += int(
+                    float(candidate.rating_avg or 0) * 10
+                )
+                scored["score"] += min(
+                    int(candidate.rating_count or 0),
+                    50,
+                )
+                ranked.append(scored)
+
+            ranked = sorted(
+                ranked,
+                key=lambda item: item["score"],
+                reverse=True,
+            )[:limit]
+
+            if include_scores:
+                return ranked
+
+            return [
+                item["product"]
+                for item in ranked
+            ]
+
+        products = list(
+            queryset.order_by(
                 "-rating_avg",
                 "-rating_count",
                 "-sales_count",
             )[:limit]
         )
+
+        if include_scores:
+            return [
+                {
+                    "product": item,
+                    "score": None,
+                    "reasons": [],
+                    "reason": "Top rated product",
+                }
+                for item in products
+            ]
+
+        return products
 
     @classmethod
     def for_user(

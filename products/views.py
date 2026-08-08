@@ -7499,6 +7499,36 @@ def mobile_product_detail_api(request, slug):
     def product_card(item):
         return _mobile_product_payload(request, item)
 
+    def recommendation_algorithm(section):
+        return (
+            RecommendationEngine
+            .RECOMMENDATION_CHANNELS
+            .get(section, {})
+            .get("algorithm", "")
+        )
+
+    def recommendation_card(
+        item,
+        *,
+        section,
+        position,
+        score=None,
+        reasons=None,
+        extra=None,
+    ):
+        reasons = list(reasons or [])
+        return {
+            **product_card(item),
+            **(extra or {}),
+            "recommendation_section": section,
+            "recommendation_position": position,
+            "recommendation_algorithm": recommendation_algorithm(section),
+            "recommendation_score": score,
+            "recommendation_source_product_id": product.id,
+            "recommendation_reasons": reasons,
+            "recommendation_reason": reasons[0] if reasons else "",
+        }
+
     mobile_customer = None
     if _auth_mobile_customer_from_request_data is not None:
         try:
@@ -7611,6 +7641,30 @@ def mobile_product_detail_api(request, slug):
                     "customers_also_viewed"
                 ]["limit"]
             ),
+        )
+    )
+
+    related_products_with_scores = (
+        RecommendationEngine.similar_products(
+            product=product,
+            limit=(
+                recommendation_exposure_plan[
+                    "related_products"
+                ]["limit"]
+            ),
+            include_scores=True,
+        )
+    )
+
+    top_rated_similar_with_scores = (
+        RecommendationEngine.top_rated(
+            product=product,
+            limit=(
+                recommendation_exposure_plan[
+                    "top_rated_similar"
+                ]["limit"]
+            ),
+            include_scores=True,
         )
     )
 
@@ -8147,6 +8201,103 @@ def mobile_product_detail_api(request, slug):
         ]["limit"]
     ]
 
+    def unique_scored_results(
+        results,
+        *,
+        excluded_ids,
+        limit,
+        fallback_excluded_ids=None,
+    ):
+        def collect(active_excluded_ids):
+            seen_ids = set()
+            selected = []
+
+            for item in results:
+                candidate = item.get("product")
+                candidate_id = getattr(candidate, "id", None)
+
+                if not candidate_id:
+                    continue
+
+                if candidate_id == current_product_id:
+                    continue
+
+                if candidate_id in active_excluded_ids:
+                    continue
+
+                if candidate_id in seen_ids:
+                    continue
+
+                seen_ids.add(candidate_id)
+                selected.append(item)
+
+                if len(selected) >= limit:
+                    break
+
+            return selected
+
+        selected = collect(set(excluded_ids or []))
+
+        if selected or fallback_excluded_ids is None:
+            return selected
+
+        return collect(set(fallback_excluded_ids or []))
+
+    behavioral_reserved_ids = (
+        frequently_bought_ids
+        | customers_who_bought_ids
+        | customers_also_viewed_ids
+    )
+
+    related_products_with_scores = unique_scored_results(
+        related_products_with_scores,
+        excluded_ids=behavioral_reserved_ids,
+        limit=(
+            recommendation_exposure_plan[
+                "related_products"
+            ]["limit"]
+        ),
+    )
+
+    related_product_ids = {
+        item["product"].id
+        for item in related_products_with_scores
+    }
+
+    recommended_with_reasons = unique_scored_results(
+        recommended_with_reasons,
+        excluded_ids=(
+            behavioral_reserved_ids
+            | related_product_ids
+        ),
+        fallback_excluded_ids=behavioral_reserved_ids,
+        limit=(
+            recommendation_exposure_plan[
+                "ai_recommendations"
+            ]["limit"]
+        ),
+    )
+
+    recommended_product_ids = {
+        item["product"].id
+        for item in recommended_with_reasons
+    }
+
+    top_rated_similar_with_scores = unique_scored_results(
+        top_rated_similar_with_scores,
+        excluded_ids=(
+            behavioral_reserved_ids
+            | related_product_ids
+            | recommended_product_ids
+        ),
+        fallback_excluded_ids=behavioral_reserved_ids,
+        limit=(
+            recommendation_exposure_plan[
+                "top_rated_similar"
+            ]["limit"]
+        ),
+    )
+
     return JsonResponse({
         "id": product.id,
         "name": translated_field(product, "name", request=request),
@@ -8235,55 +8386,76 @@ def mobile_product_detail_api(request, slug):
         "reviews": reviews,
         "questions": questions,
         "recommended_products": [
-            {
-                **product_card(
-                    item["product"],
+            recommendation_card(
+                item["product"],
+                section="ai_recommendations",
+                position=index + 1,
+                score=(
+                    round(item["score"], 2)
+                    if item.get("score") is not None
+                    else None
                 ),
-                "recommendation_score": round(
-                    item["score"],
-                    2,
-                ),
-                "recommendation_reasons": (
-                    item["reasons"][:2]
-                ),
-                "recommendation_reason": (
-                    item["reasons"][0]
-                    if item["reasons"]
-                    else ""
-                ),
-            }
-            for item in recommended_with_reasons
+                reasons=item.get("reasons", [])[:2],
+            )
+            for index, item in enumerate(recommended_with_reasons)
         ],
 
         "customers_who_bought_this_also_bought": [
-            {
-                **product_card(
-                    item["product"]
-                ),
-                "co_purchase_orders": (
-                    item["co_purchase_orders"]
-                ),
-                "unique_buyers": (
-                    item["unique_buyers"]
-                ),
-                "recommendation_score": (
-                    item["score"]
-                ),
-                "recommendation_reasons": (
-                    item["reasons"][:3]
-                ),
-                "recommendation_reason": (
-                    item["reasons"][0]
-                    if item["reasons"]
-                    else ""
-                ),
-            }
-            for item in customers_who_bought_results
+            recommendation_card(
+                item["product"],
+                section="customers_who_bought",
+                position=index + 1,
+                score=item.get("score"),
+                reasons=item.get("reasons", [])[:3],
+                extra={
+                    "co_purchase_orders": item[
+                        "co_purchase_orders"
+                    ],
+                    "unique_buyers": item[
+                        "unique_buyers"
+                    ],
+                },
+            )
+            for index, item in enumerate(customers_who_bought_results)
         ],
 
         "customers_also_viewed": [
-            product_card(item)
-            for item in customers_also_viewed
+            recommendation_card(
+                item,
+                section="customers_also_viewed",
+                position=index + 1,
+            )
+            for index, item in enumerate(customers_also_viewed)
+        ],
+
+        "related_products": [
+            recommendation_card(
+                item["product"],
+                section="related_products",
+                position=index + 1,
+                score=(
+                    round(item["score"], 2)
+                    if item.get("score") is not None
+                    else None
+                ),
+                reasons=item.get("reasons", [])[:3],
+            )
+            for index, item in enumerate(related_products_with_scores)
+        ],
+
+        "top_rated_similar": [
+            recommendation_card(
+                item["product"],
+                section="top_rated_similar",
+                position=index + 1,
+                score=(
+                    round(item["score"], 2)
+                    if item.get("score") is not None
+                    else None
+                ),
+                reasons=item.get("reasons", [])[:3],
+            )
+            for index, item in enumerate(top_rated_similar_with_scores)
         ],
 
         "recommendation_exposure_plan": (
