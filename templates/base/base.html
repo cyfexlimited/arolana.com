@@ -5308,8 +5308,14 @@ body.products-list-full-width .arolana-content-rail>main{
             function getCookie(name) {
                 const value = `; ${document.cookie}`;
                 const parts = value.split(`; ${name}=`);
-                if (parts.length === 2) return decodeURIComponent(parts.pop().split(';').shift());
-                return '';
+
+                if (parts.length === 2) {
+                    return decodeURIComponent(
+                        parts.pop().split(";").shift()
+                    );
+                }
+
+                return "";
             }
 
             function showCartToast(message, type) {
@@ -5386,7 +5392,7 @@ body.products-list-full-width .arolana-content-rail>main{
                     body: body,
                     credentials: 'same-origin',
                     headers: {
-                        'X-CSRFToken': getCookie('csrftoken'),
+                        'X-CSRFToken': getCookie('arolana_csrftoken'),
                         'X-Requested-With': 'XMLHttpRequest'
                     }
                 })
@@ -5417,10 +5423,63 @@ body.products-list-full-width .arolana-content-rail>main{
                 return requestAddToCart(form.action, new FormData(form), button);
             }
 
+            function appendRecommendationMetadata(body, button) {
+                if (!body || !button) {
+                    return;
+                }
+
+                const recommendation = button.closest(
+                    "[data-recommendation-section]"
+                );
+
+                if (!recommendation) {
+                    return;
+                }
+
+                body.set(
+                    "recommendation_section",
+                    recommendation.dataset.recommendationSection || ""
+                );
+
+                body.set(
+                    "recommendation_position",
+                    recommendation.dataset.recommendationPosition || ""
+                );
+
+                body.set(
+                    "source_product_id",
+                    recommendation.dataset.sourceProductId || ""
+                );
+
+                body.set(
+                    "recommendation_algorithm",
+                    recommendation.dataset.recommendationAlgorithm || ""
+                );
+
+                body.set(
+                    "recommendation_score",
+                    recommendation.dataset.recommendationScore || ""
+                );
+            }
+
             function addProductBySlug(slug, button, quantity) {
                 const body = new URLSearchParams();
-                body.set('quantity', quantity || '1');
-                return requestAddToCart(`/products/${encodeURIComponent(slug)}/add-to-cart/`, body, button);
+
+                body.set(
+                    "quantity",
+                    quantity || "1"
+                );
+
+                appendRecommendationMetadata(
+                    body,
+                    button
+                );
+
+                return requestAddToCart(
+                    `/products/${encodeURIComponent(slug)}/add-to-cart/`,
+                    body,
+                    button
+                );
             }
 
             document.addEventListener('submit', function (event) {
@@ -5938,10 +5997,44 @@ body.products-list-full-width .arolana-content-rail>main{
                 element_id: cleanText(element.id || "", 200),
                 element_classes: cleanText(element.className || "", 500),
 
-                product_id: cleanText(element.getAttribute("data-product-id") || "", 100),
-                category_id: cleanText(element.getAttribute("data-category-id") || "", 100),
-                vendor_id: cleanText(element.getAttribute("data-vendor-id") || "", 100),
-                landing_page_id: cleanText(element.getAttribute("data-landing-page-id") || "", 100)
+                product_id:
+                    cleanText(
+                        element.getAttribute("data-product-id") || "",
+                        100
+                    ),
+
+                category_id:
+                    cleanText(
+                        element.getAttribute("data-category-id") || "",
+                        100
+                    ),
+
+                vendor_id:
+                    cleanText(
+                        element.getAttribute("data-vendor-id") || "",
+                        100
+                    ),
+
+                landing_page_id:
+                    cleanText(
+                        element.getAttribute("data-landing-page-id") || "",
+                        100
+                    ),
+
+                recommendation_section:
+                    element.dataset.recommendationSection || "",
+
+                recommendation_position:
+                    element.dataset.recommendationPosition || "",
+
+                source_product_id:
+                    element.dataset.sourceProductId || "",
+
+                recommendation_algorithm:
+                    element.dataset.recommendationAlgorithm || "",
+
+                recommendation_score:
+                    element.dataset.recommendationScore || "",
             };
 
             const body = JSON.stringify(payload);
@@ -5967,6 +6060,209 @@ body.products-list-full-width .arolana-content-rail>main{
                     credentials: "same-origin"
                 }).catch(function () {});
             } catch (error) {}
+        }
+
+        function sendRecommendationImpression(element) {
+            if (!element) return;
+
+            const recommendationSection =
+                element.dataset.recommendationSection || "";
+
+            const sourceProductId =
+                element.dataset.sourceProductId || "";
+
+            const productId =
+                element.dataset.productId || "";
+
+            if (
+                !recommendationSection ||
+                !sourceProductId ||
+                !productId
+            ) {
+                return;
+            }
+
+            if (element.dataset.recommendationImpressionSent === "true") {
+                return;
+            }
+
+            element.dataset.recommendationImpressionSent = "true";
+
+            const payload = {
+                event_type: "recommendation_impression",
+
+                clicked_text:
+                    cleanText(
+                        element.getAttribute("data-click-text"),
+                        500
+                    ) ||
+                    cleanText(
+                        element.getAttribute("aria-label"),
+                        500
+                    ) ||
+                    cleanText(
+                        element.innerText || element.textContent,
+                        500
+                    ) ||
+                    "Recommendation impression",
+
+                clicked_url: getClickedUrl(element),
+
+                page_url: window.location.href,
+                path: window.location.pathname,
+
+                element_tag: cleanText(
+                    element.tagName || "",
+                    50
+                ),
+
+                element_id: cleanText(
+                    element.id || "",
+                    200
+                ),
+
+                element_classes: cleanText(
+                    element.className || "",
+                    500
+                ),
+
+                product_id: cleanText(
+                    productId,
+                    100
+                ),
+
+                category_id: cleanText(
+                    element.dataset.categoryId || "",
+                    100
+                ),
+
+                vendor_id: cleanText(
+                    element.dataset.vendorId || "",
+                    100
+                ),
+
+                landing_page_id: "",
+
+                recommendation_section: cleanText(
+                    recommendationSection,
+                    100
+                ),
+
+                recommendation_position:
+                    element.dataset.recommendationPosition || "",
+
+                source_product_id: cleanText(
+                    sourceProductId,
+                    100
+                ),
+
+                recommendation_algorithm: cleanText(
+                    element.dataset.recommendationAlgorithm || "",
+                    100
+                ),
+
+                recommendation_score:
+                    element.dataset.recommendationScore || "",
+            };
+
+            const body = JSON.stringify(payload);
+
+            try {
+                if (navigator.sendBeacon) {
+                    const blob = new Blob(
+                        [body],
+                        {
+                            type: "application/json"
+                        }
+                    );
+
+                    navigator.sendBeacon(
+                        endpoint,
+                        blob
+                    );
+
+                    return;
+                }
+            } catch (error) {
+                // fallback below
+            }
+
+            try {
+                fetch(
+                    endpoint,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+                        body: body,
+                        keepalive: true,
+                        credentials: "same-origin"
+                    }
+                ).catch(function () {});
+            } catch (error) {}
+        }
+
+
+        function initializeRecommendationImpressions() {
+            const recommendations = document.querySelectorAll(
+                "[data-recommendation-section][data-product-id][data-source-product-id]"
+            );
+
+            if (!recommendations.length) {
+                return;
+            }
+
+            if (!("IntersectionObserver" in window)) {
+                recommendations.forEach(function (element) {
+                    sendRecommendationImpression(
+                        element
+                    );
+                });
+
+                return;
+            }
+
+            const observer = new IntersectionObserver(
+                function (entries) {
+                    entries.forEach(function (entry) {
+                        if (
+                            !entry.isIntersecting ||
+                            entry.intersectionRatio < 0.5
+                        ) {
+                            return;
+                        }
+
+                        sendRecommendationImpression(
+                            entry.target
+                        );
+
+                        observer.unobserve(
+                            entry.target
+                        );
+                    });
+                },
+                {
+                    threshold: [0.5]
+                }
+            );
+
+            recommendations.forEach(function (element) {
+                observer.observe(
+                    element
+                );
+            });
+        }
+
+
+        if (document.readyState === "loading") {
+            document.addEventListener(
+                "DOMContentLoaded",
+                initializeRecommendationImpressions
+            );
+        } else {
+            initializeRecommendationImpressions();
         }
 
         document.addEventListener("click", function (event) {

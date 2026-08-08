@@ -33,6 +33,18 @@ class CartItem(BaseModel):
     accessory = models.ForeignKey(Accessory, on_delete=models.SET_NULL, null=True, blank=True)
     quantity = models.IntegerField(default=1)
     price_at_add = models.DecimalField(max_digits=10, decimal_places=2)
+
+    # Recommendation attribution kept while the item remains in the cart.
+    recommendation_section = models.CharField(max_length=100, blank=True)
+    recommendation_position = models.PositiveIntegerField(null=True, blank=True)
+    recommendation_source_product_id = models.PositiveIntegerField(null=True, blank=True)
+    recommendation_algorithm = models.CharField(max_length=100, blank=True)
+    recommendation_score = models.DecimalField(
+        max_digits=10,
+        decimal_places=4,
+        null=True,
+        blank=True,
+    )
     
     def save(self, *args, **kwargs):
         if not self.price_at_add:
@@ -325,6 +337,18 @@ class OrderItem(BaseModel):
     quantity = models.IntegerField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
+
+    # Permanent recommendation attribution snapshot for revenue analytics.
+    recommendation_section = models.CharField(max_length=100, blank=True)
+    recommendation_position = models.PositiveIntegerField(null=True, blank=True)
+    recommendation_source_product_id = models.PositiveIntegerField(null=True, blank=True)
+    recommendation_algorithm = models.CharField(max_length=100, blank=True)
+    recommendation_score = models.DecimalField(
+        max_digits=10,
+        decimal_places=4,
+        null=True,
+        blank=True,
+    )
     
     def save(self, *args, **kwargs):
         if self.vendor_offer_id:

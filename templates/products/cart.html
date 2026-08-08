@@ -1380,7 +1380,7 @@ function updateQuantity(itemId, newQuantity) {
     fetch('/products/cart/update/', {
         method: 'POST',
         headers: {
-            'X-CSRFToken': getCookie('csrftoken'),
+            'X-CSRFToken': getCookie('arolana_csrftoken'),
             'Content-Type': 'application/x-www-form-urlencoded',
             'X-Requested-With': 'XMLHttpRequest',
         },
@@ -1412,7 +1412,7 @@ function removeItem(itemId) {
     fetch(`/products/cart/remove/${encodeURIComponent(itemId)}/`, {
         method: 'POST',
         headers: {
-            'X-CSRFToken': getCookie('csrftoken'),
+            'X-CSRFToken': getCookie('arolana_csrftoken'),
             'X-Requested-With': 'XMLHttpRequest',
         },
     })

@@ -77,6 +77,9 @@ class ClickEvent(models.Model):
     EVENT_EMAIL = "email"
     EVENT_VIDEO = "video"
 
+    EVENT_RECOMMENDATION_IMPRESSION = "recommendation_impression"
+    EVENT_RECOMMENDATION_CLICK = "recommendation_click"
+
     EVENT_TYPE_CHOICES = [
         (EVENT_UNKNOWN, "Unknown"),
         (EVENT_BUTTON, "Button"),
@@ -89,7 +92,42 @@ class ClickEvent(models.Model):
         (EVENT_PHONE, "Phone Link"),
         (EVENT_EMAIL, "Email Link"),
         (EVENT_VIDEO, "Video Button"),
+        (
+            EVENT_RECOMMENDATION_IMPRESSION,
+            "Recommendation Impression",
+        ),
+        (
+            EVENT_RECOMMENDATION_CLICK,
+            "Recommendation Click",
+        ),
     ]
+
+    recommendation_section = models.CharField(
+        max_length=100,
+        blank=True,
+        db_index=True,
+    )
+
+    recommendation_position = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+    )
+
+    source_product_id = models.CharField(
+        max_length=100,
+        blank=True,
+        db_index=True,
+    )
+
+    recommendation_algorithm = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+
+    recommendation_score = models.FloatField(
+        null=True,
+        blank=True,
+    )
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,

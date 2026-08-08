@@ -13,6 +13,8 @@
 
 {% block title %}{{ seo_title|default:product.name }}{% endblock %}
 
+{% block body_class %}products-list-full-width product-detail-full-width{% endblock %}
+
 {% block meta_description %}
 <meta name="description" content="{{ seo_description|default:product.meta_description|default:product.description|striptags|truncatechars:160 }}">
 {% endblock %}
@@ -1519,6 +1521,89 @@
     }
 }
 
+/* ============================================================
+   AROLANA OVERVIEW GALLERY — ADAPTIVE IMAGE COUNT V11
+   ============================================================ */
+
+.apd-auto-overview-gallery-grid.apd-gallery-count-1 {
+    display: block;
+}
+
+.apd-auto-overview-gallery-grid.apd-gallery-count-1
+.apd-auto-overview-gallery-item {
+    width: 100%;
+    min-height: 0;
+    aspect-ratio: 16 / 7;
+}
+
+.apd-auto-overview-gallery-grid.apd-gallery-count-1
+.apd-auto-overview-gallery-item img {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    padding: clamp(1rem, 3vw, 2.25rem);
+    object-fit: contain !important;
+}
+
+
+/* Two images */
+.apd-auto-overview-gallery-grid.apd-gallery-count-2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.apd-auto-overview-gallery-grid.apd-gallery-count-2
+.apd-auto-overview-gallery-item {
+    grid-column: auto !important;
+    min-height: 360px;
+}
+
+
+/* Three images */
+.apd-auto-overview-gallery-grid.apd-gallery-count-3 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.apd-auto-overview-gallery-grid.apd-gallery-count-3
+.apd-auto-overview-gallery-item:nth-child(1) {
+    grid-column: 1;
+    grid-row: span 2;
+    min-height: 520px;
+}
+
+.apd-auto-overview-gallery-grid.apd-gallery-count-3
+.apd-auto-overview-gallery-item:nth-child(2),
+.apd-auto-overview-gallery-grid.apd-gallery-count-3
+.apd-auto-overview-gallery-item:nth-child(3) {
+    grid-column: 2;
+    min-height: 250px;
+}
+
+
+/* Small-screen reset */
+@media (max-width: 760px) {
+
+    .apd-auto-overview-gallery-grid.apd-gallery-count-1
+    .apd-auto-overview-gallery-item {
+        aspect-ratio: 1 / 1;
+    }
+
+    .apd-auto-overview-gallery-grid.apd-gallery-count-2,
+    .apd-auto-overview-gallery-grid.apd-gallery-count-3 {
+        grid-template-columns: 1fr;
+    }
+
+    .apd-auto-overview-gallery-grid.apd-gallery-count-2
+    .apd-auto-overview-gallery-item,
+    .apd-auto-overview-gallery-grid.apd-gallery-count-3
+    .apd-auto-overview-gallery-item {
+        grid-column: auto !important;
+        grid-row: auto !important;
+        min-height: 280px;
+    }
+}
+
     /* ============================================================
        AROLANA PRODUCT HERO CONTENT-ONLY FIX
        Removes the big white card/container under:
@@ -1980,6 +2065,8 @@
         image-rendering: auto;
     }
 
+
+
     /* ============================================================
        AROLANA OPTIONAL SHIPPING + PACKAGE INFO
        Every value is optional: if admin leaves it empty, it will not show.
@@ -2439,12 +2526,12 @@
        - Article scrolls up/down inside the right panel
        Closing X returns product page to normal full mode.
        ============================================================ */
-    body.apd-article-side-open {
+    body.apd-article-side-open:has(#product-article-modal.is-open) {
         overflow: auto !important;
         background: #ffffff !important;
     }
 
-    body.apd-article-side-open .apd-page {
+    body.apd-article-side-open:has(#product-article-modal.is-open) .apd-page {
         width: 50vw !important;
         max-width: 50vw !important;
         min-width: 50vw !important;
@@ -2455,25 +2542,25 @@
         transition: width 0.25s ease, max-width 0.25s ease, min-width 0.25s ease;
     }
 
-    body.apd-article-side-open .apd-page .container,
-    body.apd-article-side-open .apd-page .max-w-7xl,
-    body.apd-article-side-open .apd-page .max-w-6xl,
-    body.apd-article-side-open .apd-page .max-w-5xl,
-    body.apd-article-side-open .apd-page .max-w-4xl {
+    body.apd-article-side-open:has(#product-article-modal.is-open) .apd-page .container,
+    body.apd-article-side-open:has(#product-article-modal.is-open) .apd-page .max-w-7xl,
+    body.apd-article-side-open:has(#product-article-modal.is-open) .apd-page .max-w-6xl,
+    body.apd-article-side-open:has(#product-article-modal.is-open) .apd-page .max-w-5xl,
+    body.apd-article-side-open:has(#product-article-modal.is-open) .apd-page .max-w-4xl {
         max-width: 100% !important;
         width: 100% !important;
         margin-left: 0 !important;
         margin-right: 0 !important;
     }
 
-    body.apd-article-side-open .apd-hero-clean {
+    body.apd-article-side-open:has(#product-article-modal.is-open) .apd-hero-clean {
         grid-template-columns: minmax(0, 1fr) !important;
         gap: 1rem !important;
     }
 
-    body.apd-article-side-open #apd-sticky-gallery,
-    body.apd-article-side-open #apd-sticky-gallery.apd-gallery-is-fixed,
-    body.apd-article-side-open #apd-sticky-gallery.apd-gallery-is-bottom {
+    body.apd-article-side-open:has(#product-article-modal.is-open) #apd-sticky-gallery,
+    body.apd-article-side-open:has(#product-article-modal.is-open) #apd-sticky-gallery.apd-gallery-is-fixed,
+    body.apd-article-side-open:has(#product-article-modal.is-open) #apd-sticky-gallery.apd-gallery-is-bottom {
         position: relative !important;
         top: auto !important;
         left: auto !important;
@@ -2919,7 +3006,7 @@
     }
 
     @media (max-width: 900px) {
-        body.apd-article-side-open .apd-page {
+        body.apd-article-side-open:has(#product-article-modal.is-open) .apd-page {
             width: 100% !important;
             max-width: 100% !important;
             min-width: 0 !important;
@@ -3255,6 +3342,1421 @@
             }
         }
 
+        /* ============================================================
+            AROLANA PRODUCT OVERVIEW — PREMIUM EDITORIAL
+            ============================================================ */
+
+            .apd-page .product-overview-content {
+                padding-top: 1.5rem;
+                color: #334155;
+                font-size: 1rem;
+                line-height: 1.8;
+            }
+
+            .apd-page .product-overview-content::before {
+                display: none;
+                content: none;
+            }
+
+            .apd-page .product-overview-content > p:first-of-type {
+                max-width: 1100px;
+                margin-bottom: 2.5rem;
+                color: #334155;
+                font-size: clamp(1.08rem, 1.5vw, 1.3rem);
+                font-weight: 650;
+                line-height: 1.7;
+            }
+
+            .apd-page .product-overview-content > h2 {
+                position: relative;
+                clear: both;
+                margin: 3.5rem 0 1rem;
+                padding-top: 1.25rem;
+                color: #071a44;
+                font-size: clamp(1.7rem, 2.4vw, 2.7rem);
+                font-weight: 950;
+                line-height: 1.1;
+            }
+
+            .apd-page .product-overview-content > h2::before {
+                content: "";
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 90px;
+                height: 4px;
+                border-radius: 999px;
+                background: linear-gradient(
+                    90deg,
+                    #f58220,
+                    #0066cc,
+                    #00b8ff
+                );
+            }
+
+            .apd-page .product-overview-content > h3 {
+                clear: both;
+                margin: 2.5rem 0 0.8rem;
+                color: #071a44;
+                font-size: clamp(1.25rem, 1.6vw, 1.7rem);
+                font-weight: 900;
+            }
+
+            .apd-page .product-overview-content > p {
+                max-width: 1100px;
+                margin-bottom: 1.1rem;
+            }
+
+            .apd-page .product-overview-content > ul {
+                display: grid !important;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 0.9rem;
+                max-width: 1320px;
+                margin: 1.4rem 0 2.2rem !important;
+                padding: 0 !important;
+                list-style: none !important;
+            }
+
+            .apd-page .product-overview-content > ul > li {
+                position: relative;
+                min-height: 82px;
+                margin: 0 !important;
+                padding: 1rem 1rem 1rem 3.1rem !important;
+                border: 1px solid rgba(0, 102, 204, 0.12);
+                border-radius: 1rem;
+                color: #334155 !important;
+                background: linear-gradient(
+                    145deg,
+                    #eff7ff,
+                    #ffffff
+                );
+                box-shadow: 0 12px 30px rgba(7, 26, 68, 0.06);
+                font-weight: 750 !important;
+                line-height: 1.5 !important;
+            }
+
+            .apd-page .product-overview-content > ul > li::before {
+                content: "✓";
+                position: absolute;
+                top: 1rem;
+                left: 1rem;
+                display: grid;
+                width: 1.5rem;
+                height: 1.5rem;
+                place-items: center;
+                border-radius: 0.45rem;
+                color: #ffffff;
+                background: linear-gradient(
+                    135deg,
+                    #0066cc,
+                    #00b8ff
+                );
+                font-size: 0.75rem;
+                font-weight: 950;
+            }
+
+            .apd-page .product-overview-content > figure.image {
+                width: 100%;
+                max-width: 1380px;
+                margin: 3rem auto !important;
+                padding: 0.8rem;
+                overflow: hidden;
+                border: 1px solid rgba(0, 102, 204, 0.12);
+                border-radius: 1.6rem;
+                background: #f8fbff;
+                box-shadow: 0 24px 65px rgba(7, 26, 68, 0.1);
+            }
+
+            .apd-page .product-overview-content > figure.image img {
+                width: 100% !important;
+                max-width: 100% !important;
+                max-height: 720px;
+                margin: 0 auto !important;
+                border-radius: 1.1rem;
+                object-fit: contain;
+            }
+
+            .apd-page .product-overview-content figure.table {
+                width: 100%;
+                max-width: 1320px;
+                margin: 2.5rem 0;
+                overflow-x: auto;
+                border: 1px solid rgba(0, 102, 204, 0.12);
+                border-radius: 1.1rem;
+                background: #ffffff;
+                box-shadow: 0 18px 46px rgba(7, 26, 68, 0.07);
+            }
+
+            .apd-page .product-overview-content table {
+                width: 100% !important;
+                margin: 0;
+                border-collapse: separate;
+                border-spacing: 0;
+            }
+
+            .apd-page .product-overview-content table thead th {
+                padding: 1rem;
+                color: #ffffff;
+                background: linear-gradient(
+                    135deg,
+                    #071a44,
+                    #0066cc
+                );
+                font-size: 0.78rem;
+                font-weight: 900;
+                text-align: left;
+                text-transform: uppercase;
+            }
+
+            .apd-page .product-overview-content table tbody td,
+            .apd-page .product-overview-content table tbody th {
+                padding: 1rem;
+                border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+                color: #475569;
+                background: #ffffff;
+            }
+
+            .apd-page .product-overview-content table tbody td:first-child,
+            .apd-page .product-overview-content table tbody th {
+                color: #071a44;
+                font-weight: 900;
+            }
+
+            .apd-page .product-overview-content table tbody tr:nth-child(even) td {
+                background: #f8fbff;
+            }
+
+            @media (max-width: 1100px) {
+                .apd-page .product-overview-content > ul {
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                }
+            }
+
+            @media (max-width: 768px) {
+                .apd-page .product-overview-content {
+                    font-size: 0.95rem;
+                    line-height: 1.7;
+                }
+
+                .apd-page .product-overview-content > ul {
+                    grid-template-columns: 1fr;
+                }
+
+                .apd-page .product-overview-content > h2 {
+                    margin-top: 2.5rem;
+                }
+            }
+
+            /* Keep product tabs full-width and on one horizontal line. */
+            .apd-tabs-clean {
+                width: 100%;
+                min-width: 0;
+                clear: both;
+            }
+
+            .apd-tabs-clean > .border-b {
+                display: flex;
+                flex-wrap: nowrap !important;
+                width: 100%;
+                overflow-x: auto;
+                overflow-y: hidden;
+                scrollbar-width: thin;
+            }
+
+            .apd-tabs-clean .modern-tab {
+                flex: 0 0 auto;
+                white-space: nowrap;
+            }
+
+            /* ============================================================
+                AROLANA OVERVIEW — 72/28 LAYOUT
+                ============================================================ */
+
+                .apd-overview-layout {
+                    display: grid;
+                    grid-template-columns: minmax(0, 2.85fr) minmax(300px, 1fr);
+                    gap: clamp(2rem, 3vw, 2.75rem);
+                    align-items: start;
+                    width: 100%;
+                    min-width: 0;
+                }
+
+                .apd-overview-main {
+                    width: 100%;
+                    min-width: 0;
+                    max-width: none;
+                    overflow: hidden;
+                }
+
+                .apd-overview-main .product-overview-content,
+                .apd-overview-main .product-overview-content > * {
+                    min-width: 0;
+                    max-width: 100%;
+                    word-break: normal !important;
+                    overflow-wrap: break-word !important;
+                }
+
+                .apd-overview-sidebar {
+                    position: sticky;
+                    top: 7rem;
+                    display: grid;
+                    gap: 1rem;
+                    width: 100%;
+                    min-width: 0;
+                    max-width: 380px;
+                    justify-self: end;
+                }
+
+                .apd-overview-side-card {
+                    display: grid;
+                    grid-template-columns: auto minmax(0, 1fr);
+                    gap: 0.9rem;
+                    padding: 1.1rem;
+                    border: 1px solid rgba(0, 102, 204, 0.13);
+                    border-radius: 1rem;
+                    background: #ffffff;
+                    box-shadow: 0 14px 38px rgba(7, 26, 68, 0.07);
+                }
+
+                .apd-overview-side-icon {
+                    display: grid;
+                    width: 2.7rem;
+                    height: 2.7rem;
+                    place-items: center;
+                    border-radius: 0.8rem;
+                    color: #ffffff;
+                    background: linear-gradient(135deg, #0066cc, #071a44);
+                }
+
+                .apd-overview-side-card h3 {
+                    margin: 0;
+                    color: #071a44;
+                    font-size: 1rem;
+                    font-weight: 900;
+                }
+
+                .apd-overview-side-card p {
+                    margin: 0.35rem 0 0.8rem;
+                    color: #64748b;
+                    font-size: 0.82rem;
+                    line-height: 1.5;
+                }
+
+                .apd-overview-side-button,
+                .apd-overview-side-link {
+                    display: inline-flex;
+                    min-height: 40px;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.45rem;
+                    padding: 0.65rem 0.9rem;
+                    border-radius: 0.7rem;
+                    color: #ffffff;
+                    background: #0066cc;
+                    font-size: 0.8rem;
+                    font-weight: 900;
+                    text-decoration: none;
+                }
+
+                .apd-overview-trust-grid {
+                    display: grid;
+                    gap: 0.55rem;
+                    padding: 1rem;
+                    border: 1px solid rgba(0, 102, 204, 0.12);
+                    border-radius: 1rem;
+                    background: #ffffff;
+                    box-shadow: 0 14px 38px rgba(7, 26, 68, 0.06);
+                }
+
+                .apd-overview-trust-item {
+                    display: grid;
+                    grid-template-columns: 2rem minmax(0, 1fr);
+                    gap: 0.6rem;
+                    align-items: center;
+                    padding: 0.65rem 0;
+                    border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+                }
+
+                .apd-overview-trust-item:last-child {
+                    border-bottom: 0;
+                }
+
+                .apd-overview-trust-item i {
+                    color: #0066cc;
+                    text-align: center;
+                }
+
+                .apd-overview-trust-item strong,
+                .apd-overview-trust-item span {
+                    display: block;
+                }
+
+                .apd-overview-trust-item strong {
+                    color: #071a44;
+                    font-size: 0.78rem;
+                    font-weight: 900;
+                }
+
+                .apd-overview-trust-item span {
+                    margin-top: 0.1rem;
+                    color: #64748b;
+                    font-size: 0.69rem;
+                }
+
+                @media (max-width: 1180px) {
+                    .apd-overview-layout {
+                        grid-template-columns: 1fr;
+                    }
+
+                    .apd-overview-sidebar {
+                        position: static;
+                        grid-template-columns: repeat(2, minmax(0, 1fr));
+                    }
+
+                    .apd-overview-trust-grid {
+                        grid-column: 1 / -1;
+                        grid-template-columns: repeat(2, minmax(0, 1fr));
+                    }
+                }
+
+                @media (max-width: 700px) {
+                    .apd-overview-sidebar,
+                    .apd-overview-trust-grid {
+                        grid-template-columns: 1fr;
+                    }
+                }
+
+                /* ============================================================
+                    PRODUCT OVERVIEW SMART CHAT SIDEBAR CARD
+                    ============================================================ */
+
+                    .apd-overview-smartchat-card {
+                        position: relative;
+                        overflow: hidden;
+                        padding: 1.15rem;
+                        border: 1px solid rgba(0, 102, 204, 0.18);
+                        border-radius: 1.15rem;
+                        color: #ffffff;
+                        background:
+                            radial-gradient(
+                                circle at 100% 0%,
+                                rgba(0, 184, 255, 0.34),
+                                transparent 12rem
+                            ),
+                            linear-gradient(
+                                145deg,
+                                #071a44 0%,
+                                #0a3479 58%,
+                                #0066cc 100%
+                            );
+                        box-shadow: 0 20px 48px rgba(7, 26, 68, 0.2);
+                    }
+
+                    .apd-overview-smartchat-head {
+                        display: flex;
+                        align-items: center;
+                        gap: 0.8rem;
+                    }
+
+                    .apd-overview-smartchat-avatar {
+                        position: relative;
+                        flex: 0 0 auto;
+                        width: 3.15rem;
+                        height: 3.15rem;
+                        overflow: visible;
+                        border: 2px solid rgba(255, 255, 255, 0.65);
+                        border-radius: 1rem;
+                        background: #ffffff;
+                        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
+                    }
+
+                    .apd-overview-smartchat-avatar img {
+                        display: block;
+                        width: 100%;
+                        height: 100%;
+                        padding: 0.15rem;
+                        border-radius: 0.85rem;
+                        object-fit: contain;
+                    }
+
+                    .apd-overview-smartchat-status {
+                        position: absolute;
+                        right: -0.2rem;
+                        bottom: -0.15rem;
+                        width: 0.85rem;
+                        height: 0.85rem;
+                        border: 2px solid #ffffff;
+                        border-radius: 999px;
+                        background: #22c55e;
+                        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+                    }
+
+                    .apd-overview-smartchat-label {
+                        display: block;
+                        margin-bottom: 0.2rem;
+                        color: #8edcff;
+                        font-size: 0.64rem;
+                        font-weight: 900;
+                        letter-spacing: 0.09em;
+                        text-transform: uppercase;
+                    }
+
+                    .apd-overview-smartchat-card h3 {
+                        margin: 0;
+                        color: #ffffff;
+                        font-size: 1.05rem;
+                        font-weight: 950;
+                        line-height: 1.2;
+                    }
+
+                    .apd-overview-smartchat-card > p {
+                        margin: 0.85rem 0 1rem;
+                        color: rgba(255, 255, 255, 0.82);
+                        font-size: 0.82rem;
+                        line-height: 1.55;
+                    }
+
+                    .apd-overview-smartchat-button {
+                        display: inline-flex;
+                        width: 100%;
+                        min-height: 42px;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 0.5rem;
+                        padding: 0.7rem 1rem;
+                        border: 0;
+                        border-radius: 0.75rem;
+                        color: #071a44;
+                        background: #ffffff;
+                        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.13);
+                        font-size: 0.82rem;
+                        font-weight: 950;
+                        transition:
+                            transform 180ms ease,
+                            box-shadow 180ms ease;
+                    }
+
+                    .apd-overview-smartchat-button:hover {
+                        transform: translateY(-2px);
+                        box-shadow: 0 14px 30px rgba(0, 0, 0, 0.18);
+                    }
+
+
+
+    /* ============================================================
+       AROLANA PRODUCT DETAIL — PERSISTENT LOWER SIDEBAR V2
+       Sidebar remains visible for every product-detail tab.
+       ============================================================ */
+
+    .apd-tabs-clean {
+        width: 100% !important;
+        max-width: none !important;
+        grid-column: 1 / -1 !important;
+        clear: both;
+    }
+
+    .apd-detail-lower-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 3fr) minmax(300px, 1fr);
+        gap: clamp(1.75rem, 2.6vw, 2.75rem);
+        align-items: start;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .apd-detail-tab-column {
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+    }
+
+    .apd-product-tab-nav {
+        width: 100%;
+        min-width: 0;
+        scrollbar-width: thin;
+    }
+
+    .apd-product-tab-nav > button {
+        flex: 0 0 auto;
+        white-space: nowrap;
+    }
+
+    .apd-detail-persistent-sidebar {
+        position: sticky;
+        top: 7rem;
+        display: grid;
+        gap: 1rem;
+        width: 100%;
+        min-width: 0;
+        max-width: 380px;
+        justify-self: stretch;
+    }
+
+    /* The Overview no longer owns the sidebar. */
+    .apd-detail-tab-column .product-overview-content,
+    .apd-detail-tab-column .apd-auto-overview-gallery,
+    .apd-detail-tab-column .apd-product-articles {
+        width: 100%;
+        max-width: none;
+        min-width: 0;
+    }
+
+    @media (max-width: 1180px) {
+        .apd-detail-lower-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .apd-detail-persistent-sidebar {
+            position: static;
+            max-width: none;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .apd-detail-persistent-sidebar .apd-overview-trust-grid {
+            grid-column: 1 / -1;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 700px) {
+        .apd-detail-persistent-sidebar,
+        .apd-detail-persistent-sidebar .apd-overview-trust-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+
+    /* ============================================================
+       AROLANA PRODUCT DETAIL — STABLE FULL PAGE GUARD V4
+       Keep the normal product page at full storefront width.
+       The 50/50 article mode applies only while its reader is open.
+       ============================================================ */
+
+    body:not(.apd-article-side-open) .apd-page,
+    body.apd-article-side-open:not(:has(#product-article-modal.is-open)) .apd-page {
+        width: 100% !important;
+        max-width: 1800px !important;
+        min-width: 0 !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+
+    body:not(.apd-article-side-open) .apd-tabs-clean,
+    body.apd-article-side-open:not(:has(#product-article-modal.is-open)) .apd-tabs-clean {
+        position: static !important;
+        left: auto !important;
+        width: 100% !important;
+        max-width: none !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        transform: none !important;
+    }
+
+    @media (min-width: 1181px) {
+        .apd-detail-lower-layout {
+            grid-template-columns: minmax(0, 1fr) minmax(300px, 360px) !important;
+            gap: clamp(2rem, 2.6vw, 3rem) !important;
+        }
+
+        .apd-detail-persistent-sidebar {
+            max-width: 360px !important;
+        }
+    }
+
+
+
+    /* ============================================================
+       AROLANA PRODUCT DETAIL — DEFINITIVE FULL PAGE LOCK V5
+
+       The product page must never collapse to 50vw. The article
+       reader may open as an overlay, but it no longer resizes the
+       storefront or the product tabs.
+       ============================================================ */
+
+    .apd-page,
+    body.apd-article-side-open .apd-page,
+    body.apd-article-side-open:has(#product-article-modal.is-open) .apd-page {
+        width: 100% !important;
+        max-width: 1800px !important;
+        min-width: 0 !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    .apd-tabs-clean,
+    body.apd-article-side-open .apd-tabs-clean,
+    body.apd-article-side-open:has(#product-article-modal.is-open) .apd-tabs-clean {
+        position: static !important;
+        left: auto !important;
+        right: auto !important;
+        width: 100% !important;
+        max-width: none !important;
+        min-width: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        transform: none !important;
+        grid-column: 1 / -1 !important;
+    }
+
+    .apd-detail-lower-layout {
+        width: 100% !important;
+        max-width: none !important;
+        min-width: 0 !important;
+        grid-template-columns: minmax(0, 1fr) minmax(300px, 360px) !important;
+        gap: clamp(2rem, 2.6vw, 3rem) !important;
+    }
+
+    .apd-detail-tab-column {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: none !important;
+    }
+
+    .apd-detail-persistent-sidebar {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 360px !important;
+        justify-self: end !important;
+    }
+
+    /* Keep the reader as an overlay; never split or shrink the page. */
+    .apd-article-side-reader {
+        width: min(50vw, 760px) !important;
+        min-width: min(50vw, 760px) !important;
+        max-width: min(50vw, 760px) !important;
+        z-index: 2147482000 !important;
+    }
+
+    @media (max-width: 1180px) {
+        .apd-detail-lower-layout {
+            grid-template-columns: 1fr !important;
+        }
+
+        .apd-detail-persistent-sidebar {
+            position: static !important;
+            max-width: none !important;
+            justify-self: stretch !important;
+        }
+    }
+
+    @media (max-width: 900px) {
+        .apd-article-side-reader {
+            width: 100% !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+        }
+    }
+
+
+
+    /* ============================================================
+       AROLANA PRODUCT DETAIL — PRODUCT LIST WIDTH ALIGNMENT V8
+       Reuse the Product List full-width body mode and keep the
+       lower detail experience centered across the storefront.
+       ============================================================ */
+
+    body.product-detail-full-width .apd-page {
+        position: relative !important;
+        left: 50% !important;
+        width: min(96vw, 1960px) !important;
+        max-width: min(96vw, 1960px) !important;
+        min-width: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        padding-left: clamp(0.75rem, 1.1vw, 1rem) !important;
+        padding-right: clamp(0.75rem, 1.1vw, 1rem) !important;
+        transform: translateX(-50%) !important;
+        box-sizing: border-box !important;
+    }
+
+    @media (min-width: 1181px) {
+        body.product-detail-full-width .apd-tabs-clean {
+            width: 100% !important;
+            max-width: none !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+        }
+
+        body.product-detail-full-width .apd-detail-lower-layout {
+            width: 100% !important;
+            max-width: none !important;
+            grid-template-columns: minmax(0, 1fr) minmax(320px, 380px) !important;
+            gap: clamp(2rem, 2.4vw, 2.75rem) !important;
+            align-items: start !important;
+        }
+
+        body.product-detail-full-width .apd-detail-tab-column {
+            width: 100% !important;
+            max-width: none !important;
+            min-width: 0 !important;
+        }
+
+        body.product-detail-full-width .apd-detail-persistent-sidebar {
+            width: 100% !important;
+            max-width: 380px !important;
+            justify-self: end !important;
+        }
+
+        body.product-detail-full-width .apd-product-tab-nav {
+            justify-content: flex-start !important;
+            overflow-x: hidden !important;
+        }
+    }
+
+
+
+    /* ============================================================
+       AROLANA PRODUCT DETAIL — GOAL WIDTH V9
+       Match the premium reference: nearly edge-to-edge storefront
+       with balanced gutters and no wasted side space.
+       ============================================================ */
+    @media (min-width: 1181px) {
+        body.product-detail-full-width .apd-page,
+        body.product-detail-full-width main .apd-page,
+        body.product-detail-full-width .container .apd-page {
+            position: relative !important;
+            left: 50% !important;
+            width: min(96vw, 1960px) !important;
+            max-width: min(96vw, 1960px) !important;
+            margin-inline: 0 !important;
+            transform: translateX(-50%) !important;
+        }
+
+        body.product-detail-full-width .apd-detail-lower-layout {
+            grid-template-columns: minmax(0, 1fr) minmax(330px, 390px) !important;
+            gap: clamp(1.5rem, 1.9vw, 2.25rem) !important;
+        }
+
+        body.product-detail-full-width .apd-detail-persistent-sidebar {
+            max-width: 390px !important;
+        }
+    }
+
+    @media (max-width: 1180px) {
+        body.product-detail-full-width .apd-page {
+            position: static !important;
+            left: auto !important;
+            width: calc(100% - 1rem) !important;
+            max-width: none !important;
+            margin-inline: auto !important;
+            transform: none !important;
+        }
+    }
+
+
+
+    /* ============================================================
+       AROLANA PREMIUM COMMERCE COLUMN
+       Price summary + Sponsored placement + B2B conversion cards
+       ============================================================ */
+    .apd-commerce-sidebar {
+        display: grid;
+        align-content: start;
+        gap: 1rem;
+        min-width: 0;
+    }
+
+    .apd-price-summary-card,
+    .apd-sponsored-card,
+    .apd-business-quote-card,
+    .apd-premium-trust-grid {
+        border: 1px solid rgba(7, 26, 68, 0.10);
+        background: #fff;
+        box-shadow: 0 18px 46px rgba(7, 26, 68, 0.07);
+    }
+
+    .apd-price-summary-card {
+        padding: 1.1rem 1.15rem;
+        border-radius: 1.1rem;
+    }
+
+    .apd-price-summary-card h2 {
+        margin: 0 0 .85rem;
+        color: #071A44;
+        font-size: 1rem;
+        line-height: 1.2;
+        font-weight: 950;
+    }
+
+    .apd-price-summary-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: .38rem 0;
+        color: #071A44;
+        font-size: .8rem;
+        font-weight: 800;
+    }
+
+    .apd-price-summary-row strong {
+        font-weight: 950;
+    }
+
+    .apd-price-summary-save-row strong {
+        color: #059669;
+    }
+
+    .apd-price-summary-divider {
+        height: 1px;
+        margin: .4rem 0 .45rem;
+        background: #e2e8f0;
+    }
+
+    .apd-price-summary-total-row {
+        padding-top: .55rem;
+        font-size: 1rem;
+    }
+
+    .apd-price-summary-total-row strong {
+        color: #0066CC;
+        font-size: 1.22rem;
+        letter-spacing: -.02em;
+    }
+
+    .apd-safe-checkout {
+        margin-top: .85rem;
+        padding: .8rem .7rem .65rem;
+        border: 1px solid #e2e8f0;
+        border-radius: .85rem;
+        background: linear-gradient(180deg, #fff, #fbfdff);
+    }
+
+    .apd-safe-checkout-title {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: .42rem;
+        color: #071A44;
+        font-size: .7rem;
+        font-weight: 900;
+    }
+
+    .apd-safe-checkout-title i { color: #10b981; }
+
+    .apd-payment-brands {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0,1fr));
+        align-items: center;
+        gap: .45rem;
+        margin-top: .7rem;
+        text-align: center;
+    }
+
+    .apd-payment-brands > span {
+        min-width: 0;
+        color: #071A44;
+        font-size: .72rem;
+        font-weight: 950;
+        white-space: nowrap;
+    }
+
+    .apd-payment-visa { color: #1434CB !important; font-size: 1rem !important; font-style: italic; }
+    .apd-payment-verve { color: #d71920 !important; font-size: .85rem !important; }
+    .apd-payment-apple { font-size: .8rem !important; }
+
+    .apd-payment-mastercard {
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 22px;
+    }
+
+    .apd-payment-mastercard i {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        border-radius: 999px;
+        background: #eb001b;
+    }
+
+    .apd-payment-mastercard i + i {
+        margin-left: -6px;
+        background: #f79e1b;
+        opacity: .92;
+    }
+
+    .apd-sponsored-card {
+        overflow: hidden;
+        border-radius: 1.1rem;
+        color: #fff;
+        background: linear-gradient(145deg, #071A44 0%, #0b2d67 62%, #0066CC 100%);
+        box-shadow: 0 22px 52px rgba(7, 26, 68, 0.20);
+    }
+
+    .apd-sponsored-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: .8rem;
+        padding: .9rem 1rem .75rem;
+    }
+
+    .apd-sponsored-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        color: rgba(255,255,255,.68);
+        font-size: .58rem;
+        font-weight: 950;
+        letter-spacing: .13em;
+        text-transform: uppercase;
+    }
+
+    .apd-sponsored-head h2 {
+        margin: .25rem 0 0;
+        color: #fff;
+        font-size: .92rem;
+        line-height: 1.25;
+        font-weight: 950;
+    }
+
+    .apd-sponsored-live {
+        display: inline-flex;
+        align-items: center;
+        gap: .3rem;
+        padding: .28rem .5rem;
+        border-radius: 999px;
+        color: #7bf4a6;
+        background: rgba(34,197,94,.12);
+        box-shadow: inset 0 0 0 1px rgba(34,197,94,.28);
+        font-size: .58rem;
+        font-weight: 950;
+        text-transform: uppercase;
+    }
+
+    .apd-sponsored-live i {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #22c55e;
+        box-shadow: 0 0 0 4px rgba(34,197,94,.13);
+    }
+
+    .apd-sponsored-body {
+        margin: 0 .75rem;
+        overflow: hidden;
+        border-radius: .9rem;
+        background: #fff;
+    }
+
+    .apd-sponsored-body .ad-container,
+    .apd-sponsored-body > * {
+        max-width: 100%;
+    }
+
+    .apd-sponsored-footer {
+        display: flex;
+        align-items: center;
+        gap: .45rem;
+        padding: .72rem 1rem .8rem;
+        color: rgba(255,255,255,.67);
+        font-size: .63rem;
+        font-weight: 850;
+    }
+
+    .apd-sponsored-footer i { color: #73c7ff; }
+
+    .apd-business-quote-card {
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(0,1fr) 120px;
+        gap: 1rem;
+        overflow: hidden;
+        padding: 1rem 1.1rem;
+        border-radius: 1.05rem;
+        background: linear-gradient(135deg, #ffffff 0%, #f7fbff 62%, #eef7ff 100%);
+    }
+
+    .apd-business-quote-copy { position: relative; z-index: 2; }
+    .apd-business-quote-kicker {
+        color: #F58220;
+        font-size: .58rem;
+        font-weight: 950;
+        letter-spacing: .13em;
+        text-transform: uppercase;
+    }
+
+    .apd-business-quote-card h3 {
+        margin: .2rem 0 .3rem;
+        color: #071A44;
+        font-size: 1rem;
+        font-weight: 950;
+    }
+
+    .apd-business-quote-card p {
+        max-width: 28rem;
+        margin: 0 0 .7rem;
+        color: #64748b;
+        font-size: .76rem;
+        line-height: 1.45;
+    }
+
+    .apd-business-quote-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .42rem;
+        min-height: 38px;
+        padding: .6rem .85rem;
+        border: 1.5px solid #0066CC;
+        border-radius: .7rem;
+        color: #0066CC;
+        background: #fff;
+        font-size: .72rem;
+        font-weight: 950;
+        text-decoration: none;
+        transition: .18s ease;
+    }
+
+    .apd-business-quote-button:hover {
+        color: #fff;
+        background: #0066CC;
+        transform: translateY(-1px);
+    }
+
+    .apd-business-boxes {
+        position: relative;
+        min-height: 98px;
+        align-self: end;
+        filter: drop-shadow(0 12px 10px rgba(120,72,26,.16));
+    }
+
+    .apd-business-boxes .box {
+        position: absolute;
+        bottom: 4px;
+        display: block;
+        border: 1px solid rgba(116,73,34,.16);
+        border-radius: 2px;
+        background: linear-gradient(145deg, #dca76b, #bd7d3f);
+    }
+
+    .apd-business-boxes .box::after {
+        content: '';
+        position: absolute;
+        inset: 0 auto 0 50%;
+        width: 1px;
+        background: rgba(255,255,255,.24);
+    }
+
+    .apd-business-boxes .box-a { left: 4px; width: 46px; height: 43px; }
+    .apd-business-boxes .box-b { left: 45px; width: 53px; height: 60px; }
+    .apd-business-boxes .box-c { left: 20px; bottom: 43px; width: 50px; height: 42px; }
+    .apd-business-boxes .box-d { left: 72px; width: 42px; height: 40px; }
+    .apd-business-boxes .box-e { left: 68px; bottom: 40px; width: 36px; height: 34px; }
+
+    .apd-premium-trust-grid {
+        grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+        gap: 0 !important;
+        padding: .6rem 1rem !important;
+        border-radius: 1.05rem !important;
+    }
+
+    .apd-premium-trust-grid .apd-overview-trust-item {
+        grid-template-columns: 1.75rem minmax(0,1fr);
+        min-height: 68px;
+        padding: .75rem .6rem;
+        border-bottom: 0;
+        border-right: 1px solid rgba(7,26,68,.08);
+    }
+
+    .apd-premium-trust-grid .apd-overview-trust-item:nth-child(even) { border-right: 0; }
+    .apd-premium-trust-grid .apd-overview-trust-item:nth-child(-n+2) { border-bottom: 1px solid rgba(7,26,68,.08); }
+    .apd-premium-trust-grid .apd-overview-trust-item i { color: #0066CC; }
+
+    @media (min-width: 1280px) {
+        .apd-hero-commerce-grid {
+            grid-template-columns: minmax(0, 1.06fr) minmax(0, 1fr) minmax(300px, .62fr) !important;
+            align-items: start;
+        }
+
+        .apd-hero-commerce-grid > .apd-gallery-stage { grid-column: 1; }
+        .apd-hero-commerce-grid > .space-y-6 { grid-column: 2; }
+        .apd-hero-commerce-grid > .apd-commerce-sidebar { grid-column: 3; }
+
+        .apd-commerce-sidebar {
+            position: sticky;
+            top: 6.5rem;
+        }
+    }
+
+    @media (max-width: 1279px) and (min-width: 1024px) {
+        .apd-hero-commerce-grid {
+            grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+        }
+
+        .apd-commerce-sidebar {
+            grid-column: 1 / -1;
+            grid-template-columns: repeat(2, minmax(0,1fr));
+        }
+    }
+
+    @media (max-width: 760px) {
+        .apd-commerce-sidebar { grid-template-columns: 1fr; }
+        .apd-business-quote-card { grid-template-columns: 1fr; }
+        .apd-business-boxes { display: none; }
+        .apd-premium-trust-grid { grid-template-columns: 1fr !important; }
+        .apd-premium-trust-grid .apd-overview-trust-item {
+            border-right: 0 !important;
+            border-bottom: 1px solid rgba(7,26,68,.08) !important;
+        }
+        .apd-premium-trust-grid .apd-overview-trust-item:last-child { border-bottom: 0 !important; }
+    }
+
+    /* ============================================================
+        AROLANA PRODUCT DETAIL — PREMIUM OVERVIEW V10
+        ============================================================ */
+
+        .apd-premium-overview-intro {
+            width: 100%;
+            margin-bottom: 2rem;
+        }
+
+        .apd-premium-overview-heading {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 1.25rem;
+            padding-bottom: 1rem;
+            margin-bottom: 1.35rem;
+            border-bottom: 1px solid rgba(7, 26, 68, 0.10);
+        }
+
+        .apd-premium-overview-kicker {
+            display: block;
+            margin-bottom: .35rem;
+            color: #F58220;
+            font-size: .68rem;
+            line-height: 1;
+            font-weight: 950;
+            letter-spacing: .16em;
+            text-transform: uppercase;
+        }
+
+        .apd-premium-overview-heading h2,
+        .apd-shopping-highlights-heading h3 {
+            margin: 0;
+            color: #071A44;
+            font-weight: 950;
+            letter-spacing: -.035em;
+        }
+
+        .apd-premium-overview-heading h2 {
+            font-size: clamp(1.7rem, 2.3vw, 2.45rem);
+        }
+
+        .apd-shopping-highlights-heading h3 {
+            font-size: clamp(1.3rem, 1.7vw, 1.75rem);
+        }
+
+        .apd-overview-product-meta {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: .55rem;
+        }
+
+        .apd-overview-brand-pill,
+        .apd-overview-condition-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: .42rem;
+            min-height: 34px;
+            padding: .45rem .75rem;
+            border-radius: 999px;
+            font-size: .72rem;
+            font-weight: 900;
+        }
+
+        .apd-overview-brand-pill {
+            color: #0066CC;
+            background: #EAF4FF;
+            border: 1px solid rgba(0, 102, 204, .16);
+        }
+
+        .apd-overview-brand-pill:hover {
+            color: #fff;
+            background: #0066CC;
+        }
+
+        .apd-overview-condition-pill {
+            color: #047857;
+            background: #ECFDF5;
+            border: 1px solid rgba(5, 150, 105, .16);
+        }
+
+        .apd-premium-description {
+            font-size: clamp(.94rem, 1vw, 1.03rem);
+            line-height: 1.8;
+        }
+
+        .apd-shopping-highlights,
+        .apd-overview-resource-section {
+            width: 100%;
+            margin: 2.2rem 0;
+        }
+
+        .apd-shopping-highlights-heading {
+            margin-bottom: 1rem;
+        }
+
+        .apd-shopping-highlight-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: .85rem;
+        }
+
+        .apd-shopping-highlight {
+            display: grid;
+            grid-template-columns: 44px minmax(0, 1fr);
+            gap: .8rem;
+            align-items: start;
+            min-width: 0;
+            padding: 1rem;
+            border: 1px solid rgba(7, 26, 68, .09);
+            border-radius: 1rem;
+            background:
+                linear-gradient(
+                    145deg,
+                    #ffffff,
+                    rgba(234, 244, 255, .42)
+                );
+            box-shadow: 0 10px 28px rgba(7, 26, 68, .05);
+        }
+
+        .apd-shopping-highlight-icon,
+        .apd-overview-resource-icon {
+            display: grid;
+            place-items: center;
+            flex: 0 0 auto;
+            color: #0066CC;
+            background: #EAF4FF;
+        }
+
+        .apd-shopping-highlight-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: .85rem;
+        }
+
+        .apd-shopping-highlight strong {
+            display: block;
+            color: #071A44;
+            font-size: .85rem;
+            line-height: 1.3;
+            font-weight: 950;
+        }
+
+        .apd-shopping-highlight span:not(.apd-shopping-highlight-icon) {
+            display: block;
+            margin-top: .25rem;
+            color: #64748B;
+            font-size: .72rem;
+            line-height: 1.48;
+            font-weight: 700;
+        }
+
+        .apd-overview-resource-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: .85rem;
+        }
+
+        .apd-overview-resource-card {
+            display: grid;
+            grid-template-columns: 48px minmax(0, 1fr) auto;
+            gap: .85rem;
+            align-items: center;
+            min-width: 0;
+            padding: 1rem;
+            border: 1px solid rgba(0, 102, 204, .12);
+            border-radius: 1rem;
+            color: #071A44;
+            background: #fff;
+            box-shadow: 0 12px 32px rgba(7, 26, 68, .06);
+        }
+
+        a.apd-overview-resource-card {
+            transition:
+                transform .2s ease,
+                border-color .2s ease,
+                box-shadow .2s ease;
+        }
+
+        a.apd-overview-resource-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(245, 130, 32, .42);
+            box-shadow: 0 18px 38px rgba(7, 26, 68, .10);
+        }
+
+        .apd-overview-resource-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: .9rem;
+            font-size: 1rem;
+        }
+
+        .apd-overview-resource-card strong {
+            display: block;
+            font-size: .85rem;
+            font-weight: 950;
+        }
+
+        .apd-overview-resource-card span {
+            display: block;
+            margin-top: .18rem;
+            color: #64748B;
+            font-size: .72rem;
+            line-height: 1.4;
+            font-weight: 700;
+        }
+
+        .apd-resource-action {
+            color: #F58220;
+        }
+
+        .apd-overview-resource-grid.apd-resource-grid-single {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .apd-overview-resource-grid.apd-resource-grid-single
+        .apd-overview-resource-card {
+            width: 100%;
+        }
+
+        .apd-overview-resource-grid.apd-resource-grid-multiple {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        @media (max-width: 700px) {
+            .apd-overview-resource-grid.apd-resource-grid-multiple {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 1100px) {
+            .apd-shopping-highlight-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 700px) {
+            .apd-premium-overview-heading {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .apd-overview-product-meta {
+                justify-content: flex-start;
+            }
+
+            .apd-shopping-highlight-grid,
+            .apd-overview-resource-grid {
+                grid-template-columns: 1fr;
+            }
+        }
 </style>
 {% endblock %}
 
@@ -3287,7 +4789,7 @@
 </nav>
 
     <!-- Main Product Section with 3D Gallery -->
-    <div class="grid grid-cols-1 {% if product.show_top_gallery and gallery_images %}lg:grid-cols-2{% else %}lg:grid-cols-1{% endif %} gap-8 apd-hero-clean relative">
+    <div class="grid grid-cols-1 {% if product.show_top_gallery and gallery_images %}lg:grid-cols-2{% else %}lg:grid-cols-1{% endif %} gap-8 apd-hero-clean apd-hero-commerce-grid relative">
         {% if product.show_top_gallery and gallery_images %}
         <!-- 3D Image Gallery -->
         <div class="apd-gallery-stage" id="apd-gallery-stage">
@@ -4008,6 +5510,71 @@
 </div>
 {% endif %}
 
+            </div>
+        </div>
+
+        <!-- Premium commerce sidebar: price summary + sponsored placement -->
+        <aside class="apd-commerce-sidebar" aria-label="Product purchase summary and sponsored placement">
+            <section class="apd-price-summary-card" aria-labelledby="apd-price-summary-title">
+                <h2 id="apd-price-summary-title">Price Summary</h2>
+
+                <div class="apd-price-summary-row">
+                    <span>Price</span>
+                    <strong id="apd-summary-price">{{ current_compare_price|default:current_price|currency:request }}</strong>
+                </div>
+
+                <div class="apd-price-summary-row apd-price-summary-save-row">
+                    <span>You save</span>
+                    <strong id="apd-summary-save">{% if product.discount_percent > 0 %}{{ product.discount_percent }}%{% else %}0{% endif %}</strong>
+                </div>
+
+                <div class="apd-price-summary-divider"></div>
+
+                <div class="apd-price-summary-row apd-price-summary-total-row">
+                    <span>Total</span>
+                    <strong id="apd-summary-total">{{ current_price|currency:request }}</strong>
+                </div>
+
+                <div class="apd-safe-checkout">
+                    <div class="apd-safe-checkout-title">
+                        <i class="fas fa-shield-halved"></i>
+                        Guaranteed Safe Checkout
+                    </div>
+
+                    <div class="apd-payment-brands" aria-label="Supported payment methods">
+                        <span class="apd-payment-visa">VISA</span>
+                        <span class="apd-payment-mastercard" aria-label="Mastercard"><i></i><i></i></span>
+                        <span class="apd-payment-verve">Verve</span>
+                        <span class="apd-payment-apple"><i class="fab fa-apple"></i> Pay</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="apd-sponsored-card" aria-label="Sponsored advertisement">
+                <div class="apd-sponsored-head">
+                    <div>
+                        <span class="apd-sponsored-eyebrow"><i class="fas fa-bullhorn"></i> Sponsored</span>
+                        <h2>{% if product.brand %}
+                                Featured by {{ product.brand.name|default:product.brand }}
+                            {% else %}
+                                Featured on Arolana
+                            {% endif %}</h2>
+                    </div>
+                    <span class="apd-sponsored-live"><i></i> Live</span>
+                </div>
+
+                <div class="apd-sponsored-body">
+                    {% render_ad_carousel 'sidebar' count=5 interval=5000 %}
+                </div>
+
+                <div class="apd-sponsored-footer">
+                    <i class="fas fa-shield-halved"></i>
+                    Verified Arolana placement
+                </div>
+            </section>
+        </aside>
+    </div>
+
 <!-- Vendor Chat Modal: keep only one copy on the page -->
 <div id="vendor-chat-modal"
      class="fixed inset-0 z-[2147483000] hidden items-end justify-center p-0 md:items-center md:justify-end md:p-6"
@@ -4061,37 +5628,13 @@
     </div>
 </div>
 
-		                <!-- AI Expert Support -->
-	                <div class="bg-gradient-to-r from-gray-900 to-gray-800 rounded-xl p-4 mb-4 text-white">
-                    <div class="flex items-center gap-3">
-                        <div class="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-white shadow-lg ring-2 ring-white/20">
-                            <img
-                                src="{% if site_settings.smart_chat_bot_image %}{{ site_settings.smart_chat_bot_image|optimized_image_url:'thumbnail' }}{% else %}{% static 'admin/images/arolana-logo.png' %}{% endif %}"
-                                alt="Arolana Smart Chat"
-                                class="block h-full w-full object-contain p-0.5"
-                                width="224"
-                                height="224"
-                                loading="lazy"
-                                decoding="async"
-                            >
-                            <span class="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
-                        </div>
-                        <div class="flex-1">
-                            <p class="font-semibold">Chat With Expert Assistant</p>
-                            <p class="text-xs opacity-90">Support | 24/7 Available</p>
-                        </div>
-                        <button onclick="startAIChat()" class="bg-white text-gray-900 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-100 transition">
-                            <i class="fas fa-comment-dots mr-1"></i> Chat Now
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+
 
     <!-- Modern Tabs with Smooth Animations -->
     <div class="mt-12 overflow-visible apd-tabs-clean" x-data="{ tab: ['#reviews', '#review-form'].includes(window.location.hash) ? 'reviews' : 'overview' }">
-        <div class="border-b flex flex-wrap gap-2 px-0 pt-4 bg-transparent">
+        <div class="apd-detail-lower-layout">
+            <main class="apd-detail-tab-column">
+        <div class="border-b flex flex-nowrap gap-2 overflow-x-auto px-0 pt-4 bg-transparent apd-product-tab-nav">
             <button id="product-overview-tab-button" @click="tab='overview'" :class="{'modern-tab active': tab=='overview'}" class="px-6 py-3 font-semibold transition-all">Overview</button>
             <button @click="tab='specs'" :class="{'modern-tab active': tab=='specs'}" class="px-6 py-3 font-semibold transition-all">Specifications</button>
             <button @click="tab='reviews'" :class="{'modern-tab active': tab=='reviews'}" class="px-6 py-3 font-semibold transition-all">Reviews ({{ review_count }})</button>
@@ -4104,13 +5647,172 @@
         </div>
 
         <div class="py-6 px-0">
-            <!-- Overview Tab with Highlights -->
+            <!-- Overview Tab — Premium Product Story -->
             <div x-show="tab=='overview'" x-transition.duration.300ms>
-                <div class="product-overview-content" id="product-overview-content">
-    {{ product.description|safe }}
-</div>
+
+                <section class="apd-premium-overview-intro">
+
+                    <div class="apd-premium-overview-heading">
+                        <div>
+                            <span class="apd-premium-overview-kicker">
+                                Product Overview
+                            </span>
+
+                            <h2>
+                                About This Product
+                            </h2>
+                        </div>
+
+                        <div class="apd-overview-product-meta">
+                            {% if product.brand %}
+                            <a
+                                href="{{ product.brand.get_absolute_url }}"
+                                class="apd-overview-brand-pill"
+                            >
+                                <i class="fas fa-certificate"></i>
+                                {{ product.brand.name|default:product.brand }}
+                            </a>
+                            {% endif %}
+
+                            <span class="apd-overview-condition-pill">
+                                <i class="fas fa-box-open"></i>
+                                {{ condition_label }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div
+                        class="product-overview-content apd-premium-description"
+                        id="product-overview-content"
+                    >
+                        {{ product.description|safe }}
+                    </div>
+
+                </section>
 
 {% if product.show_auto_overview_gallery and gallery_images %}
+
+<section class="apd-shopping-highlights">
+
+    <div class="apd-shopping-highlights-heading">
+        <span class="apd-premium-overview-kicker">
+            Shopping Highlights
+        </span>
+
+        <h3>
+            Why buy this product on Arolana?
+        </h3>
+    </div>
+
+    <div class="apd-shopping-highlight-grid">
+
+        {% if product.brand %}
+        <div class="apd-shopping-highlight">
+            <span class="apd-shopping-highlight-icon">
+                <i class="fas fa-certificate"></i>
+            </span>
+
+            <div>
+                <strong>
+                    {{ product.brand.name|default:product.brand }}
+                </strong>
+                <span>
+                    Shop an approved brand listing on Arolana.
+                </span>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="apd-shopping-highlight">
+            <span class="apd-shopping-highlight-icon">
+                <i class="fas fa-box-open"></i>
+            </span>
+
+            <div>
+                <strong>
+                    {{ condition_label }}
+                </strong>
+                <span>
+                    Product condition is clearly disclosed before purchase.
+                </span>
+            </div>
+        </div>
+
+        <div class="apd-shopping-highlight">
+            <span class="apd-shopping-highlight-icon">
+                <i class="fas fa-truck-fast"></i>
+            </span>
+
+            <div>
+                <strong>
+                    Delivery Support
+                </strong>
+                <span>
+                    Delivery options are calculated for supported locations.
+                </span>
+            </div>
+        </div>
+
+        {% if manufacturer_warranty or product.warranty_years %}
+        <div class="apd-shopping-highlight">
+            <span class="apd-shopping-highlight-icon">
+                <i class="fas fa-shield-halved"></i>
+            </span>
+
+            <div>
+                <strong>
+                    {% if manufacturer_warranty %}
+                        {{ manufacturer_warranty.duration_text }} Warranty
+                    {% else %}
+                        {{ product.warranty_years }}
+                        Year{{ product.warranty_years|pluralize }} Warranty
+                    {% endif %}
+                </strong>
+
+                <span>
+                    {% if manufacturer_warranty.provider %}
+                        Coverage provided by {{ manufacturer_warranty.provider }}.
+                    {% else %}
+                        Warranty information is available for this product.
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="apd-shopping-highlight">
+            <span class="apd-shopping-highlight-icon">
+                <i class="fas fa-lock"></i>
+            </span>
+
+            <div>
+                <strong>
+                    Secure Payments
+                </strong>
+                <span>
+                    Keep payment and order confirmation inside Arolana.
+                </span>
+            </div>
+        </div>
+
+        <div class="apd-shopping-highlight">
+            <span class="apd-shopping-highlight-icon">
+                <i class="fas fa-headset"></i>
+            </span>
+
+            <div>
+                <strong>
+                    Shopping Support
+                </strong>
+                <span>
+                    Get help choosing, ordering or requesting a business quote.
+                </span>
+            </div>
+        </div>
+
+    </div>
+
+</section>
 <section class="apd-auto-overview-gallery" aria-labelledby="apd-auto-overview-gallery-title">
     <div class="apd-auto-overview-gallery-header">
         <div>
@@ -4124,7 +5826,12 @@
         </p>
     </div>
 
-    <div class="apd-auto-overview-gallery-grid">
+    <div
+        class="
+            apd-auto-overview-gallery-grid
+            apd-gallery-count-{{ gallery_images|slice:':6'|length }}
+        "
+    >
         {% for image in gallery_images|slice:":6" %}
         <button type="button"
                 class="apd-auto-overview-gallery-item"
@@ -4145,6 +5852,92 @@
         </button>
         {% endfor %}
     </div>
+</section>
+{% endif %}
+
+{% if product.manual_pdf or manufacturer_warranty or product.warranty_years %}
+<section class="apd-overview-resource-section">
+
+    <div class="apd-shopping-highlights-heading">
+        <span class="apd-premium-overview-kicker">
+            Product Support
+        </span>
+
+        <h3>
+            Downloads & Warranty
+        </h3>
+    </div>
+
+    <div
+        class="
+            apd-overview-resource-grid
+            {% if product.manual_pdf and manufacturer_warranty or product.manual_pdf and product.warranty_years %}
+                apd-resource-grid-multiple
+            {% else %}
+                apd-resource-grid-single
+            {% endif %}
+        "
+    >
+
+        {% if product.manual_pdf %}
+            {% seo_media_url product.manual_pdf as product_manual_url %}
+
+            {% if product_manual_url %}
+            <a
+                href="{{ product_manual_url }}"
+                download
+                class="apd-overview-resource-card"
+            >
+                <span class="apd-overview-resource-icon">
+                    <i class="fas fa-file-pdf"></i>
+                </span>
+
+                <div>
+                    <strong>
+                        Product Manual / Brochure
+                    </strong>
+
+                    <span>
+                        Download product documentation
+                    </span>
+                </div>
+
+                <i class="fas fa-download apd-resource-action"></i>
+            </a>
+            {% endif %}
+        {% endif %}
+
+        {% if manufacturer_warranty or product.warranty_years %}
+        <div class="apd-overview-resource-card">
+
+            <span class="apd-overview-resource-icon">
+                <i class="fas fa-shield-halved"></i>
+            </span>
+
+            <div>
+                <strong>
+                    {% if manufacturer_warranty %}
+                        {{ manufacturer_warranty.duration_text }} Warranty
+                    {% else %}
+                        {{ product.warranty_years }}
+                        Year{{ product.warranty_years|pluralize }} Warranty
+                    {% endif %}
+                </strong>
+
+                <span>
+                    {% if manufacturer_warranty.provider %}
+                        Provided by {{ manufacturer_warranty.provider }}
+                    {% else %}
+                        Product warranty support
+                    {% endif %}
+                </span>
+            </div>
+
+        </div>
+        {% endif %}
+
+    </div>
+
 </section>
 {% endif %}
 
@@ -4222,6 +6015,8 @@
                     </div>
                 </div>
                 {% endif %}
+
+
             </div>
 
             <!-- Specifications Tab -->
@@ -5123,6 +6918,123 @@
                 </div>
             </div>
         </div>
+            </main>
+
+                    <aside class="apd-overview-sidebar apd-detail-persistent-sidebar">
+
+            <div class="apd-overview-smartchat-card">
+
+                <div class="apd-overview-smartchat-head">
+
+                    <div class="apd-overview-smartchat-avatar">
+                        <img
+                            src="{% if site_settings.smart_chat_bot_image %}{{ site_settings.smart_chat_bot_image|optimized_image_url:'thumbnail' }}{% else %}{% static 'admin/images/arolana-logo.png' %}{% endif %}"
+                            alt="Arolana Smart Shopping Assistant"
+                            width="224"
+                            height="224"
+                            loading="lazy"
+                            decoding="async"
+                        >
+
+                        <span class="apd-overview-smartchat-status"></span>
+                    </div>
+
+                    <div>
+                        <span class="apd-overview-smartchat-label">
+                            Arolana Shopping Assistant
+                        </span>
+
+                        <h3>
+                            Need help choosing?
+                        </h3>
+                    </div>
+
+                </div>
+
+                <p>
+                    Get expert product guidance from Arolana.
+                </p>
+
+                <button
+                    type="button"
+                    onclick="startAIChat()"
+                    class="apd-overview-smartchat-button"
+                >
+                    <i class="fas fa-comment-dots"></i>
+                    Chat Now
+                </button>
+
+            </div>
+
+            <div class="apd-business-quote-card">
+                <div class="apd-business-quote-copy">
+                    <span class="apd-business-quote-kicker">Arolana Business</span>
+                    <h3>Buying for your business?</h3>
+                    <p>Get special pricing on bulk orders and corporate purchases.</p>
+
+                    <a
+                        href="#product-vendor-chat"
+                        class="apd-business-quote-button"
+                        data-quote-intent="true"
+                    >
+                        <i class="fas fa-file-invoice"></i>
+                        Request Quote
+                    </a>
+                </div>
+
+                <div class="apd-business-boxes" aria-hidden="true">
+                    <span class="box box-a"></span>
+                    <span class="box box-b"></span>
+                    <span class="box box-c"></span>
+                    <span class="box box-d"></span>
+                    <span class="box box-e"></span>
+                </div>
+            </div>
+
+            <div class="apd-overview-trust-grid apd-premium-trust-grid">
+                <div class="apd-overview-trust-item">
+                    <i class="fas fa-shield-halved"></i>
+                    <div>
+                        <strong>
+                            {% if manufacturer_warranty %}
+                                {{ manufacturer_warranty.duration_text }} Warranty
+                            {% elif product.warranty_years %}
+                                {{ product.warranty_years }} Year{{ product.warranty_years|pluralize }} Warranty
+                            {% else %}
+                                Warranty Support
+                            {% endif %}
+                        </strong>
+                        <span>{% if manufacturer_warranty.provider %}{{ manufacturer_warranty.provider }} warranty{% else %}Coverage details available{% endif %}</span>
+                    </div>
+                </div>
+
+                <div class="apd-overview-trust-item">
+                    <i class="fas fa-shield-check"></i>
+                    <div>
+                        <strong>Genuine Product</strong>
+                        <span>Approved marketplace listing</span>
+                    </div>
+                </div>
+
+                <div class="apd-overview-trust-item">
+                    <i class="fas fa-headset"></i>
+                    <div>
+                        <strong>Customer Support</strong>
+                        <span>We're here to help</span>
+                    </div>
+                </div>
+
+                <div class="apd-overview-trust-item">
+                    <i class="fas fa-user-shield"></i>
+                    <div>
+                        <strong>Trusted Marketplace</strong>
+                        <span>Protected Arolana shopping</span>
+                    </div>
+                </div>
+            </div>
+
+        </aside>
+        </div>
     </div>
 
     <!-- 6-Column Rich Product Grids -->
@@ -5144,184 +7056,66 @@
     </section>
     {% endif %}
 
-    <!-- Customers Who Viewed This Also Viewed -->
-    {% if customers_also_viewed %}
-    <div class="mt-12 arolana-deferred-content">
-        <div class="section-header">
-            <h2 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent">Customers Who Viewed This Also Viewed</h2>
-            <a href="#" class="text-blue-600 text-sm hover:underline">View All →</a>
-        </div>
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {% for item in customers_also_viewed %}
-            <div class="ai-card bg-white rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300">
-                <a href="{{ item.get_absolute_url }}" class="block">
-                    <div class="relative h-40 overflow-hidden">
-                        {% if item.main_image %}
-                            {% optimized_image_url item.main_image 'product_card' as recommendation_image_url %}
-                            <img src="{{ recommendation_image_url }}" alt="{{ item.name }}" class="h-full w-full object-contain p-3 transition-transform duration-500 hover:scale-105" loading="lazy" decoding="async">
-                        {% else %}
-                            <div class="w-full h-full bg-gray-100 flex items-center justify-center">
-                                <i class="fas fa-image text-4xl text-gray-400"></i>
-                            </div>
-                        {% endif %}
-                        {% if item.discount_percent > 0 %}
-                            <span class="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">-{{ item.discount_percent }}%</span>
-                        {% endif %}
-                    </div>
-	                    <div class="p-3">
-	                        <h3 class="font-semibold text-sm line-clamp-2 hover:text-blue-600">{{ item.name }}</h3>
-	                        {% include "products/partials/product_vendor_meta.html" with product=item %}
-	                        <div class="flex items-center gap-1 mt-1">
-                            <div class="flex text-yellow-400 text-xs">{{ item.rating_avg|rating_stars|safe }}</div>
-                            <span class="text-xs text-gray-500">({{ item.rating_count }})</span>
-                        </div>
-                        <div class="mt-2">
-                            <span class="font-bold text-blue-600">{{ item.price|currency:request }}</span>
-                            {% if item.compare_price %}
-                                <span class="text-gray-400 line-through text-xs ml-1">{{ item.compare_price|currency:request }}</span>
-                            {% endif %}
-                        </div>
-	                        <button type="button" onclick="event.preventDefault(); event.stopPropagation(); addToCart('{{ item.slug|escapejs }}', this)" class="mt-2 w-full bg-gray-100 text-gray-700 py-1 rounded-lg text-sm hover:bg-blue-600 hover:text-white transition">Add to Cart</button>
-                    </div>
-                </a>
-            </div>
-            {% endfor %}
-        </div>
+    <!-- Learned Recommendation Shelves -->
+    <div class="product-learned-recommendations">
+        {% for recommendation_section in recommendation_section_order %}
+            {% if recommendation_section == "customers_also_viewed" %}
+                {% include "products/partials/recommendations/customers_also_viewed.html" %}
+            {% elif recommendation_section == "customers_who_bought" %}
+                {% include "products/partials/recommendations/customers_who_bought.html" %}
+            {% elif recommendation_section == "related_products" %}
+                {% include "products/partials/recommendations/related_products.html" %}
+            {% elif recommendation_section == "ai_recommendations" %}
+                {% include "products/partials/recommendations/ai_recommendations.html" %}
+            {% elif recommendation_section == "top_rated_similar" %}
+                {% include "products/partials/recommendations/top_rated_similar.html" %}
+            {% endif %}
+        {% endfor %}
     </div>
-    {% endif %}
-
-    <!-- You May Also Like -->
-    {% if related_products %}
-    <div class="mt-12 arolana-deferred-content">
-        <div class="section-header">
-            <h2 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent">You May Also Like</h2>
-            <a href="#" class="text-blue-600 text-sm hover:underline">View All →</a>
-        </div>
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {% for related in related_products %}
-            <div class="ai-card bg-white rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300">
-                <a href="{{ related.get_absolute_url }}" class="block">
-                    <div class="relative h-40 overflow-hidden">
-                        {% if related.main_image %}
-                            {% optimized_image_url related.main_image 'product_card' as recommendation_image_url %}
-                            <img src="{{ recommendation_image_url }}" alt="{{ related.name }}" class="h-full w-full object-contain p-3 transition-transform duration-500 hover:scale-105" loading="lazy" decoding="async">
-                        {% else %}
-                            <div class="w-full h-full bg-gray-100 flex items-center justify-center">
-                                <i class="fas fa-image text-4xl text-gray-400"></i>
-                            </div>
-                        {% endif %}
-                        {% if related.is_new %}
-                            <span class="absolute top-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">NEW</span>
-                        {% endif %}
-                    </div>
-	                    <div class="p-3">
-	                        <h3 class="font-semibold text-sm line-clamp-2 hover:text-blue-600">{{ related.name }}</h3>
-	                        {% include "products/partials/product_vendor_meta.html" with product=related %}
-	                        <div class="flex items-center gap-1 mt-1">
-                            <div class="flex text-yellow-400 text-xs">{{ related.rating_avg|rating_stars|safe }}</div>
-                            <span class="text-xs text-gray-500">({{ related.rating_count }})</span>
-                        </div>
-                        <div class="mt-2">
-                            <span class="font-bold text-blue-600">{{ related.price|currency:request }}</span>
-                        </div>
-	                        <button type="button" onclick="event.preventDefault(); event.stopPropagation(); addToCart('{{ related.slug|escapejs }}', this)" class="mt-2 w-full bg-gray-100 text-gray-700 py-1 rounded-lg text-sm hover:bg-blue-600 hover:text-white transition">Add to Cart</button>
-                    </div>
-                </a>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Top Rated Similar -->
-    {% if top_rated_similar %}
-    <div class="mt-12 arolana-deferred-content">
-        <div class="section-header">
-            <h2 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent">Top Rated Similar</h2>
-            <a href="#" class="text-blue-600 text-sm hover:underline">View All →</a>
-        </div>
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {% for item in top_rated_similar %}
-            <div class="ai-card bg-white rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300">
-                <a href="{{ item.get_absolute_url }}" class="block">
-                    <div class="relative h-40 overflow-hidden">
-                        {% if item.main_image %}
-                            {% optimized_image_url item.main_image 'product_card' as recommendation_image_url %}
-                            <img src="{{ recommendation_image_url }}" alt="{{ item.name }}" class="h-full w-full object-contain p-3 transition-transform duration-500 hover:scale-105" loading="lazy" decoding="async">
-                        {% else %}
-                            <div class="w-full h-full bg-gray-100 flex items-center justify-center">
-                                <i class="fas fa-image text-4xl text-gray-400"></i>
-                            </div>
-                        {% endif %}
-                    </div>
-	                    <div class="p-3">
-	                        <h3 class="font-semibold text-sm line-clamp-2 hover:text-blue-600">{{ item.name }}</h3>
-	                        {% include "products/partials/product_vendor_meta.html" with product=item %}
-	                        <div class="flex items-center gap-1 mt-1">
-                            <div class="flex text-yellow-400 text-xs">{{ item.rating_avg|rating_stars|safe }}</div>
-                            <span class="text-xs text-gray-500">({{ item.rating_count }})</span>
-                        </div>
-                        <div class="mt-2">
-                            <span class="font-bold text-blue-600">{{ item.price|currency:request }}</span>
-                        </div>
-	                        <button type="button" onclick="event.preventDefault(); event.stopPropagation(); addToCart('{{ item.slug|escapejs }}', this)" class="mt-2 w-full bg-gray-100 text-gray-700 py-1 rounded-lg text-sm hover:bg-blue-600 hover:text-white transition">Add to Cart</button>
-                    </div>
-                </a>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
 
     <!-- Best Sellers in Category -->
     {% if best_sellers %}
     <div class="mt-12 arolana-deferred-content">
         <div class="section-header">
             <h2 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent">
-              {% if product.category %}
-                  Best Sellers in {{ product.category.name }}
-              {% else %}
-                  Best Sellers on Arolana
-              {% endif %}
-          </h2>
+                {% if product.category %}Best Sellers in {{ product.category.name }}{% else %}Best Sellers on Arolana{% endif %}
+            </h2>
             <a href="#" class="text-blue-600 text-sm hover:underline">View All →</a>
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {% for item in best_sellers %}
-            <div class="ai-card bg-white rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300">
-                <a href="{{ item.get_absolute_url }}" class="block">
+            <div
+                class="ai-card bg-white rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300"
+                data-product-id="{{ item.id }}"
+                data-source-product-id="{{ product.id }}"
+                data-recommendation-section="best_sellers"
+                data-recommendation-position="{{ forloop.counter }}"
+                data-recommendation-score="{{ item.recommendation_score|default:'' }}"
+                data-recommendation-algorithm="popularity"
+            >
+                <a href="{{ item.get_absolute_url }}" class="block" data-track-click="true" data-event-type="recommendation_click" data-product-id="{{ item.id }}" data-source-product-id="{{ product.id }}" data-recommendation-section="best_sellers" data-recommendation-position="{{ forloop.counter }}" data-recommendation-score="{{ item.recommendation_score|default:'' }}" data-recommendation-algorithm="popularity">
                     <div class="relative h-40 overflow-hidden">
                         {% if item.main_image %}
                             {% optimized_image_url item.main_image 'product_card' as recommendation_image_url %}
                             <img src="{{ recommendation_image_url }}" alt="{{ item.name }}" class="h-full w-full object-contain p-3 transition-transform duration-500 hover:scale-105" loading="lazy" decoding="async">
                         {% else %}
-                            <div class="w-full h-full bg-gray-100 flex items-center justify-center">
-                                <i class="fas fa-image text-4xl text-gray-400"></i>
-                            </div>
+                            <div class="w-full h-full bg-gray-100 flex items-center justify-center"><i class="fas fa-image text-4xl text-gray-400"></i></div>
                         {% endif %}
-                        {% if item.is_bestseller %}
-                            <span class="absolute top-2 left-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded-full">Bestseller</span>
-                        {% endif %}
+                        {% if item.is_bestseller %}<span class="absolute top-2 left-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded-full">Bestseller</span>{% endif %}
                     </div>
-	                    <div class="p-3">
-	                        <h3 class="font-semibold text-sm line-clamp-2 hover:text-blue-600">{{ item.name }}</h3>
-	                        {% include "products/partials/product_vendor_meta.html" with product=item %}
-	                        <div class="flex items-center gap-1 mt-1">
-                            <div class="flex text-yellow-400 text-xs">{{ item.rating_avg|rating_stars|safe }}</div>
-                            <span class="text-xs text-gray-500">{{ item.sales_count }} sold</span>
-                        </div>
-                        <div class="mt-2">
-                            <span class="font-bold text-blue-600">{{ item.price|currency:request }}</span>
-                        </div>
-	                        <button type="button" onclick="event.preventDefault(); event.stopPropagation(); addToCart('{{ item.slug|escapejs }}', this)" class="mt-2 w-full bg-gray-100 text-gray-700 py-1 rounded-lg text-sm hover:bg-blue-600 hover:text-white transition">Add to Cart</button>
+                    <div class="p-3 pb-1">
+                        <h3 class="font-semibold text-sm line-clamp-2 hover:text-blue-600">{{ item.name }}</h3>
+                        {% include "products/partials/product_vendor_meta.html" with product=item %}
+                        <div class="flex items-center gap-1 mt-1"><div class="flex text-yellow-400 text-xs">{{ item.rating_avg|rating_stars|safe }}</div><span class="text-xs text-gray-500">{{ item.sales_count }} sold</span></div>
+                        <div class="mt-2"><span class="font-bold text-blue-600">{{ item.price|currency:request }}</span></div>
                     </div>
                 </a>
+                <div class="px-3 pb-3"><button type="button" onclick="addToCart('{{ item.slug|escapejs }}', this)" class="mt-2 w-full bg-gray-100 text-gray-700 py-1 rounded-lg text-sm hover:bg-blue-600 hover:text-white transition" data-cart-state="add">Add to Cart</button></div>
             </div>
             {% endfor %}
         </div>
     </div>
     {% endif %}
-
     <!-- Recently Viewed -->
     {% if recently_viewed %}
     <div class="mt-12 arolana-deferred-content">
@@ -5459,44 +7253,6 @@
     </section>
     {% endif %}
 
-    <!-- AI Smart Recommendations -->
-    {% if ai_recommendations %}
-    <div class="mt-12 product-personalization-shelf arolana-deferred-content">
-        <div class="flex items-center justify-between mb-6">
-            <div>
-                <h2 class="text-2xl font-bold">Smart Recommendations</h2>
-                <p class="mt-1 opacity-90">Personalized for you based on your browsing history</p>
-            </div>
-        </div>
-        <div class="product-personalization-track">
-            {% for item in ai_recommendations %}
-            <div class="product-personalization-card bg-white rounded-xl text-gray-800 overflow-hidden hover:shadow-2xl transition transform hover:-translate-y-1">
-                <a href="{{ item.get_absolute_url }}">
-                    <div class="h-32 overflow-hidden">
-                        {% if item.main_image %}
-                            {% optimized_image_url item.main_image 'product_card' as recommendation_image_url %}
-                            <img src="{{ recommendation_image_url }}" alt="{{ item.name }}" class="product-personalization-image" loading="lazy" decoding="async">
-                        {% else %}
-                            <div class="w-full h-full bg-gray-100 flex items-center justify-center">
-                                <i class="fas fa-image text-3xl text-gray-400"></i>
-                            </div>
-                        {% endif %}
-                    </div>
-                </a>
-	                <div class="p-2">
-	                    <a href="{{ item.get_absolute_url }}" class="font-semibold text-sm hover:text-blue-600 line-clamp-2">{{ item.name }}</a>
-	                    {% include "products/partials/product_vendor_meta.html" with product=item %}
-	                    <div class="mt-1 flex items-center justify-between">
-                        <span class="text-sm font-bold text-blue-600">{{ item.price|currency:request }}</span>
-                        <div class="flex text-yellow-400 text-xs">{{ item.rating_avg|rating_stars|safe }}</div>
-                    </div>
-	                    <button type="button" onclick="event.preventDefault(); event.stopPropagation(); addToCart('{{ item.slug|escapejs }}', this)" class="mt-2 w-full bg-gray-100 text-gray-700 py-1 rounded-lg text-xs hover:bg-blue-600 hover:text-white transition">Add to Cart</button>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
 </div>
 
 <!-- Product Article Same-Page Right Reader -->
@@ -5695,6 +7451,60 @@
     }, 3500);
 }
 
+
+
+    /* ============================================================
+       AROLANA PRODUCT DETAIL — STALE ARTICLE READER RESET V5
+       Browser Back/Forward cache can restore an old open reader DOM.
+       Always start a normal product navigation in full-page mode.
+       ============================================================ */
+    function resetStaleProductArticleReader() {
+        const modal = document.getElementById('product-article-modal');
+
+        document.body.classList.remove('apd-article-side-open');
+        document.documentElement.style.overflow = '';
+        document.body.style.overflow = '';
+
+        if (!modal) return;
+
+        modal.classList.remove('is-open');
+        modal.classList.add('hidden');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        resetStaleProductArticleReader();
+    }, { once: true });
+
+    window.addEventListener('pageshow', function () {
+        resetStaleProductArticleReader();
+    });
+
+    function synchroniseProductArticleReaderState() {
+        const modal = getEl('product-article-modal');
+        const isOpen = Boolean(
+            modal &&
+            modal.classList.contains('is-open') &&
+            modal.getAttribute('aria-hidden') === 'false'
+        );
+
+        document.body.classList.toggle(
+            'apd-article-side-open',
+            isOpen
+        );
+
+        if (!isOpen) {
+            document.documentElement.style.overflow = '';
+            document.body.style.overflow = '';
+        }
+    }
+
+    document.addEventListener(
+        'DOMContentLoaded',
+        synchroniseProductArticleReaderState,
+        { once: true }
+    );
+
     function openProductArticleModal(url, title, options) {
         const modal = getEl('product-article-modal');
         const body = getEl('product-article-modal-body');
@@ -5723,6 +7533,7 @@
         modal.setAttribute('aria-hidden', 'false');
 
         document.body.classList.add('apd-article-side-open');
+        synchroniseProductArticleReaderState();
         document.documentElement.style.overflow = '';
         document.body.style.overflow = '';
 
@@ -6111,6 +7922,7 @@
         modal.setAttribute('aria-hidden', 'true');
 
         document.body.classList.remove('apd-article-side-open');
+        synchroniseProductArticleReaderState();
         document.documentElement.style.overflow = '';
         document.body.style.overflow = '';
 
@@ -7185,37 +8997,56 @@
     function startAIChat() {
         openAIChat();
     }
+    function addToCart(productSlug, button) {
+        const trigger = button || (window.event && window.event.currentTarget) || null;
 
-	    function addToCart(productSlug, button) {
-	        const trigger = button || (window.event && window.event.currentTarget) || null;
+        if (window.ArolanaCartUI && typeof window.ArolanaCartUI.addProductBySlug === 'function') {
+            window.ArolanaCartUI.addProductBySlug(productSlug, trigger);
+            return;
+        }
 
-	        if (window.ArolanaCartUI && typeof window.ArolanaCartUI.addProductBySlug === 'function') {
-	            window.ArolanaCartUI.addProductBySlug(productSlug, trigger);
-	            return;
-	        }
+        const body = new URLSearchParams();
+        body.set('quantity', '1');
 
-	        fetch(`/products/${encodeURIComponent(productSlug)}/add-to-cart/`, {
-	            method: 'POST',
-	            headers: {
-	                'X-CSRFToken': '{{ csrf_token }}',
-	                'Content-Type': 'application/x-www-form-urlencoded',
-	                'X-Requested-With': 'XMLHttpRequest'
-	            },
-	            body: 'quantity=1'
-	        }).then(function (response) {
-	            return response.json();
-	        }).then(function (data) {
-	            if (!data.success) throw new Error(data.message || 'Unable to add product to cart.');
-	            showToast(data.message || 'Product added to cart!', 'success');
-	            updateCartCount();
-	            if (trigger) {
-	                trigger.dataset.cartState = 'view-cart';
-	                trigger.innerHTML = '<i class="fas fa-shopping-cart mr-2"></i> View Cart';
-	            }
-	        }).catch(function () {
-	            showToast('Unable to add product to cart.', 'error');
-	        });
-	    }
+        const recommendation = trigger?.closest('[data-recommendation-section]');
+
+        if (recommendation) {
+            body.set('recommendation_section', recommendation.dataset.recommendationSection || '');
+            body.set('recommendation_position', recommendation.dataset.recommendationPosition || '');
+            body.set('source_product_id', recommendation.dataset.sourceProductId || '');
+            body.set('recommendation_algorithm', recommendation.dataset.recommendationAlgorithm || '');
+            body.set('recommendation_score', recommendation.dataset.recommendationScore || '');
+        }
+
+        fetch(`/products/${encodeURIComponent(productSlug)}/add-to-cart/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: body.toString()
+        })
+        .then(function (response) {
+            return response.json();
+        })
+        .then(function (data) {
+            if (!data.success) {
+                throw new Error(data.message || 'Unable to add product to cart.');
+            }
+
+            showToast(data.message || 'Product added to cart!', 'success');
+            updateCartCount();
+
+            if (trigger) {
+                trigger.dataset.cartState = 'view-cart';
+                trigger.innerHTML = '<i class="fas fa-shopping-cart mr-2"></i> View Cart';
+            }
+        })
+        .catch(function (error) {
+            showToast(error.message || 'Unable to add product to cart.', 'error');
+        });
+    }
 
     async function addAccessoryToCart(accessoryId) {
         try {
@@ -7640,10 +9471,10 @@
 		                const response = await fetch(sendUrl, {
 		                    method: 'POST',
 		                    headers: {
-		                        'Content-Type': 'application/x-www-form-urlencoded',
-		                        'X-CSRFToken': '{{ csrf_token }}',
-		                        'X-Requested-With': 'XMLHttpRequest',
-		                    },
+                                'X-CSRFToken': getCookie('arolana_csrftoken'),
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
 		                    body: new URLSearchParams({ message: message, source: 'web_product_detail' }),
 		                });
 		                const data = await response.json();
@@ -8801,4 +10632,75 @@
 })();
 </script>
 
+
+<script>
+(function () {
+    function parseDisplayedMoney(text) {
+        const raw = String(text || '').trim();
+        const match = raw.match(/-?[0-9][0-9,]*(?:\.[0-9]+)?/);
+        if (!match) return null;
+        const value = Number(match[0].replace(/,/g, ''));
+        if (!Number.isFinite(value)) return null;
+        const prefix = raw.slice(0, match.index).trim();
+        const suffix = raw.slice((match.index || 0) + match[0].length).trim();
+        const decimals = (match[0].split('.')[1] || '').length;
+        return { value, prefix, suffix, decimals };
+    }
+
+    function formatLikeMoney(meta, value) {
+        if (!meta || !Number.isFinite(value)) return '';
+        const formatted = value.toLocaleString(undefined, {
+            minimumFractionDigits: meta.decimals,
+            maximumFractionDigits: meta.decimals,
+        });
+        return `${meta.prefix || ''}${formatted}${meta.suffix ? ` ${meta.suffix}` : ''}`.trim();
+    }
+
+    function syncArolanaPriceSummary() {
+        const livePrice = document.getElementById('product-price');
+        const comparePrice = document.getElementById('product-compare-price');
+        const summaryPrice = document.getElementById('apd-summary-price');
+        const summarySave = document.getElementById('apd-summary-save');
+        const summaryTotal = document.getElementById('apd-summary-total');
+
+        if (!livePrice || !summaryPrice || !summarySave || !summaryTotal) return;
+
+        const current = parseDisplayedMoney(livePrice.textContent);
+        const compareHidden = !comparePrice || comparePrice.classList.contains('hidden');
+        const compare = compareHidden ? null : parseDisplayedMoney(comparePrice.textContent);
+        if (!current) return;
+
+        summaryTotal.textContent = livePrice.textContent.trim();
+
+        if (compare && compare.value > current.value) {
+            summaryPrice.textContent = comparePrice.textContent.trim();
+            summarySave.textContent = formatLikeMoney(current, compare.value - current.value);
+        } else {
+            summaryPrice.textContent = livePrice.textContent.trim();
+            summarySave.textContent = formatLikeMoney(current, 0);
+        }
+    }
+
+    function bootArolanaPriceSummary() {
+        syncArolanaPriceSummary();
+        ['product-price', 'product-compare-price'].forEach(function (id) {
+            const el = document.getElementById(id);
+            if (!el || !window.MutationObserver) return;
+            new MutationObserver(syncArolanaPriceSummary).observe(el, {
+                childList: true,
+                subtree: true,
+                characterData: true,
+                attributes: true,
+                attributeFilter: ['class'],
+            });
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bootArolanaPriceSummary, { once: true });
+    } else {
+        bootArolanaPriceSummary();
+    }
+})();
+</script>
 {% endblock %}

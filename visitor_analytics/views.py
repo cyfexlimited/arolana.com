@@ -97,6 +97,45 @@ def track_click_event(request):
                 request.session.save()
             session_key = request.session.session_key or ""
 
+        recommendation_section = clean_clicked_text(
+            payload.get(
+                "recommendation_section",
+                "",
+            )
+        )[:100]
+
+        source_product_id = clean_clicked_text(
+            payload.get(
+                "source_product_id",
+                "",
+            )
+        )[:100]
+
+        recommendation_algorithm = clean_clicked_text(
+            payload.get(
+                "recommendation_algorithm",
+                "",
+            )
+        )[:100]
+
+        try:
+            recommendation_position = int(
+                payload.get(
+                    "recommendation_position",
+                )
+            )
+        except (TypeError, ValueError):
+            recommendation_position = None
+
+        try:
+            recommendation_score = float(
+                payload.get(
+                    "recommendation_score",
+                )
+            )
+        except (TypeError, ValueError):
+            recommendation_score = None
+
         ClickEvent.objects.create(
             user=user,
             ip_address=ip_address or None,
@@ -133,6 +172,11 @@ def track_click_event(request):
             session_key=session_key,
             is_authenticated=is_authenticated,
             is_bot=is_bot_user_agent(user_agent),
+            recommendation_section=recommendation_section,
+            recommendation_position=recommendation_position,
+            source_product_id=source_product_id,
+            recommendation_algorithm=recommendation_algorithm,
+            recommendation_score=recommendation_score,
         )
 
         return JsonResponse(

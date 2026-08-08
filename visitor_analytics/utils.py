@@ -587,6 +587,8 @@ def clean_event_type(event_type):
         "phone",
         "email",
         "video",
+        "recommendation_click",
+        "recommendation_impression",
         "unknown",
     }
 

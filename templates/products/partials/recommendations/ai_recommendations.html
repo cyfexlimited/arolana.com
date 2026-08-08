@@ -1,0 +1,44 @@
+{% load optimized_images %}
+{% load currency_filters %}
+{% load products_extras %}
+
+{% if ai_recommendations %}
+<div class="mt-12 product-personalization-shelf arolana-deferred-content">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h2 class="text-2xl font-bold">Smart Recommendations</h2>
+            <p class="mt-1 opacity-90">Personalized for you based on your browsing history</p>
+        </div>
+    </div>
+    <div class="product-personalization-track">
+        {% for item in ai_recommendations %}
+        <div
+            class="product-personalization-card bg-white rounded-xl text-gray-800 overflow-hidden hover:shadow-2xl transition transform hover:-translate-y-1"
+            data-product-id="{{ item.id }}"
+            data-source-product-id="{{ product.id }}"
+            data-recommendation-section="ai_recommendations"
+            data-recommendation-position="{{ forloop.counter }}"
+            data-recommendation-score="{{ item.recommendation_score|default:'' }}"
+            data-recommendation-algorithm="product_similarity"
+        >
+            <a href="{{ item.get_absolute_url }}" data-track-click="true" data-event-type="recommendation_click" data-product-id="{{ item.id }}" data-source-product-id="{{ product.id }}" data-recommendation-section="ai_recommendations" data-recommendation-position="{{ forloop.counter }}" data-recommendation-score="{{ item.recommendation_score|default:'' }}" data-recommendation-algorithm="product_similarity">
+                <div class="h-32 overflow-hidden">
+                    {% if item.main_image %}
+                        {% optimized_image_url item.main_image 'product_card' as recommendation_image_url %}
+                        <img src="{{ recommendation_image_url }}" alt="{{ item.name }}" class="product-personalization-image" loading="lazy" decoding="async">
+                    {% else %}
+                        <div class="w-full h-full bg-gray-100 flex items-center justify-center"><i class="fas fa-image text-3xl text-gray-400"></i></div>
+                    {% endif %}
+                </div>
+            </a>
+            <div class="p-2">
+                <a href="{{ item.get_absolute_url }}" class="font-semibold text-sm hover:text-blue-600 line-clamp-2" data-track-click="true" data-event-type="recommendation_click" data-product-id="{{ item.id }}" data-source-product-id="{{ product.id }}" data-recommendation-section="ai_recommendations" data-recommendation-position="{{ forloop.counter }}" data-recommendation-score="{{ item.recommendation_score|default:'' }}" data-recommendation-algorithm="product_similarity">{{ item.name }}</a>
+                {% include "products/partials/product_vendor_meta.html" with product=item %}
+                <div class="mt-1 flex items-center justify-between"><span class="text-sm font-bold text-blue-600">{{ item.price|currency:request }}</span><div class="flex text-yellow-400 text-xs">{{ item.rating_avg|rating_stars|safe }}</div></div>
+                <button type="button" onclick="addToCart('{{ item.slug|escapejs }}', this)" class="mt-2 w-full bg-gray-100 text-gray-700 py-1 rounded-lg text-xs hover:bg-blue-600 hover:text-white transition" data-cart-state="add">Add to Cart</button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}

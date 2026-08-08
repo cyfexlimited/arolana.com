@@ -2722,7 +2722,7 @@ document.addEventListener('DOMContentLoaded', function() {
             method: 'POST',
             body: new FormData(form),
             headers: {
-                'X-CSRFToken': getCookie('csrftoken'),
+                'X-CSRFToken': getCookie('arolana_csrftoken'),
                 'X-Requested-With': 'XMLHttpRequest'
             }
         });
@@ -2773,7 +2773,7 @@ document.addEventListener('click', async function(event) {
         const response = await fetch(`/products/${slug}/toggle-wishlist/`, {
             method: 'POST',
             headers: {
-                'X-CSRFToken': getCookie('csrftoken'),
+                'X-CSRFToken': getCookie('arolana_csrftoken'),
                 'X-Requested-With': 'XMLHttpRequest'
             }
         });

@@ -620,6 +620,7 @@ def _cart_product_ids(cart):
 
 def _recently_viewed_for_cart(request, cart, limit=12):
     exclude_ids = _cart_product_ids(cart)
+
     if request.user.is_authenticated:
         recent_ids = list(
             RecentlyViewed.objects.filter(user=request.user)
@@ -834,6 +835,62 @@ def add_to_cart(request, slug):
     vendor_offer_id = request.POST.get('vendor_offer_id') or request.POST.get('offer_id') or request.GET.get('vendor_offer_id') or request.GET.get('offer_id')
     accessory_ids = request.POST.getlist('accessories') or request.GET.getlist('accessories')
 
+    # ============================================================
+    # Recommendation attribution
+    # ============================================================
+
+    recommendation_section = (
+        request.POST.get("recommendation_section", "")
+        or ""
+    ).strip()[:100]
+
+    recommendation_algorithm = (
+        request.POST.get("recommendation_algorithm", "")
+        or ""
+    ).strip()[:100]
+
+    source_product_id_raw = request.POST.get(
+        "source_product_id",
+        "",
+    )
+
+    recommendation_position_raw = request.POST.get(
+        "recommendation_position",
+        "",
+    )
+
+    recommendation_score_raw = request.POST.get(
+        "recommendation_score",
+        "",
+    )
+
+    try:
+        recommendation_source_product_id = (
+            int(source_product_id_raw)
+            if source_product_id_raw
+            else None
+        )
+    except (TypeError, ValueError):
+        recommendation_source_product_id = None
+
+    try:
+        recommendation_position = (
+            int(recommendation_position_raw)
+            if recommendation_position_raw
+            else None
+        )
+    except (TypeError, ValueError):
+        recommendation_position = None
+
+    try:
+        recommendation_score = (
+            Decimal(str(recommendation_score_raw))
+            if recommendation_score_raw not in ("", None)
+            else None
+        )
+    except (InvalidOperation, TypeError, ValueError):
+        recommendation_score = None
+
     # ====== Handle Product ======
     price = product.price
     variant = None
@@ -909,11 +966,27 @@ def add_to_cart(request, slug):
         cart_item, created = CartItem.objects.get_or_create(
             **lookup,
             defaults={
-                'product': product,
-                'variant': variant,
-                'quantity': quantity,
-                'price_at_add': price
-            }
+                "product": product,
+                "variant": variant,
+                "quantity": quantity,
+                "price_at_add": price,
+
+                "recommendation_section": (
+                    recommendation_section
+                ),
+                "recommendation_position": (
+                    recommendation_position
+                ),
+                "recommendation_source_product_id": (
+                    recommendation_source_product_id
+                ),
+                "recommendation_algorithm": (
+                    recommendation_algorithm
+                ),
+                "recommendation_score": (
+                    recommendation_score
+                ),
+            },
         )
 
         if not created:
@@ -930,7 +1003,44 @@ def add_to_cart(request, slug):
             cart_item.price_at_add = price
             cart_item.product = product
             cart_item.variant = variant
-            cart_item.save(update_fields=['quantity', 'price_at_add', 'product', 'variant'])
+
+            update_fields = [
+                "quantity",
+                "price_at_add",
+                "product",
+                "variant",
+            ]
+
+            # Only overwrite attribution when this Add to Cart
+            # actually came from a recommendation.
+            if recommendation_section:
+                cart_item.recommendation_section = (
+                    recommendation_section
+                )
+                cart_item.recommendation_position = (
+                    recommendation_position
+                )
+                cart_item.recommendation_source_product_id = (
+                    recommendation_source_product_id
+                )
+                cart_item.recommendation_algorithm = (
+                    recommendation_algorithm
+                )
+                cart_item.recommendation_score = (
+                    recommendation_score
+                )
+
+                update_fields.extend([
+                    "recommendation_section",
+                    "recommendation_position",
+                    "recommendation_source_product_id",
+                    "recommendation_algorithm",
+                    "recommendation_score",
+                ])
+
+            cart_item.save(
+                update_fields=update_fields
+            )
             message = f'Updated {product.name} quantity in cart!'
         else:
             message = f'Added {product.name} to cart!'
@@ -1031,6 +1141,28 @@ def add_to_cart(request, slug):
         request=request,
         product=product,
         quantity=quantity,
+        recommendation={
+            "section": request.POST.get(
+                "recommendation_section",
+                "",
+            ),
+            "position": request.POST.get(
+                "recommendation_position",
+                "",
+            ),
+            "source_product_id": request.POST.get(
+                "source_product_id",
+                "",
+            ),
+            "algorithm": request.POST.get(
+                "recommendation_algorithm",
+                "",
+            ),
+            "score": request.POST.get(
+                "recommendation_score",
+                "",
+            ),
+        },
     )
 
     messages.success(request, message)
@@ -2012,6 +2144,31 @@ def product_detail(request, slug):
         if link.placement == "articles_tab"
     ]
 
+    recommendation_exposure_plan = (
+        RecommendationEngine.recommendation_exposure_plan()
+    )
+    if not recommendation_exposure_plan:
+        recommendation_exposure_plan = {
+            section: RecommendationEngine.recommendation_exposure_for(
+                section=section,
+                algorithm=config.get("algorithm", ""),
+            )
+            for section, config
+            in RecommendationEngine.RECOMMENDATION_CHANNELS.items()
+        }
+
+    recommendation_section_order = [
+        item["section"]
+        for item in sorted(
+            recommendation_exposure_plan.values(),
+            key=lambda item: item["priority"],
+        )
+    ]
+    if not recommendation_section_order:
+        recommendation_section_order = list(
+            RecommendationEngine.RECOMMENDATION_CHANNELS.keys()
+        )
+
     # ============================================================
     # Related products
     # ============================================================
@@ -2037,7 +2194,11 @@ def product_detail(request, slug):
             "-is_featured",
             "-rating_avg",
             "-sales_count",
-        )[:8]
+        )[
+            :recommendation_exposure_plan[
+                "related_products"
+            ]["limit"]
+        ]
     )
 
     top_rated = (
@@ -2060,7 +2221,11 @@ def product_detail(request, slug):
             top_rated,
             "-rating_avg",
             "-rating_count",
-        )[:8]
+        )[
+            :recommendation_exposure_plan[
+                "top_rated_similar"
+            ]["limit"]
+        ]
     )
 
     bestsellers = (
@@ -2085,27 +2250,6 @@ def product_detail(request, slug):
         )[:8]
     )
 
-    frequently_bought_together = (
-        Product.objects
-        .filter(
-            is_active=True,
-            approval_status="approved",
-        )
-        .exclude(pk=product.pk)
-        .select_related(
-            "vendor",
-            "vendor__vendor_profile",
-        )
-    )
-
-    frequently_bought_together = (
-        order_storefront_products(
-            frequently_bought_together,
-            "-sales_count",
-            "-rating_avg",
-        )[:8]
-    )
-
     # ============================================================
     # Recently viewed
     # ============================================================
@@ -2121,6 +2265,7 @@ def product_detail(request, slug):
         if recent_product.pk != product.pk
     ][:12]
 
+
     # ============================================================
     # AI recommendations
     # ============================================================
@@ -2128,16 +2273,102 @@ def product_detail(request, slug):
     ai_recommendations = (
         RecommendationEngine.similar_products(
             product=product,
+            limit=(
+                recommendation_exposure_plan[
+                    "ai_recommendations"
+                ]["limit"]
+            ),
+        )
+    )
+
+
+    # ============================================================
+    # Frequently bought together
+    # ============================================================
+
+    frequently_bought_together = (
+        RecommendationEngine.frequently_bought_together(
+            product=product,
             limit=8,
         )
     )
 
+
+    # ============================================================
+    # Customers who bought this also bought
+    # ============================================================
+
+    customers_who_bought_results = (
+        RecommendationEngine
+        .customers_who_bought_this_also_bought(
+            product=product,
+            limit=(
+                recommendation_exposure_plan[
+                    "customers_who_bought"
+                ]["limit"]
+            ),
+        )
+    )
+
+
+    # ============================================================
+    # Customers who viewed this also viewed
+    # ============================================================
+
     customers_also_viewed = (
         RecommendationEngine.customers_also_viewed(
             product=product,
-            limit=12,
+            limit=(
+                recommendation_exposure_plan[
+                    "customers_also_viewed"
+                ]["limit"]
+            ),
         )
     )
+
+
+    # ============================================================
+    # Remove duplicate recommendation products
+    # ============================================================
+
+    frequently_bought_ids = {
+        item.id
+        for item in frequently_bought_together
+    }
+
+    customers_who_bought_results = [
+        item
+        for item in customers_who_bought_results
+        if item["product"].id not in frequently_bought_ids
+    ][
+        :recommendation_exposure_plan[
+            "customers_who_bought"
+        ]["limit"]
+    ]
+
+    customers_who_bought_this_also_bought = [
+        item["product"]
+        for item in customers_who_bought_results
+    ]
+
+    customers_who_bought_ids = {
+        item.id
+        for item in customers_who_bought_this_also_bought
+    }
+
+    customers_also_viewed = [
+        item
+        for item in customers_also_viewed
+        if (
+            item.id != product.id
+            and item.id not in frequently_bought_ids
+            and item.id not in customers_who_bought_ids
+        )
+    ][
+        :recommendation_exposure_plan[
+            "customers_also_viewed"
+        ]["limit"]
+    ]
 
     # ============================================================
     # Rating breakdown
@@ -2413,14 +2644,6 @@ def product_detail(request, slug):
         suggested_service_providers = []
         real_projects_using_product = []
 
-
-    customers_also_viewed = (
-        RecommendationEngine.customers_also_viewed(
-            product=product,
-            limit=12,
-        )
-    )
-
     context = {
         "product": product,
 
@@ -2513,6 +2736,14 @@ def product_detail(request, slug):
             frequently_bought_together
         ),
 
+        "customers_who_bought_this_also_bought": (
+            customers_who_bought_this_also_bought
+        ),
+
+        "customers_who_bought_metadata": (
+            customers_who_bought_results
+        ),
+
         "customers_also_viewed": (
             customers_also_viewed
         ),
@@ -2521,6 +2752,13 @@ def product_detail(request, slug):
 
         "ai_recommendations": (
             ai_recommendations
+        ),
+
+        "recommendation_exposure_plan": (
+            recommendation_exposure_plan
+        ),
+        "recommendation_section_order": (
+            recommendation_section_order
         ),
 
         "all_categories": all_categories,
@@ -7271,6 +7509,31 @@ def mobile_product_detail_api(request, slug):
         except Exception:
             mobile_customer = None
 
+    recommendation_exposure_plan = (
+        RecommendationEngine.recommendation_exposure_plan()
+    )
+    if not recommendation_exposure_plan:
+        recommendation_exposure_plan = {
+            section: RecommendationEngine.recommendation_exposure_for(
+                section=section,
+                algorithm=config.get("algorithm", ""),
+            )
+            for section, config
+            in RecommendationEngine.RECOMMENDATION_CHANNELS.items()
+        }
+
+    recommendation_section_order = [
+        item["section"]
+        for item in sorted(
+            recommendation_exposure_plan.values(),
+            key=lambda item: item["priority"],
+        )
+    ]
+    if not recommendation_section_order:
+        recommendation_section_order = list(
+            RecommendationEngine.RECOMMENDATION_CHANNELS.keys()
+        )
+
     related_queryset = Product.objects.filter(
         is_active=True,
         approval_status="approved",
@@ -7287,37 +7550,46 @@ def mobile_product_detail_api(request, slug):
         "-created_at",
     )
 
-    bought_together_ids = []
-    try:
-        from orders.models import OrderItem
+    # ============================================================
+    # Frequently bought together
+    # ============================================================
 
-        order_ids = OrderItem.objects.filter(product=product).values_list("order_id", flat=True)
-        bought_together_ids = list(
-            OrderItem.objects.filter(order_id__in=order_ids, product_id__isnull=False)
-            .exclude(product_id=product.id)
-            .exclude(order__status__in=["cancelled", "refunded"])
-            .values("product_id")
-            .annotate(times=Count("id"))
-            .order_by("-times")
-            .values_list("product_id", flat=True)[:8]
+    frequently_bought = (
+        RecommendationEngine.frequently_bought_together(
+            product=product,
+            limit=8,
         )
-    except Exception:
-        bought_together_ids = []
+    )
 
-    frequently_bought = list(related_queryset.filter(id__in=bought_together_ids))
-    if bought_together_ids:
-        frequently_bought.sort(key=lambda item: bought_together_ids.index(item.id))
-    if len(frequently_bought) < 8:
-        extra_frequently_bought = related_queryset.filter(brand=brand).exclude(id__in=[item.id for item in frequently_bought]) if brand else related_queryset.exclude(id__in=[item.id for item in frequently_bought])
-        frequently_bought.extend(list(extra_frequently_bought[: 8 - len(frequently_bought)]))
+    # ============================================================
+    # Personalized recommendations for this product
+    # ============================================================
 
     recommended_with_reasons = (
-        RecommendationEngine.for_user_with_reasons(
+        RecommendationEngine.contextual_product_recommendations(
             request=request,
-            limit=12,
-            exclude_ids=[
-                product.id,
-            ],
+            product=product,
+            limit=(
+                recommendation_exposure_plan[
+                    "ai_recommendations"
+                ]["limit"]
+            ),
+        )
+    )
+
+    # ============================================================
+    # Customers who bought this also bought
+    # ============================================================
+
+    customers_who_bought_results = (
+        RecommendationEngine
+        .customers_who_bought_this_also_bought(
+            product=product,
+            limit=(
+                recommendation_exposure_plan[
+                    "customers_who_bought"
+                ]["limit"]
+            ),
         )
     )
 
@@ -7334,7 +7606,11 @@ def mobile_product_detail_api(request, slug):
     customers_also_viewed = (
         RecommendationEngine.customers_also_viewed(
             product=product,
-            limit=12,
+            limit=(
+                recommendation_exposure_plan[
+                    "customers_also_viewed"
+                ]["limit"]
+            ),
         )
     )
 
@@ -7734,6 +8010,143 @@ def mobile_product_detail_api(request, slug):
         related_service_category_data = []
         suggested_service_provider_data = []
 
+    # ============================================================
+    # Recommendation de-duplication
+    # ============================================================
+
+    current_product_id = product.id
+
+
+    def unique_products(
+        products,
+        excluded_ids=None,
+        limit=None,
+    ):
+        excluded_ids = set(
+            excluded_ids
+            or []
+        )
+
+        seen_ids = set()
+        unique = []
+
+        for candidate in products:
+            candidate_id = getattr(
+                candidate,
+                "id",
+                None,
+            )
+
+            if not candidate_id:
+                continue
+
+            if candidate_id == current_product_id:
+                continue
+
+            if candidate_id in excluded_ids:
+                continue
+
+            if candidate_id in seen_ids:
+                continue
+
+            seen_ids.add(candidate_id)
+            unique.append(candidate)
+
+            if (
+                limit is not None
+                and len(unique) >= limit
+            ):
+                break
+
+        return unique
+
+
+    # ------------------------------------------------------------
+    # 1. Frequently bought together
+    # ------------------------------------------------------------
+
+    frequently_bought = unique_products(
+        frequently_bought,
+        limit=8,
+    )
+
+    frequently_bought_ids = {
+        item.id
+        for item in frequently_bought
+    }
+
+
+    # ------------------------------------------------------------
+    # 2. Customers who bought this also bought
+    # ------------------------------------------------------------
+
+    customers_who_bought_results = [
+        item
+        for item in customers_who_bought_results
+        if (
+            item["product"].id
+            not in frequently_bought_ids
+        )
+    ][
+        :recommendation_exposure_plan[
+            "customers_who_bought"
+        ]["limit"]
+    ]
+
+    customers_who_bought_ids = {
+        item["product"].id
+        for item in customers_who_bought_results
+    }
+
+
+    # ------------------------------------------------------------
+    # 3. Customers also viewed
+    # ------------------------------------------------------------
+
+    customers_also_viewed = unique_products(
+        customers_also_viewed,
+        excluded_ids=(
+            frequently_bought_ids
+            | customers_who_bought_ids
+        ),
+        limit=(
+            recommendation_exposure_plan[
+                "customers_also_viewed"
+            ]["limit"]
+        ),
+    )
+
+    customers_also_viewed_ids = {
+        item.id
+        for item in customers_also_viewed
+    }
+
+
+    # ------------------------------------------------------------
+    # 4. Personalized recommendations
+    # ------------------------------------------------------------
+
+    reserved_recommendation_ids = (
+        frequently_bought_ids
+        | customers_who_bought_ids
+        | customers_also_viewed_ids
+    )
+
+    recommended_with_reasons = [
+        item
+        for item in recommended_with_reasons
+        if (
+            item["product"].id
+            not in reserved_recommendation_ids
+            and item["product"].id
+            != current_product_id
+        )
+    ][
+        :recommendation_exposure_plan[
+            "ai_recommendations"
+        ]["limit"]
+    ]
+
     return JsonResponse({
         "id": product.id,
         "name": translated_field(product, "name", request=request),
@@ -7841,14 +8254,50 @@ def mobile_product_detail_api(request, slug):
             }
             for item in recommended_with_reasons
         ],
+
+        "customers_who_bought_this_also_bought": [
+            {
+                **product_card(
+                    item["product"]
+                ),
+                "co_purchase_orders": (
+                    item["co_purchase_orders"]
+                ),
+                "unique_buyers": (
+                    item["unique_buyers"]
+                ),
+                "recommendation_score": (
+                    item["score"]
+                ),
+                "recommendation_reasons": (
+                    item["reasons"][:3]
+                ),
+                "recommendation_reason": (
+                    item["reasons"][0]
+                    if item["reasons"]
+                    else ""
+                ),
+            }
+            for item in customers_who_bought_results
+        ],
+
         "customers_also_viewed": [
             product_card(item)
             for item in customers_also_viewed
         ],
+
+        "recommendation_exposure_plan": (
+            recommendation_exposure_plan
+        ),
+        "recommendation_section_order": (
+            recommendation_section_order
+        ),
+
         "frequently_bought": [
             product_card(item)
             for item in frequently_bought
         ],
+
         "supplier_products": [
             product_card(item)
             for item in supplier_products

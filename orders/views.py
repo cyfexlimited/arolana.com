@@ -14,7 +14,6 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
-from io import BytesIO
 from .models import DeliveryProvider, DeliveryQuoteRequest, DeliveryRequest, Order, OrderItem, MobilePushToken
 from .services import calculate_delivery_quote, notify_staff_delivery, requires_delivery_admin_quote, select_delivery_provider
 from products.models import Accessory, Product
@@ -226,6 +225,103 @@ def _joined_address(data):
         data.get('country', ''),
     ]
     return ', '.join(str(part).strip() for part in parts if str(part).strip())
+
+
+
+def _optional_positive_int(value):
+    """Return a positive integer or None for empty/invalid analytics metadata."""
+    if value in (None, ""):
+        return None
+
+    try:
+        cleaned = int(value)
+    except (TypeError, ValueError):
+        return None
+
+    return cleaned if cleaned >= 0 else None
+
+
+def _optional_recommendation_score(value):
+    """Normalize an optional recommendation score for OrderItem.DecimalField."""
+    if value in (None, ""):
+        return None
+
+    try:
+        score = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        return None
+
+    # OrderItem.recommendation_score uses decimal_places=4.
+    try:
+        return score.quantize(Decimal("0.0001"))
+    except InvalidOperation:
+        return None
+
+
+def _recommendation_metadata_from_item(item):
+    """
+    Accept recommendation attribution from either flat item fields or a nested
+    ``recommendation`` object.
+
+    Supported flat keys:
+      recommendation_section
+      recommendation_position
+      recommendation_source_product_id / source_product_id
+      recommendation_algorithm
+      recommendation_score
+
+    Supported nested keys:
+      section, position, source_product_id, algorithm, score
+    """
+    item = item or {}
+    recommendation = item.get("recommendation") or {}
+
+    if not isinstance(recommendation, dict):
+        recommendation = {}
+
+    section = str(
+        item.get("recommendation_section")
+        or recommendation.get("section")
+        or ""
+    ).strip()[:100]
+
+    algorithm = str(
+        item.get("recommendation_algorithm")
+        or recommendation.get("algorithm")
+        or ""
+    ).strip()[:100]
+
+    position = _optional_positive_int(
+        item.get("recommendation_position")
+        if item.get("recommendation_position") not in (None, "")
+        else recommendation.get("position")
+    )
+
+    source_product_id = _optional_positive_int(
+        item.get("recommendation_source_product_id")
+        or item.get("source_product_id")
+        or recommendation.get("source_product_id")
+    )
+
+    score = _optional_recommendation_score(
+        item.get("recommendation_score")
+        if item.get("recommendation_score") not in (None, "")
+        else recommendation.get("score")
+    )
+
+    # Do not preserve orphaned numeric metadata when no recommendation context
+    # was supplied. This keeps direct purchases analytically clean.
+    if not section and not algorithm and source_product_id is None:
+        position = None
+        score = None
+
+    return {
+        "recommendation_section": section,
+        "recommendation_position": position,
+        "recommendation_source_product_id": source_product_id,
+        "recommendation_algorithm": algorithm,
+        "recommendation_score": score,
+    }
 
 
 @require_POST
@@ -447,6 +543,8 @@ def mobile_create_order_api(request):
         line_total = (price * quantity).quantize(Decimal("0.01"))
         subtotal += line_total
 
+        recommendation_metadata = _recommendation_metadata_from_item(item)
+
         clean_items.append(
             {
                 "product": product,
@@ -458,6 +556,7 @@ def mobile_create_order_api(request):
                 "price": price,
                 "quantity": quantity,
                 "line_total": line_total,
+                **recommendation_metadata,
             }
         )
 
@@ -597,6 +696,24 @@ def mobile_create_order_api(request):
                     quantity=item["quantity"],
                     price=item["price"],
                     subtotal=item["line_total"],
+
+                    recommendation_section=item.get(
+                        "recommendation_section",
+                        "",
+                    ),
+                    recommendation_position=item.get(
+                        "recommendation_position",
+                    ),
+                    recommendation_source_product_id=item.get(
+                        "recommendation_source_product_id",
+                    ),
+                    recommendation_algorithm=item.get(
+                        "recommendation_algorithm",
+                        "",
+                    ),
+                    recommendation_score=item.get(
+                        "recommendation_score",
+                    ),
                 )
 
                 order_items_response.append(
@@ -609,6 +726,19 @@ def mobile_create_order_api(request):
                         "price": str(item["price"]),
                         "quantity": item["quantity"],
                         "line_total": str(item["line_total"]),
+                        "recommendation_section": item["recommendation_section"],
+                        "recommendation_position": item["recommendation_position"],
+                        "recommendation_source_product_id": item[
+                            "recommendation_source_product_id"
+                        ],
+                        "recommendation_algorithm": item[
+                            "recommendation_algorithm"
+                        ],
+                        "recommendation_score": (
+                            str(item["recommendation_score"])
+                            if item["recommendation_score"] is not None
+                            else None
+                        ),
                     }
                 )
 
@@ -1251,6 +1381,31 @@ def _mobile_order_item_payload(request, item):
         "subtotal": str(subtotal_value or 0),
         "line_total": str(subtotal_value or 0),
         "image": _mobile_order_image_url(request, purchasable),
+        "recommendation_section": getattr(
+            item,
+            "recommendation_section",
+            "",
+        ),
+        "recommendation_position": getattr(
+            item,
+            "recommendation_position",
+            None,
+        ),
+        "recommendation_source_product_id": getattr(
+            item,
+            "recommendation_source_product_id",
+            None,
+        ),
+        "recommendation_algorithm": getattr(
+            item,
+            "recommendation_algorithm",
+            "",
+        ),
+        "recommendation_score": (
+            str(getattr(item, "recommendation_score", ""))
+            if getattr(item, "recommendation_score", None) is not None
+            else None
+        ),
     }
 
 

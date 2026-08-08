@@ -1,0 +1,71 @@
+{% load optimized_images %}
+{% load currency_filters %}
+{% load products_extras %}
+
+{% if customers_also_viewed %}
+<div class="mt-12 arolana-deferred-content">
+    <div class="section-header">
+        <h2 class="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-600 bg-clip-text text-transparent">Customers Who Viewed This Also Viewed</h2>
+        <a href="#" class="text-blue-600 text-sm hover:underline">View All →</a>
+    </div>
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        {% for item in customers_also_viewed %}
+        <div
+            class="ai-card bg-white rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300"
+            data-product-id="{{ item.id }}"
+            data-source-product-id="{{ product.id }}"
+            data-recommendation-section="customers_also_viewed"
+            data-recommendation-position="{{ forloop.counter }}"
+            data-recommendation-score="{{ item.recommendation_score|default:'' }}"
+            data-recommendation-algorithm="behavioral"
+        >
+            <a
+                href="{{ item.get_absolute_url }}"
+                class="block"
+                data-track-click="true"
+                data-event-type="recommendation_click"
+                data-product-id="{{ item.id }}"
+                data-source-product-id="{{ product.id }}"
+                data-recommendation-section="customers_also_viewed"
+                data-recommendation-position="{{ forloop.counter }}"
+                data-recommendation-score="{{ item.recommendation_score|default:'' }}"
+                data-recommendation-algorithm="behavioral"
+            >
+                <div class="relative h-40 overflow-hidden">
+                    {% if item.main_image %}
+                        {% optimized_image_url item.main_image 'product_card' as recommendation_image_url %}
+                        <img src="{{ recommendation_image_url }}" alt="{{ item.name }}" class="h-full w-full object-contain p-3 transition-transform duration-500 hover:scale-105" loading="lazy" decoding="async">
+                    {% else %}
+                        <div class="w-full h-full bg-gray-100 flex items-center justify-center">
+                            <i class="fas fa-image text-4xl text-gray-400"></i>
+                        </div>
+                    {% endif %}
+                    {% if item.discount_percent > 0 %}
+                        <span class="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">-{{ item.discount_percent }}%</span>
+                    {% endif %}
+                </div>
+                <div class="p-3 pb-1">
+                    <h3 class="font-semibold text-sm line-clamp-2 hover:text-blue-600">{{ item.name }}</h3>
+                    {% include "products/partials/product_vendor_meta.html" with product=item %}
+                    <div class="flex items-center gap-1 mt-1">
+                        <div class="flex text-yellow-400 text-xs">{{ item.rating_avg|rating_stars|safe }}</div>
+                        <span class="text-xs text-gray-500">({{ item.rating_count }})</span>
+                    </div>
+                    <div class="mt-2">
+                        <span class="font-bold text-blue-600">{{ item.price|currency:request }}</span>
+                        {% if item.compare_price %}
+                            <span class="text-gray-400 line-through text-xs ml-1">{{ item.compare_price|currency:request }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </a>
+            <div class="px-3 pb-3">
+                <button type="button" onclick="addToCart('{{ item.slug|escapejs }}', this)" class="mt-2 w-full bg-gray-100 text-gray-700 py-1 rounded-lg text-sm hover:bg-blue-600 hover:text-white transition" data-cart-state="add">
+                    Add to Cart
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}

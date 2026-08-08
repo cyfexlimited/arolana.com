@@ -360,10 +360,27 @@ def mark_order_paid(payment):
             order=order,
             product=item.product,
             variant=item.variant,
+            vendor_offer=item.vendor_offer,
             accessory=item.accessory,
             quantity=item.quantity,
             price=item.price_at_add,
             subtotal=item.subtotal,
+
+            recommendation_section=(
+                item.recommendation_section
+            ),
+            recommendation_position=(
+                item.recommendation_position
+            ),
+            recommendation_source_product_id=(
+                item.recommendation_source_product_id
+            ),
+            recommendation_algorithm=(
+                item.recommendation_algorithm
+            ),
+            recommendation_score=(
+                item.recommendation_score
+            ),
         )
 
     try:

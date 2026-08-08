@@ -200,6 +200,11 @@ class BehaviorTracker:
         element_tag: str = "",
         element_id: str = "",
         element_classes: str = "",
+        recommendation_section: str = "",
+        recommendation_position=None,
+        source_product_id: Any = "",
+        recommendation_algorithm: str = "",
+        recommendation_score=None,
     ):
         try:
             event_data = cls._base_event_data(request)
@@ -241,6 +246,28 @@ class BehaviorTracker:
                 element_classes=cls._safe_text(
                     element_classes,
                     max_length=500,
+                ),
+                recommendation_section=cls._safe_text(
+                    recommendation_section,
+                    max_length=100,
+                ),
+                recommendation_position=(
+                    int(recommendation_position)
+                    if recommendation_position not in (None, "")
+                    else None
+                ),
+                source_product_id=cls._safe_text(
+                    source_product_id,
+                    max_length=100,
+                ),
+                recommendation_algorithm=cls._safe_text(
+                    recommendation_algorithm,
+                    max_length=100,
+                ),
+                recommendation_score=(
+                    float(recommendation_score)
+                    if recommendation_score not in (None, "")
+                    else None
                 ),
             )
         except Exception:
@@ -487,9 +514,15 @@ class BehaviorTracker:
         request,
         product,
         quantity=1,
+        recommendation=None,
     ):
         if not product:
             return None
+
+        recommendation = (
+            recommendation
+            or {}
+        )
 
         return cls._record_click_event(
             request=request,
@@ -511,6 +544,39 @@ class BehaviorTracker:
             ),
             element_tag="button",
             element_id="add-to-cart",
+
+            recommendation_section=(
+                recommendation.get(
+                    "section",
+                    "",
+                )
+            ),
+
+            recommendation_position=(
+                recommendation.get(
+                    "position",
+                )
+            ),
+
+            source_product_id=(
+                recommendation.get(
+                    "source_product_id",
+                    "",
+                )
+            ),
+
+            recommendation_algorithm=(
+                recommendation.get(
+                    "algorithm",
+                    "",
+                )
+            ),
+
+            recommendation_score=(
+                recommendation.get(
+                    "score",
+                )
+            ),
         )
 
     @classmethod
@@ -665,4 +731,131 @@ class BehaviorTracker:
             vendor_id=provider.pk,
             element_tag="provider",
             element_id="service-provider-view",
+        )
+
+    @classmethod
+    def recommendation_impression(
+        cls,
+        *,
+        request,
+        source_product,
+        recommended_product,
+        section,
+        position=None,
+        algorithm="",
+        score=None,
+    ):
+        """
+        Record that a recommendation was shown to a shopper.
+        """
+
+        if not recommended_product:
+            return None
+
+        try:
+            clicked_url = (
+                recommended_product.get_absolute_url()
+                if hasattr(recommended_product, "get_absolute_url")
+                else ""
+            )
+        except Exception:
+            clicked_url = ""
+
+        return cls._record_click_event(
+            request=request,
+            event_type=ClickEvent.EVENT_RECOMMENDATION_IMPRESSION,
+            clicked_text=getattr(
+                recommended_product,
+                "name",
+                "Recommendation",
+            ),
+            clicked_url=clicked_url,
+            product_id=getattr(
+                recommended_product,
+                "pk",
+                "",
+            ),
+            category_id=getattr(
+                recommended_product,
+                "category_id",
+                "",
+            ),
+            vendor_id=getattr(
+                recommended_product,
+                "vendor_id",
+                "",
+            ),
+            recommendation_section=section,
+            recommendation_position=position,
+            source_product_id=getattr(
+                source_product,
+                "pk",
+                "",
+            ),
+            recommendation_algorithm=algorithm,
+            recommendation_score=score,
+        )
+
+
+    @classmethod
+    def recommendation_click(
+        cls,
+        *,
+        request,
+        source_product,
+        recommended_product,
+        section,
+        position=None,
+        algorithm="",
+        score=None,
+    ):
+        """
+        Record a click on a recommendation.
+        """
+
+        if not recommended_product:
+            return None
+
+        try:
+            clicked_url = (
+                recommended_product.get_absolute_url()
+                if hasattr(recommended_product, "get_absolute_url")
+                else ""
+            )
+        except Exception:
+            clicked_url = ""
+
+        return cls._record_click_event(
+            request=request,
+            event_type=ClickEvent.EVENT_RECOMMENDATION_CLICK,
+            clicked_text=getattr(
+                recommended_product,
+                "name",
+                "Recommendation",
+            ),
+            clicked_url=clicked_url,
+            product_id=getattr(
+                recommended_product,
+                "pk",
+                "",
+            ),
+            category_id=getattr(
+                recommended_product,
+                "category_id",
+                "",
+            ),
+            vendor_id=getattr(
+                recommended_product,
+                "vendor_id",
+                "",
+            ),
+            recommendation_section=section,
+            recommendation_position=position,
+            source_product_id=getattr(
+                source_product,
+                "pk",
+                "",
+            ),
+            recommendation_algorithm=algorithm,
+            recommendation_score=score,
         )
