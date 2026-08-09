@@ -3551,7 +3551,8 @@ document.addEventListener("DOMContentLoaded", function () {
                                         ).matches
                                             ? "auto"
                                             : "smooth",
-                                    block: "start"
+                                    block:
+                                        "start"
                                 });
 
                                 history.replaceState(
@@ -3570,12 +3571,7 @@ document.addEventListener("DOMContentLoaded", function () {
         );
     }
 
-    /* ==========================================================
-    MODAL CLOSE CONTROLS
-    X button + Got it + backdrop
-    ========================================================== */
-
-    document.querySelectorAll(
+    modal.querySelectorAll(
         "[data-benefit-close]"
     ).forEach(function (closeControl) {
         closeControl.addEventListener(
@@ -3592,13 +3588,15 @@ document.addEventListener("DOMContentLoaded", function () {
         "keydown",
         function (event) {
             if (
-                event.key === "Escape" &&
+                event.key ===
+                    "Escape" &&
                 !modal.hidden
             ) {
                 closeModal();
             }
         }
     );
+});
 </script>
 {% endblock %}
 
