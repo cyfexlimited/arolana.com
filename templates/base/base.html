@@ -3439,6 +3439,12 @@ body.products-list-full-width .arolana-content-rail>main{
                         </div>
                     </li>
 
+                    <li>
+                        <a href="{% url 'products:brand_directory' %}" aria-label="View Brands" class="flex items-center gap-2 px-4 py-4 hover:text-brand transition font-medium group">
+                            <i class="fas fa-tags group-hover:scale-125 transition"></i> View Brands
+                        </a>
+                    </li>
+
                     <li class="mega-menu-container">
                         <a href="{% url 'manufacturers:list' %}" class="flex items-center gap-2 px-4 py-4 hover:text-brand transition font-medium group">
                             <i class="fas fa-industry group-hover:scale-125 transition"></i> Manufacturers
@@ -3820,6 +3826,14 @@ body.products-list-full-width .arolana-content-rail>main{
                     <span class="mobile-menu-left">
                         <span class="mobile-menu-icon"><i class="fas fa-grid-2"></i></span>
                         <span class="mobile-menu-label">View All Products</span>
+                    </span>
+                    <i class="fas fa-chevron-right mobile-menu-arrow text-xs"></i>
+                </a>
+
+                <a href="{% url 'products:brand_directory' %}" aria-label="Shop by Brands" @click="mobileMenuOpen = false" class="mobile-menu-link">
+                    <span class="mobile-menu-left">
+                        <span class="mobile-menu-icon"><i class="fas fa-tags"></i></span>
+                        <span class="mobile-menu-label">Shop by Brands</span>
                     </span>
                     <i class="fas fa-chevron-right mobile-menu-arrow text-xs"></i>
                 </a>

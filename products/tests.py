@@ -9,7 +9,7 @@ from django.urls import reverse, resolve
 from currency.models import Currency
 from orders.models import Cart, CartItem
 from products import views
-from products.models import Category, Product
+from products.models import Brand, Category, Product
 
 User = get_user_model()
 
@@ -156,6 +156,66 @@ class ProductDescriptionSanitizationTests(SimpleTestCase):
         html = '<figure class="image"><img src="/media/products/real.webp"></figure>'
 
         self.assertEqual(Product._strip_placeholder_images(html), html)
+
+
+class ProductListCategoryBrandFilterTests(TestCase):
+    def setUp(self):
+        Currency.objects.create(
+            code='NGN',
+            symbol='N',
+            name='Nigerian Naira',
+            exchange_rate=Decimal('1500.000000'),
+            is_base=True,
+            is_active=True,
+        )
+        self.vendor = get_user_model().objects.create_user(
+            email='filter-vendor@example.com',
+            username='filtervendor',
+            password='test-pass-123',
+            user_type='vendor',
+        )
+        self.parent_category = Category.objects.create(
+            name='Audio Visual',
+            slug='audio-visual',
+            is_active=True,
+        )
+        self.child_category = Category.objects.create(
+            name='Video Conferencing',
+            slug='video-conferencing',
+            parent=self.parent_category,
+            is_active=True,
+        )
+        self.brand = Brand.objects.create(
+            name='Logitech',
+            slug='logitech',
+            is_active=True,
+        )
+        Product.objects.create(
+            sku='LOGI-DESC-001',
+            name='Logitech Descendant Camera',
+            slug='logitech-descendant-camera',
+            description='Approved Logitech product in an Audio Visual child category.',
+            category=self.child_category,
+            brand=self.brand,
+            vendor=self.vendor,
+            price=Decimal('100.00'),
+            stock_quantity=5,
+            is_active=True,
+            approval_status='approved',
+        )
+
+    def test_product_list_category_brand_filter_includes_descendant_products(self):
+        response = self.client.get(
+            reverse('products:list'),
+            {
+                'categories': self.parent_category.slug,
+                'brands': self.brand.slug,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertGreater(response.context['paginator'].count, 0)
+        self.assertContains(response, 'Logitech Descendant Camera')
 
 
 class CartCurrencyTests(TestCase):

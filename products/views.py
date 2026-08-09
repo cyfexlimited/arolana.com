@@ -326,7 +326,13 @@ def apply_filters(queryset, request):
         for cat in categories:
             category_slugs.extend([c.strip() for c in cat.split(',') if c.strip()])
         if category_slugs:
-            queryset = queryset.filter(category__slug__in=category_slugs)
+            category_ids = []
+            for category in Category.objects.filter(
+                is_active=True,
+                slug__in=category_slugs,
+            ):
+                category_ids.extend(_category_descendant_ids(category))
+            queryset = queryset.filter(category_id__in=set(category_ids))
 
     # ====== Price Range Filter ======
     min_price = request.GET.get('min_price')
