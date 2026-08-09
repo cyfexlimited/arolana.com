@@ -671,6 +671,25 @@ class Category(BaseModel):
 class Brand(BaseModel):
     """Product brands/manufacturers."""
 
+    LOGO_DISPLAY_CONTAIN = "contain"
+    LOGO_DISPLAY_FILL = "fill"
+    LOGO_DISPLAY_TRANSPARENT = "transparent"
+
+    LOGO_DISPLAY_MODE_CHOICES = [
+        (
+            LOGO_DISPLAY_CONTAIN,
+            "Contain with padding",
+        ),
+        (
+            LOGO_DISPLAY_FILL,
+            "Fill card",
+        ),
+        (
+            LOGO_DISPLAY_TRANSPARENT,
+            "Transparent / no background",
+        ),
+    ]
+
     name = models.CharField(
         max_length=100,
         unique=True,
@@ -689,6 +708,19 @@ class Brand(BaseModel):
         ),
         null=True,
         blank=True,
+    )
+
+    logo_display_mode = models.CharField(
+        "Brand logo display",
+        max_length=30,
+        choices=LOGO_DISPLAY_MODE_CHOICES,
+        default=LOGO_DISPLAY_CONTAIN,
+        help_text=(
+            "Choose how the uploaded brand logo appears on Brand Detail pages. "
+            "Use Fill card when the uploaded logo image already includes its "
+            "own background. Use Transparent / no background for transparent "
+            "PNG/WebP logos."
+        ),
     )
 
     description = models.TextField(

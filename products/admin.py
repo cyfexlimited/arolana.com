@@ -828,7 +828,7 @@ class BrandAdmin(admin.ModelAdmin):
             'fields': ('name', 'slug', 'description', 'is_active', 'featured')
         }),
         ('Media & Links', {
-            'fields': ('logo', 'website'),
+            'fields': ('logo', 'logo_display_mode', 'website'),
             'classes': ('collapse',)
         }),
     )
