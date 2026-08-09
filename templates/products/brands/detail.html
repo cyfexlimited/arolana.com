@@ -94,7 +94,9 @@
     position: relative;
     isolation: isolate;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 285px;
+    grid-template-columns:
+        minmax(0, 1fr)
+        220px;
     gap: 2rem;
     min-height: var(--hero-desktop-height);
     height: var(--hero-desktop-height);
@@ -116,6 +118,11 @@
             #064684 100%
         );
     box-shadow: var(--abd-shadow-lg);
+}
+
+.abd-hero-no-stats {
+    grid-template-columns:
+        minmax(0, 1fr);
 }
 
 .abd-hero-media {
@@ -271,74 +278,6 @@
     border: 1px solid rgba(255,255,255,.32);
     color: #fff;
     background: rgba(255,255,255,.08);
-}
-
-.abd-logo-panel {
-    position: relative;
-    z-index: 2;
-    display: flex;
-    min-height: 190px;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    border: 1px solid rgba(255,255,255,.3);
-    border-radius: .9rem;
-    box-shadow:
-        0 20px 48px rgba(0,0,0,.18);
-}
-
-.abd-logo-panel img {
-    display: block;
-    object-position: center;
-}
-
-.abd-logo-panel-contain {
-    padding: .55rem;
-    background: rgba(255,255,255,.96);
-}
-
-.abd-logo-panel-contain img {
-    width: 100%;
-    height: 100%;
-    max-width: 90%;
-    max-height: 90%;
-    object-fit: contain;
-}
-
-.abd-logo-panel-fill {
-    padding: 0;
-    background: transparent;
-}
-
-.abd-logo-panel-fill img {
-    width: 100%;
-    height: 100%;
-    max-width: none;
-    max-height: none;
-    object-fit: cover;
-    border-radius: inherit;
-}
-
-.abd-logo-panel-transparent {
-    padding: .25rem;
-    border-color: transparent;
-    background: transparent;
-    box-shadow: none;
-}
-
-.abd-logo-panel-transparent img {
-    width: 100%;
-    height: 100%;
-    max-width: 92%;
-    max-height: 92%;
-    object-fit: contain;
-}
-
-.abd-logo-panel span {
-    color: var(--abd-navy);
-    font-size: 1.7rem;
-    font-weight: 950;
-    text-align: center;
 }
 
 .abd-brand-tabs {
@@ -610,7 +549,7 @@
     .abd-hero {
         grid-template-columns:
             minmax(0, 1fr)
-            230px;
+            220px;
         min-height:
             var(--hero-tablet-height);
         height:
@@ -623,10 +562,6 @@
             var(--hero-fit-tablet);
         object-position:
             var(--hero-position-tablet);
-    }
-
-    .abd-logo-panel {
-        min-height: 160px;
     }
 
     .abd-products-grid {
@@ -681,7 +616,7 @@
     .abd-hero-mobile-image-only .abd-hero-content,
     .abd-hero-mobile-image-only .abd-hero-actions,
     .abd-hero-mobile-image-only .abd-hero-stats,
-    .abd-hero-mobile-image-only .abd-logo-panel {
+    .abd-hero-mobile-image-only .abd-hero-stats {
         display: none;
     }
 
@@ -692,26 +627,6 @@
     .abd-hero-content {
         order: 2;
         width: 100%;
-    }
-
-    .abd-logo-panel {
-        order: 1;
-        width: 102px;
-        min-height: 74px;
-        align-self: flex-start;
-        border-radius: .65rem;
-    }
-
-    .abd-logo-panel img {
-        max-height: 62px;
-    }
-
-    .abd-logo-panel-fill img {
-        max-height: none;
-    }
-
-    .abd-logo-panel span {
-        font-size: .8rem;
     }
 
     .abd-brand-tabs {
@@ -844,8 +759,7 @@
 @media (min-width: 1101px) {
     .abd-hero-desktop-image-only .abd-hero-content,
     .abd-hero-desktop-image-only .abd-hero-actions,
-    .abd-hero-desktop-image-only .abd-hero-stats,
-    .abd-hero-desktop-image-only .abd-logo-panel {
+    .abd-hero-desktop-image-only .abd-hero-stats {
         display: none;
     }
 }
@@ -853,8 +767,7 @@
 @media (min-width: 761px) and (max-width: 1100px) {
     .abd-hero-tablet-image-only .abd-hero-content,
     .abd-hero-tablet-image-only .abd-hero-actions,
-    .abd-hero-tablet-image-only .abd-hero-stats,
-    .abd-hero-tablet-image-only .abd-logo-panel {
+    .abd-hero-tablet-image-only .abd-hero-stats {
         display: none;
     }
 }
@@ -876,23 +789,16 @@
 @media (min-width:761px){
     .arolana-brand-detail{width:min(calc(100vw - 5rem),1840px)}
     .abd-hero{
-        grid-template-columns:180px minmax(0,1fr) 220px;
+        grid-template-columns:minmax(0,1fr) 220px;
         padding:1.9rem 2rem;
         gap:1.6rem
     }
-    .abd-logo-panel{
-        grid-column:1;
-        grid-row:1;
-        width:160px;
-        min-height:145px;
-        justify-self:start
-    }
     .abd-hero-content{
-        grid-column:2;
+        grid-column:1;
         grid-row:1;
     }
     .abd-hero-stats{
-        grid-column:3;
+        grid-column:2;
         grid-row:1;
     }
 }
@@ -4001,35 +3907,13 @@ document.addEventListener("DOMContentLoaded", function () {
                         </div>
                     </div>
                 </aside>
-
-                {% if brand.logo %}
-                    <div
-                        class="
-                            abd-logo-panel
-                            abd-logo-panel-{{ brand.logo_display_mode|default:'contain' }}
-                        "
-                    >
-                        {% optimized_image_url brand.logo 'avatar' as brand_logo_url %}
-
-                        <img
-                            src="{{ brand_logo_url }}"
-                            alt="{{ brand.name }} logo"
-                        >
-                    </div>
-                {% else %}
-                    <div class="abd-logo-panel abd-logo-panel-contain">
-                        <span>
-                            {{ brand.name }}
-                        </span>
-                    </div>
-                {% endif %}
             </section>
 
         {% endwith %}
 
     {% else %}
 
-        <section class="abd-hero">
+        <section class="abd-hero abd-hero-no-stats">
             <div class="abd-hero-pattern"></div>
 
             <div class="abd-hero-content">
@@ -4087,21 +3971,6 @@ document.addEventListener("DOMContentLoaded", function () {
                         Marketplace Support
                     </span>
                 </div>
-            </div>
-
-            <div class="abd-logo-panel">
-                {% if brand.logo %}
-                    {% optimized_image_url brand.logo 'avatar' as brand_logo_url %}
-
-                    <img
-                        src="{{ brand_logo_url }}"
-                        alt="{{ brand.name }} logo"
-                    >
-                {% else %}
-                    <span>
-                        {{ brand.name }}
-                    </span>
-                {% endif %}
             </div>
         </section>
 

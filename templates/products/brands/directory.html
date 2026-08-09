@@ -172,6 +172,10 @@
     line-height: 1.55;
 }
 
+.ab-hero-mobile-copy {
+    display: none;
+}
+
 .ab-hero-search-row {
     display: grid;
     grid-template-columns: minmax(0, 410px) auto;
@@ -1116,6 +1120,7 @@
 @media (max-width: 760px) {
     .ab-hero-main {
         justify-content: flex-end;
+        width: min(88%, 620px);
         padding: 1.1rem .2rem .1rem;
     }
 
@@ -1123,14 +1128,25 @@
         font-size: .58rem;
     }
 
+    .ab-hero-desktop-copy {
+        display: none;
+    }
+
+    .ab-hero-mobile-copy {
+        display: block;
+    }
+
     .ab-hero h1 {
-        font-size: clamp(1.75rem, 9vw, 2.45rem);
+        max-width: 620px;
+        font-size: clamp(2rem, 9vw, 2.85rem);
+        line-height: 1.02;
     }
 
     .ab-hero-copy {
+        max-width: 620px;
         margin: .6rem 0 .75rem;
-        font-size: .74rem;
-        line-height: 1.45;
+        font-size: .92rem;
+        line-height: 1.4;
     }
 
     .ab-hero-search-row {
@@ -1141,6 +1157,11 @@
     .ab-hero-search input,
     .ab-browse-button {
         min-height: 44px;
+    }
+
+    .ab-hero-main > .ab-hero-search-row,
+    .ab-hero-main > .ab-hero-trust {
+        display: none;
     }
 
     .ab-browse-button {
@@ -2153,32 +2174,42 @@
 
                 <div class="ab-hero-main">
                     <p class="ab-hero-kicker">
-                        Trusted brands. Verified quality.
+                        <span class="ab-hero-desktop-copy">Trusted brands. Verified quality.</span>
+                        <span class="ab-hero-mobile-copy">TRUSTED BRANDS</span>
                     </p>
 
-                    {% if banner.show_content and banner.show_title %}
-                        <h1>{{ banner.title }}</h1>
-                    {% else %}
-                        <h1>
-                            Discover Brands<br>
-                            You Can <span class="accent">Trust</span>
-                        </h1>
-                    {% endif %}
+                    <h1>
+                        <span class="ab-hero-desktop-copy">
+                            {% if banner.show_content and banner.show_title %}
+                                {{ banner.title }}
+                            {% else %}
+                                Discover Brands<br>
+                                You Can <span class="accent">Trust</span>
+                            {% endif %}
+                        </span>
+                        <span class="ab-hero-mobile-copy">APPROVED VENDORS</span>
+                    </h1>
 
-                    {% if banner.show_content and banner.show_subtitle and banner.subtitle %}
-                        <p class="ab-hero-copy">{{ banner.subtitle }}</p>
-                    {% endif %}
+                    <p class="ab-hero-copy ab-hero-mobile-copy">
+                        Discover approved products from established global and regional brands.
+                    </p>
 
-                    {% if banner.show_content and banner.show_description and banner.description %}
-                        <p class="ab-hero-copy">
-                            {{ banner.description|striptags|truncatewords:28 }}
-                        </p>
-                    {% elif not banner.subtitle and not banner.description %}
-                        <p class="ab-hero-copy">
-                            Explore officially approved global and regional brands on Arolana.
-                            Quality products. Verified manufacturers. Smarter shopping.
-                        </p>
-                    {% endif %}
+                    <div class="ab-hero-desktop-copy">
+                        {% if banner.show_content and banner.show_subtitle and banner.subtitle %}
+                            <p class="ab-hero-copy">{{ banner.subtitle }}</p>
+                        {% endif %}
+
+                        {% if banner.show_content and banner.show_description and banner.description %}
+                            <p class="ab-hero-copy">
+                                {{ banner.description|striptags|truncatewords:28 }}
+                            </p>
+                        {% elif not banner.subtitle and not banner.description %}
+                            <p class="ab-hero-copy">
+                                Explore officially approved global and regional brands on Arolana.
+                                Quality products. Verified manufacturers. Smarter shopping.
+                            </p>
+                        {% endif %}
+                    </div>
 
                     <div class="ab-hero-search-row">
                         <form method="get" class="ab-hero-search" role="search">
@@ -2325,18 +2356,28 @@
 
             <div class="ab-hero-main">
                 <p class="ab-hero-kicker">
-                    Trusted brands. Verified quality.
+                    <span class="ab-hero-desktop-copy">Trusted brands. Verified quality.</span>
+                    <span class="ab-hero-mobile-copy">TRUSTED BRANDS</span>
                 </p>
 
                 <h1>
-                    Discover Brands<br>
-                    You Can <span class="accent">Trust</span>
+                    <span class="ab-hero-desktop-copy">
+                        Discover Brands<br>
+                        You Can <span class="accent">Trust</span>
+                    </span>
+                    <span class="ab-hero-mobile-copy">APPROVED VENDORS</span>
                 </h1>
 
-                <p class="ab-hero-copy">
-                    Explore officially approved global and regional brands on Arolana.
-                    Quality products. Verified manufacturers. Smarter shopping.
+                <p class="ab-hero-copy ab-hero-mobile-copy">
+                    Discover approved products from established global and regional brands.
                 </p>
+
+                <div class="ab-hero-desktop-copy">
+                    <p class="ab-hero-copy">
+                        Explore officially approved global and regional brands on Arolana.
+                        Quality products. Verified manufacturers. Smarter shopping.
+                    </p>
+                </div>
 
                 <div class="ab-hero-search-row">
                     <form method="get" class="ab-hero-search" role="search">
