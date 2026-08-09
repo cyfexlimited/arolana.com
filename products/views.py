@@ -2833,6 +2833,53 @@ def _category_hero_image(category):
     return None
 
 
+def _category_shop_by_brands(category_ids):
+    return (
+        Brand.objects
+        .filter(
+            is_active=True,
+            products__is_active=True,
+            products__approval_status="approved",
+            products__category_id__in=category_ids,
+        )
+        .annotate(
+            category_product_count=Count(
+                "products",
+                filter=Q(
+                    products__is_active=True,
+                    products__approval_status="approved",
+                    products__category_id__in=category_ids,
+                ),
+                distinct=True,
+            )
+        )
+        .filter(
+            category_product_count__gt=0,
+        )
+        .order_by(
+            "-featured",
+            "-category_product_count",
+            "name",
+        )
+        .distinct()
+    )
+
+
+def _mobile_shop_by_brand_payload(request, brand):
+    logo = getattr(brand, "logo", None)
+    logo_url = _mobile_file_url(request, logo, preset="category_card") if logo else ""
+
+    return {
+        "id": brand.id,
+        "name": brand.name,
+        "slug": brand.slug,
+        "logo": logo_url,
+        "logo_url": logo_url,
+        "product_count": getattr(brand, "category_product_count", 0) or 0,
+        "featured": bool(getattr(brand, "featured", False)),
+    }
+
+
 def category_view(request, slug):
     """Display category view with all subcategories and dynamic background - APPROVED ONLY"""
     category = get_object_or_404(
@@ -2867,6 +2914,8 @@ def category_view(request, slug):
         is_active=True,
         approval_status='approved'
     ).select_related('brand', 'vendor', 'vendor__vendor_profile')
+
+    shop_by_brands = _category_shop_by_brands(category_ids)
 
     # ====== Sorting ======
     sort_param = request.GET.get('sort', 'featured')
@@ -2945,6 +2994,7 @@ def category_view(request, slug):
         'category_article_links': category_article_links,
         'category_article_links_overview': category_article_links_overview,
         'category_article_links_cards': category_article_links_cards,
+        'shop_by_brands': shop_by_brands,
     })
 
 def _mobile_authenticated_customer(request, payload=None):
@@ -7970,6 +8020,10 @@ def mobile_category_detail_api(request, slug):
     paginator = Paginator(products, per_page)
     page_obj = paginator.get_page(page_number)
     category_payload = _mobile_category_payload(request, category, include_children=True)
+    shop_by_brands = [
+        _mobile_shop_by_brand_payload(request, brand)
+        for brand in _category_shop_by_brands(category_ids)
+    ]
     category_articles = [
         _mobile_category_article_payload(request, link)
         for link in CategoryArticleLink.objects.filter(
@@ -7994,6 +8048,7 @@ def mobile_category_detail_api(request, slug):
             "slug": category.slug,
         }],
         "subcategories": category_payload.get("children", []),
+        "shop_by_brands": shop_by_brands,
         "articles": category_articles,
         "products": [_mobile_product_payload(request, product) for product in page_obj.object_list],
         "product_count": paginator.count,
