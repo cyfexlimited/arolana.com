@@ -71,7 +71,7 @@ class HeroBanner(BaseModel):
     ]
 
     MOBILE_CONTENT_LAYOUT_CHOICES = [
-        ('image_only', 'Image only on mobile (B&H style)'),
+        ('image_only', 'Image only on mobile (Arolana style)'),
         ('overlay', 'Text over image'),
         ('below', 'Text below image'),
     ]
@@ -99,7 +99,7 @@ class HeroBanner(BaseModel):
     # Size & crop controls
     desktop_height = models.PositiveIntegerField(default=560, validators=[MinValueValidator(160), MaxValueValidator(1200)], help_text="Desktop hero height in pixels.")
     tablet_height = models.PositiveIntegerField(default=460, validators=[MinValueValidator(160), MaxValueValidator(1000)], help_text="Tablet hero height in pixels.")
-    mobile_height = models.PositiveIntegerField(default=380, validators=[MinValueValidator(180), MaxValueValidator(900)], help_text="Mobile hero height in pixels. Around 360-420 gives a B&H-style mobile banner.")
+    mobile_height = models.PositiveIntegerField(default=380, validators=[MinValueValidator(180), MaxValueValidator(900)], help_text="Mobile hero height in pixels. Around 360-420 gives a Arolana-style mobile banner.")
     image_fit_desktop = models.CharField(max_length=20, choices=IMAGE_FIT_CHOICES, default='cover')
     image_fit_tablet = models.CharField(max_length=20, choices=IMAGE_FIT_CHOICES, default='cover')
     image_fit_mobile = models.CharField(max_length=20, choices=IMAGE_FIT_CHOICES, default='cover')
