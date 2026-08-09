@@ -4030,7 +4030,7 @@ body.products-list-full-width .arolana-content-rail>main{
                 {% endblock %}
             </main>
 
-            {% if request.path != '/' and request.path != '' and request.path != '/products/cart/' and request.path != '/products/checkout/' and not is_landing_page %}
+            {% if request.resolver_match.url_name != 'brand_detail' and request.path != '/' and request.path != '' and request.path != '/products/cart/' and request.path != '/products/checkout/' and request.path != '/products/brands/' and not is_landing_page %}
 <aside
     class="arolana-following-ad hidden lg:block lg:w-72 xl:w-80 shrink-0"
     data-arolana-floating-ad

@@ -3,6 +3,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from core.models import BaseModel
 from accounts.models import User
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 
 def normalize_opacity(value):
     """Accept legacy percent-like values and return a valid CSS opacity."""
@@ -20,6 +21,48 @@ def normalize_opacity(value):
 
 class HeroBanner(BaseModel):
     """Advanced Hero Banner with full features"""
+
+    PLACEMENT_HOME = "home"
+    PLACEMENT_BRAND_DIRECTORY = "brand_directory"
+    PLACEMENT_BRAND_DETAIL = "brand_detail"
+
+    PLACEMENT_CHOICES = [
+        (
+            PLACEMENT_HOME,
+            "Homepage",
+        ),
+        (
+            PLACEMENT_BRAND_DIRECTORY,
+            "Brands Directory",
+        ),
+        (
+            PLACEMENT_BRAND_DETAIL,
+            "Brand Detail Page",
+        ),
+    ]
+
+    placement = models.CharField(
+        max_length=30,
+        choices=PLACEMENT_CHOICES,
+        default=PLACEMENT_HOME,
+        db_index=True,
+        help_text=(
+            "Choose where this banner should appear. "
+            "Existing banners remain Homepage banners."
+        ),
+    )
+
+    brand = models.ForeignKey(
+        "products.Brand",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="hero_banners",
+        help_text=(
+            "Select a brand only when Placement is "
+            "'Brand Detail Page'."
+        ),
+    )
     IMAGE_FIT_CHOICES = [
         ('cover', 'Fill frame (crop if needed)'),
         ('contain', 'Fit whole image'),
@@ -157,7 +200,30 @@ class HeroBanner(BaseModel):
     def __str__(self):
         return self.title
 
-    @property
+    def clean(self):
+        super().clean()
+
+        if (
+            self.placement == self.PLACEMENT_BRAND_DETAIL
+            and not self.brand_id
+        ):
+            raise ValidationError({
+                "brand": (
+                    "A brand is required when the banner "
+                    "placement is Brand Detail Page."
+                ),
+            })
+
+        if (
+            self.placement != self.PLACEMENT_BRAND_DETAIL
+            and self.brand_id
+        ):
+            raise ValidationError({
+                "brand": (
+                    "Brand targeting can only be used with "
+                    "Brand Detail Page placement."
+                ),
+            })
     def overlay_opacity_css(self):
         return f"{normalize_opacity(self.overlay_opacity):.2f}".rstrip('0').rstrip('.')
 

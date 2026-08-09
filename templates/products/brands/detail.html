@@ -10,583 +10,4150 @@
 {% block meta_description %}
 <meta
     name="description"
-    content="Shop approved {{ brand.name }} products on Arolana. Compare prices, trusted vendors, ratings, availability and product specifications."
+    content="Shop approved {{ brand.name }} products on Arolana. Compare products, trusted vendors, ratings, availability and specifications."
 >
 {% endblock %}
 
 {% block extra_css %}
 <style>
+:root {
+    --abd-navy: #071a44;
+    --abd-navy-dark: #03142e;
+    --abd-blue: #0066cc;
+    --abd-orange: #f58220;
+    --abd-cyan: #00b8ff;
+    --abd-white: #ffffff;
+    --abd-bg: #f7f9fc;
+    --abd-line: #e5eaf1;
+    --abd-muted: #64748b;
+    --abd-text: #0f172a;
+    --abd-green: #047857;
+    --abd-shadow: 0 16px 40px rgba(7, 26, 68, .07);
+    --abd-shadow-lg: 0 28px 68px rgba(7, 26, 68, .13);
+}
+
+.arolana-brand-detail {
+    width: min(calc(100vw - 2.5rem), 1840px);
+    margin-inline: auto;
+    padding: 1rem 0 4rem;
+}
+
+/* ==========================================================
+   BREADCRUMB
+   ========================================================== */
+
+.abd-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    margin-bottom: .9rem;
+    color: var(--abd-muted);
+    font-size: .76rem;
+    font-weight: 750;
+}
+
+.abd-breadcrumb a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.abd-breadcrumb a:hover {
+    color: var(--abd-blue);
+}
+
+.abd-breadcrumb i {
+    color: #9aa8bb;
+    font-size: .52rem;
+}
+
+.abd-breadcrumb strong {
+    overflow: hidden;
+    color: var(--abd-navy);
+    font-weight: 900;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ==========================================================
+   HERO
+   ========================================================== */
+
+.abd-hero {
+    --hero-desktop-height: 390px;
+    --hero-tablet-height: 350px;
+    --hero-mobile-height: 320px;
+
+    --hero-fit-desktop: cover;
+    --hero-fit-tablet: cover;
+    --hero-fit-mobile: cover;
+
+    --hero-position-desktop: center center;
+    --hero-position-tablet: center center;
+    --hero-position-mobile: center center;
+
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 285px;
+    gap: 2rem;
+    min-height: var(--hero-desktop-height);
+    align-items: center;
+    overflow: hidden;
+    padding: 2.25rem 2.5rem;
+    border: 1px solid rgba(0, 102, 204, .12);
+    border-radius: 1rem;
+    background:
+        radial-gradient(
+            circle at 70% 45%,
+            rgba(0, 184, 255, .18),
+            transparent 30rem
+        ),
+        linear-gradient(
+            115deg,
+            #071a44 0%,
+            #03204a 56%,
+            #064684 100%
+        );
+    box-shadow: var(--abd-shadow-lg);
+}
+
+.abd-hero-media {
+    position: absolute;
+    inset: 0;
+    z-index: -5;
+}
+
+.abd-hero-media picture,
+.abd-hero-media img {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.abd-hero-media img {
+    object-fit: var(--hero-fit-desktop);
+    object-position: var(--hero-position-desktop);
+}
+
+.abd-hero-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: -4;
+    background:
+        linear-gradient(
+            90deg,
+            rgba(3, 20, 46, .98) 0%,
+            rgba(3, 20, 46, .92) 36%,
+            rgba(3, 20, 46, .64) 68%,
+            rgba(3, 20, 46, .38) 100%
+        );
+}
+
+.abd-hero-pattern {
+    position: absolute;
+    inset: 0;
+    z-index: -3;
+    opacity: .16;
+    pointer-events: none;
+    background-image:
+        radial-gradient(
+            circle,
+            rgba(255, 255, 255, .45) 1px,
+            transparent 1.4px
+        );
+    background-size: 11px 11px;
+    mask-image:
+        radial-gradient(
+            ellipse at 70% 50%,
+            #000 0%,
+            rgba(0,0,0,.75) 45%,
+            transparent 76%
+        );
+}
+
+.abd-hero-content {
+    min-width: 0;
+}
+
+.abd-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    margin: 0 0 .6rem;
+    color: var(--abd-orange);
+    font-size: .69rem;
+    font-weight: 950;
+    letter-spacing: .11em;
+    text-transform: uppercase;
+}
+
+.abd-hero h1 {
+    max-width: 800px;
+    margin: 0;
+    color: #ffffff;
+    font-size: clamp(2.4rem, 4.3vw, 4.6rem);
+    font-weight: 950;
+    letter-spacing: -.05em;
+    line-height: .98;
+}
+
+.abd-description {
+    max-width: 680px;
+    margin: .9rem 0 0;
+    color: rgba(255, 255, 255, .86);
+    font-size: .95rem;
+    font-weight: 620;
+    line-height: 1.6;
+}
+
+.abd-hero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .55rem;
+    margin-top: 1rem;
+}
+
+.abd-meta-pill {
+    display: inline-flex;
+    min-height: 36px;
+    align-items: center;
+    gap: .42rem;
+    padding: .5rem .72rem;
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 999px;
+    color: #ffffff;
+    background: rgba(255,255,255,.08);
+    font-size: .69rem;
+    font-weight: 850;
+    backdrop-filter: blur(10px);
+}
+
+.abd-meta-pill i {
+    color: var(--abd-orange);
+}
+
+.abd-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .65rem;
+    margin-top: 1.15rem;
+}
+
+.abd-hero-button {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    gap: .42rem;
+    padding: .65rem 1rem;
+    border-radius: .58rem;
+    font-size: .72rem;
+    font-weight: 900;
+    text-decoration: none;
+}
+
+.abd-hero-button-primary {
+    color: #fff;
+    background:
+        linear-gradient(
+            135deg,
+            var(--abd-orange),
+            #ff6d00
+        );
+}
+
+.abd-hero-button-secondary {
+    border: 1px solid rgba(255,255,255,.32);
+    color: #fff;
+    background: rgba(255,255,255,.08);
+}
+
+.abd-logo-panel {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    min-height: 190px;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    border: 1px solid rgba(255,255,255,.3);
+    border-radius: .9rem;
+    background: rgba(255,255,255,.96);
+    box-shadow:
+        0 20px 48px rgba(0,0,0,.18);
+}
+
+.abd-logo-panel img {
+    display: block;
+    width: auto;
+    max-width: 205px;
+    max-height: 105px;
+    object-fit: contain;
+}
+
+.abd-logo-panel span {
+    color: var(--abd-navy);
+    font-size: 1.7rem;
+    font-weight: 950;
+    text-align: center;
+}
+
+/* ==========================================================
+   FILTER BAR
+   ========================================================== */
+
+.abd-controls {
+    display: grid;
+    grid-template-columns:
+        minmax(0, 1fr)
+        minmax(210px, 285px);
+    gap: .8rem;
+    margin-top: 1rem;
+    padding: .8rem;
+    border: 1px solid var(--abd-line);
+    border-radius: .8rem;
+    background: #ffffff;
+    box-shadow: var(--abd-shadow);
+}
+
+.abd-search {
+    display: flex;
+    gap: .55rem;
+}
+
+.abd-search-input {
+    position: relative;
+    flex: 1;
+}
+
+.abd-search-input i {
+    position: absolute;
+    top: 50%;
+    left: .9rem;
+    color: #8b99ac;
+    font-size: .8rem;
+    transform: translateY(-50%);
+}
+
+.abd-search input {
+    width: 100%;
+    min-height: 46px;
+    padding: .7rem .9rem .7rem 2.55rem;
+    border: 1px solid var(--abd-line);
+    border-radius: .6rem;
+    outline: none;
+    background: #f8fafc;
+    color: var(--abd-text);
+    font-size: .78rem;
+    font-weight: 700;
+}
+
+.abd-search input:focus {
+    border-color: rgba(0,102,204,.55);
+    background: #fff;
+    box-shadow:
+        0 0 0 3px rgba(0,102,204,.08);
+}
+
+.abd-search button {
+    display: inline-flex;
+    min-height: 46px;
+    align-items: center;
+    justify-content: center;
+    gap: .4rem;
+    padding: .7rem 1.05rem;
+    border: 0;
+    border-radius: .6rem;
+    color: #ffffff;
+    background:
+        linear-gradient(
+            135deg,
+            var(--abd-blue),
+            var(--abd-navy)
+        );
+    font-size: .72rem;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.abd-category-select {
+    width: 100%;
+    min-height: 46px;
+    padding: .7rem .9rem;
+    border: 1px solid var(--abd-line);
+    border-radius: .6rem;
+    outline: none;
+    color: var(--abd-navy);
+    background: #ffffff;
+    font-size: .75rem;
+    font-weight: 800;
+}
+
+/* ==========================================================
+   CATEGORY CHIPS
+   ========================================================== */
+
+.abd-category-track {
+    display: flex;
+    gap: .45rem;
+    overflow-x: auto;
+    margin-top: .75rem;
+    padding: .05rem 0 .4rem;
+    scrollbar-width: none;
+}
+
+.abd-category-track::-webkit-scrollbar {
+    display: none;
+}
+
+.abd-category-chip {
+    display: inline-flex;
+    min-height: 34px;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: .35rem;
+    padding: .45rem .7rem;
+    border: 1px solid var(--abd-line);
+    border-radius: 999px;
+    color: var(--abd-navy);
+    background: #ffffff;
+    font-size: .63rem;
+    font-weight: 850;
+    text-decoration: none;
+}
+
+.abd-category-chip.is-active {
+    border-color: var(--abd-blue);
+    color: #fff;
+    background: var(--abd-blue);
+}
+
+/* ==========================================================
+   PRODUCTS
+   ========================================================== */
+
+.abd-products {
+    margin-top: 1.4rem;
+}
+
+.abd-heading {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: .9rem;
+}
+
+.abd-heading-eyebrow {
+    margin: 0 0 .25rem;
+    color: var(--abd-orange);
+    font-size: .65rem;
+    font-weight: 950;
+    letter-spacing: .11em;
+    text-transform: uppercase;
+}
+
+.abd-heading h2 {
+    margin: 0;
+    color: var(--abd-navy);
+    font-size: clamp(1.55rem, 2.8vw, 2.35rem);
+    font-weight: 950;
+    letter-spacing: -.04em;
+}
+
+.abd-result-count {
+    display: inline-flex;
+    min-height: 32px;
+    align-items: center;
+    padding: .4rem .65rem;
+    border: 1px solid var(--abd-line);
+    border-radius: 999px;
+    color: var(--abd-muted);
+    background: #ffffff;
+    font-size: .68rem;
+    font-weight: 850;
+}
+
+.abd-products-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(5, minmax(0, 1fr));
+    gap: .85rem;
+}
+
+/*
+ * Keep the existing Arolana product card contained correctly
+ * inside the Brand storefront grid.
+ */
+.abd-products-grid > * {
+    min-width: 0;
+}
+
+.abd-empty {
+    grid-column: 1 / -1;
+    padding: 4rem 1rem;
+    border: 1px dashed rgba(0,102,204,.25);
+    border-radius: .9rem;
+    color: var(--abd-muted);
+    background: #ffffff;
+    text-align: center;
+}
+
+.abd-empty i {
+    color: var(--abd-blue);
+    font-size: 2.2rem;
+}
+
+.abd-empty h2 {
+    margin: .8rem 0 .25rem;
+    color: var(--abd-navy);
+    font-size: 1.25rem;
+    font-weight: 950;
+}
+
+.abd-empty p {
+    margin: 0;
+    font-size: .75rem;
+    font-weight: 700;
+}
+
+/* ==========================================================
+   TABLET
+   ========================================================== */
+
+@media (max-width: 1400px) {
+    .abd-products-grid {
+        grid-template-columns:
+            repeat(4, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 1100px) {
+    .abd-hero {
+        grid-template-columns:
+            minmax(0, 1fr)
+            230px;
+        min-height:
+            var(--hero-tablet-height);
+        padding: 1.8rem;
+    }
+
+    .abd-hero-media img {
+        object-fit:
+            var(--hero-fit-tablet);
+        object-position:
+            var(--hero-position-tablet);
+    }
+
+    .abd-logo-panel {
+        min-height: 160px;
+    }
+
+    .abd-products-grid {
+        grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+    }
+}
+
+/* ==========================================================
+   MOBILE WEB
+   ========================================================== */
+
+@media (max-width: 760px) {
     .arolana-brand-detail {
-        width: min(100% - 2rem, 1700px);
-        margin-inline: auto;
-        padding-block: 1.5rem 4rem;
+        width: min(
+            calc(100% - .7rem),
+            1840px
+        );
+        padding-top: .55rem;
+        padding-bottom: 2.5rem;
     }
 
-    .brand-detail-hero {
-        position: relative;
-        overflow: hidden;
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        align-items: center;
-        gap: 2rem;
-        padding: 2rem;
-        border: 1px solid rgba(0, 102, 204, 0.14);
-        border-radius: 1.5rem;
+    .abd-breadcrumb {
+        margin-bottom: .6rem;
+        font-size: .64rem;
+    }
+
+    .abd-hero {
+        display: flex;
+        min-height:
+            var(--hero-mobile-height);
+        flex-direction: column;
+        justify-content: flex-end;
+        gap: .75rem;
+        padding: 1rem;
+        border-radius: .8rem;
+    }
+
+    .abd-hero-media img {
+        object-fit:
+            var(--hero-fit-mobile);
+        object-position:
+            var(--hero-position-mobile);
+    }
+
+    .abd-hero-overlay {
         background:
-            radial-gradient(
-                circle at 0% 0%,
-                rgba(0, 184, 255, 0.16),
-                transparent 25rem
-            ),
             linear-gradient(
-                135deg,
-                #eef7ff,
-                #ffffff 58%,
-                #fff7ed
+                180deg,
+                rgba(3,20,46,.25) 0%,
+                rgba(3,20,46,.68) 45%,
+                rgba(3,20,46,.97) 100%
             );
-        box-shadow: 0 22px 60px rgba(7, 26, 68, 0.08);
     }
 
-    .brand-detail-eyebrow {
-        margin: 0 0 0.4rem;
-        color: #f58220;
-        font-size: 0.75rem;
-        font-weight: 900;
-        letter-spacing: 0.13em;
-        text-transform: uppercase;
+    .abd-hero-pattern {
+        opacity: .09;
     }
 
-    .brand-detail-hero h1 {
-        margin: 0;
-        color: #071a44;
-        font-size: clamp(2rem, 4vw, 4rem);
-        font-weight: 950;
-        letter-spacing: -0.045em;
+    .abd-hero-content {
+        order: 2;
+        width: 100%;
+    }
+
+    .abd-logo-panel {
+        order: 1;
+        width: 102px;
+        min-height: 74px;
+        align-self: flex-start;
+        padding: .55rem;
+        border-radius: .65rem;
+    }
+
+    .abd-logo-panel img {
+        max-width: 82px;
+        max-height: 52px;
+    }
+
+    .abd-logo-panel span {
+        font-size: .8rem;
+    }
+
+    .abd-eyebrow {
+        margin-bottom: .3rem;
+        font-size: .54rem;
+    }
+
+    .abd-hero h1 {
+        max-width: 95%;
+        font-size:
+            clamp(1.8rem, 9vw, 2.55rem);
         line-height: 1;
     }
 
-    .brand-detail-description {
-        max-width: 760px;
-        margin: 0.9rem 0 0;
-        color: #64748b;
-        font-size: 1rem;
-        font-weight: 650;
-        line-height: 1.7;
-    }
-
-    .brand-detail-count {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.45rem;
-        margin-top: 1rem;
-        padding: 0.55rem 0.85rem;
-        border: 1px solid rgba(0, 102, 204, 0.16);
-        border-radius: 999px;
-        color: #0066cc;
-        background: rgba(255, 255, 255, 0.8);
-        font-size: 0.82rem;
-        font-weight: 900;
-    }
-
-    .brand-detail-logo {
-        display: flex;
-        width: 230px;
-        min-height: 160px;
-        align-items: center;
-        justify-content: center;
-        padding: 1.5rem;
-        border: 1px solid rgba(15, 23, 42, 0.08);
-        border-radius: 1.25rem;
-        background: #ffffff;
-        box-shadow: 0 18px 45px rgba(7, 26, 68, 0.08);
-    }
-
-    .brand-detail-logo img {
-        display: block;
-        width: auto;
-        max-width: 180px;
-        max-height: 100px;
-        object-fit: contain;
-    }
-
-    .brand-detail-logo span {
-        color: #071a44;
-        font-size: 1.8rem;
-        font-weight: 950;
-        text-align: center;
-    }
-
-    .brand-detail-controls {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 1rem;
-        margin-top: 2rem;
-        padding: 1rem;
-        border: 1px solid rgba(0, 102, 204, 0.12);
-        border-radius: 1rem;
-        background: #ffffff;
-    }
-
-    .brand-product-search {
-        display: flex;
-        gap: 0.7rem;
-    }
-
-    .brand-product-search input {
-        width: 100%;
-        min-height: 48px;
-        padding: 0.75rem 1rem;
-        border: 1px solid rgba(0, 102, 204, 0.18);
-        border-radius: 0.85rem;
-        outline: none;
-    }
-
-    .brand-product-search input:focus {
-        border-color: #0066cc;
-        box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.1);
-    }
-
-    .brand-product-search button {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.4rem;
-        min-height: 48px;
-        padding: 0.75rem 1.1rem;
-        border: 0;
-        border-radius: 0.85rem;
-        color: #ffffff;
-        background: linear-gradient(135deg, #0066cc, #071a44);
-        font-weight: 900;
-    }
-
-    .brand-category-filter {
-        min-width: 240px;
-        min-height: 48px;
-        padding: 0.75rem 1rem;
-        border: 1px solid rgba(0, 102, 204, 0.18);
-        border-radius: 0.85rem;
-        background: #ffffff;
-        color: #0f172a;
-        font-weight: 800;
-    }
-
-    .brand-products-heading {
-        display: flex;
-        align-items: flex-end;
-        justify-content: space-between;
-        gap: 1rem;
-        margin: 2.5rem 0 1.2rem;
-    }
-
-    .brand-products-heading p {
-        margin: 0 0 0.3rem;
-        color: #f58220;
-        font-size: 0.72rem;
-        font-weight: 900;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-    }
-
-    .brand-products-heading h2 {
-        margin: 0;
-        color: #071a44;
-        font-size: clamp(1.6rem, 3vw, 2.5rem);
-        font-weight: 950;
-        letter-spacing: -0.035em;
-    }
-
-    .brand-products-heading span {
-        color: #64748b;
-        font-size: 0.85rem;
-        font-weight: 800;
-    }
-
-    .brand-products-grid {
-        display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
-        gap: 1rem;
-    }
-
-    .brand-product-card {
-        display: flex;
-        min-width: 0;
-        flex-direction: column;
-        overflow: hidden;
-        border: 1px solid rgba(15, 23, 42, 0.08);
-        border-radius: 1.15rem;
-        color: inherit;
-        background: #ffffff;
-        text-decoration: none;
-        box-shadow: 0 14px 38px rgba(7, 26, 68, 0.06);
-        transition:
-            transform 180ms ease,
-            border-color 180ms ease,
-            box-shadow 180ms ease;
-    }
-
-    .brand-product-card:hover {
-        transform: translateY(-4px);
-        border-color: rgba(0, 102, 204, 0.3);
-        box-shadow: 0 24px 54px rgba(7, 26, 68, 0.12);
-    }
-
-    .brand-product-image {
-        position: relative;
-        display: flex;
-        min-height: 220px;
-        align-items: center;
-        justify-content: center;
-        padding: 1rem;
-        background:
-            radial-gradient(
-                circle at 50% 0%,
-                rgba(0, 184, 255, 0.08),
-                transparent 14rem
-            ),
-            #f8fbff;
-    }
-
-    .brand-product-image img {
-        display: block;
-        width: 100%;
-        height: 190px;
-        object-fit: contain;
-    }
-
-    .brand-product-image i {
-        color: #94a3b8;
-        font-size: 3rem;
-    }
-
-    .brand-product-body {
-        display: flex;
-        flex: 1;
-        flex-direction: column;
-        padding: 1rem;
-    }
-
-    .brand-product-body h3 {
+    .abd-description {
         display: -webkit-box;
         overflow: hidden;
-        margin: 0;
-        color: #071a44;
-        font-size: 0.95rem;
-        font-weight: 900;
-        line-height: 1.4;
-        -webkit-line-clamp: 2;
+        margin-top: .5rem;
+        font-size: .7rem;
+        line-height: 1.45;
+        -webkit-line-clamp: 3;
         -webkit-box-orient: vertical;
     }
 
-    .brand-product-category {
-        margin: 0.4rem 0 0;
-        color: #64748b;
-        font-size: 0.75rem;
-        font-weight: 750;
+    .abd-hero-meta {
+        margin-top: .65rem;
     }
 
-    .brand-product-price {
-        margin-top: auto;
-        padding-top: 0.8rem;
-        color: #0066cc;
-        font-size: 1rem;
-        font-weight: 950;
+    .abd-meta-pill {
+        min-height: 30px;
+        padding: .35rem .55rem;
+        font-size: .57rem;
     }
 
-    .brand-product-meta {
-        display: flex;
+    .abd-hero-actions {
+        margin-top: .7rem;
+    }
+
+    .abd-hero-button {
+        min-height: 38px;
+        padding: .5rem .7rem;
+        font-size: .6rem;
+    }
+
+    .abd-controls {
+        grid-template-columns: 1fr;
+        gap: .5rem;
+        margin-top: .65rem;
+        padding: .55rem;
+    }
+
+    .abd-search {
+        gap: .4rem;
+    }
+
+    .abd-search input,
+    .abd-search button,
+    .abd-category-select {
+        min-height: 42px;
+    }
+
+    .abd-search button {
+        width: 44px;
+        padding: 0;
+    }
+
+    .abd-search button span {
+        display: none;
+    }
+
+    .abd-category-select {
+        font-size: .7rem;
+    }
+
+    .abd-category-track {
+        margin-top: .55rem;
+    }
+
+    .abd-category-chip {
+        min-height: 31px;
+        padding: .38rem .6rem;
+        font-size: .57rem;
+    }
+
+    .abd-products {
+        margin-top: 1rem;
+    }
+
+    .abd-heading {
         align-items: center;
-        justify-content: space-between;
-        gap: 0.6rem;
-        margin-top: 0.45rem;
-        color: #64748b;
-        font-size: 0.7rem;
-        font-weight: 750;
+        margin-bottom: .65rem;
     }
 
-    .brand-product-stock {
-        color: #047857;
+    .abd-heading-eyebrow {
+        font-size: .56rem;
     }
 
-    .brand-empty-products {
+    .abd-heading h2 {
+        font-size: 1.35rem;
+    }
+
+    .abd-result-count {
+        min-height: 28px;
+        padding: .32rem .5rem;
+        font-size: .58rem;
+    }
+
+    .abd-products-grid {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+        gap: .5rem;
+    }
+}
+
+@media (max-width: 360px) {
+    .abd-products-grid {
+        gap: .4rem;
+    }
+
+    .abd-hero {
+        min-height: 295px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        scroll-behavior: auto !important;
+    }
+}
+
+/* ===== REFERENCE STOREFRONT POLISH ===== */
+@media (min-width:761px){
+    .arolana-brand-detail{width:min(calc(100vw - 5rem),1840px)}
+    .abd-hero{
+        grid-template-columns:180px minmax(0,1fr) 220px;
+        min-height:345px;
+        padding:1.9rem 2rem;
+        gap:1.6rem
+    }
+    .abd-logo-panel{
+        grid-column:1;
+        grid-row:1;
+        width:160px;
+        min-height:145px;
+        justify-self:start
+    }
+    .abd-hero-content{
+        grid-column:2;
+        grid-row:1;
+    }
+    .abd-hero-stats{
+        grid-column:3;
+        grid-row:1;
+    }
+}
+
+.abd-hero-stats{
+    align-self:center;
+    overflow:hidden;
+    padding:.85rem .95rem;
+    border:1px solid rgba(255,255,255,.16);
+    border-radius:.82rem;
+    color:#fff;
+    background:rgba(4,28,65,.74);
+    box-shadow:0 18px 45px rgba(0,0,0,.20);
+    backdrop-filter:blur(14px);
+}
+.abd-hero-stat{
+    display:grid;
+    grid-template-columns:30px minmax(0,1fr);
+    align-items:center;
+    gap:.55rem;
+    padding:.58rem 0;
+    border-bottom:1px solid rgba(255,255,255,.12);
+}
+.abd-hero-stat:last-child{border-bottom:0}
+.abd-hero-stat-icon{
+    display:inline-flex;
+    width:30px;
+    height:30px;
+    align-items:center;
+    justify-content:center;
+    border-radius:50%;
+    color:#ffd19d;
+    background:rgba(245,130,32,.13);
+    font-size:.72rem;
+}
+.abd-hero-stat strong{
+    display:block;
+    color:#fff;
+    font-size:.84rem;
+    font-weight:950;
+    line-height:1.05;
+}
+.abd-hero-stat small{
+    display:block;
+    margin-top:.14rem;
+    color:rgba(255,255,255,.76);
+    font-size:.54rem;
+    font-weight:700;
+    line-height:1.2;
+}
+.abd-hero-trustline{
+    display:flex;
+    flex-wrap:wrap;
+    gap:.65rem 1.2rem;
+    margin-top:1rem;
+}
+.abd-hero-trust{
+    display:inline-flex;
+    align-items:center;
+    gap:.38rem;
+    color:rgba(255,255,255,.9);
+    font-size:.6rem;
+    font-weight:820;
+}
+.abd-hero-trust i{
+    color:#ffd19d;
+    font-size:.68rem;
+}
+@media(max-width:760px){
+    .abd-hero-stats{display:none}
+    .abd-hero-trustline{
+        gap:.45rem .8rem;
+        margin-top:.72rem;
+    }
+    .abd-hero-trust{
+        font-size:.54rem;
+    }
+}
+
+.abd-brand-tabs{display:flex;gap:2rem;overflow-x:auto;padding:0 1rem;border-bottom:1px solid var(--abd-line);background:#fff}.abd-brand-tab{position:relative;flex:0 0 auto;padding:1rem 0 .9rem;color:#334155;font-size:.72rem;font-weight:850;text-decoration:none}.abd-brand-tab.is-active:after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--abd-orange)}
+.abd-storefront-layout{display:grid;grid-template-columns:285px minmax(0,1fr) 285px;gap:1.15rem;margin-top:1rem}.abd-sidebar-card,.abd-assurance-card{border:1px solid var(--abd-line);border-radius:.8rem;background:#fff;box-shadow:var(--abd-shadow)}.abd-sidebar-card{padding:1rem}.abd-sidebar-card+.abd-sidebar-card{margin-top:.75rem}.abd-sidebar-title{margin:0 0 .75rem;font-size:.78rem;font-weight:950}.abd-side-link{display:flex;justify-content:space-between;padding:.48rem .65rem;border-radius:.45rem;color:#334155;font-size:.68rem;font-weight:750;text-decoration:none}.abd-side-link.is-active{background:#eef4ff;color:var(--abd-navy);font-weight:900}.abd-filter-label{display:block;margin:.75rem 0 .5rem;font-size:.66rem;font-weight:900}.abd-stock-row,.abd-range-values{display:flex;justify-content:space-between;color:#475569;font-size:.64rem;font-weight:700}.abd-range-line{height:3px;margin:.9rem .2rem .5rem;background:var(--abd-blue)}.abd-center-column{min-width:0}.abd-center-toolbar{display:flex;align-items:center;justify-content:space-between;gap:.8rem;margin-bottom:.75rem;color:#64748b;font-size:.7rem;font-weight:750}.abd-center-toolbar>span{padding-left:.15rem;color:#64748b;font-weight:800}.abd-sort{min-height:36px;padding:.45rem .75rem;border:1px solid var(--abd-line);border-radius:.5rem;background:#fff;font-size:.66rem;font-weight:800}.abd-center-column .abd-products{margin-top:0}.abd-center-column .abd-heading{display:none}.abd-center-column .abd-products-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem}.abd-assurance-card{padding:1.1rem}.abd-assurance-item{display:grid;grid-template-columns:28px 1fr;gap:.65rem;padding:.75rem 0}.abd-assurance-item i{color:#0566e8}.abd-assurance-item strong{display:block;color:#063b8c;font-size:.7rem;font-weight:950}.abd-assurance-item span{color:#475569;font-size:.64rem;line-height:1.45}.abd-benefit-strip{display:grid;grid-template-columns:repeat(4,1fr);margin-top:1rem;border:1px solid #dbe7f7;border-radius:.7rem;background:#f5f9ff}.abd-benefit{display:grid;grid-template-columns:32px 1fr;align-items:center;gap:.65rem;min-height:74px;padding:.8rem 1.2rem}.abd-benefit+.abd-benefit{border-left:1px solid #bfd0e8}.abd-benefit i{color:#075fd8;font-size:1.2rem}.abd-benefit strong{display:block;color:#073b88;font-size:.7rem;font-weight:950}.abd-benefit span{font-size:.6rem;color:#475569}
+@media(max-width:1180px){.abd-storefront-layout{grid-template-columns:220px 1fr}.abd-assurance-column{display:none}.abd-center-column .abd-products-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:760px){.abd-storefront-layout{display:block}.abd-sidebar-column,.abd-assurance-column{display:none}.abd-center-column .abd-products-grid{grid-template-columns:repeat(2,1fr)}.abd-benefit-strip{grid-template-columns:repeat(2,1fr)}}
+
+
+.abd-logo-panel{
+    overflow:hidden;
+}
+.abd-logo-panel img{
+    max-width:100%;
+    max-height:105px;
+    object-fit:contain;
+}
+
+
+/* ==========================================================
+   TRUE VIEWPORT BREAKOUT
+   Brand Detail must ignore the narrower base container.
+   ========================================================== */
+@media (min-width: 761px) {
+    .arolana-brand-detail {
+        width: calc(100vw - 2rem) !important;
+        max-width: none !important;
+
+        margin-left: calc(50% - 50vw + 1rem) !important;
+        margin-right: calc(50% - 50vw + 1rem) !important;
+
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+}
+
+@media (min-width: 1600px) {
+    .arolana-brand-detail {
+        width: calc(100vw - 3rem) !important;
+        margin-left: calc(50% - 50vw + 1.5rem) !important;
+        margin-right: calc(50% - 50vw + 1.5rem) !important;
+    }
+}
+
+
+/* ==========================================================
+   PREMIUM BRAND MERCHANDISING
+   Featured / Best Sellers / New Arrivals / Categories
+   ========================================================== */
+
+.abd-merchandising {
+    display: grid;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.abd-merch-section {
+    overflow: hidden;
+    border: 1px solid var(--abd-line);
+    border-radius: .9rem;
+    background: #fff;
+    box-shadow: 0 12px 32px rgba(7, 26, 68, .055);
+}
+
+.abd-merch-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.05rem .72rem;
+}
+
+.abd-merch-title-wrap {
+    min-width: 0;
+}
+
+.abd-merch-kicker {
+    display: flex;
+    align-items: center;
+    gap: .38rem;
+    margin: 0 0 .18rem;
+    color: var(--abd-orange);
+    font-size: .58rem;
+    font-weight: 950;
+    letter-spacing: .11em;
+    text-transform: uppercase;
+}
+
+.abd-merch-title {
+    margin: 0;
+    color: var(--abd-navy);
+    font-size: 1.05rem;
+    font-weight: 950;
+    letter-spacing: -.025em;
+}
+
+.abd-merch-copy {
+    margin: .2rem 0 0;
+    color: var(--abd-muted);
+    font-size: .62rem;
+    font-weight: 680;
+}
+
+.abd-merch-link {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: .35rem;
+    color: var(--abd-blue);
+    font-size: .61rem;
+    font-weight: 900;
+    text-decoration: none;
+}
+
+.abd-merch-rail {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(205px, 1fr);
+    gap: .72rem;
+    overflow-x: auto;
+    padding: .15rem 1.05rem 1rem;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: inline proximity;
+    scrollbar-width: thin;
+}
+
+.abd-merch-rail > * {
+    min-width: 0;
+    scroll-snap-align: start;
+}
+
+.abd-merch-section-featured {
+    border-color: rgba(245, 130, 32, .22);
+    background:
+        linear-gradient(180deg, rgba(255, 248, 240, .72), #fff 34%);
+}
+
+.abd-merch-section-bestseller {
+    border-color: rgba(0, 102, 204, .18);
+    background:
+        linear-gradient(180deg, rgba(238, 247, 255, .76), #fff 34%);
+}
+
+.abd-merch-section-new {
+    border-color: rgba(0, 184, 255, .17);
+}
+
+.abd-category-showcase {
+    overflow: hidden;
+    border: 1px solid var(--abd-line);
+    border-radius: .9rem;
+    background: #fff;
+    box-shadow: 0 12px 32px rgba(7, 26, 68, .05);
+}
+
+.abd-category-showcase-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: .65rem;
+    padding: .15rem 1.05rem 1rem;
+}
+
+.abd-category-showcase-card {
+    display: flex;
+    min-width: 0;
+    min-height: 112px;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .7rem;
+    padding: .85rem;
+    border: 1px solid #e8edf4;
+    border-radius: .72rem;
+    color: inherit;
+    background:
+        radial-gradient(
+            circle at 100% 0,
+            rgba(0, 184, 255, .09),
+            transparent 7rem
+        ),
+        #fbfdff;
+    text-decoration: none;
+    transition:
+        transform .16s ease,
+        border-color .16s ease,
+        box-shadow .16s ease;
+}
+
+.abd-category-showcase-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(0, 102, 204, .26);
+    box-shadow: 0 10px 24px rgba(7, 26, 68, .07);
+}
+
+.abd-category-showcase-icon {
+    display: inline-flex;
+    width: 34px;
+    height: 34px;
+    align-items: center;
+    justify-content: center;
+    border-radius: .55rem;
+    color: var(--abd-blue);
+    background: #eef5ff;
+    font-size: .8rem;
+}
+
+.abd-category-showcase-card strong {
+    display: block;
+    overflow: hidden;
+    color: var(--abd-navy);
+    font-size: .68rem;
+    font-weight: 950;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.abd-category-showcase-card small {
+    display: block;
+    margin-top: .13rem;
+    color: var(--abd-muted);
+    font-size: .55rem;
+    font-weight: 720;
+}
+
+.abd-catalog-intro {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 1.2rem 0 .7rem;
+}
+
+.abd-catalog-intro h2 {
+    margin: 0;
+    color: var(--abd-navy);
+    font-size: 1.05rem;
+    font-weight: 950;
+}
+
+.abd-catalog-intro p {
+    margin: .18rem 0 0;
+    color: var(--abd-muted);
+    font-size: .62rem;
+    font-weight: 680;
+}
+
+.abd-catalog-badge {
+    display: inline-flex;
+    min-height: 30px;
+    align-items: center;
+    padding: .38rem .62rem;
+    border: 1px solid var(--abd-line);
+    border-radius: 999px;
+    color: #475569;
+    background: #fff;
+    font-size: .6rem;
+    font-weight: 850;
+}
+
+/* Honest sidebar information: only controls backed by the view. */
+.abd-inventory-summary {
+    display: grid;
+    gap: .5rem;
+}
+
+.abd-inventory-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .65rem;
+    padding: .55rem .6rem;
+    border-radius: .5rem;
+    background: #f8fafc;
+    color: #475569;
+    font-size: .63rem;
+    font-weight: 750;
+}
+
+.abd-inventory-row strong {
+    color: var(--abd-navy);
+    font-weight: 950;
+}
+
+.abd-filter-clear {
+    display: inline-flex;
+    width: 100%;
+    min-height: 34px;
+    align-items: center;
+    justify-content: center;
+    gap: .35rem;
+    margin-top: .7rem;
+    border: 1px solid rgba(0, 102, 204, .18);
+    border-radius: .5rem;
+    color: var(--abd-blue);
+    background: #f7fbff;
+    font-size: .61rem;
+    font-weight: 900;
+    text-decoration: none;
+}
+
+@media (min-width: 1450px) {
+    .abd-merch-rail {
+        grid-auto-columns: minmax(215px, calc((100% - 2.16rem) / 4));
+    }
+}
+
+@media (max-width: 1200px) {
+    .abd-category-showcase-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 760px) {
+    .abd-merchandising {
+        gap: .7rem;
+        margin-top: .7rem;
+    }
+
+    .abd-merch-section,
+    .abd-category-showcase {
+        border-radius: .72rem;
+    }
+
+    .abd-merch-head {
+        align-items: center;
+        padding: .75rem .72rem .55rem;
+    }
+
+    .abd-merch-title {
+        font-size: .86rem;
+    }
+
+    .abd-merch-copy {
+        font-size: .55rem;
+    }
+
+    .abd-merch-link {
+        font-size: .55rem;
+    }
+
+    .abd-merch-rail {
+        grid-auto-columns: minmax(165px, 74vw);
+        gap: .5rem;
+        padding: .08rem .72rem .72rem;
+        scrollbar-width: none;
+    }
+
+    .abd-merch-rail::-webkit-scrollbar {
+        display: none;
+    }
+
+    .abd-category-showcase-grid {
+        display: flex;
+        gap: .5rem;
+        overflow-x: auto;
+        padding: .08rem .72rem .72rem;
+        scrollbar-width: none;
+    }
+
+    .abd-category-showcase-grid::-webkit-scrollbar {
+        display: none;
+    }
+
+    .abd-category-showcase-card {
+        min-width: 142px;
+        min-height: 96px;
+        flex: 0 0 142px;
+        padding: .68rem;
+    }
+
+    .abd-catalog-intro {
+        align-items: center;
+        margin: .85rem 0 .55rem;
+    }
+
+    .abd-catalog-intro h2 {
+        font-size: .9rem;
+    }
+
+    .abd-catalog-intro p {
+        display: none;
+    }
+
+    .abd-catalog-badge {
+        min-height: 27px;
+        font-size: .54rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .abd-category-showcase-card {
+        transition: none;
+    }
+}
+
+
+/* ==========================================================
+   DEDICATED BRAND MERCH CARD
+   Do not use the full catalog product card inside horizontal rails.
+   ========================================================== */
+
+.abd-merch-rail {
+    align-items: start !important;
+    grid-auto-columns: 250px !important;
+}
+
+.abd-merch-rail > * {
+    height: auto !important;
+    min-height: 0 !important;
+    max-width: none !important;
+}
+
+.abd-merch-card {
+    display: flex !important;
+    width: 250px !important;
+    min-width: 250px !important;
+    max-width: 250px !important;
+    height: 355px !important;
+    min-height: 355px !important;
+    max-height: 355px !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    border: 1px solid #e4eaf2 !important;
+    border-radius: .72rem !important;
+    color: inherit !important;
+    background: #fff !important;
+    text-decoration: none !important;
+    box-shadow: 0 8px 22px rgba(7, 26, 68, .055) !important;
+    transition:
+        transform .16s ease,
+        border-color .16s ease,
+        box-shadow .16s ease !important;
+}
+
+.abd-merch-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(0, 102, 204, .25) !important;
+    box-shadow: 0 14px 30px rgba(7, 26, 68, .10) !important;
+}
+
+.abd-merch-card-image {
+    position: relative;
+    display: flex;
+    height: 185px !important;
+    min-height: 185px !important;
+    max-height: 185px !important;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: .75rem;
+    background:
+        radial-gradient(
+            circle at 50% 0,
+            rgba(0, 184, 255, .07),
+            transparent 12rem
+        ),
+        #f8fbff;
+}
+
+.abd-merch-card-image img {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 160px !important;
+    object-fit: contain !important;
+}
+
+.abd-merch-card-placeholder {
+    display: inline-flex;
+    width: 100%;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    font-size: 2rem;
+}
+
+.abd-merch-card-badges {
+    position: absolute;
+    top: .55rem;
+    left: .55rem;
+    z-index: 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .28rem;
+}
+
+.abd-merch-badge {
+    display: inline-flex;
+    min-height: 23px;
+    align-items: center;
+    padding: .24rem .42rem;
+    border-radius: .34rem;
+    color: #fff;
+    font-size: .53rem;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.abd-merch-badge-new {
+    background: #10b981;
+}
+
+.abd-merch-badge-best {
+    background: #f59e0b;
+}
+
+.abd-merch-card-body {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+    padding: .72rem .78rem .78rem;
+}
+
+.abd-merch-card-brand {
+    margin-bottom: .25rem;
+    color: #64748b;
+    font-size: .56rem;
+    font-weight: 750;
+}
+
+.abd-merch-card h3 {
+    display: -webkit-box;
+    overflow: hidden;
+    min-height: 2.65em;
+    margin: 0;
+    color: var(--abd-navy);
+    font-size: .7rem;
+    font-weight: 900;
+    line-height: 1.32;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.abd-merch-card-rating {
+    display: flex;
+    align-items: center;
+    gap: .24rem;
+    margin-top: .55rem;
+    color: #64748b;
+    font-size: .56rem;
+    font-weight: 750;
+}
+
+.abd-merch-stars {
+    color: #f59e0b;
+}
+
+.abd-merch-review-count {
+    color: #94a3b8;
+}
+
+.abd-merch-card-bottom {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: .55rem;
+    margin-top: auto;
+    padding-top: .7rem;
+}
+
+.abd-merch-card-price {
+    color: var(--abd-blue);
+    font-size: .82rem;
+    font-weight: 950;
+}
+
+.abd-merch-stock {
+    display: inline-flex;
+    padding: .2rem .34rem;
+    border-radius: .3rem;
+    color: #047857;
+    background: #ecfdf5;
+    font-size: .49rem;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+@media (min-width: 1450px) {
+    .abd-merch-rail {
+        grid-auto-columns: 260px !important;
+    }
+
+    .abd-merch-card {
+        width: 260px !important;
+        min-width: 260px !important;
+        max-width: 260px !important;
+    }
+}
+
+@media (max-width: 760px) {
+    .abd-merch-rail {
+        grid-auto-columns: 72vw !important;
+    }
+
+    .abd-merch-card {
+        width: 72vw !important;
+        min-width: 72vw !important;
+        max-width: 72vw !important;
+        height: 330px !important;
+        min-height: 330px !important;
+        max-height: 330px !important;
+    }
+
+    .abd-merch-card-image {
+        height: 165px !important;
+        min-height: 165px !important;
+        max-height: 165px !important;
+    }
+
+    .abd-merch-card-image img {
+        max-height: 145px !important;
+    }
+}
+
+
+/* ==========================================================
+   FINAL BRAND STOREFRONT REFERENCE
+   Main product -> pagination -> merchandising rails
+   ========================================================== */
+
+.abd-final-catalog {
+    display: grid;
+    grid-template-columns: 285px minmax(0, 1fr);
+    gap: 1.15rem;
+    align-items: start;
+    margin-top: 1rem;
+}
+
+.abd-final-main {
+    min-width: 0;
+}
+
+.abd-final-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: .72rem;
+}
+
+.abd-final-toolbar h2 {
+    margin: 0;
+    color: var(--abd-navy);
+    font-size: 1.05rem;
+    font-weight: 950;
+}
+
+.abd-final-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+}
+
+.abd-final-sort {
+    min-height: 40px;
+    padding: .55rem .78rem;
+    border: 1px solid var(--abd-line);
+    border-radius: .55rem;
+    color: var(--abd-navy);
+    background: #fff;
+    font-size: .65rem;
+    font-weight: 850;
+}
+
+
+/* ==========================================================
+   PREMIUM BRAND PRODUCT LIST
+   B&H-inspired information density with Arolana styling.
+   ========================================================== */
+
+.abd-main-product {
+    display: grid;
+    grid-template-columns:
+        minmax(210px, 250px)
+        minmax(0, 1fr)
+        minmax(220px, 260px);
+    gap: 1.35rem;
+    align-items: stretch;
+
+    min-height: 280px;
+    padding: 1.25rem 1.35rem;
+
+    border: 1px solid #e4e9f1;
+    border-radius: .55rem;
+
+    background: #ffffff;
+    box-shadow: 0 5px 18px rgba(7, 26, 68, .035);
+}
+
+.abd-main-product + .abd-main-product {
+    margin-top: .8rem;
+}
+
+.abd-main-product-image-column {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.abd-main-product-image {
+    display: flex;
+    width: 100%;
+    height: 205px;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+
+    background: #ffffff;
+}
+
+.abd-main-product-image img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: 235px;
+    max-height: 200px;
+    object-fit: contain;
+}
+
+.abd-main-image-placeholder {
+    display: inline-flex;
+    width: 100%;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    background: #f8fafc;
+    font-size: 2rem;
+}
+
+.abd-main-product-copy {
+    min-width: 0;
+    align-self: center;
+}
+
+.abd-main-product-brand {
+    display: block;
+    margin-bottom: .28rem;
+    color: #64748b;
+    font-size: .63rem;
+    font-weight: 800;
+}
+
+.abd-main-product h3 {
+    max-width: 760px;
+    margin: 0;
+    color: var(--abd-navy);
+    font-size: 1.02rem;
+    font-weight: 950;
+    line-height: 1.32;
+    letter-spacing: -.01em;
+}
+
+.abd-main-product-identifiers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem .75rem;
+    margin-top: .48rem;
+    color: #7b8798;
+    font-size: .54rem;
+    font-weight: 720;
+}
+
+.abd-main-product-rating {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .42rem;
+    margin-top: .7rem;
+    color: #64748b;
+    font-size: .63rem;
+    font-weight: 760;
+}
+
+.abd-main-product-rating .stars {
+    color: #f59e0b;
+    letter-spacing: .04rem;
+}
+
+.abd-main-feature-block {
+    margin-top: .8rem;
+}
+
+.abd-main-feature-title {
+    display: block;
+    margin-bottom: .25rem;
+    color: var(--abd-navy);
+    font-size: .61rem;
+    font-weight: 950;
+}
+
+.abd-main-feature-copy {
+    display: -webkit-box;
+    overflow: hidden;
+    margin: 0;
+    max-width: 720px;
+    color: #475569;
+    font-size: .59rem;
+    font-weight: 650;
+    line-height: 1.48;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+
+.abd-main-detail-link {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    margin-top: .42rem;
+    color: var(--abd-blue);
+    font-size: .57rem;
+    font-weight: 900;
+    text-decoration: none;
+}
+
+.abd-main-product-action {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    justify-content: center;
+    gap: .65rem;
+    padding-left: 1rem;
+    border-left: 1px solid #edf0f5;
+}
+
+.abd-main-price-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: .5rem;
+    margin: 0;
+}
+
+.abd-main-price {
+    color: #0f172a;
+    font-size: 1.45rem;
+    font-weight: 950;
+    letter-spacing: -.025em;
+}
+
+.abd-main-compare {
+    color: #94a3b8;
+    font-size: .64rem;
+    font-weight: 760;
+    text-decoration: line-through;
+}
+
+.abd-main-stock {
+    display: inline-flex;
+    width: fit-content;
+    align-items: center;
+    gap: .3rem;
+    padding: 0;
+    color: #047857;
+    background: transparent;
+    font-size: .61rem;
+    font-weight: 900;
+}
+
+.abd-main-stock::before {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #10b981;
+    content: "";
+}
+
+.abd-main-out-stock {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    color: #b45309;
+    font-size: .61rem;
+    font-weight: 900;
+}
+
+.abd-main-vendor-box {
+    padding: .58rem .65rem;
+    border-radius: .42rem;
+    background: #f8fafc;
+}
+
+.abd-main-vendor-label {
+    display: block;
+    color: #7b8798;
+    font-size: .5rem;
+    font-weight: 780;
+    text-transform: uppercase;
+    letter-spacing: .055em;
+}
+
+.abd-main-vendor-name {
+    display: block;
+    overflow: hidden;
+    margin-top: .15rem;
+    color: var(--abd-navy);
+    font-size: .61rem;
+    font-weight: 900;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.abd-main-condition {
+    display: block;
+    margin-top: .12rem;
+    color: #64748b;
+    font-size: .53rem;
+    font-weight: 720;
+}
+
+.abd-main-cta {
+    display: inline-flex;
+    width: 100%;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    gap: .45rem;
+    padding: .65rem .8rem;
+    border: 0;
+    border-radius: .45rem;
+    color: #fff;
+    background: linear-gradient(135deg, #ff7a00, #f58220);
+    font-size: .67rem;
+    font-weight: 900;
+    text-decoration: none;
+    box-shadow: 0 8px 18px rgba(245, 130, 32, .16);
+}
+
+.abd-main-cta:hover {
+    color: #fff;
+    background: #e96f0b;
+}
+
+.abd-main-secondary {
+    display: inline-flex;
+    min-height: 36px;
+    align-items: center;
+    justify-content: center;
+    gap: .35rem;
+    color: var(--abd-blue);
+    font-size: .58rem;
+    font-weight: 900;
+    text-decoration: none;
+}
+
+
+/* Main catalog pagination sits directly under the product. */
+.abd-product-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .65rem;
+    width: 100%;
+    margin: 1.35rem 0 2.35rem;
+    padding: .15rem 0;
+}
+
+.abd-product-page {
+    display: inline-flex;
+    width: 52px;
+    height: 52px;
+    flex: 0 0 52px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #dce4ee;
+    border-radius: 15px;
+    color: #334155;
+    background: #fff;
+    font-size: 1rem;
+    font-weight: 900;
+    line-height: 1;
+    text-decoration: none;
+    box-shadow: 0 8px 22px rgba(7, 26, 68, .055);
+    transition:
+        transform .16s ease,
+        border-color .16s ease,
+        color .16s ease,
+        box-shadow .16s ease;
+}
+
+.abd-product-page:hover {
+    border-color: rgba(0,102,204,.28);
+    color: var(--abd-blue);
+}
+
+.abd-product-page.is-active {
+    border-color: transparent;
+    color: #fff;
+    background: linear-gradient(135deg, #2868f0, #5c39f3);
+    box-shadow: 0 8px 20px rgba(72,73,235,.18);
+    cursor: default;
+}
+
+.abd-product-page.is-active:hover {
+    transform: none;
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 8px 20px rgba(72,73,235,.18);
+}
+
+.abd-product-page.is-disabled {
+    opacity: .38;
+    border-color: #e5eaf1;
+    color: #94a3b8;
+    background: #f8fafc;
+    box-shadow: none;
+    cursor: default;
+    pointer-events: none;
+}
+
+.abd-product-page i {
+    font-size: .9rem;
+    line-height: 1;
+}
+
+/* Merchandising now lives BELOW product and pagination. */
+.abd-final-merchandising {
+    display: grid;
+    gap: 1rem;
+    width: 100%;
+    margin-top: 0;
+}
+
+.abd-final-rail-section {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--abd-line);
+    border-radius: .78rem;
+    background: #fff;
+    box-shadow: none;
+}
+
+.abd-final-rail-section.featured {
+    border-color: rgba(245,130,32,.22);
+}
+
+.abd-final-rail-section.bestsellers {
+    border-color: rgba(0,102,204,.18);
+}
+
+.abd-final-rail-section.new-arrivals {
+    border-color: rgba(22,163,74,.18);
+}
+
+.abd-final-rail-head {
+    position: relative;
+    display: flex;
+    min-height: 58px;
+    align-items: center;
+    justify-content: center;
+    padding: .95rem 5.8rem .7rem;
+    text-align: center;
+}
+
+.abd-final-rail-head h2 {
+    width: 100%;
+    margin: 0;
+    color: var(--abd-navy);
+    font-size: .84rem;
+    font-weight: 950;
+    line-height: 1.2;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+}
+
+.featured .abd-final-rail-head h2 {
+    color: var(--abd-orange);
+}
+
+.bestsellers .abd-final-rail-head h2 {
+    color: var(--abd-navy);
+}
+
+.new-arrivals .abd-final-rail-head h2 {
+    color: #07923c;
+}
+
+.abd-final-view-all {
+    position: absolute;
+    top: 50%;
+    right: .85rem;
+    color: var(--abd-blue);
+    font-size: .58rem;
+    font-weight: 900;
+    text-decoration: none;
+    transform: translateY(-50%);
+}
+
+.abd-final-rail-wrap {
+    position: relative;
+    padding: 0 2.55rem .75rem;
+}
+
+.abd-final-rail {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: calc((100% - 6rem) / 7);
+    gap: 1rem;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+}
+
+.abd-final-rail::-webkit-scrollbar {
+    display: none;
+}
+
+.abd-final-product {
+    min-width: 0;
+    color: inherit;
+    text-decoration: none;
+    scroll-snap-align: start;
+}
+
+.abd-final-product-image {
+    display: flex;
+    height: 105px;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    margin-bottom: .42rem;
+}
+
+.abd-final-product-image img {
+    width: 100%;
+    height: 100%;
+    max-height: 98px;
+    object-fit: contain;
+}
+
+.abd-final-product h3 {
+    display: -webkit-box;
+    overflow: hidden;
+    min-height: 2.45em;
+    margin: 0;
+    color: var(--abd-navy);
+    font-size: .58rem;
+    font-weight: 800;
+    line-height: 1.22;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.abd-final-rating {
+    display: flex;
+    align-items: center;
+    gap: .25rem;
+    margin-top: .35rem;
+    color: #64748b;
+    font-size: .52rem;
+    font-weight: 720;
+}
+
+.abd-final-rating .stars {
+    color: #f97316;
+}
+
+.abd-final-price {
+    display: block;
+    margin-top: .32rem;
+    color: var(--abd-navy);
+    font-size: .62rem;
+    font-weight: 950;
+}
+
+.abd-final-arrow {
+    position: absolute;
+    top: 50%;
+    z-index: 4;
+    display: inline-flex;
+    width: 32px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #dce4ee;
+    border-radius: 50%;
+    color: #334155;
+    background: rgba(255,255,255,.97);
+    box-shadow: 0 5px 14px rgba(7,26,68,.08);
+    cursor: pointer;
+    transform: translateY(-50%);
+}
+
+.abd-final-arrow.prev {
+    left: .55rem;
+}
+
+.abd-final-arrow.next {
+    right: .55rem;
+}
+
+.abd-final-arrow:disabled {
+    opacity: .3;
+    cursor: default;
+}
+
+@media (max-width: 1180px) {
+    .abd-final-catalog {
+        grid-template-columns: 220px minmax(0,1fr);
+    }
+
+    .abd-main-product {
+        grid-template-columns: 200px minmax(0,1fr) 185px;
+    }
+
+    .abd-final-rail {
+        grid-auto-columns: calc((100% - 3rem) / 4);
+    }
+}
+
+@media (max-width: 760px) {
+    .abd-final-catalog {
+        display: block;
+    }
+
+    .abd-final-catalog .abd-sidebar-column {
+        display: none;
+    }
+
+    .abd-final-toolbar {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .abd-main-product {
+        grid-template-columns: 1fr;
+        gap: .7rem;
+        padding: .8rem;
+    }
+
+    .abd-main-product-image {
+        height: 185px;
+    }
+
+    .abd-main-product-action {
+        height: auto;
+    }
+
+    .abd-main-stock {
+        align-self: flex-start;
+    }
+
+    .abd-product-pagination {
+        gap: .38rem;
+    }
+
+    .abd-product-page {
+        width: 38px;
+        height: 38px;
+    }
+
+    .abd-final-rail-head {
+        padding-inline: 3.9rem;
+    }
+
+    .abd-final-rail {
+        grid-auto-columns: 43vw;
+        gap: .7rem;
+    }
+
+    .abd-final-rail-wrap {
+        padding-inline: 2.1rem;
+    }
+
+    .abd-final-product-image {
+        height: 95px;
+    }
+}
+
+
+/* ==========================================================
+   FINAL APPROVED ORDER / SPACING OVERRIDES
+   Product -> Pagination -> Featured -> Best Sellers -> New
+   ========================================================== */
+
+.abd-final-main > .abd-main-product + .abd-main-product {
+    margin-top: 0;
+}
+
+/* The server should send ONE product per page. If an old view
+   accidentally sends a queryset, do not visually stack cards. */
+.abd-final-main > .abd-main-product {
+    width: 100%;
+}
+
+/* Pagination is deliberately separated from Featured from Brand. */
+.abd-product-pagination + .abd-final-merchandising {
+    margin-top: 0;
+}
+
+.abd-final-rail-head h2 {
+    position: relative;
+    left: 0;
+    right: 0;
+    margin-inline: auto;
+}
+
+@media (max-width: 760px) {
+    .abd-main-product {
+        padding: .75rem .2rem 1rem;
+    }
+
+    .abd-product-pagination {
+        gap: .42rem;
+        margin: 1rem 0 1.65rem;
+    }
+
+    .abd-product-page {
+        width: 44px;
+        height: 44px;
+        flex-basis: 44px;
+        border-radius: 13px;
+        font-size: .85rem;
+    }
+
+    .abd-final-rail-head {
+        min-height: 52px;
+        padding: .8rem 4.25rem .6rem;
+    }
+
+    .abd-final-rail-head h2 {
+        font-size: .72rem;
+    }
+}
+
+
+
+
+/* ==========================================================
+   FINAL MERCHANDISING ALIGNMENT
+   Amazon-style: products start from the LEFT edge.
+   ========================================================== */
+
+.abd-final-rail {
+    justify-content: start !important;
+    justify-items: start !important;
+    text-align: left !important;
+}
+
+.abd-final-product {
+    justify-self: start !important;
+    text-align: left !important;
+}
+
+.abd-final-product-image {
+    justify-content: flex-start !important;
+}
+
+.abd-final-product-image img {
+    margin-left: 0 !important;
+    margin-right: auto !important;
+}
+
+.abd-final-product h3,
+.abd-final-rating,
+.abd-final-price {
+    text-align: left !important;
+}
+
+/* Keep the rail content closer to the left arrow, like Amazon. */
+.abd-final-rail-wrap {
+    padding-left: 3.2rem !important;
+    padding-right: 3.2rem !important;
+}
+
+/* On mobile, keep natural horizontal scrolling from the left. */
+@media (max-width: 760px) {
+    .abd-final-rail-wrap {
+        padding-left: 2.35rem !important;
+        padding-right: 2.35rem !important;
+    }
+
+    .abd-final-rail {
+        justify-content: start !important;
+    }
+}
+
+
+/* ==========================================================
+   FULL-WIDTH BRAND MERCHANDISING
+   Catalog/sidebar ends at pagination.
+   Featured / Best Sellers / New Arrivals span the full brand page.
+   ========================================================== */
+
+.abd-final-merchandising-fullwidth {
+    width: 100%;
+    margin-top: 1.4rem;
+}
+
+.abd-final-merchandising-fullwidth .abd-final-rail-section {
+    width: 100%;
+}
+
+.abd-final-merchandising-fullwidth .abd-final-rail-wrap {
+    width: 100%;
+}
+
+.abd-final-merchandising-fullwidth .abd-final-rail {
+    width: 100%;
+    justify-content: start;
+}
+
+@media (min-width: 1181px) {
+    .abd-final-merchandising-fullwidth .abd-final-rail {
+        grid-auto-columns: calc((100% - 6rem) / 7);
+    }
+}
+
+@media (min-width: 761px) and (max-width: 1180px) {
+    .abd-final-merchandising-fullwidth .abd-final-rail {
+        grid-auto-columns: calc((100% - 3rem) / 4);
+    }
+}
+
+@media (max-width: 760px) {
+    .abd-final-merchandising-fullwidth {
+        margin-top: 1rem;
+    }
+
+    .abd-final-merchandising-fullwidth .abd-final-rail {
+        grid-auto-columns: 43vw;
+    }
+}
+
+
+/* ==========================================================
+   BRAND FILTER SIDEBAR
+   Dense, useful marketplace filtering instead of empty summary cards.
+   ========================================================== */
+
+.abd-filter-sidebar {
+    position: relative;
+}
+
+.abd-filter-panel {
+    position: sticky;
+    top: 1rem;
+    overflow: hidden;
+    border: 1px solid var(--abd-line);
+    border-radius: .78rem;
+    background: #fff;
+    box-shadow: 0 10px 28px rgba(7, 26, 68, .045);
+}
+
+.abd-filter-section {
+    padding: .9rem .95rem;
+}
+
+.abd-filter-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .65rem;
+    margin-bottom: .55rem;
+}
+
+.abd-filter-section-head h2 {
+    margin: 0;
+    color: var(--abd-navy);
+    font-size: .76rem;
+    font-weight: 950;
+}
+
+.abd-filter-divider {
+    height: 1px;
+    background: var(--abd-line);
+}
+
+.abd-filter-link {
+    display: flex;
+    width: 100%;
+    min-height: 32px;
+    align-items: center;
+    justify-content: space-between;
+    gap: .7rem;
+    padding: .36rem .45rem;
+    border: 0;
+    border-radius: .42rem;
+    color: #334155;
+    background: transparent;
+    font: inherit;
+    font-size: .64rem;
+    font-weight: 740;
+    text-align: left;
+    cursor: pointer;
+}
+
+.abd-filter-link:hover {
+    color: var(--abd-blue);
+    background: #f8fbff;
+}
+
+.abd-filter-link.is-active {
+    color: var(--abd-navy);
+    background: #eef4ff;
+    font-weight: 900;
+}
+
+.abd-filter-number {
+    margin-left: auto;
+    color: #718096;
+    font-size: .57rem;
+    font-weight: 850;
+    white-space: nowrap;
+}
+
+.abd-filter-check {
+    position: relative;
+    display: grid;
+    grid-template-columns: 17px minmax(0, 1fr) auto;
+    gap: .48rem;
+    align-items: center;
+    min-height: 32px;
+    margin: 0;
+    color: #334155;
+    font-size: .63rem;
+    font-weight: 720;
+    cursor: pointer;
+}
+
+.abd-filter-check input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.abd-filter-checkbox-ui {
+    display: inline-flex;
+    width: 15px;
+    height: 15px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #9aa8ba;
+    border-radius: 3px;
+    background: #fff;
+}
+
+.abd-filter-check input:checked + .abd-filter-checkbox-ui {
+    border-color: var(--abd-blue);
+    background: var(--abd-blue);
+}
+
+.abd-filter-check input:checked + .abd-filter-checkbox-ui::after {
+    color: #fff;
+    font-size: 9px;
+    font-weight: 950;
+    content: "✓";
+}
+
+.abd-filter-check-label {
+    min-width: 0;
+}
+
+.abd-rating-filter {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: .4rem;
+    min-height: 32px;
+    padding: .3rem .2rem;
+    border: 0;
+    color: #334155;
+    background: transparent;
+    font: inherit;
+    font-size: .62rem;
+    font-weight: 760;
+    text-align: left;
+    cursor: pointer;
+}
+
+.abd-rating-filter.is-active {
+    color: var(--abd-blue);
+    font-weight: 900;
+}
+
+.abd-rating-stars {
+    color: #f97316;
+    font-size: .75rem;
+    letter-spacing: -.05em;
+}
+
+.abd-price-filter {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 42px;
+    gap: .35rem;
+    align-items: end;
+}
+
+.abd-price-filter label {
+    min-width: 0;
+}
+
+.abd-price-filter label span {
+    display: block;
+    margin-bottom: .22rem;
+    color: #64748b;
+    font-size: .52rem;
+    font-weight: 850;
+}
+
+.abd-price-filter input {
+    width: 100%;
+    min-width: 0;
+    height: 34px;
+    padding: .35rem .42rem;
+    border: 1px solid #cbd5e1;
+    border-radius: .38rem;
+    outline: 0;
+    color: var(--abd-navy);
+    background: #fff;
+    font-size: .58rem;
+    font-weight: 750;
+}
+
+.abd-price-filter input:focus {
+    border-color: var(--abd-blue);
+    box-shadow: 0 0 0 2px rgba(0, 102, 204, .08);
+}
+
+.abd-price-filter button {
+    height: 34px;
+    border: 0;
+    border-radius: .38rem;
+    color: #fff;
+    background: var(--abd-blue);
+    font-size: .58rem;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.abd-clear-all-filters {
+    display: inline-flex;
+    width: calc(100% - 1.9rem);
+    min-height: 36px;
+    align-items: center;
+    justify-content: center;
+    gap: .4rem;
+    margin: .15rem .95rem .95rem;
+    border: 1px solid rgba(0, 102, 204, .2);
+    border-radius: .5rem;
+    color: var(--abd-blue);
+    background: #f7fbff;
+    font-size: .6rem;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+@media (max-width: 760px) {
+    .abd-filter-sidebar {
+        display: none;
+    }
+}
+
+
+/* Premium list responsive behavior */
+@media (max-width: 1180px) {
+    .abd-main-product {
+        grid-template-columns:
+            190px
+            minmax(0, 1fr)
+            210px;
+        gap: 1rem;
+        padding: 1rem;
+    }
+
+    .abd-main-product-image {
+        height: 180px;
+    }
+
+    .abd-main-product-image img {
+        max-height: 172px;
+    }
+}
+
+@media (max-width: 900px) {
+    .abd-main-product {
+        grid-template-columns: 175px minmax(0, 1fr);
+    }
+
+    .abd-main-product-action {
         grid-column: 1 / -1;
-        padding: 4rem 1rem;
-        border: 1px dashed rgba(0, 102, 204, 0.28);
-        border-radius: 1.25rem;
-        text-align: center;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: .55rem .8rem;
+        padding: .8rem 0 0;
+        border-top: 1px solid #edf0f5;
+        border-left: 0;
     }
 
-    .brand-empty-products i {
-        color: #0066cc;
-        font-size: 2.5rem;
+    .abd-main-vendor-box {
+        grid-column: 1;
     }
 
-    .brand-empty-products h2 {
-        margin: 1rem 0 0.35rem;
-        color: #071a44;
+    .abd-main-cta {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+        min-width: 170px;
     }
 
-    .brand-empty-products p {
-        margin: 0;
-        color: #64748b;
+    .abd-main-secondary {
+        display: none;
+    }
+}
+
+@media (max-width: 760px) {
+    .abd-main-product {
+        grid-template-columns: 118px minmax(0, 1fr);
+        gap: .75rem;
+        min-height: 0;
+        padding: .75rem;
+        border-radius: .55rem;
     }
 
-    @media (max-width: 1400px) {
-        .brand-products-grid {
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-        }
+    .abd-main-product-image {
+        height: 135px;
     }
 
-    @media (max-width: 1100px) {
-        .brand-products-grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
+    .abd-main-product-image img {
+        max-height: 130px;
     }
 
-    @media (max-width: 800px) {
-        .brand-detail-hero {
-            grid-template-columns: 1fr;
-        }
-
-        .brand-detail-logo {
-            width: 100%;
-        }
-
-        .brand-detail-controls {
-            grid-template-columns: 1fr;
-        }
-
-        .brand-products-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
+    .abd-main-product h3 {
+        font-size: .78rem;
     }
 
-    @media (max-width: 520px) {
-        .arolana-brand-detail {
-            width: min(100% - 1rem, 1700px);
-        }
-
-        .brand-detail-hero {
-            padding: 1.25rem;
-        }
-
-        .brand-product-search {
-            flex-direction: column;
-        }
-
-        .brand-products-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 0.75rem;
-        }
-
-        .brand-product-image {
-            min-height: 175px;
-        }
-
-        .brand-product-image img {
-            height: 145px;
-        }
+    .abd-main-product-identifiers {
+        display: none;
     }
+
+    .abd-main-product-rating {
+        margin-top: .45rem;
+        font-size: .54rem;
+    }
+
+    .abd-main-feature-block {
+        display: none;
+    }
+
+    .abd-main-product-action {
+        grid-template-columns: minmax(0, 1fr) auto;
+        padding-top: .65rem;
+    }
+
+    .abd-main-price {
+        font-size: .92rem;
+    }
+
+    .abd-main-vendor-box {
+        display: none;
+    }
+
+    .abd-main-cta {
+        min-width: 125px;
+        min-height: 38px;
+        font-size: .57rem;
+    }
+}
+
+
+/* Brand list cart form */
+.abd-main-cart-form {
+    width: 100%;
+    margin: 0;
+}
+
+.abd-main-cart-form .abd-main-cta {
+    width: 100%;
+    cursor: pointer;
+}
+
+.abd-main-cta-unavailable {
+    background: #64748b;
+    box-shadow: none;
+}
+
+.abd-main-cta-unavailable:hover {
+    background: #475569;
+}
+
+
+.abd-main-secondary-disabled {
+    color: #94a3b8;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+
+/* ==========================================================
+   REAL BRAND PROFILE / SUPPORT SECTIONS
+   ========================================================== */
+
+.abd-brand-info-section {
+    margin-top: 1rem;
+    padding: 1.2rem 1.3rem;
+    border: 1px solid var(--abd-line);
+    border-radius: .8rem;
+    background: #fff;
+    box-shadow: var(--abd-shadow);
+}
+
+.abd-brand-info-head {
+    margin-bottom: .7rem;
+}
+
+.abd-brand-info-head h2 {
+    margin: 0;
+    color: var(--abd-navy);
+    font-size: 1.05rem;
+    font-weight: 950;
+    letter-spacing: -.02em;
+}
+
+.abd-brand-info-copy,
+.abd-brand-support-copy {
+    max-width: 980px;
+    color: #475569;
+    font-size: .75rem;
+    font-weight: 650;
+    line-height: 1.7;
+}
+
+.abd-brand-info-copy p:first-child {
+    margin-top: 0;
+}
+
+.abd-brand-info-copy p:last-child {
+    margin-bottom: 0;
+}
+
+.abd-brand-support-copy {
+    margin: 0;
+}
+
+.abd-brand-support-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .6rem;
+    margin-top: .85rem;
+}
+
+.abd-brand-support-button {
+    display: inline-flex;
+    min-height: 40px;
+    align-items: center;
+    justify-content: center;
+    gap: .42rem;
+    padding: .58rem .85rem;
+    border-radius: .52rem;
+    font-size: .63rem;
+    font-weight: 900;
+    text-decoration: none;
+}
+
+.abd-brand-support-button-primary {
+    color: #fff;
+    background: linear-gradient(135deg, var(--abd-orange), #ff6d00);
+}
+
+.abd-brand-support-button-secondary {
+    border: 1px solid #dbe4ef;
+    color: var(--abd-navy);
+    background: #f8fafc;
+}
+
+@media (max-width: 760px) {
+    .abd-brand-info-section {
+        margin-top: .7rem;
+        padding: .85rem .8rem;
+        border-radius: .7rem;
+    }
+
+    .abd-brand-info-head h2 {
+        font-size: .9rem;
+    }
+
+    .abd-brand-info-copy,
+    .abd-brand-support-copy {
+        font-size: .66rem;
+        line-height: 1.6;
+    }
+
+    .abd-brand-support-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: .45rem;
+    }
+
+    .abd-brand-support-button {
+        min-height: 38px;
+        padding: .5rem .55rem;
+        font-size: .56rem;
+    }
+}
+
 </style>
 {% endblock %}
 
 {% block content %}
 <main class="arolana-brand-detail">
-    <nav class="mb-5 text-sm font-bold text-slate-500">
-        <a href="/" class="hover:text-blue-600">
+
+    <nav
+        class="abd-breadcrumb"
+        aria-label="Breadcrumb"
+    >
+        <a href="/">
             Home
         </a>
 
-        <span class="mx-2">/</span>
+        <i class="fas fa-chevron-right"></i>
 
-        <a
-            href="{% url 'products:brand_directory' %}"
-            class="hover:text-blue-600"
-        >
+        <a href="{% url 'products:brand_directory' %}">
             Brands
         </a>
 
-        <span class="mx-2">/</span>
+        <i class="fas fa-chevron-right"></i>
 
-        <span class="text-slate-900">
+        <strong>
             {{ brand.name }}
-        </span>
+        </strong>
     </nav>
 
-    <section class="brand-detail-hero">
-        <div>
-            <p class="brand-detail-eyebrow">
-                Trusted brand
-            </p>
+    {% if brand_banners %}
+        {% with banner=brand_banners.0 %}
 
-            <h1>{{ brand.name }}</h1>
-
-            {% if brand.description %}
-                <div class="brand-detail-description">
-                    {{ brand.description|striptags|truncatewords:55 }}
-                </div>
-            {% else %}
-                <p class="brand-detail-description">
-                    Explore approved {{ brand.name }} products from
-                    trusted vendors on Arolana.
-                </p>
+            {% if banner.image_desktop %}
+                {% optimized_image_url banner.image_desktop 'hero_banner' as abd_desktop %}
             {% endif %}
 
-            <div class="brand-detail-count">
-                <i class="fas fa-check-circle"></i>
-
-                {{ product_count }}
-                approved product{{ product_count|pluralize }}
-            </div>
-        </div>
-
-        <div class="brand-detail-logo">
-            {% if brand.logo %}
-                <img
-                    src="{{ brand.logo.url }}"
-                    alt="{{ brand.name }} logo"
-                >
-            {% else %}
-                <span>{{ brand.name }}</span>
-            {% endif %}
-        </div>
-    </section>
-
-    <section class="brand-detail-controls">
-        <form method="get" class="brand-product-search">
-            {% if selected_category %}
-                <input
-                    type="hidden"
-                    name="category"
-                    value="{{ selected_category }}"
-                >
+            {% if banner.image_tablet %}
+                {% optimized_image_url banner.image_tablet 'hero_banner' as abd_tablet %}
             {% endif %}
 
-            <input
-                type="search"
-                name="q"
-                value="{{ search_query }}"
-                placeholder="Search {{ brand.name }} products"
-                aria-label="Search {{ brand.name }} products"
+            {% if banner.image_mobile %}
+                {% optimized_image_url banner.image_mobile 'hero_banner' as abd_mobile %}
+            {% endif %}
+
+            <section
+                class="abd-hero"
+                style="
+                    --hero-desktop-height: clamp(
+                        340px,
+                        {{ banner.desktop_height|default:390 }}px,
+                        460px
+                    );
+                    --hero-tablet-height: clamp(
+                        320px,
+                        {{ banner.tablet_height|default:350 }}px,
+                        420px
+                    );
+                    --hero-mobile-height: clamp(
+                        290px,
+                        {{ banner.mobile_height|default:320 }}px,
+                        380px
+                    );
+
+                    --hero-fit-desktop:
+                        {{ banner.image_fit_desktop|default:'cover' }};
+
+                    --hero-fit-tablet:
+                        {{ banner.image_fit_tablet|default:'cover' }};
+
+                    --hero-fit-mobile:
+                        {{ banner.image_fit_mobile|default:'cover' }};
+
+                    --hero-position-desktop:
+                        {{ banner.image_position_desktop|default:'center center' }};
+
+                    --hero-position-tablet:
+                        {{ banner.image_position_tablet|default:'center center' }};
+
+                    --hero-position-mobile:
+                        {{ banner.image_position_mobile|default:'center center' }};
+                "
             >
+                {% if banner.image_desktop %}
+                    <div class="abd-hero-media">
+                        <picture>
+                            {% if banner.image_mobile %}
+                                <source
+                                    media="(max-width: 760px)"
+                                    srcset="{{ abd_mobile }}"
+                                >
+                            {% endif %}
 
+                            {% if banner.image_tablet %}
+                                <source
+                                    media="(max-width: 1100px)"
+                                    srcset="{{ abd_tablet }}"
+                                >
+                            {% endif %}
+
+                            <img
+                                src="{{ abd_desktop }}"
+                                alt="{{ banner.title|default:brand.name }}"
+                                fetchpriority="high"
+                                decoding="async"
+                            >
+                        </picture>
+                    </div>
+
+                    <div
+                        class="abd-hero-overlay"
+                        style="
+                            opacity:
+                                {{ banner.overlay_opacity_css|default:'0.80' }};
+                        "
+                    ></div>
+                {% endif %}
+
+                <div class="abd-hero-pattern"></div>
+
+                <div class="abd-hero-content">
+                    <p class="abd-eyebrow">
+                        <i class="fas fa-check-circle"></i>
+                        Approved brand storefront
+                    </p>
+
+                    {% if banner.show_content and banner.show_title %}
+                        <h1>
+                            {{ banner.title }}
+                        </h1>
+                    {% else %}
+                        <h1>
+                            {{ brand.name }}
+                        </h1>
+                    {% endif %}
+
+                    {% if banner.show_content and banner.show_subtitle and banner.subtitle %}
+                        <p class="abd-description">
+                            {{ banner.subtitle }}
+                        </p>
+
+                    {% elif banner.show_content and banner.show_description and banner.description %}
+                        <div class="abd-description">
+                            {{ banner.description|striptags|truncatewords:45 }}
+                        </div>
+
+                    {% elif brand.description %}
+                        <div class="abd-description">
+                            {{ brand.description|striptags|truncatewords:45 }}
+                        </div>
+
+                    {% else %}
+                        <p class="abd-description">
+                            Explore approved {{ brand.name }}
+                            products from marketplace vendors
+                            on Arolana.
+                        </p>
+                    {% endif %}
+
+                    <div class="abd-hero-meta">
+                        <span class="abd-meta-pill">
+                            <i class="fas fa-box"></i>
+
+                            {{ total_product_count }}
+                            approved
+                            product{{ total_product_count|pluralize }}
+                        </span>
+
+                        <span class="abd-meta-pill">
+                            <i class="fas fa-shield-alt"></i>
+                            Marketplace approved listings
+                        </span>
+                    </div>
+
+                    <div class="abd-hero-trustline" aria-label="{{ brand.name }} marketplace assurances">
+                        <span class="abd-hero-trust">
+                            <i class="fas fa-gem"></i>
+                            Premium Quality
+                        </span>
+                        <span class="abd-hero-trust">
+                            <i class="fas fa-globe"></i>
+                            Trusted Brand
+                        </span>
+                        <span class="abd-hero-trust">
+                            <i class="fas fa-award"></i>
+                            Approved Listings
+                        </span>
+                        <span class="abd-hero-trust">
+                            <i class="fas fa-headset"></i>
+                            Marketplace Support
+                        </span>
+                    </div>
+
+                    {% if banner.show_buttons %}
+                        <div class="abd-hero-actions">
+
+                            {% if banner.show_button1 %}
+                                <a
+                                    href="{{ banner.button1_url }}"
+                                    class="
+                                        abd-hero-button
+                                        abd-hero-button-primary
+                                    "
+                                >
+                                    {{ banner.button1_text }}
+
+                                    <i class="fas fa-arrow-right"></i>
+                                </a>
+                            {% endif %}
+
+                            {% if banner.show_button2 %}
+                                <a
+                                    href="{{ banner.button2_url }}"
+                                    class="
+                                        abd-hero-button
+                                        abd-hero-button-secondary
+                                    "
+                                >
+                                    {{ banner.button2_text }}
+                                </a>
+                            {% endif %}
+
+                        </div>
+                    {% endif %}
+                </div>
+
+
+                <aside class="abd-hero-stats" aria-label="{{ brand.name }} storefront summary">
+                    <div class="abd-hero-stat">
+                        <span class="abd-hero-stat-icon">
+                            <i class="fas fa-box-open"></i>
+                        </span>
+                        <div>
+                            <strong>{{ total_product_count }}</strong>
+                            <small>Approved Products</small>
+                        </div>
+                    </div>
+
+                    <div class="abd-hero-stat">
+                        <span class="abd-hero-stat-icon">
+                            <i class="fas fa-th-large"></i>
+                        </span>
+                        <div>
+                            <strong>{{ categories|length }}</strong>
+                            <small>Product Categories</small>
+                        </div>
+                    </div>
+
+                    <div class="abd-hero-stat">
+                        <span class="abd-hero-stat-icon">
+                            <i class="fas fa-shield-alt"></i>
+                        </span>
+                        <div>
+                            <strong>{{ in_stock_count }}</strong>
+                            <small>Products In Stock</small>
+                        </div>
+                    </div>
+
+                    <div class="abd-hero-stat">
+                        <span class="abd-hero-stat-icon">
+                            <i class="fas fa-lock"></i>
+                        </span>
+                        <div>
+                            <strong>Secure</strong>
+                            <small>Arolana Shopping</small>
+                        </div>
+                    </div>
+                </aside>
+
+                <div class="abd-logo-panel">
+                    {% if brand.logo %}
+                        {% optimized_image_url brand.logo 'avatar' as brand_logo_url %}
+
+                        <img
+                            src="{{ brand_logo_url }}"
+                            alt="{{ brand.name }} logo"
+                        >
+                    {% else %}
+                        <span>
+                            {{ brand.name }}
+                        </span>
+                    {% endif %}
+                </div>
+            </section>
+
+        {% endwith %}
+
+    {% else %}
+
+        <section class="abd-hero">
+            <div class="abd-hero-pattern"></div>
+
+            <div class="abd-hero-content">
+                <p class="abd-eyebrow">
+                    <i class="fas fa-check-circle"></i>
+                    Approved brand storefront
+                </p>
+
+                <h1>
+                    {{ brand.name }}
+                </h1>
+
+                {% if brand.description %}
+                    <div class="abd-description">
+                        {{ brand.description|striptags|truncatewords:45 }}
+                    </div>
+                {% else %}
+                    <p class="abd-description">
+                        Explore approved {{ brand.name }}
+                        products from marketplace vendors
+                        on Arolana.
+                    </p>
+                {% endif %}
+
+                <div class="abd-hero-meta">
+                    <span class="abd-meta-pill">
+                        <i class="fas fa-box"></i>
+
+                        {{ total_product_count }}
+                        approved
+                        product{{ total_product_count|pluralize }}
+                    </span>
+
+                    <span class="abd-meta-pill">
+                        <i class="fas fa-shield-alt"></i>
+                        Marketplace approved listings
+                    </span>
+                </div>
+
+                <div class="abd-hero-trustline" aria-label="{{ brand.name }} marketplace assurances">
+                    <span class="abd-hero-trust">
+                        <i class="fas fa-gem"></i>
+                        Premium Quality
+                    </span>
+                    <span class="abd-hero-trust">
+                        <i class="fas fa-globe"></i>
+                        Trusted Brand
+                    </span>
+                    <span class="abd-hero-trust">
+                        <i class="fas fa-award"></i>
+                        Approved Listings
+                    </span>
+                    <span class="abd-hero-trust">
+                        <i class="fas fa-headset"></i>
+                        Marketplace Support
+                    </span>
+                </div>
+            </div>
+
+            <div class="abd-logo-panel">
+                {% if brand.logo %}
+                    {% optimized_image_url brand.logo 'avatar' as brand_logo_url %}
+
+                    <img
+                        src="{{ brand_logo_url }}"
+                        alt="{{ brand.name }} logo"
+                    >
+                {% else %}
+                    <span>
+                        {{ brand.name }}
+                    </span>
+                {% endif %}
+            </div>
+        </section>
+
+    {% endif %}
+
+    <nav
+        class="abd-brand-tabs"
+        aria-label="{{ brand.name }} storefront sections"
+    >
+        <a
+            class="abd-brand-tab is-active"
+            href="#brand-products"
+        >
+            All Products
+        </a>
+
+        {% if brand.description %}
+            <a
+                class="abd-brand-tab"
+                href="#about-brand"
+            >
+                About {{ brand.name }}
+            </a>
+        {% endif %}
+
+        <a
+            class="abd-brand-tab"
+            href="#brand-support"
+        >
+            Support &amp; Resources
+        </a>
+    </nav>
+
+    <section class="abd-controls">
+        <form method="get" class="abd-search" role="search">
+            {% if selected_category %}
+                <input type="hidden" name="category" value="{{ selected_category }}">
+            {% endif %}
+            <div class="abd-search-input">
+                <i class="fas fa-search"></i>
+                <input
+                    type="search"
+                    name="q"
+                    value="{{ search_query }}"
+                    placeholder="Search {{ brand.name }} products..."
+                >
+            </div>
             <button type="submit">
                 <i class="fas fa-search"></i>
-                Search
+                <span>Search</span>
             </button>
         </form>
 
         <select
-            class="brand-category-filter"
+            class="abd-category-select"
             onchange="
-                const url = new URL(window.location.href);
+                const u = new URL(window.location.href);
                 if (this.value) {
-                    url.searchParams.set('category', this.value);
+                    u.searchParams.set('category', this.value);
                 } else {
-                    url.searchParams.delete('category');
+                    u.searchParams.delete('category');
                 }
-                window.location.href = url.toString();
+                u.searchParams.delete('page');
+                window.location.href = u.toString();
             "
-            aria-label="Filter by category"
         >
-            <option value="">
-                All categories
-            </option>
-
+            <option value="">All categories</option>
             {% for category in categories %}
                 <option
                     value="{{ category.category__slug }}"
-                    {% if selected_category == category.category__slug %}
-                        selected
-                    {% endif %}
+                    {% if selected_category == category.category__slug %}selected{% endif %}
                 >
-                    {{ category.category__name }}
-                    ({{ category.product_count }})
+                    {{ category.category__name }} ({{ category.product_count }})
                 </option>
             {% endfor %}
         </select>
     </section>
 
-    <section>
-        <div class="brand-products-heading">
-            <div>
-                <p>Approved marketplace listings</p>
+    <div class="abd-final-catalog" id="brand-products">
+        <aside class="abd-sidebar-column abd-filter-sidebar">
+            <section class="abd-filter-panel" aria-label="{{ brand.name }} product filters">
 
-                <h2>
-                    {{ brand.name }} Products
-                </h2>
+                <div class="abd-filter-section">
+                    <div class="abd-filter-section-head">
+                        <h2>Categories</h2>
+                    </div>
+
+                    <button
+                        type="button"
+                        class="abd-filter-link {% if not selected_category %}is-active{% endif %}"
+                        data-single-filter="category"
+                        data-filter-value=""
+                    >
+                        <span>All Categories</span>
+                        <span class="abd-filter-number">{{ total_product_count }}</span>
+                    </button>
+
+                    {% for category in categories %}
+                        <button
+                            type="button"
+                            class="abd-filter-link {% if selected_category == category.category__slug %}is-active{% endif %}"
+                            data-single-filter="category"
+                            data-filter-value="{{ category.category__slug }}"
+                        >
+                            <span>{{ category.category__name }}</span>
+                            <span class="abd-filter-number">{{ category.product_count }}</span>
+                        </button>
+                    {% endfor %}
+                </div>
+
+                <div class="abd-filter-divider"></div>
+
+                <div class="abd-filter-section">
+                    <div class="abd-filter-section-head">
+                        <h2>Availability</h2>
+                    </div>
+
+                    <label class="abd-filter-check">
+                        <input
+                            type="checkbox"
+                            data-single-filter="in_stock"
+                            value="1"
+                            {% if in_stock_only %}checked{% endif %}
+                        >
+                        <span class="abd-filter-checkbox-ui"></span>
+                        <span class="abd-filter-check-label">In Stock</span>
+                        <span class="abd-filter-number">{{ in_stock_count }}</span>
+                    </label>
+                </div>
+
+                <div class="abd-filter-divider"></div>
+
+                <div class="abd-filter-section">
+                    <div class="abd-filter-section-head">
+                        <h2>Customer Reviews</h2>
+                    </div>
+
+                    <button
+                        type="button"
+                        class="abd-rating-filter {% if selected_min_rating == '4' %}is-active{% endif %}"
+                        data-single-filter="rating"
+                        data-filter-value="4"
+                    >
+                        <span class="abd-rating-stars">★★★★☆</span>
+                        <span>&amp; Up</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        class="abd-rating-filter {% if selected_min_rating == '3' %}is-active{% endif %}"
+                        data-single-filter="rating"
+                        data-filter-value="3"
+                    >
+                        <span class="abd-rating-stars">★★★☆☆</span>
+                        <span>&amp; Up</span>
+                    </button>
+                </div>
+
+                <div class="abd-filter-divider"></div>
+
+                <div class="abd-filter-section">
+                    <div class="abd-filter-section-head">
+                        <h2>Deals &amp; Discovery</h2>
+                    </div>
+
+                    <label class="abd-filter-check">
+                        <input
+                            type="checkbox"
+                            data-multi-filter="deal"
+                            value="sale"
+                            {% if 'sale' in selected_deals %}checked{% endif %}
+                        >
+                        <span class="abd-filter-checkbox-ui"></span>
+                        <span class="abd-filter-check-label">On Sale</span>
+                        <span class="abd-filter-number">{{ deal_counts.sale }}</span>
+                    </label>
+
+                    <label class="abd-filter-check">
+                        <input
+                            type="checkbox"
+                            data-multi-filter="deal"
+                            value="bestseller"
+                            {% if 'bestseller' in selected_deals %}checked{% endif %}
+                        >
+                        <span class="abd-filter-checkbox-ui"></span>
+                        <span class="abd-filter-check-label">Best Sellers</span>
+                        <span class="abd-filter-number">{{ deal_counts.bestseller }}</span>
+                    </label>
+
+                    <label class="abd-filter-check">
+                        <input
+                            type="checkbox"
+                            data-multi-filter="deal"
+                            value="new"
+                            {% if 'new' in selected_deals %}checked{% endif %}
+                        >
+                        <span class="abd-filter-checkbox-ui"></span>
+                        <span class="abd-filter-check-label">New Arrivals</span>
+                        <span class="abd-filter-number">{{ deal_counts.new }}</span>
+                    </label>
+
+                    <label class="abd-filter-check">
+                        <input
+                            type="checkbox"
+                            data-multi-filter="deal"
+                            value="featured"
+                            {% if 'featured' in selected_deals %}checked{% endif %}
+                        >
+                        <span class="abd-filter-checkbox-ui"></span>
+                        <span class="abd-filter-check-label">Featured</span>
+                        <span class="abd-filter-number">{{ deal_counts.featured }}</span>
+                    </label>
+                </div>
+
+                {% if condition_filters %}
+                    <div class="abd-filter-divider"></div>
+
+                    <div class="abd-filter-section">
+                        <div class="abd-filter-section-head">
+                            <h2>Condition</h2>
+                        </div>
+
+                        {% for item in condition_filters %}
+                            <label class="abd-filter-check">
+                                <input
+                                    type="checkbox"
+                                    data-multi-filter="condition"
+                                    value="{{ item.value }}"
+                                    {% if item.selected %}checked{% endif %}
+                                >
+                                <span class="abd-filter-checkbox-ui"></span>
+                                <span class="abd-filter-check-label">{{ item.label }}</span>
+                                <span class="abd-filter-number">{{ item.count }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <div class="abd-filter-divider"></div>
+
+                <div class="abd-filter-section">
+                    <div class="abd-filter-section-head">
+                        <h2>Price Range</h2>
+                    </div>
+
+                    <form class="abd-price-filter" id="abd-price-filter">
+                        <label>
+                            <span>Min</span>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                name="min_price"
+                                value="{{ selected_min_price }}"
+                                placeholder="{{ price_min|default:'0' }}"
+                            >
+                        </label>
+
+                        <label>
+                            <span>Max</span>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                name="max_price"
+                                value="{{ selected_max_price }}"
+                                placeholder="{{ price_max|default:'' }}"
+                            >
+                        </label>
+
+                        <button type="submit">Go</button>
+                    </form>
+                </div>
+
+                {% if is_filtered %}
+                    <button
+                        type="button"
+                        class="abd-clear-all-filters"
+                        id="abd-clear-all-filters"
+                    >
+                        <i class="fas fa-times"></i>
+                        Clear all filters
+                    </button>
+                {% endif %}
+            </section>
+        </aside>
+
+        <div class="abd-final-main">
+            <div class="abd-final-toolbar">
+                <div>
+                    <h2>{{ brand.name }} Products</h2>
+                </div>
+
+                <div class="abd-final-toolbar-right">
+                    <span class="abd-catalog-badge">
+                        {{ product_count }} products
+                    </span>
+                </div>
             </div>
 
-            <span>
-                {{ product_count }}
-                result{{ product_count|pluralize }}
-            </span>
-        </div>
-
-        <div class="brand-products-grid">
             {% for product in products %}
-                <a
-                    href="{{ product.get_absolute_url }}"
-                    class="brand-product-card"
-                >
-                    <div class="brand-product-image">
-                        {% if product.main_image %}
-                            {% optimized_image_url product.main_image 'product_card' as product_image_url %}
+                <article class="abd-main-product">
 
-                            <img
-                                src="{{ product_image_url }}"
-                                alt="{{ product.name }}"
-                                loading="lazy"
-                                decoding="async"
+                    <div class="abd-main-product-image-column">
+                        <a
+                            href="{{ product.get_absolute_url }}"
+                            class="abd-main-product-image"
+                        >
+                            {% if product.main_image %}
+                                {% optimized_image_url product.main_image 'product_card' as main_product_image %}
+                                <img
+                                    src="{{ main_product_image }}"
+                                    alt="{{ product.name }}"
+                                    loading="lazy"
+                                    decoding="async"
+                                >
+                            {% else %}
+                                <span class="abd-main-image-placeholder">
+                                    <i class="fas fa-image"></i>
+                                </span>
+                            {% endif %}
+                        </a>
+                    </div>
+
+                    <div class="abd-main-product-copy">
+                        <span class="abd-main-product-brand">
+                            {{ brand.name }}
+                        </span>
+
+                        <h3>
+                            <a
+                                href="{{ product.get_absolute_url }}"
+                                style="color:inherit;text-decoration:none;"
                             >
-                        {% else %}
-                            <i class="fas fa-image"></i>
+                                {{ product.name }}
+                            </a>
+                        </h3>
+
+                        <div class="abd-main-product-identifiers">
+                            {% if product.sku %}
+                                <span>SKU: {{ product.sku }}</span>
+                            {% endif %}
+
+                            {% if product.manufacturer_sku %}
+                                <span>Model: {{ product.manufacturer_sku }}</span>
+                            {% endif %}
+                        </div>
+
+                        <div class="abd-main-product-rating">
+                            <span class="stars" aria-hidden="true">
+                                <i class="fas fa-star"></i>
+                            </span>
+                            <span>
+                                {{ product.rating_avg|default:"0.00" }}
+                            </span>
+                            <span>
+                                {{ product.rating_count|default:"0" }}
+                                review{{ product.rating_count|default:"0"|pluralize }}
+                            </span>
+                        </div>
+
+                        {% if product.short_description %}
+                            <div class="abd-main-feature-block">
+                                <span class="abd-main-feature-title">
+                                    Product Highlights
+                                </span>
+
+                                <p class="abd-main-feature-copy">
+                                    {{ product.short_description|striptags|truncatewords:30 }}
+                                </p>
+
+                                <a
+                                    class="abd-main-detail-link"
+                                    href="{{ product.get_absolute_url }}"
+                                >
+                                    Show more
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </div>
+                        {% elif product.description %}
+                            <div class="abd-main-feature-block">
+                                <span class="abd-main-feature-title">
+                                    Product Highlights
+                                </span>
+
+                                <p class="abd-main-feature-copy">
+                                    {{ product.description|striptags|truncatewords:30 }}
+                                </p>
+
+                                <a
+                                    class="abd-main-detail-link"
+                                    href="{{ product.get_absolute_url }}"
+                                >
+                                    Show more
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </div>
                         {% endif %}
                     </div>
 
-                    <div class="brand-product-body">
-                        <h3>{{ product.name }}</h3>
+                    <aside class="abd-main-product-action">
+                        <div class="abd-main-price-row">
+                            <strong class="abd-main-price">
+                                {{ product.price|currency:request }}
+                            </strong>
 
-                        {% if product.category %}
-                            <p class="brand-product-category">
-                                {{ product.category.name }}
-                            </p>
-                        {% endif %}
-
-                        <div class="brand-product-price">
-                            {{ product.price|currency:request }}
-                        </div>
-
-                        <div class="brand-product-meta">
-                            <span>
-                                <i class="fas fa-star text-amber-400"></i>
-                                {{ product.rating_avg|default:"0" }}
-                            </span>
-
-                            {% if product.stock_quantity > 0 %}
-                                <span class="brand-product-stock">
-                                    In stock
-                                </span>
-                            {% else %}
-                                <span>
-                                    Out of stock
+                            {% if product.compare_price %}
+                                <span class="abd-main-compare">
+                                    {{ product.compare_price|currency:request }}
                                 </span>
                             {% endif %}
                         </div>
-                    </div>
-                </a>
+
+                        {% if product.stock_quantity > 0 or product.allow_backorder %}
+                            <span class="abd-main-stock">
+                                In Stock
+                            </span>
+                        {% else %}
+                            <span class="abd-main-out-stock">
+                                <i class="fas fa-clock"></i>
+                                Currently unavailable
+                            </span>
+                        {% endif %}
+
+                        {% if product.vendor %}
+                            <div class="abd-main-vendor-box">
+                                <span class="abd-main-vendor-label">
+                                    Sold by
+                                </span>
+
+                                <span class="abd-main-vendor-name">
+                                    {% if product.vendor.vendor_profile %}
+                                        {{ product.vendor.vendor_profile.store_name }}
+                                    {% else %}
+                                        {{ product.vendor }}
+                                    {% endif %}
+                                </span>
+
+                                {% if product.condition %}
+                                    <span class="abd-main-condition">
+                                        Condition: {{ product.get_condition_display }}
+                                    </span>
+                                {% endif %}
+                            </div>
+                        {% elif product.condition %}
+                            <div class="abd-main-vendor-box">
+                                <span class="abd-main-vendor-label">
+                                    Product condition
+                                </span>
+
+                                <span class="abd-main-vendor-name">
+                                    {{ product.get_condition_display }}
+                                </span>
+                            </div>
+                        {% endif %}
+
+                        {% if product.stock_quantity > 0 or product.allow_backorder %}
+                            <form
+                                method="POST"
+                                action="{% url 'products:add_to_cart' product.slug %}"
+                                class="abd-main-cart-form arolana-ajax-cart-form"
+                                data-cart-ajax="true"
+                            >
+                                {% csrf_token %}
+
+                                <input
+                                    type="hidden"
+                                    name="quantity"
+                                    value="1"
+                                >
+
+                                <button
+                                    type="submit"
+                                    class="abd-main-cta"
+                                    data-cart-button
+                                    data-track-click="true"
+                                    data-event-type="button"
+                                    data-product-id="{{ product.id }}"
+                                    {% if product.category %}
+                                        data-category-id="{{ product.category.id }}"
+                                    {% endif %}
+                                    {% if product.vendor %}
+                                        data-vendor-id="{{ product.vendor.id }}"
+                                    {% endif %}
+                                    data-click-text="Add to Cart - {{ product.name }}"
+                                    data-click-url="{{ product.get_absolute_url }}"
+                                >
+                                    <i class="fas fa-shopping-cart"></i>
+                                    Add to Cart
+                                </button>
+                            </form>
+                        {% else %}
+                            <a
+                                href="{{ product.get_absolute_url }}"
+                                class="abd-main-cta abd-main-cta-unavailable"
+                            >
+                                <i class="fas fa-eye"></i>
+                                View Product
+                            </a>
+                        {% endif %}
+
+                        {% if product.vendor and product.vendor.vendor_profile %}
+                            <a
+                                href="{% url 'vendors:detail' product.vendor.vendor_profile.store_slug %}"
+                                class="abd-main-secondary"
+                                data-track-click="true"
+                                data-event-type="vendor"
+                                data-product-id="{{ product.id }}"
+                                data-vendor-id="{{ product.vendor.vendor_profile.id }}"
+                                data-click-text="Visit Seller Shop - {{ product.vendor.vendor_profile.store_name }}"
+                            >
+                                View details &amp; seller options
+                                <i class="fas fa-store"></i>
+                            </a>
+                        {% else %}
+                            <span
+                                class="abd-main-secondary abd-main-secondary-disabled"
+                                title="This seller does not yet have a storefront profile."
+                            >
+                                Seller storefront unavailable
+                                <i class="fas fa-store-slash"></i>
+                            </span>
+                        {% endif %}
+                    </aside>
+
+                </article>
             {% empty %}
-                <div class="brand-empty-products">
+                <div class="abd-empty">
                     <i class="fas fa-box-open"></i>
-
                     <h2>No matching products</h2>
-
-                    <p>
-                        Try another search or category.
-                    </p>
+                    <p>Try another search or category.</p>
                 </div>
             {% endfor %}
+
+            {% if products.paginator %}
+                <nav
+                    class="abd-product-pagination"
+                    aria-label="{{ brand.name }} product pages"
+                >
+                    {% if products.has_previous %}
+                        <a
+                            class="abd-product-page"
+                            href="?page={{ products.previous_page_number }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if selected_category %}&category={{ selected_category|urlencode }}{% endif %}#brand-products"
+                            aria-label="Previous page"
+                            title="Previous page"
+                        >
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    {% else %}
+                        <span
+                            class="abd-product-page is-disabled"
+                            aria-hidden="true"
+                            title="No previous page"
+                        >
+                            <i class="fas fa-chevron-left"></i>
+                        </span>
+                    {% endif %}
+
+                    {% for page_number in products.paginator.page_range %}
+                        {% if page_number == products.number %}
+                            <span
+                                class="abd-product-page is-active"
+                                aria-current="page"
+                            >
+                                {{ page_number }}
+                            </span>
+                        {% elif page_number >= products.number|add:"-2" and page_number <= products.number|add:"2" %}
+                            <a
+                                class="abd-product-page"
+                                href="?page={{ page_number }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if selected_category %}&category={{ selected_category|urlencode }}{% endif %}#brand-products"
+                                aria-label="Go to page {{ page_number }}"
+                            >
+                                {{ page_number }}
+                            </a>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if products.has_next %}
+                        <a
+                            class="abd-product-page"
+                            href="?page={{ products.next_page_number }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if selected_category %}&category={{ selected_category|urlencode }}{% endif %}#brand-products"
+                            aria-label="Next page"
+                            title="Next page"
+                        >
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    {% else %}
+                        <span
+                            class="abd-product-page is-disabled"
+                            aria-hidden="true"
+                            title="No next page"
+                        >
+                            <i class="fas fa-chevron-right"></i>
+                        </span>
+                    {% endif %}
+                </nav>
+            {% endif %}
+
+        </div>
+    </div>
+
+    {% if not is_filtered %}
+        <div class="abd-final-merchandising abd-final-merchandising-fullwidth">
+
+
+                    {% if featured_products %}
+                        <section class="abd-final-rail-section featured">
+                            <div class="abd-final-rail-head">
+                                <h2>Featured from {{ brand.name }}</h2>
+                                <a class="abd-final-view-all" href="#brand-products">
+                                    View all
+                                </a>
+                            </div>
+
+                            <div class="abd-final-rail-wrap">
+                                <button
+                                    class="abd-final-arrow prev"
+                                    type="button"
+                                    data-rail-prev="featured-rail"
+                                    aria-label="Previous featured products"
+                                >
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+
+                                <div
+                                    class="abd-final-rail"
+                                    id="featured-rail"
+                                >
+                                    {% for product in featured_products|slice:":37" %}
+                                        <a
+                                            class="abd-final-product"
+                                            href="{{ product.get_absolute_url }}"
+                                        >
+                                            <div class="abd-final-product-image">
+                                                {% if product.main_image %}
+                                                    {% optimized_image_url product.main_image 'product_card' as rail_image %}
+                                                    <img
+                                                        src="{{ rail_image }}"
+                                                        alt="{{ product.name }}"
+                                                        loading="lazy"
+                                                        decoding="async"
+                                                    >
+                                                {% endif %}
+                                            </div>
+
+                                            <h3>{{ product.name }}</h3>
+
+                                            <div class="abd-final-rating">
+                                                <span class="stars" aria-hidden="true">
+                                <i class="fas fa-star"></i>
+                            </span>
+                                                <span>{{ product.rating_count|default:"0" }}</span>
+                                            </div>
+
+                                            <strong class="abd-final-price">
+                                                {{ product.price|currency:request }}
+                                            </strong>
+                                        </a>
+                                    {% endfor %}
+                                </div>
+
+                                <button
+                                    class="abd-final-arrow next"
+                                    type="button"
+                                    data-rail-next="featured-rail"
+                                    aria-label="Next featured products"
+                                >
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
+                        </section>
+                    {% endif %}
+
+                    {% if bestseller_products %}
+                        <section class="abd-final-rail-section bestsellers">
+                            <div class="abd-final-rail-head">
+                                <h2>Best Sellers</h2>
+                                <a class="abd-final-view-all" href="#brand-products">
+                                    View all
+                                </a>
+                            </div>
+
+                            <div class="abd-final-rail-wrap">
+                                <button
+                                    class="abd-final-arrow prev"
+                                    type="button"
+                                    data-rail-prev="bestseller-rail"
+                                    aria-label="Previous best sellers"
+                                >
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+
+                                <div
+                                    class="abd-final-rail"
+                                    id="bestseller-rail"
+                                >
+                                    {% for product in bestseller_products|slice:":37" %}
+                                        <a
+                                            class="abd-final-product"
+                                            href="{{ product.get_absolute_url }}"
+                                        >
+                                            <div class="abd-final-product-image">
+                                                {% if product.main_image %}
+                                                    {% optimized_image_url product.main_image 'product_card' as rail_image %}
+                                                    <img
+                                                        src="{{ rail_image }}"
+                                                        alt="{{ product.name }}"
+                                                        loading="lazy"
+                                                        decoding="async"
+                                                    >
+                                                {% endif %}
+                                            </div>
+
+                                            <h3>{{ product.name }}</h3>
+
+                                            <div class="abd-final-rating">
+                                                <span class="stars" aria-hidden="true">
+                                <i class="fas fa-star"></i>
+                            </span>
+                                                <span>{{ product.rating_count|default:"0" }}</span>
+                                            </div>
+
+                                            <strong class="abd-final-price">
+                                                {{ product.price|currency:request }}
+                                            </strong>
+                                        </a>
+                                    {% endfor %}
+                                </div>
+
+                                <button
+                                    class="abd-final-arrow next"
+                                    type="button"
+                                    data-rail-next="bestseller-rail"
+                                    aria-label="Next best sellers"
+                                >
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
+                        </section>
+                    {% endif %}
+
+                    {% if new_products %}
+                        <section class="abd-final-rail-section new-arrivals">
+                            <div class="abd-final-rail-head">
+                                <h2>New Arrivals</h2>
+                                <a class="abd-final-view-all" href="#brand-products">
+                                    View all
+                                </a>
+                            </div>
+
+                            <div class="abd-final-rail-wrap">
+                                <button
+                                    class="abd-final-arrow prev"
+                                    type="button"
+                                    data-rail-prev="new-arrivals-rail"
+                                    aria-label="Previous new arrivals"
+                                >
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+
+                                <div
+                                    class="abd-final-rail"
+                                    id="new-arrivals-rail"
+                                >
+                                    {% for product in new_products|slice:":37" %}
+                                        <a
+                                            class="abd-final-product"
+                                            href="{{ product.get_absolute_url }}"
+                                        >
+                                            <div class="abd-final-product-image">
+                                                {% if product.main_image %}
+                                                    {% optimized_image_url product.main_image 'product_card' as rail_image %}
+                                                    <img
+                                                        src="{{ rail_image }}"
+                                                        alt="{{ product.name }}"
+                                                        loading="lazy"
+                                                        decoding="async"
+                                                    >
+                                                {% endif %}
+                                            </div>
+
+                                            <h3>{{ product.name }}</h3>
+
+                                            <div class="abd-final-rating">
+                                                <span class="stars" aria-hidden="true">
+                                <i class="fas fa-star"></i>
+                            </span>
+                                                <span>{{ product.rating_count|default:"0" }}</span>
+                                            </div>
+
+                                            <strong class="abd-final-price">
+                                                {{ product.price|currency:request }}
+                                            </strong>
+                                        </a>
+                                    {% endfor %}
+                                </div>
+
+                                <button
+                                    class="abd-final-arrow next"
+                                    type="button"
+                                    data-rail-next="new-arrivals-rail"
+                                    aria-label="Next new arrivals"
+                                >
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
+                        </section>
+                    {% endif %}
+
+        </div>
+    {% endif %}
+
+    <script>
+document.addEventListener("DOMContentLoaded", function () {
+    function railById(id) {
+        return document.getElementById(id);
+    }
+
+    function scrollRail(id, direction) {
+        const rail = railById(id);
+
+        if (!rail) {
+            return;
+        }
+
+        const amount = Math.max(
+            rail.clientWidth * 0.92,
+            300
+        );
+
+        rail.scrollBy({
+            left: direction * amount,
+            behavior: window.matchMedia(
+                "(prefers-reduced-motion: reduce)"
+            ).matches
+                ? "auto"
+                : "smooth"
+        });
+    }
+
+    document.querySelectorAll(
+        "[data-rail-prev]"
+    ).forEach(function (button) {
+        button.addEventListener(
+            "click",
+            function () {
+                scrollRail(
+                    button.getAttribute(
+                        "data-rail-prev"
+                    ),
+                    -1
+                );
+            }
+        );
+    });
+
+    document.querySelectorAll(
+        "[data-rail-next]"
+    ).forEach(function (button) {
+        button.addEventListener(
+            "click",
+            function () {
+                scrollRail(
+                    button.getAttribute(
+                        "data-rail-next"
+                    ),
+                    1
+                );
+            }
+        );
+    });
+});
+</script>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    function currentUrl() {
+        return new URL(window.location.href);
+    }
+
+    function navigateWithUrl(url) {
+        url.searchParams.delete("page");
+        url.hash = "brand-products";
+        window.location.href = url.toString();
+    }
+
+    document.querySelectorAll("[data-single-filter]").forEach(function (control) {
+        const eventName = control.matches("input") ? "change" : "click";
+
+        control.addEventListener(eventName, function () {
+            const name = control.getAttribute("data-single-filter");
+            const value = control.value || control.getAttribute("data-filter-value") || "";
+            const url = currentUrl();
+
+            if (control.matches('input[type="checkbox"]')) {
+                if (control.checked) {
+                    url.searchParams.set(name, value);
+                } else {
+                    url.searchParams.delete(name);
+                }
+            } else if (value) {
+                if (url.searchParams.get(name) === value && name === "rating") {
+                    url.searchParams.delete(name);
+                } else {
+                    url.searchParams.set(name, value);
+                }
+            } else {
+                url.searchParams.delete(name);
+            }
+
+            navigateWithUrl(url);
+        });
+    });
+
+    document.querySelectorAll("[data-multi-filter]").forEach(function (control) {
+        control.addEventListener("change", function () {
+            const name = control.getAttribute("data-multi-filter");
+            const url = currentUrl();
+
+            url.searchParams.delete(name);
+
+            document.querySelectorAll(
+                '[data-multi-filter="' + name + '"]:checked'
+            ).forEach(function (checked) {
+                url.searchParams.append(name, checked.value);
+            });
+
+            navigateWithUrl(url);
+        });
+    });
+
+    const priceForm = document.getElementById("abd-price-filter");
+
+    if (priceForm) {
+        priceForm.addEventListener("submit", function (event) {
+            event.preventDefault();
+
+            const url = currentUrl();
+            const formData = new FormData(priceForm);
+
+            ["min_price", "max_price"].forEach(function (name) {
+                const value = String(formData.get(name) || "").trim();
+
+                if (value) {
+                    url.searchParams.set(name, value);
+                } else {
+                    url.searchParams.delete(name);
+                }
+            });
+
+            navigateWithUrl(url);
+        });
+    }
+
+    const clearButton = document.getElementById("abd-clear-all-filters");
+
+    if (clearButton) {
+        clearButton.addEventListener("click", function () {
+            const url = currentUrl();
+            const query = url.searchParams.get("q");
+
+            url.search = "";
+
+            if (query) {
+                url.searchParams.set("q", query);
+            }
+
+            navigateWithUrl(url);
+        });
+    }
+});
+</script>
+
+
+    {% if brand.description %}
+        <section
+            class="abd-brand-info-section"
+            id="about-brand"
+            aria-labelledby="about-brand-title"
+        >
+            <div class="abd-brand-info-head">
+                <p class="abd-heading-eyebrow">
+                    Brand profile
+                </p>
+
+                <h2 id="about-brand-title">
+                    About {{ brand.name }}
+                </h2>
+            </div>
+
+            <div class="abd-brand-info-copy">
+                {{ brand.description|safe }}
+            </div>
+        </section>
+    {% endif %}
+
+    <section
+        class="abd-brand-info-section"
+        id="brand-support"
+        aria-labelledby="brand-support-title"
+    >
+        <div class="abd-brand-info-head">
+            <p class="abd-heading-eyebrow">
+                Shopping assistance
+            </p>
+
+            <h2 id="brand-support-title">
+                {{ brand.name }} Support &amp; Resources
+            </h2>
+        </div>
+
+        <p class="abd-brand-support-copy">
+            Need help choosing the right {{ brand.name }} product?
+            Arolana can help with product discovery, seller options,
+            availability and marketplace support.
+        </p>
+
+        <div class="abd-brand-support-actions">
+            <a
+                href="/contact/"
+                class="abd-brand-support-button abd-brand-support-button-primary"
+            >
+                <i class="fas fa-headset"></i>
+                Get Shopping Help
+            </a>
+
+            <a
+                href="{% url 'products:brand_directory' %}"
+                class="abd-brand-support-button abd-brand-support-button-secondary"
+            >
+                <i class="fas fa-th-large"></i>
+                Browse Other Brands
+            </a>
         </div>
     </section>
+
+    <section class="abd-benefit-strip"><div class="abd-benefit"><i class="fas fa-shield-alt"></i><div><strong>Approved Marketplace Listings</strong><span>Products from approved Arolana sellers</span></div></div><div class="abd-benefit"><i class="fas fa-award"></i><div><strong>Product Warranty</strong><span>Warranty details on eligible listings</span></div></div><div class="abd-benefit"><i class="fas fa-headphones-alt"></i><div><strong>Expert Support</strong><span>Shopping and product guidance</span></div></div><div class="abd-benefit"><i class="fas fa-undo-alt"></i><div><strong>Easy Returns</strong><span>For eligible marketplace items</span></div></div></section>
+
 </main>
 {% endblock %}

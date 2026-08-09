@@ -1,432 +1,3477 @@
 {% extends 'base/base.html' %}
 {% load static optimized_images %}
 
-{% block title %}
-Brands on Arolana
-{% endblock %}
+{% block title %}Brands on Arolana{% endblock %}
 
 {% block extra_css %}
 <style>
-    .arolana-brand-directory {
-        width: min(100% - 2rem, 1600px);
-        margin-inline: auto;
-        padding-block: 2rem 4rem;
+:root {
+    --ab-navy: #071a44;
+    --ab-navy-2: #03142e;
+    --ab-blue: #0066cc;
+    --ab-blue-2: #0b4e92;
+    --ab-orange: #f58220;
+    --ab-cyan: #00b8ff;
+    --ab-white: #ffffff;
+    --ab-bg: #f7f9fc;
+    --ab-line: #e5eaf1;
+    --ab-muted: #66758d;
+    --ab-text: #0b1739;
+    --ab-green: #13a36f;
+    --ab-shadow: 0 16px 38px rgba(7, 26, 68, 0.08);
+    --ab-shadow-lg: 0 28px 64px rgba(7, 26, 68, 0.13);
+}
+
+.arolana-brands-page {
+    width: min(calc(100% - 2rem), 1660px);
+    margin: 0 auto;
+    padding: 1.15rem 0 4rem;
+    color: var(--ab-text);
+}
+
+.ab-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    margin: 0 0 1rem;
+    color: var(--ab-muted);
+    font-size: .78rem;
+    font-weight: 750;
+}
+
+.ab-breadcrumb a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.ab-breadcrumb strong {
+    color: var(--ab-navy);
+    font-weight: 900;
+}
+
+.ab-breadcrumb i {
+    font-size: .52rem;
+    color: #9ca8ba;
+}
+
+/* ==========================================================
+   HERO — reference layout
+   ========================================================== */
+
+.ab-hero {
+    --hero-desktop-height: 360px;
+    --hero-tablet-height: 350px;
+    --hero-mobile-height: 330px;
+    --hero-fit-desktop: cover;
+    --hero-fit-tablet: cover;
+    --hero-fit-mobile: cover;
+    --hero-position-desktop: center center;
+    --hero-position-tablet: center center;
+    --hero-position-mobile: center center;
+
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 1.2rem;
+    min-height: var(--hero-desktop-height);
+    overflow: hidden;
+    padding: 1.4rem;
+    border: 1px solid rgba(0, 102, 204, .12);
+    border-radius: 1rem;
+    background:
+        radial-gradient(circle at 65% 45%, rgba(0, 184, 255, .13), transparent 32rem),
+        linear-gradient(110deg, #071a44 0%, #032047 58%, #062c58 100%);
+    box-shadow: var(--ab-shadow-lg);
+}
+
+.ab-hero-media {
+    position: absolute;
+    inset: 0;
+    z-index: -4;
+}
+
+.ab-hero-media picture,
+.ab-hero-media img {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.ab-hero-media img {
+    object-fit: var(--hero-fit-desktop);
+    object-position: var(--hero-position-desktop);
+}
+
+.ab-hero-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: -3;
+    background:
+        linear-gradient(
+            90deg,
+            rgba(3, 20, 46, .97) 0%,
+            rgba(3, 20, 46, .92) 38%,
+            rgba(3, 20, 46, .70) 66%,
+            rgba(3, 20, 46, .54) 100%
+        );
+}
+
+.ab-hero-pattern {
+    position: absolute;
+    inset: 0 22% 0 42%;
+    z-index: -2;
+    opacity: .24;
+    pointer-events: none;
+    background-image:
+        radial-gradient(circle, rgba(99, 184, 255, .5) 1px, transparent 1.4px);
+    background-size: 9px 9px;
+    mask-image:
+        radial-gradient(ellipse at center, #000 0%, rgba(0,0,0,.8) 48%, transparent 78%);
+}
+
+.ab-hero-main {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    justify-content: center;
+    padding: .6rem .6rem .25rem .55rem;
+}
+
+.ab-hero-kicker {
+    margin: 0 0 .55rem;
+    color: var(--ab-orange);
+    font-size: .72rem;
+    font-weight: 950;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+}
+
+.ab-hero h1 {
+    max-width: 650px;
+    margin: 0;
+    color: #fff;
+    font-size: clamp(2.15rem, 4vw, 4rem);
+    font-weight: 950;
+    letter-spacing: -.045em;
+    line-height: 1.03;
+}
+
+.ab-hero h1 .accent {
+    color: var(--ab-orange);
+}
+
+.ab-hero-copy {
+    max-width: 620px;
+    margin: .85rem 0 1.05rem;
+    color: rgba(255,255,255,.88);
+    font-size: .92rem;
+    font-weight: 580;
+    line-height: 1.55;
+}
+
+.ab-hero-search-row {
+    display: grid;
+    grid-template-columns: minmax(0, 410px) auto;
+    gap: .7rem;
+    align-items: stretch;
+    width: min(100%, 650px);
+}
+
+.ab-hero-search {
+    position: relative;
+}
+
+.ab-hero-search i {
+    position: absolute;
+    top: 50%;
+    right: .95rem;
+    color: var(--ab-navy);
+    font-size: .86rem;
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+
+.ab-hero-search input {
+    width: 100%;
+    min-height: 46px;
+    padding: .7rem 2.6rem .7rem .9rem;
+    border: 0;
+    border-radius: .52rem;
+    outline: none;
+    background: rgba(255,255,255,.96);
+    color: var(--ab-text);
+    font-size: .8rem;
+    font-weight: 650;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.36);
+}
+
+.ab-browse-button {
+    display: inline-flex;
+    min-height: 46px;
+    align-items: center;
+    justify-content: center;
+    gap: .55rem;
+    padding: .7rem 1.15rem;
+    border: 1px solid rgba(255,255,255,.55);
+    border-radius: .52rem;
+    color: #fff;
+    background: rgba(255,255,255,.04);
+    font-size: .78rem;
+    font-weight: 900;
+    text-decoration: none;
+    backdrop-filter: blur(10px);
+}
+
+.ab-hero-trust {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0,1fr));
+    gap: 0;
+    width: min(100%, 720px);
+    margin-top: 1rem;
+}
+
+.ab-hero-trust-item {
+    display: grid;
+    grid-template-columns: 30px minmax(0,1fr);
+    gap: .45rem;
+    align-items: center;
+    min-width: 0;
+    padding: .32rem .68rem;
+    border-right: 1px solid rgba(255,255,255,.12);
+}
+
+.ab-hero-trust-item:first-child {
+    padding-left: 0;
+}
+
+.ab-hero-trust-item:last-child {
+    border-right: 0;
+}
+
+.ab-hero-trust-icon {
+    display: inline-flex;
+    width: 30px;
+    height: 30px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: var(--ab-orange);
+    background: rgba(245,130,32,.11);
+    font-size: .72rem;
+}
+
+.ab-hero-trust-item strong {
+    display: block;
+    color: #fff;
+    font-size: .61rem;
+    font-weight: 900;
+    line-height: 1.15;
+}
+
+.ab-hero-trust-item small {
+    display: block;
+    margin-top: .12rem;
+    color: rgba(255,255,255,.70);
+    font-size: .54rem;
+    font-weight: 650;
+    line-height: 1.2;
+}
+
+/* Hero right white panel */
+.ab-why-card {
+    align-self: stretch;
+    overflow: hidden;
+    padding: 1rem 1.05rem .85rem;
+    border-radius: .82rem;
+    background: rgba(255,255,255,.98);
+    box-shadow: 0 14px 38px rgba(0,0,0,.15);
+}
+
+.ab-why-title {
+    display: flex;
+    align-items: center;
+    gap: .52rem;
+    margin: 0 0 .75rem;
+    color: var(--ab-navy);
+    font-size: .9rem;
+    font-weight: 950;
+}
+
+.ab-why-title i {
+    color: var(--ab-orange);
+}
+
+.ab-why-list {
+    display: grid;
+    gap: .58rem;
+}
+
+.ab-why-item {
+    display: grid;
+    grid-template-columns: 36px minmax(0,1fr);
+    gap: .55rem;
+    align-items: center;
+}
+
+.ab-why-icon {
+    display: inline-flex;
+    width: 36px;
+    height: 36px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: var(--ab-navy);
+    background: #eef5ff;
+    font-size: .78rem;
+}
+
+.ab-why-item strong {
+    display: block;
+    color: var(--ab-navy);
+    font-size: .68rem;
+    font-weight: 900;
+    line-height: 1.18;
+}
+
+.ab-why-item small {
+    display: block;
+    margin-top: .12rem;
+    color: var(--ab-muted);
+    font-size: .58rem;
+    line-height: 1.3;
+}
+
+.ab-why-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .8rem;
+    margin-top: .8rem;
+    padding-top: .7rem;
+    border-top: 1px solid var(--ab-line);
+    font-size: .6rem;
+    font-weight: 800;
+}
+
+.ab-why-footer a {
+    color: var(--ab-orange);
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+/* ==========================================================
+   BODY LAYOUT
+   ========================================================== */
+
+.ab-market-layout {
+    display: grid;
+    grid-template-columns: 235px minmax(0,1fr) 245px;
+    gap: 1rem;
+    align-items: start;
+    margin-top: 1.1rem;
+}
+
+.ab-side-card,
+.ab-stats-card,
+.ab-request-card {
+    overflow: hidden;
+    border: 1px solid var(--ab-line);
+    border-radius: .9rem;
+    background: #fff;
+    box-shadow: var(--ab-shadow);
+}
+
+.ab-side-card {
+    padding: .9rem .85rem;
+}
+
+.ab-side-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    margin: 0 0 .6rem;
+    color: var(--ab-navy);
+    font-size: .76rem;
+    font-weight: 950;
+}
+
+.ab-side-heading i {
+    color: var(--ab-navy);
+}
+
+.ab-filter-list {
+    display: grid;
+    gap: .08rem;
+}
+
+.ab-filter-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    min-height: 30px;
+    padding: .35rem .45rem;
+    border-radius: .45rem;
+    color: #43536c;
+    font-size: .65rem;
+    font-weight: 720;
+    text-decoration: none;
+}
+
+.ab-filter-row.is-active {
+    color: var(--ab-blue);
+    background: #eef5ff;
+    font-weight: 900;
+}
+
+.ab-filter-count {
+    color: var(--ab-muted);
+    font-size: .61rem;
+    font-weight: 850;
+}
+
+.ab-filter-divider {
+    height: 1px;
+    margin: .7rem 0;
+    background: var(--ab-line);
+}
+
+.ab-filter-subtitle {
+    margin: 0 0 .5rem;
+    color: var(--ab-navy);
+    font-size: .7rem;
+    font-weight: 950;
+}
+
+.ab-check-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .6rem;
+    padding: .38rem 0;
+    color: #43536c;
+    font-size: .63rem;
+    font-weight: 700;
+}
+
+.ab-check-label {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+}
+
+.ab-check-box {
+    width: 12px;
+    height: 12px;
+    border: 1px solid #9eacbf;
+    border-radius: 2px;
+    background: #fff;
+}
+
+/* Center */
+.ab-center {
+    min-width: 0;
+}
+
+.ab-section {
+    margin-bottom: 1rem;
+}
+
+.ab-section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: .65rem;
+}
+
+.ab-section-heading h2 {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    margin: 0;
+    color: var(--ab-navy);
+    font-size: 1rem;
+    font-weight: 950;
+    letter-spacing: -.02em;
+}
+
+.ab-section-heading h2::before {
+    width: 3px;
+    height: 20px;
+    border-radius: 999px;
+    background: var(--ab-orange);
+    content: "";
+}
+
+.ab-section-heading a {
+    color: var(--ab-blue);
+    font-size: .64rem;
+    font-weight: 850;
+    text-decoration: underline;
+}
+
+.ab-featured-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0,1fr));
+    gap: .7rem;
+}
+
+.ab-featured-card {
+    display: flex;
+    min-width: 0;
+    min-height: 205px;
+    flex-direction: column;
+    padding: .8rem .78rem .72rem;
+    border: 1px solid var(--ab-line);
+    border-radius: .72rem;
+    color: inherit;
+    background: #fff;
+    text-decoration: none;
+    box-shadow: 0 8px 20px rgba(7,26,68,.045);
+    transition: transform .16s ease, box-shadow .16s ease;
+}
+
+.ab-featured-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 30px rgba(7,26,68,.09);
+}
+
+.ab-featured-logo {
+    display: flex;
+    min-height: 92px;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: .55rem;
+    border-radius: .5rem;
+    background: #fbfcfe;
+}
+
+.ab-featured-logo img {
+    width: auto;
+    max-width: 80%;
+    max-height: 58px;
+    object-fit: contain;
+}
+
+.ab-featured-logo span {
+    color: var(--ab-navy);
+    font-size: 1.4rem;
+    font-weight: 950;
+    text-align: center;
+}
+
+.ab-featured-name-row {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+}
+
+.ab-featured-card h3 {
+    overflow: hidden;
+    margin: 0;
+    color: var(--ab-navy);
+    font-size: .72rem;
+    font-weight: 950;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ab-global-chip {
+    display: inline-flex;
+    padding: .18rem .35rem;
+    border-radius: .3rem;
+    color: var(--ab-blue);
+    background: #eef5ff;
+    font-size: .5rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.ab-featured-card p {
+    margin: .42rem 0 .48rem;
+    color: var(--ab-muted);
+    font-size: .6rem;
+    font-weight: 680;
+}
+
+.ab-card-link {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    margin-top: auto;
+    color: var(--ab-blue);
+    font-size: .62rem;
+    font-weight: 900;
+}
+
+/* All brands heading controls */
+.ab-all-brands-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    margin-bottom: .65rem;
+}
+
+.ab-all-brands-left {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+}
+
+.ab-view-toggle {
+    display: inline-flex;
+    gap: .3rem;
+}
+
+.ab-view-btn {
+    display: inline-flex;
+    width: 34px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--ab-line);
+    border-radius: .42rem;
+    color: var(--ab-navy);
+    background: #f8fafc;
+    cursor: pointer;
+}
+
+.ab-view-btn.is-active {
+    border-color: var(--ab-orange);
+    color: var(--ab-orange);
+    background: #fff7ed;
+}
+
+.ab-alpha {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: flex-end;
+    gap: .18rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.ab-alpha::-webkit-scrollbar {
+    display: none;
+}
+
+.ab-alpha-btn {
+    display: inline-flex;
+    min-width: 22px;
+    height: 22px;
+    flex: 0 0 22px;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: .28rem;
+    color: #3d4b64;
+    background: transparent;
+    font-size: .54rem;
+    font-weight: 850;
+    cursor: pointer;
+}
+
+.ab-alpha-btn:hover,
+.ab-alpha-btn.is-active {
+    color: var(--ab-orange);
+}
+
+.ab-alpha-btn.is-disabled {
+    opacity: .28;
+    pointer-events: none;
+}
+
+/* List-style brand cards */
+.ab-brand-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    gap: .55rem;
+}
+
+.ab-brand-row {
+    display: grid;
+    grid-template-columns: 66px minmax(0,1fr) 26px;
+    gap: .7rem;
+    align-items: center;
+    min-width: 0;
+    min-height: 78px;
+    padding: .65rem .7rem;
+    border: 1px solid var(--ab-line);
+    border-radius: .65rem;
+    color: inherit;
+    background: #fff;
+    text-decoration: none;
+    transition: border-color .16s ease, transform .16s ease, box-shadow .16s ease;
+}
+
+.ab-brand-row:hover {
+    transform: translateY(-2px);
+    border-color: rgba(0,102,204,.24);
+    box-shadow: 0 10px 24px rgba(7,26,68,.07);
+}
+
+.ab-brand-row-logo {
+    display: flex;
+    width: 66px;
+    height: 54px;
+    align-items: center;
+    justify-content: center;
+    border-radius: .45rem;
+    background: #f7faff;
+}
+
+.ab-brand-row-logo img {
+    width: auto;
+    max-width: 88%;
+    max-height: 40px;
+    object-fit: contain;
+}
+
+.ab-brand-row-logo span {
+    color: var(--ab-navy);
+    font-size: .72rem;
+    font-weight: 950;
+    text-align: center;
+}
+
+.ab-brand-row-main {
+    min-width: 0;
+}
+
+.ab-brand-row-main h3 {
+    overflow: hidden;
+    margin: 0;
+    color: var(--ab-navy);
+    font-size: .72rem;
+    font-weight: 950;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ab-brand-row-main p {
+    margin: .14rem 0 .28rem;
+    color: var(--ab-muted);
+    font-size: .57rem;
+    font-weight: 700;
+}
+
+.ab-brand-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .32rem;
+    color: var(--ab-muted);
+    font-size: .52rem;
+    font-weight: 700;
+}
+
+.ab-brand-status {
+    display: inline-flex;
+    align-items: center;
+    padding: .16rem .34rem;
+    border-radius: .28rem;
+    color: var(--ab-green);
+    background: #eafaf4;
+    font-size: .49rem;
+    font-weight: 850;
+}
+
+.ab-brand-row-arrow {
+    color: var(--ab-navy);
+    font-size: .72rem;
+    text-align: right;
+}
+
+.ab-brand-row[hidden] {
+    display: none !important;
+}
+
+.ab-filter-empty {
+    display: none;
+    grid-column: 1 / -1;
+    padding: 2rem 1rem;
+    border: 1px dashed #cbd5e1;
+    border-radius: .7rem;
+    color: var(--ab-muted);
+    background: #fff;
+    text-align: center;
+    font-size: .72rem;
+    font-weight: 800;
+}
+
+.ab-filter-empty.is-visible {
+    display: block;
+}
+
+/* Right rail */
+.ab-right-rail {
+    display: grid;
+    gap: .8rem;
+}
+
+.ab-stats-card {
+    padding: 1rem .9rem;
+}
+
+.ab-stats-title {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    margin: 0 0 .9rem;
+    color: var(--ab-navy);
+    font-size: .82rem;
+    font-weight: 950;
+}
+
+.ab-stats-title i {
+    color: var(--ab-blue);
+}
+
+.ab-stat {
+    padding: .68rem .35rem;
+    border-bottom: 1px solid var(--ab-line);
+    text-align: center;
+}
+
+.ab-stat:last-child {
+    border-bottom: 0;
+}
+
+.ab-stat strong {
+    display: block;
+    color: var(--ab-navy);
+    font-size: 1.15rem;
+    font-weight: 950;
+}
+
+.ab-stat small {
+    display: block;
+    margin-top: .14rem;
+    color: var(--ab-muted);
+    font-size: .56rem;
+    font-weight: 700;
+}
+
+.ab-request-card {
+    padding: 1rem .95rem;
+}
+
+.ab-request-icon {
+    display: inline-flex;
+    width: 38px;
+    height: 38px;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: .55rem;
+    border-radius: .65rem;
+    color: var(--ab-orange);
+    background: #fff3e8;
+    font-size: .86rem;
+}
+
+.ab-request-card h3 {
+    margin: 0;
+    color: var(--ab-navy);
+    font-size: .75rem;
+    font-weight: 950;
+}
+
+.ab-request-card p {
+    margin: .35rem 0 .7rem;
+    color: var(--ab-muted);
+    font-size: .61rem;
+    line-height: 1.45;
+}
+
+.ab-request-button {
+    display: inline-flex;
+    min-height: 36px;
+    align-items: center;
+    justify-content: center;
+    gap: .4rem;
+    padding: .55rem .75rem;
+    border-radius: .5rem;
+    color: #fff;
+    background: linear-gradient(135deg, var(--ab-orange), #ff6d00);
+    font-size: .6rem;
+    font-weight: 900;
+    text-decoration: none;
+}
+
+/* ==========================================================
+   RESPONSIVE
+   ========================================================== */
+
+@media (max-width: 1280px) {
+    .ab-market-layout {
+        grid-template-columns: 210px minmax(0,1fr);
     }
 
-    .brand-directory-hero {
-        display: flex;
-        align-items: flex-end;
-        justify-content: space-between;
-        gap: 2rem;
-        padding: 2.25rem;
-        border: 1px solid rgba(0, 102, 204, 0.14);
-        border-radius: 1.5rem;
+    .ab-right-rail {
+        grid-column: 1 / -1;
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .ab-stats-card {
+        display: grid;
+        grid-template-columns: auto repeat(3,1fr);
+        align-items: center;
+        gap: .5rem;
+    }
+
+    .ab-stats-title {
+        margin: 0;
+    }
+
+    .ab-stat {
+        border-bottom: 0;
+        border-left: 1px solid var(--ab-line);
+    }
+}
+
+@media (max-width: 1050px) {
+    .ab-hero {
+        grid-template-columns: 1fr 300px;
+    }
+
+    .ab-featured-grid {
+        grid-template-columns: repeat(2, minmax(0,1fr));
+    }
+
+    .ab-hero-trust {
+        grid-template-columns: repeat(2,minmax(0,1fr));
+    }
+
+    .ab-hero-trust-item:nth-child(2) {
+        border-right: 0;
+    }
+}
+
+@media (max-width: 860px) {
+    .arolana-brands-page {
+        width: min(calc(100% - 1rem), 1660px);
+    }
+
+    .ab-hero {
+        grid-template-columns: 1fr;
+        min-height: auto;
+    }
+
+    .ab-why-card {
+        display: none;
+    }
+
+    .ab-market-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .ab-side-card {
+        order: 2;
+    }
+
+    .ab-center {
+        order: 1;
+    }
+
+    .ab-right-rail {
+        order: 3;
+        grid-column: auto;
+    }
+
+    .ab-side-card {
+        display: none;
+    }
+
+    .ab-brand-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 680px) {
+    .arolana-brands-page {
+        width: min(calc(100% - .65rem), 1660px);
+        padding-top: .6rem;
+        padding-bottom: 2.3rem;
+    }
+
+    .ab-breadcrumb {
+        margin-bottom: .65rem;
+        padding-inline: .1rem;
+        font-size: .66rem;
+    }
+
+    .ab-hero {
+        min-height: var(--hero-mobile-height);
+        gap: .6rem;
+        padding: .9rem;
+        border-radius: .85rem;
+    }
+
+    .ab-hero-media img {
+        object-fit: var(--hero-fit-mobile);
+        object-position: var(--hero-position-mobile);
+    }
+
+    .ab-hero-overlay {
         background:
-            radial-gradient(
-                circle at 0 0,
-                rgba(0, 184, 255, 0.14),
-                transparent 24rem
-            ),
             linear-gradient(
-                135deg,
-                #eef7ff,
-                #ffffff,
-                #fff7ed
+                180deg,
+                rgba(3,20,46,.55) 0%,
+                rgba(3,20,46,.83) 48%,
+                rgba(3,20,46,.98) 100%
             );
     }
 
-    .brand-directory-eyebrow,
-    .brand-section-heading p {
-        margin: 0 0 0.35rem;
-        color: #f58220;
-        font-size: 0.75rem;
-        font-weight: 900;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
+    .ab-hero-pattern {
+        inset: 0;
+        opacity: .12;
     }
 
-    .brand-directory-hero h1,
-    .brand-section-heading h2 {
-        margin: 0;
-        color: #071a44;
-        font-weight: 950;
-        letter-spacing: -0.035em;
+    .ab-hero-main {
+        justify-content: flex-end;
+        padding: 1.1rem .2rem .1rem;
     }
 
-    .brand-directory-hero h1 {
-        font-size: clamp(2rem, 4vw, 4rem);
+    .ab-hero-kicker {
+        font-size: .58rem;
     }
 
-    .brand-directory-hero > div > p:last-child {
-        max-width: 680px;
-        margin: 0.8rem 0 0;
-        color: #64748b;
-        font-weight: 650;
+    .ab-hero h1 {
+        font-size: clamp(1.75rem, 9vw, 2.45rem);
     }
 
-    .brand-search-form {
-        display: flex;
-        min-width: min(100%, 450px);
-        gap: 0.65rem;
+    .ab-hero-copy {
+        margin: .6rem 0 .75rem;
+        font-size: .74rem;
+        line-height: 1.45;
     }
 
-    .brand-search-form input {
+    .ab-hero-search-row {
+        grid-template-columns: minmax(0,1fr) 46px;
+        gap: .4rem;
+    }
+
+    .ab-hero-search input,
+    .ab-browse-button {
+        min-height: 44px;
+    }
+
+    .ab-browse-button {
+        width: 46px;
+        padding: 0;
+    }
+
+    .ab-browse-button span {
+        display: none;
+    }
+
+    .ab-hero-trust {
+        grid-template-columns: repeat(2,minmax(0,1fr));
+        margin-top: .7rem;
+    }
+
+    .ab-hero-trust-item {
+        min-height: 48px;
+        padding: .3rem .38rem;
+    }
+
+    .ab-hero-trust-item:nth-child(odd) {
+        padding-left: 0;
+    }
+
+    .ab-hero-trust-item strong {
+        font-size: .55rem;
+    }
+
+    .ab-hero-trust-item small {
+        font-size: .48rem;
+    }
+
+    .ab-market-layout {
+        margin-top: .75rem;
+    }
+
+    .ab-section-heading h2 {
+        font-size: .88rem;
+    }
+
+    .ab-featured-grid {
+        grid-template-columns: repeat(2,minmax(0,1fr));
+        gap: .45rem;
+    }
+
+    .ab-featured-card {
+        min-height: 165px;
+        padding: .6rem;
+    }
+
+    .ab-featured-logo {
+        min-height: 74px;
+    }
+
+    .ab-featured-logo img {
+        max-height: 44px;
+    }
+
+    .ab-featured-card h3 {
+        font-size: .63rem;
+    }
+
+    .ab-featured-card p {
+        font-size: .53rem;
+    }
+
+    .ab-all-brands-top {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .ab-alpha {
         width: 100%;
-        min-height: 50px;
-        padding: 0.75rem 1rem;
-        border: 1px solid rgba(0, 102, 204, 0.18);
-        border-radius: 0.9rem;
-        outline: none;
+        justify-content: flex-start;
     }
 
-    .brand-search-form input:focus {
-        border-color: #0066cc;
-        box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.1);
+    .ab-brand-list {
+        gap: .45rem;
     }
 
-    .brand-search-form button {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.45rem;
-        min-height: 50px;
-        padding: 0.75rem 1.2rem;
-        border: 0;
-        border-radius: 0.9rem;
-        color: #ffffff;
-        background: linear-gradient(
-            135deg,
-            #0066cc,
-            #071a44
-        );
-        font-weight: 900;
+    .ab-brand-row {
+        grid-template-columns: 58px minmax(0,1fr) 20px;
+        min-height: 72px;
+        padding: .55rem;
     }
 
-    .brand-section {
-        margin-top: 3rem;
+    .ab-brand-row-logo {
+        width: 58px;
+        height: 48px;
     }
 
-    .brand-section-heading {
-        display: flex;
-        align-items: flex-end;
-        justify-content: space-between;
-        gap: 1rem;
-        margin-bottom: 1.25rem;
+    .ab-right-rail {
+        grid-template-columns: 1fr;
     }
 
-    .brand-section-heading h2 {
-        font-size: clamp(1.65rem, 3vw, 2.6rem);
-    }
-
-    .brand-section-heading > span {
-        color: #64748b;
-        font-weight: 800;
-    }
-
-    .brand-grid {
+    .ab-stats-card {
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
-        gap: 1rem;
+        grid-template-columns: repeat(3,1fr);
+        padding: .7rem;
     }
 
-    .brand-grid-featured {
+    .ab-stats-title {
+        grid-column: 1 / -1;
+        margin-bottom: .25rem;
+    }
+
+    .ab-stat {
+        padding: .5rem .2rem;
+        border-bottom: 0;
+        border-left: 1px solid var(--ab-line);
+    }
+
+    .ab-stat:nth-of-type(2) {
+        border-left: 0;
+    }
+
+    .ab-stat strong {
+        font-size: .95rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ab-featured-card,
+    .ab-brand-row,
+    .ab-hero-search input,
+    .ab-browse-button {
+        transition: none !important;
+    }
+}
+
+/* ==========================================================
+   FINAL REFERENCE MATCH OVERRIDES
+   Matches approved Arolana brand-directory visual reference.
+   ========================================================== */
+
+.arolana-brands-page {
+    width: min(calc(100% - 2.5rem), 1460px);
+    margin-inline: auto;
+    padding: 1rem 0 4rem;
+}
+
+/* Hero proportions from reference */
+.ab-hero {
+    grid-template-columns: minmax(0, 1fr) 350px;
+    gap: 1.15rem;
+    min-height: 354px;
+    padding: 1.2rem 1.25rem;
+    border-radius: .82rem;
+}
+
+.ab-hero-main {
+    padding: .35rem .55rem .15rem .6rem;
+}
+
+.ab-hero h1 {
+    max-width: 610px;
+    font-size: clamp(2.35rem, 3.6vw, 3.8rem);
+    line-height: 1.02;
+}
+
+.ab-hero-copy {
+    max-width: 560px;
+    margin: .72rem 0 .9rem;
+    font-size: .84rem;
+    line-height: 1.5;
+}
+
+.ab-hero-search-row {
+    grid-template-columns: minmax(0, 390px) 190px;
+    width: min(100%, 600px);
+}
+
+.ab-hero-search input,
+.ab-browse-button {
+    min-height: 48px;
+}
+
+.ab-hero-trust {
+    width: min(100%, 720px);
+    margin-top: .86rem;
+}
+
+.ab-hero-trust-item {
+    min-height: 42px;
+    padding: .26rem .68rem;
+}
+
+.ab-why-card {
+    padding: .95rem 1rem .78rem;
+    border-radius: .7rem;
+}
+
+.ab-why-title {
+    margin-bottom: .7rem;
+    font-size: .86rem;
+}
+
+.ab-why-list {
+    gap: .52rem;
+}
+
+.ab-why-item {
+    grid-template-columns: 34px minmax(0, 1fr);
+}
+
+.ab-why-icon {
+    width: 34px;
+    height: 34px;
+}
+
+/* Main directory: left rail + broad center + right rail */
+.ab-market-layout {
+    grid-template-columns:
+        238px
+        minmax(0, 1fr)
+        280px;
+    gap: 1.15rem;
+    align-items: start;
+    margin-top: 1.15rem;
+}
+
+.ab-center {
+    width: 100%;
+    min-width: 0;
+}
+
+/* Left rail */
+.ab-side-card {
+    padding: .88rem .82rem;
+    border-radius: .72rem;
+}
+
+.ab-filter-row {
+    min-height: 31px;
+    padding: .35rem .45rem;
+}
+
+.ab-filter-row:not(.is-active) .ab-filter-count:empty {
+    display: none;
+}
+
+/* Featured brands */
+.ab-section {
+    margin-bottom: 1.05rem;
+}
+
+.ab-section-heading {
+    margin-bottom: .68rem;
+}
+
+.ab-section-heading h2 {
+    font-size: .96rem;
+}
+
+.ab-featured-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: .75rem;
+}
+
+.ab-featured-card {
+    min-height: 184px;
+    padding: .72rem .72rem .66rem;
+    border-radius: .66rem;
+}
+
+.ab-featured-logo {
+    min-height: 82px;
+    margin-bottom: .48rem;
+    background: #ffffff;
+}
+
+.ab-featured-logo img {
+    max-width: 80%;
+    max-height: 55px;
+}
+
+.ab-featured-logo span {
+    font-size: 1.25rem;
+}
+
+.ab-featured-card h3 {
+    font-size: .69rem;
+}
+
+.ab-featured-card p {
+    margin: .36rem 0 .44rem;
+    font-size: .57rem;
+}
+
+/* Featured row stays visible even when no brands are explicitly flagged */
+.ab-featured-section {
+    display: block;
+}
+
+.ab-featured-section + #all-brands {
+    margin-top: .2rem;
+}
+
+/* All Brands header */
+.ab-all-brands-top {
+    min-height: 38px;
+    margin-bottom: .58rem;
+}
+
+.ab-all-brands-left {
+    flex: 0 0 auto;
+}
+
+.ab-alpha {
+    flex: 1;
+    justify-content: flex-end;
+    gap: .1rem;
+}
+
+.ab-alpha-btn {
+    min-width: 18px;
+    height: 21px;
+    flex-basis: 18px;
+    padding: 0;
+    font-size: .5rem;
+}
+
+/* Compact 2-column list rows */
+.ab-brand-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .48rem;
+}
+
+.ab-brand-row {
+    grid-template-columns:
+        60px
+        minmax(0, 1fr)
+        22px;
+    gap: .62rem;
+    min-height: 84px;
+    padding: .56rem .64rem;
+    border-radius: .6rem;
+}
+
+.ab-brand-row-logo {
+    width: 60px;
+    height: 56px;
+    border-radius: .5rem;
+}
+
+.ab-brand-row-logo img {
+    max-width: 88%;
+    max-height: 43px;
+}
+
+.ab-brand-row-main h3 {
+    font-size: .68rem;
+}
+
+.ab-brand-row-main p {
+    margin: .12rem 0 .2rem;
+    font-size: .55rem;
+}
+
+.ab-brand-meta {
+    gap: .28rem;
+    font-size: .5rem;
+}
+
+.ab-brand-status {
+    margin-left: .18rem;
+}
+
+/* Right rail */
+.ab-right-rail {
+    width: 100%;
+    gap: .85rem;
+}
+
+.ab-stats-card,
+.ab-request-card {
+    border-radius: .72rem;
+}
+
+.ab-stats-card {
+    padding: .95rem .9rem;
+}
+
+.ab-stats-title {
+    margin-bottom: .72rem;
+    font-size: .78rem;
+}
+
+.ab-stat {
+    padding: .62rem .28rem;
+}
+
+.ab-stat strong {
+    font-size: 1.08rem;
+}
+
+.ab-request-card {
+    padding: 1rem .92rem;
+}
+
+.ab-request-card h3 {
+    font-size: .73rem;
+}
+
+.ab-request-card p {
+    max-width: 190px;
+    font-size: .59rem;
+}
+
+/* Large screens: keep the page centered and composed, not stretched */
+@media (min-width: 1461px) {
+    .arolana-brands-page {
+        width: 1460px;
+    }
+}
+
+/* Medium desktop */
+@media (max-width: 1240px) {
+    .arolana-brands-page {
+        width: min(calc(100% - 1.5rem), 1460px);
+    }
+
+    .ab-market-layout {
+        grid-template-columns:
+            215px
+            minmax(0, 1fr)
+            245px;
+        gap: .85rem;
+    }
+
+    .ab-featured-grid {
         grid-template-columns: repeat(4, minmax(0, 1fr));
     }
+}
 
-    .brand-card {
-        display: flex;
+/* Tablet */
+@media (max-width: 1060px) {
+    .ab-market-layout {
+        grid-template-columns:
+            190px
+            minmax(0, 1fr);
+    }
+
+    .ab-right-rail {
+        grid-column: 1 / -1;
+        grid-template-columns: 1.25fr .75fr;
+    }
+
+    .ab-featured-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* Mobile */
+@media (max-width: 860px) {
+    .ab-market-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .ab-right-rail {
+        grid-column: auto;
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 680px) {
+    .arolana-brands-page {
+        width: min(calc(100% - .7rem), 1460px);
+    }
+
+    .ab-brand-list {
+        grid-template-columns: 1fr;
+    }
+
+    .ab-right-rail {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* ==========================================================
+   FINAL FULL-WIDTH DESKTOP SPREAD
+   Breaks the Brands page out of the narrower base container
+   while keeping clean breathing room on both viewport sides.
+   ========================================================== */
+
+@media (min-width: 1181px) {
+    .arolana-brands-page {
+        width: min(calc(100vw - 2.5rem), 1840px) !important;
+        max-width: none !important;
+        margin-left: 50% !important;
+        margin-right: 0 !important;
+        transform: translateX(-50%);
+        padding-inline: 0 !important;
+    }
+
+    .ab-hero {
+        width: 100%;
+        grid-template-columns: minmax(0, 1fr) 380px;
+        gap: 1.5rem;
+        padding: 1.45rem 1.65rem;
+    }
+
+    .ab-market-layout {
+        width: 100%;
+        grid-template-columns:
+            255px
+            minmax(0, 1fr)
+            300px;
+        gap: 1.35rem;
+        align-items: start;
+    }
+
+    .ab-center {
+        width: 100%;
+        max-width: none;
         min-width: 0;
-        flex-direction: column;
-        overflow: hidden;
-        border: 1px solid rgba(15, 23, 42, 0.08);
-        border-radius: 1.2rem;
-        color: inherit;
-        background: #ffffff;
-        text-decoration: none;
-        box-shadow: 0 16px 42px rgba(7, 26, 68, 0.06);
-        transition:
-            transform 180ms ease,
-            border-color 180ms ease,
-            box-shadow 180ms ease;
     }
 
-    .brand-card:hover {
-        transform: translateY(-4px);
-        border-color: rgba(0, 102, 204, 0.3);
-        box-shadow: 0 24px 54px rgba(7, 26, 68, 0.12);
+    .ab-featured-grid {
+        width: 100%;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 1rem;
     }
 
-    .brand-card-logo {
-        display: flex;
-        min-height: 145px;
-        align-items: center;
-        justify-content: center;
-        padding: 1.25rem;
-        background:
-            radial-gradient(
-                circle at 50% 0,
-                rgba(0, 184, 255, 0.08),
-                transparent 12rem
-            ),
-            #f8fbff;
+    .ab-featured-card {
+        width: 100%;
+        min-height: 224px;
+        padding: .9rem .95rem .85rem;
+        border-radius: .82rem;
     }
 
-    .brand-card-logo img {
+    .ab-featured-logo {
+        min-height: 108px;
+    }
+
+    .ab-featured-logo img {
+        max-width: 84%;
+        max-height: 68px;
+    }
+
+    .ab-featured-logo span {
+        font-size: 1.48rem;
+    }
+
+    .ab-featured-card h3 {
+        font-size: .78rem;
+    }
+
+    .ab-featured-card p {
+        font-size: .63rem;
+    }
+
+    .ab-card-link {
+        font-size: .68rem;
+    }
+
+    .ab-all-brands-top {
+        width: 100%;
+    }
+
+    .ab-alpha {
+        flex: 1 1 auto;
+        justify-content: flex-end;
+    }
+
+    .ab-brand-list {
+        width: 100%;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: .75rem;
+    }
+
+    .ab-brand-row {
+        width: 100%;
+        grid-template-columns:
+            76px
+            minmax(0, 1fr)
+            28px;
+        gap: .85rem;
+        min-height: 98px;
+        padding: .74rem .88rem;
+        border-radius: .76rem;
+    }
+
+    .ab-brand-row-logo {
+        width: 76px;
+        height: 66px;
+        border-radius: .58rem;
+    }
+
+    .ab-brand-row-logo img {
+        max-width: 88%;
+        max-height: 50px;
+    }
+
+    .ab-brand-row-logo span {
+        font-size: .82rem;
+    }
+
+    .ab-brand-row-main h3 {
+        font-size: .78rem;
+    }
+
+    .ab-brand-row-main p {
+        margin: .18rem 0 .3rem;
+        font-size: .61rem;
+    }
+
+    .ab-brand-meta {
+        gap: .34rem;
+        font-size: .55rem;
+    }
+
+    .ab-side-card {
+        width: 100%;
+        padding: 1rem .95rem;
+    }
+
+    .ab-right-rail {
+        width: 100%;
+    }
+
+    .ab-stats-card,
+    .ab-request-card {
+        width: 100%;
+    }
+}
+
+/* Very large desktop: retain generous side margins instead of
+   allowing the page to become excessively wide. */
+@media (min-width: 1900px) {
+    .arolana-brands-page {
+        width: min(calc(100vw - 5rem), 1840px) !important;
+    }
+
+    .ab-market-layout {
+        grid-template-columns:
+            270px
+            minmax(0, 1fr)
+            315px;
+        gap: 1.5rem;
+    }
+
+    .ab-featured-grid {
+        gap: 1.1rem;
+    }
+
+    .ab-brand-list {
+        gap: .85rem;
+    }
+}
+
+/* Laptop: still use nearly all available width, but avoid crowding. */
+@media (min-width: 1181px) and (max-width: 1450px) {
+    .arolana-brands-page {
+        width: calc(100vw - 1.5rem) !important;
+    }
+
+    .ab-market-layout {
+        grid-template-columns:
+            220px
+            minmax(0, 1fr)
+            250px;
+        gap: .9rem;
+    }
+
+    .ab-featured-grid {
+        gap: .7rem;
+    }
+
+    .ab-featured-card {
+        min-height: 202px;
+        padding: .78rem;
+    }
+
+    .ab-featured-logo {
+        min-height: 92px;
+    }
+
+    .ab-brand-row {
+        grid-template-columns:
+            66px
+            minmax(0, 1fr)
+            24px;
+        min-height: 88px;
+        padding: .64rem .7rem;
+    }
+
+    .ab-brand-row-logo {
+        width: 66px;
+        height: 58px;
+    }
+}
+
+
+/* ==========================================================
+   PREMIUM BRAND PAGINATION
+   ========================================================== */
+.ab-pagination-wrap {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin: 1.7rem 0 .35rem;
+}
+
+.ab-pagination {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .72rem;
+}
+
+.ab-page-link {
+    display: inline-flex;
+    width: 54px;
+    height: 54px;
+    flex: 0 0 54px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #dfe5ed;
+    border-radius: 16px;
+    color: #334155;
+    background: #fff;
+    font-size: 1.12rem;
+    font-weight: 850;
+    line-height: 1;
+    text-decoration: none;
+    box-shadow: 0 8px 22px rgba(7, 26, 68, .055);
+    transition:
+        transform .16s ease,
+        border-color .16s ease,
+        box-shadow .16s ease,
+        color .16s ease,
+        background .16s ease;
+}
+
+.ab-page-link:hover {
+    transform: translateY(-2px);
+    border-color: rgba(0, 102, 204, .28);
+    color: var(--ab-blue);
+    box-shadow: 0 12px 28px rgba(7, 26, 68, .10);
+}
+
+.ab-page-link.is-active {
+    border-color: transparent;
+    color: #fff;
+    background: linear-gradient(135deg, #2f6df6 0%, #6d35ef 100%);
+    box-shadow: 0 12px 26px rgba(75, 73, 235, .22);
+    pointer-events: none;
+}
+
+.ab-page-link.is-disabled {
+    opacity: .42;
+    pointer-events: none;
+}
+
+.ab-page-link i {
+    font-size: .98rem;
+}
+
+@media (max-width: 680px) {
+    .ab-pagination-wrap {
+        margin-top: 1.25rem;
+    }
+
+    .ab-pagination {
+        gap: .48rem;
+    }
+
+    .ab-page-link {
+        width: 46px;
+        height: 46px;
+        flex-basis: 46px;
+        border-radius: 14px;
+        font-size: .98rem;
+    }
+}
+
+.ab-brand-list.is-grid-view {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ab-brand-list.is-grid-view .ab-brand-row {
+    display: flex;
+    min-height: 190px;
+    flex-direction: column;
+    align-items: stretch;
+    padding: .8rem;
+}
+
+.ab-brand-list.is-grid-view .ab-brand-row-logo {
+    width: 100%;
+    height: 100px;
+}
+
+.ab-brand-list.is-grid-view .ab-brand-row-main {
+    width: 100%;
+}
+
+.ab-brand-list.is-grid-view .ab-brand-row-main h3 {
+    margin-top: .65rem;
+}
+
+.ab-brand-list.is-grid-view .ab-brand-row-arrow {
+    position: absolute;
+    right: .8rem;
+    bottom: .8rem;
+}
+
+.ab-brand-list.is-grid-view .ab-brand-row {
+    position: relative;
+}
+
+.ab-brand-list.is-list-view {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 680px) {
+    .ab-brand-list.is-grid-view {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .ab-brand-list.is-grid-view .ab-brand-row {
+        min-height: 165px;
+    }
+
+    .ab-brand-list.is-grid-view .ab-brand-row-logo {
+        height: 82px;
+    }
+
+    .ab-brand-list.is-list-view {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* ==========================================================
+   INTERACTIVE DIRECTORY CONTROLS
+   ========================================================== */
+
+.ab-category-toggle {
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+}
+
+.ab-category-toggle:focus-visible,
+.ab-view-btn:focus-visible,
+.ab-featured-toggle:focus-visible,
+.ab-alpha-btn:focus-visible {
+    outline: 3px solid rgba(0, 102, 204, .22);
+    outline-offset: 3px;
+}
+
+.ab-category-panel-content {
+    display: block;
+}
+
+.ab-featured-toggle {
+    padding: 0;
+    border: 0;
+    color: var(--ab-blue);
+    background: transparent;
+    font-size: .64rem;
+    font-weight: 850;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.ab-featured-extra {
+    display: none;
+}
+
+.ab-featured-grid.is-expanded .ab-featured-extra {
+    display: flex;
+}
+
+.ab-featured-section.is-fallback .ab-section-heading {
+    margin-bottom: .68rem;
+}
+
+@media (max-width: 860px) {
+    .ab-side-card {
         display: block;
-        width: auto;
-        max-width: 150px;
-        height: 70px;
-        object-fit: contain;
+        order: 2;
     }
 
-    .brand-card-logo span {
-        color: #071a44;
-        font-size: 1.45rem;
-        font-weight: 950;
-        text-align: center;
+    .ab-category-toggle {
+        margin-bottom: 0;
     }
 
-    .brand-card-body {
-        display: flex;
-        flex: 1;
-        flex-direction: column;
-        padding: 1rem 1.1rem 1.15rem;
+    .ab-category-panel-content {
+        display: none;
+        margin-top: .7rem;
     }
 
-    .brand-card-body h3 {
-        margin: 0;
-        color: #071a44;
-        font-size: 1rem;
-        font-weight: 950;
+    .ab-side-card.is-open .ab-category-panel-content {
+        display: block;
     }
 
-    .brand-card-body p {
-        margin: 0.35rem 0 1rem;
-        color: #64748b;
-        font-size: 0.78rem;
-        font-weight: 700;
+    .ab-side-card.is-open .ab-category-toggle i {
+        color: var(--ab-orange);
+    }
+}
+
+@media (min-width: 861px) {
+    .ab-category-toggle {
+        pointer-events: none;
     }
 
-    .brand-card-body span {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        margin-top: auto;
-        color: #0066cc;
-        font-size: 0.8rem;
-        font-weight: 900;
+    .ab-category-toggle i {
+        pointer-events: none;
     }
-
-    .brand-empty-state {
-        padding: 4rem 1rem;
-        border: 1px dashed rgba(0, 102, 204, 0.28);
-        border-radius: 1.25rem;
-        text-align: center;
-    }
-
-    .brand-empty-state i {
-        color: #0066cc;
-        font-size: 2.5rem;
-    }
-
-    .brand-empty-state h2 {
-        margin: 1rem 0 0.35rem;
-        color: #071a44;
-    }
-
-    .brand-empty-state p {
-        margin: 0;
-        color: #64748b;
-    }
-
-    @media (max-width: 1200px) {
-        .brand-grid {
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-        }
-
-        .brand-grid-featured {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-    }
-
-    @media (max-width: 900px) {
-        .brand-directory-hero {
-            align-items: stretch;
-            flex-direction: column;
-        }
-
-        .brand-search-form {
-            min-width: 0;
-        }
-
-        .brand-grid,
-        .brand-grid-featured {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-    }
-
-    @media (max-width: 640px) {
-        .arolana-brand-directory {
-            width: min(100% - 1rem, 1600px);
-        }
-
-        .brand-directory-hero {
-            padding: 1.25rem;
-        }
-
-        .brand-search-form {
-            flex-direction: column;
-        }
-
-        .brand-grid,
-        .brand-grid-featured {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-    }
+}
 
 </style>
 {% endblock %}
 
 {% block content %}
-<main class="arolana-brand-directory">
-    <section class="brand-directory-hero">
-        <div>
-            <p class="brand-directory-eyebrow">
-                Approved manufacturers
-            </p>
+<main class="arolana-brands-page">
 
-            <h1>
-                Trusted Brands on Arolana
-            </h1>
+    <nav class="ab-breadcrumb" aria-label="Breadcrumb">
+        <a href="/">Home</a>
+        <i class="fas fa-chevron-right"></i>
+        <strong>Brands</strong>
+    </nav>
 
-            <p>
-                Browse approved products from established global
-                and regional brands.
-            </p>
-        </div>
+    {% if brand_directory_banners %}
+        {% with banner=brand_directory_banners.0 %}
 
-        <form method="get" class="brand-search-form">
-            <label class="sr-only" for="brand-search">
-                Search brands
-            </label>
+            {% if banner.image_desktop %}
+                {% optimized_image_url banner.image_desktop 'hero_banner' as brand_hero_desktop %}
+            {% endif %}
+            {% if banner.image_tablet %}
+                {% optimized_image_url banner.image_tablet 'hero_banner' as brand_hero_tablet %}
+            {% endif %}
+            {% if banner.image_mobile %}
+                {% optimized_image_url banner.image_mobile 'hero_banner' as brand_hero_mobile %}
+            {% endif %}
 
-            <input
-                id="brand-search"
-                type="search"
-                name="q"
-                value="{{ search_query }}"
-                placeholder="Search brands"
+            <section
+                class="ab-hero"
+                style="
+                    --hero-desktop-height: clamp(330px, {{ banner.desktop_height|default:360 }}px, 430px);
+                    --hero-tablet-height: clamp(320px, {{ banner.tablet_height|default:350 }}px, 410px);
+                    --hero-mobile-height: clamp(300px, {{ banner.mobile_height|default:330 }}px, 390px);
+                    --hero-fit-desktop: {{ banner.image_fit_desktop|default:'cover' }};
+                    --hero-fit-tablet: {{ banner.image_fit_tablet|default:'cover' }};
+                    --hero-fit-mobile: {{ banner.image_fit_mobile|default:'cover' }};
+                    --hero-position-desktop: {{ banner.image_position_desktop|default:'center center' }};
+                    --hero-position-tablet: {{ banner.image_position_tablet|default:'center center' }};
+                    --hero-position-mobile: {{ banner.image_position_mobile|default:'center center' }};
+                "
             >
+                {% if banner.image_desktop %}
+                    <div class="ab-hero-media">
+                        <picture>
+                            {% if banner.image_mobile %}
+                                <source media="(max-width: 680px)" srcset="{{ brand_hero_mobile }}">
+                            {% endif %}
+                            {% if banner.image_tablet %}
+                                <source media="(max-width: 1024px)" srcset="{{ brand_hero_tablet }}">
+                            {% endif %}
+                            <img
+                                src="{{ brand_hero_desktop }}"
+                                alt="{{ banner.title|default:'Arolana brands' }}"
+                                fetchpriority="high"
+                                decoding="async"
+                            >
+                        </picture>
+                    </div>
+                    <div
+                        class="ab-hero-overlay"
+                        style="opacity: {{ banner.overlay_opacity_css|default:'0.82' }};"
+                    ></div>
+                {% endif %}
 
-            <button type="submit">
-                <i class="fas fa-search"></i>
-                Search
-            </button>
-        </form>
-    </section>
+                <div class="ab-hero-pattern"></div>
 
-    {% if featured_brands %}
-    <section class="brand-section">
-        <div class="brand-section-heading">
-            <div>
-                <p>Popular choices</p>
-                <h2>Featured Brands</h2>
-            </div>
-        </div>
-
-        <div class="brand-grid brand-grid-featured">
-            {% for brand in featured_brands %}
-            <a
-                href="{{ brand.get_absolute_url }}"
-                class="brand-card"
-            >
-                <div class="brand-card-logo">
-                    {% if brand.logo %}
-                        <img
-                            src="{{ brand.logo.url }}"
-                            alt="{{ brand.name }} logo"
-                            loading="lazy"
-                        >
-                    {% else %}
-                        <span>{{ brand.name }}</span>
-                    {% endif %}
-                </div>
-
-                <div class="brand-card-body">
-                    <h3>{{ brand.name }}</h3>
-
-                    <p>
-                        {{ brand.approved_product_count }}
-                        approved product{{ brand.approved_product_count|pluralize }}
+                <div class="ab-hero-main">
+                    <p class="ab-hero-kicker">
+                        Trusted brands. Verified quality.
                     </p>
+
+                    {% if banner.show_content and banner.show_title %}
+                        <h1>{{ banner.title }}</h1>
+                    {% else %}
+                        <h1>
+                            Discover Brands<br>
+                            You Can <span class="accent">Trust</span>
+                        </h1>
+                    {% endif %}
+
+                    {% if banner.show_content and banner.show_subtitle and banner.subtitle %}
+                        <p class="ab-hero-copy">{{ banner.subtitle }}</p>
+                    {% elif banner.show_content and banner.show_description and banner.description %}
+                        <p class="ab-hero-copy">
+                            {{ banner.description|striptags|truncatewords:28 }}
+                        </p>
+                    {% else %}
+                        <p class="ab-hero-copy">
+                            Explore officially approved global and regional brands on Arolana.
+                            Quality products. Verified manufacturers. Smarter shopping.
+                        </p>
+                    {% endif %}
+
+                    <div class="ab-hero-search-row">
+                        <form method="get" class="ab-hero-search" role="search">
+                            <label class="sr-only" for="brand-search">
+                                Search brands
+                            </label>
+
+                            <input
+                                id="brand-search"
+                                type="search"
+                                name="q"
+                                value="{{ search_query }}"
+                                placeholder="Search brands by name..."
+                                autocomplete="off"
+                            >
+                            <i class="fas fa-search"></i>
+                        </form>
+
+                        <a href="#all-brands" class="ab-browse-button">
+                            <i class="fas fa-th-large"></i>
+                            <span>Browse All Brands</span>
+                        </a>
+                    </div>
+
+                    <div class="ab-hero-trust">
+                        <div class="ab-hero-trust-item">
+                            <span class="ab-hero-trust-icon">
+                                <i class="fas fa-shield-alt"></i>
+                            </span>
+                            <div>
+                                <strong>100% Authentic</strong>
+                                <small>Genuine products</small>
+                            </div>
+                        </div>
+
+                        <div class="ab-hero-trust-item">
+                            <span class="ab-hero-trust-icon">
+                                <i class="fas fa-globe"></i>
+                            </span>
+                            <div>
+                                <strong>Global Brands</strong>
+                                <small>Trusted worldwide</small>
+                            </div>
+                        </div>
+
+                        <div class="ab-hero-trust-item">
+                            <span class="ab-hero-trust-icon">
+                                <i class="fas fa-award"></i>
+                            </span>
+                            <div>
+                                <strong>Quality Assured</strong>
+                                <small>Approved manufacturers</small>
+                            </div>
+                        </div>
+
+                        <div class="ab-hero-trust-item">
+                            <span class="ab-hero-trust-icon">
+                                <i class="fas fa-lock"></i>
+                            </span>
+                            <div>
+                                <strong>Secure Shopping</strong>
+                                <small>Your data is protected</small>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </a>
-            {% endfor %}
-        </div>
-    </section>
+
+                <aside class="ab-why-card" aria-label="Why shop brands on Arolana">
+                    <h2 class="ab-why-title">
+                        <i class="far fa-star"></i>
+                        Why Shop Brands on Arolana?
+                    </h2>
+
+                    <div class="ab-why-list">
+                        <div class="ab-why-item">
+                            <span class="ab-why-icon">
+                                <i class="fas fa-store-alt"></i>
+                            </span>
+                            <div>
+                                <strong>Official & approved manufacturers</strong>
+                                <small>Only verified and trusted brands</small>
+                            </div>
+                        </div>
+
+                        <div class="ab-why-item">
+                            <span class="ab-why-icon">
+                                <i class="fas fa-shield-alt"></i>
+                            </span>
+                            <div>
+                                <strong>Genuine products & warranty</strong>
+                                <small>Authentic products with official warranty</small>
+                            </div>
+                        </div>
+
+                        <div class="ab-why-item">
+                            <span class="ab-why-icon">
+                                <i class="fas fa-th-large"></i>
+                            </span>
+                            <div>
+                                <strong>Wide range of categories</strong>
+                                <small>Find the best brands in every category</small>
+                            </div>
+                        </div>
+
+                        <div class="ab-why-item">
+                            <span class="ab-why-icon">
+                                <i class="fas fa-hands-helping"></i>
+                            </span>
+                            <div>
+                                <strong>Better value, expert support</strong>
+                                <small>Get more value with expert assistance</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ab-why-footer">
+                        <span>Looking to sell your brand?</span>
+                        <a href="/vendors/">
+                            Become a Vendor
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </div>
+                </aside>
+            </section>
+
+        {% endwith %}
+    {% else %}
+        <section class="ab-hero">
+            <div class="ab-hero-pattern"></div>
+
+            <div class="ab-hero-main">
+                <p class="ab-hero-kicker">
+                    Trusted brands. Verified quality.
+                </p>
+
+                <h1>
+                    Discover Brands<br>
+                    You Can <span class="accent">Trust</span>
+                </h1>
+
+                <p class="ab-hero-copy">
+                    Explore officially approved global and regional brands on Arolana.
+                    Quality products. Verified manufacturers. Smarter shopping.
+                </p>
+
+                <div class="ab-hero-search-row">
+                    <form method="get" class="ab-hero-search" role="search">
+                        <label class="sr-only" for="brand-search">
+                            Search brands
+                        </label>
+
+                        <input
+                            id="brand-search"
+                            type="search"
+                            name="q"
+                            value="{{ search_query }}"
+                            placeholder="Search brands by name..."
+                            autocomplete="off"
+                        >
+                        <i class="fas fa-search"></i>
+                    </form>
+
+                    <a href="#all-brands" class="ab-browse-button">
+                        <i class="fas fa-th-large"></i>
+                        <span>Browse All Brands</span>
+                    </a>
+                </div>
+
+                <div class="ab-hero-trust">
+                    <div class="ab-hero-trust-item">
+                        <span class="ab-hero-trust-icon">
+                            <i class="fas fa-shield-alt"></i>
+                        </span>
+                        <div>
+                            <strong>100% Authentic</strong>
+                            <small>Genuine products</small>
+                        </div>
+                    </div>
+
+                    <div class="ab-hero-trust-item">
+                        <span class="ab-hero-trust-icon">
+                            <i class="fas fa-globe"></i>
+                        </span>
+                        <div>
+                            <strong>Global Brands</strong>
+                            <small>Trusted worldwide</small>
+                        </div>
+                    </div>
+
+                    <div class="ab-hero-trust-item">
+                        <span class="ab-hero-trust-icon">
+                            <i class="fas fa-award"></i>
+                        </span>
+                        <div>
+                            <strong>Quality Assured</strong>
+                            <small>Approved manufacturers</small>
+                        </div>
+                    </div>
+
+                    <div class="ab-hero-trust-item">
+                        <span class="ab-hero-trust-icon">
+                            <i class="fas fa-lock"></i>
+                        </span>
+                        <div>
+                            <strong>Secure Shopping</strong>
+                            <small>Your data is protected</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <aside class="ab-why-card" aria-label="Why shop brands on Arolana">
+                <h2 class="ab-why-title">
+                    <i class="far fa-star"></i>
+                    Why Shop Brands on Arolana?
+                </h2>
+
+                <div class="ab-why-list">
+                    <div class="ab-why-item">
+                        <span class="ab-why-icon">
+                            <i class="fas fa-store-alt"></i>
+                        </span>
+                        <div>
+                            <strong>Official & approved manufacturers</strong>
+                            <small>Only verified and trusted brands</small>
+                        </div>
+                    </div>
+
+                    <div class="ab-why-item">
+                        <span class="ab-why-icon">
+                            <i class="fas fa-shield-alt"></i>
+                        </span>
+                        <div>
+                            <strong>Genuine products & warranty</strong>
+                            <small>Authentic products with official warranty</small>
+                        </div>
+                    </div>
+
+                    <div class="ab-why-item">
+                        <span class="ab-why-icon">
+                            <i class="fas fa-th-large"></i>
+                        </span>
+                        <div>
+                            <strong>Wide range of categories</strong>
+                            <small>Find the best brands in every category</small>
+                        </div>
+                    </div>
+
+                    <div class="ab-why-item">
+                        <span class="ab-why-icon">
+                            <i class="fas fa-hands-helping"></i>
+                        </span>
+                        <div>
+                            <strong>Better value, expert support</strong>
+                            <small>Get more value with expert assistance</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ab-why-footer">
+                    <span>Looking to sell your brand?</span>
+                    <a href="/vendors/">
+                        Become a Vendor
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </aside>
+        </section>
     {% endif %}
 
-    <section class="brand-section">
-        <div class="brand-section-heading">
-            <div>
-                <p>Brand directory</p>
+    <div class="ab-market-layout">
 
-                <h2>
-                    All Brands
-                </h2>
-            </div>
+        <aside
+            class="ab-side-card"
+            id="brand-category-panel"
+        >
+            <button
+                type="button"
+                class="ab-side-heading ab-category-toggle"
+                id="brand-category-toggle"
+                aria-expanded="false"
+                aria-controls="brand-category-panel-content"
+            >
+                <span>Shop by Category</span>
 
-            <span>
-                {{ brand_count }} brand{{ brand_count|pluralize }}
-            </span>
-        </div>
+                <i
+                    class="fas fa-list"
+                    aria-hidden="true"
+                ></i>
+            </button>
 
-        {% if brands %}
-            <div class="brand-grid">
-                {% for brand in brands %}
+            <div
+                id="brand-category-panel-content"
+                class="ab-category-panel-content"
+            >
+                <div class="ab-filter-list">
+                    <a
+                        href="?{% if search_query %}q={{ search_query|urlencode }}{% endif %}{% if in_stock_only %}{% if search_query %}&{% endif %}in_stock=1{% endif %}#all-brands"
+                        class="ab-filter-row {% if not selected_category %}is-active{% endif %}"
+                    >
+                        <span>All Brands</span>
+                        <span class="ab-filter-count">
+                            {{ brand_count }}
+                        </span>
+                    </a>
+
+                    {% for category in brand_categories %}
+                        <a
+                            href="?category={{ category.slug|urlencode }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if in_stock_only %}&in_stock=1{% endif %}#all-brands"
+                            class="ab-filter-row {% if selected_category == category.slug %}is-active{% endif %}"
+                        >
+                            <span>
+                                {{ category.name }}
+                            </span>
+
+                            <span class="ab-filter-count">
+                                {{ category.brand_count }}
+                            </span>
+                        </a>
+                    {% empty %}
+                        <span class="ab-filter-row">
+                            <span>No categories available</span>
+                        </span>
+                    {% endfor %}
+                </div>
+
+                <div class="ab-filter-divider"></div>
+
+                <p class="ab-filter-subtitle">
+                    Availability
+                </p>
+
                 <a
-                    href="{{ brand.get_absolute_url }}"
-                    class="brand-card"
+                    href="{% if in_stock_only %}?{% if search_query %}q={{ search_query|urlencode }}{% endif %}{% if selected_category %}{% if search_query %}&{% endif %}category={{ selected_category|urlencode }}{% endif %}#all-brands{% else %}?in_stock=1{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if selected_category %}&category={{ selected_category|urlencode }}{% endif %}#all-brands{% endif %}"
+                    class="ab-check-row"
+                    style="text-decoration:none;"
                 >
-                    <div class="brand-card-logo">
-                        {% if brand.logo %}
-                            <img
-                                src="{{ brand.logo.url }}"
-                                alt="{{ brand.name }} logo"
-                                loading="lazy"
+                    <span class="ab-check-label">
+                        <span
+                            class="ab-check-box"
+                            {% if in_stock_only %}
+                                style="
+                                    border-color:#0066cc;
+                                    background:#0066cc;
+                                    box-shadow:
+                                        inset 0 0 0 2px #ffffff;
+                                "
+                            {% endif %}
+                        ></span>
+
+                        In Stock
+                    </span>
+
+                    <span class="ab-filter-count">
+                        {{ in_stock_brand_count }}
+                    </span>
+                </a>
+
+                {% if selected_category or in_stock_only or search_query %}
+                    <div class="ab-filter-divider"></div>
+
+                    <a
+                        href="{% url 'products:brand_directory' %}#all-brands"
+                        class="ab-filter-row"
+                        style="
+                            color:#0066cc;
+                            font-weight:900;
+                        "
+                    >
+                        <span>
+                            Clear Filters
+                        </span>
+
+                        <i class="fas fa-times"></i>
+                    </a>
+                {% endif %}
+            </div>
+        </aside>
+
+        <div class="ab-center">
+            {% if featured_brands %}
+                <section class="ab-section ab-featured-section">
+                    <div class="ab-section-heading">
+                        <h2>Featured Brands</h2>
+
+                        {% if featured_brands|length > 4 %}
+                            <button
+                                type="button"
+                                class="ab-featured-toggle"
+                                id="featured-brands-toggle"
+                                aria-expanded="false"
+                                aria-controls="featured-brands-grid"
                             >
-                        {% else %}
-                            <span>{{ brand.name }}</span>
+                                View all featured
+                            </button>
                         {% endif %}
                     </div>
 
-                    <div class="brand-card-body">
-                        <h3>{{ brand.name }}</h3>
+                    <div
+                        class="ab-featured-grid"
+                        id="featured-brands-grid"
+                    >
+                        {% for brand in featured_brands %}
+                            <a
+                                href="{{ brand.get_absolute_url }}"
+                                class="ab-featured-card{% if forloop.counter > 4 %} ab-featured-extra{% endif %}"
+                            >
+                                <div class="ab-featured-logo">
+                                    {% if brand.logo %}
+                                        {% optimized_image_url brand.logo 'avatar' as featured_brand_logo %}
+                                        <img
+                                            src="{{ featured_brand_logo }}"
+                                            alt="{{ brand.name }} logo"
+                                            loading="lazy"
+                                            decoding="async"
+                                        >
+                                    {% else %}
+                                        <span>{{ brand.name }}</span>
+                                    {% endif %}
+                                </div>
 
-                        <p>
-                            {{ brand.approved_product_count }}
-                            approved product{{ brand.approved_product_count|pluralize }}
-                        </p>
+                                <div class="ab-featured-name-row">
+                                    <h3>{{ brand.name }}</h3>
+                                </div>
 
-                        <span>
-                            Shop Brand
-                            <i class="fas fa-arrow-right"></i>
-                        </span>
+                                <p>
+                                    {{ brand.approved_product_count }}
+                                    approved product{{ brand.approved_product_count|pluralize }}
+                                </p>
+
+                                <span class="ab-card-link">
+                                    View Products
+                                    <i class="fas fa-arrow-right"></i>
+                                </span>
+                            </a>
+                        {% endfor %}
                     </div>
-                </a>
-                {% endfor %}
-            </div>
-        {% else %}
-            <div class="brand-empty-state">
-                <i class="fas fa-tags"></i>
+                </section>
+            {% elif brands %}
+                <section class="ab-section ab-featured-section is-fallback">
+                    <div class="ab-section-heading">
+                        <h2>Popular Brands</h2>
+                    </div>
 
-                <h2>No matching brands</h2>
+                    <div class="ab-featured-grid">
+                        {% for brand in brands|slice:":4" %}
+                            <a
+                                href="{{ brand.get_absolute_url }}"
+                                class="ab-featured-card"
+                            >
+                                <div class="ab-featured-logo">
+                                    {% if brand.logo %}
+                                        {% optimized_image_url brand.logo 'avatar' as featured_brand_logo %}
+                                        <img
+                                            src="{{ featured_brand_logo }}"
+                                            alt="{{ brand.name }} logo"
+                                            loading="lazy"
+                                            decoding="async"
+                                        >
+                                    {% else %}
+                                        <span>{{ brand.name }}</span>
+                                    {% endif %}
+                                </div>
+
+                                <div class="ab-featured-name-row">
+                                    <h3>{{ brand.name }}</h3>
+                                </div>
+
+                                <p>
+                                    {{ brand.approved_product_count }}
+                                    approved product{{ brand.approved_product_count|pluralize }}
+                                </p>
+
+                                <span class="ab-card-link">
+                                    View Products
+                                    <i class="fas fa-arrow-right"></i>
+                                </span>
+                            </a>
+                        {% endfor %}
+                    </div>
+                </section>
+            {% endif %}
+
+            <section class="ab-section" id="all-brands">
+                <div class="ab-all-brands-top">
+                    <div class="ab-all-brands-left">
+                        <div class="ab-section-heading" style="margin-bottom:0;">
+                            <h2>All Brands</h2>
+                        </div>
+
+                        <div class="ab-view-toggle" aria-label="Brand view">
+                            <button
+                                type="button"
+                                class="ab-view-btn is-active"
+                                data-brand-view="grid"
+                                aria-label="Grid view"
+                                aria-pressed="true"
+                            >
+                                <i class="fas fa-th-large"></i>
+                            </button>
+
+                            <button
+                                type="button"
+                                class="ab-view-btn"
+                                data-brand-view="list"
+                                aria-label="List view"
+                                aria-pressed="false"
+                            >
+                                <i class="fas fa-list"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div
+                        class="ab-alpha"
+                        aria-label="Filter brands alphabetically"
+                    >
+                        <button
+                            type="button"
+                            class="ab-alpha-btn is-active"
+                            data-letter="all"
+                            aria-pressed="true"
+                        >
+                            All
+                        </button>
+
+                        {% for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" %}
+                            <button
+                                type="button"
+                                class="ab-alpha-btn"
+                                data-letter="{{ letter }}"
+                                aria-pressed="false"
+                            >
+                                {{ letter }}
+                            </button>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                {% if brands %}
+                    <div class="ab-brand-list" id="brand-grid">
+                        {% for brand in brands %}
+                            <a
+                                href="{{ brand.get_absolute_url }}"
+                                class="ab-brand-row"
+                                data-brand-name="{{ brand.name|upper }}"
+                            >
+                                <div class="ab-brand-row-logo">
+                                    {% if brand.logo %}
+                                        {% optimized_image_url brand.logo 'avatar' as brand_logo_url %}
+                                        <img
+                                            src="{{ brand_logo_url }}"
+                                            alt="{{ brand.name }} logo"
+                                            loading="lazy"
+                                            decoding="async"
+                                        >
+                                    {% else %}
+                                        <span>{{ brand.name }}</span>
+                                    {% endif %}
+                                </div>
+
+                                <div class="ab-brand-row-main">
+                                    <h3>{{ brand.name }}</h3>
+
+                                    <p>
+                                        {{ brand.approved_product_count }}
+                                        approved product{{ brand.approved_product_count|pluralize }}
+                                    </p>
+
+                                    <div class="ab-brand-meta">
+                                        <span>
+                                            {{ brand.approved_product_count }}
+                                            approved
+                                            product{{ brand.approved_product_count|pluralize }}
+                                        </span>
+
+                                        {% if brand.in_stock_product_count > 0 %}
+                                            <span class="ab-brand-status">
+                                                In Stock
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <span class="ab-brand-row-arrow">
+                                    <i class="fas fa-chevron-right"></i>
+                                </span>
+                            </a>
+                        {% endfor %}
+
+                        <div
+                            class="ab-filter-empty"
+                            id="brand-filter-empty"
+                        >
+                            No brands begin with this letter.
+                        </div>
+                    </div>
+
+                    <nav
+                        class="ab-pagination-wrap"
+                        id="brand-pagination-wrap"
+                        aria-label="Brand directory pagination"
+                    >
+                        <div
+                            class="ab-pagination"
+                            id="brand-pagination"
+                        ></div>
+                    </nav>
+
+
+                {% else %}
+                    <div class="ab-filter-empty is-visible">
+                        No matching brands found.
+                    </div>
+                {% endif %}
+            </section>
+        </div>
+
+        <aside class="ab-right-rail">
+
+            <section class="ab-stats-card">
+                <h2 class="ab-stats-title">
+                    <i class="fas fa-store-alt"></i>
+                    Brand Directory
+                </h2>
+
+                <div class="ab-stat">
+                    <strong>
+                        {{ brand_count }}
+                    </strong>
+
+                    <small>
+                        Brands Available
+                    </small>
+                </div>
+
+                <div class="ab-stat">
+                    <strong>
+                        {{ approved_product_count }}
+                    </strong>
+
+                    <small>
+                        Approved Products
+                    </small>
+                </div>
+
+                <div class="ab-stat">
+                    <strong>
+                        {{ in_stock_brand_count }}
+                    </strong>
+
+                    <small>
+                        Brands In Stock
+                    </small>
+                </div>
+            </section>
+
+            <section class="ab-request-card">
+                <span class="ab-request-icon">
+                    <i class="fas fa-user-plus"></i>
+                </span>
+
+                <h3>Can't find your brand?</h3>
 
                 <p>
-                    Try another brand name.
+                    Request a brand to be added to our marketplace.
                 </p>
-            </div>
-        {% endif %}
-    </section>
+
+                <a href="/contact/" class="ab-request-button">
+                    Request a Brand
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+            </section>
+
+        </aside>
+
+    </div>
+
 </main>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const alphabetButtons = Array.from(
+        document.querySelectorAll(".ab-alpha-btn")
+    );
+
+    const brandCards = Array.from(
+        document.querySelectorAll(
+            "#brand-grid .ab-brand-row"
+        )
+    );
+
+    const viewButtons = Array.from(
+        document.querySelectorAll(
+            "[data-brand-view]"
+        )
+    );
+
+    const brandGrid =
+        document.getElementById(
+            "brand-grid"
+        );
+
+    const categoryPanel =
+        document.getElementById(
+            "brand-category-panel"
+        );
+
+    const categoryToggle =
+        document.getElementById(
+            "brand-category-toggle"
+        );
+
+    const featuredToggle =
+        document.getElementById(
+            "featured-brands-toggle"
+        );
+
+    const featuredGrid =
+        document.getElementById(
+            "featured-brands-grid"
+        );
+
+    const emptyNode =
+        document.getElementById(
+            "brand-filter-empty"
+        );
+
+    const paginationWrap =
+        document.getElementById(
+            "brand-pagination-wrap"
+        );
+
+    const paginationNode =
+        document.getElementById(
+            "brand-pagination"
+        );
+
+    /*
+     * ==========================================================
+     * Mobile category panel
+     * ==========================================================
+     */
+
+    function setCategoryPanel(open) {
+        if (
+            !categoryPanel ||
+            !categoryToggle
+        ) {
+            return;
+        }
+
+        categoryPanel.classList.toggle(
+            "is-open",
+            open
+        );
+
+        categoryToggle.setAttribute(
+            "aria-expanded",
+            open
+                ? "true"
+                : "false"
+        );
+    }
+
+    if (
+        categoryPanel &&
+        categoryToggle
+    ) {
+        categoryToggle.addEventListener(
+            "click",
+            function () {
+                if (
+                    window.matchMedia(
+                        "(min-width: 861px)"
+                    ).matches
+                ) {
+                    return;
+                }
+
+                const nextOpen =
+                    !categoryPanel.classList
+                        .contains("is-open");
+
+                setCategoryPanel(
+                    nextOpen
+                );
+            }
+        );
+
+        window.addEventListener(
+            "resize",
+            function () {
+                if (
+                    window.matchMedia(
+                        "(min-width: 861px)"
+                    ).matches
+                ) {
+                    setCategoryPanel(
+                        false
+                    );
+                }
+            }
+        );
+    }
+
+    /*
+     * ==========================================================
+     * Featured brands expansion
+     * ==========================================================
+     */
+
+    if (
+        featuredToggle &&
+        featuredGrid
+    ) {
+        featuredToggle.addEventListener(
+            "click",
+            function () {
+                const expanded =
+                    featuredGrid.classList
+                        .toggle(
+                            "is-expanded"
+                        );
+
+                featuredToggle.setAttribute(
+                    "aria-expanded",
+                    expanded
+                        ? "true"
+                        : "false"
+                );
+
+                featuredToggle.textContent =
+                    expanded
+                        ? "Show fewer"
+                        : "View all featured";
+            }
+        );
+    }
+
+    /*
+     * ==========================================================
+     * Grid / list view
+     * ==========================================================
+     */
+
+    function setBrandView(view) {
+        if (!brandGrid) {
+            return;
+        }
+
+        const normalized =
+            view === "list"
+                ? "list"
+                : "grid";
+
+        brandGrid.classList.remove(
+            "is-grid-view",
+            "is-list-view"
+        );
+
+        brandGrid.classList.add(
+            normalized === "grid"
+                ? "is-grid-view"
+                : "is-list-view"
+        );
+
+        viewButtons.forEach(
+            function (button) {
+                const active =
+                    button.dataset.brandView ===
+                    normalized;
+
+                button.classList.toggle(
+                    "is-active",
+                    active
+                );
+
+                button.setAttribute(
+                    "aria-pressed",
+                    active
+                        ? "true"
+                        : "false"
+                );
+            }
+        );
+
+        try {
+            sessionStorage.setItem(
+                "arolanaBrandView",
+                normalized
+            );
+        } catch (error) {
+            // Browser storage may be unavailable.
+        }
+    }
+
+    viewButtons.forEach(
+        function (button) {
+            button.addEventListener(
+                "click",
+                function () {
+                    setBrandView(
+                        button.dataset.brandView
+                    );
+                }
+            );
+        }
+    );
+
+    let savedBrandView = "grid";
+
+    try {
+        savedBrandView =
+            sessionStorage.getItem(
+                "arolanaBrandView"
+            ) || "grid";
+    } catch (error) {
+        savedBrandView = "grid";
+    }
+
+    setBrandView(
+        savedBrandView
+    );
+
+    /*
+     * Nothing below is required when there are no brand cards.
+     * Category and featured controls above still remain functional.
+     */
+    if (!brandCards.length) {
+        if (paginationWrap) {
+            paginationWrap.style.display =
+                "none";
+        }
+
+        return;
+    }
+
+    /*
+     * ==========================================================
+     * A-Z filtering + premium pagination
+     * ==========================================================
+     */
+
+    const ITEMS_PER_PAGE = 8;
+
+    let activeLetter = "all";
+    let currentPage = 1;
+
+    const availableLetters = new Set(
+        brandCards
+            .map(function (card) {
+                return (
+                    card.dataset.brandName ||
+                    ""
+                )
+                    .trim()
+                    .charAt(0)
+                    .toUpperCase();
+            })
+            .filter(Boolean)
+    );
+
+    function filteredCards() {
+        return brandCards.filter(
+            function (card) {
+                const name = (
+                    card.dataset.brandName ||
+                    ""
+                )
+                    .trim()
+                    .toUpperCase();
+
+                return (
+                    activeLetter === "all" ||
+                    name.startsWith(
+                        activeLetter
+                    )
+                );
+            }
+        );
+    }
+
+    function createPageButton(
+        label,
+        page,
+        options
+    ) {
+        const settings =
+            options || {};
+
+        const button =
+            document.createElement(
+                "button"
+            );
+
+        button.type = "button";
+        button.className =
+            "ab-page-link";
+
+        if (settings.active) {
+            button.classList.add(
+                "is-active"
+            );
+
+            button.setAttribute(
+                "aria-current",
+                "page"
+            );
+        }
+
+        if (settings.disabled) {
+            button.classList.add(
+                "is-disabled"
+            );
+
+            button.disabled = true;
+        }
+
+        button.setAttribute(
+            "aria-label",
+            settings.ariaLabel ||
+            (
+                "Go to page " +
+                page
+            )
+        );
+
+        if (settings.icon) {
+            const icon =
+                document.createElement(
+                    "i"
+                );
+
+            icon.className =
+                settings.icon;
+
+            button.appendChild(
+                icon
+            );
+        } else {
+            button.textContent =
+                label;
+        }
+
+        if (
+            !settings.disabled &&
+            !settings.active
+        ) {
+            button.addEventListener(
+                "click",
+                function () {
+                    currentPage =
+                        page;
+
+                    renderBrands(
+                        true
+                    );
+                }
+            );
+        }
+
+        return button;
+    }
+
+    function addEllipsis() {
+        if (!paginationNode) {
+            return;
+        }
+
+        const ellipsis =
+            document.createElement(
+                "span"
+            );
+
+        ellipsis.className =
+            "ab-pagination-ellipsis";
+
+        ellipsis.textContent = "…";
+
+        paginationNode.appendChild(
+            ellipsis
+        );
+    }
+
+    function renderPagination(
+        totalPages
+    ) {
+        if (
+            !paginationWrap ||
+            !paginationNode
+        ) {
+            return;
+        }
+
+        paginationNode.innerHTML =
+            "";
+
+        if (totalPages <= 0) {
+            paginationWrap.style.display =
+                "none";
+
+            return;
+        }
+
+        paginationWrap.style.display =
+            "flex";
+
+        if (
+            currentPage >
+            totalPages
+        ) {
+            currentPage =
+                totalPages;
+        }
+
+        if (currentPage > 1) {
+            paginationNode.appendChild(
+                createPageButton(
+                    "",
+                    currentPage - 1,
+                    {
+                        icon:
+                            "fas fa-chevron-left",
+                        ariaLabel:
+                            "Previous page"
+                    }
+                )
+            );
+        }
+
+        let pages = [];
+
+        if (totalPages <= 5) {
+            for (
+                let page = 1;
+                page <= totalPages;
+                page += 1
+            ) {
+                pages.push(
+                    page
+                );
+            }
+        } else {
+            pages = [
+                1,
+                currentPage - 1,
+                currentPage,
+                currentPage + 1,
+                totalPages
+            ]
+                .filter(
+                    function (page) {
+                        return (
+                            page >= 1 &&
+                            page <= totalPages
+                        );
+                    }
+                )
+                .filter(
+                    function (
+                        page,
+                        index,
+                        array
+                    ) {
+                        return (
+                            array.indexOf(
+                                page
+                            ) ===
+                            index
+                        );
+                    }
+                )
+                .sort(
+                    function (a, b) {
+                        return a - b;
+                    }
+                );
+        }
+
+        let previousRendered = 0;
+
+        pages.forEach(
+            function (page) {
+                if (
+                    previousRendered &&
+                    page -
+                    previousRendered >
+                    1
+                ) {
+                    addEllipsis();
+                }
+
+                paginationNode
+                    .appendChild(
+                        createPageButton(
+                            String(page),
+                            page,
+                            {
+                                active:
+                                    page ===
+                                    currentPage,
+                                ariaLabel:
+                                    "Go to page " +
+                                    page
+                            }
+                        )
+                    );
+
+                previousRendered =
+                    page;
+            }
+        );
+
+        if (
+            currentPage <
+            totalPages
+        ) {
+            paginationNode.appendChild(
+                createPageButton(
+                    "",
+                    currentPage + 1,
+                    {
+                        icon:
+                            "fas fa-chevron-right",
+                        ariaLabel:
+                            "Next page"
+                    }
+                )
+            );
+        }
+    }
+
+    function renderBrands(
+        scrollToDirectory
+    ) {
+        const matches =
+            filteredCards();
+
+        const totalPages =
+            matches.length
+                ? Math.ceil(
+                    matches.length /
+                    ITEMS_PER_PAGE
+                )
+                : 0;
+
+        if (
+            totalPages > 0 &&
+            currentPage >
+            totalPages
+        ) {
+            currentPage =
+                totalPages;
+        }
+
+        const pageStart =
+            (
+                Math.max(
+                    currentPage,
+                    1
+                ) - 1
+            ) *
+            ITEMS_PER_PAGE;
+
+        const pageEnd =
+            pageStart +
+            ITEMS_PER_PAGE;
+
+        const visibleCards =
+            new Set(
+                matches.slice(
+                    pageStart,
+                    pageEnd
+                )
+            );
+
+        brandCards.forEach(
+            function (card) {
+                card.hidden =
+                    !visibleCards.has(
+                        card
+                    );
+            }
+        );
+
+        if (emptyNode) {
+            emptyNode.classList.toggle(
+                "is-visible",
+                matches.length === 0
+            );
+        }
+
+        if (
+            matches.length === 0
+        ) {
+            if (paginationWrap) {
+                paginationWrap.style.display =
+                    "none";
+            }
+        } else {
+            renderPagination(
+                totalPages
+            );
+        }
+
+        if (
+            scrollToDirectory
+        ) {
+            const section =
+                document.getElementById(
+                    "all-brands"
+                );
+
+            if (section) {
+                section.scrollIntoView({
+                    behavior:
+                        window.matchMedia(
+                            "(prefers-reduced-motion: reduce)"
+                        ).matches
+                            ? "auto"
+                            : "smooth",
+                    block: "start"
+                });
+            }
+        }
+    }
+
+    alphabetButtons.forEach(
+        function (button) {
+            const letter = (
+                button.dataset.letter ||
+                "all"
+            ).toUpperCase();
+
+            if (
+                letter !== "ALL" &&
+                !availableLetters.has(
+                    letter
+                )
+            ) {
+                button.classList.add(
+                    "is-disabled"
+                );
+
+                button.setAttribute(
+                    "aria-disabled",
+                    "true"
+                );
+            }
+
+            button.addEventListener(
+                "click",
+                function () {
+                    if (
+                        button.classList
+                            .contains(
+                                "is-disabled"
+                            )
+                    ) {
+                        return;
+                    }
+
+                    alphabetButtons.forEach(
+                        function (item) {
+                            item.classList
+                                .remove(
+                                    "is-active"
+                                );
+
+                            item.setAttribute(
+                                "aria-pressed",
+                                "false"
+                            );
+                        }
+                    );
+
+                    button.classList.add(
+                        "is-active"
+                    );
+
+                    button.setAttribute(
+                        "aria-pressed",
+                        "true"
+                    );
+
+                    activeLetter =
+                        letter === "ALL"
+                            ? "all"
+                            : letter;
+
+                    currentPage = 1;
+
+                    renderBrands(
+                        false
+                    );
+                }
+            );
+        }
+    );
+
+    renderBrands(
+        false
+    );
+});
+</script>
 {% endblock %}

@@ -5412,6 +5412,22 @@ def mobile_brand_directory_api(request):
         request.GET.get("q") or ""
     ).strip()
 
+    category_slug = str(
+        request.GET.get("category") or ""
+    ).strip()
+
+    in_stock_only = (
+        str(
+            request.GET.get("in_stock") or ""
+        ).strip().lower()
+        in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+    )
+
     try:
         limit = int(
             request.GET.get("limit") or 100
@@ -5424,6 +5440,266 @@ def mobile_brand_directory_api(request):
         200,
     )
 
+    now = timezone.now()
+
+    # ============================================================
+    # Helpers
+    # ============================================================
+
+    def absolute_file_url(file_field):
+        if not file_field:
+            return ""
+
+        try:
+            return request.build_absolute_uri(
+                file_field.url
+            )
+        except Exception:
+            return ""
+
+    def banner_payload(banner):
+        if not banner:
+            return None
+
+        return {
+            "id": banner.id,
+            "placement": banner.placement,
+
+            "title": banner.title or "",
+            "subtitle": banner.subtitle or "",
+            "description": banner.description or "",
+
+            "show_content": bool(
+                banner.show_content
+            ),
+            "show_title": bool(
+                banner.show_title
+            ),
+            "show_subtitle": bool(
+                banner.show_subtitle
+            ),
+            "show_description": bool(
+                banner.show_description
+            ),
+
+            "image_desktop": absolute_file_url(
+                banner.image_desktop
+            ),
+            "image_tablet": absolute_file_url(
+                banner.image_tablet
+            ),
+            "image_mobile": absolute_file_url(
+                banner.image_mobile
+            ),
+
+            "desktop_height": (
+                banner.desktop_height
+            ),
+            "tablet_height": (
+                banner.tablet_height
+            ),
+            "mobile_height": (
+                banner.mobile_height
+            ),
+
+            "image_fit_desktop": (
+                banner.image_fit_desktop
+            ),
+            "image_fit_tablet": (
+                banner.image_fit_tablet
+            ),
+            "image_fit_mobile": (
+                banner.image_fit_mobile
+            ),
+
+            "image_position_desktop": (
+                banner.image_position_desktop
+            ),
+            "image_position_tablet": (
+                banner.image_position_tablet
+            ),
+            "image_position_mobile": (
+                banner.image_position_mobile
+            ),
+
+            "mobile_content_layout": (
+                banner.mobile_content_layout
+            ),
+
+            "overlay_color": (
+                banner.overlay_color or "#000000"
+            ),
+            "overlay_opacity": float(
+                banner.overlay_opacity or 0
+            ),
+            "text_color": (
+                banner.text_color or "#FFFFFF"
+            ),
+            "text_alignment": (
+                banner.text_alignment
+            ),
+            "content_position": (
+                banner.content_position
+            ),
+
+            "show_buttons": bool(
+                banner.show_buttons
+            ),
+
+            "button1": {
+                "visible": bool(
+                    banner.show_button1
+                ),
+                "text": (
+                    banner.button1_text or ""
+                ),
+                "url": (
+                    banner.button1_url or ""
+                ),
+                "style": (
+                    banner.button1_style or ""
+                ),
+                "background_color": (
+                    banner
+                    .button1_background_color
+                    or ""
+                ),
+                "text_color": (
+                    banner.button1_text_color
+                    or ""
+                ),
+                "border_color": (
+                    banner.button1_border_color
+                    or ""
+                ),
+            },
+
+            "button2": {
+                "visible": bool(
+                    banner.show_button2
+                ),
+                "text": (
+                    banner.button2_text or ""
+                ),
+                "url": (
+                    banner.button2_url or ""
+                ),
+                "style": (
+                    banner.button2_style or ""
+                ),
+                "background_color": (
+                    banner
+                    .button2_background_color
+                    or ""
+                ),
+                "text_color": (
+                    banner.button2_text_color
+                    or ""
+                ),
+                "border_color": (
+                    banner.button2_border_color
+                    or ""
+                ),
+            },
+
+            "button3": {
+                "visible": bool(
+                    banner.show_button3
+                ),
+                "text": (
+                    banner.button3_text or ""
+                ),
+                "url": (
+                    banner.button3_url or ""
+                ),
+                "style": (
+                    banner.button3_style or ""
+                ),
+                "background_color": (
+                    banner
+                    .button3_background_color
+                    or ""
+                ),
+                "text_color": (
+                    banner.button3_text_color
+                    or ""
+                ),
+                "border_color": (
+                    banner.button3_border_color
+                    or ""
+                ),
+            },
+
+            "enable_slide_link": bool(
+                banner.enable_slide_link
+            ),
+            "slide_link_url": (
+                banner.effective_slide_link_url
+                or ""
+            ),
+            "slide_open_behavior": (
+                banner.slide_open_behavior
+            ),
+
+            "animation_effect": (
+                banner.animation_effect
+            ),
+            "animation_duration": (
+                banner.animation_duration
+            ),
+            "autoplay_delay": (
+                banner.autoplay_delay
+            ),
+        }
+
+    # ============================================================
+    # Active directory banner
+    # ============================================================
+
+    active_banner = None
+
+    if HeroBanner:
+        active_banner = (
+            HeroBanner.objects
+            .filter(
+                is_active=True,
+                placement=(
+                    HeroBanner
+                    .PLACEMENT_BRAND_DIRECTORY
+                ),
+                brand__isnull=True,
+            )
+            .filter(
+                Q(start_date__isnull=True)
+                | Q(start_date__lte=now),
+                Q(end_date__isnull=True)
+                | Q(end_date__gte=now),
+            )
+            .order_by(
+                "display_order",
+                "-created_at",
+            )
+            .first()
+        )
+
+    # ============================================================
+    # Approved product scope
+    # ============================================================
+
+    approved_products = (
+        Product.objects
+        .filter(
+            is_active=True,
+            approval_status="approved",
+            brand__isnull=False,
+            brand__is_active=True,
+        )
+    )
+
+    # ============================================================
+    # Brands
+    # ============================================================
+
     brands = (
         Brand.objects
         .filter(
@@ -5434,10 +5710,24 @@ def mobile_brand_directory_api(request):
                 "products",
                 filter=Q(
                     products__is_active=True,
-                    products__approval_status="approved",
+                    products__approval_status=(
+                        "approved"
+                    ),
                 ),
                 distinct=True,
-            )
+            ),
+            in_stock_product_count=Count(
+                "products",
+                filter=Q(
+                    products__is_active=True,
+                    products__approval_status=(
+                        "approved"
+                    ),
+                    products__is_in_stock=True,
+                    products__stock_quantity__gt=0,
+                ),
+                distinct=True,
+            ),
         )
         .filter(
             approved_product_count__gt=0,
@@ -5450,32 +5740,46 @@ def mobile_brand_directory_api(request):
             | Q(description__icontains=search_query)
         )
 
+    if category_slug:
+        brands = (
+            brands
+            .filter(
+                products__is_active=True,
+                products__approval_status="approved",
+                products__category__slug=(
+                    category_slug
+                ),
+                products__category__is_active=True,
+            )
+            .distinct()
+        )
+
+    if in_stock_only:
+        brands = brands.filter(
+            in_stock_product_count__gt=0,
+        )
+
     brands = brands.order_by(
         "-featured",
         "-approved_product_count",
         "name",
     )[:limit]
 
-    def brand_logo_url(brand):
-        logo = getattr(
-            brand,
-            "logo",
-            None,
-        )
-
-        if not logo:
-            return ""
-
-        try:
-            return request.build_absolute_uri(
-                logo.url
-            )
-        except Exception:
-            return ""
+    # ============================================================
+    # Brand payload
+    # ============================================================
 
     payload = []
 
     for brand in brands:
+        logo_url = absolute_file_url(
+            getattr(
+                brand,
+                "logo",
+                None,
+            )
+        )
+
         payload.append(
             {
                 "id": brand.id,
@@ -5489,12 +5793,10 @@ def mobile_brand_directory_api(request):
                     )
                     or ""
                 ),
-                "logo": brand_logo_url(
-                    brand
-                ),
-                "logo_url": brand_logo_url(
-                    brand
-                ),
+
+                "logo": logo_url,
+                "logo_url": logo_url,
+
                 "featured": bool(
                     getattr(
                         brand,
@@ -5502,37 +5804,191 @@ def mobile_brand_directory_api(request):
                         False,
                     )
                 ),
+
                 "product_count": (
-                    brand.approved_product_count
+                    brand
+                    .approved_product_count
                 ),
+                "approved_product_count": (
+                    brand
+                    .approved_product_count
+                ),
+                "in_stock_product_count": (
+                    brand
+                    .in_stock_product_count
+                ),
+                "has_in_stock_products": bool(
+                    brand
+                    .in_stock_product_count
+                    > 0
+                ),
+
                 "web_url": (
-                    request.build_absolute_uri(
+                    request
+                    .build_absolute_uri(
                         brand.get_absolute_url()
                     )
                 ),
             }
         )
 
+    # ============================================================
+    # Real category metadata
+    # ============================================================
+
+    category_rows = (
+        Category.objects
+        .filter(
+            is_active=True,
+            products__is_active=True,
+            products__approval_status="approved",
+            products__brand__isnull=False,
+            products__brand__is_active=True,
+        )
+        .annotate(
+            brand_count=Count(
+                "products__brand",
+                distinct=True,
+            ),
+            approved_product_count=Count(
+                "products",
+                filter=Q(
+                    products__is_active=True,
+                    products__approval_status=(
+                        "approved"
+                    ),
+                    products__brand__isnull=False,
+                    products__brand__is_active=True,
+                ),
+                distinct=True,
+            ),
+        )
+        .filter(
+            brand_count__gt=0,
+        )
+        .order_by(
+            "-brand_count",
+            "name",
+        )
+    )
+
+    categories_payload = [
+        {
+            "id": category.id,
+            "name": category.name,
+            "slug": category.slug,
+            "brand_count": (
+                category.brand_count
+            ),
+            "product_count": (
+                category
+                .approved_product_count
+            ),
+        }
+        for category in category_rows
+    ]
+
+    # ============================================================
+    # Stats
+    # ============================================================
+
+    total_brand_count = (
+        Brand.objects
+        .filter(
+            is_active=True,
+            products__is_active=True,
+            products__approval_status="approved",
+        )
+        .distinct()
+        .count()
+    )
+
+    approved_product_count = (
+        approved_products.count()
+    )
+
+    in_stock_brand_count = (
+        Brand.objects
+        .filter(
+            is_active=True,
+            products__is_active=True,
+            products__approval_status="approved",
+            products__is_in_stock=True,
+            products__stock_quantity__gt=0,
+        )
+        .distinct()
+        .count()
+    )
+
+    available_letters = sorted({
+        str(item["name"] or "")
+        .strip()
+        .upper()[:1]
+        for item in payload
+        if str(item["name"] or "").strip()
+    })
+
     return JsonResponse(
         {
             "success": True,
+
             "query": search_query,
+            "selected_category": (
+                category_slug
+            ),
+            "in_stock_only": (
+                in_stock_only
+            ),
+
+            # Current filtered result count
             "count": len(payload),
+
+            # Existing compatibility fields
             "brands": payload,
             "featured_brands": [
                 item
                 for item in payload
                 if item["featured"]
             ][:12],
+
+            # Shared brand-directory presentation
+            "hero_banner": (
+                banner_payload(
+                    active_banner
+                )
+            ),
+            "brand_directory_banner": (
+                banner_payload(
+                    active_banner
+                )
+            ),
+
+            # Real filter metadata
+            "categories": (
+                categories_payload
+            ),
+            "available_letters": (
+                available_letters
+            ),
+
+            # Global directory statistics
+            "stats": {
+                "brand_count": (
+                    total_brand_count
+                ),
+                "approved_product_count": (
+                    approved_product_count
+                ),
+                "in_stock_brand_count": (
+                    in_stock_brand_count
+                ),
+            },
         }
     )
 
 
 @require_GET
-def mobile_brand_detail_api(
-    request,
-    slug,
-):
+def mobile_brand_detail_api(request, slug):
     brand = get_object_or_404(
         Brand,
         slug=slug,
@@ -5547,17 +6003,276 @@ def mobile_brand_detail_api(
         request.GET.get("category") or ""
     ).strip()
 
+    in_stock_only = (
+        str(
+            request.GET.get("in_stock") or ""
+        ).strip().lower()
+        in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+    )
+
     try:
         limit = int(
-            request.GET.get("limit") or 60
+            request.GET.get("limit") or 100
         )
     except (TypeError, ValueError):
-        limit = 60
+        limit = 100
 
     limit = min(
         max(limit, 1),
-        100,
+        200,
     )
+
+    now = timezone.now()
+
+    # ============================================================
+    # Helpers
+    # ============================================================
+
+    def absolute_file_url(file_field):
+        if not file_field:
+            return ""
+
+        try:
+            return request.build_absolute_uri(
+                file_field.url
+            )
+        except Exception:
+            return ""
+
+    def banner_payload(banner):
+        if not banner:
+            return None
+
+        return {
+            "id": banner.id,
+            "placement": banner.placement,
+            "brand_id": banner.brand_id,
+
+            "title": banner.title or "",
+            "subtitle": banner.subtitle or "",
+            "description": banner.description or "",
+
+            "show_content": bool(
+                banner.show_content
+            ),
+            "show_title": bool(
+                banner.show_title
+            ),
+            "show_subtitle": bool(
+                banner.show_subtitle
+            ),
+            "show_description": bool(
+                banner.show_description
+            ),
+
+            "image_desktop": absolute_file_url(
+                banner.image_desktop
+            ),
+            "image_tablet": absolute_file_url(
+                banner.image_tablet
+            ),
+            "image_mobile": absolute_file_url(
+                banner.image_mobile
+            ),
+
+            "desktop_height": (
+                banner.desktop_height
+            ),
+            "tablet_height": (
+                banner.tablet_height
+            ),
+            "mobile_height": (
+                banner.mobile_height
+            ),
+
+            "image_fit_desktop": (
+                banner.image_fit_desktop
+            ),
+            "image_fit_tablet": (
+                banner.image_fit_tablet
+            ),
+            "image_fit_mobile": (
+                banner.image_fit_mobile
+            ),
+
+            "image_position_desktop": (
+                banner.image_position_desktop
+            ),
+            "image_position_tablet": (
+                banner.image_position_tablet
+            ),
+            "image_position_mobile": (
+                banner.image_position_mobile
+            ),
+
+            "mobile_content_layout": (
+                banner.mobile_content_layout
+            ),
+
+            "overlay_color": (
+                banner.overlay_color or "#000000"
+            ),
+            "overlay_opacity": float(
+                banner.overlay_opacity or 0
+            ),
+            "text_color": (
+                banner.text_color or "#FFFFFF"
+            ),
+            "text_alignment": (
+                banner.text_alignment
+            ),
+            "content_position": (
+                banner.content_position
+            ),
+
+            "show_buttons": bool(
+                banner.show_buttons
+            ),
+
+            "button1": {
+                "visible": bool(
+                    banner.show_button1
+                ),
+                "text": (
+                    banner.button1_text or ""
+                ),
+                "url": (
+                    banner.button1_url or ""
+                ),
+                "style": (
+                    banner.button1_style or ""
+                ),
+                "background_color": (
+                    banner
+                    .button1_background_color
+                    or ""
+                ),
+                "text_color": (
+                    banner.button1_text_color
+                    or ""
+                ),
+                "border_color": (
+                    banner.button1_border_color
+                    or ""
+                ),
+            },
+
+            "button2": {
+                "visible": bool(
+                    banner.show_button2
+                ),
+                "text": (
+                    banner.button2_text or ""
+                ),
+                "url": (
+                    banner.button2_url or ""
+                ),
+                "style": (
+                    banner.button2_style or ""
+                ),
+                "background_color": (
+                    banner
+                    .button2_background_color
+                    or ""
+                ),
+                "text_color": (
+                    banner.button2_text_color
+                    or ""
+                ),
+                "border_color": (
+                    banner.button2_border_color
+                    or ""
+                ),
+            },
+
+            "button3": {
+                "visible": bool(
+                    banner.show_button3
+                ),
+                "text": (
+                    banner.button3_text or ""
+                ),
+                "url": (
+                    banner.button3_url or ""
+                ),
+                "style": (
+                    banner.button3_style or ""
+                ),
+                "background_color": (
+                    banner
+                    .button3_background_color
+                    or ""
+                ),
+                "text_color": (
+                    banner.button3_text_color
+                    or ""
+                ),
+                "border_color": (
+                    banner.button3_border_color
+                    or ""
+                ),
+            },
+
+            "enable_slide_link": bool(
+                banner.enable_slide_link
+            ),
+            "slide_link_url": (
+                banner.effective_slide_link_url
+                or ""
+            ),
+            "slide_open_behavior": (
+                banner.slide_open_behavior
+            ),
+
+            "animation_effect": (
+                banner.animation_effect
+            ),
+            "animation_duration": (
+                banner.animation_duration
+            ),
+            "autoplay_delay": (
+                banner.autoplay_delay
+            ),
+        }
+
+    # ============================================================
+    # Brand-specific hero banner
+    # ============================================================
+
+    active_banner = None
+
+    if HeroBanner:
+        active_banner = (
+            HeroBanner.objects
+            .filter(
+                is_active=True,
+                placement=(
+                    HeroBanner
+                    .PLACEMENT_BRAND_DETAIL
+                ),
+                brand=brand,
+            )
+            .filter(
+                Q(start_date__isnull=True)
+                | Q(start_date__lte=now),
+                Q(end_date__isnull=True)
+                | Q(end_date__gte=now),
+            )
+            .order_by(
+                "display_order",
+                "-created_at",
+            )
+            .first()
+        )
+
+    # ============================================================
+    # Base approved products
+    # ============================================================
 
     products = (
         Product.objects
@@ -5574,42 +6289,36 @@ def mobile_brand_detail_api(
         )
     )
 
-    if search_query:
-        products = products.filter(
-            Q(name__icontains=search_query)
-            | Q(
-                short_description__icontains=(
-                    search_query
-                )
-            )
-            | Q(
-                description__icontains=(
-                    search_query
-                )
-            )
-        )
+    total_product_count = (
+        products.count()
+    )
 
-    if category_slug:
-        products = products.filter(
-            category__slug=category_slug,
-        )
-
-    category_rows = (
-        Product.objects
+    in_stock_count = (
+        products
         .filter(
-            brand=brand,
-            is_active=True,
-            approval_status="approved",
-            category__isnull=False,
+            is_in_stock=True,
+            stock_quantity__gt=0,
+        )
+        .count()
+    )
+
+    # ============================================================
+    # Categories
+    # ============================================================
+
+    categories = (
+        products
+        .exclude(
+            category__isnull=True,
         )
         .values(
+            "category__id",
             "category__name",
             "category__slug",
         )
         .annotate(
             product_count=Count(
                 "id",
-                distinct=True,
             )
         )
         .order_by(
@@ -5617,99 +6326,277 @@ def mobile_brand_detail_api(
         )
     )
 
+    categories_payload = [
+        {
+            "id": item[
+                "category__id"
+            ],
+            "name": item[
+                "category__name"
+            ],
+            "slug": item[
+                "category__slug"
+            ],
+            "product_count": (
+                item["product_count"]
+            ),
+        }
+        for item in categories
+    ]
+
+    # ============================================================
+    # Search and filters
+    # ============================================================
+
+    if search_query:
+        products = products.filter(
+            Q(name__icontains=search_query)
+            | Q(description__icontains=search_query)
+            | Q(short_description__icontains=search_query)
+            | Q(sku__icontains=search_query)
+            | Q(
+                manufacturer_sku__icontains=
+                search_query
+            )
+        )
+
+    if category_slug:
+        products = products.filter(
+            category__slug=category_slug,
+            category__is_active=True,
+        )
+
+    if in_stock_only:
+        products = products.filter(
+            is_in_stock=True,
+            stock_quantity__gt=0,
+        )
+
     products = products.order_by(
         "-is_featured",
-        "-sales_count",
-        "-rating_avg",
-        "-rating_count",
         "-created_at",
-    )[:limit]
+        "name",
+    )
 
-    logo_url = ""
+    filtered_count = (
+        products.count()
+    )
 
-    if getattr(
-        brand,
-        "logo",
-        None,
-    ):
-        try:
-            logo_url = (
-                request.build_absolute_uri(
-                    brand.logo.url
-                )
+    # ============================================================
+    # Merchandising
+    # ============================================================
+
+    base_brand_products = (
+        Product.objects
+        .filter(
+            brand=brand,
+            is_active=True,
+            approval_status="approved",
+        )
+        .select_related(
+            "category",
+            "brand",
+            "vendor",
+            "vendor__vendor_profile",
+        )
+    )
+
+    featured_products = (
+        base_brand_products
+        .filter(
+            is_featured=True,
+        )
+        .order_by(
+            "-created_at",
+        )[:20]
+    )
+
+    bestseller_products = (
+        base_brand_products
+        .filter(
+            is_bestseller=True,
+        )
+        .order_by(
+            "-created_at",
+        )[:20]
+    )
+
+    new_products = (
+        base_brand_products
+        .order_by(
+            "-created_at",
+        )[:20]
+    )
+
+    # ============================================================
+    # Brand payload
+    # ============================================================
+
+    logo_url = absolute_file_url(
+        getattr(
+            brand,
+            "logo",
+            None,
+        )
+    )
+
+    brand_payload = {
+        "id": brand.id,
+        "name": brand.name,
+        "slug": brand.slug,
+
+        "description": (
+            getattr(
+                brand,
+                "description",
+                "",
             )
-        except Exception:
-            logo_url = ""
+            or ""
+        ),
 
-    product_payloads = [
+        "logo": logo_url,
+        "logo_url": logo_url,
+
+        "featured": bool(
+            getattr(
+                brand,
+                "featured",
+                False,
+            )
+        ),
+
+        "product_count": (
+            total_product_count
+        ),
+        "approved_product_count": (
+            total_product_count
+        ),
+        "in_stock_product_count": (
+            in_stock_count
+        ),
+
+        "web_url": (
+            request
+            .build_absolute_uri(
+                brand.get_absolute_url()
+            )
+        ),
+    }
+
+    # ============================================================
+    # Product serialization
+    # ============================================================
+
+    product_payload = [
         _mobile_product_payload(
             request,
             product,
         )
-        for product in products
+        for product
+        in products[:limit]
     ]
+
+    featured_payload = [
+        _mobile_product_payload(
+            request,
+            product,
+        )
+        for product
+        in featured_products
+    ]
+
+    bestseller_payload = [
+        _mobile_product_payload(
+            request,
+            product,
+        )
+        for product
+        in bestseller_products
+    ]
+
+    new_payload = [
+        _mobile_product_payload(
+            request,
+            product,
+        )
+        for product
+        in new_products
+    ]
+
+    # ============================================================
+    # Final payload
+    # ============================================================
 
     return JsonResponse(
         {
             "success": True,
-            "brand": {
-                "id": brand.id,
-                "name": brand.name,
-                "slug": brand.slug,
-                "description": (
-                    getattr(
-                        brand,
-                        "description",
-                        "",
-                    )
-                    or ""
-                ),
-                "logo": logo_url,
-                "logo_url": logo_url,
-                "featured": bool(
-                    getattr(
-                        brand,
-                        "featured",
-                        False,
-                    )
-                ),
-                "product_count": len(
-                    product_payloads
-                ),
-                "web_url": (
-                    request.build_absolute_uri(
-                        brand.get_absolute_url()
-                    )
-                ),
-            },
-            "query": search_query,
+
+            "brand": (
+                brand_payload
+            ),
+
+            "hero_banner": (
+                banner_payload(
+                    active_banner
+                )
+            ),
+            "brand_banner": (
+                banner_payload(
+                    active_banner
+                )
+            ),
+
+            "query": (
+                search_query
+            ),
             "selected_category": (
                 category_slug
             ),
-            "categories": [
-                {
-                    "name": (
-                        row[
-                            "category__name"
-                        ]
-                    ),
-                    "slug": (
-                        row[
-                            "category__slug"
-                        ]
-                    ),
-                    "product_count": (
-                        row[
-                            "product_count"
-                        ]
-                    ),
-                }
-                for row in category_rows
-            ],
-            "products": product_payloads,
-            "count": len(
-                product_payloads
+            "in_stock_only": (
+                in_stock_only
             ),
+
+            "count": (
+                filtered_count
+            ),
+            "total_product_count": (
+                total_product_count
+            ),
+            "in_stock_count": (
+                in_stock_count
+            ),
+
+            "categories": (
+                categories_payload
+            ),
+
+            "products": (
+                product_payload
+            ),
+
+            "featured_products": (
+                featured_payload
+            ),
+            "bestseller_products": (
+                bestseller_payload
+            ),
+            "new_products": (
+                new_payload
+            ),
+
+            "stats": {
+                "approved_product_count": (
+                    total_product_count
+                ),
+                "category_count": (
+                    len(
+                        categories_payload
+                    )
+                ),
+                "in_stock_count": (
+                    in_stock_count
+                ),
+            },
         }
     )
 
@@ -6496,10 +7383,30 @@ def mobile_home_api(request):
 
     hero_banner_payloads = []
     if HeroBanner:
+        now = timezone.now()
+
         hero_banners = (
-            HeroBanner.objects.filter(is_active=True)
-            .select_related("linked_article")
-            .order_by("display_order", "-created_at")[:8]
+            HeroBanner.objects
+            .filter(
+                is_active=True,
+                placement=HeroBanner.PLACEMENT_HOME,
+            )
+            .filter(
+                Q(start_date__isnull=True)
+                | Q(start_date__lte=now),
+                Q(end_date__isnull=True)
+                | Q(end_date__gte=now),
+            )
+            .filter(
+                brand__isnull=True,
+            )
+            .select_related(
+                "linked_article",
+            )
+            .order_by(
+                "display_order",
+                "-created_at",
+            )[:8]
         )
         for banner in hero_banners:
             linked_article = banner.linked_article
@@ -9182,9 +10089,74 @@ def mobile_rfq_status_api(request, rfq_id, action):
     return JsonResponse({"success": True, "message": f"RFQ {rfq.status}.", "rfq": _rfq_payload(request, rfq)})
 
 def brand_directory(request):
+    now = timezone.now()
+
     search_query = str(
         request.GET.get("q") or ""
     ).strip()
+
+    category_slug = str(
+        request.GET.get("category") or ""
+    ).strip()
+
+    in_stock_only = (
+        str(
+            request.GET.get("in_stock") or ""
+        ).strip()
+        in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+    )
+
+    # ============================================================
+    # Active Brand Directory banners
+    # ============================================================
+
+    if HeroBanner:
+        brand_directory_banners = (
+            HeroBanner.objects
+            .filter(
+                is_active=True,
+                placement=(
+                    HeroBanner
+                    .PLACEMENT_BRAND_DIRECTORY
+                ),
+                brand__isnull=True,
+            )
+            .filter(
+                Q(start_date__isnull=True)
+                | Q(start_date__lte=now),
+                Q(end_date__isnull=True)
+                | Q(end_date__gte=now),
+            )
+            .order_by(
+                "display_order",
+                "-created_at",
+            )
+        )
+    else:
+        brand_directory_banners = []
+
+    # ============================================================
+    # Base product scope used for counts/filters
+    # ============================================================
+
+    approved_products = (
+        Product.objects
+        .filter(
+            is_active=True,
+            approval_status="approved",
+            brand__isnull=False,
+            brand__is_active=True,
+        )
+    )
+
+    # ============================================================
+    # Brand queryset
+    # ============================================================
 
     brands = (
         Brand.objects
@@ -9196,20 +10168,59 @@ def brand_directory(request):
                 "products",
                 filter=Q(
                     products__is_active=True,
-                    products__approval_status="approved",
+                    products__approval_status=(
+                        "approved"
+                    ),
                 ),
                 distinct=True,
-            )
+            ),
+            in_stock_product_count=Count(
+                "products",
+                filter=Q(
+                    products__is_active=True,
+                    products__approval_status=(
+                        "approved"
+                    ),
+                    products__is_in_stock=True,
+                    products__stock_quantity__gt=0,
+                ),
+                distinct=True,
+            ),
         )
         .filter(
             approved_product_count__gt=0,
         )
     )
 
+    # ============================================================
+    # Search
+    # ============================================================
+
     if search_query:
         brands = brands.filter(
             Q(name__icontains=search_query)
             | Q(description__icontains=search_query)
+        )
+
+    # ============================================================
+    # Category filter
+    # ============================================================
+
+    if category_slug:
+        brands = brands.filter(
+            products__is_active=True,
+            products__approval_status="approved",
+            products__category__slug=category_slug,
+            products__category__is_active=True,
+        ).distinct()
+
+    # ============================================================
+    # In-stock filter
+    # ============================================================
+
+    if in_stock_only:
+        brands = brands.filter(
+            in_stock_product_count__gt=0,
         )
 
     brands = brands.order_by(
@@ -9218,13 +10229,119 @@ def brand_directory(request):
         "name",
     )
 
-    context = {
-        "brands": brands,
-        "featured_brands": brands.filter(
+    # ============================================================
+    # Featured brands
+    # ============================================================
+
+    featured_brands = (
+        brands
+        .filter(
             featured=True,
-        )[:12],
+        )[:12]
+    )
+
+    # ============================================================
+    # Real directory statistics
+    # ============================================================
+
+    brand_count = brands.count()
+
+    approved_product_count = (
+        approved_products
+        .count()
+    )
+
+    in_stock_brand_count = (
+        Brand.objects
+        .filter(
+            is_active=True,
+            products__is_active=True,
+            products__approval_status="approved",
+            products__is_in_stock=True,
+            products__stock_quantity__gt=0,
+        )
+        .distinct()
+        .count()
+    )
+
+
+    brand_categories = (
+        Category.objects
+        .filter(
+            is_active=True,
+            products__is_active=True,
+            products__approval_status="approved",
+            products__brand__isnull=False,
+            products__brand__is_active=True,
+        )
+        .annotate(
+            brand_count=Count(
+                "products__brand",
+                distinct=True,
+            ),
+            approved_product_count=Count(
+                "products",
+                filter=Q(
+                    products__is_active=True,
+                    products__approval_status="approved",
+                    products__brand__isnull=False,
+                    products__brand__is_active=True,
+                ),
+                distinct=True,
+            ),
+        )
+        .filter(
+            brand_count__gt=0,
+        )
+        .order_by(
+            "-brand_count",
+            "name",
+        )
+    )
+
+    # ============================================================
+    # Alphabet availability
+    # ============================================================
+
+    available_letters = sorted({
+        str(name or "")
+        .strip()
+        .upper()[:1]
+        for name in (
+            brands
+            .values_list(
+                "name",
+                flat=True,
+            )
+        )
+        if str(name or "").strip()
+    })
+
+    context = {
+        "brand_directory_banners": (
+            brand_directory_banners
+        ),
+        "brands": brands,
+        "featured_brands": featured_brands,
+
         "search_query": search_query,
-        "brand_count": brands.count(),
+        "selected_category": category_slug,
+        "in_stock_only": in_stock_only,
+
+        "brand_count": brand_count,
+        "approved_product_count": (
+            approved_product_count
+        ),
+        "in_stock_brand_count": (
+            in_stock_brand_count
+        ),
+
+        "brand_categories": (
+            brand_categories
+        ),
+        "available_letters": (
+            available_letters
+        ),
     }
 
     return render(
@@ -9241,7 +10358,39 @@ def brand_detail(request, slug):
         is_active=True,
     )
 
-    products = (
+    now = timezone.now()
+
+    # ============================================================
+    # Brand-specific hero banners
+    # ============================================================
+
+    if HeroBanner:
+        brand_banners = (
+            HeroBanner.objects
+            .filter(
+                is_active=True,
+                placement=HeroBanner.PLACEMENT_BRAND_DETAIL,
+                brand=brand,
+            )
+            .filter(
+                Q(start_date__isnull=True)
+                | Q(start_date__lte=now),
+                Q(end_date__isnull=True)
+                | Q(end_date__gte=now),
+            )
+            .order_by(
+                "display_order",
+                "-created_at",
+            )
+        )
+    else:
+        brand_banners = []
+
+    # ============================================================
+    # Master brand product queryset
+    # ============================================================
+
+    brand_products = (
         Product.objects
         .filter(
             brand=brand,
@@ -9253,43 +10402,146 @@ def brand_detail(request, slug):
             "brand",
             "vendor",
         )
+    )
+
+    # ============================================================
+    # Marketplace merchandising sections
+    #
+    # These are deliberately created BEFORE search/category
+    # filtering so the brand landing experience remains useful.
+    # ============================================================
+
+    featured_products = (
+        brand_products
+        .filter(is_featured=True)
         .order_by(
-            "-is_featured",
             "-sales_count",
             "-rating_avg",
+            "-rating_count",
             "-created_at",
-        )
+        )[:10]
     )
+
+    bestseller_products = (
+        brand_products
+        .filter(is_bestseller=True)
+        .order_by(
+            "-sales_count",
+            "-rating_avg",
+            "-rating_count",
+            "-created_at",
+        )[:10]
+    )
+
+    new_products = (
+        brand_products
+        .filter(is_new=True)
+        .order_by(
+            "-created_at",
+            "-rating_avg",
+        )[:10]
+    )
+
+    # ============================================================
+    # Fallback merchandising
+    #
+    # A new brand may not have admin merchandising flags yet.
+    # We still want the page to look alive.
+    # ============================================================
+
+    if not featured_products.exists():
+        featured_products = (
+            brand_products
+            .order_by(
+                "-sales_count",
+                "-rating_avg",
+                "-rating_count",
+                "-created_at",
+            )[:10]
+        )
+
+    if not bestseller_products.exists():
+        bestseller_products = (
+            brand_products
+            .filter(sales_count__gt=0)
+            .order_by(
+                "-sales_count",
+                "-rating_avg",
+                "-rating_count",
+            )[:10]
+        )
+
+    if not new_products.exists():
+        new_products = (
+            brand_products
+            .order_by("-created_at")[:10]
+        )
+
+    # ============================================================
+    # Search + category filters
+    # ============================================================
 
     search_query = str(
         request.GET.get("q") or ""
     ).strip()
+
+    category_slug = str(
+        request.GET.get("category") or ""
+    ).strip()
+
+    products = brand_products
 
     if search_query:
         products = products.filter(
             Q(name__icontains=search_query)
             | Q(short_description__icontains=search_query)
             | Q(description__icontains=search_query)
+            | Q(sku__icontains=search_query)
+            | Q(manufacturer_sku__icontains=search_query)
         )
-
-    category_slug = str(
-        request.GET.get("category") or ""
-    ).strip()
 
     if category_slug:
         products = products.filter(
             category__slug=category_slug,
         )
 
+    products = products.order_by(
+        "-is_featured",
+        "-is_bestseller",
+        "-sales_count",
+        "-rating_avg",
+        "-rating_count",
+        "-created_at",
+    )
+
+    # ============================================================
+    # Main storefront pagination
+    # 15 brand products per page
+    # ============================================================
+
+    filtered_product_count = products.count()
+
+    paginator = Paginator(
+        products,
+        15,
+    )
+
+    page_number = request.GET.get("page")
+
+    try:
+        products_page = paginator.page(page_number)
+    except PageNotAnInteger:
+        products_page = paginator.page(1)
+    except EmptyPage:
+        products_page = paginator.page(paginator.num_pages)
+
     categories = (
-        Product.objects
+        brand_products
         .filter(
-            brand=brand,
-            is_active=True,
-            approval_status="approved",
             category__isnull=False,
         )
         .values(
+            "category__id",
             "category__name",
             "category__slug",
         )
@@ -9297,17 +10549,60 @@ def brand_detail(request, slug):
             product_count=Count("id"),
         )
         .order_by(
+            "-product_count",
             "category__name",
         )
     )
 
+    # ============================================================
+    # Brand statistics
+    # ============================================================
+
+    total_product_count = brand_products.count()
+
+    in_stock_count = (
+        brand_products
+        .filter(stock_quantity__gt=0)
+        .count()
+    )
+
+    # ============================================================
+    # Detect filtered state
+    #
+    # Template can use this to hide merchandising rows while
+    # somebody is actively searching/filtering.
+    # ============================================================
+
+    is_filtered = bool(
+        search_query
+        or category_slug
+    )
+
+    # ============================================================
+    # Context
+    # ============================================================
+
     context = {
         "brand": brand,
-        "products": products,
-        "product_count": products.count(),
+
+        "brand_banners": brand_banners,
+
+        "featured_products": featured_products,
+        "bestseller_products": bestseller_products,
+        "new_products": new_products,
+
+        # Main catalog — now maximum 15 products per page
+        "products": products_page,
+
+        "product_count": filtered_product_count,
+        "total_product_count": total_product_count,
+        "in_stock_count": in_stock_count,
+
         "categories": categories,
+
         "search_query": search_query,
         "selected_category": category_slug,
+        "is_filtered": is_filtered,
     }
 
     return render(
