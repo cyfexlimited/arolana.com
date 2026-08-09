@@ -544,15 +544,45 @@
     min-height: 92px;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
+    padding: .35rem;
     margin-bottom: .55rem;
     border-radius: .5rem;
     background: #fbfcfe;
 }
 
 .ab-featured-logo img {
-    width: auto;
-    max-width: 80%;
-    max-height: 58px;
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: 92%;
+    max-height: 92%;
+    object-fit: contain;
+    object-position: center;
+}
+
+.ab-featured-logo-fill {
+    padding: 0;
+    background: transparent;
+}
+
+.ab-featured-logo-fill img {
+    max-width: none;
+    max-height: none;
+    object-fit: cover;
+    border-radius: inherit;
+}
+
+.ab-featured-logo-transparent {
+    padding: .25rem;
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+}
+
+.ab-featured-logo-transparent img {
+    max-width: 92%;
+    max-height: 92%;
     object-fit: contain;
 }
 
@@ -721,14 +751,44 @@
     height: 54px;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
+    padding: .28rem;
     border-radius: .45rem;
     background: #f7faff;
 }
 
 .ab-brand-row-logo img {
-    width: auto;
-    max-width: 88%;
-    max-height: 40px;
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: 94%;
+    max-height: 94%;
+    object-fit: contain;
+    object-position: center;
+}
+
+.ab-brand-row-logo-fill {
+    padding: 0;
+    background: transparent;
+}
+
+.ab-brand-row-logo-fill img {
+    max-width: none;
+    max-height: none;
+    object-fit: cover;
+    border-radius: inherit;
+}
+
+.ab-brand-row-logo-transparent {
+    padding: .2rem;
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+}
+
+.ab-brand-row-logo-transparent img {
+    max-width: 92%;
+    max-height: 92%;
     object-fit: contain;
 }
 
@@ -1332,8 +1392,8 @@
 }
 
 .ab-featured-logo img {
-    max-width: 80%;
-    max-height: 55px;
+    max-width: 92%;
+    max-height: 92%;
 }
 
 .ab-featured-logo span {
@@ -1406,8 +1466,8 @@
 }
 
 .ab-brand-row-logo img {
-    max-width: 88%;
-    max-height: 43px;
+    max-width: 94%;
+    max-height: 94%;
 }
 
 .ab-brand-row-main h3 {
@@ -1597,8 +1657,8 @@
     }
 
     .ab-featured-logo img {
-        max-width: 84%;
-        max-height: 68px;
+        max-width: 92%;
+        max-height: 92%;
     }
 
     .ab-featured-logo span {
@@ -1651,8 +1711,8 @@
     }
 
     .ab-brand-row-logo img {
-        max-width: 88%;
-        max-height: 50px;
+        max-width: 94%;
+        max-height: 94%;
     }
 
     .ab-brand-row-logo span {
@@ -2475,8 +2535,8 @@
                                 href="{{ brand.get_absolute_url }}"
                                 class="ab-featured-card{% if forloop.counter > 4 %} ab-featured-extra{% endif %}"
                             >
-                                <div class="ab-featured-logo">
-                                    {% if brand.logo %}
+                                {% if brand.logo %}
+                                    <div class="ab-featured-logo ab-featured-logo-{{ brand.logo_display_mode|default:'contain' }}">
                                         {% optimized_image_url brand.logo 'avatar' as featured_brand_logo %}
                                         <img
                                             src="{{ featured_brand_logo }}"
@@ -2484,10 +2544,12 @@
                                             loading="lazy"
                                             decoding="async"
                                         >
-                                    {% else %}
+                                    </div>
+                                {% else %}
+                                    <div class="ab-featured-logo">
                                         <span>{{ brand.name }}</span>
-                                    {% endif %}
-                                </div>
+                                    </div>
+                                {% endif %}
 
                                 <div class="ab-featured-name-row">
                                     <h3>{{ brand.name }}</h3>
@@ -2518,8 +2580,8 @@
                                 href="{{ brand.get_absolute_url }}"
                                 class="ab-featured-card"
                             >
-                                <div class="ab-featured-logo">
-                                    {% if brand.logo %}
+                                {% if brand.logo %}
+                                    <div class="ab-featured-logo ab-featured-logo-{{ brand.logo_display_mode|default:'contain' }}">
                                         {% optimized_image_url brand.logo 'avatar' as featured_brand_logo %}
                                         <img
                                             src="{{ featured_brand_logo }}"
@@ -2527,10 +2589,12 @@
                                             loading="lazy"
                                             decoding="async"
                                         >
-                                    {% else %}
+                                    </div>
+                                {% else %}
+                                    <div class="ab-featured-logo">
                                         <span>{{ brand.name }}</span>
-                                    {% endif %}
-                                </div>
+                                    </div>
+                                {% endif %}
 
                                 <div class="ab-featured-name-row">
                                     <h3>{{ brand.name }}</h3>
@@ -2615,8 +2679,8 @@
                                 class="ab-brand-row"
                                 data-brand-name="{{ brand.name|upper }}"
                             >
-                                <div class="ab-brand-row-logo">
-                                    {% if brand.logo %}
+                                {% if brand.logo %}
+                                    <div class="ab-brand-row-logo ab-brand-row-logo-{{ brand.logo_display_mode|default:'contain' }}">
                                         {% optimized_image_url brand.logo 'avatar' as brand_logo_url %}
                                         <img
                                             src="{{ brand_logo_url }}"
@@ -2624,10 +2688,12 @@
                                             loading="lazy"
                                             decoding="async"
                                         >
-                                    {% else %}
+                                    </div>
+                                {% else %}
+                                    <div class="ab-brand-row-logo">
                                         <span>{{ brand.name }}</span>
-                                    {% endif %}
-                                </div>
+                                    </div>
+                                {% endif %}
 
                                 <div class="ab-brand-row-main">
                                     <h3>{{ brand.name }}</h3>
