@@ -340,6 +340,38 @@ class HeroBannerAdmin(admin.ModelAdmin):
         ),
     )
 
+    BRAND_HERO_HELP_TEXT = {
+        "image_desktop": "Desktop image (1920×600 recommended)",
+        "image_tablet": "Tablet image (1200×500 recommended)",
+        "image_mobile": "Mobile image (1080×720 recommended)",
+        "desktop_height": (
+            "Desktop hero display height in CSS pixels. "
+            "Recommended around 500–600."
+        ),
+        "tablet_height": (
+            "Tablet hero display height. "
+            "Recommended around 400–500."
+        ),
+        "mobile_height": (
+            "Mobile hero display height. Recommended around 360–420. "
+            "The uploaded mobile image may still be 1080×720."
+        ),
+    }
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        formfield = super().formfield_for_dbfield(
+            db_field,
+            request,
+            **kwargs,
+        )
+
+        if db_field.name in self.BRAND_HERO_HELP_TEXT:
+            formfield.help_text = self.BRAND_HERO_HELP_TEXT[
+                db_field.name
+            ]
+
+        return formfield
+
     def image_preview(self, obj):
         if obj and obj.image_desktop:
             return format_html(

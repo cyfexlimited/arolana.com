@@ -97,6 +97,7 @@
     grid-template-columns: minmax(0, 1fr) 285px;
     gap: 2rem;
     min-height: var(--hero-desktop-height);
+    height: var(--hero-desktop-height);
     align-items: center;
     overflow: hidden;
     padding: 2.25rem 2.5rem;
@@ -139,21 +140,14 @@
     position: absolute;
     inset: 0;
     z-index: -4;
-    background:
-        linear-gradient(
-            90deg,
-            rgba(3, 20, 46, .98) 0%,
-            rgba(3, 20, 46, .92) 36%,
-            rgba(3, 20, 46, .64) 68%,
-            rgba(3, 20, 46, .38) 100%
-        );
+    background: #071A44;
 }
 
 .abd-hero-pattern {
     position: absolute;
     inset: 0;
     z-index: -3;
-    opacity: .16;
+    opacity: .06;
     pointer-events: none;
     background-image:
         radial-gradient(
@@ -175,6 +169,7 @@
     position: relative;
     z-index: 2;
     min-width: 0;
+    max-width: 620px;
 }
 
 .abd-hero-slide-link {
@@ -196,7 +191,7 @@
 }
 
 .abd-hero h1 {
-    max-width: 800px;
+    max-width: 620px;
     margin: 0;
     color: #ffffff;
     font-size: clamp(2.4rem, 4.3vw, 4.6rem);
@@ -206,7 +201,7 @@
 }
 
 .abd-description {
-    max-width: 680px;
+    max-width: 600px;
     margin: .9rem 0 0;
     color: rgba(255, 255, 255, .86);
     font-size: .95rem;
@@ -548,6 +543,8 @@
             230px;
         min-height:
             var(--hero-tablet-height);
+        height:
+            var(--hero-tablet-height);
         padding: 1.8rem;
     }
 
@@ -591,6 +588,8 @@
         display: flex;
         min-height:
             var(--hero-mobile-height);
+        height:
+            var(--hero-mobile-height);
         flex-direction: column;
         justify-content: flex-end;
         gap: .75rem;
@@ -605,18 +604,17 @@
             var(--hero-position-mobile);
     }
 
-    .abd-hero-overlay {
-        background:
-            linear-gradient(
-                180deg,
-                rgba(3,20,46,.25) 0%,
-                rgba(3,20,46,.68) 45%,
-                rgba(3,20,46,.97) 100%
-            );
+    .abd-hero-pattern {
+        opacity: .04;
     }
 
-    .abd-hero-pattern {
-        opacity: .09;
+    .abd-hero-mobile-image-only .abd-hero-content,
+    .abd-hero-mobile-image-only .abd-hero-actions {
+        display: none;
+    }
+
+    .abd-hero-mobile-image-only {
+        justify-content: center;
     }
 
     .abd-hero-content {
@@ -762,9 +760,6 @@
         gap: .4rem;
     }
 
-    .abd-hero {
-        min-height: 295px;
-    }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -778,7 +773,6 @@
     .arolana-brand-detail{width:min(calc(100vw - 5rem),1840px)}
     .abd-hero{
         grid-template-columns:180px minmax(0,1fr) 220px;
-        min-height:345px;
         padding:1.9rem 2rem;
         gap:1.6rem
     }
@@ -1259,16 +1253,6 @@ body.abd-modal-open {
         animation: none !important;
         transition: none !important;
     }
-}
-
-
-.abd-logo-panel{
-    overflow:hidden;
-}
-.abd-logo-panel img{
-    max-width:100%;
-    max-height:105px;
-    object-fit:contain;
 }
 
 
@@ -3633,23 +3617,14 @@ document.addEventListener("DOMContentLoaded", function () {
             {% endif %}
 
             <section
-                class="abd-hero"
+                class="abd-hero {% if banner.mobile_content_layout == 'image_only' %}abd-hero-mobile-image-only{% endif %}"
                 style="
-                    --hero-desktop-height: clamp(
-                        340px,
-                        {{ banner.desktop_height|default:390 }}px,
-                        460px
-                    );
-                    --hero-tablet-height: clamp(
-                        320px,
-                        {{ banner.tablet_height|default:350 }}px,
-                        420px
-                    );
-                    --hero-mobile-height: clamp(
-                        290px,
-                        {{ banner.mobile_height|default:320 }}px,
-                        380px
-                    );
+                    --hero-desktop-height:
+                        {{ banner.desktop_height|default:560 }}px;
+                    --hero-tablet-height:
+                        {{ banner.tablet_height|default:460 }}px;
+                    --hero-mobile-height:
+                        {{ banner.mobile_height|default:380 }}px;
 
                     --hero-fit-desktop:
                         {{ banner.image_fit_desktop|default:'cover' }};
@@ -3702,7 +3677,7 @@ document.addEventListener("DOMContentLoaded", function () {
                             background:
                                 {{ banner.overlay_color|default:'#071A44' }};
                             opacity:
-                                {{ banner.overlay_opacity_css|default:'0.80' }};
+                                {{ banner.overlay_opacity_css|default:'0' }};
                         "
                     ></div>
                 {% endif %}
