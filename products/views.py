@@ -5546,6 +5546,66 @@ def mobile_brand_directory_api(request):
                 banner.show_buttons
             ),
 
+            "button1_text": (
+                banner.button1_text or ""
+            ),
+            "button1_url": (
+                banner.button1_url or ""
+            ),
+            "button1_style": (
+                banner.button1_style or ""
+            ),
+            "button1_background_color": (
+                banner.button1_background_color
+                or ""
+            ),
+            "button1_text_color": (
+                banner.button1_text_color or ""
+            ),
+            "button1_border_color": (
+                banner.button1_border_color or ""
+            ),
+
+            "button2_text": (
+                banner.button2_text or ""
+            ),
+            "button2_url": (
+                banner.button2_url or ""
+            ),
+            "button2_style": (
+                banner.button2_style or ""
+            ),
+            "button2_background_color": (
+                banner.button2_background_color
+                or ""
+            ),
+            "button2_text_color": (
+                banner.button2_text_color or ""
+            ),
+            "button2_border_color": (
+                banner.button2_border_color or ""
+            ),
+
+            "button3_text": (
+                banner.button3_text or ""
+            ),
+            "button3_url": (
+                banner.button3_url or ""
+            ),
+            "button3_style": (
+                banner.button3_style or ""
+            ),
+            "button3_background_color": (
+                banner.button3_background_color
+                or ""
+            ),
+            "button3_text_color": (
+                banner.button3_text_color or ""
+            ),
+            "button3_border_color": (
+                banner.button3_border_color or ""
+            ),
+
             "button1": {
                 "visible": bool(
                     banner.show_button1
@@ -6132,6 +6192,66 @@ def mobile_brand_detail_api(request, slug):
 
             "show_buttons": bool(
                 banner.show_buttons
+            ),
+
+            "button1_text": (
+                banner.button1_text or ""
+            ),
+            "button1_url": (
+                banner.button1_url or ""
+            ),
+            "button1_style": (
+                banner.button1_style or ""
+            ),
+            "button1_background_color": (
+                banner.button1_background_color
+                or ""
+            ),
+            "button1_text_color": (
+                banner.button1_text_color or ""
+            ),
+            "button1_border_color": (
+                banner.button1_border_color or ""
+            ),
+
+            "button2_text": (
+                banner.button2_text or ""
+            ),
+            "button2_url": (
+                banner.button2_url or ""
+            ),
+            "button2_style": (
+                banner.button2_style or ""
+            ),
+            "button2_background_color": (
+                banner.button2_background_color
+                or ""
+            ),
+            "button2_text_color": (
+                banner.button2_text_color or ""
+            ),
+            "button2_border_color": (
+                banner.button2_border_color or ""
+            ),
+
+            "button3_text": (
+                banner.button3_text or ""
+            ),
+            "button3_url": (
+                banner.button3_url or ""
+            ),
+            "button3_style": (
+                banner.button3_style or ""
+            ),
+            "button3_background_color": (
+                banner.button3_background_color
+                or ""
+            ),
+            "button3_text_color": (
+                banner.button3_text_color or ""
+            ),
+            "button3_border_color": (
+                banner.button3_border_color or ""
             ),
 
             "button1": {
