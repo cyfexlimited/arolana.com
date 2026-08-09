@@ -858,9 +858,390 @@
     }
 }
 
-.abd-brand-tabs{display:flex;gap:2rem;overflow-x:auto;padding:0 1rem;border-bottom:1px solid var(--abd-line);background:#fff}.abd-brand-tab{position:relative;flex:0 0 auto;padding:1rem 0 .9rem;color:#334155;font-size:.72rem;font-weight:850;text-decoration:none}.abd-brand-tab.is-active:after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--abd-orange)}
-.abd-storefront-layout{display:grid;grid-template-columns:285px minmax(0,1fr) 285px;gap:1.15rem;margin-top:1rem}.abd-sidebar-card,.abd-assurance-card{border:1px solid var(--abd-line);border-radius:.8rem;background:#fff;box-shadow:var(--abd-shadow)}.abd-sidebar-card{padding:1rem}.abd-sidebar-card+.abd-sidebar-card{margin-top:.75rem}.abd-sidebar-title{margin:0 0 .75rem;font-size:.78rem;font-weight:950}.abd-side-link{display:flex;justify-content:space-between;padding:.48rem .65rem;border-radius:.45rem;color:#334155;font-size:.68rem;font-weight:750;text-decoration:none}.abd-side-link.is-active{background:#eef4ff;color:var(--abd-navy);font-weight:900}.abd-filter-label{display:block;margin:.75rem 0 .5rem;font-size:.66rem;font-weight:900}.abd-stock-row,.abd-range-values{display:flex;justify-content:space-between;color:#475569;font-size:.64rem;font-weight:700}.abd-range-line{height:3px;margin:.9rem .2rem .5rem;background:var(--abd-blue)}.abd-center-column{min-width:0}.abd-center-toolbar{display:flex;align-items:center;justify-content:space-between;gap:.8rem;margin-bottom:.75rem;color:#64748b;font-size:.7rem;font-weight:750}.abd-center-toolbar>span{padding-left:.15rem;color:#64748b;font-weight:800}.abd-sort{min-height:36px;padding:.45rem .75rem;border:1px solid var(--abd-line);border-radius:.5rem;background:#fff;font-size:.66rem;font-weight:800}.abd-center-column .abd-products{margin-top:0}.abd-center-column .abd-heading{display:none}.abd-center-column .abd-products-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem}.abd-assurance-card{padding:1.1rem}.abd-assurance-item{display:grid;grid-template-columns:28px 1fr;gap:.65rem;padding:.75rem 0}.abd-assurance-item i{color:#0566e8}.abd-assurance-item strong{display:block;color:#063b8c;font-size:.7rem;font-weight:950}.abd-assurance-item span{color:#475569;font-size:.64rem;line-height:1.45}.abd-benefit-strip{display:grid;grid-template-columns:repeat(4,1fr);margin-top:1rem;border:1px solid #dbe7f7;border-radius:.7rem;background:#f5f9ff}.abd-benefit{display:grid;grid-template-columns:32px 1fr;align-items:center;gap:.65rem;min-height:74px;padding:.8rem 1.2rem}.abd-benefit+.abd-benefit{border-left:1px solid #bfd0e8}.abd-benefit i{color:#075fd8;font-size:1.2rem}.abd-benefit strong{display:block;color:#073b88;font-size:.7rem;font-weight:950}.abd-benefit span{font-size:.6rem;color:#475569}
-@media(max-width:1180px){.abd-storefront-layout{grid-template-columns:220px 1fr}.abd-assurance-column{display:none}.abd-center-column .abd-products-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:760px){.abd-storefront-layout{display:block}.abd-sidebar-column,.abd-assurance-column{display:none}.abd-center-column .abd-products-grid{grid-template-columns:repeat(2,1fr)}.abd-benefit-strip{grid-template-columns:repeat(2,1fr)}}
+/* ==========================================================
+   INTERACTIVE MARKETPLACE ASSURANCE STRIP
+   ========================================================== */
+
+.abd-benefit-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    margin-top: 1rem;
+    overflow: hidden;
+    border: 1px solid #dbe7f7;
+    border-radius: .7rem;
+    background: #f5f9ff;
+}
+
+.abd-benefit {
+    position: relative;
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr) 18px;
+    align-items: center;
+    gap: .65rem;
+    min-width: 0;
+    min-height: 74px;
+    padding: .8rem 1.2rem;
+    border: 0;
+    color: inherit;
+    background: transparent;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition:
+        background .16s ease,
+        box-shadow .16s ease,
+        transform .16s ease;
+}
+
+.abd-benefit + .abd-benefit {
+    border-left: 1px solid #bfd0e8;
+}
+
+.abd-benefit:hover {
+    z-index: 2;
+    background: #ffffff;
+    box-shadow: 0 10px 24px rgba(7, 26, 68, .07);
+}
+
+.abd-benefit:focus-visible {
+    z-index: 3;
+    outline: 3px solid rgba(0, 102, 204, .18);
+    outline-offset: -3px;
+}
+
+.abd-benefit-main-icon {
+    color: #075fd8;
+    font-size: 1.2rem;
+}
+
+.abd-benefit-copy {
+    min-width: 0;
+}
+
+.abd-benefit strong {
+    display: block;
+    color: #073b88;
+    font-size: .7rem;
+    font-weight: 950;
+}
+
+.abd-benefit span {
+    display: block;
+    margin-top: .12rem;
+    color: #475569;
+    font-size: .6rem;
+    line-height: 1.35;
+}
+
+.abd-benefit-chevron {
+    color: #94a3b8;
+    font-size: .68rem;
+    transition:
+        transform .16s ease,
+        color .16s ease;
+}
+
+.abd-benefit:hover .abd-benefit-chevron {
+    color: var(--abd-blue);
+    transform: translateX(3px);
+}
+
+/* ==========================================================
+   ASSURANCE MODAL
+   ========================================================== */
+
+.abd-benefit-modal[hidden] {
+    display: none !important;
+}
+
+.abd-benefit-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 10050;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.2rem;
+}
+
+.abd-benefit-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(3, 20, 46, .62);
+    backdrop-filter: blur(7px);
+}
+
+.abd-benefit-dialog {
+    position: relative;
+    z-index: 2;
+    width: min(100%, 520px);
+    max-height: min(84vh, 680px);
+    overflow-y: auto;
+    padding: 1.4rem 1.4rem 1.2rem;
+    border: 1px solid rgba(0, 102, 204, .12);
+    border-radius: 1rem;
+    background:
+        radial-gradient(
+            circle at 100% 0,
+            rgba(0, 184, 255, .09),
+            transparent 15rem
+        ),
+        #ffffff;
+    box-shadow:
+        0 32px 80px rgba(3, 20, 46, .24);
+    animation: abd-benefit-dialog-in .18s ease both;
+}
+
+@keyframes abd-benefit-dialog-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(.985);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.abd-benefit-modal-close {
+    position: absolute;
+    top: .9rem;
+    right: .9rem;
+    display: inline-flex;
+    width: 34px;
+    height: 34px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--abd-line);
+    border-radius: 50%;
+    color: #475569;
+    background: #fff;
+    cursor: pointer;
+}
+
+.abd-benefit-dialog-icon {
+    display: inline-flex;
+    width: 48px;
+    height: 48px;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: .8rem;
+    border-radius: .8rem;
+    color: var(--abd-blue);
+    background: #eef5ff;
+    font-size: 1.15rem;
+}
+
+.abd-benefit-dialog-eyebrow {
+    margin: 0 0 .28rem;
+    color: var(--abd-orange);
+    font-size: .58rem;
+    font-weight: 950;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+}
+
+.abd-benefit-dialog h2 {
+    margin: 0;
+    color: var(--abd-navy);
+    font-size: 1.22rem;
+    font-weight: 950;
+    letter-spacing: -.025em;
+}
+
+.abd-benefit-dialog-copy {
+    margin: .65rem 0 0;
+    color: #475569;
+    font-size: .72rem;
+    font-weight: 650;
+    line-height: 1.65;
+}
+
+.abd-benefit-dialog-points {
+    display: grid;
+    gap: .55rem;
+    margin-top: 1rem;
+}
+
+.abd-benefit-dialog-point {
+    display: grid;
+    grid-template-columns: 26px minmax(0, 1fr);
+    gap: .55rem;
+    align-items: start;
+    padding: .62rem .7rem;
+    border: 1px solid #e7edf5;
+    border-radius: .6rem;
+    background: #f8fbff;
+}
+
+.abd-benefit-dialog-point i {
+    display: inline-flex;
+    width: 26px;
+    height: 26px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: #047857;
+    background: #ecfdf5;
+    font-size: .62rem;
+}
+
+.abd-benefit-dialog-point strong {
+    display: block;
+    color: var(--abd-navy);
+    font-size: .65rem;
+    font-weight: 900;
+}
+
+.abd-benefit-dialog-point span {
+    display: block;
+    margin-top: .12rem;
+    color: #64748b;
+    font-size: .58rem;
+    line-height: 1.4;
+}
+
+.abd-benefit-dialog-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    margin-top: 1.1rem;
+    padding-top: .9rem;
+    border-top: 1px solid var(--abd-line);
+}
+
+.abd-benefit-dialog-link {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    color: var(--abd-blue);
+    font-size: .64rem;
+    font-weight: 900;
+    text-decoration: none;
+}
+
+.abd-benefit-dialog-done {
+    min-height: 38px;
+    padding: .55rem .85rem;
+    border: 0;
+    border-radius: .5rem;
+    color: #fff;
+    background: linear-gradient(
+        135deg,
+        var(--abd-blue),
+        var(--abd-navy)
+    );
+    font-size: .62rem;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+body.abd-modal-open {
+    overflow: hidden;
+}
+
+/* ==========================================================
+   MOBILE = BOTTOM SHEET
+   ========================================================== */
+
+@media (max-width: 760px) {
+    .abd-benefit-strip {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .abd-benefit {
+        grid-template-columns: 28px minmax(0, 1fr) 14px;
+        min-height: 76px;
+        gap: .5rem;
+        padding: .7rem .65rem;
+    }
+
+    .abd-benefit:nth-child(3) {
+        border-left: 0;
+        border-top: 1px solid #bfd0e8;
+    }
+
+    .abd-benefit:nth-child(4) {
+        border-top: 1px solid #bfd0e8;
+    }
+
+    .abd-benefit-main-icon {
+        font-size: 1rem;
+    }
+
+    .abd-benefit strong {
+        font-size: .61rem;
+    }
+
+    .abd-benefit span {
+        font-size: .53rem;
+    }
+
+    .abd-benefit-modal {
+        align-items: flex-end;
+        padding: 0;
+    }
+
+    .abd-benefit-dialog {
+        width: 100%;
+        max-height: 82vh;
+        padding: 1.2rem 1rem calc(1rem + env(safe-area-inset-bottom));
+        border-right: 0;
+        border-bottom: 0;
+        border-left: 0;
+        border-radius: 1.2rem 1.2rem 0 0;
+        animation: abd-benefit-sheet-in .2s ease both;
+    }
+
+    @keyframes abd-benefit-sheet-in {
+        from {
+            opacity: .65;
+            transform: translateY(35px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .abd-benefit-dialog::before {
+        display: block;
+        width: 42px;
+        height: 4px;
+        margin: -.35rem auto .9rem;
+        border-radius: 999px;
+        background: #cbd5e1;
+        content: "";
+    }
+
+    .abd-benefit-dialog h2 {
+        padding-right: 2.4rem;
+        font-size: 1.05rem;
+    }
+
+    .abd-benefit-dialog-copy {
+        font-size: .67rem;
+    }
+
+    .abd-benefit-dialog-actions {
+        position: sticky;
+        bottom: 0;
+        margin-inline: -.15rem;
+        padding-bottom: .15rem;
+        background: #fff;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .abd-benefit-dialog,
+    .abd-benefit {
+        animation: none !important;
+        transition: none !important;
+    }
+}
 
 
 .abd-logo-panel{
@@ -2758,6 +3139,440 @@
 }
 
 </style>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const modal =
+        document.getElementById(
+            "abd-benefit-modal"
+        );
+
+    if (!modal) {
+        return;
+    }
+
+    const titleNode =
+        document.getElementById(
+            "abd-benefit-modal-title"
+        );
+
+    const copyNode =
+        document.getElementById(
+            "abd-benefit-modal-copy"
+        );
+
+    const pointsNode =
+        document.getElementById(
+            "abd-benefit-modal-points"
+        );
+
+    const iconNode =
+        document.getElementById(
+            "abd-benefit-modal-icon"
+        );
+
+    const linkNode =
+        document.getElementById(
+            "abd-benefit-modal-link"
+        );
+
+    let lastTrigger = null;
+
+    const content = {
+        "approved-listings": {
+            title:
+                "Approved Marketplace Listings",
+
+            icon:
+                "fas fa-shield-alt",
+
+            copy:
+                "Arolana is a multi-vendor marketplace. This indicator means the listing is available through sellers approved to operate on the marketplace. Always review the individual product and seller information before ordering.",
+
+            link:
+                "/vendors/",
+
+            linkText:
+                "Learn about Arolana sellers",
+
+            points: [
+                {
+                    title:
+                        "Marketplace seller approval",
+                    text:
+                        "The seller is permitted to list products on Arolana."
+                },
+                {
+                    title:
+                        "Listing information",
+                    text:
+                        "Product condition, availability, vendor and other listing details are shown where available."
+                },
+                {
+                    title:
+                        "Secure marketplace experience",
+                    text:
+                        "Orders should be completed through Arolana's supported marketplace checkout and communication channels."
+                }
+            ]
+        },
+
+        warranty: {
+            title:
+                "Product Warranty",
+
+            icon:
+                "fas fa-award",
+
+            copy:
+                "Warranty coverage can vary by product, manufacturer, seller and product condition. A warranty badge or warranty information should therefore be checked on the individual product listing before purchase.",
+
+            link:
+                "/products/",
+
+            linkText:
+                "Browse product listings",
+
+            points: [
+                {
+                    title:
+                        "Listing-specific coverage",
+                    text:
+                        "Warranty duration and terms may differ between products and vendors."
+                },
+                {
+                    title:
+                        "Manufacturer warranty",
+                    text:
+                        "Some eligible products may include manufacturer-backed coverage."
+                },
+                {
+                    title:
+                        "Check before purchase",
+                    text:
+                        "Review the warranty information displayed on the product page before completing your order."
+                }
+            ]
+        },
+
+        support: {
+            title:
+                "Expert Support",
+
+            icon:
+                "fas fa-headphones-alt",
+
+            copy:
+                "Arolana can help customers understand listings, compare suitable products and resolve marketplace shopping questions. Product-specific technical support may still be provided by the manufacturer or seller.",
+
+            link:
+                "/contact/",
+
+            linkText:
+                "Contact Arolana support",
+
+            points: [
+                {
+                    title:
+                        "Shopping guidance",
+                    text:
+                        "Get help understanding products and selecting suitable options."
+                },
+                {
+                    title:
+                        "Order assistance",
+                    text:
+                        "Arolana support can assist with marketplace order-related questions."
+                },
+                {
+                    title:
+                        "Seller or manufacturer support",
+                    text:
+                        "Technical or warranty assistance may be handled by the relevant seller or manufacturer."
+                }
+            ]
+        },
+
+        returns: {
+            title:
+                "Easy Returns",
+
+            icon:
+                "fas fa-undo-alt",
+
+            copy:
+                "Eligible marketplace products may be returned in accordance with Arolana's return rules and the conditions applicable to the specific order. Not every product or circumstance is automatically returnable.",
+
+            link:
+                "/returns/",
+
+            linkText:
+                "Read the Returns Policy",
+
+            points: [
+                {
+                    title:
+                        "Eligibility applies",
+                    text:
+                        "Return eligibility depends on the product, condition, timing and applicable marketplace rules."
+                },
+                {
+                    title:
+                        "Keep the item complete",
+                    text:
+                        "Where a return is permitted, original accessories, packaging and supplied items may be required."
+                },
+                {
+                    title:
+                        "Start through Arolana",
+                    text:
+                        "Use Arolana's supported order or customer-service process when requesting a return."
+                }
+            ]
+        }
+    };
+
+    function renderPoints(
+        points
+    ) {
+        pointsNode.innerHTML = "";
+
+        points.forEach(
+            function (point) {
+                const row =
+                    document.createElement(
+                        "div"
+                    );
+
+                row.className =
+                    "abd-benefit-dialog-point";
+
+                const icon =
+                    document.createElement(
+                        "i"
+                    );
+
+                icon.className =
+                    "fas fa-check";
+
+                const textWrap =
+                    document.createElement(
+                        "div"
+                    );
+
+                const heading =
+                    document.createElement(
+                        "strong"
+                    );
+
+                heading.textContent =
+                    point.title;
+
+                const copy =
+                    document.createElement(
+                        "span"
+                    );
+
+                copy.textContent =
+                    point.text;
+
+                textWrap.appendChild(
+                    heading
+                );
+
+                textWrap.appendChild(
+                    copy
+                );
+
+                row.appendChild(
+                    icon
+                );
+
+                row.appendChild(
+                    textWrap
+                );
+
+                pointsNode.appendChild(
+                    row
+                );
+            }
+        );
+    }
+
+    function openModal(
+        trigger
+    ) {
+        const key =
+            trigger.getAttribute(
+                "data-benefit-modal"
+            );
+
+        const item =
+            content[key];
+
+        if (!item) {
+            return;
+        }
+
+        lastTrigger =
+            trigger;
+
+        titleNode.textContent =
+            item.title;
+
+        copyNode.textContent =
+            item.copy;
+
+        iconNode.className =
+            item.icon;
+
+        linkNode.href =
+            item.link;
+
+        linkNode.innerHTML =
+            "";
+
+        const linkText =
+            document.createTextNode(
+                item.linkText + " "
+            );
+
+        const linkIcon =
+            document.createElement(
+                "i"
+            );
+
+        linkIcon.className =
+            "fas fa-arrow-right";
+
+        linkNode.appendChild(
+            linkText
+        );
+
+        linkNode.appendChild(
+            linkIcon
+        );
+
+        renderPoints(
+            item.points
+        );
+
+        modal.hidden = false;
+
+        document.body.classList.add(
+            "abd-modal-open"
+        );
+
+        requestAnimationFrame(
+            function () {
+                const closeButton =
+                    modal.querySelector(
+                        ".abd-benefit-modal-close"
+                    );
+
+                if (closeButton) {
+                    closeButton.focus();
+                }
+            }
+        );
+    }
+
+    function closeModal() {
+        if (modal.hidden) {
+            return;
+        }
+
+        modal.hidden = true;
+
+        document.body.classList.remove(
+            "abd-modal-open"
+        );
+
+        if (lastTrigger) {
+            lastTrigger.focus();
+        }
+    }
+
+    document.querySelectorAll(
+        "[data-benefit-modal]"
+    ).forEach(
+        function (trigger) {
+            trigger.addEventListener(
+                "click",
+                function () {
+                    openModal(
+                        trigger
+                    );
+                }
+            );
+        }
+    );
+
+    if (linkNode) {
+        linkNode.addEventListener(
+            "click",
+            function (event) {
+                const href =
+                    linkNode.getAttribute(
+                        "href"
+                    ) || "";
+
+                if (
+                    href.startsWith("#")
+                ) {
+                    event.preventDefault();
+
+                    closeModal();
+
+                    const target =
+                        document.querySelector(
+                            href
+                        );
+
+                    if (target) {
+                        window.setTimeout(
+                            function () {
+                                target.scrollIntoView({
+                                    behavior:
+                                        window.matchMedia(
+                                            "(prefers-reduced-motion: reduce)"
+                                        ).matches
+                                            ? "auto"
+                                            : "smooth",
+                                    block:
+                                        "start"
+                                });
+
+                                history.replaceState(
+                                    null,
+                                    "",
+                                    href
+                                );
+                            },
+                            80
+                        );
+                    }
+                } else {
+                    closeModal();
+                }
+            }
+        );
+    }
+
+    document.addEventListener(
+        "keydown",
+        function (event) {
+            if (
+                event.key ===
+                    "Escape" &&
+                !modal.hidden
+            ) {
+                closeModal();
+            }
+        }
+    );
+});
+</script>
 {% endblock %}
 
 {% block content %}
@@ -4153,7 +4968,146 @@ document.addEventListener("DOMContentLoaded", function () {
         </div>
     </section>
 
-    <section class="abd-benefit-strip"><div class="abd-benefit"><i class="fas fa-shield-alt"></i><div><strong>Approved Marketplace Listings</strong><span>Products from approved Arolana sellers</span></div></div><div class="abd-benefit"><i class="fas fa-award"></i><div><strong>Product Warranty</strong><span>Warranty details on eligible listings</span></div></div><div class="abd-benefit"><i class="fas fa-headphones-alt"></i><div><strong>Expert Support</strong><span>Shopping and product guidance</span></div></div><div class="abd-benefit"><i class="fas fa-undo-alt"></i><div><strong>Easy Returns</strong><span>For eligible marketplace items</span></div></div></section>
+    <section
+        class="abd-benefit-strip"
+        aria-label="Arolana marketplace assurances"
+    >
+        <button
+            type="button"
+            class="abd-benefit"
+            data-benefit-modal="approved-listings"
+            aria-haspopup="dialog"
+        >
+            <i class="fas fa-shield-alt abd-benefit-main-icon"></i>
+
+            <div class="abd-benefit-copy">
+                <strong>Approved Marketplace Listings</strong>
+                <span>Products from approved Arolana sellers</span>
+            </div>
+
+            <i class="fas fa-chevron-right abd-benefit-chevron"></i>
+        </button>
+
+        <button
+            type="button"
+            class="abd-benefit"
+            data-benefit-modal="warranty"
+            aria-haspopup="dialog"
+        >
+            <i class="fas fa-award abd-benefit-main-icon"></i>
+
+            <div class="abd-benefit-copy">
+                <strong>Product Warranty</strong>
+                <span>Warranty details on eligible listings</span>
+            </div>
+
+            <i class="fas fa-chevron-right abd-benefit-chevron"></i>
+        </button>
+
+        <button
+            type="button"
+            class="abd-benefit"
+            data-benefit-modal="support"
+            aria-haspopup="dialog"
+        >
+            <i class="fas fa-headphones-alt abd-benefit-main-icon"></i>
+
+            <div class="abd-benefit-copy">
+                <strong>Expert Support</strong>
+                <span>Shopping and product guidance</span>
+            </div>
+
+            <i class="fas fa-chevron-right abd-benefit-chevron"></i>
+        </button>
+
+        <button
+            type="button"
+            class="abd-benefit"
+            data-benefit-modal="returns"
+            aria-haspopup="dialog"
+        >
+            <i class="fas fa-undo-alt abd-benefit-main-icon"></i>
+
+            <div class="abd-benefit-copy">
+                <strong>Easy Returns</strong>
+                <span>For eligible marketplace items</span>
+            </div>
+
+            <i class="fas fa-chevron-right abd-benefit-chevron"></i>
+        </button>
+    </section>
+
+    <div
+        class="abd-benefit-modal"
+        id="abd-benefit-modal"
+        hidden
+    >
+        <div
+            class="abd-benefit-modal-backdrop"
+            data-benefit-close
+        ></div>
+
+        <section
+            class="abd-benefit-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="abd-benefit-modal-title"
+            aria-describedby="abd-benefit-modal-copy"
+        >
+            <button
+                type="button"
+                class="abd-benefit-modal-close"
+                data-benefit-close
+                aria-label="Close information"
+            >
+                <i class="fas fa-times"></i>
+            </button>
+
+            <div class="abd-benefit-dialog-icon">
+                <i
+                    class="fas fa-shield-alt"
+                    id="abd-benefit-modal-icon"
+                ></i>
+            </div>
+
+            <p class="abd-benefit-dialog-eyebrow">
+                Arolana Marketplace Protection
+            </p>
+
+            <h2 id="abd-benefit-modal-title">
+                Marketplace Information
+            </h2>
+
+            <p
+                class="abd-benefit-dialog-copy"
+                id="abd-benefit-modal-copy"
+            ></p>
+
+            <div
+                class="abd-benefit-dialog-points"
+                id="abd-benefit-modal-points"
+            ></div>
+
+            <div class="abd-benefit-dialog-actions">
+                <a
+                    href="#"
+                    class="abd-benefit-dialog-link"
+                    id="abd-benefit-modal-link"
+                >
+                    Learn more
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+
+                <button
+                    type="button"
+                    class="abd-benefit-dialog-done"
+                    data-benefit-close
+                >
+                    Got it
+                </button>
+            </div>
+        </section>
+    </div>
 
 </main>
 {% endblock %}
