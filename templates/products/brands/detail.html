@@ -341,6 +341,41 @@
     text-align: center;
 }
 
+.abd-brand-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .55rem;
+    margin: 1rem 0;
+    padding: .55rem;
+    border: 1px solid var(--abd-line);
+    border-radius: .9rem;
+    background: #ffffff;
+    box-shadow: var(--abd-shadow);
+}
+
+.abd-brand-tab {
+    display: inline-flex;
+    min-height: 40px;
+    align-items: center;
+    justify-content: center;
+    padding: .55rem .9rem;
+    border: 1px solid rgba(0,102,204,.13);
+    border-radius: 999px;
+    color: var(--abd-navy);
+    background: #f7fbff;
+    font-size: .76rem;
+    font-weight: 900;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.abd-brand-tab.is-active,
+.abd-brand-tab:hover {
+    border-color: var(--abd-orange);
+    color: #ffffff;
+    background: var(--abd-orange);
+}
+
 /* ==========================================================
    FILTER BAR
    ========================================================== */
@@ -644,7 +679,9 @@
     }
 
     .abd-hero-mobile-image-only .abd-hero-content,
-    .abd-hero-mobile-image-only .abd-hero-actions {
+    .abd-hero-mobile-image-only .abd-hero-actions,
+    .abd-hero-mobile-image-only .abd-hero-stats,
+    .abd-hero-mobile-image-only .abd-logo-panel {
         display: none;
     }
 
@@ -675,6 +712,21 @@
 
     .abd-logo-panel span {
         font-size: .8rem;
+    }
+
+    .abd-brand-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        margin: .8rem 0;
+        padding: .45rem;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .abd-brand-tab {
+        flex: 0 0 auto;
+        min-height: 36px;
+        padding: .48rem .75rem;
+        font-size: .68rem;
     }
 
     .abd-eyebrow {
@@ -786,6 +838,24 @@
         grid-template-columns:
             repeat(2, minmax(0, 1fr));
         gap: .5rem;
+    }
+}
+
+@media (min-width: 1101px) {
+    .abd-hero-desktop-image-only .abd-hero-content,
+    .abd-hero-desktop-image-only .abd-hero-actions,
+    .abd-hero-desktop-image-only .abd-hero-stats,
+    .abd-hero-desktop-image-only .abd-logo-panel {
+        display: none;
+    }
+}
+
+@media (min-width: 761px) and (max-width: 1100px) {
+    .abd-hero-tablet-image-only .abd-hero-content,
+    .abd-hero-tablet-image-only .abd-hero-actions,
+    .abd-hero-tablet-image-only .abd-hero-stats,
+    .abd-hero-tablet-image-only .abd-logo-panel {
+        display: none;
     }
 }
 
@@ -3651,7 +3721,12 @@ document.addEventListener("DOMContentLoaded", function () {
             {% endif %}
 
             <section
-                class="abd-hero {% if banner.mobile_content_layout == 'image_only' %}abd-hero-mobile-image-only{% endif %}"
+                class="
+                    abd-hero
+                    {% if banner.desktop_content_layout == 'image_only' %}abd-hero-desktop-image-only{% endif %}
+                    {% if banner.tablet_content_layout == 'image_only' %}abd-hero-tablet-image-only{% endif %}
+                    {% if banner.mobile_content_layout == 'image_only' %}abd-hero-mobile-image-only{% endif %}
+                "
                 style="
                     --hero-desktop-height:
                         {{ banner.desktop_height|default:560 }}px;
@@ -3679,13 +3754,23 @@ document.addEventListener("DOMContentLoaded", function () {
                         {{ banner.image_position_mobile|default:'center center' }};
                 "
             >
-                {% if banner.image_desktop %}
+                {% if banner.image_desktop or banner.image_tablet or banner.image_mobile %}
                     <div class="abd-hero-media">
                         <picture>
                             {% if banner.image_mobile %}
                                 <source
                                     media="(max-width: 760px)"
                                     srcset="{{ abd_mobile }}"
+                                >
+                            {% elif banner.image_tablet %}
+                                <source
+                                    media="(max-width: 760px)"
+                                    srcset="{{ abd_tablet }}"
+                                >
+                            {% elif banner.image_desktop %}
+                                <source
+                                    media="(max-width: 760px)"
+                                    srcset="{{ abd_desktop }}"
                                 >
                             {% endif %}
 
@@ -3694,10 +3779,20 @@ document.addEventListener("DOMContentLoaded", function () {
                                     media="(max-width: 1100px)"
                                     srcset="{{ abd_tablet }}"
                                 >
+                            {% elif banner.image_desktop %}
+                                <source
+                                    media="(max-width: 1100px)"
+                                    srcset="{{ abd_desktop }}"
+                                >
+                            {% elif banner.image_mobile %}
+                                <source
+                                    media="(max-width: 1100px)"
+                                    srcset="{{ abd_mobile }}"
+                                >
                             {% endif %}
 
                             <img
-                                src="{{ abd_desktop }}"
+                                src="{% if banner.image_desktop %}{{ abd_desktop }}{% elif banner.image_tablet %}{{ abd_tablet }}{% else %}{{ abd_mobile }}{% endif %}"
                                 alt="{{ banner.title|default:brand.name }}"
                                 fetchpriority="high"
                                 decoding="async"

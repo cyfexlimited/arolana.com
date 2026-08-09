@@ -5522,6 +5522,20 @@ def mobile_brand_directory_api(request):
                 banner.image_position_mobile
             ),
 
+            "desktop_content_layout": (
+                getattr(
+                    banner,
+                    "desktop_content_layout",
+                    "standard",
+                )
+            ),
+            "tablet_content_layout": (
+                getattr(
+                    banner,
+                    "tablet_content_layout",
+                    "standard",
+                )
+            ),
             "mobile_content_layout": (
                 banner.mobile_content_layout
             ),
@@ -5699,6 +5713,28 @@ def mobile_brand_directory_api(request):
             ),
             "slide_open_behavior": (
                 banner.slide_open_behavior
+            ),
+
+            "linked_article_id": (
+                banner.linked_article_id
+            ),
+            "article_button_text": (
+                banner.article_button_text or ""
+            ),
+            "article_open_behavior": (
+                banner.article_open_behavior
+            ),
+            "article_button_background_color": (
+                banner.article_button_background_color
+                or ""
+            ),
+            "article_button_text_color": (
+                banner.article_button_text_color
+                or ""
+            ),
+            "article_button_border_color": (
+                banner.article_button_border_color
+                or ""
             ),
 
             "animation_effect": (
@@ -6170,6 +6206,20 @@ def mobile_brand_detail_api(request, slug):
                 banner.image_position_mobile
             ),
 
+            "desktop_content_layout": (
+                getattr(
+                    banner,
+                    "desktop_content_layout",
+                    "standard",
+                )
+            ),
+            "tablet_content_layout": (
+                getattr(
+                    banner,
+                    "tablet_content_layout",
+                    "standard",
+                )
+            ),
             "mobile_content_layout": (
                 banner.mobile_content_layout
             ),
@@ -6347,6 +6397,28 @@ def mobile_brand_detail_api(request, slug):
             ),
             "slide_open_behavior": (
                 banner.slide_open_behavior
+            ),
+
+            "linked_article_id": (
+                banner.linked_article_id
+            ),
+            "article_button_text": (
+                banner.article_button_text or ""
+            ),
+            "article_open_behavior": (
+                banner.article_open_behavior
+            ),
+            "article_button_background_color": (
+                banner.article_button_background_color
+                or ""
+            ),
+            "article_button_text_color": (
+                banner.article_button_text_color
+                or ""
+            ),
+            "article_button_border_color": (
+                banner.article_button_border_color
+                or ""
             ),
 
             "animation_effect": (

@@ -75,6 +75,7 @@
     grid-template-columns: minmax(0, 1fr) 340px;
     gap: 1.2rem;
     min-height: var(--hero-desktop-height);
+    height: var(--hero-desktop-height);
     overflow: hidden;
     padding: 1.4rem;
     border: 1px solid rgba(0, 102, 204, .12);
@@ -107,21 +108,14 @@
     position: absolute;
     inset: 0;
     z-index: -3;
-    background:
-        linear-gradient(
-            90deg,
-            rgba(3, 20, 46, .97) 0%,
-            rgba(3, 20, 46, .92) 38%,
-            rgba(3, 20, 46, .70) 66%,
-            rgba(3, 20, 46, .54) 100%
-        );
+    background: #071A44;
 }
 
 .ab-hero-pattern {
     position: absolute;
     inset: 0 22% 0 42%;
     z-index: -2;
-    opacity: .24;
+    opacity: .06;
     pointer-events: none;
     background-image:
         radial-gradient(circle, rgba(99, 184, 255, .5) 1px, transparent 1.4px);
@@ -131,11 +125,19 @@
 }
 
 .ab-hero-main {
+    position: relative;
+    z-index: 2;
     display: flex;
     min-width: 0;
     flex-direction: column;
     justify-content: center;
     padding: .6rem .6rem .25rem .55rem;
+}
+
+.ab-hero-slide-link {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
 }
 
 .ab-hero-kicker {
@@ -207,6 +209,8 @@
 }
 
 .ab-browse-button {
+    position: relative;
+    z-index: 3;
     display: inline-flex;
     min-height: 46px;
     align-items: center;
@@ -994,9 +998,16 @@
     }
 }
 
-@media (max-width: 1050px) {
+@media (min-width: 761px) and (max-width: 1100px) {
     .ab-hero {
         grid-template-columns: 1fr 300px;
+        min-height: var(--hero-tablet-height);
+        height: var(--hero-tablet-height);
+    }
+
+    .ab-hero-media img {
+        object-fit: var(--hero-fit-tablet);
+        object-position: var(--hero-position-tablet);
     }
 
     .ab-featured-grid {
@@ -1019,7 +1030,6 @@
 
     .ab-hero {
         grid-template-columns: 1fr;
-        min-height: auto;
     }
 
     .ab-why-card {
@@ -1052,7 +1062,7 @@
     }
 }
 
-@media (max-width: 680px) {
+@media (max-width: 760px) {
     .arolana-brands-page {
         width: min(calc(100% - .65rem), 1660px);
         padding-top: .6rem;
@@ -1067,6 +1077,7 @@
 
     .ab-hero {
         min-height: var(--hero-mobile-height);
+        height: var(--hero-mobile-height);
         gap: .6rem;
         padding: .9rem;
         border-radius: .85rem;
@@ -1077,21 +1088,32 @@
         object-position: var(--hero-position-mobile);
     }
 
-    .ab-hero-overlay {
-        background:
-            linear-gradient(
-                180deg,
-                rgba(3,20,46,.55) 0%,
-                rgba(3,20,46,.83) 48%,
-                rgba(3,20,46,.98) 100%
-            );
-    }
-
     .ab-hero-pattern {
         inset: 0;
-        opacity: .12;
+        opacity: .04;
     }
 
+    .ab-hero-mobile-image-only .ab-hero-main,
+    .ab-hero-mobile-image-only .ab-why-card {
+        display: none;
+    }
+}
+
+@media (min-width: 1101px) {
+    .ab-hero-desktop-image-only .ab-hero-main,
+    .ab-hero-desktop-image-only .ab-why-card {
+        display: none;
+    }
+}
+
+@media (min-width: 761px) and (max-width: 1100px) {
+    .ab-hero-tablet-image-only .ab-hero-main,
+    .ab-hero-tablet-image-only .ab-why-card {
+        display: none;
+    }
+}
+
+@media (max-width: 760px) {
     .ab-hero-main {
         justify-content: flex-end;
         padding: 1.1rem .2rem .1rem;
@@ -1265,7 +1287,6 @@
 .ab-hero {
     grid-template-columns: minmax(0, 1fr) 350px;
     gap: 1.15rem;
-    min-height: 354px;
     padding: 1.2rem 1.25rem;
     border-radius: .82rem;
 }
@@ -2064,11 +2085,16 @@
             {% endif %}
 
             <section
-                class="ab-hero"
+                class="
+                    ab-hero
+                    {% if banner.desktop_content_layout == 'image_only' %}ab-hero-desktop-image-only{% endif %}
+                    {% if banner.tablet_content_layout == 'image_only' %}ab-hero-tablet-image-only{% endif %}
+                    {% if banner.mobile_content_layout == 'image_only' %}ab-hero-mobile-image-only{% endif %}
+                "
                 style="
-                    --hero-desktop-height: clamp(330px, {{ banner.desktop_height|default:360 }}px, 430px);
-                    --hero-tablet-height: clamp(320px, {{ banner.tablet_height|default:350 }}px, 410px);
-                    --hero-mobile-height: clamp(300px, {{ banner.mobile_height|default:330 }}px, 390px);
+                    --hero-desktop-height: {{ banner.desktop_height|default:560 }}px;
+                    --hero-tablet-height: {{ banner.tablet_height|default:460 }}px;
+                    --hero-mobile-height: {{ banner.mobile_height|default:380 }}px;
                     --hero-fit-desktop: {{ banner.image_fit_desktop|default:'cover' }};
                     --hero-fit-tablet: {{ banner.image_fit_tablet|default:'cover' }};
                     --hero-fit-mobile: {{ banner.image_fit_mobile|default:'cover' }};
@@ -2077,17 +2103,25 @@
                     --hero-position-mobile: {{ banner.image_position_mobile|default:'center center' }};
                 "
             >
-                {% if banner.image_desktop %}
+                {% if banner.image_desktop or banner.image_tablet or banner.image_mobile %}
                     <div class="ab-hero-media">
                         <picture>
                             {% if banner.image_mobile %}
-                                <source media="(max-width: 680px)" srcset="{{ brand_hero_mobile }}">
+                                <source media="(max-width: 760px)" srcset="{{ brand_hero_mobile }}">
+                            {% elif banner.image_tablet %}
+                                <source media="(max-width: 760px)" srcset="{{ brand_hero_tablet }}">
+                            {% elif banner.image_desktop %}
+                                <source media="(max-width: 760px)" srcset="{{ brand_hero_desktop }}">
                             {% endif %}
                             {% if banner.image_tablet %}
-                                <source media="(max-width: 1024px)" srcset="{{ brand_hero_tablet }}">
+                                <source media="(max-width: 1100px)" srcset="{{ brand_hero_tablet }}">
+                            {% elif banner.image_desktop %}
+                                <source media="(max-width: 1100px)" srcset="{{ brand_hero_desktop }}">
+                            {% elif banner.image_mobile %}
+                                <source media="(max-width: 1100px)" srcset="{{ brand_hero_mobile }}">
                             {% endif %}
                             <img
-                                src="{{ brand_hero_desktop }}"
+                                src="{% if banner.image_desktop %}{{ brand_hero_desktop }}{% elif banner.image_tablet %}{{ brand_hero_tablet }}{% else %}{{ brand_hero_mobile }}{% endif %}"
                                 alt="{{ banner.title|default:'Arolana brands' }}"
                                 fetchpriority="high"
                                 decoding="async"
@@ -2096,11 +2130,26 @@
                     </div>
                     <div
                         class="ab-hero-overlay"
-                        style="opacity: {{ banner.overlay_opacity_css|default:'0.82' }};"
+                        style="
+                            background: {{ banner.overlay_color|default:'#071A44' }};
+                            opacity: {{ banner.overlay_opacity_css|default:'0' }};
+                        "
                     ></div>
                 {% endif %}
 
                 <div class="ab-hero-pattern"></div>
+
+                {% if banner.enable_slide_link and banner.slide_link_url and banner.slide_link_url != "#" %}
+                    <a
+                        class="ab-hero-slide-link"
+                        href="{{ banner.slide_link_url }}"
+                        aria-label="{{ banner.title|default:'Arolana brands' }}"
+                        {% if banner.slide_open_behavior == "new_page" %}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        {% endif %}
+                    ></a>
+                {% endif %}
 
                 <div class="ab-hero-main">
                     <p class="ab-hero-kicker">
@@ -2118,11 +2167,13 @@
 
                     {% if banner.show_content and banner.show_subtitle and banner.subtitle %}
                         <p class="ab-hero-copy">{{ banner.subtitle }}</p>
-                    {% elif banner.show_content and banner.show_description and banner.description %}
+                    {% endif %}
+
+                    {% if banner.show_content and banner.show_description and banner.description %}
                         <p class="ab-hero-copy">
                             {{ banner.description|striptags|truncatewords:28 }}
                         </p>
-                    {% else %}
+                    {% elif not banner.subtitle and not banner.description %}
                         <p class="ab-hero-copy">
                             Explore officially approved global and regional brands on Arolana.
                             Quality products. Verified manufacturers. Smarter shopping.
@@ -2151,6 +2202,20 @@
                             <span>Browse All Brands</span>
                         </a>
                     </div>
+
+                    {% if banner.show_buttons %}
+                        <div class="ab-hero-search-row">
+                            {% if banner.show_button1 and banner.button1_text and banner.button1_url and banner.button1_url != "#" %}
+                                <a class="ab-browse-button" href="{{ banner.button1_url }}">{{ banner.button1_text }}</a>
+                            {% endif %}
+                            {% if banner.show_button2 and banner.button2_text and banner.button2_url and banner.button2_url != "#" %}
+                                <a class="ab-browse-button" href="{{ banner.button2_url }}">{{ banner.button2_text }}</a>
+                            {% endif %}
+                            {% if banner.show_button3 and banner.button3_text and banner.button3_url and banner.button3_url != "#" %}
+                                <a class="ab-browse-button" href="{{ banner.button3_url }}">{{ banner.button3_text }}</a>
+                            {% endif %}
+                        </div>
+                    {% endif %}
 
                     <div class="ab-hero-trust">
                         <div class="ab-hero-trust-item">

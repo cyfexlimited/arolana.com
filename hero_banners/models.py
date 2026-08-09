@@ -71,9 +71,15 @@ class HeroBanner(BaseModel):
     ]
 
     MOBILE_CONTENT_LAYOUT_CHOICES = [
+        ('standard', 'Standard — image with dynamic content'),
         ('image_only', 'Image only on mobile (Arolana style)'),
         ('overlay', 'Text over image'),
         ('below', 'Text below image'),
+    ]
+
+    CONTENT_LAYOUT_CHOICES = [
+        ('standard', 'Standard — image with dynamic content'),
+        ('image_only', 'Image only — uploaded artwork only'),
     ]
 
     OPEN_BEHAVIOR_CHOICES = [
@@ -106,6 +112,8 @@ class HeroBanner(BaseModel):
     image_position_desktop = models.CharField(max_length=50, default='center center', help_text="CSS object-position. Examples: center center, left center, 50% 35%.")
     image_position_tablet = models.CharField(max_length=50, default='center center', help_text="CSS object-position for tablet.")
     image_position_mobile = models.CharField(max_length=50, default='center center', help_text="CSS object-position for mobile.")
+    desktop_content_layout = models.CharField(max_length=20, choices=CONTENT_LAYOUT_CHOICES, default='standard', help_text="Standard displays Admin-managed title, description and CTA content over the image. Image only displays the uploaded artwork without the dynamic content layer on desktop.")
+    tablet_content_layout = models.CharField(max_length=20, choices=CONTENT_LAYOUT_CHOICES, default='standard', help_text="Standard displays Admin-managed title, description and CTA content over the image. Image only displays the uploaded artwork without the dynamic content layer on tablet.")
     mobile_content_layout = models.CharField(max_length=20, choices=MOBILE_CONTENT_LAYOUT_CHOICES, default='image_only', help_text="Use image only when your mobile image already contains the text/buttons.")
     
     # 3D & Animation Effects

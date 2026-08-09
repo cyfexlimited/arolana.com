@@ -167,33 +167,35 @@ class HeroBannerAdmin(admin.ModelAdmin):
             },
         ),
         (
-            "Size, Fit & Focal Position",
+            "Responsive Display",
             {
                 "fields": (
                     (
                         "desktop_height",
-                        "tablet_height",
-                        "mobile_height",
-                    ),
-                    (
                         "image_fit_desktop",
                         "image_position_desktop",
+                        "desktop_content_layout",
                     ),
                     (
+                        "tablet_height",
                         "image_fit_tablet",
                         "image_position_tablet",
+                        "tablet_content_layout",
                     ),
                     (
+                        "mobile_height",
                         "image_fit_mobile",
                         "image_position_mobile",
+                        "mobile_content_layout",
                     ),
-                    "mobile_content_layout",
                 ),
                 "description": (
-                    "Control banner frame size and image crop "
-                    "behavior per device. For uploaded mobile "
-                    "artwork that already contains text/buttons, "
-                    "use the mobile image-only layout."
+                    "Control banner frame size, crop and dynamic "
+                    "content visibility per device. Standard displays "
+                    "Admin-managed title, description and CTA content "
+                    "over the image. Image only displays the uploaded "
+                    "artwork without the dynamic content layer on this "
+                    "device."
                 ),
             },
         ),
@@ -349,12 +351,27 @@ class HeroBannerAdmin(admin.ModelAdmin):
             "Recommended around 500–600."
         ),
         "tablet_height": (
-            "Tablet hero display height. "
+            "Tablet hero display height in CSS pixels. "
             "Recommended around 400–500."
         ),
         "mobile_height": (
             "Mobile hero display height. Recommended around 360–420. "
             "The uploaded mobile image may still be 1080×720."
+        ),
+        "desktop_content_layout": (
+            "Standard displays Admin-managed title, description and CTA "
+            "content over the image. Image only displays the uploaded "
+            "artwork without the dynamic content layer on desktop."
+        ),
+        "tablet_content_layout": (
+            "Standard displays Admin-managed title, description and CTA "
+            "content over the image. Image only displays the uploaded "
+            "artwork without the dynamic content layer on tablet."
+        ),
+        "mobile_content_layout": (
+            "Standard displays Admin-managed title, description and CTA "
+            "content over the image. Image only displays the uploaded "
+            "artwork without the dynamic content layer on mobile."
         ),
     }
 
