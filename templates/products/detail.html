@@ -5718,6 +5718,104 @@
         }
     }
 
+    /* ============================================================
+       FOLLOW-SCROLL V18 — DESKTOP POLISH + FULL MOBILE CHAT
+       ============================================================ */
+
+    /* Keep the floating navigation visually balanced on desktop. */
+    @media (min-width: 981px) {
+        .apd-follow-tabs-portal.is-visible {
+            display: flex !important;
+            flex-wrap: nowrap !important;
+            align-items: stretch !important;
+            justify-content: flex-start !important;
+            gap: 0 !important;
+            padding: 0 .55rem !important;
+        }
+
+        .apd-follow-tabs-portal > button {
+            flex: 0 0 auto !important;
+            width: auto !important;
+            max-width: none !important;
+            min-width: 0 !important;
+            padding: .92rem .82rem !important;
+            font-size: .86rem !important;
+            line-height: 1.15 !important;
+            white-space: nowrap !important;
+            text-align: center !important;
+        }
+
+        .apd-follow-tabs-actions {
+            margin-left: auto !important;
+            padding: .36rem .25rem .36rem .7rem !important;
+            border-left: 1px solid rgba(7, 26, 68, .08);
+            gap: .45rem !important;
+        }
+
+        .apd-follow-contact-btn {
+            min-height: 2.45rem !important;
+            padding: .58rem .82rem !important;
+            border-radius: .7rem !important;
+            font-size: .78rem !important;
+        }
+    }
+
+    @media (min-width: 1320px) {
+        .apd-follow-tabs-portal > button {
+            padding-inline: 1rem !important;
+            font-size: .9rem !important;
+        }
+
+        .apd-follow-contact-btn {
+            padding-inline: .95rem !important;
+            font-size: .82rem !important;
+        }
+    }
+
+    /* The vendor chat must always sit above the follow-scroll UI. */
+    #vendor-chat-modal {
+        z-index: 2147483646 !important;
+    }
+
+    /* Never let the floating tabs cover the chat panel. */
+    html.vendor-chat-is-open .apd-follow-tabs-portal,
+    body.vendor-chat-is-open .apd-follow-tabs-portal {
+        display: none !important;
+    }
+
+    /* Mobile vendor chat is a true full-screen experience. */
+    @media (max-width: 767px) {
+        #vendor-chat-modal {
+            inset: 0 !important;
+            width: 100vw !important;
+            height: 100dvh !important;
+            min-height: 100dvh !important;
+            padding: 0 !important;
+            align-items: stretch !important;
+            justify-content: stretch !important;
+        }
+
+        #vendor-chat-modal .vendor-chat-panel {
+            width: 100vw !important;
+            max-width: 100vw !important;
+            height: 100dvh !important;
+            min-height: 100dvh !important;
+            max-height: 100dvh !important;
+            margin: 0 !important;
+            border-radius: 0 !important;
+            padding-top: env(safe-area-inset-top) !important;
+            padding-bottom: env(safe-area-inset-bottom) !important;
+        }
+
+        #vendor-chat-messages {
+            min-height: 0 !important;
+        }
+
+        #vendor-chat-form {
+            padding-bottom: max(1rem, env(safe-area-inset-bottom)) !important;
+        }
+    }
+
 </style>
 {% endblock %}
 
@@ -11793,6 +11891,7 @@
         var original = document.querySelector('.apd-product-tab-nav');
         var tabsRoot = document.querySelector('.apd-tabs-clean');
         var tabColumn = original ? original.closest('.apd-detail-tab-column') : null;
+        var lowerLayout = tabsRoot ? (tabsRoot.querySelector('.apd-detail-lower-layout') || tabsRoot) : null;
 
         if (!original || !tabsRoot || !tabColumn || document.querySelector('.apd-follow-tabs-portal')) {
             return;
@@ -11878,6 +11977,34 @@
             return node.tagName === 'BUTTON';
         });
 
+        function scrollSelectedTabToStart() {
+            var contentStart = original.nextElementSibling;
+            if (!contentStart) {
+                contentStart = tabColumn;
+            }
+
+            /* Wait for Alpine/x-show to swap the active panel before measuring. */
+            window.requestAnimationFrame(function () {
+                window.setTimeout(function () {
+                    var fixedTop = siteHeaderBottom();
+                    var floatingHeight = Math.ceil(portal.getBoundingClientRect().height || 0);
+                    var rect = contentStart.getBoundingClientRect();
+                    var destination = (window.scrollY || window.pageYOffset || 0)
+                        + rect.top
+                        - fixedTop
+                        - floatingHeight
+                        - 10;
+
+                    window.scrollTo({
+                        top: Math.max(0, destination),
+                        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+                            ? 'auto'
+                            : 'smooth'
+                    });
+                }, 35);
+            });
+        }
+
         floatingButtons.forEach(function (button, index) {
             button.type = 'button';
             button.addEventListener('click', function (event) {
@@ -11886,6 +12013,7 @@
                 if (!real) return;
                 real.click();
                 syncButtons();
+                scrollSelectedTabToStart();
             });
         });
 
@@ -11918,6 +12046,7 @@
             var originalRect = original.getBoundingClientRect();
             var rootRect = tabsRoot.getBoundingClientRect();
             var columnRect = tabColumn.getBoundingClientRect();
+            var layoutRect = lowerLayout ? lowerLayout.getBoundingClientRect() : columnRect;
             var top = siteHeaderBottom();
             var portalHeight = Math.ceil(portal.getBoundingClientRect().height || originalRect.height || 1);
 
@@ -11941,8 +12070,11 @@
                 portal.style.setProperty('--apd-follow-tabs-left', '0px');
                 portal.style.setProperty('--apd-follow-tabs-width', '100vw');
             } else {
-                portal.style.setProperty('--apd-follow-tabs-left', Math.round(columnRect.left) + 'px');
-                portal.style.setProperty('--apd-follow-tabs-width', Math.round(columnRect.width) + 'px');
+                /* Desktop uses the complete lower product-detail width so the
+                   navigation stays on one line and the gated contact actions
+                   have their own space on the right. */
+                portal.style.setProperty('--apd-follow-tabs-left', Math.round(layoutRect.left) + 'px');
+                portal.style.setProperty('--apd-follow-tabs-width', Math.round(layoutRect.width) + 'px');
             }
 
             syncButtons();
@@ -11976,6 +12108,9 @@
             ro.observe(original);
             ro.observe(tabsRoot);
             ro.observe(tabColumn);
+            if (lowerLayout && lowerLayout !== tabsRoot) {
+                ro.observe(lowerLayout);
+            }
         }
 
         syncButtons();
