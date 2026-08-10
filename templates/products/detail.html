@@ -5548,62 +5548,6 @@
         }
     }
 
-    /* ==========================================================
-    MOBILE PRODUCT TABS — FINAL FIX
-    Keep every tab reachable without showing a scrollbar.
-    ========================================================== */
-
-    @media (max-width: 768px) {
-
-        body.product-detail-full-width .apd-product-tab-nav,
-        .apd-product-tab-nav,
-        .apd-tabs-clean > .border-b,
-        .modern-tabs,
-        [role="tablist"] {
-            display: flex !important;
-            flex-wrap: nowrap !important;
-
-            width: 100% !important;
-            max-width: 100% !important;
-
-            justify-content: flex-start !important;
-
-            overflow-x: auto !important;
-            overflow-y: hidden !important;
-
-            white-space: nowrap !important;
-
-            -webkit-overflow-scrolling: touch;
-            overscroll-behavior-x: contain;
-
-            scroll-snap-type: x proximity;
-
-            padding-right: 1rem !important;
-
-            scrollbar-width: none !important;
-            -ms-overflow-style: none !important;
-        }
-
-        body.product-detail-full-width .apd-product-tab-nav::-webkit-scrollbar,
-        .apd-product-tab-nav::-webkit-scrollbar,
-        .apd-tabs-clean > .border-b::-webkit-scrollbar,
-        .modern-tabs::-webkit-scrollbar,
-        [role="tablist"]::-webkit-scrollbar {
-            display: none !important;
-            width: 0 !important;
-            height: 0 !important;
-        }
-
-        .apd-product-tab-nav > button,
-        .apd-tabs-clean .modern-tab,
-        .modern-tabs > button,
-        [role="tablist"] > button {
-            flex: 0 0 auto !important;
-            white-space: nowrap !important;
-            scroll-snap-align: start;
-        }
-    }
-
 </style>
 {% endblock %}
 
@@ -11664,5 +11608,58 @@
     }
 })();
 </script>
+
+
+<style>
+/* ============================================================
+   AROLANA MOBILE PRODUCT TABS — SHOW EVERY TAB, NO HORIZONTAL HIDE
+   Final override: tabs wrap into rows on phones instead of scrolling.
+   ============================================================ */
+@media (max-width: 768px) {
+    body.product-detail-full-width .apd-product-tab-nav,
+    .apd-product-tab-nav {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        justify-content: flex-start !important;
+        overflow-x: visible !important;
+        overflow-y: visible !important;
+        white-space: normal !important;
+        gap: 0 !important;
+        scrollbar-width: none !important;
+        -ms-overflow-style: none !important;
+    }
+
+    body.product-detail-full-width .apd-product-tab-nav::-webkit-scrollbar,
+    .apd-product-tab-nav::-webkit-scrollbar {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+    }
+
+    body.product-detail-full-width .apd-product-tab-nav > button,
+    .apd-product-tab-nav > button {
+        flex: 1 1 33.333333% !important;
+        width: auto !important;
+        min-width: 0 !important;
+        max-width: 33.333333% !important;
+        padding: .8rem .35rem !important;
+        white-space: normal !important;
+        text-align: center !important;
+        line-height: 1.2 !important;
+        overflow-wrap: anywhere !important;
+        scroll-snap-align: none !important;
+    }
+}
+
+@media (max-width: 390px) {
+    body.product-detail-full-width .apd-product-tab-nav > button,
+    .apd-product-tab-nav > button {
+        flex-basis: 50% !important;
+        max-width: 50% !important;
+    }
+}
+</style>
 
 {% endblock %}
