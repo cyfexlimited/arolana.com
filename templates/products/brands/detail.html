@@ -1951,6 +1951,7 @@ body.abd-modal-open {
 }
 
 .abd-main-product-image {
+    position: relative;
     display: flex;
     width: 100%;
     height: 205px;
@@ -1959,6 +1960,7 @@ body.abd-modal-open {
     overflow: hidden;
 
     background: #ffffff;
+    cursor: pointer;
 }
 
 .abd-main-product-image img {
@@ -1968,6 +1970,46 @@ body.abd-modal-open {
     max-width: 235px;
     max-height: 200px;
     object-fit: contain;
+}
+
+.abd-main-gallery-track {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.abd-main-gallery-track img {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    opacity: 0;
+    transition: opacity .18s ease;
+}
+
+.abd-main-gallery-track img.is-active {
+    opacity: 1;
+}
+
+.abd-main-gallery-dots {
+    position: absolute;
+    right: .55rem;
+    bottom: .45rem;
+    left: .55rem;
+    display: none;
+    justify-content: center;
+    gap: .25rem;
+    pointer-events: none;
+}
+
+.abd-main-gallery-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: rgba(7,26,68,.22);
+}
+
+.abd-main-gallery-dot.is-active {
+    background: var(--abd-blue);
 }
 
 .abd-main-image-placeholder {
@@ -2982,7 +3024,11 @@ body.abd-modal-open {
     }
 
     .abd-main-product-identifiers {
-        display: none;
+        display: flex;
+        margin-top: .38rem;
+        gap: .25rem;
+        font-size: .49rem;
+        line-height: 1.35;
     }
 
     .abd-main-product-rating {
@@ -2991,7 +3037,18 @@ body.abd-modal-open {
     }
 
     .abd-main-feature-block {
-        display: none;
+        display: block;
+        margin-top: .45rem;
+    }
+
+    .abd-main-feature-title {
+        font-size: .49rem;
+    }
+
+    .abd-main-feature-copy {
+        font-size: .52rem;
+        line-height: 1.35;
+        -webkit-line-clamp: 2;
     }
 
     .abd-main-product-action {
@@ -3004,13 +3061,62 @@ body.abd-modal-open {
     }
 
     .abd-main-vendor-box {
+        grid-column: 1 / -1;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: .2rem .38rem;
+        padding: .42rem .5rem;
+    }
+
+    .abd-main-vendor-label {
         display: none;
+    }
+
+    .abd-main-vendor-name,
+    .abd-main-condition {
+        margin: 0;
+        font-size: .52rem;
+        line-height: 1.25;
+    }
+
+    .abd-main-condition::before {
+        content: "· ";
     }
 
     .abd-main-cta {
         min-width: 125px;
         min-height: 38px;
         font-size: .57rem;
+    }
+
+    .abd-main-product-image {
+        touch-action: pan-x;
+    }
+
+    .abd-main-gallery-track {
+        position: static;
+        display: flex;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .abd-main-gallery-track::-webkit-scrollbar {
+        display: none;
+    }
+
+    .abd-main-gallery-track img,
+    .abd-main-gallery-track img.is-active {
+        position: static;
+        flex: 0 0 100%;
+        min-width: 100%;
+        opacity: 1;
+        scroll-snap-align: center;
+    }
+
+    .abd-main-gallery-dots {
+        display: flex;
     }
 }
 
@@ -4291,15 +4397,45 @@ document.addEventListener("DOMContentLoaded", function () {
                         <a
                             href="{{ product.get_absolute_url }}"
                             class="abd-main-product-image"
+                            aria-label="View {{ product.name }} details"
+                            data-product-gallery
                         >
                             {% if product.main_image %}
                                 {% optimized_image_url product.main_image 'product_card' as main_product_image %}
-                                <img
-                                    src="{{ main_product_image }}"
-                                    alt="{{ product.name }}"
-                                    loading="lazy"
-                                    decoding="async"
-                                >
+                                <span class="abd-main-gallery-track">
+                                    <img
+                                        src="{{ main_product_image }}"
+                                        alt="{{ product.name }}"
+                                        loading="lazy"
+                                        decoding="async"
+                                        class="is-active"
+                                        data-gallery-index="0"
+                                        data-gallery-url="{{ main_product_image }}"
+                                    >
+                                    {% for gallery_image in product.prefetched_gallery_images %}
+                                        {% if gallery_image.image %}
+                                            {% optimized_image_url gallery_image.image 'product_card' as gallery_image_url %}
+                                            <img
+                                                data-src="{{ gallery_image_url }}"
+                                                data-gallery-url="{{ gallery_image_url }}"
+                                                data-gallery-index="{{ forloop.counter }}"
+                                                alt="{{ gallery_image.alt_text|default:product.name }}"
+                                                loading="lazy"
+                                                decoding="async"
+                                            >
+                                        {% endif %}
+                                    {% endfor %}
+                                </span>
+                                {% if product.prefetched_gallery_images %}
+                                    <span class="abd-main-gallery-dots" aria-hidden="true">
+                                        <span class="abd-main-gallery-dot is-active"></span>
+                                        {% for gallery_image in product.prefetched_gallery_images %}
+                                            {% if gallery_image.image %}
+                                                <span class="abd-main-gallery-dot"></span>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </span>
+                                {% endif %}
                             {% else %}
                                 <span class="abd-main-image-placeholder">
                                     <i class="fas fa-image"></i>
@@ -4854,6 +4990,81 @@ document.addEventListener("DOMContentLoaded", function () {
                 );
             }
         );
+    });
+
+    document.querySelectorAll("[data-product-gallery]").forEach(function (gallery) {
+        const track = gallery.querySelector(".abd-main-gallery-track");
+        if (!track) return;
+
+        let slides = Array.from(track.querySelectorAll("img"));
+        const dots = Array.from(gallery.querySelectorAll(".abd-main-gallery-dot"));
+        let activeIndex = 0;
+        let intervalId = null;
+        let hasLoadedGallery = false;
+
+        const seen = new Set();
+        slides.forEach(function (slide) {
+            const url = slide.getAttribute("data-gallery-url") || slide.getAttribute("src") || slide.getAttribute("data-src") || "";
+            if (!url) return;
+            if (seen.has(url)) {
+                slide.remove();
+                return;
+            }
+            seen.add(url);
+        });
+        slides = Array.from(track.querySelectorAll("img"));
+
+        function loadGalleryImages() {
+            if (hasLoadedGallery) return;
+            hasLoadedGallery = true;
+            slides.forEach(function (slide) {
+                const pendingSrc = slide.getAttribute("data-src");
+                if (pendingSrc && !slide.getAttribute("src")) {
+                    slide.setAttribute("src", pendingSrc);
+                }
+            });
+        }
+
+        function setActive(index) {
+            if (!slides.length) return;
+            activeIndex = ((index % slides.length) + slides.length) % slides.length;
+            slides.forEach(function (slide, slideIndex) {
+                slide.classList.toggle("is-active", slideIndex === activeIndex);
+            });
+            dots.forEach(function (dot, dotIndex) {
+                dot.classList.toggle("is-active", dotIndex === activeIndex);
+            });
+        }
+
+        function stopCycle() {
+            if (intervalId) {
+                window.clearInterval(intervalId);
+                intervalId = null;
+            }
+            setActive(0);
+        }
+
+        gallery.addEventListener("pointerenter", function (event) {
+            if (event.pointerType && event.pointerType !== "mouse") return;
+            if (slides.length < 2) return;
+            loadGalleryImages();
+            stopCycle();
+            intervalId = window.setInterval(function () {
+                setActive(activeIndex + 1);
+            }, 1000);
+        });
+
+        gallery.addEventListener("pointerleave", function () {
+            stopCycle();
+        });
+
+        track.addEventListener("scroll", function () {
+            if (!window.matchMedia("(max-width: 760px)").matches || !track.clientWidth) return;
+            loadGalleryImages();
+            setActive(Math.round(track.scrollLeft / track.clientWidth));
+        }, { passive: true });
+
+        gallery.addEventListener("touchstart", loadGalleryImages, { passive: true });
     });
 });
 </script>

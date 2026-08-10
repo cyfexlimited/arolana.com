@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 from django.http import JsonResponse
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.text import Truncator
 from django.conf import settings
 from django.views.decorators.http import require_http_methods, require_GET
 from django.views.decorators.csrf import csrf_exempt
@@ -6535,6 +6536,16 @@ def mobile_brand_detail_api(request, slug):
             "vendor",
             "vendor__vendor_profile",
         )
+        .prefetch_related(
+            Prefetch(
+                "images",
+                queryset=ProductImage.objects.order_by(
+                    "order",
+                    "id",
+                ),
+                to_attr="prefetched_gallery_images",
+            )
+        )
     )
 
     total_product_count = (
@@ -6646,6 +6657,16 @@ def mobile_brand_detail_api(request, slug):
             "brand",
             "vendor",
             "vendor__vendor_profile",
+        )
+        .prefetch_related(
+            Prefetch(
+                "images",
+                queryset=ProductImage.objects.order_by(
+                    "order",
+                    "id",
+                ),
+                to_attr="prefetched_gallery_images",
+            )
         )
     )
 
@@ -7157,6 +7178,75 @@ def _mobile_product_payload(request, product):
             primary_image,
         )
     )
+    gallery_images = []
+    seen_gallery_urls = set()
+
+    def add_gallery_image(image_id, file_field, alt_text="", order=0):
+        url = _mobile_file_url(
+            request,
+            file_field,
+            preset="product_card",
+        )
+        if not url or url in seen_gallery_urls:
+            return
+        seen_gallery_urls.add(url)
+        gallery_images.append({
+            "id": image_id,
+            "url": url,
+            "image": url,
+            "alt": alt_text or product.name,
+            "alt_text": alt_text or product.name,
+            "order": order or 0,
+        })
+
+    if primary_image:
+        add_gallery_image(
+            "main",
+            primary_image,
+            product.name,
+            -1,
+        )
+
+    product_images = getattr(
+        product,
+        "prefetched_gallery_images",
+        None,
+    )
+    if product_images is None:
+        try:
+            product_images = product.images.all()
+        except Exception:
+            product_images = []
+
+    for gallery_image in product_images:
+        add_gallery_image(
+            gallery_image.id,
+            gallery_image.image,
+            getattr(gallery_image, "alt_text", "") or product.name,
+            getattr(gallery_image, "order", 0),
+        )
+
+    short_description = (
+        getattr(
+            product,
+            "short_description",
+            "",
+        )
+        or ""
+    )
+    description = (
+        getattr(
+            product,
+            "description",
+            "",
+        )
+        or ""
+    )
+    card_highlights = (
+        strip_tags(short_description or description)
+        .replace("\n", " ")
+        .strip()
+    )
 
     approved_offers = (
         _mobile_product_approved_offers(
@@ -7374,6 +7464,13 @@ def _mobile_product_payload(request, product):
         "thumbnail_url": thumbnail_url,
         "image_url": image_url,
         "original_url": original_url,
+        "main_image": image_url,
+        "images": gallery_images,
+        "gallery": gallery_images,
+        "short_description": strip_tags(short_description).strip(),
+        "description": description,
+        "card_highlights": Truncator(card_highlights).words(28),
+        "highlights": Truncator(card_highlights).words(28),
 
         "url": request.build_absolute_uri(
             reverse(
@@ -10654,6 +10751,17 @@ def brand_detail(request, slug):
             "category",
             "brand",
             "vendor",
+            "vendor__vendor_profile",
+        )
+        .prefetch_related(
+            Prefetch(
+                "images",
+                queryset=ProductImage.objects.order_by(
+                    "order",
+                    "id",
+                ),
+                to_attr="prefetched_gallery_images",
+            )
         )
     )
 
