@@ -11645,10 +11645,12 @@
         min-width: 0 !important;
         max-width: 33.333333% !important;
         padding: .8rem .35rem !important;
-        white-space: normal !important;
+        white-space: nowrap !important;
         text-align: center !important;
         line-height: 1.2 !important;
-        overflow-wrap: anywhere !important;
+        font-size: clamp(.78rem, 3.15vw, .95rem) !important;
+        overflow-wrap: normal !important;
+        word-break: normal !important;
         scroll-snap-align: none !important;
     }
 }
