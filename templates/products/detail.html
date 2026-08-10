@@ -1658,90 +1658,82 @@
         }
     }
 
-    /* ============================================================
-       AROLANA HERO OVERVIEW SUMMARY
-       Shows a 10-line overview before Vendor Chat, with Read More
-       linking down to the full Overview tab/content.
-       ============================================================ */
-    .apd-hero-overview-summary {
-        border: 1px solid rgba(0, 102, 204, 0.14);
-        background:
-            radial-gradient(circle at 10% 0%, rgba(0, 184, 255, .08), transparent 14rem),
-            linear-gradient(135deg, rgba(234, 244, 255, .72), rgba(255, 247, 237, .52));
-        border-radius: 1rem;
-        padding: 1rem;
+    .apd-key-features-summary {
+        border-top: 1px solid rgba(15, 23, 42, .10);
+        border-bottom: 1px solid rgba(15, 23, 42, .08);
+        padding: 1rem 0;
     }
 
-    .apd-hero-overview-summary-title {
+    .apd-key-features-title {
+        margin: 0 0 .7rem;
         color: var(--arolana-navy, #071A44);
-        font-weight: 900;
-        font-size: 0.95rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-bottom: 0.45rem;
+        font-size: .92rem;
+        font-weight: 950;
+        letter-spacing: .04em;
+        text-transform: uppercase;
     }
 
-    .apd-hero-overview-summary-text {
-        color: #475569;
-        font-size: 0.875rem;
-        line-height: 1.55;
+    .apd-key-features-list {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: .42rem 1rem;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .apd-key-features-list li {
+        position: relative;
+        padding-left: 1rem;
+        color: #0f172a;
+        font-size: .86rem;
+        font-weight: 760;
+        line-height: 1.38;
+    }
+
+    .apd-key-features-list li::before {
+        position: absolute;
+        left: 0;
+        top: .55em;
+        width: .38rem;
+        height: .38rem;
+        border-radius: 50%;
+        background: var(--arolana-blue, #0066CC);
+        content: "";
+    }
+
+    .apd-key-features-intro {
         display: -webkit-box;
-        -webkit-line-clamp: 10;
-        -webkit-box-orient: vertical;
         overflow: hidden;
-        max-height: calc(1.55em * 10);
+        margin: .85rem 0 0;
+        color: #475569;
+        font-size: .86rem;
+        font-weight: 650;
+        line-height: 1.48;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
     }
 
-    .apd-hero-overview-readmore {
-        margin-top: 0.65rem;
+    .apd-key-features-more {
         display: inline-flex;
         align-items: center;
-        gap: 0.45rem;
+        gap: .42rem;
+        margin-top: .75rem;
         color: var(--arolana-blue, #0066CC);
-        font-size: 0.82rem;
-        font-weight: 900;
+        font-size: .84rem;
+        font-weight: 950;
         transition: color .2s ease, transform .2s ease;
     }
 
-    .apd-hero-overview-readmore:hover {
+    .apd-key-features-more:hover {
         color: var(--arolana-orange, #FF7A00);
         transform: translateX(2px);
     }
 
-    /* ============================================================
-       AROLANA HERO OVERVIEW SUMMARY BOLDER FONT UPDATE
-       Makes the 10-line quick overview more readable and premium.
-       ============================================================ */
-    .apd-hero-overview-summary {
-        border-width: 1.5px !important;
-    }
-
-    .apd-hero-overview-summary-title {
-        font-weight: 950 !important;
-        font-size: 1.05rem !important;
-        letter-spacing: -0.01em;
-        color: var(--arolana-navy, #071A44) !important;
-    }
-
-    .apd-hero-overview-summary-title i {
-        font-size: 1rem;
-        color: var(--arolana-blue, #0066CC) !important;
-    }
-
-    .apd-hero-overview-summary-text {
-        color: var(--arolana-text, #0F172A) !important;
-        font-size: 0.95rem !important;
-        line-height: 1.62 !important;
-        font-weight: 750 !important;
-        letter-spacing: -0.005em;
-        max-height: calc(1.62em * 10) !important;
-    }
-
-    .apd-hero-overview-readmore {
-        font-size: 0.9rem !important;
-        font-weight: 950 !important;
-        letter-spacing: -0.005em;
+    @media (max-width: 760px) {
+        .apd-key-features-list {
+            grid-template-columns: 1fr;
+        }
     }
 
     /* Make important product hero labels/buttons feel stronger too */
@@ -1928,12 +1920,7 @@
         }
     }
 
-    /* ============================================================
-       AROLANA POLISHED STICKY GALLERY V3
-       Properly follows the checkout column and returns smoothly.
-       No layout jump, no weird scroll-up behaviour.
-       Desktop only. Mobile remains natural.
-       ============================================================ */
+    /* Stable desktop gallery: native CSS sticky inside the hero parent. */
     @media (min-width: 1024px) {
         .apd-hero-clean {
             align-items: stretch !important;
@@ -1947,45 +1934,30 @@
 
         .apd-gallery-stage {
             position: relative !important;
-            min-height: 1px;
+            align-self: stretch !important;
+            height: 100% !important;
+            min-height: 100% !important;
             overflow: visible !important;
             z-index: 15;
         }
 
         #apd-sticky-gallery {
-            position: relative !important;
-            top: auto !important;
-            left: auto !important;
+            position: sticky !important;
+            top: 6.5rem !important;
             width: 100% !important;
             max-width: 100% !important;
+            max-height: calc(100vh - 7.5rem) !important;
+            overflow: visible !important;
             margin: 0 !important;
             z-index: 25 !important;
-            transform: none !important;
+            transform: none;
             will-change: auto;
+            backface-visibility: hidden;
+            contain: layout paint;
         }
 
-        #apd-sticky-gallery.apd-gallery-is-fixed {
-            position: fixed !important;
-            top: var(--apd-gallery-top, 104px) !important;
-            left: var(--apd-gallery-left, 0px) !important;
-            width: var(--apd-gallery-width, auto) !important;
-            transform: translateZ(0) !important;
-            will-change: transform;
-        }
-
-        #apd-sticky-gallery.apd-gallery-is-bottom {
-            position: absolute !important;
-            top: var(--apd-gallery-bottom-top, 0px) !important;
-            left: 0 !important;
-            width: 100% !important;
-            transform: none !important;
-            will-change: auto;
-        }
-
-        #apd-sticky-gallery.apd-gallery-is-fixed .gallery-item,
-        #apd-sticky-gallery.apd-gallery-is-bottom .gallery-item {
-            border-color: rgba(255, 122, 0, 0.28) !important;
-            box-shadow: 0 20px 56px rgba(7, 26, 68, 0.12) !important;
+        #apd-sticky-gallery .gallery-item {
+            max-height: min(64vh, 520px);
         }
     }
 
@@ -2558,9 +2530,7 @@
         gap: 1rem !important;
     }
 
-    body.apd-article-side-open:has(#product-article-modal.is-open) #apd-sticky-gallery,
-    body.apd-article-side-open:has(#product-article-modal.is-open) #apd-sticky-gallery.apd-gallery-is-fixed,
-    body.apd-article-side-open:has(#product-article-modal.is-open) #apd-sticky-gallery.apd-gallery-is-bottom {
+    body.apd-article-side-open:has(#product-article-modal.is-open) #apd-sticky-gallery {
         position: relative !important;
         top: auto !important;
         left: auto !important;
@@ -3870,10 +3840,17 @@
         max-width: none;
     }
 
-    .apd-product-tab-nav {
-        width: 100%;
-        min-width: 0;
-        scrollbar-width: thin;
+    .apd-product-tab-nav,
+    .apd-tabs-clean > .border-b {
+        scrollbar-width: none !important;
+        -ms-overflow-style: none;
+    }
+
+    .apd-product-tab-nav::-webkit-scrollbar,
+    .apd-tabs-clean > .border-b::-webkit-scrollbar {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
     }
 
     .apd-product-tab-nav > button {
@@ -4284,6 +4261,8 @@
         color: #fff;
         background: linear-gradient(145deg, #071A44 0%, #0b2d67 62%, #0066CC 100%);
         box-shadow: 0 22px 52px rgba(7, 26, 68, 0.20);
+        backface-visibility: hidden;
+        contain: layout paint;
     }
 
     .apd-sponsored-head {
@@ -4469,7 +4448,7 @@
     @media (min-width: 1280px) {
         .apd-hero-commerce-grid {
             grid-template-columns: minmax(0, 1.06fr) minmax(0, 1fr) minmax(300px, .62fr) !important;
-            align-items: start;
+            align-items: stretch !important;
         }
 
         .apd-hero-commerce-grid > .apd-gallery-stage { grid-column: 1; }
@@ -4477,8 +4456,9 @@
         .apd-hero-commerce-grid > .apd-commerce-sidebar { grid-column: 3; }
 
         .apd-commerce-sidebar {
-            position: sticky;
-            top: 6.5rem;
+            position: relative;
+            top: auto;
+            will-change: auto;
         }
     }
 
@@ -5568,6 +5548,62 @@
         }
     }
 
+    /* ==========================================================
+    MOBILE PRODUCT TABS — FINAL FIX
+    Keep every tab reachable without showing a scrollbar.
+    ========================================================== */
+
+    @media (max-width: 768px) {
+
+        body.product-detail-full-width .apd-product-tab-nav,
+        .apd-product-tab-nav,
+        .apd-tabs-clean > .border-b,
+        .modern-tabs,
+        [role="tablist"] {
+            display: flex !important;
+            flex-wrap: nowrap !important;
+
+            width: 100% !important;
+            max-width: 100% !important;
+
+            justify-content: flex-start !important;
+
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+
+            white-space: nowrap !important;
+
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-x: contain;
+
+            scroll-snap-type: x proximity;
+
+            padding-right: 1rem !important;
+
+            scrollbar-width: none !important;
+            -ms-overflow-style: none !important;
+        }
+
+        body.product-detail-full-width .apd-product-tab-nav::-webkit-scrollbar,
+        .apd-product-tab-nav::-webkit-scrollbar,
+        .apd-tabs-clean > .border-b::-webkit-scrollbar,
+        .modern-tabs::-webkit-scrollbar,
+        [role="tablist"]::-webkit-scrollbar {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+        }
+
+        .apd-product-tab-nav > button,
+        .apd-tabs-clean .modern-tab,
+        .modern-tabs > button,
+        [role="tablist"] > button {
+            flex: 0 0 auto !important;
+            white-space: nowrap !important;
+            scroll-snap-align: start;
+        }
+    }
+
 </style>
 {% endblock %}
 
@@ -5703,7 +5739,7 @@
 
         <!-- Product Info with Modern Design -->
         <div class="space-y-6">
-            <div class="apd-buybox-shell sticky top-24">
+            <div class="apd-buybox-shell">
                 <!-- Brand -->
                 <div class="text-sm text-gray-500 mb-2 flex flex-wrap items-center gap-2">
                     <span class="px-2 py-1 bg-blue-100 text-blue-600 rounded-full text-xs">
@@ -6196,22 +6232,32 @@
                 </div>
 
 
-                    <!-- 10-line Product Overview Summary -->
-                    <div class="apd-hero-overview-summary mb-4">
-                        <h2 class="apd-hero-overview-summary-title">
-                            <i class="fas fa-align-left text-blue-600"></i>
-                            Quick Overview
+                    {% if summary_features or summary_intro %}
+                    <section class="apd-key-features-summary mb-4" aria-labelledby="apd-key-features-title">
+                        <h2 id="apd-key-features-title" class="apd-key-features-title">
+                            Key Features
                         </h2>
-                        <div class="apd-hero-overview-summary-text font-bold">
-                            {% include 'products/includes/ai_answer_summary.html' %}
 
-                            {{ product.description|safe }}
-                        </div>
-                        <button type="button" onclick="scrollToProductOverview()" class="apd-hero-overview-readmore font-black">
-                            Read more in overview
+                        {% if summary_features %}
+                        <ul class="apd-key-features-list">
+                            {% for feature in summary_features %}
+                                <li>{{ feature }}</li>
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
+
+                        {% if summary_intro %}
+                            <p class="apd-key-features-intro">
+                                {{ summary_intro }}
+                            </p>
+                        {% endif %}
+
+                        <button type="button" onclick="scrollToProductOverview()" class="apd-key-features-more">
+                            More Details
                             <i class="fas fa-arrow-down text-xs"></i>
                         </button>
-                    </div>
+                    </section>
+                    {% endif %}
 
 	                <!-- Vendor Product Chat -->
 {% if product.vendor %}
@@ -6288,7 +6334,7 @@
                 data-product-id="{{ product.id }}"
                 data-customer-name="{% if request.user.is_authenticated %}{{ request.user.get_full_name|default:request.user.username }}{% endif %}"
                 data-customer-email="{% if request.user.is_authenticated %}{{ request.user.email }}{% endif %}"
-                class="rounded-lg border border-orange-100 bg-orange-50 px-3 py-2 text-sm font-bold text-orange-700 hover:bg-orange-100">
+                class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100">
             <i class="fas fa-headset mr-1"></i> Request Callback
         </button>
         {% endif %}
@@ -7784,7 +7830,7 @@
                     <p>Get special pricing on bulk orders and corporate purchases.</p>
 
                     <a
-                        href="#product-vendor-chat"
+                        href="{% if product_quote_url %}{{ product_quote_url }}{% else %}{% url 'core:request_vendor_quote' %}{% endif %}"
                         class="apd-business-quote-button"
                         data-quote-intent="true"
                     >
@@ -10239,6 +10285,25 @@
 		            messagesBox.scrollTop = messagesBox.scrollHeight;
 		        }
 
+		        async function parseVendorChatResponse(response) {
+		            const contentType = (response.headers.get('content-type') || '').toLowerCase();
+		            if (!contentType.includes('application/json')) {
+		                const text = await response.text();
+		                console.error('Vendor chat returned non-JSON response:', response.status, text.slice(0, 500));
+		                throw new Error('Vendor chat is temporarily unavailable. Please try again.');
+		            }
+		            return response.json();
+		        }
+
+		        function renderVendorChatLogin(data) {
+		            const loginUrl = data.login_url || "{% url 'accounts:login' %}";
+		            messagesBox.innerHTML =
+		                '<div class="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm font-bold text-blue-800">' +
+		                    '<div>' + escapeHtml(data.message || 'Please sign in to chat with this vendor.') + '</div>' +
+		                    '<a href="' + escapeHtml(loginUrl) + '" class="mt-3 inline-flex rounded-xl bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">Sign in to continue</a>' +
+		                '</div>';
+		        }
+
 		        openButton.addEventListener('click', async function () {
 		            setOpen(true);
 		            messagesBox.innerHTML = '<div class="rounded-2xl bg-white p-4 text-sm font-bold text-slate-600 shadow-sm"><i class="fas fa-spinner fa-spin mr-2 text-blue-600"></i>Loading vendor chat...</div>';
@@ -10249,7 +10314,11 @@
 		                        'X-Requested-With': 'XMLHttpRequest',
 		                    },
 		                });
-		                const data = await response.json();
+		                const data = await parseVendorChatResponse(response);
+		                if (data.requires_login) {
+		                    renderVendorChatLogin(data);
+		                    return;
+		                }
 		                if (!response.ok || !data.success) {
 		                    throw new Error(data.message || 'Could not open vendor chat.');
 		                }
@@ -10285,12 +10354,17 @@
                                 'X-CSRFToken': getCookie('arolana_csrftoken'),
                                 'Content-Type': 'application/x-www-form-urlencoded',
                                 'X-Requested-With': 'XMLHttpRequest'
-                            },
+		                    },
 		                    body: new URLSearchParams({ message: message, source: 'web_product_detail' }),
 		                });
-		                const data = await response.json();
+		                const data = await parseVendorChatResponse(response);
+		                if (data.requires_login) {
+		                    showToast(data.message || 'Please sign in to chat with this vendor.', 'error');
+		                    renderVendorChatLogin(data);
+		                    return;
+		                }
 		                if (!response.ok || !data.success) {
-		                    throw new Error(data.error || 'Message could not be sent.');
+		                    throw new Error(data.message || data.error || 'Message could not be sent.');
 		                }
 		                const newMessage = {
 		                    message: data.message,
@@ -10313,6 +10387,194 @@
 		            }
 		        });
 		    }
+
+            function setupProductHeroScrollFollow() {
+                const stopElement = document.querySelector('.apd-tabs-clean');
+                const desktopQuery = window.matchMedia('(min-width: 1024px)');
+                const targets = [
+                    {
+                        stage: document.getElementById('apd-gallery-stage'),
+                        element: document.getElementById('apd-sticky-gallery'),
+                    },
+                    {
+                        stage: document.querySelector('.apd-commerce-sidebar') || document.querySelector('.apd-hero-commerce-grid'),
+                        element: document.querySelector('.apd-sponsored-card'),
+                        extraTopGap: 12,
+                    },
+                ].filter(function (item) {
+                    return item.stage && item.element;
+                });
+
+                if (!targets.length || !stopElement) return;
+
+                let ticking = false;
+                let metricsReady = false;
+                let animating = false;
+                let settleTimer = null;
+                const reduceMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+                function readTranslateY(element) {
+                    const transform = window.getComputedStyle(element).transform;
+
+                    if (!transform || transform === 'none') return 0;
+
+                    const values = transform.match(/matrix.*\((.+)\)/);
+                    if (!values) return 0;
+
+                    const parts = values[1].split(',').map(function (part) {
+                        return Number(part.trim());
+                    });
+
+                    if (parts.length === 6) return parts[5] || 0;
+                    if (parts.length === 16) return parts[13] || 0;
+                    return 0;
+                }
+
+                function refreshMetrics() {
+                    const scrollY = window.scrollY || window.pageYOffset || 0;
+
+                    targets.forEach(function (item) {
+                        const currentTranslate = readTranslateY(item.element);
+                        const elementRect = item.element.getBoundingClientRect();
+                        item.startTop = elementRect.top + scrollY - currentTranslate;
+                        item.height = item.element.offsetHeight || elementRect.height || 0;
+                        item.currentY = currentTranslate;
+                        item.targetY = currentTranslate;
+                    });
+
+                    metricsReady = true;
+                }
+
+                function reset() {
+                    targets.forEach(function (item) {
+                        item.element.style.removeProperty('position');
+                        item.element.style.removeProperty('top');
+                        item.element.style.removeProperty('width');
+                        item.element.style.removeProperty('transform');
+                        item.element.style.removeProperty('will-change');
+                        item.currentY = 0;
+                        item.targetY = 0;
+                    });
+                }
+
+                function applyTransform(item, value) {
+                    const devicePixelRatio = window.devicePixelRatio || 1;
+                    const snappedValue = Math.round(value * devicePixelRatio) / devicePixelRatio;
+
+                    item.element.style.setProperty('position', 'relative', 'important');
+                    item.element.style.setProperty('top', 'auto', 'important');
+                    item.element.style.setProperty('width', '100%', 'important');
+                    item.element.style.setProperty('will-change', 'transform');
+                    item.element.style.setProperty('backface-visibility', 'hidden');
+                    item.element.style.setProperty('transform-style', 'preserve-3d');
+                    item.element.style.setProperty('transform', 'translate3d(0, ' + snappedValue.toFixed(2) + 'px, 0)', 'important');
+                }
+
+                function animate() {
+                    let stillMoving = false;
+                    const reduceMotion = reduceMotionQuery.matches;
+
+                    targets.forEach(function (item) {
+                        const current = Number.isFinite(item.currentY) ? item.currentY : 0;
+                        const target = Number.isFinite(item.targetY) ? item.targetY : 0;
+                        const delta = target - current;
+                        const distance = Math.abs(delta);
+                        let easing = 0.28;
+
+                        if (distance > 260) {
+                            easing = 0.52;
+                        } else if (distance > 120) {
+                            easing = 0.44;
+                        } else if (distance > 48) {
+                            easing = 0.36;
+                        } else if (distance < 8) {
+                            easing = 0.42;
+                        }
+
+                        const next = reduceMotion || distance < 0.18
+                            ? target
+                            : current + (delta * easing);
+
+                        item.currentY = next;
+                        applyTransform(item, next);
+
+                        if (Math.abs(target - next) >= 0.18) {
+                            stillMoving = true;
+                        }
+                    });
+
+                    if (stillMoving) {
+                        window.requestAnimationFrame(animate);
+                    } else {
+                        animating = false;
+                        window.clearTimeout(settleTimer);
+                        settleTimer = window.setTimeout(function () {
+                            targets.forEach(function (item) {
+                                item.element.style.setProperty('will-change', 'auto');
+                            });
+                        }, 180);
+                    }
+                }
+
+                function startAnimation() {
+                    if (animating) return;
+
+                    window.clearTimeout(settleTimer);
+                    animating = true;
+                    window.requestAnimationFrame(animate);
+                }
+
+                function update() {
+                    ticking = false;
+
+                    if (!desktopQuery.matches) {
+                        reset();
+                        return;
+                    }
+
+                    if (!metricsReady) {
+                        refreshMetrics();
+                    }
+
+                    const scrollY = window.scrollY || window.pageYOffset || 0;
+                    const offset = 104;
+                    const gapBeforeOverview = 24;
+                    const stopRect = stopElement.getBoundingClientRect();
+                    const stopTop = stopRect.top + scrollY;
+
+                    targets.forEach(function (item) {
+                        const desiredTranslate = Math.max(0, scrollY + offset + (item.extraTopGap || 0) - item.startTop);
+                        const maxTranslate = Math.max(0, stopTop - item.startTop - item.height - gapBeforeOverview);
+                        item.targetY = Math.min(desiredTranslate, maxTranslate);
+                    });
+
+                    startAnimation();
+                }
+
+                function requestUpdate() {
+                    if (ticking) return;
+                    ticking = true;
+                    window.requestAnimationFrame(update);
+                }
+
+                requestUpdate();
+                window.addEventListener('scroll', requestUpdate, { passive: true });
+                window.addEventListener('resize', function () {
+                    metricsReady = false;
+                    requestUpdate();
+                });
+                window.addEventListener('load', function () {
+                    metricsReady = false;
+                    requestUpdate();
+                });
+
+                if (desktopQuery.addEventListener) {
+                    desktopQuery.addEventListener('change', function () {
+                        metricsReady = false;
+                        requestUpdate();
+                    });
+                }
+            }
 
 		    function setupRatingStars() {
                 const ratingValue = getEl('rating-value');
@@ -10567,6 +10829,7 @@
     setupLazyImages();
     setupVendorDirectContactActions();
     setupVendorChatModal();
+    setupProductHeroScrollFollow();
 
     /*
         MAIN FIX:
@@ -11102,163 +11365,6 @@
         }
     });
 </script>
-
-
-<script>
-    /*
-      Arolana Polished Sticky Gallery V3
-      Stable 3-state movement:
-      1. Natural position at the top.
-      2. Fixed while scrolling through the checkout/product info area.
-      3. Absolute at the bottom of the hero area before Overview.
-      It scrolls down and back up cleanly.
-    */
-    function setupArolanaPolishedStickyGalleryV3() {
-        const stage = document.getElementById('apd-gallery-stage');
-        const gallery = document.getElementById('apd-sticky-gallery');
-        const hero = document.querySelector('.apd-hero-clean');
-        const overview = document.getElementById('product-overview-content');
-
-        if (!stage || !gallery || !hero || !overview) return;
-
-        const topGap = 104;       // desktop header offset
-        const stopGap = 28;       // small space before Overview
-        let ticking = false;
-
-        function clearInlineMotion() {
-            gallery.style.removeProperty('--apd-gallery-top');
-            gallery.style.removeProperty('--apd-gallery-left');
-            gallery.style.removeProperty('--apd-gallery-width');
-            gallery.style.removeProperty('--apd-gallery-bottom-top');
-            gallery.style.left = '';
-            gallery.style.top = '';
-            gallery.style.width = '';
-            gallery.style.margin = '';
-            gallery.style.transform = '';
-        }
-
-        function setState(state, values) {
-            gallery.classList.toggle('apd-gallery-is-fixed', state === 'fixed');
-            gallery.classList.toggle('apd-gallery-is-bottom', state === 'bottom');
-
-            if (state === 'fixed') {
-                gallery.style.setProperty('--apd-gallery-top', `${topGap}px`);
-                gallery.style.setProperty('--apd-gallery-left', `${values.left}px`);
-                gallery.style.setProperty('--apd-gallery-width', `${values.width}px`);
-                gallery.style.removeProperty('--apd-gallery-bottom-top');
-            } else if (state === 'bottom') {
-                gallery.style.setProperty('--apd-gallery-bottom-top', `${values.bottomTop}px`);
-                gallery.style.removeProperty('--apd-gallery-top');
-                gallery.style.removeProperty('--apd-gallery-left');
-                gallery.style.removeProperty('--apd-gallery-width');
-            } else {
-                clearInlineMotion();
-            }
-        }
-
-        function resetToNatural() {
-            gallery.classList.remove('apd-gallery-is-fixed', 'apd-gallery-is-bottom');
-            clearInlineMotion();
-        }
-
-        function updateStickyGallery() {
-            if (document.body.classList.contains('vendor-chat-is-open')) {
-                return;
-            }
-
-            if (window.innerWidth < 1024) {
-                resetToNatural();
-                return;
-            }
-
-            // Reset classes briefly for clean measurements.
-            const wasFixed = gallery.classList.contains('apd-gallery-is-fixed');
-            const wasBottom = gallery.classList.contains('apd-gallery-is-bottom');
-
-            if (wasFixed || wasBottom) {
-                gallery.classList.remove('apd-gallery-is-fixed', 'apd-gallery-is-bottom');
-                clearInlineMotion();
-            }
-
-            const scrollY = window.scrollY || window.pageYOffset;
-            const stageRect = stage.getBoundingClientRect();
-            const heroRect = hero.getBoundingClientRect();
-            const overviewRect = overview.getBoundingClientRect();
-
-            const stageTop = stageRect.top + scrollY;
-            const heroBottom = heroRect.bottom + scrollY;
-            const overviewTop = overviewRect.top + scrollY;
-
-            const galleryHeight = gallery.offsetHeight || gallery.getBoundingClientRect().height || 0;
-            const stageWidth = stageRect.width;
-            const stageLeft = stageRect.left;
-
-            /*
-              Stop point:
-              Use the smaller of hero bottom and overview top.
-              This prevents covering Overview and also prevents moving beyond the product hero area.
-            */
-            const stopY = Math.min(heroBottom, overviewTop) - stopGap;
-
-            const startScroll = stageTop - topGap;
-            const bottomScroll = stopY - galleryHeight - topGap;
-            const bottomTop = Math.max(0, stopY - stageTop - galleryHeight);
-
-            // If there is not enough vertical room, keep natural.
-            if (galleryHeight <= 0 || bottomScroll <= startScroll + 8) {
-                resetToNatural();
-                return;
-            }
-
-            if (scrollY < startScroll) {
-                resetToNatural();
-                return;
-            }
-
-            if (scrollY >= bottomScroll) {
-                setState('bottom', {
-                    bottomTop: Math.round(bottomTop)
-                });
-                return;
-            }
-
-            setState('fixed', {
-                left: Math.round(stageLeft),
-                width: Math.round(stageWidth)
-            });
-        }
-
-        function requestUpdate() {
-            if (ticking) return;
-            ticking = true;
-
-            window.requestAnimationFrame(function () {
-                updateStickyGallery();
-                ticking = false;
-            });
-        }
-
-        // Run after browser has painted once.
-        setTimeout(requestUpdate, 50);
-        setTimeout(requestUpdate, 350);
-        setTimeout(requestUpdate, 1000);
-
-        window.addEventListener('scroll', requestUpdate, { passive: true });
-        window.addEventListener('resize', requestUpdate);
-        window.addEventListener('load', requestUpdate);
-        window.addEventListener('pageshow', requestUpdate);
-
-        gallery.querySelectorAll('img').forEach(function (img) {
-            img.addEventListener('load', requestUpdate);
-            img.addEventListener('error', requestUpdate);
-        });
-    }
-
-    document.addEventListener('DOMContentLoaded', setupArolanaPolishedStickyGalleryV3);
-</script>
-
-
-
 
 
 {# Removed duplicate AROLANA_LIGHTBOX_IMAGE_SOURCE_FIX_V5 script. The main gallery controller now owns all lightbox behavior. #}

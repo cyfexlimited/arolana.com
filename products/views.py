@@ -28,7 +28,7 @@ from products.models import Brand, Product
 import json
 import re
 
-from urllib.parse import quote, urlparse
+from urllib.parse import quote, urlencode, urlparse
 from django.http import HttpResponse
 from decimal import Decimal, InvalidOperation
 from django.template.loader import render_to_string
@@ -399,6 +399,86 @@ def apply_filters(queryset, request):
         queryset = queryset.filter(shipping_info__free_shipping=True)
 
     return queryset
+
+
+def _clean_summary_text(value):
+    return re.sub(
+        r"\s+",
+        " ",
+        strip_tags(str(value or "")),
+    ).strip()
+
+
+def _append_unique_feature(features, value, limit=6):
+    text = _clean_summary_text(value)
+
+    if not text or len(text) < 4:
+        return
+
+    text = Truncator(text).words(14)
+    normalized = text.lower()
+
+    if normalized not in {item.lower() for item in features}:
+        features.append(text)
+
+    if len(features) > limit:
+        del features[limit:]
+
+
+def _product_compact_summary(product):
+    features = []
+
+    for item in getattr(product, "key_features", []) or []:
+        if isinstance(item, dict):
+            value = (
+                item.get("text")
+                or item.get("value")
+                or item.get("feature")
+                or item.get("name")
+            )
+        else:
+            value = item
+
+        _append_unique_feature(features, value)
+
+    for source in (
+        getattr(product, "specifications", "") or "",
+        getattr(product, "short_description", "") or "",
+    ):
+        for line in re.split(r"[\n\r•]+", strip_tags(str(source or ""))):
+            _append_unique_feature(features, line)
+
+            if len(features) >= 6:
+                break
+
+        if len(features) >= 6:
+            break
+
+    description = str(getattr(product, "description", "") or "")
+
+    for item in re.findall(r"<li[^>]*>(.*?)</li>", description, flags=re.I | re.S):
+        _append_unique_feature(features, item)
+
+        if len(features) >= 6:
+            break
+
+    if len(features) < 4:
+        plain_description = _clean_summary_text(description)
+
+        for sentence in re.split(r"(?<=[.!?])\s+", plain_description):
+            _append_unique_feature(features, sentence)
+
+            if len(features) >= 4:
+                break
+
+    intro_source = (
+        getattr(product, "short_description", "") or description
+    )
+
+    return {
+        "features": features[:6],
+        "intro": Truncator(_clean_summary_text(intro_source)).words(34),
+    }
 
 
 def get_filter_counts(queryset):
@@ -2532,6 +2612,22 @@ def product_detail(request, slug):
         )
     )
 
+    product_summary = _product_compact_summary(product)
+
+    product_quote_url = ""
+    if vendor_profile:
+        product_quote_url = (
+            reverse("core:request_vendor_quote")
+            + "?"
+            + urlencode({
+                "vendor": vendor_profile.id,
+                "product_name": product.name,
+                "product_url": request.build_absolute_uri(
+                    product.get_absolute_url()
+                ),
+            })
+        )
+
     condition_value = (
         getattr(
             product,
@@ -2697,6 +2793,13 @@ def product_detail(request, slug):
         "vendor_contact_options": (
             vendor_contact_options
         ),
+        "summary_features": (
+            product_summary["features"]
+        ),
+        "summary_intro": (
+            product_summary["intro"]
+        ),
+        "product_quote_url": product_quote_url,
 
         "vendor_name": vendor_name,
         "vendor_package": vendor_package,

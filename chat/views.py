@@ -1,8 +1,10 @@
 import os
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.views import redirect_to_login
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import transaction
@@ -56,6 +58,28 @@ def _is_ajax(request):
             "X-Requested-With"
         )
         == "XMLHttpRequest"
+    )
+
+
+def _login_required_json(request):
+    login_url = (
+        reverse("accounts:login")
+        + "?"
+        + urlencode(
+            {
+                "next": request.get_full_path(),
+            }
+        )
+    )
+
+    return JsonResponse(
+        {
+            "success": False,
+            "requires_login": True,
+            "login_url": login_url,
+            "message": "Please sign in to chat with this vendor.",
+        },
+        status=401,
     )
 
 
@@ -1910,12 +1934,24 @@ def vendor_send_message(
 # =============================================================================
 
 
-@login_required
 @require_POST
 def customer_send_message(
     request,
     room_id,
 ):
+    if not request.user.is_authenticated:
+        if _is_ajax(
+            request
+        ):
+            return _login_required_json(
+                request
+            )
+
+        return redirect_to_login(
+            request.get_full_path(),
+            reverse("accounts:login"),
+        )
+
     room = get_object_or_404(
         VendorChatRoom,
         id=room_id,
@@ -2222,7 +2258,6 @@ def start_vendor_chat(
 # =============================================================================
 
 
-@login_required
 @require_GET
 def vendor_chat_context_api(
     request,
@@ -2234,6 +2269,10 @@ def vendor_chat_context_api(
 
     Kept as GET for compatibility with the existing same-page chat UI.
     """
+    if not request.user.is_authenticated:
+        return _login_required_json(
+            request
+        )
 
     vendor = get_object_or_404(
         User,
