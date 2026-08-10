@@ -5548,6 +5548,176 @@
         }
     }
 
+    /* ============================================================
+       AROLANA PRODUCT DETAIL — FOLLOW-SCROLL TAB NAV V17
+       A body-level portal is used so no transformed/grid/overflow
+       ancestor can stop the tab bar from following the viewport.
+       ============================================================ */
+    .apd-product-tab-nav {
+        background: rgba(255, 255, 255, 0.99) !important;
+        border-bottom: 1px solid rgba(7, 26, 68, 0.12) !important;
+        scrollbar-width: none !important;
+        -ms-overflow-style: none !important;
+    }
+
+    .apd-product-tab-nav::-webkit-scrollbar {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+    }
+
+    /* The floating copy is appended directly to <body>. */
+    .apd-follow-tabs-portal {
+        position: fixed !important;
+        top: var(--apd-follow-tabs-top, 0px) !important;
+        left: var(--apd-follow-tabs-left, 0px) !important;
+        width: var(--apd-follow-tabs-width, 100vw) !important;
+        max-width: var(--apd-follow-tabs-width, 100vw) !important;
+        z-index: 2147483000 !important;
+        display: none !important;
+        margin: 0 !important;
+        background: rgba(255, 255, 255, 0.985) !important;
+        -webkit-backdrop-filter: blur(16px);
+        backdrop-filter: blur(16px);
+        border-bottom: 1px solid rgba(7, 26, 68, 0.13) !important;
+        box-shadow: 0 12px 30px rgba(7, 26, 68, 0.13) !important;
+        overflow: visible !important;
+        pointer-events: auto !important;
+    }
+
+    .apd-follow-tabs-portal.is-visible {
+        display: flex !important;
+    }
+
+    .apd-follow-tabs-portal > button {
+        cursor: pointer;
+    }
+
+    /* Mobile: keep every tab visible in the floating bar too. */
+    @media (max-width: 768px) {
+        .apd-product-tab-nav,
+        .apd-follow-tabs-portal {
+            display: flex;
+            flex-wrap: wrap !important;
+            justify-content: flex-start !important;
+            overflow: visible !important;
+            white-space: normal !important;
+            gap: 0 !important;
+            padding-inline: .2rem !important;
+        }
+
+        .apd-product-tab-nav > button,
+        .apd-follow-tabs-portal > button {
+            flex: 1 1 33.333333% !important;
+            width: 33.333333% !important;
+            min-width: 0 !important;
+            max-width: 33.333333% !important;
+            padding: .72rem .18rem !important;
+            font-size: clamp(.70rem, 3vw, .88rem) !important;
+            line-height: 1.1 !important;
+            white-space: nowrap !important;
+            text-align: center !important;
+        }
+
+        .apd-follow-tabs-portal {
+            left: 0 !important;
+            width: 100vw !important;
+            max-width: 100vw !important;
+            padding-left: max(.35rem, env(safe-area-inset-left)) !important;
+            padding-right: max(.35rem, env(safe-area-inset-right)) !important;
+        }
+    }
+
+    @media (max-width: 390px) {
+        .apd-product-tab-nav > button,
+        .apd-follow-tabs-portal > button {
+            flex-basis: 50% !important;
+            width: 50% !important;
+            max-width: 50% !important;
+            font-size: .76rem !important;
+        }
+    }
+
+    /* ============================================================
+       FOLLOW-SCROLL VENDOR ACTIONS V17
+       IMPORTANT: these controls are generated only when the original
+       subscription-gated product controls already exist in the DOM.
+       This means no premium/direct-contact entitlement is bypassed.
+       ============================================================ */
+    .apd-follow-tabs-actions {
+        display: flex;
+        align-items: center;
+        gap: .55rem;
+        margin-left: auto;
+        padding: .4rem .65rem .4rem .5rem;
+        flex: 0 0 auto;
+    }
+
+    .apd-follow-contact-btn {
+        display: inline-flex;
+        min-height: 2.55rem;
+        align-items: center;
+        justify-content: center;
+        gap: .5rem;
+        border-radius: .75rem;
+        padding: .62rem .95rem;
+        font-size: .82rem;
+        line-height: 1;
+        font-weight: 900;
+        white-space: nowrap;
+        text-decoration: none !important;
+        transition: transform .18s ease, box-shadow .18s ease, background-color .18s ease;
+    }
+
+    .apd-follow-contact-btn:hover {
+        transform: translateY(-1px);
+    }
+
+    .apd-follow-contact-call {
+        border: 1px solid rgba(0, 102, 204, .2);
+        background: #eaf4ff;
+        color: #0866cc !important;
+    }
+
+    .apd-follow-contact-call:hover {
+        background: #dceeff;
+        box-shadow: 0 8px 18px rgba(0, 102, 204, .12);
+    }
+
+    .apd-follow-contact-chat {
+        border: 1px solid #0866cc;
+        background: #0866cc;
+        color: #fff !important;
+        box-shadow: 0 8px 18px rgba(0, 102, 204, .16);
+    }
+
+    .apd-follow-contact-chat:hover {
+        background: #0757ad;
+    }
+
+    @media (max-width: 980px) {
+        .apd-follow-tabs-actions {
+            width: 100%;
+            margin-left: 0;
+            padding: .35rem max(.45rem, env(safe-area-inset-right)) .5rem max(.45rem, env(safe-area-inset-left));
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: .45rem;
+            border-top: 1px solid rgba(7, 26, 68, .08);
+        }
+
+        .apd-follow-tabs-actions.is-single-action {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .apd-follow-contact-btn {
+            width: 100%;
+            min-height: 2.6rem;
+            padding: .62rem .55rem;
+            font-size: .80rem;
+        }
+    }
+
 </style>
 {% endblock %}
 
@@ -11610,58 +11780,214 @@
 </script>
 
 
-<style>
+
+<script>
 /* ============================================================
-   AROLANA MOBILE PRODUCT TABS — SHOW EVERY TAB, NO HORIZONTAL HIDE
-   Final override: tabs wrap into rows on phones instead of scrolling.
+   AROLANA PRODUCT DETAIL — FOLLOW-SCROLL TAB NAV V17
+   Creates a body-level floating copy of the real product tabs.
+   Because the copy lives under <body>, product grid/overflow/
+   transform rules cannot prevent it from following the viewport.
    ============================================================ */
-@media (max-width: 768px) {
-    body.product-detail-full-width .apd-product-tab-nav,
-    .apd-product-tab-nav {
-        display: flex !important;
-        flex-wrap: wrap !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        justify-content: flex-start !important;
-        overflow-x: visible !important;
-        overflow-y: visible !important;
-        white-space: normal !important;
-        gap: 0 !important;
-        scrollbar-width: none !important;
-        -ms-overflow-style: none !important;
+(function () {
+    function bootArolanaFollowTabs() {
+        var original = document.querySelector('.apd-product-tab-nav');
+        var tabsRoot = document.querySelector('.apd-tabs-clean');
+        var tabColumn = original ? original.closest('.apd-detail-tab-column') : null;
+
+        if (!original || !tabsRoot || !tabColumn || document.querySelector('.apd-follow-tabs-portal')) {
+            return;
+        }
+
+        var portal = original.cloneNode(true);
+        portal.classList.remove('apd-product-tab-nav');
+        portal.classList.add('apd-follow-tabs-portal');
+        portal.removeAttribute('x-data');
+        portal.setAttribute('aria-label', 'Product section navigation');
+
+        /* Avoid duplicated element IDs and Alpine directives in cloned controls. */
+        portal.querySelectorAll('[id]').forEach(function (node) {
+            node.removeAttribute('id');
+        });
+        portal.querySelectorAll('*').forEach(function (node) {
+            Array.from(node.attributes || []).forEach(function (attr) {
+                if (attr.name.indexOf('x-') === 0 || attr.name.indexOf('@') === 0 || attr.name.indexOf(':') === 0) {
+                    node.removeAttribute(attr.name);
+                }
+            });
+        });
+
+        document.body.appendChild(portal);
+
+        /* ------------------------------------------------------------
+           Subscription-safe floating vendor actions
+
+           We DO NOT inspect plan names or invent entitlement logic here.
+           Instead, the floating controls are created only if the server-
+           rendered, already-gated controls exist on this product page:
+             - Chat Vendor exists only when vendor_chat_available is true.
+             - Call Supplier exists only when vendor_contact_options.phone
+               was allowed and rendered by Django.
+           Therefore the follow-scroll bar cannot expose an action that the
+           subscription/contact policy withheld.
+           ------------------------------------------------------------ */
+        var originalChatButton = document.querySelector('#vendor-chat-open-btn');
+        var originalCallLink = Array.from(document.querySelectorAll('a[href^="tel:"]')).find(function (link) {
+            return /call\s+supplier/i.test((link.textContent || '').trim());
+        });
+
+        if (originalChatButton || originalCallLink) {
+            var actions = document.createElement('div');
+            actions.className = 'apd-follow-tabs-actions';
+
+            if (originalCallLink) {
+                var call = document.createElement('a');
+                call.className = 'apd-follow-contact-btn apd-follow-contact-call';
+                call.href = originalCallLink.getAttribute('href') || '#';
+                call.setAttribute('aria-label', 'Call Supplier');
+                call.innerHTML = '<i class="fas fa-phone" aria-hidden="true"></i><span>Call Supplier</span>';
+                actions.appendChild(call);
+            }
+
+            if (originalChatButton) {
+                var chat = document.createElement('button');
+                chat.type = 'button';
+                chat.className = 'apd-follow-contact-btn apd-follow-contact-chat';
+                chat.setAttribute('aria-label', 'Chat Vendor');
+                chat.innerHTML = '<i class="fas fa-comments" aria-hidden="true"></i><span>Chat Vendor</span>';
+                chat.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    /* Reuse the original gated chat trigger and its existing
+                       data-chat-url / modal logic instead of duplicating API
+                       or subscription behavior. */
+                    originalChatButton.click();
+                });
+                actions.appendChild(chat);
+            }
+
+            if (actions.children.length === 1) {
+                actions.classList.add('is-single-action');
+            }
+
+            portal.appendChild(actions);
+        }
+
+        var realButtons = Array.from(original.querySelectorAll('button'));
+        /* Only tab buttons are cloned from `original`; contact actions are
+           deliberately excluded from tab synchronization. */
+        var floatingButtons = Array.from(portal.children).filter(function (node) {
+            return node.tagName === 'BUTTON';
+        });
+
+        floatingButtons.forEach(function (button, index) {
+            button.type = 'button';
+            button.addEventListener('click', function (event) {
+                event.preventDefault();
+                var real = realButtons[index];
+                if (!real) return;
+                real.click();
+                syncButtons();
+            });
+        });
+
+        function syncButtons() {
+            realButtons.forEach(function (real, index) {
+                var copy = floatingButtons[index];
+                if (!copy) return;
+                copy.className = real.className;
+                copy.setAttribute('aria-selected', real.classList.contains('active') ? 'true' : 'false');
+            });
+        }
+
+        function siteHeaderBottom() {
+            var bottom = 0;
+            var candidates = document.querySelectorAll('header, .site-header, #site-header, .sticky-header, .fixed-header');
+            candidates.forEach(function (el) {
+                var cs = window.getComputedStyle(el);
+                var rect = el.getBoundingClientRect();
+                if ((cs.position === 'fixed' || cs.position === 'sticky') && rect.bottom > 0 && rect.top <= 1) {
+                    bottom = Math.max(bottom, Math.round(rect.bottom));
+                }
+            });
+            return Math.max(0, bottom);
+        }
+
+        var scheduled = false;
+        function update() {
+            scheduled = false;
+
+            var originalRect = original.getBoundingClientRect();
+            var rootRect = tabsRoot.getBoundingClientRect();
+            var columnRect = tabColumn.getBoundingClientRect();
+            var top = siteHeaderBottom();
+            var portalHeight = Math.ceil(portal.getBoundingClientRect().height || originalRect.height || 1);
+
+            /* Follow the viewport after the real tabs pass the top.
+               Keep following through recommendation sections such as
+               "Customers Who Viewed This Also Viewed" and stop only
+               when the page footer reaches the floating tab bar. */
+            var footer = document.querySelector('footer, .site-footer, #site-footer');
+            var footerRect = footer ? footer.getBoundingClientRect() : null;
+            var footerHasRoom = !footerRect || footerRect.top > (top + portalHeight + 8);
+            var shouldShow = originalRect.top <= top && footerHasRoom;
+
+            if (!shouldShow) {
+                portal.classList.remove('is-visible');
+                return;
+            }
+
+            portal.style.setProperty('--apd-follow-tabs-top', top + 'px');
+
+            if (window.innerWidth <= 768) {
+                portal.style.setProperty('--apd-follow-tabs-left', '0px');
+                portal.style.setProperty('--apd-follow-tabs-width', '100vw');
+            } else {
+                portal.style.setProperty('--apd-follow-tabs-left', Math.round(columnRect.left) + 'px');
+                portal.style.setProperty('--apd-follow-tabs-width', Math.round(columnRect.width) + 'px');
+            }
+
+            syncButtons();
+            portal.classList.add('is-visible');
+        }
+
+        function requestUpdate() {
+            if (scheduled) return;
+            scheduled = true;
+            window.requestAnimationFrame(update);
+        }
+
+        /* Capture scroll from window AND any nested scrolling container. */
+        window.addEventListener('scroll', requestUpdate, { passive: true });
+        document.addEventListener('scroll', requestUpdate, true);
+        window.addEventListener('resize', requestUpdate, { passive: true });
+        window.addEventListener('orientationchange', requestUpdate, { passive: true });
+
+        if (window.MutationObserver) {
+            var mo = new MutationObserver(function () {
+                syncButtons();
+                requestUpdate();
+            });
+            realButtons.forEach(function (btn) {
+                mo.observe(btn, { attributes: true, attributeFilter: ['class'] });
+            });
+        }
+
+        if (window.ResizeObserver) {
+            var ro = new ResizeObserver(requestUpdate);
+            ro.observe(original);
+            ro.observe(tabsRoot);
+            ro.observe(tabColumn);
+        }
+
+        syncButtons();
+        requestUpdate();
     }
 
-    body.product-detail-full-width .apd-product-tab-nav::-webkit-scrollbar,
-    .apd-product-tab-nav::-webkit-scrollbar {
-        display: none !important;
-        width: 0 !important;
-        height: 0 !important;
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bootArolanaFollowTabs, { once: true });
+    } else {
+        bootArolanaFollowTabs();
     }
-
-    body.product-detail-full-width .apd-product-tab-nav > button,
-    .apd-product-tab-nav > button {
-        flex: 1 1 33.333333% !important;
-        width: auto !important;
-        min-width: 0 !important;
-        max-width: 33.333333% !important;
-        padding: .8rem .35rem !important;
-        white-space: nowrap !important;
-        text-align: center !important;
-        line-height: 1.2 !important;
-        font-size: clamp(.78rem, 3.15vw, .95rem) !important;
-        overflow-wrap: normal !important;
-        word-break: normal !important;
-        scroll-snap-align: none !important;
-    }
-}
-
-@media (max-width: 390px) {
-    body.product-detail-full-width .apd-product-tab-nav > button,
-    .apd-product-tab-nav > button {
-        flex-basis: 50% !important;
-        max-width: 50% !important;
-    }
-}
-</style>
+})();
+</script>
 
 {% endblock %}
