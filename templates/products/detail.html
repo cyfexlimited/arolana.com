@@ -6343,27 +6343,7 @@
 
 {% block content %}
 {% if request.GET.from == 'seller_video' %}
-<script>
-/*
- * AROLANA SELLER VIDEO -> PRODUCT DETAIL CLEAN ENTRY
- * Disable browser scroll restoration before the product DOM is painted.
- * This prevents the destination product from inheriting the deep scroll
- * position of the seller-video shelf.
- */
-(function () {
-    try {
-        if ('scrollRestoration' in history) {
-            history.scrollRestoration = 'manual';
-        }
-    } catch (error) {}
 
-    try {
-        window.scrollTo(0, 0);
-        document.documentElement.scrollTop = 0;
-        document.body.scrollTop = 0;
-    } catch (error) {}
-})();
-</script>
 {% endif %}
 
 <!-- Reading Progress Bar -->
@@ -8838,9 +8818,8 @@
         {% if video.is_local_video %}<video controls preload="metadata" class="h-full w-full object-cover" {% if video.thumbnail %}poster="{{ video.thumbnail.url }}"{% endif %}><source src="{{ video.local_video.url }}"></video>
         {% elif video.get_embed_url %}<iframe src="{{ video.get_embed_url }}" class="h-full w-full" title="{{ video.title|default:video.product.name }}" allowfullscreen loading="lazy"></iframe>{% endif %}
       </div>
-      <a href="{% url 'products:detail' video.product.slug %}?from=seller_video#product-detail-top"
-        class="block p-4 hover:bg-slate-50"
-        data-commerce-product-link="true">
+      <a href="{% url 'products:detail' video.product.slug %}"
+        class="block p-4 hover:bg-slate-50">
         <p class="text-xs font-bold uppercase tracking-wide text-orange-600">{{ video.vendor.store_name|default:'Arolana Seller' }}</p>
         <h3 class="mt-1 line-clamp-2 font-black text-[#071A44]">{{ video.product.name }}</h3>
         <div class="mt-2 flex items-center justify-between text-sm"><span class="font-bold text-amber-500">★ <span data-video-rating-average="{{ video.id }}">{{ video.average_rating|default:'0' }}</span> <span class="font-medium text-slate-400">(<span data-video-rating-count="{{ video.id }}">{{ video.rating_count }}</span>)</span></span><span class="font-black text-blue-600">View Product →</span></div>
@@ -13609,154 +13588,6 @@
 
     window.addEventListener('pageshow', restoreSoon);
     window.addEventListener('popstate', restoreSoon);
-})();
-</script>
-
-
-<script>
-/*
- * ============================================================
- * AROLANA SELLER VIDEO -> PRODUCT DETAIL NAVIGATION FIX V3
- * Production-safe Firefox scroll restoration guard
- * ============================================================
- */
-(function () {
-    'use strict';
-
-    let params;
-
-    try {
-        params = new URLSearchParams(window.location.search || '');
-    } catch (error) {
-        return;
-    }
-
-    if (params.get('from') !== 'seller_video') {
-        return;
-    }
-
-    try {
-        if ('scrollRestoration' in history) {
-            history.scrollRestoration = 'manual';
-        }
-    } catch (error) {}
-
-    function resetTemporaryLayout() {
-        document.body.classList.remove('apd-article-side-open');
-
-        document.documentElement.style.removeProperty('overflow');
-        document.body.style.removeProperty('overflow');
-
-        const articleModal =
-            document.getElementById('product-article-modal');
-
-        if (articleModal) {
-            articleModal.classList.remove('is-open');
-            articleModal.classList.add('hidden');
-            articleModal.setAttribute('aria-hidden', 'true');
-        }
-
-        [
-            document.getElementById('apd-sticky-gallery'),
-            document.querySelector('.apd-sponsored-card')
-        ].forEach(function (element) {
-            if (!element) return;
-
-            element.style.removeProperty('position');
-            element.style.removeProperty('top');
-            element.style.removeProperty('left');
-            element.style.removeProperty('width');
-            element.style.removeProperty('transform');
-            element.style.removeProperty('will-change');
-            element.style.removeProperty('backface-visibility');
-            element.style.removeProperty('transform-style');
-        });
-    }
-
-
-    function forceProductTop() {
-        resetTemporaryLayout();
-
-        const top =
-            document.getElementById('product-detail-top');
-
-        if (top) {
-            top.scrollIntoView({
-                behavior: 'auto',
-                block: 'start',
-                inline: 'nearest'
-            });
-        }
-
-        window.scrollTo(0, 0);
-
-        document.documentElement.scrollTop = 0;
-        document.body.scrollTop = 0;
-    }
-
-
-    /*
-     * Firefox/production can restore scroll after DOMContentLoaded,
-     * images, fonts and layout calculations.
-     *
-     * Keep overriding restoration briefly, then stop completely.
-     */
-    forceProductTop();
-
-    document.addEventListener(
-        'DOMContentLoaded',
-        forceProductTop,
-        { once: true }
-    );
-
-    window.addEventListener(
-        'load',
-        forceProductTop,
-        { once: true }
-    );
-
-    window.addEventListener(
-        'pageshow',
-        forceProductTop,
-        { once: true }
-    );
-
-
-    let attempts = 0;
-
-    const scrollGuard = window.setInterval(function () {
-        attempts += 1;
-
-        forceProductTop();
-
-        /*
-         * 20 × 100ms = maximum 2 seconds.
-         * Then the guard removes itself completely.
-         */
-        if (attempts >= 20) {
-            window.clearInterval(scrollGuard);
-
-            /*
-             * Remove helper query/hash only AFTER Firefox has
-             * finished all restoration/layout activity.
-             */
-            try {
-                const cleanUrl =
-                    new URL(window.location.href);
-
-                cleanUrl.searchParams.delete('from');
-                cleanUrl.hash = '';
-
-                history.replaceState(
-                    history.state,
-                    document.title,
-                    cleanUrl.pathname +
-                    cleanUrl.search
-                );
-            } catch (error) {}
-        }
-    }, 100);
-
 })();
 </script>
 
