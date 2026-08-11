@@ -4132,8 +4132,8 @@
     }
 
     .apd-sponsored-body {
-        margin: 0 .75rem;
-        padding: .75rem;
+        margin: 0 .5rem;
+        padding: 0;
         overflow: hidden;
         border-radius: .9rem;
         background: #f8fafc;
@@ -4181,11 +4181,14 @@
     }
 
     .apd-sponsored-body .ad-carousel-media {
-        width: 100% !important;
+        width: calc(100% + 1.8rem) !important;
+        max-width: none !important;
         height: auto !important;
         min-height: 0 !important;
         max-height: none !important;
         aspect-ratio: 3 / 2 !important;
+        margin-right: -.9rem !important;
+        margin-left: -.9rem !important;
         overflow: hidden !important;
         background: #fff !important;
     }
@@ -5102,7 +5105,7 @@
 
         .apd-sponsored-body {
             margin-inline: .5rem !important;
-            padding: .5rem !important;
+            padding: 0 !important;
             border-radius: .7rem !important;
         }
 
