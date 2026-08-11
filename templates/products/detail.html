@@ -3909,102 +3909,7 @@
     }
 
 
-    /* ============================================================
-       AROLANA PRODUCT DETAIL — STABLE FULL PAGE GUARD V4
-       Keep the normal product page at full storefront width.
-       The 50/50 article mode applies only while its reader is open.
-       ============================================================ */
-
-    body:not(.apd-article-side-open) .apd-page,
-    body.apd-article-side-open:not(:has(#product-article-modal.is-open)) .apd-page {
-        width: 100% !important;
-        max-width: 1800px !important;
-        min-width: 0 !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
-    }
-
-    body:not(.apd-article-side-open) .apd-tabs-clean,
-    body.apd-article-side-open:not(:has(#product-article-modal.is-open)) .apd-tabs-clean {
-        position: static !important;
-        left: auto !important;
-        width: 100% !important;
-        max-width: none !important;
-        margin-left: 0 !important;
-        margin-right: 0 !important;
-        transform: none !important;
-    }
-
-    @media (min-width: 1181px) {
-        .apd-detail-lower-layout {
-            grid-template-columns: minmax(0, 1fr) minmax(300px, 360px) !important;
-            gap: clamp(2rem, 2.6vw, 3rem) !important;
-        }
-
-        .apd-detail-persistent-sidebar {
-            max-width: 360px !important;
-        }
-    }
-
-
-
-    /* ============================================================
-       AROLANA PRODUCT DETAIL — DEFINITIVE FULL PAGE LOCK V5
-
-       The product page must never collapse to 50vw. The article
-       reader may open as an overlay, but it no longer resizes the
-       storefront or the product tabs.
-       ============================================================ */
-
-    .apd-page,
-    body.apd-article-side-open .apd-page,
-    body.apd-article-side-open:has(#product-article-modal.is-open) .apd-page {
-        width: 100% !important;
-        max-width: 1800px !important;
-        min-width: 0 !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-    }
-
-    .apd-tabs-clean,
-    body.apd-article-side-open .apd-tabs-clean,
-    body.apd-article-side-open:has(#product-article-modal.is-open) .apd-tabs-clean {
-        position: static !important;
-        left: auto !important;
-        right: auto !important;
-        width: 100% !important;
-        max-width: none !important;
-        min-width: 0 !important;
-        margin-left: 0 !important;
-        margin-right: 0 !important;
-        transform: none !important;
-        grid-column: 1 / -1 !important;
-    }
-
-    .apd-detail-lower-layout {
-        width: 100% !important;
-        max-width: none !important;
-        min-width: 0 !important;
-        grid-template-columns: minmax(0, 1fr) minmax(300px, 360px) !important;
-        gap: clamp(2rem, 2.6vw, 3rem) !important;
-    }
-
-    .apd-detail-tab-column {
-        width: 100% !important;
-        min-width: 0 !important;
-        max-width: none !important;
-    }
-
-    .apd-detail-persistent-sidebar {
-        width: 100% !important;
-        min-width: 0 !important;
-        max-width: 360px !important;
-        justify-self: end !important;
-    }
-
-    /* Keep the reader as an overlay; never split or shrink the page. */
+    /* The article reader overlays the storefront; it never resizes it. */
     .apd-article-side-reader {
         width: min(50vw, 760px) !important;
         min-width: min(50vw, 760px) !important;
@@ -4029,150 +3934,6 @@
             width: 100% !important;
             min-width: 0 !important;
             max-width: 100% !important;
-        }
-    }
-
-
-
-    /* ============================================================
-       AROLANA PRODUCT DETAIL — PRODUCT LIST WIDTH ALIGNMENT V8
-       Reuse the Product List full-width body mode and keep the
-       lower detail experience centered across the storefront.
-       ============================================================ */
-
-    body.product-detail-full-width .apd-page {
-        position: relative !important;
-        left: auto !important;
-        right: auto !important;
-
-        width: 100% !important;
-        max-width: 1800px !important;
-        min-width: 0 !important;
-
-        margin-left: auto !important;
-        margin-right: auto !important;
-
-        padding-left: clamp(0.75rem, 1.1vw, 1rem) !important;
-        padding-right: clamp(0.75rem, 1.1vw, 1rem) !important;
-
-        transform: none !important;
-        box-sizing: border-box !important;
-    }
-
-    /*
-     * Product detail inherits the base page's desktop ad-rail flex layout.
-     * Hiding the ad alone is not sufficient: the rail/main flex sizing can
-     * remain cached or be restored by the floating-ad script, making every
-     * `width: 100%` inside the product page resolve against a narrow column.
-     * Match the proven full-width product-list ancestor layout explicitly.
-     */
-    body.product-detail-full-width .site-main-wrap {
-        width: calc(100% - 20px) !important;
-        max-width: none !important;
-        padding-left: 0 !important;
-        padding-right: 0 !important;
-    }
-
-    body.product-detail-full-width .arolana-content-rail {
-        display: block !important;
-        width: 100% !important;
-        max-width: none !important;
-        min-width: 0 !important;
-    }
-
-    body.product-detail-full-width .arolana-content-rail > main {
-        display: block !important;
-        width: 100% !important;
-        max-width: none !important;
-        min-width: 0 !important;
-        padding-left: 0 !important;
-        padding-right: 0 !important;
-        flex: none !important;
-    }
-
-    body.product-detail-full-width .arolana-following-ad,
-    body.product-detail-full-width .arolana-ad-placeholder {
-        display: none !important;
-    }
-
-    @media (min-width: 1181px) {
-        body.product-detail-full-width .apd-tabs-clean {
-            width: 100% !important;
-            max-width: none !important;
-            margin-left: 0 !important;
-            margin-right: 0 !important;
-        }
-
-        body.product-detail-full-width .apd-detail-lower-layout {
-            width: 100% !important;
-            max-width: none !important;
-            grid-template-columns: minmax(0, 1fr) minmax(320px, 380px) !important;
-            gap: clamp(2rem, 2.4vw, 2.75rem) !important;
-            align-items: start !important;
-        }
-
-        body.product-detail-full-width .apd-detail-tab-column {
-            width: 100% !important;
-            max-width: none !important;
-            min-width: 0 !important;
-        }
-
-        body.product-detail-full-width .apd-detail-persistent-sidebar {
-            width: 100% !important;
-            max-width: 380px !important;
-            justify-self: end !important;
-        }
-
-        body.product-detail-full-width .apd-product-tab-nav {
-            justify-content: flex-start !important;
-            overflow-x: hidden !important;
-        }
-    }
-
-
-
-    /* ============================================================
-       AROLANA PRODUCT DETAIL — GOAL WIDTH V9
-       Match the premium reference: nearly edge-to-edge storefront
-       with balanced gutters and no wasted side space.
-       ============================================================ */
-    @media (min-width: 1181px) {
-        body.product-detail-full-width .apd-page,
-        body.product-detail-full-width main .apd-page,
-        body.product-detail-full-width .container .apd-page {
-            position: relative !important;
-
-            left: auto !important;
-            right: auto !important;
-
-            width: 100% !important;
-            max-width: 1800px !important;
-            min-width: 0 !important;
-
-            margin-left: auto !important;
-            margin-right: auto !important;
-
-            transform: none !important;
-        }
-
-        body.product-detail-full-width .apd-detail-lower-layout {
-            grid-template-columns: minmax(0, 1fr) minmax(330px, 390px) !important;
-            gap: clamp(1.5rem, 1.9vw, 2.25rem) !important;
-        }
-
-        body.product-detail-full-width .apd-detail-persistent-sidebar {
-            max-width: 390px !important;
-        }
-    }
-
-    @media (max-width: 1180px) {
-        body.product-detail-full-width .apd-page {
-            position: static !important;
-            left: auto !important;
-            width: calc(100% - 1rem) !important;
-            max-width: none !important;
-            margin-inline: auto !important;
-            transform: none !important;
         }
     }
 
@@ -6342,10 +6103,6 @@
 {% endblock %}
 
 {% block content %}
-{% if request.GET.from == 'seller_video' %}
-
-{% endif %}
-
 <!-- Reading Progress Bar -->
 <div id="reading-progress" class="reading-progress"></div>
 
@@ -11199,200 +10956,6 @@
 		        });
 		    }
 
-            function setupProductHeroScrollFollow() {
-                const stopElement = document.querySelector('.apd-tabs-clean');
-                const desktopQuery = window.matchMedia('(min-width: 1024px)');
-                const targets = [
-                    {
-                        stage: document.getElementById('apd-gallery-stage'),
-                        element: document.getElementById('apd-sticky-gallery'),
-                    },
-                    {
-                        stage: document.querySelector('.apd-commerce-sidebar') || document.querySelector('.apd-hero-commerce-grid'),
-                        element: document.querySelector('.apd-sponsored-card'),
-                        extraTopGap: 12,
-                    },
-                ].filter(function (item) {
-                    return item.stage && item.element;
-                });
-
-                if (!targets.length || !stopElement) return;
-
-                let ticking = false;
-                let metricsReady = false;
-                let animating = false;
-                let settleTimer = null;
-                const reduceMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-
-                function readTranslateY(element) {
-                    const transform = window.getComputedStyle(element).transform;
-
-                    if (!transform || transform === 'none') return 0;
-
-                    const values = transform.match(/matrix.*\((.+)\)/);
-                    if (!values) return 0;
-
-                    const parts = values[1].split(',').map(function (part) {
-                        return Number(part.trim());
-                    });
-
-                    if (parts.length === 6) return parts[5] || 0;
-                    if (parts.length === 16) return parts[13] || 0;
-                    return 0;
-                }
-
-                function refreshMetrics() {
-                    const scrollY = window.scrollY || window.pageYOffset || 0;
-
-                    targets.forEach(function (item) {
-                        const currentTranslate = readTranslateY(item.element);
-                        const elementRect = item.element.getBoundingClientRect();
-                        item.startTop = elementRect.top + scrollY - currentTranslate;
-                        item.height = item.element.offsetHeight || elementRect.height || 0;
-                        item.currentY = currentTranslate;
-                        item.targetY = currentTranslate;
-                    });
-
-                    metricsReady = true;
-                }
-
-                function reset() {
-                    targets.forEach(function (item) {
-                        item.element.style.removeProperty('position');
-                        item.element.style.removeProperty('top');
-                        item.element.style.removeProperty('width');
-                        item.element.style.removeProperty('transform');
-                        item.element.style.removeProperty('will-change');
-                        item.currentY = 0;
-                        item.targetY = 0;
-                    });
-                }
-
-                function applyTransform(item, value) {
-                    const devicePixelRatio = window.devicePixelRatio || 1;
-                    const snappedValue = Math.round(value * devicePixelRatio) / devicePixelRatio;
-
-                    item.element.style.setProperty('position', 'relative', 'important');
-                    item.element.style.setProperty('top', 'auto', 'important');
-                    item.element.style.setProperty('width', '100%', 'important');
-                    item.element.style.setProperty('will-change', 'transform');
-                    item.element.style.setProperty('backface-visibility', 'hidden');
-                    item.element.style.setProperty('transform-style', 'preserve-3d');
-                    item.element.style.setProperty('transform', 'translate3d(0, ' + snappedValue.toFixed(2) + 'px, 0)', 'important');
-                }
-
-                function animate() {
-                    let stillMoving = false;
-                    const reduceMotion = reduceMotionQuery.matches;
-
-                    targets.forEach(function (item) {
-                        const current = Number.isFinite(item.currentY) ? item.currentY : 0;
-                        const target = Number.isFinite(item.targetY) ? item.targetY : 0;
-                        const delta = target - current;
-                        const distance = Math.abs(delta);
-                        let easing = 0.28;
-
-                        if (distance > 260) {
-                            easing = 0.52;
-                        } else if (distance > 120) {
-                            easing = 0.44;
-                        } else if (distance > 48) {
-                            easing = 0.36;
-                        } else if (distance < 8) {
-                            easing = 0.42;
-                        }
-
-                        const next = reduceMotion || distance < 0.18
-                            ? target
-                            : current + (delta * easing);
-
-                        item.currentY = next;
-                        applyTransform(item, next);
-
-                        if (Math.abs(target - next) >= 0.18) {
-                            stillMoving = true;
-                        }
-                    });
-
-                    if (stillMoving) {
-                        window.requestAnimationFrame(animate);
-                    } else {
-                        animating = false;
-                        window.clearTimeout(settleTimer);
-                        settleTimer = window.setTimeout(function () {
-                            targets.forEach(function (item) {
-                                item.element.style.setProperty('will-change', 'auto');
-                            });
-                        }, 180);
-                    }
-                }
-
-                function startAnimation() {
-                    if (animating) return;
-
-                    window.clearTimeout(settleTimer);
-                    animating = true;
-                    window.requestAnimationFrame(animate);
-                }
-
-                function update() {
-                    ticking = false;
-
-                    if (!desktopQuery.matches) {
-                        reset();
-                        return;
-                    }
-
-                    if (!metricsReady) {
-                        refreshMetrics();
-                    }
-
-                    const scrollY = window.scrollY || window.pageYOffset || 0;
-                    const offset = 104;
-                    const gapBeforeOverview = 24;
-                    const stopRect = stopElement.getBoundingClientRect();
-                    const stopTop = stopRect.top + scrollY;
-
-                    targets.forEach(function (item) {
-                        const desiredTranslate = Math.max(0, scrollY + offset + (item.extraTopGap || 0) - item.startTop);
-                        const maxTranslate = Math.max(0, stopTop - item.startTop - item.height - gapBeforeOverview);
-                        item.targetY = Math.min(desiredTranslate, maxTranslate);
-                    });
-
-                    startAnimation();
-                }
-
-                function requestUpdate() {
-                    if (ticking) return;
-                    ticking = true;
-                    window.requestAnimationFrame(update);
-                }
-
-                requestUpdate();
-                window.addEventListener('scroll', requestUpdate, { passive: true });
-                window.addEventListener('resize', function () {
-                    metricsReady = false;
-                    requestUpdate();
-                });
-                window.addEventListener('load', function () {
-                    metricsReady = false;
-                    requestUpdate();
-                });
-                window.addEventListener('pageshow', function () {
-                    reset();
-                    metricsReady = false;
-                    window.setTimeout(requestUpdate, 0);
-                    window.setTimeout(requestUpdate, 250);
-                });
-
-                if (desktopQuery.addEventListener) {
-                    desktopQuery.addEventListener('change', function () {
-                        metricsReady = false;
-                        requestUpdate();
-                    });
-                }
-            }
-
 		    function setupRatingStars() {
                 const ratingValue = getEl('rating-value');
                 const ratingButtons = Array.from(
@@ -11592,7 +11155,10 @@
     }
 
     function setupLazyImages() {
-        const lazyImages = document.querySelectorAll('img[data-src]');
+        const productRoot = getEl('product-detail-top');
+        if (!productRoot) return;
+
+        const lazyImages = productRoot.querySelectorAll('img[data-src]');
         if (!lazyImages.length || !('IntersectionObserver' in window)) return;
 
         const observer = new IntersectionObserver(function (entries) {
@@ -11600,7 +11166,14 @@
                 if (!entry.isIntersecting) return;
 
                 const img = entry.target;
-                img.src = img.dataset.src;
+                const pendingSrc = img.getAttribute('data-src');
+                if (!pendingSrc) {
+                    observer.unobserve(img);
+                    return;
+                }
+
+                img.src = pendingSrc;
+                img.removeAttribute('data-src');
                 img.classList.add('loaded');
                 observer.unobserve(img);
             });
@@ -11646,7 +11219,6 @@
     setupLazyImages();
     setupVendorDirectContactActions();
     setupVendorChatModal();
-    setupProductHeroScrollFollow();
 
     /*
         MAIN FIX:
@@ -12777,6 +12349,38 @@
         return children.length >= 2;
     }
 
+    function isRecommendationTrack(track) {
+        if (!childCountLooksLikeRail(track)) return false;
+
+        /* Never turn structural product-detail grids into carousels. The old
+           generic `.grid` fallback could select the hero itself when a
+           delayed recommendation heading was rendered elsewhere below it. */
+        if (track.matches(
+            '.apd-page, .apd-hero-commerce-grid, .apd-detail-lower-layout, ' +
+            '.apd-overview-layout, .apd-commerce-sidebar, .apd-key-features-list, ' +
+            '.apd-detail-persistent-sidebar, .apd-tabs-clean'
+        )) {
+            return false;
+        }
+
+        if (track.querySelector(
+            ':scope > .apd-gallery-stage, :scope > .apd-buybox-shell, ' +
+            ':scope > .apd-commerce-sidebar, :scope > .apd-detail-tab-column'
+        )) {
+            return false;
+        }
+
+        var children = Array.prototype.slice.call(track.children, 0, 4);
+        var productCards = children.filter(function (child) {
+            return child.matches(
+                'a[href*="/products/"], .ai-card, .product-card, ' +
+                '.product-personalization-card, .apd-trusted-brand'
+            ) || Boolean(child.querySelector('a[href*="/products/"]'));
+        });
+
+        return productCards.length >= Math.min(2, children.length);
+    }
+
     function findTrackFromHeading(heading) {
         var container = heading.closest(
             'section, .arolana-deferred-content, .product-personalization-shelf, .product-learned-recommendations > *, div'
@@ -12795,7 +12399,7 @@
                 '.grid'
             );
 
-            if (preferred && childCountLooksLikeRail(preferred)) {
+            if (preferred && isRecommendationTrack(preferred)) {
                 return preferred;
             }
 
@@ -12811,7 +12415,7 @@
                     continue;
                 }
 
-                if (childCountLooksLikeRail(candidate)) {
+                if (isRecommendationTrack(candidate)) {
                     var first = candidate.firstElementChild;
                     if (
                         first &&
@@ -13482,113 +13086,5 @@
 })();
 </script>
 
-
-<script>
-/*
- * ============================================================
- * AROLANA PRODUCT DETAIL -> HISTORY RESTORE LAYOUT FIX V1
- * Browser back/forward can restore stale inline transforms and old
- * product-detail width measurements. A normal refresh looks correct
- * because these runtime leftovers are not present. Reset them on every
- * product detail lifecycle entry, then let CSS/grid measure fresh.
- * ============================================================
- */
-(function () {
-    'use strict';
-
-    function clearInlineLayout(element) {
-        if (!element) return;
-
-        [
-            'position',
-            'top',
-            'right',
-            'bottom',
-            'left',
-            'width',
-            'max-width',
-            'min-width',
-            'margin-left',
-            'margin-right',
-            'padding-left',
-            'padding-right',
-            'transform',
-            'will-change',
-            'backface-visibility',
-            'transform-style',
-            'contain',
-            'display',
-            'grid-template-columns',
-            'flex',
-            'overflow'
-        ].forEach(function (property) {
-            element.style.removeProperty(property);
-        });
-    }
-
-    function restoreProductDetailLayout() {
-        if (!document.getElementById('product-detail-top')) {
-            return;
-        }
-
-        document.body.classList.add(
-            'products-list-full-width',
-            'product-detail-full-width'
-        );
-        document.body.classList.remove('apd-article-side-open');
-
-        document.documentElement.style.removeProperty('overflow');
-        document.body.style.removeProperty('overflow');
-
-        const articleModal = document.getElementById('product-article-modal');
-        if (articleModal) {
-            articleModal.classList.remove('is-open');
-            articleModal.classList.add('hidden');
-            articleModal.setAttribute('aria-hidden', 'true');
-        }
-
-        [
-            document.querySelector('.site-main-wrap'),
-            document.querySelector('.arolana-content-rail'),
-            document.querySelector('.arolana-content-rail > main'),
-            document.getElementById('product-detail-top'),
-            document.querySelector('.apd-hero-commerce-grid'),
-            document.getElementById('apd-gallery-stage'),
-            document.getElementById('apd-sticky-gallery'),
-            document.querySelector('.apd-commerce-sidebar'),
-            document.querySelector('.apd-sponsored-card'),
-            document.querySelector('.apd-tabs-clean'),
-            document.querySelector('.apd-follow-tabs-portal')
-        ].forEach(clearInlineLayout);
-
-        document
-            .querySelectorAll('.arolana-following-ad, .arolana-ad-placeholder')
-            .forEach(function (element) {
-                element.classList.remove('is-fixed-following', 'arolana-ad-visible');
-                clearInlineLayout(element);
-            });
-
-        window.requestAnimationFrame(function () {
-            window.dispatchEvent(new Event('resize'));
-        });
-    }
-
-    function restoreSoon() {
-        restoreProductDetailLayout();
-        window.setTimeout(restoreProductDetailLayout, 0);
-        window.setTimeout(restoreProductDetailLayout, 200);
-        window.setTimeout(restoreProductDetailLayout, 700);
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', restoreSoon, { once: true });
-    } else {
-        restoreSoon();
-    }
-
-    window.addEventListener('pageshow', restoreSoon);
-    window.addEventListener('popstate', restoreSoon);
-})();
-</script>
 
 {% endblock %}
