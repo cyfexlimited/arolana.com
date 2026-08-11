@@ -5,9 +5,11 @@
 <div class="ad-carousel-container relative" data-interval="{{ interval }}">
     <!-- Carousel wrapper -->
     <div class="ad-carousel overflow-hidden rounded-xl relative bg-gray-100">
-        <div class="ad-carousel-track flex transition-transform duration-500 ease-out">
+        <div class="ad-carousel-track">
             {% for ad in ads %}
-            <div class="ad-carousel-slide w-full flex-shrink-0" data-index="{{ forloop.counter0 }}"
+            <div class="ad-carousel-slide{% if forloop.first %} is-active{% endif %}" data-index="{{ forloop.counter0 }}"
+                 {% if not forloop.first %}hidden{% endif %}
+                 aria-hidden="{% if forloop.first %}false{% else %}true{% endif %}"
                  style="--ad-frame-height: {{ ad.height|default:280 }}px; --ad-mobile-frame-height: {{ ad.mobile_height|default:220 }}px; --ad-fit: {{ ad.image_fit|default:'cover' }}; --ad-position: {{ ad.image_position|default:'center center' }}; --ad-mobile-fit: {{ ad.mobile_image_fit|default:'cover' }}; --ad-mobile-position: {{ ad.mobile_image_position|default:'center center' }};">
                 
                 <!-- CREATIVE AD (Most Advanced) -->
@@ -137,17 +139,19 @@ document.addEventListener('DOMContentLoaded', function() {
         
         let currentIndex = 0;
         let autoPlayInterval;
-        let isTransitioning = false;
         
         function updateCarousel() {
-            if (isTransitioning) return;
-            isTransitioning = true;
-            
-            /* Move by the carousel viewport, not a cached pixel measurement.
-               The product detail sidebar changes width while its desktop grid
-               settles (and after browser-history restoration). A stale pixel
-               width leaves production parked between slides. */
-            track.style.transform = `translate3d(-${currentIndex * 100}%, 0, 0)`;
+            /* Keep exactly one creative in normal document flow. Translating a
+               multi-slide flex track made sidebar ads depend on the track's
+               restored/cached width and could expose thin pieces of several
+               creatives in production. */
+            track.style.transform = 'none';
+            slides.forEach((slide, index) => {
+                const isActive = index === currentIndex;
+                slide.classList.toggle('is-active', isActive);
+                slide.hidden = !isActive;
+                slide.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+            });
             
             // Update dots
             dots.forEach((dot, index) => {
@@ -160,20 +164,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
             
-            setTimeout(() => {
-                isTransitioning = false;
-            }, 500);
         }
         
         function nextSlide() {
-            if (isTransitioning) return;
             currentIndex = (currentIndex + 1) % slides.length;
             updateCarousel();
             resetAutoPlay();
         }
         
         function prevSlide() {
-            if (isTransitioning) return;
             currentIndex = (currentIndex - 1 + slides.length) % slides.length;
             updateCarousel();
             resetAutoPlay();
@@ -195,7 +194,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         dots.forEach(dot => {
             dot.addEventListener('click', function() {
-                if (isTransitioning) return;
                 currentIndex = parseInt(this.dataset.index);
                 updateCarousel();
                 resetAutoPlay();
@@ -209,15 +207,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         container.addEventListener('mouseleave', () => {
             startAutoPlay();
-        });
-        
-        // Handle window resize
-        let resizeTimeout;
-        window.addEventListener('resize', () => {
-            clearTimeout(resizeTimeout);
-            resizeTimeout = setTimeout(() => {
-                updateCarousel();
-            }, 100);
         });
         
         // Start auto-play

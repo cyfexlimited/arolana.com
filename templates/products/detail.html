@@ -1923,7 +1923,7 @@
     /* Stable desktop gallery: native CSS sticky inside the hero parent. */
     @media (min-width: 1024px) {
         .apd-hero-clean {
-            align-items: stretch !important;
+            align-items: start !important;
             overflow: visible !important;
             position: relative !important;
         }
@@ -4151,17 +4151,22 @@
     }
 
     .apd-sponsored-body .ad-carousel-track {
-        display: flex !important;
-        flex-wrap: nowrap !important;
-        align-items: stretch;
+        display: block !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        transform: none !important;
     }
 
     .apd-sponsored-body .ad-carousel-slide {
-        flex: 0 0 100% !important;
+        display: none !important;
         width: 100% !important;
-        min-width: 100% !important;
+        min-width: 0 !important;
         max-width: 100% !important;
         overflow: hidden;
+    }
+
+    .apd-sponsored-body .ad-carousel-slide.is-active {
+        display: block !important;
     }
 
     .apd-sponsored-body .ad-carousel-slide > div {
@@ -4179,7 +4184,7 @@
         display: block;
         width: 100% !important;
         max-width: 100% !important;
-        height: 190px !important;
+        height: auto !important;
         max-height: 190px !important;
         margin-inline: auto;
         object-fit: contain !important;
@@ -4351,7 +4356,7 @@
     @media (min-width: 1280px) {
         .apd-hero-commerce-grid {
             grid-template-columns: minmax(0, 1.06fr) minmax(0, 1fr) minmax(300px, .62fr) !important;
-            align-items: stretch !important;
+            align-items: start !important;
         }
 
         .apd-hero-commerce-grid > .apd-gallery-stage { grid-column: 1; }
@@ -5477,7 +5482,7 @@
                 minmax(420px, 0.95fr)
                 minmax(460px, 1.05fr)
                 minmax(320px, 0.64fr) !important;
-            align-items: stretch !important;
+            align-items: start !important;
             gap: clamp(1.75rem, 2vw, 2.5rem) !important;
         }
 
@@ -5499,6 +5504,8 @@
         .apd-hero-commerce-grid > .apd-commerce-sidebar {
             align-self: stretch !important;
             overflow: visible !important;
+            height: auto !important;
+            min-height: 0 !important;
         }
 
         #apd-sticky-gallery {
@@ -5512,16 +5519,23 @@
 
         .apd-commerce-sidebar {
             position: relative !important;
+            display: block !important;
         }
 
-        .apd-commerce-sidebar > .apd-sponsored-card {
+        .apd-commerce-sticky {
             position: sticky !important;
             top: 6.5rem !important;
-            align-self: start !important;
+            display: grid !important;
+            gap: 1rem !important;
+            width: 100% !important;
             height: fit-content !important;
             min-height: 0 !important;
             contain: none !important;
             z-index: 20;
+        }
+
+        .apd-commerce-sticky > .apd-sponsored-card {
+            position: static !important;
         }
     }
 
@@ -5542,6 +5556,21 @@
 
         .apd-hero-commerce-grid > .apd-commerce-sidebar {
             grid-column: 1 / -1 !important;
+        }
+
+        .apd-commerce-sticky {
+            position: static !important;
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 1rem !important;
+        }
+    }
+
+    @media (max-width: 1023px) {
+        .apd-commerce-sticky {
+            position: static !important;
+            display: grid !important;
+            gap: 1rem !important;
         }
     }
 
@@ -6990,6 +7019,7 @@
 
         <!-- Premium commerce sidebar: price summary + sponsored placement -->
         <aside class="apd-commerce-sidebar" aria-label="Product purchase summary and sponsored placement">
+          <div class="apd-commerce-sticky">
             <section class="apd-price-summary-card" aria-labelledby="apd-price-summary-title">
                 <h2 id="apd-price-summary-title">Price Summary</h2>
 
@@ -7047,6 +7077,7 @@
                     Verified Arolana placement
                 </div>
             </section>
+          </div>
         </aside>
     </div>
 
