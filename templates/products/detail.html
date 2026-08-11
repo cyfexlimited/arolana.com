@@ -4131,14 +4131,64 @@
 
     .apd-sponsored-body {
         margin: 0 .75rem;
+        padding: .75rem;
         overflow: hidden;
         border-radius: .9rem;
+        background: #f8fafc;
+    }
+
+    .apd-sponsored-body .advanced-ad,
+    .apd-sponsored-body .ad-content,
+    .apd-sponsored-body > * {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+
+    .apd-sponsored-body .advanced-ad {
+        margin: 0 !important;
+    }
+
+    .apd-sponsored-body .ad-content {
+        overflow: hidden;
+        padding: 1rem !important;
+        border-radius: .8rem !important;
+        box-shadow: none !important;
+    }
+
+    .apd-sponsored-body .ad-content img {
+        display: block;
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: 220px !important;
+        margin-inline: auto;
+        object-fit: contain !important;
         background: #fff;
     }
 
-    .apd-sponsored-body .ad-container,
-    .apd-sponsored-body > * {
+    .apd-sponsored-body .ad-content h4 {
+        margin: .7rem 0 .4rem !important;
+        font-size: .98rem !important;
+        line-height: 1.28 !important;
+        overflow-wrap: anywhere;
+    }
+
+    .apd-sponsored-body .ad-content p {
+        margin-bottom: .7rem !important;
+        font-size: .76rem !important;
+        line-height: 1.45 !important;
+        overflow-wrap: anywhere;
+    }
+
+    .apd-sponsored-body .ad-content a.inline-flex {
         max-width: 100%;
+        min-height: 2.5rem;
+        justify-content: center;
+        padding: .6rem .8rem !important;
+        white-space: normal;
+        text-align: center;
+        overflow-wrap: anywhere;
     }
 
     .apd-sponsored-footer {
@@ -4997,6 +5047,7 @@
 
         .apd-sponsored-body {
             margin-inline: .5rem !important;
+            padding: .5rem !important;
             border-radius: .7rem !important;
         }
 
@@ -6918,7 +6969,7 @@
                 </div>
 
                 <div class="apd-sponsored-body">
-                    {% render_ad_carousel 'sidebar' count=5 interval=5000 %}
+                    {% render_ad 'sidebar' %}
                 </div>
 
                 <div class="apd-sponsored-footer">
