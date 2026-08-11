@@ -5529,7 +5529,12 @@
             gap: 1rem !important;
             width: 100% !important;
             height: fit-content !important;
+            max-height: calc(100vh - 7.5rem) !important;
             min-height: 0 !important;
+            overflow-x: hidden !important;
+            overflow-y: auto !important;
+            overscroll-behavior: contain;
+            scrollbar-width: thin;
             contain: none !important;
             z-index: 20;
         }
@@ -5597,6 +5602,15 @@
         min-width: 0 !important;
         transform: none !important;
         contain: none !important;
+    }
+
+    /* Root `overflow-x: hidden` computes the other axis to `auto` in
+       Chromium and creates a scrolling ancestor that disables nested sticky
+       positioning. `clip` hides horizontal spill without creating one. */
+    html:has(body.product-detail-full-width),
+    body.product-detail-full-width {
+        overflow-x: clip !important;
+        overflow-y: visible !important;
     }
 
     /* ============================================================
