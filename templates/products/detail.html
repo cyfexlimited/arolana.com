@@ -2504,11 +2504,16 @@
     }
 
     body.apd-article-side-open:has(#product-article-modal.is-open) .apd-page {
-        width: 50vw !important;
-        max-width: 50vw !important;
-        min-width: 50vw !important;
-        margin-left: 0 !important;
-        margin-right: 0 !important;
+        /*
+         * The reader is an overlay. Never resize the storefront here: a
+         * restored/stale reader state previously left production stuck at
+         * 50vw with an empty right half of the screen.
+         */
+        width: 100% !important;
+        max-width: 1800px !important;
+        min-width: 0 !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
         padding-left: clamp(0.75rem, 1.4vw, 1.4rem) !important;
         padding-right: clamp(0.75rem, 1.4vw, 1.4rem) !important;
         transition: width 0.25s ease, max-width 0.25s ease, min-width 0.25s ease;
@@ -6303,7 +6308,9 @@
 <!-- Reading Progress Bar -->
 <div id="reading-progress" class="reading-progress"></div>
 
-<div id="product-detail-top" class="apd-page max-w-[1800px] mx-auto px-4">
+<div id="product-detail-top"
+     class="apd-page max-w-[1800px] mx-auto px-4"
+     style="width:100% !important;max-width:1800px !important;min-width:0 !important;margin-left:auto !important;margin-right:auto !important;">
     <!-- Breadcrumb with Micro-interactions -->
     <nav class="text-sm mb-6">
     <ol class="flex items-center space-x-2 flex-wrap">
