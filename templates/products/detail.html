@@ -4180,15 +4180,27 @@
         min-width: 0;
     }
 
+    .apd-sponsored-body .ad-carousel-media {
+        width: 100% !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        aspect-ratio: 3 / 2 !important;
+        overflow: hidden !important;
+        background: #fff !important;
+    }
+
     .apd-sponsored-body .ad-carousel-image {
         display: block;
+        position: static !important;
         width: 100% !important;
-        max-width: 100% !important;
-        height: auto !important;
-        max-height: 190px !important;
-        margin-inline: auto;
+        height: 100% !important;
+        min-height: 0 !important;
+        max-height: 100% !important;
+        margin: 0 !important;
         object-fit: contain !important;
         background: #fff;
+        transform: none !important;
     }
 
     .apd-sponsored-body .ad-carousel-slide h3 {
@@ -5094,10 +5106,8 @@
             border-radius: .7rem !important;
         }
 
-        .apd-sponsored-body .ad-carousel-image {
-            height: auto !important;
-            max-height: 165px !important;
-            object-fit: contain !important;
+        .apd-sponsored-body .ad-carousel-media {
+            aspect-ratio: 3 / 2 !important;
         }
 
         .apd-sponsored-body h1,

@@ -21,7 +21,9 @@
                         </div>
                         {% if ad.image %}
                         {% optimized_image_url ad.image 'ad_card' as ad_image_url %}
-                        <img src="{{ ad_image_url }}" alt="{{ ad.title }}" class="ad-carousel-image mx-auto mb-4 rounded-lg" loading="lazy">
+                        <div class="ad-carousel-media">
+                            <img src="{{ ad_image_url }}" alt="{{ ad.title }}" class="ad-carousel-image" loading="lazy">
+                        </div>
                         {% endif %}
                         <h3 class="text-2xl font-bold mb-3">{{ ad.title }}</h3>
                         <p class="text-sm opacity-95 mb-6 leading-relaxed">{{ ad.description|truncatewords:25 }}</p>
@@ -49,7 +51,9 @@
                         </div>
                         {% if ad.image %}
                         {% optimized_image_url ad.image 'ad_card' as ad_image_url %}
-                        <img src="{{ ad_image_url }}" alt="{{ ad.title }}" class="ad-carousel-image mx-auto mb-4 rounded-lg" loading="lazy">
+                        <div class="ad-carousel-media">
+                            <img src="{{ ad_image_url }}" alt="{{ ad.title }}" class="ad-carousel-image" loading="lazy">
+                        </div>
                         {% endif %}
                         <h3 class="text-2xl font-bold mb-3">{{ ad.title }}</h3>
                         <p class="text-sm opacity-95 mb-6 leading-relaxed">{{ ad.description|truncatewords:25 }}</p>
@@ -77,7 +81,9 @@
                         </div>
                         {% if ad.image %}
                         {% optimized_image_url ad.image 'ad_card' as ad_image_url %}
-                        <img src="{{ ad_image_url }}" alt="{{ ad.title }}" class="ad-carousel-image mx-auto mb-4 rounded-lg" loading="lazy">
+                        <div class="ad-carousel-media">
+                            <img src="{{ ad_image_url }}" alt="{{ ad.title }}" class="ad-carousel-image" loading="lazy">
+                        </div>
                         {% endif %}
                         <h3 class="text-2xl font-bold mb-3">{{ ad.title }}</h3>
                         <p class="text-sm opacity-95 mb-6 leading-relaxed">{{ ad.description|truncatewords:25 }}</p>
@@ -264,13 +270,28 @@ function getCookie(name) {
     min-height: 0;
 }
 
+.ad-carousel-media {
+    width: 100%;
+    aspect-ratio: 3 / 2;
+    min-height: 0;
+    max-height: none;
+    margin: 0 auto 1rem;
+    overflow: hidden;
+    border-radius: 0.5rem;
+    background: #fff;
+}
+
 .ad-carousel-image {
     display: block;
-    width: 100%;
-    height: auto;
-    max-height: 260px;
-    object-fit: contain;
+    position: static;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: 100% !important;
+    margin: 0;
+    object-fit: contain !important;
     object-position: var(--ad-position, center center);
+    transform: none !important;
 }
 
 .ad-carousel-track {
@@ -318,9 +339,6 @@ function getCookie(name) {
 
 @media (max-width: 768px) {
     .ad-carousel-image {
-        height: auto;
-        max-height: 220px;
-        object-fit: contain;
         object-position: var(--ad-mobile-position, var(--ad-position, center center));
     }
 
