@@ -4037,15 +4037,20 @@
 
     body.product-detail-full-width .apd-page {
         position: relative !important;
-        left: 50% !important;
-        width: min(96vw, 1960px) !important;
-        max-width: min(96vw, 1960px) !important;
+        left: auto !important;
+        right: auto !important;
+
+        width: 100% !important;
+        max-width: 1800px !important;
         min-width: 0 !important;
-        margin-left: 0 !important;
-        margin-right: 0 !important;
+
+        margin-left: auto !important;
+        margin-right: auto !important;
+
         padding-left: clamp(0.75rem, 1.1vw, 1rem) !important;
         padding-right: clamp(0.75rem, 1.1vw, 1rem) !important;
-        transform: translateX(-50%) !important;
+
+        transform: none !important;
         box-sizing: border-box !important;
     }
 
@@ -4095,11 +4100,18 @@
         body.product-detail-full-width main .apd-page,
         body.product-detail-full-width .container .apd-page {
             position: relative !important;
-            left: 50% !important;
-            width: min(96vw, 1960px) !important;
-            max-width: min(96vw, 1960px) !important;
-            margin-inline: 0 !important;
-            transform: translateX(-50%) !important;
+
+            left: auto !important;
+            right: auto !important;
+
+            width: 100% !important;
+            max-width: 1800px !important;
+            min-width: 0 !important;
+
+            margin-left: auto !important;
+            margin-right: auto !important;
+
+            transform: none !important;
         }
 
         body.product-detail-full-width .apd-detail-lower-layout {
