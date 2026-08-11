@@ -5663,6 +5663,31 @@
         }
     }
 
+    /*
+       Browser history can restore a pre-refresh product page with stale
+       inline transforms/measurements. Keep the actual product canvas and
+       hero grid definitive even before the restore script runs.
+    */
+    body.product-detail-full-width #product-detail-top,
+    body.product-detail-full-width .apd-page {
+        width: 100% !important;
+        max-width: 1800px !important;
+        min-width: 0 !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        transform: none !important;
+        box-sizing: border-box !important;
+    }
+
+    body.product-detail-full-width .apd-hero-commerce-grid {
+        clear: both !important;
+        width: 100% !important;
+        max-width: none !important;
+        min-width: 0 !important;
+        transform: none !important;
+        contain: none !important;
+    }
+
     /* ============================================================
        AROLANA PRODUCT DETAIL — FOLLOW-SCROLL TAB NAV V17
        A body-level portal is used so no transformed/grid/overflow
@@ -11374,6 +11399,12 @@
                     metricsReady = false;
                     requestUpdate();
                 });
+                window.addEventListener('pageshow', function () {
+                    reset();
+                    metricsReady = false;
+                    window.setTimeout(requestUpdate, 0);
+                    window.setTimeout(requestUpdate, 250);
+                });
 
                 if (desktopQuery.addEventListener) {
                     desktopQuery.addEventListener('change', function () {
@@ -13469,6 +13500,115 @@
     } else {
         preloadAllCommentCounts();
     }
+})();
+</script>
+
+
+<script>
+/*
+ * ============================================================
+ * AROLANA PRODUCT DETAIL -> HISTORY RESTORE LAYOUT FIX V1
+ * Browser back/forward can restore stale inline transforms and old
+ * product-detail width measurements. A normal refresh looks correct
+ * because these runtime leftovers are not present. Reset them on every
+ * product detail lifecycle entry, then let CSS/grid measure fresh.
+ * ============================================================
+ */
+(function () {
+    'use strict';
+
+    function clearInlineLayout(element) {
+        if (!element) return;
+
+        [
+            'position',
+            'top',
+            'right',
+            'bottom',
+            'left',
+            'width',
+            'max-width',
+            'min-width',
+            'margin-left',
+            'margin-right',
+            'padding-left',
+            'padding-right',
+            'transform',
+            'will-change',
+            'backface-visibility',
+            'transform-style',
+            'contain',
+            'display',
+            'grid-template-columns',
+            'flex',
+            'overflow'
+        ].forEach(function (property) {
+            element.style.removeProperty(property);
+        });
+    }
+
+    function restoreProductDetailLayout() {
+        if (!document.getElementById('product-detail-top')) {
+            return;
+        }
+
+        document.body.classList.add(
+            'products-list-full-width',
+            'product-detail-full-width'
+        );
+        document.body.classList.remove('apd-article-side-open');
+
+        document.documentElement.style.removeProperty('overflow');
+        document.body.style.removeProperty('overflow');
+
+        const articleModal = document.getElementById('product-article-modal');
+        if (articleModal) {
+            articleModal.classList.remove('is-open');
+            articleModal.classList.add('hidden');
+            articleModal.setAttribute('aria-hidden', 'true');
+        }
+
+        [
+            document.querySelector('.site-main-wrap'),
+            document.querySelector('.arolana-content-rail'),
+            document.querySelector('.arolana-content-rail > main'),
+            document.getElementById('product-detail-top'),
+            document.querySelector('.apd-hero-commerce-grid'),
+            document.getElementById('apd-gallery-stage'),
+            document.getElementById('apd-sticky-gallery'),
+            document.querySelector('.apd-commerce-sidebar'),
+            document.querySelector('.apd-sponsored-card'),
+            document.querySelector('.apd-tabs-clean'),
+            document.querySelector('.apd-follow-tabs-portal')
+        ].forEach(clearInlineLayout);
+
+        document
+            .querySelectorAll('.arolana-following-ad, .arolana-ad-placeholder')
+            .forEach(function (element) {
+                element.classList.remove('is-fixed-following', 'arolana-ad-visible');
+                clearInlineLayout(element);
+            });
+
+        window.requestAnimationFrame(function () {
+            window.dispatchEvent(new Event('resize'));
+        });
+    }
+
+    function restoreSoon() {
+        restoreProductDetailLayout();
+        window.setTimeout(restoreProductDetailLayout, 0);
+        window.setTimeout(restoreProductDetailLayout, 200);
+        window.setTimeout(restoreProductDetailLayout, 700);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', restoreSoon, { once: true });
+    } else {
+        restoreSoon();
+    }
+
+    window.addEventListener('pageshow', restoreSoon);
+    window.addEventListener('popstate', restoreSoon);
 })();
 </script>
 
