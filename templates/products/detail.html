@@ -6291,6 +6291,40 @@
         display: none !important;
     }
 
+    /* Recommendation discovery must never convert an ad carousel into a
+       product rail. These guards also recover safely from restored DOM that
+       was enhanced by an older page script. */
+    .apd-sponsored-body .apd-one-row-rail {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    .apd-sponsored-body .apd-one-row-rail-viewport {
+        width: 100% !important;
+        overflow: visible !important;
+    }
+
+    .apd-sponsored-body .ad-carousel-track,
+    .apd-sponsored-body .ad-carousel-track.apd-one-row-rail-track {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 0 !important;
+        overflow: visible !important;
+    }
+
+    .apd-sponsored-body .ad-carousel-track > .ad-carousel-slide {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        flex: none !important;
+    }
+
+    .apd-sponsored-body .apd-one-row-rail-arrow {
+        display: none !important;
+    }
+
 </style>
 {% endblock %}
 
@@ -12542,6 +12576,13 @@
 
     function isRecommendationTrack(track) {
         if (!childCountLooksLikeRail(track)) return false;
+
+        if (
+            track.matches('.ad-carousel-track') ||
+            track.closest('.ad-carousel-container, .apd-sponsored-card')
+        ) {
+            return false;
+        }
 
         /* Never turn structural product-detail grids into carousels. The old
            generic `.grid` fallback could select the hero itself when a
