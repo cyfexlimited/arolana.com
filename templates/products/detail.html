@@ -6230,7 +6230,7 @@
 <!-- Reading Progress Bar -->
 <div id="reading-progress" class="reading-progress"></div>
 
-<div class="apd-page max-w-[1800px] mx-auto px-4">
+<div id="product-detail-top" class="apd-page max-w-[1800px] mx-auto px-4">
     <!-- Breadcrumb with Micro-interactions -->
     <nav class="text-sm mb-6">
     <ol class="flex items-center space-x-2 flex-wrap">
@@ -8697,7 +8697,7 @@
         {% if video.is_local_video %}<video controls preload="metadata" class="h-full w-full object-cover" {% if video.thumbnail %}poster="{{ video.thumbnail.url }}"{% endif %}><source src="{{ video.local_video.url }}"></video>
         {% elif video.get_embed_url %}<iframe src="{{ video.get_embed_url }}" class="h-full w-full" title="{{ video.title|default:video.product.name }}" allowfullscreen loading="lazy"></iframe>{% endif %}
       </div>
-      <a href="{% url 'products:detail' video.product.slug %}?from=seller_video"
+      <a href="{% url 'products:detail' video.product.slug %}?from=seller_video#product-detail-top"
         class="block p-4 hover:bg-slate-50"
         data-commerce-product-link="true">
         <p class="text-xs font-bold uppercase tracking-wide text-orange-600">{{ video.vendor.store_name|default:'Arolana Seller' }}</p>
@@ -13360,26 +13360,14 @@
 <script>
 /*
  * ============================================================
- * AROLANA SELLER VIDEO -> PRODUCT DETAIL NAVIGATION FIX V2
+ * AROLANA SELLER VIDEO -> PRODUCT DETAIL NAVIGATION FIX V3
+ * Production-safe Firefox scroll restoration guard
  * ============================================================
- *
- * The seller-video shelf lives deep down the current product page.
- * Some browsers can carry that scroll position into another product
- * navigation. Arolana's sticky/follow product hero then activates
- * immediately, making the new product page look narrow/misaligned.
- *
- * This fix:
- * - runs only for ?from=seller_video
- * - forces the destination to the TOP
- * - disables browser scroll restoration for this navigation
- * - resets temporary product-detail/article-reader state
- * - resets sticky/follow transforms before the hero initializes
- * - cleans ?from=seller_video from the address after the reset
  */
 (function () {
     'use strict';
 
-    var params;
+    let params;
 
     try {
         params = new URLSearchParams(window.location.search || '');
@@ -13397,24 +13385,21 @@
         }
     } catch (error) {}
 
-    function resetTemporaryProductState() {
-        try {
-            document.body.classList.remove('apd-article-side-open');
-            document.documentElement.style.removeProperty('overflow');
-            document.body.style.removeProperty('overflow');
-        } catch (error) {}
+    function resetTemporaryLayout() {
+        document.body.classList.remove('apd-article-side-open');
 
-        var articleModal = document.getElementById('product-article-modal');
+        document.documentElement.style.removeProperty('overflow');
+        document.body.style.removeProperty('overflow');
+
+        const articleModal =
+            document.getElementById('product-article-modal');
+
         if (articleModal) {
             articleModal.classList.remove('is-open');
             articleModal.classList.add('hidden');
             articleModal.setAttribute('aria-hidden', 'true');
         }
 
-        /*
-         * Remove transforms left by the product hero follow-scroll controller.
-         * At scrollY=0 the normal controller will calculate from a clean state.
-         */
         [
             document.getElementById('apd-sticky-gallery'),
             document.querySelector('.apd-sponsored-card')
@@ -13430,84 +13415,92 @@
             element.style.removeProperty('backface-visibility');
             element.style.removeProperty('transform-style');
         });
-
-        var page = document.querySelector('.apd-page');
-        if (page) {
-            page.style.removeProperty('width');
-            page.style.removeProperty('max-width');
-            page.style.removeProperty('min-width');
-            page.style.removeProperty('margin-left');
-            page.style.removeProperty('margin-right');
-            page.style.removeProperty('transform');
-        }
     }
 
-    function forceTop() {
-        resetTemporaryProductState();
 
-        try {
-            window.scrollTo({
-                top: 0,
-                left: 0,
-                behavior: 'auto'
+    function forceProductTop() {
+        resetTemporaryLayout();
+
+        const top =
+            document.getElementById('product-detail-top');
+
+        if (top) {
+            top.scrollIntoView({
+                behavior: 'auto',
+                block: 'start',
+                inline: 'nearest'
             });
-        } catch (error) {
-            window.scrollTo(0, 0);
         }
+
+        window.scrollTo(0, 0);
 
         document.documentElement.scrollTop = 0;
         document.body.scrollTop = 0;
     }
 
-    /*
-     * Browser scroll restoration can happen at slightly different times.
-     * Reassert the top position through the first few paint cycles only.
-     * This is NOT polling and stops immediately after startup.
-     */
-    forceTop();
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function () {
-            forceTop();
-
-            requestAnimationFrame(function () {
-                forceTop();
-
-                requestAnimationFrame(function () {
-                    forceTop();
-                });
-            });
-        }, { once: true });
-    } else {
-        requestAnimationFrame(function () {
-            forceTop();
-        });
-    }
-
-    window.addEventListener('load', function () {
-        forceTop();
-    }, { once: true });
-
-    window.addEventListener('pageshow', function () {
-        forceTop();
-    }, { once: true });
 
     /*
-     * Keep the visible product URL clean after the reset.
-     * Canonical SEO stays unchanged either way, but this avoids leaving
-     * the navigation helper in the address bar.
+     * Firefox/production can restore scroll after DOMContentLoaded,
+     * images, fonts and layout calculations.
+     *
+     * Keep overriding restoration briefly, then stop completely.
      */
-    window.setTimeout(function () {
-        try {
-            var cleanUrl = new URL(window.location.href);
-            cleanUrl.searchParams.delete('from');
-            history.replaceState(
-                history.state,
-                document.title,
-                cleanUrl.pathname + cleanUrl.search + cleanUrl.hash
-            );
-        } catch (error) {}
-    }, 250);
+    forceProductTop();
+
+    document.addEventListener(
+        'DOMContentLoaded',
+        forceProductTop,
+        { once: true }
+    );
+
+    window.addEventListener(
+        'load',
+        forceProductTop,
+        { once: true }
+    );
+
+    window.addEventListener(
+        'pageshow',
+        forceProductTop,
+        { once: true }
+    );
+
+
+    let attempts = 0;
+
+    const scrollGuard = window.setInterval(function () {
+        attempts += 1;
+
+        forceProductTop();
+
+        /*
+         * 20 × 100ms = maximum 2 seconds.
+         * Then the guard removes itself completely.
+         */
+        if (attempts >= 20) {
+            window.clearInterval(scrollGuard);
+
+            /*
+             * Remove helper query/hash only AFTER Firefox has
+             * finished all restoration/layout activity.
+             */
+            try {
+                const cleanUrl =
+                    new URL(window.location.href);
+
+                cleanUrl.searchParams.delete('from');
+                cleanUrl.hash = '';
+
+                history.replaceState(
+                    history.state,
+                    document.title,
+                    cleanUrl.pathname +
+                    cleanUrl.search
+                );
+            } catch (error) {}
+        }
+    }, 100);
+
 })();
 </script>
 
