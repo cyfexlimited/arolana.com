@@ -6203,22 +6203,30 @@
 {% endblock %}
 
 {% block content %}
-
-<!-- ============================================================
-     AROLANA PRODUCT DETAIL — NORMAL NAVIGATION HARD RESET V6
-     Runs before the product layout is painted. Seller-video links and
-     browser history must never inherit the article split/reader state.
-     ============================================================ -->
+{% if request.GET.from == 'seller_video' %}
 <script>
+/*
+ * AROLANA SELLER VIDEO -> PRODUCT DETAIL CLEAN ENTRY
+ * Disable browser scroll restoration before the product DOM is painted.
+ * This prevents the destination product from inheriting the deep scroll
+ * position of the seller-video shelf.
+ */
 (function () {
     try {
-        document.documentElement.classList.remove('apd-article-side-open');
-        document.documentElement.style.removeProperty('overflow');
-        document.documentElement.style.removeProperty('width');
-        document.documentElement.style.removeProperty('max-width');
+        if ('scrollRestoration' in history) {
+            history.scrollRestoration = 'manual';
+        }
+    } catch (error) {}
+
+    try {
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
     } catch (error) {}
 })();
 </script>
+{% endif %}
+
 <!-- Reading Progress Bar -->
 <div id="reading-progress" class="reading-progress"></div>
 
@@ -8689,7 +8697,7 @@
         {% if video.is_local_video %}<video controls preload="metadata" class="h-full w-full object-cover" {% if video.thumbnail %}poster="{{ video.thumbnail.url }}"{% endif %}><source src="{{ video.local_video.url }}"></video>
         {% elif video.get_embed_url %}<iframe src="{{ video.get_embed_url }}" class="h-full w-full" title="{{ video.title|default:video.product.name }}" allowfullscreen loading="lazy"></iframe>{% endif %}
       </div>
-      <a href="{% url 'products:detail' video.product.slug %}"
+      <a href="{% url 'products:detail' video.product.slug %}?from=seller_video"
         class="block p-4 hover:bg-slate-50"
         data-commerce-product-link="true">
         <p class="text-xs font-bold uppercase tracking-wide text-orange-600">{{ video.vendor.store_name|default:'Arolana Seller' }}</p>
@@ -9000,47 +9008,16 @@
        ============================================================ */
     function resetStaleProductArticleReader() {
         const modal = document.getElementById('product-article-modal');
-        const page = document.querySelector('.apd-page');
-        const tabs = document.querySelector('.apd-tabs-clean');
-        const hero = document.querySelector('.apd-hero-clean');
-        const gallery = document.getElementById('apd-sticky-gallery');
 
-        /*
-         * A normal product navigation must always begin full width.
-         * Remove every state that can survive browser history restoration
-         * or be left behind by the article side reader.
-         */
-        document.documentElement.classList.remove('apd-article-side-open');
         document.body.classList.remove('apd-article-side-open');
+        document.documentElement.style.overflow = '';
+        document.body.style.overflow = '';
 
-        [document.documentElement, document.body].forEach(function (node) {
-            if (!node) return;
-            node.style.removeProperty('overflow');
-            node.style.removeProperty('width');
-            node.style.removeProperty('max-width');
-            node.style.removeProperty('min-width');
-            node.style.removeProperty('margin-left');
-            node.style.removeProperty('margin-right');
-            node.style.removeProperty('transform');
-        });
+        if (!modal) return;
 
-        [page, tabs, hero, gallery].forEach(function (node) {
-            if (!node) return;
-            node.style.removeProperty('width');
-            node.style.removeProperty('max-width');
-            node.style.removeProperty('min-width');
-            node.style.removeProperty('margin-left');
-            node.style.removeProperty('margin-right');
-            node.style.removeProperty('left');
-            node.style.removeProperty('right');
-            node.style.removeProperty('transform');
-        });
-
-        if (modal) {
-            modal.classList.remove('is-open');
-            modal.classList.add('hidden');
-            modal.setAttribute('aria-hidden', 'true');
-        }
+        modal.classList.remove('is-open');
+        modal.classList.add('hidden');
+        modal.setAttribute('aria-hidden', 'true');
     }
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -9050,46 +9027,6 @@
     window.addEventListener('pageshow', function () {
         resetStaleProductArticleReader();
     });
-
-    /*
-     * Seller-video View Product navigation must behave like clicking a normal
-     * product card. Capture the click before any site-wide navigation handler
-     * can reuse the current document or preserve its temporary reader layout.
-     */
-    document.addEventListener('click', function (event) {
-        const link = event.target.closest('[data-commerce-product-link="true"]');
-        if (!link) return;
-
-        const href = link.getAttribute('href');
-        if (!href) return;
-
-        /* Preserve normal browser actions such as Cmd/Ctrl click/new tab. */
-        if (
-            event.defaultPrevented ||
-            event.button !== 0 ||
-            event.metaKey ||
-            event.ctrlKey ||
-            event.shiftKey ||
-            event.altKey
-        ) {
-            return;
-        }
-
-        event.preventDefault();
-        event.stopPropagation();
-
-        resetStaleProductArticleReader();
-
-        const destination = new URL(href, window.location.origin);
-        destination.searchParams.set('from', 'seller_video');
-
-        /*
-         * assign() performs a genuine document navigation and still keeps the
-         * current page in browser history. The query flag also prevents a
-         * stale same-document visual snapshot from being reused for this path.
-         */
-        window.location.assign(destination.toString());
-    }, true);
 
     function synchroniseProductArticleReaderState() {
         const modal = getEl('product-article-modal');
@@ -13416,6 +13353,161 @@
     } else {
         preloadAllCommentCounts();
     }
+})();
+</script>
+
+
+<script>
+/*
+ * ============================================================
+ * AROLANA SELLER VIDEO -> PRODUCT DETAIL NAVIGATION FIX V2
+ * ============================================================
+ *
+ * The seller-video shelf lives deep down the current product page.
+ * Some browsers can carry that scroll position into another product
+ * navigation. Arolana's sticky/follow product hero then activates
+ * immediately, making the new product page look narrow/misaligned.
+ *
+ * This fix:
+ * - runs only for ?from=seller_video
+ * - forces the destination to the TOP
+ * - disables browser scroll restoration for this navigation
+ * - resets temporary product-detail/article-reader state
+ * - resets sticky/follow transforms before the hero initializes
+ * - cleans ?from=seller_video from the address after the reset
+ */
+(function () {
+    'use strict';
+
+    var params;
+
+    try {
+        params = new URLSearchParams(window.location.search || '');
+    } catch (error) {
+        return;
+    }
+
+    if (params.get('from') !== 'seller_video') {
+        return;
+    }
+
+    try {
+        if ('scrollRestoration' in history) {
+            history.scrollRestoration = 'manual';
+        }
+    } catch (error) {}
+
+    function resetTemporaryProductState() {
+        try {
+            document.body.classList.remove('apd-article-side-open');
+            document.documentElement.style.removeProperty('overflow');
+            document.body.style.removeProperty('overflow');
+        } catch (error) {}
+
+        var articleModal = document.getElementById('product-article-modal');
+        if (articleModal) {
+            articleModal.classList.remove('is-open');
+            articleModal.classList.add('hidden');
+            articleModal.setAttribute('aria-hidden', 'true');
+        }
+
+        /*
+         * Remove transforms left by the product hero follow-scroll controller.
+         * At scrollY=0 the normal controller will calculate from a clean state.
+         */
+        [
+            document.getElementById('apd-sticky-gallery'),
+            document.querySelector('.apd-sponsored-card')
+        ].forEach(function (element) {
+            if (!element) return;
+
+            element.style.removeProperty('position');
+            element.style.removeProperty('top');
+            element.style.removeProperty('left');
+            element.style.removeProperty('width');
+            element.style.removeProperty('transform');
+            element.style.removeProperty('will-change');
+            element.style.removeProperty('backface-visibility');
+            element.style.removeProperty('transform-style');
+        });
+
+        var page = document.querySelector('.apd-page');
+        if (page) {
+            page.style.removeProperty('width');
+            page.style.removeProperty('max-width');
+            page.style.removeProperty('min-width');
+            page.style.removeProperty('margin-left');
+            page.style.removeProperty('margin-right');
+            page.style.removeProperty('transform');
+        }
+    }
+
+    function forceTop() {
+        resetTemporaryProductState();
+
+        try {
+            window.scrollTo({
+                top: 0,
+                left: 0,
+                behavior: 'auto'
+            });
+        } catch (error) {
+            window.scrollTo(0, 0);
+        }
+
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+    }
+
+    /*
+     * Browser scroll restoration can happen at slightly different times.
+     * Reassert the top position through the first few paint cycles only.
+     * This is NOT polling and stops immediately after startup.
+     */
+    forceTop();
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () {
+            forceTop();
+
+            requestAnimationFrame(function () {
+                forceTop();
+
+                requestAnimationFrame(function () {
+                    forceTop();
+                });
+            });
+        }, { once: true });
+    } else {
+        requestAnimationFrame(function () {
+            forceTop();
+        });
+    }
+
+    window.addEventListener('load', function () {
+        forceTop();
+    }, { once: true });
+
+    window.addEventListener('pageshow', function () {
+        forceTop();
+    }, { once: true });
+
+    /*
+     * Keep the visible product URL clean after the reset.
+     * Canonical SEO stays unchanged either way, but this avoids leaving
+     * the navigation helper in the address bar.
+     */
+    window.setTimeout(function () {
+        try {
+            var cleanUrl = new URL(window.location.href);
+            cleanUrl.searchParams.delete('from');
+            history.replaceState(
+                history.state,
+                document.title,
+                cleanUrl.pathname + cleanUrl.search + cleanUrl.hash
+            );
+        } catch (error) {}
+    }, 250);
 })();
 </script>
 
