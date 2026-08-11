@@ -2966,15 +2966,39 @@
             }
         }
 
-/* Product listing: hide sponsored sidebar */
-body.products-list-full-width .arolana-following-ad,
-body.products-list-full-width .arolana-ad-placeholder{
-    display:none!important;
+/* Product catalogue/detail pages own their commerce layout. */
+body.products-list-full-width .site-main-wrap,
+body.product-detail-full-width .site-main-wrap {
+    width: calc(100% - 20px) !important;
+    max-width: none !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
 }
 
-body.products-list-full-width .arolana-content-rail>main{
-    width:100%;
-    max-width:none;
+body.products-list-full-width .arolana-content-rail,
+body.product-detail-full-width .arolana-content-rail {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+}
+
+body.products-list-full-width .arolana-content-rail > main,
+body.product-detail-full-width .arolana-content-rail > main {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    flex: none !important;
+}
+
+body.products-list-full-width .arolana-following-ad,
+body.products-list-full-width .arolana-ad-placeholder,
+body.product-detail-full-width .arolana-following-ad,
+body.product-detail-full-width .arolana-ad-placeholder {
+    display: none !important;
 }
 
 </style>
