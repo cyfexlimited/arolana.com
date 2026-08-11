@@ -123,6 +123,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const carousels = document.querySelectorAll('.ad-carousel-container');
     
     carousels.forEach(container => {
+        if (container.dataset.carouselInitialized === 'true') return;
+        container.dataset.carouselInitialized = 'true';
+
         const track = container.querySelector('.ad-carousel-track');
         const slides = container.querySelectorAll('.ad-carousel-slide');
         const dots = container.querySelectorAll('.carousel-dot');

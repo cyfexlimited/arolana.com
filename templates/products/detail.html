@@ -4137,8 +4137,10 @@
         background: #f8fafc;
     }
 
-    .apd-sponsored-body .advanced-ad,
-    .apd-sponsored-body .ad-content,
+    .apd-sponsored-body .ad-carousel-container,
+    .apd-sponsored-body .ad-carousel,
+    .apd-sponsored-body .ad-carousel-track,
+    .apd-sponsored-body .ad-carousel-slide,
     .apd-sponsored-body > * {
         width: 100%;
         max-width: 100%;
@@ -4146,42 +4148,61 @@
         box-sizing: border-box;
     }
 
-    .apd-sponsored-body .advanced-ad {
-        margin: 0 !important;
+    .apd-sponsored-body .ad-carousel-track {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        align-items: stretch;
     }
 
-    .apd-sponsored-body .ad-content {
+    .apd-sponsored-body .ad-carousel-slide {
+        flex: 0 0 100% !important;
+        width: 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
         overflow: hidden;
-        padding: 1rem !important;
+    }
+
+    .apd-sponsored-body .ad-carousel-slide > div {
+        min-height: 0 !important;
+        padding: 1rem .9rem 1.15rem !important;
         border-radius: .8rem !important;
         box-shadow: none !important;
     }
 
-    .apd-sponsored-body .ad-content img {
+    .apd-sponsored-body .ad-carousel-slide > div > .text-center {
+        min-width: 0;
+    }
+
+    .apd-sponsored-body .ad-carousel-image {
         display: block;
         width: 100% !important;
         max-width: 100% !important;
-        max-height: 220px !important;
+        height: 190px !important;
+        max-height: 190px !important;
         margin-inline: auto;
         object-fit: contain !important;
         background: #fff;
     }
 
-    .apd-sponsored-body .ad-content h4 {
-        margin: .7rem 0 .4rem !important;
-        font-size: .98rem !important;
-        line-height: 1.28 !important;
+    .apd-sponsored-body .ad-carousel-slide h3 {
+        margin: .75rem 0 .45rem !important;
+        font-size: 1rem !important;
+        line-height: 1.25 !important;
         overflow-wrap: anywhere;
     }
 
-    .apd-sponsored-body .ad-content p {
-        margin-bottom: .7rem !important;
-        font-size: .76rem !important;
+    .apd-sponsored-body .ad-carousel-slide p {
+        display: -webkit-box;
+        margin-bottom: .8rem !important;
+        overflow: hidden;
+        font-size: .74rem !important;
         line-height: 1.45 !important;
         overflow-wrap: anywhere;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
     }
 
-    .apd-sponsored-body .ad-content a.inline-flex {
+    .apd-sponsored-body .ad-carousel-slide a.inline-flex {
         max-width: 100%;
         min-height: 2.5rem;
         justify-content: center;
@@ -4189,6 +4210,21 @@
         white-space: normal;
         text-align: center;
         overflow-wrap: anywhere;
+    }
+
+    .apd-sponsored-body .carousel-prev,
+    .apd-sponsored-body .carousel-next {
+        top: 45% !important;
+        width: 2.15rem !important;
+        height: 2.15rem !important;
+        padding: 0 !important;
+    }
+
+    .apd-sponsored-body .carousel-prev { left: .45rem !important; }
+    .apd-sponsored-body .carousel-next { right: .45rem !important; }
+
+    .apd-sponsored-body .carousel-dot {
+        min-height: .5rem;
     }
 
     .apd-sponsored-footer {
@@ -5051,7 +5087,8 @@
             border-radius: .7rem !important;
         }
 
-        .apd-sponsored-body img {
+        .apd-sponsored-body .ad-carousel-image {
+            height: 165px !important;
             max-height: 165px !important;
             object-fit: contain !important;
         }
@@ -6969,7 +7006,7 @@
                 </div>
 
                 <div class="apd-sponsored-body">
-                    {% render_ad 'sidebar' %}
+                    {% render_ad_carousel 'sidebar' count=5 interval=5000 %}
                 </div>
 
                 <div class="apd-sponsored-footer">
