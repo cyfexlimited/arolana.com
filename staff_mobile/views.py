@@ -16,7 +16,7 @@ from django.http import HttpResponse, JsonResponse
 from django.utils.text import slugify
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
 from core.content_i18n import translated_field, translated_key
 from deliveries.models import DeliveryRequest, DeliveryLocationPing, RiderPayout, RiderProfile, RiderWallet
@@ -24,7 +24,7 @@ from deliveries.models import DeliveryVehicle, DeliveryZone
 from deliveries.services import create_live_delivery_for_order
 from orders.models import MobilePushToken, Order
 from kyc.models import KYCDocument, KYCRecord
-from products.models import Brand, Category, Product, ProductImage, ProductVariant, ProductVariantImage, ProductWholesaleTier
+from products.models import Brand, Category, Product, ProductImage, ProductVariant, ProductVariantImage, ProductWholesaleTier, ProductVideo, ProductVideoRating, ProductVideoComment
 from notifications.models import Notification
 from subscriptions.models import (
     SubscriptionPlan,
@@ -666,6 +666,154 @@ def _vendor_payload(profile, request=None):
         "pickup_phone": profile.pickup_phone,
     }
 
+
+
+def _staff_product_video_comment_payload(comment):
+    user = comment.user
+    name = ""
+    try:
+        name = (user.get_full_name() or "").strip()
+    except Exception:
+        name = ""
+    name = name or getattr(user, "username", "") or getattr(user, "email", "") or "Arolana Customer"
+
+    rating = (
+        ProductVideoRating.objects.filter(video=comment.video, user=user)
+        .values_list("rating", flat=True)
+        .first()
+        or 0
+    )
+
+    return {
+        "id": comment.id,
+        "body": comment.body,
+        "is_visible": bool(comment.is_visible),
+        "is_edited": bool(comment.is_edited),
+        "created_at": comment.created_at.isoformat() if comment.created_at else "",
+        "updated_at": comment.updated_at.isoformat() if comment.updated_at else "",
+        "rating": int(rating or 0),
+        "user": {
+            "id": user.id,
+            "name": name,
+            "email": getattr(user, "email", "") or "",
+        },
+    }
+
+
+def _staff_product_video_payload(video, request=None, include_comments=False):
+    product = video.product
+    vendor = video.vendor
+    source_url = ""
+    if video.source == "local" and video.local_video:
+        source_url = _absolute_original_media_url(request, video.local_video)
+    elif video.source == "youtube":
+        source_url = video.youtube_url or ""
+    elif video.source == "vimeo":
+        source_url = video.vimeo_url or ""
+
+    thumbnail_url = _absolute_media_url(request, video.thumbnail, "product_card") if video.thumbnail else ""
+
+    payload = {
+        "id": video.id,
+        "title": video.title or product.name,
+        "description": video.description or "",
+        "source": video.source,
+        "source_url": source_url,
+        "youtube_url": video.youtube_url or "",
+        "vimeo_url": video.vimeo_url or "",
+        "local_video_url": (
+            _absolute_original_media_url(request, video.local_video)
+            if video.local_video
+            else ""
+        ),
+        "thumbnail_url": thumbnail_url,
+        "moderation_status": video.moderation_status,
+        "moderation_note": video.moderation_note or "",
+        "is_active": bool(video.is_active),
+        "duration_seconds": int(video.duration_seconds or 0),
+        "views_count": int(video.views_count or 0),
+        "product_clicks": int(video.product_clicks or 0),
+        "helpful_count": int(video.helpful_count or 0),
+        "rating": video.average_rating,
+        "rating_count": int(video.rating_count or 0),
+        "comment_count": ProductVideoComment.objects.filter(
+            video=video,
+            is_visible=True,
+        ).count(),
+        "created_at": video.created_at.isoformat() if video.created_at else "",
+        "updated_at": video.updated_at.isoformat() if video.updated_at else "",
+        "approved_at": video.approved_at.isoformat() if video.approved_at else "",
+        "product": {
+            "id": product.id,
+            "slug": product.slug,
+            "name": product.name,
+            "sku": product.sku,
+            "approval_status": product.approval_status,
+            "is_active": bool(product.is_active),
+            "image": _absolute_media_url(request, product.main_image, "product_card")
+            if product.main_image
+            else "",
+        },
+        "vendor_id": vendor.id if vendor else None,
+        "vendor_name": vendor.store_name if vendor else "",
+        "vendor_tier": vendor.subscription_tier if vendor else "",
+    }
+
+    if include_comments:
+        payload["recent_comments"] = [
+            _staff_product_video_comment_payload(comment)
+            for comment in ProductVideoComment.objects.filter(video=video)
+            .select_related("user", "video")
+            .order_by("-created_at")[:10]
+        ]
+
+    return payload
+
+
+def _refresh_vendor_video_entitlement(profile):
+    tier = user_subscription_tier(profile.user)
+    apply_vendor_subscription_benefits(profile, tier)
+    profile.refresh_from_db()
+    return bool(profile.can_upload_video)
+
+
+def _vendor_video_product(profile, product_id, require_approved=True):
+    query = Product.objects.filter(id=product_id, vendor=profile.user)
+    if require_approved:
+        query = query.filter(approval_status="approved")
+    return query.first()
+
+
+def _video_source_from_request(request):
+    source = _clean_text(request.POST.get("source") or "")
+    youtube_url = _clean_text(request.POST.get("youtube_url") or "")
+    vimeo_url = _clean_text(request.POST.get("vimeo_url") or "")
+    local_video = request.FILES.get("video") or request.FILES.get("local_video")
+
+    if local_video:
+        return "local", youtube_url, vimeo_url, local_video
+    if source == "youtube" or youtube_url:
+        return "youtube", youtube_url, "", None
+    if source == "vimeo" or vimeo_url:
+        return "vimeo", "", vimeo_url, None
+    return "", "", "", None
+
+
+def _validate_short_video_upload(upload):
+    if not upload:
+        return None
+
+    name = (getattr(upload, "name", "") or "").lower()
+    allowed_extensions = (".mp4", ".webm", ".mov", ".m4v", ".ogg")
+    if not name.endswith(allowed_extensions):
+        return _error("Video must be MP4, WebM, MOV, M4V, or OGG.")
+
+    # Match the existing staff Product Media policy instead of introducing
+    # a second upload-size rule.
+    if getattr(upload, "size", 0) > 5 * 1024 * 1024:
+        return _error("Short product video must not be more than 5MB.")
+
+    return None
 
 def _service_provider_payload(provider, request=None):
     return {
@@ -2546,6 +2694,309 @@ def vendor_product_images_api(request, product_id):
         "product": _product_payload(product),
     })
 
+
+
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+def vendor_product_videos_api(request):
+    try:
+        _, profile = _require_vendor_session(request)
+    except PermissionError as error:
+        return _error(error, status=403)
+
+    can_upload_video = _refresh_vendor_video_entitlement(profile)
+
+    if request.method == "GET":
+        videos = (
+            ProductVideo.objects.filter(vendor=profile)
+            .select_related("product", "vendor")
+            .order_by("-created_at")
+        )
+        products = Product.objects.filter(
+            vendor=profile.user,
+            approval_status="approved",
+        ).order_by("name")
+
+        return JsonResponse({
+            "success": True,
+            "can_upload_video": can_upload_video,
+            "subscription_tier": user_subscription_tier(profile.user),
+            "videos": [
+                _staff_product_video_payload(video, request, include_comments=True)
+                for video in videos
+            ],
+            "products": [
+                {
+                    "id": product.id,
+                    "name": product.name,
+                    "slug": product.slug,
+                    "sku": product.sku,
+                    "image": _absolute_media_url(request, product.main_image, "product_card")
+                    if product.main_image
+                    else "",
+                }
+                for product in products
+            ],
+        })
+
+    if not can_upload_video:
+        return _subscription_limit_error()
+
+    product_id = _int_value(request.POST.get("product_id"), 0)
+    product = _vendor_video_product(profile, product_id, require_approved=True)
+    if not product:
+        return _error(
+            "Select one of your approved products before uploading a video.",
+            status=404,
+        )
+
+    source, youtube_url, vimeo_url, local_video = _video_source_from_request(request)
+    if not source:
+        return _error("Choose a local video, YouTube URL, or Vimeo URL.")
+
+    if source == "youtube" and not youtube_url:
+        return _error("YouTube URL is required.")
+    if source == "vimeo" and not vimeo_url:
+        return _error("Vimeo URL is required.")
+
+    upload_error = _validate_short_video_upload(local_video)
+    if upload_error:
+        return upload_error
+
+    video = ProductVideo(
+        product=product,
+        vendor=profile,
+        title=_clean_text(request.POST.get("title") or product.name)[:200],
+        description=_clean_text(request.POST.get("description")),
+        source=source,
+        youtube_url=youtube_url,
+        vimeo_url=vimeo_url,
+        local_video=local_video,
+        thumbnail=request.FILES.get("thumbnail"),
+        moderation_status="pending",
+        moderation_note="",
+        approved_by=None,
+        approved_at=None,
+        duration_seconds=max(0, _int_value(request.POST.get("duration_seconds"), 0)),
+        is_active=True,
+        display_order=0,
+    )
+    video.save()
+
+    return JsonResponse({
+        "success": True,
+        "message": "Video submitted to Arolana for moderation.",
+        "video": _staff_product_video_payload(video, request, include_comments=True),
+    }, status=201)
+
+
+@csrf_exempt
+@require_http_methods(["PATCH", "DELETE"])
+def vendor_product_video_detail_api(request, video_id):
+    try:
+        _, profile = _require_vendor_session(request)
+    except PermissionError as error:
+        return _error(error, status=403)
+
+    video = (
+        ProductVideo.objects.select_related("product", "vendor")
+        .filter(id=video_id, vendor=profile)
+        .first()
+    )
+    if not video:
+        return _error("Video not found.", status=404)
+
+    if request.method == "DELETE":
+        video.delete()
+        return JsonResponse({
+            "success": True,
+            "message": "Product video deleted.",
+        })
+
+    try:
+        data = json.loads(request.body.decode("utf-8") or "{}")
+    except Exception:
+        data = {}
+
+    if "title" in data:
+        video.title = _clean_text(data.get("title"))[:200]
+    if "description" in data:
+        video.description = _clean_text(data.get("description"))
+
+    source = _clean_text(data.get("source"))
+    if source in {"youtube", "vimeo"}:
+        video.source = source
+        if source == "youtube":
+            video.youtube_url = _clean_text(data.get("youtube_url"))
+            video.vimeo_url = ""
+        else:
+            video.vimeo_url = _clean_text(data.get("vimeo_url"))
+            video.youtube_url = ""
+
+    # Any vendor edit returns the video to moderation.
+    video.moderation_status = "pending"
+    video.moderation_note = ""
+    video.approved_by = None
+    video.approved_at = None
+    video.save()
+
+    return JsonResponse({
+        "success": True,
+        "message": "Video updated and returned to moderation.",
+        "video": _staff_product_video_payload(video, request, include_comments=True),
+    })
+
+
+@require_GET
+def admin_product_videos_api(request):
+    try:
+        _require_admin_session(request)
+    except PermissionError as error:
+        return _error(error, status=403)
+
+    status_filter = _clean_text(request.GET.get("status"))
+    videos = ProductVideo.objects.select_related("product", "vendor").order_by("-created_at")
+    if status_filter in {"pending", "approved", "rejected"}:
+        videos = videos.filter(moderation_status=status_filter)
+
+    return JsonResponse({
+        "success": True,
+        "videos": [
+            _staff_product_video_payload(video, request, include_comments=True)
+            for video in videos[:100]
+        ],
+    })
+
+
+@require_GET
+def admin_pending_product_videos_api(request):
+    try:
+        _require_admin_session(request)
+    except PermissionError as error:
+        return _error(error, status=403)
+
+    videos = (
+        ProductVideo.objects.filter(moderation_status="pending")
+        .select_related("product", "vendor")
+        .order_by("created_at")
+    )
+
+    return JsonResponse({
+        "success": True,
+        "videos": [
+            _staff_product_video_payload(video, request, include_comments=True)
+            for video in videos[:100]
+        ],
+    })
+
+
+@csrf_exempt
+@require_POST
+def admin_product_video_action_api(request, video_id, action):
+    try:
+        session = _require_admin_session(request)
+    except PermissionError as error:
+        return _error(error, status=403)
+
+    video = (
+        ProductVideo.objects.select_related("product", "vendor")
+        .filter(id=video_id)
+        .first()
+    )
+    if not video:
+        return _error("Video not found.", status=404)
+
+    data = _json_body(request)
+    note = _clean_text(data.get("moderation_note") or data.get("note"))
+
+    if action == "approve":
+        video.moderation_status = "approved"
+        video.moderation_note = note
+        video.approved_by = session.user
+        video.approved_at = timezone.now()
+        video.is_active = True
+        message = "Product video approved."
+    elif action == "reject":
+        video.moderation_status = "rejected"
+        video.moderation_note = note or "Video did not pass Arolana moderation."
+        video.approved_by = None
+        video.approved_at = None
+        message = "Product video rejected."
+    else:
+        return _error("Action must be approve or reject.")
+
+    video.save(update_fields=[
+        "moderation_status",
+        "moderation_note",
+        "approved_by",
+        "approved_at",
+        "is_active",
+        "updated_at",
+    ])
+
+    if video.vendor and video.vendor.user:
+        _send_expo_push_to_user(
+            video.vendor.user,
+            "Product video moderation",
+            f"{video.product.name}: {message}",
+            {
+                "type": "product_video_moderation",
+                "video_id": video.id,
+                "product_id": video.product_id,
+                "status": video.moderation_status,
+            },
+        )
+
+    return JsonResponse({
+        "success": True,
+        "message": message,
+        "video": _staff_product_video_payload(video, request, include_comments=True),
+    })
+
+
+@csrf_exempt
+@require_POST
+def admin_product_video_comment_action_api(request, comment_id, action):
+    try:
+        session = _require_admin_session(request)
+    except PermissionError as error:
+        return _error(error, status=403)
+
+    comment = (
+        ProductVideoComment.objects.select_related("video", "video__product", "user")
+        .filter(id=comment_id)
+        .first()
+    )
+    if not comment:
+        return _error("Comment not found.", status=404)
+
+    if action == "delete":
+        video_id = comment.video_id
+        comment.delete()
+        return JsonResponse({
+            "success": True,
+            "message": "Video comment deleted.",
+            "video_id": video_id,
+        })
+
+    if action not in {"hide", "show"}:
+        return _error("Action must be hide, show, or delete.")
+
+    comment.is_visible = action == "show"
+    comment.moderated_by = session.user
+    comment.moderated_at = timezone.now()
+    comment.save(update_fields=[
+        "is_visible",
+        "moderated_by",
+        "moderated_at",
+        "updated_at",
+    ])
+
+    return JsonResponse({
+        "success": True,
+        "message": "Video comment shown." if comment.is_visible else "Video comment hidden.",
+        "comment": _staff_product_video_comment_payload(comment),
+    })
 
 @csrf_exempt
 @require_POST

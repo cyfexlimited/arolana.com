@@ -640,7 +640,7 @@
             top: 0.75rem;
             right: 0.75rem;
             width: 42px;
-            height: 42px;
+            height: 78px;
             background: rgba(0, 0, 0, 0.55);
         }
 
@@ -3170,12 +3170,12 @@
         .apd-trusted-brand {
             display: flex;
             min-width: 0;
-            min-height: 108px;
+            min-height: 120px;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 0.55rem;
-            padding: 0.9rem;
+            gap: 0;
+            padding: 1rem;
             border: 1px solid rgba(15, 23, 42, 0.08);
             border-radius: 1rem;
             color: inherit;
@@ -3205,11 +3205,12 @@
         .apd-trusted-brand-logo img {
             display: block;
             width: auto;
-            max-width: 125px;
-            height: 38px;
+            max-width: 165px;
+            max-height: 68px;
+            height: auto;
             object-fit: contain;
-            filter: grayscale(1);
-            opacity: 0.78;
+            filter: none;
+            opacity: 1;
             transition:
                 filter 180ms ease,
                 opacity 180ms ease,
@@ -3217,7 +3218,7 @@
         }
 
         .apd-trusted-brand:hover .apd-trusted-brand-logo img {
-            filter: grayscale(0);
+            filter: none;
             opacity: 1;
             transform: scale(1.04);
         }
@@ -5816,6 +5817,388 @@
         }
     }
 
+    /* ============================================================
+       AROLANA V19 — SINGLE-ROW PRODUCT / BRAND RECOMMENDATION RAILS
+       Amazon/B&H-style: one row, swipeable, with < > controls.
+       ============================================================ */
+
+    .apd-one-row-rail {
+        position: relative;
+        margin-top: .35rem;
+        padding-inline: 2.85rem;
+    }
+
+    .apd-one-row-rail-track {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        grid-template-columns: none !important;
+        gap: 1rem !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        scroll-behavior: smooth;
+        scroll-snap-type: x mandatory;
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none !important;
+        -ms-overflow-style: none !important;
+        padding: .25rem .1rem .8rem !important;
+    }
+
+    .apd-one-row-rail-track::-webkit-scrollbar {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+    }
+
+    .apd-one-row-rail-track > * {
+        flex: 0 0 clamp(190px, 15.6vw, 238px) !important;
+        width: clamp(190px, 15.6vw, 238px) !important;
+        max-width: clamp(190px, 15.6vw, 238px) !important;
+        min-width: 190px !important;
+        scroll-snap-align: start;
+        scroll-snap-stop: normal;
+    }
+
+    .apd-one-row-rail.is-brand-rail .apd-one-row-rail-track > * {
+        flex-basis: clamp(180px, 14vw, 220px) !important;
+        width: clamp(180px, 14vw, 220px) !important;
+        max-width: clamp(180px, 14vw, 220px) !important;
+    }
+
+    .apd-one-row-rail-arrow {
+        position: absolute;
+        top: 46%;
+        transform: translateY(-50%);
+        z-index: 12;
+        width: 2.8rem;
+        height: 3.7rem;
+        display: grid;
+        place-items: center;
+        border: 1px solid rgba(7, 26, 68, .24);
+        border-radius: .8rem;
+        background: rgba(255,255,255,.97);
+        color: #334155;
+        box-shadow: 0 8px 24px rgba(7, 26, 68, .11);
+        cursor: pointer;
+        transition:
+            transform .18s ease,
+            opacity .18s ease,
+            background .18s ease,
+            color .18s ease,
+            border-color .18s ease;
+    }
+
+    .apd-one-row-rail-arrow:hover:not(:disabled) {
+        background: #071A44;
+        color: #fff;
+        border-color: #071A44;
+        transform: translateY(-50%) scale(1.04);
+    }
+
+    .apd-one-row-rail-arrow:disabled {
+        opacity: .24;
+        cursor: default;
+        box-shadow: none;
+    }
+
+    .apd-one-row-rail-prev {
+        left: 0;
+    }
+
+    .apd-one-row-rail-next {
+        right: 0;
+    }
+
+    .apd-one-row-rail-arrow i {
+        font-size: 1rem;
+        pointer-events: none;
+    }
+
+    /* Recommendation cards should remain upright and consistent. */
+    .apd-one-row-rail-track .ai-card,
+    .apd-one-row-rail-track .product-personalization-card,
+    .apd-one-row-rail-track .apd-trusted-brand {
+        height: auto !important;
+        align-self: stretch;
+    }
+
+    @media (max-width: 1024px) {
+        .apd-one-row-rail {
+            padding-inline: 2.45rem;
+        }
+
+        .apd-one-row-rail-track > * {
+            flex-basis: clamp(190px, 29vw, 230px) !important;
+            width: clamp(190px, 29vw, 230px) !important;
+            max-width: clamp(190px, 29vw, 230px) !important;
+        }
+
+        .apd-one-row-rail-arrow {
+            width: 2.35rem;
+            height: 3.25rem;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .apd-one-row-rail {
+            margin-inline: -.25rem;
+            padding-inline: 2.15rem;
+        }
+
+        .apd-one-row-rail-track {
+            gap: .8rem !important;
+            padding-bottom: .55rem !important;
+        }
+
+        .apd-one-row-rail-track > *,
+        .apd-one-row-rail.is-brand-rail .apd-one-row-rail-track > * {
+            flex: 0 0 min(72vw, 250px) !important;
+            width: min(72vw, 250px) !important;
+            max-width: min(72vw, 250px) !important;
+            min-width: min(72vw, 250px) !important;
+        }
+
+        .apd-one-row-rail-arrow {
+            width: 2rem;
+            height: 3rem;
+            border-radius: .7rem;
+        }
+    }
+
+    /* ============================================================
+       AROLANA V24 — TRUE SHARP PRODUCT RECOMMENDATION IMAGES
+       ROOT FIX:
+       - product_card is a small thumbnail rendition
+       - h-40 + p-3 makes the visible product physically tiny
+       - .ai-card:hover + hover:scale-105 makes it LOOK clearer only
+         because hover enlarges/repaints it
+       This version renders the original upload at a larger resting size
+       and removes all hover-based image/card scaling.
+       ============================================================ */
+
+    /* Product recommendation rails: six full items + a visible next-item peek. */
+    @media (min-width: 1100px) {
+        .apd-one-row-rail:not(.is-brand-rail) .apd-one-row-rail-track {
+            gap: 1rem !important;
+        }
+
+        .apd-one-row-rail:not(.is-brand-rail) .apd-one-row-rail-track > * {
+            flex: 0 0 calc((100% - 5.5rem) / 6.5) !important;
+            width: calc((100% - 5.5rem) / 6.5) !important;
+            max-width: calc((100% - 5.5rem) / 6.5) !important;
+            min-width: 0 !important;
+        }
+    }
+
+    /* Clean B&H/Amazon-like product tile: no floating card chrome. */
+    .apd-one-row-rail:not(.is-brand-rail) .apd-rec-product-card,
+    .apd-one-row-rail:not(.is-brand-rail) .ai-card {
+        background: transparent !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        transform: none !important;
+        transition: none !important;
+        overflow: visible !important;
+    }
+
+    .apd-one-row-rail:not(.is-brand-rail) .apd-rec-product-card:hover,
+    .apd-one-row-rail:not(.is-brand-rail) .ai-card:hover {
+        transform: none !important;
+        box-shadow: none !important;
+    }
+
+    /* Disable the old moving sheen; it lowers visual contrast over images. */
+    .apd-one-row-rail:not(.is-brand-rail) .ai-card::before,
+    .apd-one-row-rail:not(.is-brand-rail) .ai-card:hover::before {
+        display: none !important;
+        content: none !important;
+    }
+
+    /* Large, stable media area. No h-40, no padding shrink. */
+    .apd-rec-product-media,
+    .apd-one-row-rail:not(.is-brand-rail) .apd-one-row-rail-track .apd-rec-product-media {
+        position: relative;
+        width: 100% !important;
+        height: 260px !important;
+        min-height: 260px !important;
+        overflow: hidden !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: #ffffff !important;
+    }
+
+    /* Critical: full-resolution source, full available box, no hover scaling. */
+    .apd-rec-product-image,
+    .apd-one-row-rail:not(.is-brand-rail) .apd-one-row-rail-track .apd-rec-product-image {
+        display: block !important;
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+        max-height: 260px !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        object-fit: contain !important;
+        object-position: center center !important;
+        background: #ffffff !important;
+
+        filter: none !important;
+        opacity: 1 !important;
+        mix-blend-mode: normal !important;
+        transform: none !important;
+        -webkit-transform: none !important;
+        transition: none !important;
+        will-change: auto !important;
+        image-rendering: auto !important;
+    }
+
+    .apd-rec-product-image:hover,
+    .apd-one-row-rail:not(.is-brand-rail) .apd-one-row-rail-track .apd-rec-product-image:hover {
+        transform: none !important;
+        -webkit-transform: none !important;
+        filter: none !important;
+    }
+
+    /* Do not let deferred painting make recommendation products soft before interaction. */
+    .arolana-deferred-content:has(.apd-one-row-rail),
+    .arolana-deferred-content:has(.apd-rec-product-image),
+    .product-learned-recommendations,
+    .product-learned-recommendations > * {
+        content-visibility: visible !important;
+        contain: none !important;
+        contain-intrinsic-size: auto !important;
+    }
+
+    /* Tablet: keep images substantial, not thumbnail-sized. */
+    @media (min-width: 700px) and (max-width: 1099px) {
+        .apd-one-row-rail:not(.is-brand-rail) .apd-one-row-rail-track > * {
+            flex: 0 0 calc((100% - 2.5rem) / 3.5) !important;
+            width: calc((100% - 2.5rem) / 3.5) !important;
+            max-width: calc((100% - 2.5rem) / 3.5) !important;
+            min-width: 0 !important;
+        }
+
+        .apd-rec-product-media,
+        .apd-one-row-rail:not(.is-brand-rail) .apd-one-row-rail-track .apd-rec-product-media {
+            height: 230px !important;
+            min-height: 230px !important;
+        }
+
+        .apd-rec-product-image {
+            max-height: 230px !important;
+        }
+    }
+
+    /* Mobile: strong image size and natural swipe cue. */
+    @media (max-width: 699px) {
+        .apd-one-row-rail:not(.is-brand-rail) .apd-one-row-rail-track > * {
+            flex: 0 0 min(72vw, 270px) !important;
+            width: min(72vw, 270px) !important;
+            max-width: min(72vw, 270px) !important;
+            min-width: 220px !important;
+        }
+
+        .apd-rec-product-media,
+        .apd-one-row-rail:not(.is-brand-rail) .apd-one-row-rail-track .apd-rec-product-media {
+            height: 220px !important;
+            min-height: 220px !important;
+        }
+
+        .apd-rec-product-image {
+            max-height: 220px !important;
+        }
+    }
+
+    /* ============================================================
+       AROLANA V25 — SHARP + PERFORMANCE-SAFE RECOMMENDATION IMAGES
+       ============================================================ */
+
+    .apd-rec-product-image {
+        image-rendering: auto !important;
+        object-fit: contain !important;
+        object-position: center center !important;
+        transform: none !important;
+        -webkit-transform: none !important;
+        transition: none !important;
+        will-change: auto !important;
+        filter: none !important;
+        opacity: 1 !important;
+        mix-blend-mode: normal !important;
+    }
+
+    .apd-rec-product-image:hover {
+        transform: none !important;
+        -webkit-transform: none !important;
+    }
+
+    /* Keep a large stable image box while avoiding layout shift. */
+    .apd-rec-product-media {
+        aspect-ratio: 1 / 1 !important;
+        height: auto !important;
+        background: #fff !important;
+    }
+
+    /* Recommendation shelves are below the fold: allow native lazy loading. */
+    .apd-rec-product-image[loading="lazy"] {
+        content-visibility: auto;
+    }
+
+    /* ============================================================
+       AROLANA V27 — EXACTLY 6 VISIBLE PRODUCTS ON DESKTOP
+       Dedicated viewport clips card 7 completely.
+       ============================================================ */
+    .apd-one-row-rail-viewport {
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
+        position: relative;
+    }
+
+    @media (min-width: 1100px) {
+        .apd-one-row-rail:not(.is-brand-rail) {
+            overflow: visible !important;
+        }
+
+        .apd-one-row-rail:not(.is-brand-rail) .apd-one-row-rail-viewport {
+            overflow: hidden !important;
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+
+        .apd-one-row-rail:not(.is-brand-rail) .apd-one-row-rail-track {
+            display: flex !important;
+            flex-wrap: nowrap !important;
+            gap: 1rem !important;
+
+            /* Track scrolls inside the clipped viewport. */
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+
+            scrollbar-width: none !important;
+            -ms-overflow-style: none !important;
+        }
+
+        .apd-one-row-rail:not(.is-brand-rail) .apd-one-row-rail-track::-webkit-scrollbar {
+            display: none !important;
+        }
+
+        /* Exactly six cards fit inside the viewport:
+           5 gaps × 1rem = 5rem total spacing. */
+        .apd-one-row-rail:not(.is-brand-rail) .apd-one-row-rail-track > * {
+            flex: 0 0 calc((100% - 5rem) / 6) !important;
+            width: calc((100% - 5rem) / 6) !important;
+            max-width: calc((100% - 5rem) / 6) !important;
+            min-width: calc((100% - 5rem) / 6) !important;
+        }
+    }
+
 </style>
 {% endblock %}
 
@@ -8154,7 +8537,7 @@
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {% for item in best_sellers %}
             <div
-                class="ai-card bg-white rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300"
+                class="ai-card apd-rec-product-card"
                 data-product-id="{{ item.id }}"
                 data-source-product-id="{{ product.id }}"
                 data-recommendation-section="best_sellers"
@@ -8163,10 +8546,20 @@
                 data-recommendation-algorithm="popularity"
             >
                 <a href="{{ item.get_absolute_url }}" class="block" data-track-click="true" data-event-type="recommendation_click" data-product-id="{{ item.id }}" data-source-product-id="{{ product.id }}" data-recommendation-section="best_sellers" data-recommendation-position="{{ forloop.counter }}" data-recommendation-score="{{ item.recommendation_score|default:'' }}" data-recommendation-algorithm="popularity">
-                    <div class="relative h-40 overflow-hidden">
+                    <div class="apd-rec-product-media">
                         {% if item.main_image %}
-                            {% optimized_image_url item.main_image 'product_card' as recommendation_image_url %}
-                            <img src="{{ recommendation_image_url }}" alt="{{ item.name }}" class="h-full w-full object-contain p-3 transition-transform duration-500 hover:scale-105" loading="lazy" decoding="async">
+                            {% optimized_image_url item.main_image 'product_detail' as recommendation_image_url %}
+                            <img
+                                src="{{ recommendation_image_url }}"
+                                data-fallback-src="{{ item.main_image.url }}"
+                                alt="{{ item.name }}"
+                                class="apd-rec-product-image"
+                                loading="lazy"
+                                decoding="async"
+                                width="600"
+                                height="600"
+                                onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}"
+                            >
                         {% else %}
                             <div class="w-full h-full bg-gray-100 flex items-center justify-center"><i class="fas fa-image text-4xl text-gray-400"></i></div>
                         {% endif %}
@@ -8194,11 +8587,21 @@
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {% for item in recently_viewed|slice:":12" %}
-            <a href="{{ item.get_absolute_url }}" class="ai-card bg-white rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300">
-                <div class="relative h-40 overflow-hidden">
+            <a href="{{ item.get_absolute_url }}" class="ai-card apd-rec-product-card">
+                <div class="apd-rec-product-media">
                     {% if item.main_image %}
-                        {% optimized_image_url item.main_image 'product_card' as recommendation_image_url %}
-                        <img src="{{ recommendation_image_url }}" alt="{{ item.name }}" class="h-full w-full object-contain p-3 transition-transform duration-500 hover:scale-105" loading="lazy" decoding="async">
+                        {% optimized_image_url item.main_image 'product_detail' as recommendation_image_url %}
+                        <img
+                            src="{{ recommendation_image_url }}"
+                            data-fallback-src="{{ item.main_image.url }}"
+                            alt="{{ item.name }}"
+                            class="apd-rec-product-image"
+                            loading="lazy"
+                            decoding="async"
+                            width="600"
+                            height="600"
+                            onerror="if(this.dataset.fallbackSrc&&this.src!==this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;}"
+                        >
                     {% else %}
                         <div class="w-full h-full bg-gray-100 flex items-center justify-center">
                             <i class="fas fa-image text-4xl text-gray-400"></i>
@@ -8257,7 +8660,65 @@
         ============================================================ -->
 
     {% if trusted_brands %}
-    <section
+    
+{% if commerce_videos %}
+<section class="mx-auto max-w-[1600px] px-4 py-8" id="seller-product-videos">
+  <div class="mb-5 flex items-end justify-between gap-4">
+    <div><h2 class="text-2xl font-black text-[#071A44]">Watch Products from Trusted Sellers</h2><p class="mt-1 text-sm text-slate-500">Short product videos from approved Arolana sellers. Rate the video separately from the product review.</p></div>
+  </div>
+  <div class="flex gap-5 overflow-x-auto pb-3 snap-x" style="scrollbar-width:none">
+    {% for video in commerce_videos %}
+    <article class="min-w-[82vw] sm:min-w-[46%] lg:min-w-[31%] snap-start overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <div class="aspect-video bg-black">
+        {% if video.is_local_video %}<video controls preload="metadata" class="h-full w-full object-cover" {% if video.thumbnail %}poster="{{ video.thumbnail.url }}"{% endif %}><source src="{{ video.local_video.url }}"></video>
+        {% elif video.get_embed_url %}<iframe src="{{ video.get_embed_url }}" class="h-full w-full" title="{{ video.title|default:video.product.name }}" allowfullscreen loading="lazy"></iframe>{% endif %}
+      </div>
+      <a href="{% url 'products:detail' video.product.slug %}" class="block p-4 hover:bg-slate-50">
+        <p class="text-xs font-bold uppercase tracking-wide text-orange-600">{{ video.vendor.store_name|default:'Arolana Seller' }}</p>
+        <h3 class="mt-1 line-clamp-2 font-black text-[#071A44]">{{ video.product.name }}</h3>
+        <div class="mt-2 flex items-center justify-between text-sm"><span class="font-bold text-amber-500">★ <span data-video-rating-average="{{ video.id }}">{{ video.average_rating|default:'0' }}</span> <span class="font-medium text-slate-400">(<span data-video-rating-count="{{ video.id }}">{{ video.rating_count }}</span>)</span></span><span class="font-black text-blue-600">View Product →</span></div>
+      </a>
+
+      <div class="border-t border-slate-100 px-4 py-3" data-video-rating-widget="{{ video.id }}">
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-xs font-bold text-slate-500">Rate this video</span>
+          <div class="flex items-center gap-1" role="group" aria-label="Rate this video">
+            {% for star in "12345" %}
+            <button
+              type="button"
+              class="video-commerce-rating-star text-xl leading-none text-slate-300 transition hover:scale-110 hover:text-amber-400"
+              data-video-id="{{ video.id }}"
+              data-rating="{{ star }}"
+              aria-label="{{ star }} star rating"
+              title="Rate {{ star }} star{{ star|pluralize }}"
+            >★</button>
+            {% endfor %}
+          </div>
+        </div>
+        <p class="mt-1 hidden text-xs font-semibold" data-video-rating-message="{{ video.id }}"></p>
+      </div>
+
+      <div class="border-t border-slate-100 px-4 py-3" data-video-comments-widget="{{ video.id }}">
+        <button type="button" class="flex w-full items-center justify-between gap-3 text-left" data-video-comments-toggle="{{ video.id }}">
+          <span class="text-xs font-black text-[#071A44]">Comments</span>
+          <span class="rounded-full bg-blue-50 px-2 py-1 text-xs font-black text-blue-700" data-video-comment-count="{{ video.id }}">{{ video.comment_count|default:0 }}</span>
+        </button>
+        <div class="mt-3 hidden" data-video-comments-panel="{{ video.id }}">
+          <div class="space-y-2" data-video-comments-list="{{ video.id }}"></div>
+          <div class="mt-3 flex gap-2">
+            <textarea rows="2" maxlength="1500" class="min-w-0 flex-1 resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-400" placeholder="Write a comment about this video..." aria-label="Comment on this product video" data-video-comment-input="{{ video.id }}"></textarea>
+            <button type="button" class="self-end rounded-xl bg-[#0066CC] px-4 py-2 text-xs font-black text-white" data-video-comment-submit="{{ video.id }}">Post</button>
+          </div>
+          <p class="mt-1 hidden text-xs font-semibold" data-video-comment-message="{{ video.id }}"></p>
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section
         class="apd-trusted-brands arolana-deferred-content"
         aria-labelledby="trusted-brands-title"
     >
@@ -8308,14 +8769,6 @@
                     {% endif %}
                 </div>
 
-                <div class="apd-trusted-brand-meta">
-                    <strong>{{ brand.name }}</strong>
-
-                    <small>
-                        {{ brand.approved_product_count }}
-                        approved product{{ brand.approved_product_count|pluralize }}
-                    </small>
-                </div>
             </a>
             {% endfor %}
         </div>
@@ -12121,6 +12574,758 @@
         document.addEventListener('DOMContentLoaded', bootArolanaFollowTabs, { once: true });
     } else {
         bootArolanaFollowTabs();
+    }
+})();
+</script>
+
+
+<script>
+/* ================================================================
+   AROLANA V19 — UNIVERSAL SINGLE-ROW RECOMMENDATION RAIL CONTROLLER
+   Applies to target recommendation shelves without removing existing
+   analytics/tracking attributes or product links.
+   ================================================================ */
+(function () {
+    'use strict';
+
+    var TARGET_TITLES = [
+        'customers who viewed this also viewed',
+        'you may also like',
+        'customers who bought this also bought',
+        'recently viewed',
+        'trusted brands on arolana'
+    ];
+
+    function normalize(value) {
+        return String(value || '')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .toLowerCase();
+    }
+
+    function isTargetHeading(text) {
+        var normalized = normalize(text);
+        if (!normalized) return false;
+
+        if (normalized === 'pick up where you left off') return false;
+
+        if (TARGET_TITLES.indexOf(normalized) !== -1) {
+            return true;
+        }
+
+        return normalized.indexOf('best sellers in ') === 0
+            || normalized === 'best sellers on arolana';
+    }
+
+    function childCountLooksLikeRail(track) {
+        if (!track) return false;
+        var children = Array.prototype.filter.call(track.children || [], function (child) {
+            return child.nodeType === 1;
+        });
+        return children.length >= 2;
+    }
+
+    function findTrackFromHeading(heading) {
+        var container = heading.closest(
+            'section, .arolana-deferred-content, .product-personalization-shelf, .product-learned-recommendations > *, div'
+        );
+
+        /* Walk upward only a few levels; recommendation partials vary. */
+        var level = container;
+        for (var depth = 0; depth < 5 && level; depth += 1, level = level.parentElement) {
+            var preferred = level.querySelector(
+                '.apd-trusted-brands-track, ' +
+                '.product-personalization-track, ' +
+                '[data-recommendation-track], ' +
+                '.recommendation-track, ' +
+                '.recommendations-track, ' +
+                '.product-grid, ' +
+                '.grid'
+            );
+
+            if (preferred && childCountLooksLikeRail(preferred)) {
+                return preferred;
+            }
+
+            /* Fallback: find a sibling/descendant after the heading that has cards. */
+            var descendants = level.querySelectorAll('div, ul');
+            for (var i = 0; i < descendants.length; i += 1) {
+                var candidate = descendants[i];
+                if (
+                    candidate.contains(heading) ||
+                    candidate.classList.contains('section-header') ||
+                    candidate.classList.contains('apd-trusted-brands-heading')
+                ) {
+                    continue;
+                }
+
+                if (childCountLooksLikeRail(candidate)) {
+                    var first = candidate.firstElementChild;
+                    if (
+                        first &&
+                        (
+                            first.matches('a, article, li, .ai-card, .product-card, .product-personalization-card, .apd-trusted-brand') ||
+                            first.querySelector('a[href*="/products/"], img')
+                        )
+                    ) {
+                        return candidate;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    function updateArrows(wrapper, track) {
+        var prev = wrapper.querySelector('.apd-one-row-rail-prev');
+        var next = wrapper.querySelector('.apd-one-row-rail-next');
+        if (!prev || !next) return;
+
+        var maxScroll = Math.max(0, track.scrollWidth - track.clientWidth);
+        prev.disabled = track.scrollLeft <= 4;
+        next.disabled = track.scrollLeft >= (maxScroll - 4);
+    }
+
+    function scrollAmount(track) {
+        var first = track.firstElementChild;
+        if (!first) return Math.max(240, track.clientWidth * .82);
+
+        var styles = window.getComputedStyle(track);
+        var gap = parseFloat(styles.columnGap || styles.gap || '16') || 16;
+        var cardWidth = first.getBoundingClientRect().width || 220;
+
+        /* Move approximately one visible page while keeping context. */
+        var visibleCards = Math.max(1, Math.floor(track.clientWidth / (cardWidth + gap)));
+        return Math.max(cardWidth + gap, (cardWidth + gap) * Math.max(1, visibleCards - 1));
+    }
+
+    function enhanceTrack(heading, track) {
+        if (!track || track.dataset.arolanaOneRowRailReady === '1') {
+            return;
+        }
+
+        track.dataset.arolanaOneRowRailReady = '1';
+        track.classList.add('apd-one-row-rail-track');
+
+        var wrapper = document.createElement('div');
+        wrapper.className = 'apd-one-row-rail';
+        if (track.classList.contains('apd-trusted-brands-track')) {
+            wrapper.classList.add('is-brand-rail');
+        }
+
+        var parent = track.parentNode;
+        parent.insertBefore(wrapper, track);
+
+        /* Dedicated clipping viewport: this is what prevents the 7th card
+           from peeking into view while still allowing the track itself to
+           scroll horizontally. */
+        var viewport = document.createElement('div');
+        viewport.className = 'apd-one-row-rail-viewport';
+        wrapper.appendChild(viewport);
+        viewport.appendChild(track);
+
+        var prev = document.createElement('button');
+        prev.type = 'button';
+        prev.className = 'apd-one-row-rail-arrow apd-one-row-rail-prev';
+        prev.setAttribute('aria-label', 'Previous items');
+        prev.innerHTML = '<i class="fas fa-chevron-left" aria-hidden="true"></i>';
+
+        var next = document.createElement('button');
+        next.type = 'button';
+        next.className = 'apd-one-row-rail-arrow apd-one-row-rail-next';
+        next.setAttribute('aria-label', 'Next items');
+        next.innerHTML = '<i class="fas fa-chevron-right" aria-hidden="true"></i>';
+
+        wrapper.appendChild(prev);
+        wrapper.appendChild(next);
+
+        prev.addEventListener('click', function () {
+            track.scrollBy({
+                left: -scrollAmount(track),
+                behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+            });
+        });
+
+        next.addEventListener('click', function () {
+            track.scrollBy({
+                left: scrollAmount(track),
+                behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+            });
+        });
+
+        var update = function () {
+            window.requestAnimationFrame(function () {
+                updateArrows(wrapper, track);
+            });
+        };
+
+        track.addEventListener('scroll', update, { passive: true });
+        window.addEventListener('resize', update, { passive: true });
+
+        if ('ResizeObserver' in window) {
+            var ro = new ResizeObserver(update);
+            ro.observe(track);
+        }
+
+        update();
+    }
+
+    function enhanceRecommendationRails() {
+        var headings = document.querySelectorAll('h1, h2, h3, h4');
+
+        headings.forEach(function (heading) {
+            if (heading.dataset.arolanaRailHeadingChecked === '1') {
+                return;
+            }
+
+            if (!isTargetHeading(heading.textContent)) {
+                return;
+            }
+
+            var track = findTrackFromHeading(heading);
+            if (track) {
+                enhanceTrack(heading, track);
+                heading.dataset.arolanaRailHeadingChecked = '1';
+            }
+        });
+    }
+
+    function start() {
+        /*
+         * Performance-safe recommendation initialization.
+         *
+         * Do not observe document.body. Product detail contains ads, chat,
+         * sticky UI, video commerce and other live widgets that mutate the
+         * DOM continuously. A body-wide observer can repeatedly rescan the
+         * entire page and freeze the browser.
+         */
+        var attempts = 0;
+        var maxAttempts = 6;
+
+        function initRailsOnce() {
+            attempts += 1;
+            enhanceRecommendationRails();
+
+            /* Allow delayed recommendation partials to arrive, then stop. */
+            if (attempts < maxAttempts) {
+                window.setTimeout(
+                    initRailsOnce,
+                    attempts <= 2 ? 250 : 700
+                );
+            }
+        }
+
+        initRailsOnce();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', start, { once: true });
+    } else {
+        start();
+    }
+})();
+</script>
+
+
+<script>
+(function () {
+    function setVideoRatingStars(videoId, rating) {
+        document
+            .querySelectorAll('[data-video-id="' + videoId + '"][data-rating]')
+            .forEach(function (button) {
+                var star = Number(button.getAttribute('data-rating') || 0);
+                button.classList.toggle('text-amber-400', star <= rating);
+                button.classList.toggle('text-slate-300', star > rating);
+            });
+    }
+
+    function setVideoRatingMessage(videoId, message, isError) {
+        var node = document.querySelector('[data-video-rating-message="' + videoId + '"]');
+        if (!node) return;
+        node.textContent = message || '';
+        node.classList.toggle('hidden', !message);
+        node.classList.toggle('text-red-600', Boolean(isError));
+        node.classList.toggle('text-emerald-600', !isError);
+    }
+
+    document.addEventListener('click', async function (event) {
+        var button = event.target.closest('.video-commerce-rating-star');
+        if (!button) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        var videoId = button.getAttribute('data-video-id');
+        var rating = Number(button.getAttribute('data-rating') || 0);
+        if (!videoId || rating < 1 || rating > 5) return;
+
+        button.disabled = true;
+        setVideoRatingMessage(videoId, 'Saving…', false);
+
+        try {
+            var response = await fetch(
+                '/products/mobile/product-videos/' + encodeURIComponent(videoId) + '/rate/',
+                {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ rating: rating })
+                }
+            );
+
+            var data = await response.json().catch(function () { return {}; });
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Could not save your video rating.');
+            }
+
+            setVideoRatingStars(videoId, Number(data.my_rating || rating));
+
+            var average = document.querySelector('[data-video-rating-average="' + videoId + '"]');
+            var count = document.querySelector('[data-video-rating-count="' + videoId + '"]');
+            if (average) average.textContent = Number(data.rating || 0).toFixed(1);
+            if (count) count.textContent = String(data.rating_count || 0);
+
+            setVideoRatingMessage(videoId, 'Your rating was saved.', false);
+        } catch (error) {
+            setVideoRatingMessage(
+                videoId,
+                error && error.message ? error.message : 'Sign in to rate this video.',
+                true
+            );
+        } finally {
+            button.disabled = false;
+        }
+    });
+})();
+</script>
+
+
+<script>
+(function () {
+    'use strict';
+
+    function esc(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function commentsMessage(videoId, text, isError) {
+        var el = document.querySelector(
+            '[data-video-comment-message="' + videoId + '"]'
+        );
+
+        if (!el) {
+            return;
+        }
+
+        el.textContent = text || '';
+        el.classList.toggle('hidden', !text);
+        el.classList.toggle('text-red-600', Boolean(isError));
+        el.classList.toggle('text-emerald-600', !isError);
+    }
+
+    function updateCommentCount(videoId, countValue) {
+        var count = document.querySelector(
+            '[data-video-comment-count="' + videoId + '"]'
+        );
+
+        if (!count) {
+            return;
+        }
+
+        var safeCount = Number(countValue || 0);
+
+        if (!Number.isFinite(safeCount) || safeCount < 0) {
+            safeCount = 0;
+        }
+
+        count.textContent = String(safeCount);
+    }
+
+    function renderComments(videoId, payload) {
+        var list = document.querySelector(
+            '[data-video-comments-list="' + videoId + '"]'
+        );
+
+        updateCommentCount(
+            videoId,
+            payload && payload.comment_count
+        );
+
+        if (!list) {
+            return;
+        }
+
+        var comments = (
+            payload &&
+            Array.isArray(payload.comments)
+        )
+            ? payload.comments
+            : [];
+
+        if (!comments.length) {
+            list.innerHTML =
+                '<p class="text-xs font-semibold text-slate-400">' +
+                    'No comments yet. Be the first to comment.' +
+                '</p>';
+            return;
+        }
+
+        list.innerHTML = comments
+            .slice(0, 8)
+            .map(function (comment) {
+                var rating = Number(comment.rating || 0);
+                var customerName = (
+                    comment.user &&
+                    comment.user.name
+                )
+                    ? comment.user.name
+                    : 'Arolana Customer';
+
+                return (
+                    '<div class="rounded-xl bg-slate-50 p-3">' +
+                        '<div class="flex items-center justify-between gap-2">' +
+                            '<strong class="text-xs text-[#071A44]">' +
+                                esc(customerName) +
+                            '</strong>' +
+                            (
+                                rating
+                                    ? '<span class="text-xs font-bold text-amber-500">' +
+                                        '★ ' + esc(rating) +
+                                      '</span>'
+                                    : ''
+                            ) +
+                        '</div>' +
+                        '<p class="mt-1 text-xs leading-5 text-slate-600">' +
+                            esc(comment.body) +
+                        '</p>' +
+                        (
+                            comment.is_edited
+                                ? '<span class="mt-1 block text-[10px] font-semibold text-slate-400">' +
+                                    'Edited' +
+                                  '</span>'
+                                : ''
+                        ) +
+                    '</div>'
+                );
+            })
+            .join('');
+    }
+
+    async function fetchComments(videoId) {
+        var response = await fetch(
+            '/products/mobile/product-videos/' +
+                encodeURIComponent(videoId) +
+                '/comments/',
+            {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            }
+        );
+
+        var data = await response
+            .json()
+            .catch(function () {
+                return {};
+            });
+
+        if (!response.ok || !data.success) {
+            throw new Error(
+                data.message ||
+                'Could not load comments.'
+            );
+        }
+
+        return data;
+    }
+
+    async function loadComments(videoId) {
+        var data = await fetchComments(videoId);
+
+        renderComments(
+            videoId,
+            data
+        );
+
+        return data;
+    }
+
+    async function preloadCommentCount(videoId) {
+        try {
+            var data = await fetchComments(videoId);
+
+            updateCommentCount(
+                videoId,
+                data.comment_count
+            );
+        } catch (error) {
+            /*
+             * Do not display an error during silent page-load count refresh.
+             * The user can still open Comments and retry normally.
+             */
+        }
+    }
+
+    function preloadAllCommentCounts() {
+        var toggles = document.querySelectorAll(
+            '[data-video-comments-toggle]'
+        );
+
+        toggles.forEach(function (toggle) {
+            var videoId = toggle.getAttribute(
+                'data-video-comments-toggle'
+            );
+
+            if (!videoId) {
+                return;
+            }
+
+            preloadCommentCount(videoId);
+        });
+    }
+
+    async function toggleComments(toggle) {
+        var videoId = toggle.getAttribute(
+            'data-video-comments-toggle'
+        );
+
+        var panel = document.querySelector(
+            '[data-video-comments-panel="' + videoId + '"]'
+        );
+
+        if (!videoId || !panel) {
+            return;
+        }
+
+        var opening = panel.classList.contains('hidden');
+
+        panel.classList.toggle('hidden');
+
+        if (!opening) {
+            return;
+        }
+
+        /*
+         * Refresh every time the customer opens the panel.
+         * This keeps comments/counts fresh without a heavy page observer.
+         */
+        try {
+            commentsMessage(
+                videoId,
+                '',
+                false
+            );
+
+            await loadComments(videoId);
+
+            panel.dataset.loaded = '1';
+        } catch (error) {
+            commentsMessage(
+                videoId,
+                error && error.message
+                    ? error.message
+                    : 'Could not load comments.',
+                true
+            );
+        }
+    }
+
+    async function submitComment(submit) {
+        var videoId = submit.getAttribute(
+            'data-video-comment-submit'
+        );
+
+        var input = document.querySelector(
+            '[data-video-comment-input="' + videoId + '"]'
+        );
+
+        var body = input
+            ? input.value.trim()
+            : '';
+
+        if (!videoId) {
+            return;
+        }
+
+        if (!body) {
+            commentsMessage(
+                videoId,
+                'Write a comment before posting.',
+                true
+            );
+            return;
+        }
+
+        submit.disabled = true;
+        submit.classList.add(
+            'opacity-60',
+            'cursor-not-allowed'
+        );
+
+        commentsMessage(
+            videoId,
+            'Saving…',
+            false
+        );
+
+        try {
+            var response = await fetch(
+                '/products/mobile/product-videos/' +
+                    encodeURIComponent(videoId) +
+                    '/comments/',
+                {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        body: body
+                    })
+                }
+            );
+
+            var data = await response
+                .json()
+                .catch(function () {
+                    return {};
+                });
+
+            if (!response.ok || !data.success) {
+                throw new Error(
+                    data.message ||
+                    'Could not post comment.'
+                );
+            }
+
+            /*
+             * Clear the composer immediately after a successful save.
+             * loadComments() intentionally does NOT repopulate it.
+             */
+            if (input) {
+                input.value = '';
+            }
+
+            updateCommentCount(
+                videoId,
+                data.comment_count
+            );
+
+            commentsMessage(
+                videoId,
+                data.message ||
+                'Comment saved.',
+                false
+            );
+
+            await loadComments(videoId);
+        } catch (error) {
+            commentsMessage(
+                videoId,
+                error && error.message
+                    ? error.message
+                    : 'Could not post comment.',
+                true
+            );
+        } finally {
+            submit.disabled = false;
+            submit.classList.remove(
+                'opacity-60',
+                'cursor-not-allowed'
+            );
+        }
+    }
+
+    document.addEventListener(
+        'click',
+        function (event) {
+            var toggle = event.target.closest(
+                '[data-video-comments-toggle]'
+            );
+
+            if (toggle) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                toggleComments(toggle);
+                return;
+            }
+
+            var submit = event.target.closest(
+                '[data-video-comment-submit]'
+            );
+
+            if (!submit) {
+                return;
+            }
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            submitComment(submit);
+        }
+    );
+
+    /*
+     * Press Ctrl/Cmd + Enter inside a comment box to post.
+     */
+    document.addEventListener(
+        'keydown',
+        function (event) {
+            var input = event.target.closest(
+                '[data-video-comment-input]'
+            );
+
+            if (
+                !input ||
+                event.key !== 'Enter' ||
+                !(event.ctrlKey || event.metaKey)
+            ) {
+                return;
+            }
+
+            event.preventDefault();
+
+            var videoId = input.getAttribute(
+                'data-video-comment-input'
+            );
+
+            var submit = document.querySelector(
+                '[data-video-comment-submit="' + videoId + '"]'
+            );
+
+            if (submit) {
+                submitComment(submit);
+            }
+        }
+    );
+
+    /*
+     * Fix initial "Comments 0" after refresh:
+     * silently ask the comments API for the real count as soon as the page is
+     * ready. No MutationObserver and no continuous polling.
+     */
+    if (document.readyState === 'loading') {
+        document.addEventListener(
+            'DOMContentLoaded',
+            preloadAllCommentCounts,
+            { once: true }
+        );
+    } else {
+        preloadAllCommentCounts();
     }
 })();
 </script>

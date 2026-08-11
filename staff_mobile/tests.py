@@ -8,7 +8,7 @@ from django.utils import timezone
 from accounts.models import User, UserOTP
 from installers.models import ServiceProviderProfile
 from notifications.models import Notification
-from products.models import Category, Product
+from products.models import Category, Product, ProductVideo, ProductVideoComment
 from staff_mobile.models import StaffMobileToken
 from vendors.models import VendorProfile
 
@@ -308,3 +308,147 @@ class VendorProductSubscriptionFlowTests(TestCase):
         product = Product.objects.get(name="Preserved Vendor Draft")
         self.assertEqual(product.approval_status, "draft")
         self.assertFalse(product.is_active)
+
+
+class StaffProductVideoApiTests(TestCase):
+    def setUp(self):
+        self.vendor_user = User.objects.create_user(
+            email="video-vendor@arolana.com",
+            username="video-vendor",
+            password="StrongPassword123!",
+            user_type="vendor",
+            email_verified=True,
+        )
+        self.vendor = VendorProfile.objects.create(
+            user=self.vendor_user,
+            store_name="Video Vendor",
+            store_slug="video-vendor",
+            description="Seller product video tests",
+            approval_status="approved",
+            is_verified=True,
+            is_active=True,
+            address_line_1="1 Video Way",
+            city="Ikeja",
+            state="Lagos",
+            country="Nigeria",
+            subscription_tier="pro",
+            subscription_active=True,
+            can_upload_video=True,
+        )
+        self.category = Category.objects.create(
+            name="Video Test Category",
+            slug="video-test-category",
+        )
+        self.product = Product.objects.create(
+            vendor=self.vendor_user,
+            category=self.category,
+            name="Video Test Product",
+            sku="VIDEO-TEST-1",
+            description="Approved product for seller videos.",
+            price=Decimal("100.00"),
+            stock_quantity=5,
+            approval_status="approved",
+            is_active=True,
+        )
+        self.vendor_session = StaffMobileToken.issue(
+            role="vendor",
+            user=self.vendor_user,
+        )
+
+        self.admin_user = User.objects.create_user(
+            email="video-admin@arolana.com",
+            username="video-admin",
+            password="StrongPassword123!",
+            is_staff=True,
+            user_type="admin",
+            email_verified=True,
+        )
+        self.admin_session = StaffMobileToken.issue(
+            role="admin",
+            user=self.admin_user,
+        )
+
+    @patch("staff_mobile.views.user_subscription_tier", return_value="pro")
+    @patch("staff_mobile.views.apply_vendor_subscription_benefits")
+    def test_vendor_can_submit_youtube_video_for_moderation(self, apply_benefits, _tier):
+        def keep_video_enabled(profile, tier):
+            profile.can_upload_video = True
+            profile.subscription_tier = "pro"
+            profile.save(update_fields=["can_upload_video", "subscription_tier", "updated_at"])
+
+        apply_benefits.side_effect = keep_video_enabled
+
+        response = self.client.post(
+            "/api/staff/vendor/product-videos/",
+            data={
+                "product_id": str(self.product.id),
+                "title": "Short seller demo",
+                "source": "youtube",
+                "youtube_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            },
+            HTTP_AUTHORIZATION=f"Bearer {self.vendor_session.token}",
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        payload = response.json()
+        self.assertTrue(payload["success"])
+        video = ProductVideo.objects.get(id=payload["video"]["id"])
+        self.assertEqual(video.vendor, self.vendor)
+        self.assertEqual(video.product, self.product)
+        self.assertEqual(video.moderation_status, "pending")
+
+    def test_admin_can_approve_vendor_video_with_staff_bearer_token(self):
+        video = ProductVideo.objects.create(
+            product=self.product,
+            vendor=self.vendor,
+            title="Pending demo",
+            source="youtube",
+            youtube_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            moderation_status="pending",
+        )
+
+        response = self.client.post(
+            f"/api/staff/admin/product-videos/{video.id}/approve/",
+            data=json.dumps({"moderation_note": "Approved for marketplace."}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.admin_session.token}",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        video.refresh_from_db()
+        self.assertEqual(video.moderation_status, "approved")
+        self.assertEqual(video.approved_by, self.admin_user)
+        self.assertIsNotNone(video.approved_at)
+
+    def test_admin_can_hide_video_comment(self):
+        video = ProductVideo.objects.create(
+            product=self.product,
+            vendor=self.vendor,
+            title="Approved demo",
+            source="youtube",
+            youtube_url="https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            moderation_status="approved",
+        )
+        customer = User.objects.create_user(
+            email="video-customer@arolana.com",
+            username="video-customer",
+            password="StrongPassword123!",
+            user_type="customer",
+        )
+        comment = ProductVideoComment.objects.create(
+            video=video,
+            user=customer,
+            body="Useful seller video.",
+        )
+
+        response = self.client.post(
+            f"/api/staff/admin/product-video-comments/{comment.id}/hide/",
+            data="{}",
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {self.admin_session.token}",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        comment.refresh_from_db()
+        self.assertFalse(comment.is_visible)
+        self.assertEqual(comment.moderated_by, self.admin_user)

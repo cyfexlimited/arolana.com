@@ -4977,6 +4977,77 @@ class ProductVideo(BaseModel):
         default=0,
     )
 
+    # Arolana vendor short-video commerce fields. Existing legacy videos can
+    # remain vendor-less, while vendor-submitted videos use moderation.
+    vendor = models.ForeignKey(
+        "vendors.VendorProfile",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="product_videos",
+    )
+
+    moderation_status = models.CharField(
+        max_length=20,
+        choices=(
+            ("pending", "Pending"),
+            ("approved", "Approved"),
+            ("rejected", "Rejected"),
+        ),
+        default="approved",
+        db_index=True,
+    )
+
+    moderation_note = models.TextField(
+        blank=True,
+    )
+
+    approved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="approved_product_videos",
+    )
+
+    approved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    duration_seconds = models.PositiveIntegerField(
+        default=0,
+    )
+
+    views_count = models.PositiveIntegerField(
+        default=0,
+    )
+
+    product_clicks = models.PositiveIntegerField(
+        default=0,
+    )
+
+    helpful_count = models.PositiveIntegerField(
+        default=0,
+    )
+
+    rating_sum = models.PositiveIntegerField(
+        default=0,
+    )
+
+    rating_count = models.PositiveIntegerField(
+        default=0,
+    )
+
+    @property
+    def average_rating(self):
+        if not self.rating_count:
+            return 0
+        return round(
+            self.rating_sum / self.rating_count,
+            1,
+        )
+
     class Meta:
         ordering = [
             "display_order",
@@ -5247,6 +5318,80 @@ class ProductReview(BaseModel):
             / total
             * 100
         ) if total > 0 else 0
+
+
+
+class ProductVideoRating(BaseModel):
+    """A customer's rating of a seller product video, separate from product reviews."""
+    video = models.ForeignKey(ProductVideo, on_delete=models.CASCADE, related_name="ratings")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="product_video_ratings")
+    rating = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    helpful = models.BooleanField(default=False)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["video", "user"], name="unique_product_video_rating_user")
+        ]
+
+    def __str__(self):
+        return f"{self.video_id} - {self.user_id} - {self.rating}★"
+
+
+class ProductVideoComment(BaseModel):
+    """One editable customer comment per seller product video."""
+
+    video = models.ForeignKey(
+        ProductVideo,
+        on_delete=models.CASCADE,
+        related_name="comments",
+    )
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="product_video_comments",
+    )
+
+    body = models.TextField(
+        max_length=1500,
+    )
+
+    is_visible = models.BooleanField(
+        default=True,
+        db_index=True,
+    )
+
+    is_edited = models.BooleanField(
+        default=False,
+    )
+
+    moderated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="moderated_product_video_comments",
+    )
+
+    moderated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["video", "user"],
+                name="unique_product_video_comment_user",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["video", "is_visible", "-created_at"]),
+        ]
+
+    def __str__(self):
+        return f"Video {self.video_id} comment by {self.user_id}"
 
 
 # =============================================================================

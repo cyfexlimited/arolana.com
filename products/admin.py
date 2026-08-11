@@ -9,7 +9,7 @@ from .models import (
     Category, Brand, Product, ProductImage, ProductVariant,
     ProductVariantImage, ProductVariantSpecification, VendorProductOffer, ProductCatalogRequest,
     ProductReview, RecentlyViewed,
-    Wishlist, ProductVideo, ReviewVideo, ProductQnA,
+    Wishlist, ProductVideo, ProductVideoRating, ProductVideoComment, ReviewVideo, ProductQnA,
     Accessory, AccessoryProduct, ManufacturerWarranty, ShippingInfo, ProductListingBanner,
     ProductArticleLink, CategoryArticleLink, ProductWholesaleTier, ProductDetailSection,
     ProductDetailFieldConfig, ProductVariantTypeConfig, ProductListLowerSection, ProductListTrustBenefit
@@ -353,7 +353,7 @@ class ProductVariantTypeConfigAdmin(admin.ModelAdmin):
 class ProductVideoInline(admin.TabularInline):
     model = ProductVideo
     extra = 1
-    fields = ['title', 'description', 'source', 'youtube_url', 'vimeo_url', 'local_video', 'thumbnail', 'is_main', 'display_order']
+    fields = ['title', 'description', 'source', 'youtube_url', 'vimeo_url', 'local_video', 'thumbnail', 'vendor', 'moderation_status', 'is_main', 'display_order']
 
 
 class ProductArticleLinkInline(admin.StackedInline):
@@ -2002,3 +2002,33 @@ class ProductListLowerSectionAdmin(admin.ModelAdmin):
 admin.site.site_header = "🛍️ Arolana Product Management"
 admin.site.site_title = "Arolana Products"
 admin.site.index_title = "Welcome to Arolana Product Dashboard"
+
+
+@admin.register(ProductVideoRating)
+class ProductVideoRatingAdmin(admin.ModelAdmin):
+    list_display = ("video", "user", "rating", "helpful", "created_at")
+    list_filter = ("rating", "helpful", "created_at")
+    search_fields = ("video__title", "video__product__name", "user__email")
+
+
+
+@admin.register(ProductVideoComment)
+class ProductVideoCommentAdmin(admin.ModelAdmin):
+    list_display = ("video", "user", "short_comment", "is_visible", "is_edited", "created_at")
+    list_filter = ("is_visible", "is_edited", "created_at")
+    search_fields = ("video__title", "video__product__name", "user__email", "body")
+    readonly_fields = ("created_at", "updated_at")
+    actions = ("make_visible", "hide_comments")
+
+    @admin.display(description="Comment")
+    def short_comment(self, obj):
+        text = (obj.body or "").strip()
+        return text[:80] + ("…" if len(text) > 80 else "")
+
+    @admin.action(description="Show selected comments")
+    def make_visible(self, request, queryset):
+        queryset.update(is_visible=True, moderated_by=request.user, moderated_at=timezone.now())
+
+    @admin.action(description="Hide selected comments")
+    def hide_comments(self, request, queryset):
+        queryset.update(is_visible=False, moderated_by=request.user, moderated_at=timezone.now())

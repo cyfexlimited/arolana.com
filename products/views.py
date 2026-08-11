@@ -48,7 +48,7 @@ from .models import (
     ProductImage, ProductVideo, ProductVariantImage, Brand, ProductListingBanner,
     ProductArticleLink, CategoryArticleLink, ProductWholesaleTier, ProductDetailSection,
     ProductDetailFieldConfig, ProductVariantTypeConfig, ManufacturerWarranty,
-    VendorProductOffer, ReviewVideo,
+    VendorProductOffer, ReviewVideo, ProductVideoRating, ProductVideoComment,
 )
 from accounts.models import User
 from currency.templatetags.currency_filters import currency as format_currency
@@ -60,13 +60,16 @@ from .review_stats import (
 )
 
 try:
-    from subscriptions.models import get_tier_limits, user_has_paid_subscription
+    from subscriptions.models import get_tier_limits, user_has_paid_subscription, user_subscription_limits
 except ImportError:
     def get_tier_limits(tier):
         return {}
 
     def user_has_paid_subscription(user):
         return False
+
+    def user_subscription_limits(user):
+        return {}
 
 # Note: Adjust import based on your actual orders app structure
 try:
@@ -1778,7 +1781,7 @@ def product_detail(request, slug):
                 "additional_videos",
                 queryset=(
                     ProductVideo.objects
-                    .filter(is_active=True)
+                    .filter(is_active=True, moderation_status="approved")
                     .order_by("display_order")
                 ),
                 to_attr="active_videos",
@@ -2747,6 +2750,37 @@ def product_detail(request, slug):
         suggested_service_providers = []
         real_projects_using_product = []
 
+    commerce_videos = list(
+        ProductVideo.objects.filter(
+            is_active=True,
+            moderation_status="approved",
+            product__is_active=True,
+            product__approval_status="approved",
+        )
+        .select_related(
+            "product",
+            "vendor",
+        )
+        .annotate(
+            comment_count=Count(
+                "comments",
+                filter=Q(
+                    comments__is_visible=True,
+                ),
+                distinct=True,
+            )
+        )
+        .exclude(
+            pk__in=[
+                v.pk
+                for v in videos
+            ]
+        )
+        .order_by(
+            "-created_at"
+        )[:12]
+    )
+
     context = {
         "product": product,
 
@@ -2815,6 +2849,7 @@ def product_detail(request, slug):
 
         "videos": videos,
         "product_videos": videos,
+        "commerce_videos": commerce_videos,
 
         # Both keys are provided for template compatibility.
         "visible_reviews": visible_reviews,
@@ -9262,13 +9297,60 @@ def mobile_product_detail_api(request, slug):
             "url": product.video_url or safe_url(getattr(product, "local_video", None)),
             "thumbnail": safe_url(getattr(product, "video_thumbnail", None)),
         })
-    for video in product.additional_videos.all():
+    for video in product.additional_videos.filter(is_active=True, moderation_status="approved"):
         videos.append({
             "title": video.title or "Product video",
             "description": getattr(video, "description", ""),
             "source": getattr(video, "source", ""),
             "url": getattr(video, "youtube_url", "") or getattr(video, "vimeo_url", "") or safe_url(getattr(video, "local_video", None)),
             "thumbnail": safe_url(getattr(video, "thumbnail", None)),
+        })
+
+    seller_video_queryset = list(
+        ProductVideo.objects.filter(
+            is_active=True,
+            moderation_status="approved",
+            product__is_active=True,
+            product__approval_status="approved",
+        )
+        .select_related("product", "vendor")
+        .exclude(product=product)
+        .order_by("-created_at")[:12]
+    )
+
+    seller_video_my_ratings = {}
+    seller_video_user = getattr(mobile_customer, "user", None) if mobile_customer else None
+    if seller_video_user and seller_video_queryset:
+        seller_video_my_ratings = {
+            row["video_id"]: row["rating"]
+            for row in ProductVideoRating.objects.filter(
+                user=seller_video_user,
+                video_id__in=[video.id for video in seller_video_queryset],
+            ).values("video_id", "rating")
+        }
+
+    seller_videos = []
+    for seller_video in seller_video_queryset:
+        seller_videos.append({
+            "id": seller_video.id,
+            "title": seller_video.title or seller_video.product.name,
+            "description": seller_video.description,
+            "source": seller_video.source,
+            "url": seller_video.youtube_url or seller_video.vimeo_url or safe_url(seller_video.local_video),
+            "thumbnail": safe_url(seller_video.thumbnail) or safe_url(seller_video.product.main_image),
+            "rating": seller_video.average_rating,
+            "rating_count": seller_video.rating_count,
+            "my_rating": int(seller_video_my_ratings.get(seller_video.id, 0) or 0),
+            "views_count": seller_video.views_count,
+            "helpful_count": seller_video.helpful_count,
+            "vendor_name": getattr(seller_video.vendor, "store_name", "") or getattr(seller_video.product.vendor, "username", "Seller"),
+            "product": {
+                "id": seller_video.product_id,
+                "name": seller_video.product.name,
+                "slug": seller_video.product.slug,
+                "price": str(seller_video.product.price),
+                "main_image": safe_url(seller_video.product.main_image),
+            },
         })
 
     shipping_info = getattr(product, "shipping_info", None)
@@ -9743,6 +9825,7 @@ def mobile_product_detail_api(request, slug):
         "gallery": gallery,
         "variants": variants,
         "videos": videos,
+        "seller_videos": seller_videos,
         "reviews": reviews,
         "questions": questions,
         "recommended_products": [
@@ -11074,3 +11157,476 @@ def brand_detail(request, slug):
         "products/brands/detail.html",
         context,
     )
+
+
+def _product_video_payload(video):
+    product = video.product
+    vendor = video.vendor
+    def media_url(field):
+        try:
+            return field.url if field else ""
+        except Exception:
+            return ""
+    return {
+        "id": video.id, "title": video.title or product.name, "description": video.description,
+        "source": video.source,
+        "url": video.youtube_url or video.vimeo_url or media_url(video.local_video),
+        "thumbnail": media_url(video.thumbnail) or media_url(product.main_image),
+        "moderation_status": video.moderation_status, "moderation_note": video.moderation_note,
+        "rating": video.average_rating, "rating_count": video.rating_count,
+        "views_count": video.views_count, "product_clicks": video.product_clicks,
+        "helpful_count": video.helpful_count,
+        "comment_count": ProductVideoComment.objects.filter(video=video, is_visible=True).count(),
+        "vendor_name": getattr(vendor, "store_name", "") if vendor else "",
+        "product": {"id": product.id, "name": product.name, "slug": product.slug, "price": str(product.price), "image": media_url(product.main_image)},
+    }
+
+@require_GET
+def mobile_product_video_feed_api(request):
+    videos = list(
+        ProductVideo.objects.filter(
+            is_active=True,
+            moderation_status="approved",
+            product__is_active=True,
+            product__approval_status="approved",
+        )
+        .select_related("product", "vendor")
+        .order_by("-created_at")[:30]
+    )
+
+    rating_user = _product_video_rating_user(request, request.GET)
+    my_ratings = {}
+    if rating_user and videos:
+        my_ratings = {
+            row["video_id"]: row["rating"]
+            for row in ProductVideoRating.objects.filter(
+                user=rating_user,
+                video_id__in=[video.id for video in videos],
+            ).values("video_id", "rating")
+        }
+
+    payload = []
+    for video in videos:
+        item = _product_video_payload(video)
+        item["my_rating"] = int(my_ratings.get(video.id, 0) or 0)
+        payload.append(item)
+
+    return JsonResponse({"success": True, "videos": payload})
+
+def _product_video_rating_user(request, payload=None):
+    """
+    Resolve the real Django user for video ratings.
+
+    Web customers use request.user. Customer-mobile Bearer authentication
+    resolves through the existing mobile customer bridge and then uses the
+    linked Django user. This keeps one rating identity across web and app.
+    """
+    request_user = getattr(request, "user", None)
+    if request_user is not None and getattr(request_user, "is_authenticated", False):
+        return request_user
+
+    if _auth_mobile_customer_from_request_data is None:
+        return None
+
+    try:
+        customer = _mobile_customer_from_payload(request, payload or {})
+    except Exception:
+        return None
+
+    user = getattr(customer, "user", None)
+    if user is not None and getattr(user, "is_active", True):
+        return user
+    return None
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def mobile_product_video_rate_api(request, video_id):
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse(
+            {"success": False, "message": "Invalid JSON payload."},
+            status=400,
+        )
+
+    try:
+        rating = int(payload.get("rating", 0))
+    except (TypeError, ValueError):
+        rating = 0
+
+    if rating not in range(1, 6):
+        return JsonResponse(
+            {"success": False, "message": "Rating must be from 1 to 5 stars."},
+            status=400,
+        )
+
+    rating_user = _product_video_rating_user(request, payload)
+    if rating_user is None:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "Sign in to rate seller product videos.",
+                "requires_login": True,
+            },
+            status=401,
+        )
+
+    video = get_object_or_404(
+        ProductVideo.objects.select_related("product"),
+        pk=video_id,
+        moderation_status="approved",
+        is_active=True,
+        product__is_active=True,
+        product__approval_status="approved",
+    )
+
+    user_rating, created = ProductVideoRating.objects.update_or_create(
+        video=video,
+        user=rating_user,
+        defaults={"rating": rating},
+    )
+
+    stats = video.ratings.aggregate(
+        total=Sum("rating"),
+        count=Count("id"),
+    )
+    rating_sum = int(stats["total"] or 0)
+    rating_count = int(stats["count"] or 0)
+
+    ProductVideo.objects.filter(pk=video.pk).update(
+        rating_sum=rating_sum,
+        rating_count=rating_count,
+    )
+    video.rating_sum = rating_sum
+    video.rating_count = rating_count
+
+    return JsonResponse(
+        {
+            "success": True,
+            "message": "Video rating saved.",
+            "rating": video.average_rating,
+            "rating_count": video.rating_count,
+            "my_rating": user_rating.rating,
+            "created": created,
+        }
+    )
+
+
+def _product_video_comment_payload(comment, request_user=None):
+    user = comment.user
+    full_name = ""
+    try:
+        full_name = (user.get_full_name() or "").strip()
+    except Exception:
+        full_name = ""
+    display_name = full_name or getattr(user, "username", "") or "Arolana Customer"
+
+    avatar = ""
+    try:
+        profile = getattr(user, "profile", None) or getattr(user, "userprofile", None)
+        image = getattr(profile, "profile_picture", None) or getattr(profile, "avatar", None)
+        avatar = image.url if image else ""
+    except Exception:
+        avatar = ""
+
+    video_rating = (
+        ProductVideoRating.objects.filter(video=comment.video, user=user)
+        .values_list("rating", flat=True)
+        .first()
+        or 0
+    )
+
+    return {
+        "id": comment.id,
+        "body": comment.body,
+        "is_edited": bool(comment.is_edited),
+        "is_visible": bool(comment.is_visible),
+        "created_at": comment.created_at.isoformat() if comment.created_at else "",
+        "updated_at": comment.updated_at.isoformat() if comment.updated_at else "",
+        "user": {
+            "id": user.id,
+            "name": display_name,
+            "avatar": avatar,
+        },
+        "rating": int(video_rating or 0),
+        "is_mine": bool(
+            request_user is not None
+            and getattr(request_user, "is_authenticated", False)
+            and request_user.id == user.id
+        ),
+    }
+
+
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+def mobile_product_video_comments_api(request, video_id):
+    payload = {}
+    if request.method == "POST":
+        try:
+            payload = json.loads(request.body.decode("utf-8") or "{}")
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return JsonResponse(
+                {"success": False, "message": "Invalid JSON payload."},
+                status=400,
+            )
+
+    request_user = _product_video_rating_user(request, payload if request.method == "POST" else request.GET)
+
+    video = get_object_or_404(
+        ProductVideo.objects.select_related("product"),
+        pk=video_id,
+        moderation_status="approved",
+        is_active=True,
+        product__is_active=True,
+        product__approval_status="approved",
+    )
+
+    if request.method == "GET":
+        comments = list(
+            ProductVideoComment.objects.filter(
+                video=video,
+                is_visible=True,
+            )
+            .select_related("user")
+            .order_by("-created_at")[:50]
+        )
+
+        my_comment = None
+        if request_user is not None and getattr(request_user, "is_authenticated", False):
+            mine = ProductVideoComment.objects.filter(
+                video=video,
+                user=request_user,
+            ).select_related("user").first()
+            if mine:
+                my_comment = _product_video_comment_payload(mine, request_user)
+
+        return JsonResponse({
+            "success": True,
+            "comment_count": ProductVideoComment.objects.filter(video=video, is_visible=True).count(),
+            "comments": [
+                _product_video_comment_payload(comment, request_user)
+                for comment in comments
+            ],
+            "my_comment": my_comment,
+        })
+
+    if request_user is None:
+        return JsonResponse(
+            {
+                "success": False,
+                "message": "Sign in to comment on seller product videos.",
+                "requires_login": True,
+            },
+            status=401,
+        )
+
+    body = str(payload.get("body") or "").strip()
+    if len(body) < 2:
+        return JsonResponse(
+            {"success": False, "message": "Write a comment before posting."},
+            status=400,
+        )
+    if len(body) > 1500:
+        return JsonResponse(
+            {"success": False, "message": "Comments can be up to 1,500 characters."},
+            status=400,
+        )
+
+    existing_comment = ProductVideoComment.objects.filter(
+        video=video,
+        user=request_user,
+    ).first()
+
+    if existing_comment:
+        existing_comment.body = body
+        existing_comment.is_visible = True
+        existing_comment.is_edited = True
+        existing_comment.moderated_by = None
+        existing_comment.moderated_at = None
+
+        existing_comment.save(
+            update_fields=[
+                "body",
+                "is_visible",
+                "is_edited",
+                "moderated_by",
+                "moderated_at",
+                "updated_at",
+            ]
+        )
+
+        comment = existing_comment
+        created = False
+
+    else:
+        comment = ProductVideoComment.objects.create(
+            video=video,
+            user=request_user,
+            body=body,
+            is_visible=True,
+            is_edited=False,
+        )
+
+        created = True
+
+
+    return JsonResponse({
+        "success": True,
+        "message": "Comment posted." if created else "Comment updated.",
+        "created": created,
+        "comment_count": ProductVideoComment.objects.filter(
+            video=video,
+            is_visible=True,
+        ).count(),
+        "comment": _product_video_comment_payload(
+            comment,
+            request_user,
+        ),
+    })
+
+
+@csrf_exempt
+@require_http_methods(["PATCH", "DELETE"])
+def mobile_product_video_comment_detail_api(request, comment_id):
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}") if request.body else {}
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        payload = {}
+
+    request_user = _product_video_rating_user(request, payload)
+    if request_user is None:
+        return JsonResponse(
+            {"success": False, "message": "Sign in to manage your comment.", "requires_login": True},
+            status=401,
+        )
+
+    comment = get_object_or_404(
+        ProductVideoComment.objects.select_related("video", "user"),
+        pk=comment_id,
+        user=request_user,
+    )
+
+    if request.method == "DELETE":
+        video_id = comment.video_id
+        comment.delete()
+        return JsonResponse({
+            "success": True,
+            "message": "Comment deleted.",
+            "comment_count": ProductVideoComment.objects.filter(video_id=video_id, is_visible=True).count(),
+        })
+
+    body = str(payload.get("body") or "").strip()
+    if len(body) < 2 or len(body) > 1500:
+        return JsonResponse(
+            {"success": False, "message": "Comment must be between 2 and 1,500 characters."},
+            status=400,
+        )
+
+    comment.body = body
+    comment.is_visible = True
+    comment.is_edited = True
+    comment.moderated_by = None
+    comment.moderated_at = None
+    comment.save(update_fields=[
+        "body", "is_visible", "is_edited",
+        "moderated_by", "moderated_at", "updated_at",
+    ])
+
+    return JsonResponse({
+        "success": True,
+        "message": "Comment updated.",
+        "comment": _product_video_comment_payload(comment, request_user),
+    })
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def admin_product_video_comment_action_api(request, comment_id, action):
+    if not getattr(request.user, "is_authenticated", False) or not (
+        getattr(request.user, "is_staff", False) or getattr(request.user, "is_superuser", False)
+    ):
+        return JsonResponse({"success": False, "message": "Admin access required."}, status=403)
+
+    comment = get_object_or_404(ProductVideoComment, pk=comment_id)
+
+    if action == "hide":
+        comment.is_visible = False
+    elif action == "show":
+        comment.is_visible = True
+    elif action == "delete":
+        comment.delete()
+        return JsonResponse({"success": True, "message": "Comment deleted."})
+    else:
+        return JsonResponse({"success": False, "message": "Unknown action."}, status=400)
+
+    comment.moderated_by = request.user
+    comment.moderated_at = timezone.now()
+    comment.save(update_fields=["is_visible", "moderated_by", "moderated_at", "updated_at"])
+    return JsonResponse({"success": True, "message": f"Comment {action}."})
+
+
+@require_http_methods(["POST"])
+def mobile_product_video_event_api(request, video_id, event):
+    video = get_object_or_404(ProductVideo, pk=video_id, moderation_status="approved", is_active=True)
+    if event == "view":
+        ProductVideo.objects.filter(pk=video.pk).update(views_count=F("views_count") + 1)
+    elif event == "product-click":
+        ProductVideo.objects.filter(pk=video.pk).update(product_clicks=F("product_clicks") + 1)
+    else:
+        return JsonResponse({"success": False, "message": "Unknown event."}, status=400)
+    return JsonResponse({"success": True})
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def vendor_product_videos_api(request):
+    profile = getattr(request.user, "vendor_profile", None)
+    if not profile or profile.approval_status != "approved":
+        return JsonResponse({"success": False, "message": "Approved vendor account required."}, status=403)
+    limits = user_subscription_limits(request.user)
+    if request.method == "GET":
+        qs = ProductVideo.objects.filter(vendor=profile).select_related("product").order_by("-created_at")
+        products = Product.objects.filter(vendor=request.user, is_active=True, approval_status="approved").values("id", "name", "slug")
+        videos_payload = []
+        for video in qs:
+            item = _product_video_payload(video)
+            item["recent_comments"] = [
+                _product_video_comment_payload(comment)
+                for comment in ProductVideoComment.objects.filter(video=video, is_visible=True)
+                .select_related("user")
+                .order_by("-created_at")[:5]
+            ]
+            videos_payload.append(item)
+        return JsonResponse({"success": True, "can_upload_video": bool(limits.get("can_upload_video")), "videos": videos_payload, "products": list(products)})
+    if not limits.get("can_upload_video"):
+        return JsonResponse({"success": False, "message": "Your current subscription does not include product video uploads. Upgrade to a video-enabled plan."}, status=403)
+    product_id = request.POST.get("product_id")
+    product = get_object_or_404(Product, pk=product_id, vendor=request.user, is_active=True, approval_status="approved")
+    upload = request.FILES.get("video")
+    if not upload:
+        return JsonResponse({"success": False, "message": "Choose a short video to upload."}, status=400)
+    if upload.size > 80 * 1024 * 1024:
+        return JsonResponse({"success": False, "message": "Video must be 80 MB or smaller."}, status=400)
+    video = ProductVideo.objects.create(product=product, vendor=profile, title=(request.POST.get("title") or product.name)[:200], description=request.POST.get("description", ""), source="local", local_video=upload, thumbnail=request.FILES.get("thumbnail"), moderation_status="pending", is_active=True)
+    return JsonResponse({"success": True, "message": "Video submitted for Arolana review.", "video": _product_video_payload(video)}, status=201)
+
+@staff_member_required
+@require_http_methods(["GET"])
+def admin_product_videos_api(request):
+    qs = ProductVideo.objects.filter(moderation_status="pending").select_related("product", "vendor").order_by("created_at")
+    return JsonResponse({"success": True, "videos": [_product_video_payload(v) for v in qs]})
+
+@staff_member_required
+@require_http_methods(["POST"])
+def admin_product_video_action_api(request, video_id, action):
+    video = get_object_or_404(ProductVideo, pk=video_id)
+    if action not in {"approve", "reject"}:
+        return JsonResponse({"success": False, "message": "Invalid moderation action."}, status=400)
+    try: payload = json.loads(request.body or "{}")
+    except Exception: payload = {}
+    video.moderation_status = "approved" if action == "approve" else "rejected"
+    video.moderation_note = str(payload.get("note", ""))[:2000]
+    video.approved_by = request.user if action == "approve" else None
+    video.approved_at = timezone.now() if action == "approve" else None
+    video.save(update_fields=["moderation_status", "moderation_note", "approved_by", "approved_at", "updated_at"])
+    return JsonResponse({"success": True, "video": _product_video_payload(video)})
