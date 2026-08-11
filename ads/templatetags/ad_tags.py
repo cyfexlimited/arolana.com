@@ -11,7 +11,14 @@ register = template.Library()
 
 
 @register.inclusion_tag('ads/ad_carousel.html', takes_context=True)
-def render_ad_carousel(context, placement, count=5, interval=5000, autoplay='true'):
+def render_ad_carousel(
+    context,
+    placement,
+    count=5,
+    interval=5000,
+    autoplay='true',
+    preferred_orientation='any',
+):
     """
     Render an ad carousel with multiple ads (creatives, banners, simple ads)
     
@@ -170,6 +177,11 @@ def render_ad_carousel(context, placement, count=5, interval=5000, autoplay='tru
         'placement': placement,
         'interval': int(interval),
         'autoplay': autoplay.lower() == 'true',
+        'preferred_orientation': (
+            preferred_orientation
+            if preferred_orientation in {'any', 'landscape', 'portrait'}
+            else 'any'
+        ),
         'count': len(all_ads),
         'user': request.user if request else None,
     }

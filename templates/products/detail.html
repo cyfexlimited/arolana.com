@@ -1943,10 +1943,10 @@
 
         #apd-sticky-gallery {
             position: sticky !important;
-            top: calc(var(--header-height, 135px) + 1rem) !important;
+            top: var(--apd-product-sticky-top, 1rem) !important;
             width: 100% !important;
             max-width: 100% !important;
-            max-height: calc(100vh - var(--header-height, 135px) - 2rem) !important;
+            max-height: calc(100vh - var(--apd-product-sticky-top, 1rem) - 1rem) !important;
             overflow: visible !important;
             margin: 0 !important;
             z-index: 25 !important;
@@ -3573,8 +3573,7 @@
                 }
 
                 .apd-overview-sidebar {
-                    position: sticky;
-                    top: 7rem;
+                    position: static;
                     display: grid;
                     gap: 1rem;
                     width: 100%;
@@ -3865,8 +3864,7 @@
     }
 
     .apd-detail-persistent-sidebar {
-        position: sticky;
-        top: calc(var(--header-height, 135px) + 1rem);
+        position: static;
         display: grid;
         gap: 1rem;
         width: 100%;
@@ -4201,7 +4199,8 @@
         min-height: 0 !important;
         max-height: 100% !important;
         margin: 0 !important;
-        object-fit: contain !important;
+        object-fit: cover !important;
+        object-position: var(--ad-position, center center) !important;
         background: #fff;
         transform: none !important;
     }
@@ -4211,6 +4210,18 @@
         font-size: 1rem !important;
         line-height: 1.25 !important;
         overflow-wrap: anywhere;
+    }
+
+    /* The outer card already labels the placement as Sponsored. Removing the
+       repeated inner badge keeps this narrow commerce rail compact. */
+    .apd-sponsored-body .ad-carousel-slide > div > .text-center > .inline-block {
+        display: none !important;
+    }
+
+    /* If no landscape creative exists, use a compact crop instead of
+       letterboxing a portrait asset into a wide field with empty gutters. */
+    .apd-sponsored-body .ad-carousel-container[data-orientation-fallback="portrait"] .ad-carousel-media {
+        aspect-ratio: 4 / 3 !important;
     }
 
     .apd-sponsored-body .ad-carousel-slide p {
@@ -5523,7 +5534,7 @@
 
         #apd-sticky-gallery {
             position: sticky !important;
-            top: calc(var(--header-height, 135px) + 1rem) !important;
+            top: var(--apd-product-sticky-top, 1rem) !important;
             align-self: start !important;
             height: fit-content !important;
             min-height: 0 !important;
@@ -5537,7 +5548,7 @@
 
         .apd-sponsored-sticky {
             position: sticky !important;
-            top: calc(var(--header-height, 135px) + 1rem) !important;
+            top: var(--apd-product-sticky-top, 1rem) !important;
             display: block !important;
             width: 100% !important;
             height: fit-content !important;
@@ -5607,6 +5618,20 @@
         min-width: 0 !important;
         transform: none !important;
         contain: none !important;
+    }
+
+    /* Product-only horizontal clipping keeps the two commerce rails eligible
+       for native sticky positioning without changing global header behavior. */
+    html:has(body.product-detail-full-width),
+    body.product-detail-full-width {
+        overflow-x: clip !important;
+        overflow-y: visible !important;
+    }
+
+    /* Product tabs remain in normal document flow. Only the gallery and
+       sponsored rail are permitted to follow the viewport. */
+    .apd-follow-tabs-portal {
+        display: none !important;
     }
 
     /* ============================================================
@@ -6257,6 +6282,13 @@
             max-width: calc((100% - 5rem) / 6) !important;
             min-width: calc((100% - 5rem) / 6) !important;
         }
+    }
+
+    /* Follow-scroll tabs are intentionally retired on product detail. The
+       only viewport-following product elements are the gallery and sponsor. */
+    .apd-follow-tabs-portal,
+    .apd-follow-tabs-portal.is-visible {
+        display: none !important;
     }
 
 </style>
@@ -7079,7 +7111,7 @@
                 </div>
 
                 <div class="apd-sponsored-body">
-                    {% render_ad_carousel 'sidebar' count=5 interval=5000 %}
+                    {% render_ad_carousel 'sidebar' count=5 interval=5000 preferred_orientation='landscape' %}
                 </div>
 
                 <div class="apd-sponsored-footer">
@@ -12226,7 +12258,16 @@
    transform rules cannot prevent it from following the viewport.
    ============================================================ */
 (function () {
+    function removeLegacyFollowTabs() {
+        document.querySelectorAll('.apd-follow-tabs-portal').forEach(function (portal) {
+            portal.remove();
+        });
+    }
+
     function bootArolanaFollowTabs() {
+        removeLegacyFollowTabs();
+        return;
+
         var original = document.querySelector('.apd-product-tab-nav');
         var tabsRoot = document.querySelector('.apd-tabs-clean');
         var tabColumn = original ? original.closest('.apd-detail-tab-column') : null;
@@ -12325,7 +12366,7 @@
             /* Wait for Alpine/x-show to swap the active panel before measuring. */
             window.requestAnimationFrame(function () {
                 window.setTimeout(function () {
-                    var fixedTop = siteHeaderBottom();
+                    var fixedTop = 0;
                     var floatingHeight = Math.ceil(portal.getBoundingClientRect().height || 0);
                     var rect = contentStart.getBoundingClientRect();
                     var destination = (window.scrollY || window.pageYOffset || 0)
@@ -12365,19 +12406,6 @@
             });
         }
 
-        function siteHeaderBottom() {
-            var bottom = 0;
-            var candidates = document.querySelectorAll('header, .site-header, #site-header, .sticky-header, .fixed-header');
-            candidates.forEach(function (el) {
-                var cs = window.getComputedStyle(el);
-                var rect = el.getBoundingClientRect();
-                if ((cs.position === 'fixed' || cs.position === 'sticky') && rect.bottom > 0 && rect.top <= 1) {
-                    bottom = Math.max(bottom, Math.round(rect.bottom));
-                }
-            });
-            return Math.max(0, bottom);
-        }
-
         var scheduled = false;
         function update() {
             scheduled = false;
@@ -12386,7 +12414,7 @@
             var rootRect = tabsRoot.getBoundingClientRect();
             var columnRect = tabColumn.getBoundingClientRect();
             var layoutRect = lowerLayout ? lowerLayout.getBoundingClientRect() : columnRect;
-            var top = siteHeaderBottom();
+            var top = 0;
             var portalHeight = Math.ceil(portal.getBoundingClientRect().height || originalRect.height || 1);
 
             /* Follow the viewport after the real tabs pass the top.
@@ -12461,6 +12489,7 @@
     } else {
         bootArolanaFollowTabs();
     }
+    window.addEventListener('pageshow', removeLegacyFollowTabs);
 })();
 </script>
 

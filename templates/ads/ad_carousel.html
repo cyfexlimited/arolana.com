@@ -2,7 +2,10 @@
 {% load media_optimization %}
 
 {% if ads %}
-<div class="ad-carousel-container relative" data-interval="{{ interval }}">
+<div class="ad-carousel-container relative"
+     data-interval="{{ interval }}"
+     data-autoplay="{% if autoplay %}true{% else %}false{% endif %}"
+     data-preferred-orientation="{{ preferred_orientation|default:'any' }}">
     <!-- Carousel wrapper -->
     <div class="ad-carousel overflow-hidden rounded-xl relative bg-gray-100">
         <div class="ad-carousel-track">
@@ -22,7 +25,7 @@
                         {% if ad.image %}
                         {% optimized_image_url ad.image 'ad_card' as ad_image_url %}
                         <div class="ad-carousel-media">
-                            <img src="{{ ad_image_url }}" alt="{{ ad.title }}" class="ad-carousel-image" loading="lazy">
+                            <img src="{{ ad_image_url }}" alt="{{ ad.title }}" class="ad-carousel-image" loading="{% if preferred_orientation == 'any' %}lazy{% else %}eager{% endif %}">
                         </div>
                         {% endif %}
                         <h3 class="text-2xl font-bold mb-3">{{ ad.title }}</h3>
@@ -52,7 +55,7 @@
                         {% if ad.image %}
                         {% optimized_image_url ad.image 'ad_card' as ad_image_url %}
                         <div class="ad-carousel-media">
-                            <img src="{{ ad_image_url }}" alt="{{ ad.title }}" class="ad-carousel-image" loading="lazy">
+                            <img src="{{ ad_image_url }}" alt="{{ ad.title }}" class="ad-carousel-image" loading="{% if preferred_orientation == 'any' %}lazy{% else %}eager{% endif %}">
                         </div>
                         {% endif %}
                         <h3 class="text-2xl font-bold mb-3">{{ ad.title }}</h3>
@@ -82,7 +85,7 @@
                         {% if ad.image %}
                         {% optimized_image_url ad.image 'ad_card' as ad_image_url %}
                         <div class="ad-carousel-media">
-                            <img src="{{ ad_image_url }}" alt="{{ ad.title }}" class="ad-carousel-image" loading="lazy">
+                            <img src="{{ ad_image_url }}" alt="{{ ad.title }}" class="ad-carousel-image" loading="{% if preferred_orientation == 'any' %}lazy{% else %}eager{% endif %}">
                         </div>
                         {% endif %}
                         <h3 class="text-2xl font-bold mb-3">{{ ad.title }}</h3>
@@ -135,14 +138,17 @@ document.addEventListener('DOMContentLoaded', function() {
         container.dataset.carouselInitialized = 'true';
 
         const track = container.querySelector('.ad-carousel-track');
-        const slides = container.querySelectorAll('.ad-carousel-slide');
-        const dots = container.querySelectorAll('.carousel-dot');
+        const allSlides = Array.from(container.querySelectorAll('.ad-carousel-slide'));
+        const dots = Array.from(container.querySelectorAll('.carousel-dot'));
         const prevBtn = container.querySelector('.carousel-prev');
         const nextBtn = container.querySelector('.carousel-next');
         const interval = parseInt(container.dataset.interval) || 5000;
+        const preferredOrientation = container.dataset.preferredOrientation || 'any';
+        const autoplay = container.dataset.autoplay !== 'false';
         
-        if (!slides.length) return;
+        if (!allSlides.length) return;
         
+        let slides = allSlides.slice();
         let currentIndex = 0;
         let autoPlayInterval;
         
@@ -152,16 +158,20 @@ document.addEventListener('DOMContentLoaded', function() {
                restored/cached width and could expose thin pieces of several
                creatives in production. */
             track.style.transform = 'none';
-            slides.forEach((slide, index) => {
-                const isActive = index === currentIndex;
+            const activeSlide = slides[currentIndex] || slides[0];
+            allSlides.forEach(slide => {
+                const isActive = slide === activeSlide;
                 slide.classList.toggle('is-active', isActive);
                 slide.hidden = !isActive;
                 slide.setAttribute('aria-hidden', isActive ? 'false' : 'true');
             });
             
             // Update dots
-            dots.forEach((dot, index) => {
-                if (index === currentIndex) {
+            dots.forEach(dot => {
+                const slide = allSlides[parseInt(dot.dataset.index, 10)];
+                const eligibleIndex = slides.indexOf(slide);
+                dot.hidden = eligibleIndex === -1;
+                if (eligibleIndex === currentIndex) {
                     dot.classList.remove('bg-gray-300', 'w-2');
                     dot.classList.add('bg-indigo-600', 'w-6');
                 } else {
@@ -186,6 +196,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         function startAutoPlay() {
             if (autoPlayInterval) clearInterval(autoPlayInterval);
+            if (!autoplay || slides.length < 2) return;
             autoPlayInterval = setInterval(nextSlide, interval);
         }
         
@@ -200,7 +211,10 @@ document.addEventListener('DOMContentLoaded', function() {
         
         dots.forEach(dot => {
             dot.addEventListener('click', function() {
-                currentIndex = parseInt(this.dataset.index);
+                const requestedSlide = allSlides[parseInt(this.dataset.index, 10)];
+                const eligibleIndex = slides.indexOf(requestedSlide);
+                if (eligibleIndex < 0) return;
+                currentIndex = eligibleIndex;
                 updateCarousel();
                 resetAutoPlay();
             });
@@ -215,11 +229,47 @@ document.addEventListener('DOMContentLoaded', function() {
             startAutoPlay();
         });
         
-        // Start auto-play
-        startAutoPlay();
-        
-        // Initial update
-        setTimeout(updateCarousel, 100);
+        function waitForImage(image) {
+            if (!image || (image.complete && image.naturalWidth > 0)) {
+                return Promise.resolve();
+            }
+            return new Promise(resolve => {
+                image.addEventListener('load', resolve, { once: true });
+                image.addEventListener('error', resolve, { once: true });
+            });
+        }
+
+        function initializeOrientation() {
+            if (preferredOrientation !== 'any') {
+                const preferredSlides = allSlides.filter(slide => {
+                    const image = slide.querySelector('.ad-carousel-image');
+                    if (!image || !image.naturalWidth || !image.naturalHeight) return false;
+                    return preferredOrientation === 'landscape'
+                        ? image.naturalWidth >= image.naturalHeight
+                        : image.naturalHeight > image.naturalWidth;
+                });
+
+                if (preferredSlides.length) {
+                    slides = preferredSlides;
+                } else {
+                    const firstImage = allSlides[0].querySelector('.ad-carousel-image');
+                    if (firstImage && firstImage.naturalHeight > firstImage.naturalWidth) {
+                        container.dataset.orientationFallback = 'portrait';
+                    }
+                }
+            }
+
+            currentIndex = 0;
+            container.dataset.orientationReady = 'true';
+            if (prevBtn) prevBtn.hidden = slides.length < 2;
+            if (nextBtn) nextBtn.hidden = slides.length < 2;
+            updateCarousel();
+            startAutoPlay();
+        }
+
+        Promise.all(
+            allSlides.map(slide => waitForImage(slide.querySelector('.ad-carousel-image')))
+        ).then(initializeOrientation);
     });
 });
 

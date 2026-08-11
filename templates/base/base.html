@@ -204,10 +204,7 @@
         body {
             width: 100%;
             max-width: 100%;
-            /* Unlike `hidden`, `clip` does not turn the root into a scroll
-               container, so the site's sticky header keeps its native
-               viewport relationship. */
-            overflow-x: clip !important;
+            overflow-x: hidden !important;
             scroll-behavior: auto;
         }
 
@@ -654,8 +651,10 @@
 
 
         .luxury-header {
-            position: sticky;
-            top: 0;
+            /* The global search/category header belongs to normal document
+               flow. Product-detail rails must never turn it into a follower. */
+            position: relative;
+            top: auto;
             z-index: 999;
             background: rgba(255, 255, 255, 0.96);
             backdrop-filter: blur(20px);
@@ -5328,21 +5327,17 @@ body.product-detail-full-width .arolana-ad-placeholder {
                 document.documentElement.style.setProperty('--header-height', height + 'px');
             }
 
-            function bindHeaderMetrics() {
+            function bindFloatingAds() {
+                if (!document.querySelector('[data-arolana-floating-ad]')) return;
                 syncHeaderHeight();
                 window.addEventListener('resize', syncHeaderHeight, { passive: true });
                 window.addEventListener('orientationchange', syncHeaderHeight);
-
-                const header = document.querySelector('.luxury-header');
-                if (header && 'ResizeObserver' in window) {
-                    new ResizeObserver(syncHeaderHeight).observe(header);
-                }
             }
 
             if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', bindHeaderMetrics);
+                document.addEventListener('DOMContentLoaded', bindFloatingAds);
             } else {
-                bindHeaderMetrics();
+                bindFloatingAds();
             }
         })();
     </script>
