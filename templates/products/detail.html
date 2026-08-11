@@ -1943,10 +1943,10 @@
 
         #apd-sticky-gallery {
             position: sticky !important;
-            top: 6.5rem !important;
+            top: calc(var(--header-height, 135px) + 1rem) !important;
             width: 100% !important;
             max-width: 100% !important;
-            max-height: calc(100vh - 7.5rem) !important;
+            max-height: calc(100vh - var(--header-height, 135px) - 2rem) !important;
             overflow: visible !important;
             margin: 0 !important;
             z-index: 25 !important;
@@ -3866,7 +3866,7 @@
 
     .apd-detail-persistent-sidebar {
         position: sticky;
-        top: 7rem;
+        top: calc(var(--header-height, 135px) + 1rem);
         display: grid;
         gap: 1rem;
         width: 100%;
@@ -4870,7 +4870,7 @@
     @media (max-width: 700px) {
         html, body {
             max-width: 100%;
-            overflow-x: hidden;
+            overflow-x: clip;
         }
 
         .apd-page {
@@ -5095,7 +5095,7 @@
         }
 
         .apd-sponsored-body .ad-carousel-image {
-            height: 165px !important;
+            height: auto !important;
             max-height: 165px !important;
             object-fit: contain !important;
         }
@@ -5510,7 +5510,7 @@
 
         #apd-sticky-gallery {
             position: sticky !important;
-            top: 6.5rem !important;
+            top: calc(var(--header-height, 135px) + 1rem) !important;
             align-self: start !important;
             height: fit-content !important;
             min-height: 0 !important;
@@ -5522,24 +5522,19 @@
             display: block !important;
         }
 
-        .apd-commerce-sticky {
+        .apd-sponsored-sticky {
             position: sticky !important;
-            top: 6.5rem !important;
-            display: grid !important;
-            gap: 1rem !important;
+            top: calc(var(--header-height, 135px) + 1rem) !important;
+            display: block !important;
             width: 100% !important;
             height: fit-content !important;
-            max-height: calc(100vh - 7.5rem) !important;
             min-height: 0 !important;
-            overflow-x: hidden !important;
-            overflow-y: auto !important;
-            overscroll-behavior: contain;
-            scrollbar-width: thin;
+            overflow: visible !important;
             contain: none !important;
             z-index: 20;
         }
 
-        .apd-commerce-sticky > .apd-sponsored-card {
+        .apd-sponsored-sticky > .apd-sponsored-card {
             position: static !important;
         }
     }
@@ -5563,19 +5558,16 @@
             grid-column: 1 / -1 !important;
         }
 
-        .apd-commerce-sticky {
+        .apd-sponsored-sticky {
             position: static !important;
-            display: grid !important;
-            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-            gap: 1rem !important;
+            display: block !important;
         }
     }
 
     @media (max-width: 1023px) {
-        .apd-commerce-sticky {
+        .apd-sponsored-sticky {
             position: static !important;
-            display: grid !important;
-            gap: 1rem !important;
+            display: block !important;
         }
     }
 
@@ -5602,15 +5594,6 @@
         min-width: 0 !important;
         transform: none !important;
         contain: none !important;
-    }
-
-    /* Root `overflow-x: hidden` computes the other axis to `auto` in
-       Chromium and creates a scrolling ancestor that disables nested sticky
-       positioning. `clip` hides horizontal spill without creating one. */
-    html:has(body.product-detail-full-width),
-    body.product-detail-full-width {
-        overflow-x: clip !important;
-        overflow-y: visible !important;
     }
 
     /* ============================================================
@@ -7033,7 +7016,6 @@
 
         <!-- Premium commerce sidebar: price summary + sponsored placement -->
         <aside class="apd-commerce-sidebar" aria-label="Product purchase summary and sponsored placement">
-          <div class="apd-commerce-sticky">
             <section class="apd-price-summary-card" aria-labelledby="apd-price-summary-title">
                 <h2 id="apd-price-summary-title">Price Summary</h2>
 
@@ -7069,6 +7051,7 @@
                 </div>
             </section>
 
+          <div class="apd-sponsored-sticky">
             <section class="apd-sponsored-card" aria-label="Sponsored advertisement">
                 <div class="apd-sponsored-head">
                     <div>

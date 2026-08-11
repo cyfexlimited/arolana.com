@@ -10,11 +10,11 @@
             <div class="ad-carousel-slide{% if forloop.first %} is-active{% endif %}" data-index="{{ forloop.counter0 }}"
                  {% if not forloop.first %}hidden{% endif %}
                  aria-hidden="{% if forloop.first %}false{% else %}true{% endif %}"
-                 style="--ad-frame-height: {{ ad.height|default:280 }}px; --ad-mobile-frame-height: {{ ad.mobile_height|default:220 }}px; --ad-fit: {{ ad.image_fit|default:'cover' }}; --ad-position: {{ ad.image_position|default:'center center' }}; --ad-mobile-fit: {{ ad.mobile_image_fit|default:'cover' }}; --ad-mobile-position: {{ ad.mobile_image_position|default:'center center' }};">
+                 style="--ad-position: {{ ad.image_position|default:'center center' }}; --ad-mobile-position: {{ ad.mobile_image_position|default:'center center' }};">
                 
                 <!-- CREATIVE AD (Most Advanced) -->
                 {% if ad.type == 'creative' %}
-                <div class="bg-gradient-to-br from-purple-600 via-pink-600 to-red-600 rounded-xl p-6 text-white min-h-[350px] flex flex-col justify-center shadow-xl">
+                <div class="ad-carousel-creative bg-gradient-to-br from-purple-600 via-pink-600 to-red-600 rounded-xl p-6 text-white flex flex-col justify-center shadow-xl">
                     <div class="text-center">
                         <div class="inline-block px-3 py-1 bg-white/20 rounded-full text-xs font-semibold mb-4">
                             <i class="fas fa-star text-yellow-400 mr-1"></i> Premium Creative
@@ -42,7 +42,7 @@
                 
                 <!-- BANNER AD -->
                 {% elif ad.type == 'banner' %}
-                <div class="bg-gradient-to-br from-blue-600 via-cyan-600 to-teal-600 rounded-xl p-6 text-white min-h-[350px] flex flex-col justify-center shadow-xl">
+                <div class="ad-carousel-creative bg-gradient-to-br from-blue-600 via-cyan-600 to-teal-600 rounded-xl p-6 text-white flex flex-col justify-center shadow-xl">
                     <div class="text-center">
                         <div class="inline-block px-3 py-1 bg-white/20 rounded-full text-xs font-semibold mb-4">
                             <i class="fas fa-chart-line mr-1"></i> Sponsored Banner
@@ -70,7 +70,7 @@
                 
                 <!-- SIMPLE ADVERTISEMENT -->
                 {% else %}
-                <div class="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-xl p-6 text-white min-h-[350px] flex flex-col justify-center shadow-xl">
+                <div class="ad-carousel-creative bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-xl p-6 text-white flex flex-col justify-center shadow-xl">
                     <div class="text-center">
                         <div class="inline-block px-3 py-1 bg-white/20 rounded-full text-xs font-semibold mb-4">
                             <i class="fas fa-ad mr-1"></i> Special Offer
@@ -260,31 +260,35 @@ function getCookie(name) {
     border-radius: 0.75rem;
 }
 
-.ad-carousel-slide > div {
-    min-height: var(--ad-frame-height, 280px) !important;
+.ad-carousel-creative {
+    min-height: 0;
 }
 
 .ad-carousel-image {
+    display: block;
     width: 100%;
-    height: min(260px, calc(var(--ad-frame-height, 280px) * 0.62));
-    max-height: none !important;
-    object-fit: var(--ad-fit, cover);
+    height: auto;
+    max-height: 260px;
+    object-fit: contain;
     object-position: var(--ad-position, center center);
 }
 
 .ad-carousel-track {
-    display: flex;
+    display: block;
     width: 100%;
-    min-width: 100%;
-    will-change: transform;
+    min-width: 0;
+    transform: none !important;
 }
 
 .ad-carousel-slide {
-    flex: 0 0 100%;
+    display: none;
     width: 100%;
-    min-width: 100%;
+    min-width: 0;
     max-width: 100%;
-    scroll-snap-align: start;
+}
+
+.ad-carousel-slide.is-active:not([hidden]) {
+    display: block;
 }
 
 .carousel-dot {
@@ -313,13 +317,10 @@ function getCookie(name) {
 }
 
 @media (max-width: 768px) {
-    .ad-carousel-slide > div {
-        min-height: var(--ad-mobile-frame-height, 220px) !important;
-    }
-
     .ad-carousel-image {
-        height: min(220px, calc(var(--ad-mobile-frame-height, 220px) * 0.68));
-        object-fit: var(--ad-mobile-fit, var(--ad-fit, cover));
+        height: auto;
+        max-height: 220px;
+        object-fit: contain;
         object-position: var(--ad-mobile-position, var(--ad-position, center center));
     }
 
