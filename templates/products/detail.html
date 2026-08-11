@@ -5562,6 +5562,67 @@
     }
 
     /* ============================================================
+       AROLANA PRODUCT DETAIL — PRODUCTION HERO GRID GUARD
+       The hero has up to three direct children: gallery, buybox,
+       and commerce sidebar. Do not let the Tailwind two-column
+       fallback collapse production desktop layouts.
+       ============================================================ */
+    .apd-hero-commerce-grid {
+        min-width: 0 !important;
+        width: 100% !important;
+    }
+
+    .apd-hero-commerce-grid > .apd-gallery-stage,
+    .apd-hero-commerce-grid > .space-y-6,
+    .apd-hero-commerce-grid > .apd-commerce-sidebar {
+        min-width: 0 !important;
+    }
+
+    @media (min-width: 1280px) {
+        .apd-hero-commerce-grid {
+            display: grid !important;
+            grid-template-columns:
+                minmax(420px, 0.95fr)
+                minmax(460px, 1.05fr)
+                minmax(320px, 0.64fr) !important;
+            align-items: stretch !important;
+            gap: clamp(1.75rem, 2vw, 2.5rem) !important;
+        }
+
+        .apd-hero-commerce-grid > .apd-gallery-stage {
+            grid-column: 1 !important;
+        }
+
+        .apd-hero-commerce-grid > .space-y-6 {
+            grid-column: 2 !important;
+        }
+
+        .apd-hero-commerce-grid > .apd-commerce-sidebar {
+            grid-column: 3 !important;
+        }
+    }
+
+    @media (min-width: 1024px) and (max-width: 1279px) {
+        .apd-hero-commerce-grid {
+            display: grid !important;
+            grid-template-columns: minmax(360px, 0.95fr) minmax(420px, 1.05fr) !important;
+            align-items: stretch !important;
+        }
+
+        .apd-hero-commerce-grid > .apd-gallery-stage {
+            grid-column: 1 !important;
+        }
+
+        .apd-hero-commerce-grid > .space-y-6 {
+            grid-column: 2 !important;
+        }
+
+        .apd-hero-commerce-grid > .apd-commerce-sidebar {
+            grid-column: 1 / -1 !important;
+        }
+    }
+
+    /* ============================================================
        AROLANA PRODUCT DETAIL — FOLLOW-SCROLL TAB NAV V17
        A body-level portal is used so no transformed/grid/overflow
        ancestor can stop the tab bar from following the viewport.
@@ -6267,7 +6328,7 @@
 </nav>
 
     <!-- Main Product Section with 3D Gallery -->
-    <div class="grid grid-cols-1 {% if product.show_top_gallery and gallery_images %}lg:grid-cols-2{% else %}lg:grid-cols-1{% endif %} gap-8 apd-hero-clean apd-hero-commerce-grid relative">
+    <div class="grid grid-cols-1 gap-8 apd-hero-clean apd-hero-commerce-grid relative">
         {% if product.show_top_gallery and gallery_images %}
         <!-- 3D Image Gallery -->
         <div class="apd-gallery-stage" id="apd-gallery-stage">
