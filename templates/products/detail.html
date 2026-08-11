@@ -6203,6 +6203,22 @@
 {% endblock %}
 
 {% block content %}
+
+<!-- ============================================================
+     AROLANA PRODUCT DETAIL — NORMAL NAVIGATION HARD RESET V6
+     Runs before the product layout is painted. Seller-video links and
+     browser history must never inherit the article split/reader state.
+     ============================================================ -->
+<script>
+(function () {
+    try {
+        document.documentElement.classList.remove('apd-article-side-open');
+        document.documentElement.style.removeProperty('overflow');
+        document.documentElement.style.removeProperty('width');
+        document.documentElement.style.removeProperty('max-width');
+    } catch (error) {}
+})();
+</script>
 <!-- Reading Progress Bar -->
 <div id="reading-progress" class="reading-progress"></div>
 
@@ -8673,7 +8689,9 @@
         {% if video.is_local_video %}<video controls preload="metadata" class="h-full w-full object-cover" {% if video.thumbnail %}poster="{{ video.thumbnail.url }}"{% endif %}><source src="{{ video.local_video.url }}"></video>
         {% elif video.get_embed_url %}<iframe src="{{ video.get_embed_url }}" class="h-full w-full" title="{{ video.title|default:video.product.name }}" allowfullscreen loading="lazy"></iframe>{% endif %}
       </div>
-      <a href="{% url 'products:detail' video.product.slug %}" class="block p-4 hover:bg-slate-50">
+      <a href="{% url 'products:detail' video.product.slug %}"
+        class="block p-4 hover:bg-slate-50"
+        data-commerce-product-link="true">
         <p class="text-xs font-bold uppercase tracking-wide text-orange-600">{{ video.vendor.store_name|default:'Arolana Seller' }}</p>
         <h3 class="mt-1 line-clamp-2 font-black text-[#071A44]">{{ video.product.name }}</h3>
         <div class="mt-2 flex items-center justify-between text-sm"><span class="font-bold text-amber-500">★ <span data-video-rating-average="{{ video.id }}">{{ video.average_rating|default:'0' }}</span> <span class="font-medium text-slate-400">(<span data-video-rating-count="{{ video.id }}">{{ video.rating_count }}</span>)</span></span><span class="font-black text-blue-600">View Product →</span></div>
@@ -8982,16 +9000,47 @@
        ============================================================ */
     function resetStaleProductArticleReader() {
         const modal = document.getElementById('product-article-modal');
+        const page = document.querySelector('.apd-page');
+        const tabs = document.querySelector('.apd-tabs-clean');
+        const hero = document.querySelector('.apd-hero-clean');
+        const gallery = document.getElementById('apd-sticky-gallery');
 
+        /*
+         * A normal product navigation must always begin full width.
+         * Remove every state that can survive browser history restoration
+         * or be left behind by the article side reader.
+         */
+        document.documentElement.classList.remove('apd-article-side-open');
         document.body.classList.remove('apd-article-side-open');
-        document.documentElement.style.overflow = '';
-        document.body.style.overflow = '';
 
-        if (!modal) return;
+        [document.documentElement, document.body].forEach(function (node) {
+            if (!node) return;
+            node.style.removeProperty('overflow');
+            node.style.removeProperty('width');
+            node.style.removeProperty('max-width');
+            node.style.removeProperty('min-width');
+            node.style.removeProperty('margin-left');
+            node.style.removeProperty('margin-right');
+            node.style.removeProperty('transform');
+        });
 
-        modal.classList.remove('is-open');
-        modal.classList.add('hidden');
-        modal.setAttribute('aria-hidden', 'true');
+        [page, tabs, hero, gallery].forEach(function (node) {
+            if (!node) return;
+            node.style.removeProperty('width');
+            node.style.removeProperty('max-width');
+            node.style.removeProperty('min-width');
+            node.style.removeProperty('margin-left');
+            node.style.removeProperty('margin-right');
+            node.style.removeProperty('left');
+            node.style.removeProperty('right');
+            node.style.removeProperty('transform');
+        });
+
+        if (modal) {
+            modal.classList.remove('is-open');
+            modal.classList.add('hidden');
+            modal.setAttribute('aria-hidden', 'true');
+        }
     }
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -9001,6 +9050,46 @@
     window.addEventListener('pageshow', function () {
         resetStaleProductArticleReader();
     });
+
+    /*
+     * Seller-video View Product navigation must behave like clicking a normal
+     * product card. Capture the click before any site-wide navigation handler
+     * can reuse the current document or preserve its temporary reader layout.
+     */
+    document.addEventListener('click', function (event) {
+        const link = event.target.closest('[data-commerce-product-link="true"]');
+        if (!link) return;
+
+        const href = link.getAttribute('href');
+        if (!href) return;
+
+        /* Preserve normal browser actions such as Cmd/Ctrl click/new tab. */
+        if (
+            event.defaultPrevented ||
+            event.button !== 0 ||
+            event.metaKey ||
+            event.ctrlKey ||
+            event.shiftKey ||
+            event.altKey
+        ) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        resetStaleProductArticleReader();
+
+        const destination = new URL(href, window.location.origin);
+        destination.searchParams.set('from', 'seller_video');
+
+        /*
+         * assign() performs a genuine document navigation and still keeps the
+         * current page in browser history. The query flag also prevents a
+         * stale same-document visual snapshot from being reused for this path.
+         */
+        window.location.assign(destination.toString());
+    }, true);
 
     function synchroniseProductArticleReaderState() {
         const modal = getEl('product-article-modal');
