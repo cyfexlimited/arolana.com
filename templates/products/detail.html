@@ -4059,6 +4059,42 @@
         box-sizing: border-box !important;
     }
 
+    /*
+     * Product detail inherits the base page's desktop ad-rail flex layout.
+     * Hiding the ad alone is not sufficient: the rail/main flex sizing can
+     * remain cached or be restored by the floating-ad script, making every
+     * `width: 100%` inside the product page resolve against a narrow column.
+     * Match the proven full-width product-list ancestor layout explicitly.
+     */
+    body.product-detail-full-width .site-main-wrap {
+        width: calc(100% - 20px) !important;
+        max-width: none !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    body.product-detail-full-width .arolana-content-rail {
+        display: block !important;
+        width: 100% !important;
+        max-width: none !important;
+        min-width: 0 !important;
+    }
+
+    body.product-detail-full-width .arolana-content-rail > main {
+        display: block !important;
+        width: 100% !important;
+        max-width: none !important;
+        min-width: 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        flex: none !important;
+    }
+
+    body.product-detail-full-width .arolana-following-ad,
+    body.product-detail-full-width .arolana-ad-placeholder {
+        display: none !important;
+    }
+
     @media (min-width: 1181px) {
         body.product-detail-full-width .apd-tabs-clean {
             width: 100% !important;
