@@ -4077,7 +4077,9 @@
         background: linear-gradient(145deg, #071A44 0%, #0b2d67 62%, #0066CC 100%);
         box-shadow: 0 22px 52px rgba(7, 26, 68, 0.20);
         backface-visibility: hidden;
-        contain: layout paint;
+        /* Layout containment interferes with sticky positioning and can also
+           freeze the carousel at its pre-grid width on restored pages. */
+        contain: none;
     }
 
     .apd-sponsored-head {
@@ -5489,6 +5491,37 @@
 
         .apd-hero-commerce-grid > .apd-commerce-sidebar {
             grid-column: 3 !important;
+        }
+
+        /* The long buy-box column defines the hero's scroll range. Keep the
+           two visual shopping aids in view while that column is scrolling. */
+        .apd-hero-commerce-grid > .apd-gallery-stage,
+        .apd-hero-commerce-grid > .apd-commerce-sidebar {
+            align-self: stretch !important;
+            overflow: visible !important;
+        }
+
+        #apd-sticky-gallery {
+            position: sticky !important;
+            top: 6.5rem !important;
+            align-self: start !important;
+            height: fit-content !important;
+            min-height: 0 !important;
+            contain: none !important;
+        }
+
+        .apd-commerce-sidebar {
+            position: relative !important;
+        }
+
+        .apd-commerce-sidebar > .apd-sponsored-card {
+            position: sticky !important;
+            top: 6.5rem !important;
+            align-self: start !important;
+            height: fit-content !important;
+            min-height: 0 !important;
+            contain: none !important;
+            z-index: 20;
         }
     }
 

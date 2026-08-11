@@ -143,8 +143,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (isTransitioning) return;
             isTransitioning = true;
             
-            const slideWidth = slides[0].clientWidth;
-            track.style.transform = `translateX(-${currentIndex * slideWidth}px)`;
+            /* Move by the carousel viewport, not a cached pixel measurement.
+               The product detail sidebar changes width while its desktop grid
+               settles (and after browser-history restoration). A stale pixel
+               width leaves production parked between slides. */
+            track.style.transform = `translate3d(-${currentIndex * 100}%, 0, 0)`;
             
             // Update dots
             dots.forEach((dot, index) => {
@@ -282,11 +285,16 @@ function getCookie(name) {
 
 .ad-carousel-track {
     display: flex;
+    width: 100%;
+    min-width: 100%;
     will-change: transform;
 }
 
 .ad-carousel-slide {
     flex: 0 0 100%;
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
     scroll-snap-align: start;
 }
 
